@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ <project_space label="OntologyOnDemand">
+
+   <object label="Category">
+     <!-- for classification of different categories -->
+     <scalar label="ID" type="CHAR(250)" />
+     <scalar label="name" type="CHAR(250)" /> 
+     <scalar label="description" type="TEXT" />
+     <scalar label="url" type="CHAR(250)" />
+     <scalar label="extendable" type="BOOLEAN"/>
+     <unique_index>
+       <attribute label="ID"/>
+     </unique_index>
+
+   </object>
+   
+   <object label="Entry">
+     <!-- entry for a category -->
+     <scalar label="ID" type="CHAR(250)" />
+     <scalar label="name" type="CHAR(250)" /> 
+     <scalar label="definition" type="TEXT" />
+     <scalar label="editable" type="BOOLEAN" />
+     <scalar label="user_entry" type="BOOLEAN" />
+     <object_ref label="category" type="OntologyOnDemand::Category" />
+     <object_ref label="requestedData" type="OntologyOnDemand::DataSet" />
+     <object_ref label="parent" type="OntologyOnDemand::Entry" />
+     <object_ref label="creator" type="WebServerBackend::User" />
+     <array>
+       <object_ref label="child" type="OntologyOnDemand::Entry" />
+     </array>
+     
+     <index>
+       <attribute label="category"/>
+     </index>
+
+     <unique_index>
+       <attribute label="ID"/>
+       <attribute label="name"/>
+     </unique_index>
+     
+   </object>
+   
+   
+   <object label="DataSet">
+     <!-- ... -->
+     <scalar label="ID" type="CHAR(250)" />
+     <scalar label="name" type="CHAR(250)" /> 
+    
+     
+     <index>
+       <attribute label="ID"/>
+     </index>
+     
+     <unique_index>
+       <attribute label="ID"/>
+       <attribute label="name"/>
+     </unique_index>
+     
+   </object>
+   
+   
+   
+   <object label="DataField">
+     <!-- ... -->
+     <scalar label="name" type="CHAR(250)" />
+     <scalar label="type" type="CHAR(250)" /> 
+     <object_ref label="dataSet" type="OntologyOnDemand::DataSet" />
+     <scalar label="position" type="CHAR(30)" />    <!-- e.g. 1.1 for row 1 , column 1 -->
+     
+     <index>
+       <attribute label="type"/>
+     </index>
+     <index>
+       <attribute label="name"/>
+     </index>
+     <index>
+       <attribute label="dataSet"/>
+     </index>
+     
+     <unique_index>
+       <attribute label="name"/>
+       <attribute label="type"/>
+       <attribute label="position"/>
+       <attribute label="dataSet"/>
+     </unique_index>
+     
+   </object>
+   
+   
+   
+ </project_space>
+ 

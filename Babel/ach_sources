@@ -1,0 +1,18 @@
+RefSeq	NCBI	Release 43	NCBI Reference Sequences Database	National Center for Biotechnology Information	protein	http://www.ncbi.nlm.nih.gov	http://www.ncbi.nlm.nih.gov/protein/
+GenBank	NCBI		NIH Genetic Sequence Database	National Center for Biotechnology Information	protein	http://www.ncbi.nlm.nih.gov	http://www.ncbi.nlm.nih.gov/protein/
+KEGG	KEGG	Release 56	Kyoto Encyclopedia of Genes and Genomes		protein	http://www.genome.jp/kegg	http://www.genome.jp/dbget-bin/www_bget?
+SwissProt	UniProt	Release 2010_10	Swiss-Prot UniProt Knowledgebase	UniProt Knowledgebase	protein	http://www.uniprot.org	http://www.uniprot.org/uniprot/
+TrEMBL	UniProt	Release 2010_10	TrEMBL UniProt Knowledgebase	UniProt Knowledgebase	protein	http://www.uniprot.org	http://www.uniprot.org/uniprot/
+IMG	JGI	3.3	Integrated Microbial Genomes at the Joint Genome Institute	Joint Genome Institute	protein	http://img.jgi.doe.gov	http://img.jgi.doe.gov/cgi-bin/w/main.cgi?section=GeneDetail&gene_oid=
+SEED	SEED		The SEED Project		protein	http://www.theseed.org	http://seed-viewer.theseed.org/seedviewer.cgi?page=Annotation&feature=
+PATRIC	VBI	August 2010	Pathosystems Resource Integration Center	Virginia Bioinformatics Institute	protein	http://patric.vbi.vt.edu	
+eggNOG	eggNOG	2.0	evolutionary genealogy of genes: Non-supervised Orthologous Groups		protein	http://eggnog.embl.de	
+GO	GO		Gene Ontology	Gene Ontology	ontology	http://www.geneontology.org	http://amigo.geneontology.org/cgi-bin/amigo/term_details?term=GO:
+KO	KEGG	Release 56	KEGG Orthology	Kyoto Encyclopedia of Genes and Genomes	ontology	http://www.genome.jp/kegg	http://www.genome.jp/dbget-bin/www_bget?ko:
+Subsystems	SEED		SEED Subsystems Annotation	The SEED Project	ontology	http://www.theseed.org	http://seed-viewer.theseed.org/seedviewer.cgi?page=Subsystems&subsystem=
+COG	eggNOG	2.0	eggNOG: Clusters of Orthologous Groups	evolutionary genealogy of genes: Non-supervised Orthologous Groups	ontology	http://eggnog.embl.de	http://www.ncbi.nlm.nih.gov/COG/grace/wiew.cgi?
+NOG	eggNOG	2.0	eggNOG: Non-supervised Orthologous Groups	evolutionary genealogy of genes: Non-supervised Orthologous Groups	ontology	http://eggnog.embl.de	
+RDP	RDP	10.22	Ribosomal Database Project		rna	http://rdp.cme.msu.edu	
+Greengenes	Greengenes		16S rRNA Gene Database		rna	http://greengenes.lbl.gov	
+SSU	SILVA	Release 104	SILVA Small Subunit rRNA Database	SILVA rRNA Database Project	rna	http://www.arb-silva.de	
+LSU	SILVA	Release 104	SILVA Large Subunit rRNA Database	SILVA rRNA database project	rna	http://www.arb-silva.de	

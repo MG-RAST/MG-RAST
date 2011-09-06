@@ -1,0 +1,353 @@
+#!/usr/bin/env python
+#
+# Uses configuration information to generate headers to be prepended onto
+# scripts.  For example, for Perl and Python scripts, we prepend the
+# location of the interpetter via the #! line and set paths.
+#
+# The actions of this script are determined by information in external
+# configuration files which are read and then used to emit the header.
+# We look for these in
+#    1. Base release                        $RTDIST/$RTCURRENT/ReleaseTools/
+#    2. Site configuration directory        $RTSITECONFIGDIR/
+#    3. Present sandbox/workdir             $PWD/ReleaseTools/
+#
+# Each level takes precedence over the preceding one, e.g., #2 trumps #1.
+#
+# In each of those directories, we look for a file called RTConfig in
+# which one or more of the following lines may be present:
+#
+# (see also configParams array below)
+#
+# RTENV=path to env.  If absent, /usr/bin/env is used
+# RTPYTHON='path of python interpreter'
+# RTPERL='path of perl interpreter'
+#
+# These are put between thisRel:baseRel and existing pythonpath:
+#
+# RTPYTHONPATH='colon separated python path'
+# RTPERL5LIB='colon separated perl path'
+#
+# These are aditional imports  or use statements
+# 
+# RTPYTHONIMPORTS='colon separated list of python stuff to force import of'
+# RTPERLIMPORTS='colon separated list of perl stuff to force import of'
+#
+########################################################################
+# BUGS:
+#   o
+#
+# History:
+#   29 apr 05 efrank  First version
+#
+########################################################################
+
+import os
+import sys
+
+# These are the only allowed keywords in the config file:
+
+configParms =  ["RTENV", "RTPYTHON", "RTPERL", "RTPYTHONPATH", "RTPERL5LIB",
+                "RTPYTHONIMPORTS", "RTPERLIMPORTS", "RTSETENV" ]
+configParmsMultipleValues = ["RTSETENV"]
+
+#------------------------------------------------------------
+def warn(msg, die=0):
+#------------------------------------------------------------
+   if die:
+      print "Fatal Error: %s" % msg
+      sys.exit(1)
+   else:
+      print "Warning: %s" % msg
+
+   return
+
+#------------------------------------------------------------
+def getInfo(path, fname):
+#------------------------------------------------------------
+   """
+   @type path: string
+   @rtype:  dictionary mapping var names to values
+   """
+
+   global configParms
+
+   d={}
+   if path==None: return d
+
+   fullpath = os.path.join(path, fname)
+
+   try:
+      f=file( fullpath, "r" )
+   except Exception, e:
+      warn("No config file %s" % fullpath )
+      return d
+
+   line = f.readline()
+   while (line):
+      line = line[:-1].strip()
+      if (( not line=="") and (not line[0]=="#" )):
+         toks = line.split('=', 1)
+         if (not len(toks) == 2):
+            warn("Format error in %s: %s" % (fullpath, line), die=1)
+         (name, val) = toks
+         if (not name in configParms):
+            warn("Unknown config param in %s: %s" % (fullpath, name))
+         elif name in configParmsMultipleValues:
+            if not d.has_key(name):
+               d[name] = []
+            d[name].append(val)
+         else:
+            d[name] = val
+      #
+      line = f.readline()
+   
+   return d
+
+#------------------------------------------------------------
+def supercede(baseInfo, siteInfo, thisRelInfo):
+#------------------------------------------------------------
+   """
+   Apply precedence rules
+   """
+  
+   global configParms
+
+   result={}
+
+   # make sure there's something for each.  simplifies code
+   # downstream.
+
+   for k in configParms:
+      result[k] = ""
+
+   #precendence order is current beats site beats base
+   for d in [baseInfo, siteInfo, thisRelInfo]:
+      for k in configParms:
+         if d.has_key(k): result[k] = d[k]
+
+   return result
+
+
+#------------------------------------------------------------
+def audit( finalParms ):
+#------------------------------------------------------------
+   """
+   @type finalParms: dict
+   @rtype: bool/int  true for all ok
+   """
+
+   result = 1
+
+   if (finalParms["RTENV"] == ""):
+      finalParms["RTENV"] = "/usr/bin/env"
+
+   if (finalParms["RTPYTHON"] == ""):
+      warn("RTPYTHON not set in config file")
+      result = 0
+
+   if (finalParms["RTPERL"] == ""):
+      warn("RTPERL not set in config file")
+      result = 0
+
+   return result
+
+#------------------------------------------------------------
+def makePerl5LibPath(params):
+#------------------------------------------------------------
+   """
+   Need perl5lib in a couple places, so encapsulate its definition.
+   """
+
+   s = "%(THISRELLIB)s:%(THISRELLIB)s/FigKernelPackages:%(THISRELLIB)s/WebApplication:%(THISRELLIB)s/WebApplication/WebComponent:%(THISRELLIB)s/FortyEight:%(THISRELLIB)s/PPO:%(THISRELLIB)s/RAST:%(THISRELLIB)s/MGRAST:%(THISRELLIB)s/RNASEQRAST:%(THISRELLIB)s/SeedViewer:%(THISRELLIB)s/ModelSEED:%(BASERELLIB)s:%(BASERELLIB)s/FigKernelPackages:%(RTPERL5LIB)s" % params
+
+   return s
+
+#------------------------------------------------------------
+def emitPython( params, filename ):
+#------------------------------------------------------------
+
+   hdr =  """#!%(RTENV)s %(RTPYTHON)s
+
+import sys, os
+
+#Precedence order for python: workdir beats baserel beats extra stuff"
+
+""" % params
+
+   #take care: insert pushes to first on list, but colon separated
+   # list is in order of precedence...gets confusing but have to
+   # reverse the order, that's why not s += foo but s = foo + s belowb.
+
+   s=""
+   for p in params["RTPYTHONPATH"].split(":"):
+      if p=="": continue
+      s = "sys.path.insert(0,'%s')\n" % p + s
+
+   hdr += s
+
+   hdr += """
+sys.path.insert(0,"%(BASERELLIB)s")
+sys.path.insert(0,"%(THISRELLIB)s" )
+""" % params
+
+
+   hdr += """
+if os.getenv("PERL5LIB", "") != "":
+   _delim = ":"
+else:
+   _delim = ""
+
+os.environ["PERL5LIB"]="%s"  +  _delim + os.getenv("PERL5LIB", "")
+""" % makePerl5LibPath( params)
+
+   for x in params["RTPYTHONIMPORTS"].split(":"):
+      hdr += "import %s\n" % x
+
+   #
+   # Write additional environment variables.
+   #
+
+   if params.has_key("RTSETENV"):
+      for env in params['RTSETENV']:
+         k, v = env.split("=",  1)
+         hdr += """os.environ["%s"] = "%s"\n""" % (k, v)
+
+ 
+   hdr += "# end of tool_hdr_py \n"
+   hdr += "#"*72
+   hdr += "\n"
+
+   try:
+      f=file(filename, 'w')
+      f.write( hdr )
+      f.close()
+   except:
+      warn( "Could not write python tool header %s" % (filename), die=1)
+
+   return
+
+#------------------------------------------------------------
+def emitPerl( params, filename ):
+#------------------------------------------------------------
+
+   #
+   # If we are using run_perl as the perl interpreter, we prepand
+   # the perl path items instead of hard-setting hte path.
+
+   myparams = params.copy()
+
+   if params['RTPERL'].endswith('/run_perl'):
+	myparams['init'] = 'unshift @INC, qw('
+   else:
+   	myparams['init'] = '@INC = qw('
+
+   hdr =  """#!%(RTENV)s %(RTPERL)s
+
+BEGIN {
+    %(init)s
+""" % myparams
+
+
+   for p in makePerl5LibPath( params).split(":"):
+      hdr += "              %s\n" % p
+
+
+   hdr += """ 
+);
+}
+use Data::Dumper;
+use Carp;
+"""
+
+   for x in params["RTPERLIMPORTS"].split(":"):
+      hdr += "use %s;\n" % x
+ 
+   #
+   # Write additional environment variables.
+   #
+
+   if params.has_key("RTSETENV"):
+      for env in params['RTSETENV']:
+         k, v = env.split("=",  1)
+         hdr += """$ENV{'%s'} = "%s";\n""" % (k, v)
+
+   hdr += "# end of tool_hdr\n"
+   hdr += "#"*72
+   hdr += "\n"
+
+   try:
+      f=file(filename, 'w')
+      f.write( hdr )
+      f.close()
+   except:
+      warn( "Could not write perl tool header", die=1)
+
+   return
+
+#------------------------------------------------------------
+def main():
+#------------------------------------------------------------
+   if (not len(sys.argv) == 2):
+      print "usage: makeScriptHeaders releaseDirPath"
+      sys.exit(1)
+
+   thisrel         = sys.argv[1]
+   rtdist          = os.getenv("RTDIST")
+   rtarch          = os.getenv("RTARCH")
+   rtcurrent       = os.getenv("RTCURRENT")
+   rtsiteconfigdir = os.getenv("RTSITECONFIGDIR")
+
+   if (None==rtdist): warn("RTDIST not set", die=1)
+   if (None==rtarch): warn("RTARC not set", die=1)
+   if (None==rtcurrent): warn("RTCURRENT not set", die=1)
+   #it is not an error for RtSiteconfigDir to be unset
+
+   #
+   # However, during the transition from pre-RTConfig to post-RTConfig in the SEED,
+   # we check for the existence of an RTConfig in RTROOT/config. If it's there,
+   # RTROOT/config is set as the site config dir.
+   #
+
+   if rtsiteconfigdir is None:
+      rtroot = os.getenv("RTROOT")
+      if rtroot is not None:
+         otherPath = os.path.join(rtroot, "config", "RTConfig")
+         if os.path.isfile(otherPath):
+            rtsiteconfigdir = os.path.join(rtroot, "config")
+
+   baserel = os.path.join(rtdist, rtcurrent)
+
+   baseInfo    = {}
+   thisRelInfo = {}
+   siteInfo    = getInfo( rtsiteconfigdir,  "RTConfig")
+
+   #let different sources of info duke it out:
+   finalParms = supercede(baseInfo, siteInfo, thisRelInfo)
+
+   perl_hdr = os.path.join(thisrel, rtarch, "tool_hdr")
+   python_hdr = os.path.join(thisrel, rtarch, "tool_hdr_py")
+
+   #make sure no goofiness
+   if not  audit( finalParms ):
+      #
+      # If the header files we are generating are already there,
+      # warn and exit with exit status 0 so a make will continue.
+      #
+
+      if os.path.isfile(perl_hdr) and os.path.isfile(python_hdr):
+         warn("Value errors in config data, but output files already exist. Not failing.", die=0)
+         sys.exit(0)
+      else:
+         warn("Value errors in config data", die=1)
+
+   #slip in a few extras that make coding emitters easier
+   finalParms["BASERELLIB"] = "%s" % os.path.join(baserel, rtarch, "lib")  #not really right !!!
+   finalParms["THISRELLIB"] = "%s" % os.path.join(thisrel, rtarch, "lib")
+
+   emitPython(finalParms, python_hdr)
+   emitPerl(finalParms, perl_hdr)
+
+   return
+
+if (__name__ == "__main__"):
+   main()

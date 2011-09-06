@@ -1,0 +1,128 @@
+
+=================
+Quick Users Guide
+=================
+
+Introduction
+=================
+
+
+The ReleaseTools package provides tools for creating releases, importing
+releases from other machines, and for making sandboxes for development
+in.  These concepts are expanded below, then the tools are listed and
+described.
+
+ReleaseTools supports a development process in which development is
+done relative to a "release."  A release is simply a set of packages
+that have been tested to work together. When you define a release, you
+provide a list of package names and the CVS tag name for each that is
+to be used. The release-creating tool, newrel, will check those packages
+out for you into the release-install area and tune the directory
+structure.
+
+The work cycle looks like:
+   o make a work directory.  put packages in there from CVS.
+   o develop.
+   o note, you may have more than one work directory, there are likely
+     many developers, and they can be on multiple machines.
+   o at some point, the group decides they want to sync and test as
+     a system and "publish" a new release.  then
+       - the group produces a set of packages and tag names for the release
+       - someone does a newrel to define teh new release and to get
+         it installed onto the release area of some machine.
+       - people do importrel to import the release onto their machines.
+         (importrel isn't client-server.  any two peers can do it.)
+
+
+Terminology/Definitions
+=======================
+
+Configuration:
+   RTROOT	Points to base of installation
+   RTARCH       Architecture name, e.g., "mac" or "linux-posgres"
+   RTCURRENT    Name of release you want to work on when you login. (can
+                change later. 
+
+Release Area:
+   Where releases are installed.  It is  $RTROOT/dist/releases
+
+Release Name:
+   A name like 1.2.3
+   You can have as many releases as you want installed into 
+   $RTROOT/dist/releases
+
+Work directory:
+   A sandbox where you do development.  You create it with the command
+   mkworkdir.  A sandbox knows a base release that you are developing
+   against.
+
+Recipes
+=======
+
+1. Getting user readyd for the first time.
+   
+   Set a few environment variables at login time.
+
+	RTROOT=/home/fig/FIGdisk; export RTROOT
+	RTARCH=linux-postgres; export RTARCH
+	RTCURRENT=1.2.3; export RTCURRENT
+
+	PATH=${PATH}:${RTROOT}/dist/releases/${RTCURRENT}/bin/${RTARCH}
+
+    That should be it, but at the moment we have some other stuff.  There
+    might be a source of a config from the release soon.
+
+2. If you have a release already on your machine and want to develop against
+   it
+
+   cd someplace where you want to work.  suppose the base release is 1.2.3.
+   Give the commands,
+	cd someplace
+	mkworkdir -r 1.2.3 myNewSandboxName
+	cd myNewSandboxName
+
+3. How to put packages in there without haviong to know all the tags.
+	cd mySandbox
+	getPackage  <thePackageName>
+
+   If you want to know all the packages in the release
+	getPackage -l
+
+   If you want them ALL checked out from cvs
+	getPackage -a
+
+4. How to import a new release
+	
+   Make sure you can write to $RTOOT/dist/releases.  Suppose the release
+   you want to import is called 5.6.7 on host  thatPlace.gov
+
+   importrel -r 5.6.7 -h thatPlace.gov
+
+   Now you could do mkworkdir -r 5.6.7 myNewworkdir
+
+5. How to make a new release
+
+   Make sure you can write to $RTOOT/dist/releases. Create a file of
+   the form below that lists all the packages and their tags that you
+   want to have in the release:
+
+ReleaseTools V00-00-05
+FigCommon V00-00-01
+FigKernelPackages V00-00-02
+FigKernelScripts V00-00-01
+FigPeer2PeerTools V00-00-00
+FigWebPages V00-00-00
+FigWebServices V00-00-02
+
+    Suppose this file is called newReleaseDef.  Suppose you want to creatae
+    a release called 6.7.8.  Give the command
+ 
+    newrel  6.7.8 -f newReleaseDef
+
+    You can now run importrel on other peers to get release 6.7.8
+
+    NOTE:  newrel does not BUILD the release (compile it).  You have to 
+    do a make.
+
+6. 
+   

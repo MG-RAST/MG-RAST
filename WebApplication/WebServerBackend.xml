@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project_space label="WebServerBackend">
+
+  <!-- Every application managed by the WebApplication backend
+       registers here to receive a unique id. 
+       (database normalization ftw!) -->
+
+  <object label="Backend">
+    <scalar label="name" type="CHAR(64)" mandatory="1" />
+    <unique_index>
+      <attribute label="name" />
+    </unique_index>
+  </object>
+
+  <!-- User Management -->
+
+  <object label="User">
+    <scalar label="email" type="CHAR(255)" mandatory="1" />
+    <scalar label="login" type="CHAR(64)" mandatory="1" />
+    <scalar label="password" type="CHAR(255)" />
+    <scalar label="firstname" type="CHAR(64)" />
+    <scalar label="lastname" type="CHAR(64)" />
+    <scalar label="active" type="BOOLEAN" default="0" />
+    <scalar label="entry_date" type="TIMESTAMP" />
+    <scalar label="comment" type="TEXT" />
+    <unique_index>
+      <attribute label="login" />
+    </unique_index>
+    <unique_index>
+      <attribute label="email" />
+    </unique_index>
+    <index>
+      <attribute label="lastname" />
+      <attribute label="firstname" />
+    </index>
+  </object>
+
+  <object label="UserHasScope">
+    <object_ref label="user" type="User" mandatory="1" />
+    <object_ref label="scope" type="Scope" mandatory="1" />
+    <scalar label="granted" type="BOOLEAN" default="0"/>
+    <unique_index>
+      <attribute label="user" />
+      <attribute label="scope" />
+    </unique_index>
+    <index>
+      <attribute label="user" />
+      <attribute label="granted" />
+    </index>
+    <index>
+      <attribute label="user" />
+      <attribute label="scope" />
+    </index>
+  </object>
+
+  <object label="Scope">
+    <object_ref label="application" type="Backend" />
+    <scalar label="name" type="CHAR(255)" mandatory="1" />
+    <scalar label="description" type="TEXT" />
+    <unique_index>
+      <attribute label="name" />
+      <attribute label="application" />
+    </unique_index>
+  </object>
+
+  <!-- End of User Management -->
+
+  <!-- Rights Management -->
+  
+  <!-- This is outside the object schema since outside sources of data have 
+       to be integrated. An application is supposed to create rights described
+       by a tuple of 
+
+          <user or scope identifier>
+          <type of datum accessed>
+          <unique identifier of datum>
+          <unique action description>
+       
+       As an example, a right may be specified as 'loginname', 'genome', '83333.1', 'annotate'.
+       The set of data type, which identifier is unique for it and the set of 
+       actions performed on it, has to be defined for each implementation. 
+       
+       As a convention a <unique identifier of datum> will accept the wildcard '*' to account
+       for classes of data a user might exercise a right on.  -->
+
+  <object label="Rights">
+    <object_ref label="application" type="Backend" />
+    <object_ref label="scope" type="Scope" mandatory="1" />
+    <scalar label="data_type" type="CHAR(255)" mandatory="1" />
+    <scalar label="data_id" type="CHAR(255)" mandatory="1" />
+    <scalar label="name" type="CHAR(255)" mandatory="1" />
+    <scalar label="granted" type="BOOLEAN" default="0" />
+    <scalar label="delegated" type="BOOLEAN" default="0" />
+  </object>
+
+  <!-- End of Rights Management -->
+
+  <!-- Session Management -->
+
+  <object label="UserSession">
+    <scalar label="session_id" type="CHAR(32)" mandatory="1" />
+    <object_ref label="user" type="User" />
+    <scalar label="timestamp" type="TIMESTAMP" mandatory="1"/>
+    <scalar label="current_page" type="CHAR(255)" />
+    <scalar label="current_parameters" type="TEXT" />    
+    <scalar label="previous_page" type="CHAR(255)" />
+    <scalar label="previous_parameters" type="TEXT" />    
+    <scalar label="error_page" type="CHAR(255)" />
+    <scalar label="error_parameters" type="TEXT" />
+    <unique_index>
+      <attribute label="session_id" />    
+    </unique_index>
+    <unique_index>
+      <attribute label="session_id" />    
+      <attribute label="user" />
+    </unique_index>
+    <index>
+      <attribute label="user" />
+    </index>
+  </object>
+
+  <!-- End of Session Management -->
+  
+  <object label="Preferences">
+    <object_ref label="application" type="Backend" />
+    <object_ref label="user" type="User" />
+    <scalar label="name" type="CHAR(255)" />
+    <scalar label="value" type="CHAR(255)" />
+  </object>
+
+  <!-- Organization information -->
+
+  <object label="Organization">
+    <scalar label="name" type="CHAR(255)" mandatory="1" />
+    <scalar label="abbreviation" type="CHAR(255)" />
+    <scalar label="country" type="CHAR(128)" />
+    <scalar label="city" type="CHAR(128)" />
+    <scalar label="url" type="CHAR(255)" />
+    <scalar label="date" type="TIMESTAMP" />
+    <scalar label="location" type="CHAR(128)" />
+    <object_ref label="scope" type="Scope" />
+    <unique_index><attribute label="name" /></unique_index>
+  </object>
+  
+  <object label="OrganizationUsers">
+    <object_ref label="user" type="User" />
+    <object_ref label="organization" type="Organization" />
+  </object>
+
+  <object label="Invitation">
+    <object_ref label="user_claimed" type="User" />
+    <object_ref label="user_inviting" type="User" mandatory="1" />
+    <object_ref label="scope" type="Scope" mandatory="1" />
+    <scalar label="email" type="CHAR(255)" mandatory="1" />
+    <scalar label="invitation_date" type="TIMESTAMP" mandatory="1" />
+    <scalar label="claimed" type="BOOLEAN" default="0" />
+    <scalar label="invitation_string" type="CHAR(255)" />
+  </object>
+  
+  <!-- End of Organization information -->
+  
+</project_space>

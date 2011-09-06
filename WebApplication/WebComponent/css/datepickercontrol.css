@@ -1,0 +1,166 @@
+/**
+ * Style sheet for CalendarPickerControl
+ * System-colors theme
+ */
+
+div.calendarbutton{
+	position: absolute;
+	width: 15px;
+	height: 16px;
+	background: transparent url("calendar_icon.png") no-repeat center;
+}
+
+#CalendarPickerControl{
+	background-color: transparent;
+	width: 250px;
+	height: 200px;
+}
+
+#CalendarPickerControl table.calframe{
+	width: 100%;
+	border: 1px solid black;
+	background-color: buttonface;
+	text-align: center;
+}
+
+#CalendarPickerControl td.monthname{
+	width: 100%;
+	font: normal 13px Verdana;
+	color: captiontext;
+	font-weight: bold;
+	background-color: activecaption;
+}
+
+#CalendarPickerControl td.monthnameLNX{
+	width: 100%;
+	font: normal 13px Verdana;
+	color: highlighttext;
+	font-weight: bold;
+	background-color: highlight;
+}
+
+#CalendarPickerControl table.navigation{
+	width: 100%;
+	text-align: center;
+}
+
+#CalendarPickerControl td.navbutton{
+	font: normal 11px Verdana;
+	color: buttontext;
+	font-weight: bold;
+	background-color: buttonface;
+	border-width: 1px;
+	border-style: solid;
+	border-color: buttonhighlight buttonshadow buttonshadow buttonhighlight;
+	cursor: pointer;
+}
+
+#CalendarPickerControl td.navbutton:hover{
+	text-decoration: underline;
+	border-color: threeddarkshadow buttonhighlight buttonhighlight  threeddarkshadow;
+	background-color: buttonshadow;
+}
+
+#CalendarPickerControl span.yearbutton{
+	cursor: pointer;
+}
+
+#CalendarPickerControl span.yearbutton:hover{
+	text-decoration: underline;
+}
+
+#CalendarPickerControl td.dayname{
+	font: normal 11px Verdana;
+	color: captiontext;
+	font-weight: bold;
+	background-color: activecaption;
+}
+
+#CalendarPickerControl td.daynameLNX{
+	font: normal 11px Verdana;
+	color: highlighttext;
+	font-weight: bold;
+	background-color: highlight;
+}
+
+#CalendarPickerControl td.today{
+	font: normal 11px Verdana;
+	background-color: buttonface;
+	color: red;
+	text-decoration: none;
+	cursor: pointer;
+	border-width: 1px;
+	border-style: solid;
+	border-color: buttonhighlight buttonshadow buttonshadow buttonhighlight;
+}
+
+#CalendarPickerControl td.today:hover{
+	text-decoration: underline;
+	background-color: threedshadow;
+	border-color: threeddarkshadow buttonhighlight buttonhighlight threeddarkshadow;
+}
+
+#CalendarPickerControl td.current{
+	font: normal 11px Verdana;
+	font-weight: bold;
+	background-color: highlight;
+	color: highlighttext;
+	text-decoration: none;
+	cursor: pointer;
+	border-width: 1px;
+	border-style: solid;
+	border-color: threeddarkshadow buttonhighlight buttonhighlight threeddarkshadow;
+}
+
+#CalendarPickerControl td.current:hover{
+	text-decoration: underline;
+}
+
+#CalendarPickerControl td.day{
+	font: normal 11px Verdana;
+	background-color: buttonface;
+	color: buttontext;
+	text-decoration: none;
+	cursor: pointer;
+	border-width: 1px;
+	border-style: solid;
+	border-color: buttonhighlight buttonshadow buttonshadow buttonhighlight;
+}
+
+#CalendarPickerControl td.day:hover{
+	text-decoration: underline;
+	background-color: threedshadow;
+	border-color: threeddarkshadow buttonhighlight buttonhighlight threeddarkshadow;
+}
+
+#CalendarPickerControl td.weekend{
+	font: normal 11px Verdana;
+	color: buttontext;
+	text-decoration: none;
+	background-color: threedshadow;
+	font-style: italic;
+	cursor: pointer;
+	border-width: 1px;
+	border-style: solid;
+	border-color: buttonhighlight threeddarkshadow threeddarkshadow buttonhighlight;
+}
+
+#CalendarPickerControl td.weekend:hover{
+	background-color: buttonshadow;
+	text-decoration: underline;
+	border-color: threeddarkshadow buttonhighlight buttonhighlight threeddarkshadow;
+}
+
+#CalendarPickerControl td.dayothermonth{
+	font:normal 11px Verdana;
+	background-color: buttonhighlight;
+	color: inactivecaptiontext;
+	border: 1px solid buttonhighlight;
+}
+
+#CalendarPickerControl td.weeknumber{
+	font:normal 9px Verdana;
+	background-color: buttonface;
+	color: inactivecaptiontext;
+	border-width: 0px;
+}
