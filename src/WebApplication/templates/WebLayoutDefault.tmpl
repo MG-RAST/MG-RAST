@@ -1,0 +1,55 @@
+<body>
+<div id="header">
+  <span id="logo">
+  <img height="95px" src="./Html/logo.png" alt="MyFirstApp" />
+  </span>
+  <p>
+  <span id="title">
+  <img src="./Html/title.png" alt="MyFirstApp" />
+  </span>
+  <span id="version">MyFirstApp version 0.1</span>
+  </p>
+  <p>Welcome to my first application</p>
+</div>
+
+<div id="topbar">
+  <table style="width: 100%; border-spacing: 0px;">
+    <tr>
+      <td style='width: 100%; padding: 0px;'>
+	<TMPL_IF NAME="MENU">
+	  <TMPL_VAR NAME="MENU">
+	</TMPL_IF>
+      </td>
+
+      <td style="text-align: right; padding: 0px;">
+	<TMPL_IF NAME="USER">
+	  <TMPL_VAR NAME="USER">
+	</TMPL_IF>
+      </td>
+    </tr>
+  </table>
+</div>
+
+  <TMPL_IF NAME="WARNINGS">
+  <div id="warning">
+    <TMPL_LOOP NAME="WARNINGS">
+     <p class="warning"> <strong> Warning: </strong> <TMPL_VAR NAME="MSG"> </p>
+     </TMPL_LOOP>
+  </div>
+  </TMPL_IF>
+
+  <TMPL_IF NAME="INFO">
+  <div id="info">
+     <TMPL_LOOP NAME="INFO">
+     <p class="info"> <strong> Info: </strong> <TMPL_VAR NAME="MSG"> </p>
+     </TMPL_LOOP>
+  </div>
+  </TMPL_IF>
+  
+  <div id="content">
+    <TMPL_VAR NAME="CONTENT">
+  </div>
+    
+</body>
+  
+

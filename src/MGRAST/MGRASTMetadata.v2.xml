@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project_space label="MGRASTMetadata2">
+
+  <object label="MetaDataCollection">
+    <object_ref label="job" type="MGRAST_jobcache::Job" />
+    <scalar label="ID" type="INTEGER" mandatory="1"/>
+    <scalar label="source" type="CHAR(128)" mandatory="1" />
+    <scalar label="url" type="CHAR(128)" mandatory="1" />
+    <scalar label="entry_date" type="TIMESTAMP" /> 
+    <object_ref label="creator" type="Curator" />
+
+    <unique_index><attribute label="ID" /></unique_index>
+    <index><attribute label="job"/></index>
+    <index><attribute label="source"/></index>
+    <index><attribute label="creator"/></index>
+  </object>
+ 
+  <object label="UpdateLog">
+    <object_ref label="curator" type="Curator" mandatory="1"/>
+    <object_ref label="collection" type="MetaDataCollection" mandatory="1"/>
+    <scalar label="type" type="CHAR(128)" />
+    <scalar label="comment" type="CHAR(128)" />
+    <scalar label="date" type="TIMESTAMP" />
+
+    <index><attribute label="curator"/></index>
+    <index><attribute label="collection"/></index>
+    <index><attribute label="date"/></index>
+  </object>
+
+  <object label="Curator">
+    <scalar label="ID" type="INTEGER" />
+    <object_ref label="user" type="WebServerBackend::User" />
+    <scalar label="name" type="CHAR(128)" />
+    <scalar label="email" type="CHAR(128)"/>
+    <scalar label="url" type="CHAR(128)" />
+    <scalar label="type" type="CHAR(128)" />
+    <scalar label="status" type="CHAR(128)" />
+    <scalar label="date" type="TIMESTAMP" />
+    <unique_index><attribute label="ID" /></unique_index>
+    <index><attribute label="name"/></index>
+    <index><attribute label="user"/></index>
+  </object>
+
+
+  <object label="MetaDataEntry">
+    <object_ref label="collection" type="MetaDataCollection" mandatory="1" />
+    <object_ref label="job" type="MGRAST_jobcache::Job" />
+    <scalar label="tag" type="CHAR(128)" mandatory="1" />
+    <scalar label="value" type="TEXT" mandatory="1" />
+    <scalar label="type" type="CHAR(128)" /> <!-- question type-->
+    <scalar label="migs" type="BOOLEAN" />
+    <index><attribute label="tag"/></index>
+    <index><attribute label="value"/></index>
+    <index><attribute label="collection"/></index>
+    <index><attribute label="job"/></index>
+
+  </object>
+
+   <object label="Measurement">
+    <object_ref label="collection" type="MetaDataCollection" />
+    <object_ref label="field" type="MetaDataEntry" mandatory="1" />
+    <scalar label="name" type="CHAR(128)"  />
+    <scalar label="value" type="TEXT" mandatory="1" />
+    <scalar label="unit" type="CHAR(128)" />
+    
+    <index><attribute label="collection"/></index>
+    <index><attribute label="field"/></index>
+    <index><attribute label="value"/></index>
+    <index><attribute label="unit"/></index>
+  </object>
+
+  <object label="ProjectMD">
+    <object_ref label="project" type="MGRAST_jobcache::Project" />
+    <scalar label="tag" type="CHAR(128)" mandatory="1" />
+    <scalar label="value" type="TEXT" mandatory="1" />
+    <index><attribute label="project"/></index>
+  </object>
+
+
+  
+</project_space>

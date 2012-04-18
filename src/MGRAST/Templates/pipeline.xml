@@ -1,0 +1,99 @@
+<pipeline>
+  <stage num='100'>
+    <input>The input sequence data for this step is in the original uploaded sequence data.</input>
+    <description>Depending on the options chosen, the preprocessing step filters sequences based on length, number of ambiguous bases and quality values if available.</description>
+    <output><file>The FASTA formatted file 100.preprocess.passed.fna contains the sequences which were accepted and will be passed on to the next stage of the analysis pipeline.</file></output>
+    <output><file>The FASTA formatted file 100.preprocess.removed.fna contains the sequences which were rejected and will not be passed on to the next stage of the analysis pipeline.</file></output>
+  </stage>
+  <stage num='150'>
+    <input>The input sequence data for this step is in the file 100.preprocess.passed.fna.</input>
+    <description>The optional dereplication step removes redundant "technical replicate" sequences from the metagenomic sample. Technical replicates are identified by binning reads with identical first 50 base-pairs. One copy of each 50-base-pair identical bin is retained. </description>
+    <output><file>The FASTA formatted file 150.dereplication.passed.fna contains the sequences which were retained and will be passed on to the next stage of the analysis pipeline.</file></output>
+    <output><file>The FASTA formatted file 150.dereplication.removed.fna contains the sequences which were rejected and will not be passed on to the next stage of the analysis pipeline.</file></output>
+  </stage>
+  <stage num='299'>
+    <input>The input sequence data for this step is in the file 150.dereplication.passed.fna.</input>
+    <output><file>The FASTA formatted file 299.screen.passed.fna contains the sequences which were retained and will be passed on to the next stage of the analysis pipeline.</file></output>
+  </stage>
+  <stage num='350'>
+    <input>The input sequence data for this step is in the file 299.screen.passed.fna.</input>
+    <description>Coding regions within the sequences are predicted using FragGeneScan, an ab-initio prokaryotic gene calling algorithm. Using a hidden Markov model for coding regions and non-coding regions, this step identifies the most likely reading frame and translates nucleotide sequences into amino acids sequences. The predicted genes, possibly more than one per fragment, are called features.</description>
+    <output><file>The amino acid sequence FASTA formatted file 350.genecalling.coding.faa contains the predicted coding regions.</file></output>
+    <output><file>The nucleotide sequence FASTA formatted file 350.genecalling.coding.fna contains the predicted coding regions.</file></output>
+  </stage>
+  <stage num='440'>
+    <input>The input sequence data for this step is in the file 100.preprocess.passed.fna.</input>
+    <description>Sequences are pre-screened using usearch for at least 70% identity to ribosomal sequences and then clustered at 97% identity using UCLUST. The clustering process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
+    <output><file>The FASTA formatted file 440.cluster.rna97.fna contains sequence clusters that have at least 70% identity to ribosomal sequences and have sequences within 97% identity.</file></output>
+    <output>
+      <file>The tab-delimited file 440.cluster.rna97.mapping identifies the sequence clusters and the sequences which describe them, each line describes a single cluster.</file>
+      <column>Cluster ID, e.g. rna97_998</column>
+      <column>Representative read ID, e.g. 11909294</column>
+      <column>List of IDs for other reads in the cluster, e.g. 11898451,11944918</column>
+      <column>List of percentage identities to the representative read sequence, e.g. 97.5%,100.0%</column>
+    </output>
+  </stage>
+  <stage num='450'>
+    <input>The input sequence data for this step is in the file 440.cluster.rna97.fna.</input>
+    <output>
+      <file>The similarity output from BLAT against the RNA databases (Greengenes, LSU, SSU, and RDP) is the file 450.rna.sims in BLAST m8 format. This includes the identifier for the query which is either the FASTA id or the cluster ID, and the internal identifier for the sequence that it hits.</file>
+      <column>Query id (either fasta ID or cluster ID), e.g. 11847922</column>
+      <column>Hit id, e.g. 501336051b4d5d412fb84afe8b7fdd87</column>
+      <column>percentage identity, e.g. 100.00</column>
+      <column>alignment length, e.g. 107</column>
+      <column>number of mismatches, e.g. 0</column>
+      <column>number of gap openings, e.g. 0</column>
+      <column>q.start, e.g. 1</column>
+      <column>q.end, e.g. 107</column>
+      <column>s.start, e.g. 1262</column>
+      <column>s.end, e.g. 1156</column>
+      <column>e-value, e.g. 1.7e-54</column>
+      <column>score in bits, e.g. 210.0</column>
+    </output>
+    <output><file>A filtered version 450.rna.sims.filter of the raw Sims file 450.rna.sims removes all but the best hit for each data source.</file></output>
+    <output><file>450.rna.expand.rna includes md5 value of the database sequence hit followed by sequence or cluster ID, similarity information, annotation, organism, database name.</file></output>
+    <output><file>450.rna.expand.lca reformats the information in 450.rna.expand.rna to include lowest common ancestor information.</file></output>
+  </stage>
+  <stage num='550'>
+    <input>The input sequence data for this step is in the file 350.genecalling.coding.faa.</input>
+    <description>Protein coding sequences identified with FragGeneScan are clustered at 90% identity with UCLUST. This process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
+    <output><file>The amino acid sequence FASTA formatted file 550.cluster.aa90.faa contains the translations of one sequence from each cluster (by cluster ids starting with aa90_) and all the unclustered (singleton) sequences with the original sequence ID.</file></output>
+    <output>
+      <file>The tab-delimited file 550.cluster.aa90.mapping identifies the sequence clusters and the sequences which describe them, each line describes a single cluster.</file>
+      <column>Cluster ID, e.g. aa90_3270</column>
+      <column>Protein coding sequence ID including hit location and strand, e.g. 11954908_1_121_+</column>
+      <column>List of sequence ids including hit location and strand for other genes in the cluster, e.g. 11898451_1_119_+,11944918_19_121_+</column>
+      <column>List of percentage identities to the representative gene sequence, e.g. 97.5%,100.0%</column>
+    </output>
+  </stage>
+  <stage num='650'>
+    <input>The input sequence data for this step is in the file 550.cluster.aa90.faa.</input>
+    <output>
+      <file>The similarity output from BLAT against the M5NR protein database is the file 650.superblat.sims in BLAST m8 format. This includes the identifier for the query which is either the FASTA id or the cluster ID, and the internal identifier for the sequence that it hits.</file>
+      <column>Query id (either fasta ID or cluster ID), e.g. 11847922_1_108_-</column>
+      <column>Hit id, e.g. afcfe216e7d39b7c789d6760194b6deb</column>
+      <column>percentage identity, e.g. 100.00</column>
+      <column>alignment length, e.g. 107</column>
+      <column>number of mismatches, e.g. 0</column>
+      <column>number of gap openings, e.g. 0</column>
+      <column>q.start, e.g. 1</column>
+      <column>q.end, e.g. 107</column>
+      <column>s.start, e.g. 1262</column>
+      <column>s.end, e.g. 1156</column>
+      <column>e-value, e.g. 1.7e-54</column>
+      <column>score in bits, e.g. 210.0</column>
+    </output>
+    <output><file>A filtered version 650.superblat.sims.filter of the raw Sims file 650.superblat.sims removes all but the best hit for each data source.</file></output>
+    <output><file>650.superblat.expand.protein includes md5 value of the database sequence hit followed by sequence or cluster ID, similarity information, functional annotation, organism, database name.</file></output>
+    <output><file>650.superblat.expand.lca reformats the information in 650.superblat.expand.protein to include lowest common ancestor information.</file></output>
+    <output><file>650.superblat.expand.ontology includes md5 value of the database sequence hit followed by sequence or cluster ID, similarity information, functional annotation, functional category ID, functional hierarchy name.</file></output>
+  </stage>
+  <stage num='900'>
+    <input>The input data for this step is in the .expand files produced by both the RNA and Protein similarity stages</input>
+    <output><file>900.abundance.md5</file></output>
+    <output><file>900.abundance.function</file></output>
+    <output><file>900.abundance.ontology</file></output>
+    <output><file>900.abundance.organism</file></output>
+    <output><file>900.abundance.lca</file></output>
+  </stage>
+</pipeline>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project_space label="MGRAST_jobcache">
+
+  <object label="Job">
+    <object_ref label="owner" type="WebServerBackend::User" />
+    <scalar label="id" type="INTEGER" mandatory="1" />
+    <scalar label="genome_id" type="CHAR(64)" />
+    <scalar label="genome_name" type="CHAR(128)" />
+    <scalar label="project_name" type="CHAR(128)" />
+    <scalar label="created_on" type="TIMESTAMP" />
+    <scalar label="last_modified" type="TIMESTAMP" />
+    <scalar label="type" type="CHAR(64)" />
+    <scalar label="active" type="BOOLEAN"/>
+    <scalar label="public" type="BOOLEAN"/>
+    <scalar label="viewable" type="BOOLEAN"/>
+    <scalar label="size" type="BIGINT"/>
+    <scalar label="server_version" type="CHAR(64)" />
+    <scalar label="genome_bp_count" type="BIGINT" />
+    <scalar label="genome_contig_count" type="INTEGER" />
+
+    <scalar label="average_length" type="FLOAT" />
+    <scalar label="standard_deviation" type="FLOAT" />
+    <scalar label="dereplicate" type="BOOLEAN"/>
+    <scalar label="rna_only" type="BOOLEAN"/>
+    <scalar label="ambig_filter" type="BOOLEAN"/>    
+    <scalar label="ambig_max_count" type="INTEGER"/>
+    <scalar label="length_filter" type="BOOLEAN"/>
+    <scalar label="length_filter_min" type="INTEGER"/>
+    <scalar label="length_filter_max" type="INTEGER"/>
+    <scalar label="contaminate_filter" type="BOOLEAN"/>
+    <scalar label="contaminate_filter_org" type="INTEGER"/>
+
+    <unique_index><attribute label="id" /></unique_index>
+    <unique_index><attribute label="genome_id" /></unique_index>
+    <index><attribute label="owner"/></index>
+    <index><attribute label="viewable"/></index>
+  </object>
+
+  <object label="Import">
+    <object_ref label="job" type="MGRAST_jobcache::Job" mandatory="1" />
+    <scalar label="suggested_by" type="INTEGER" />
+    <scalar label="priority" type="INTEGER" />
+    <scalar label="reason" type="CHAR(64)" />
+    <scalar label="replaces" type="CHAR(64)" />
+    <scalar label="action" type="CHAR(64)" />
+    <scalar label="status" type="CHAR(64)" />
+    <unique_index><attribute label="job" /></unique_index>
+    <index><attribute label="suggested_by"/></index>
+    <index><attribute label="priority"/></index>
+    <index><attribute label="reason"/></index>
+    <index><attribute label="status"/></index>
+  </object>
+
+  <object label="Status">
+    <object_ref label="job" type="MGRAST_jobcache::Job" mandatory="1" />
+    <scalar label="stage" type="CHAR(64)" mandatory="1" />
+    <scalar label="status" type="CHAR(64)" mandatory="1" />
+    <index>
+      <attribute label="job"/>
+    </index>
+    <unique_index>
+      <attribute label="job"/>
+      <attribute label="stage"/>
+    </unique_index>
+  </object>
+
+  <object label="Project">
+    <scalar label="id" type="INTEGER" mandatory="1" />
+    <scalar label="name" type="CHAR(64)" mandatory="1" />
+    <scalar label="public" type="BOOLEAN"/>
+    <scalar label="type" type="CHAR(64)"/>
+  </object>
+
+  <object label="ProjectJob">
+    <object_ref label="job" type="MGRAST_jobcache::Job" mandatory="1" />
+    <object_ref label="project" type="MGRAST_jobcache::Project" mandatory="1" />
+  </object>
+
+  <object label="Jobgroup">
+    <scalar label="name" type="CHAR(64)" mandatory="1" />    
+  </object>
+
+  <object label="JobgroupJob">
+    <object_ref label="job" type="MGRAST_jobcache::Job" mandatory="1" />
+    <object_ref label="jobgroup" type="MGRAST_jobcache::Jobgroup" mandatory="1" />
+  </object>
+  
+</project_space>

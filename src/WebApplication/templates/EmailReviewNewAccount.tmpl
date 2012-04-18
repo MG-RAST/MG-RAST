@@ -1,0 +1,14 @@
+A user has requested access to the web service <TMPL_VAR NAME="APPLICATION_NAME">. You receive this email because you are registered as an administrator.
+
+The following data was sent:
+Firstname: <TMPL_VAR NAME="FIRSTNAME">
+Lastname: <TMPL_VAR NAME="LASTNAME">
+Login: <TMPL_VAR NAME="LOGIN">
+Email: <TMPL_VAR NAME="EMAIL_USER">
+<TMPL_IF NAME="ORGANIZATION">Organization: <TMPL_VAR NAME="ORGANIZATION"></TMPL_IF>
+<TMPL_IF NAME="URL">URL: <TMPL_VAR NAME="URL"></TMPL_IF>
+<TMPL_IF NAME="COUNTRY">Country: <TMPL_VAR NAME="COUNTRY"></TMPL_IF>
+<TMPL_VAR NAME="ORG_FOUND">
+<TMPL_IF NAME="GROUP">Group: <TMPL_VAR NAME="GROUP"></TMPL_IF>
+
+Go to <TMPL_VAR NAME="APPLICATION_URL">?page=AccountManagement to process the request.
