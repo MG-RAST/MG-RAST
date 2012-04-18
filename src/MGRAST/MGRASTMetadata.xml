@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project_space label="MGRASTMetadata">
+
+  <object label="JobMD">
+    <object_ref label="job" type="MG_jobcache::Job" />
+    <scalar label="tag" type="CHAR(128)" mandatory="1" />
+    <scalar label="value" type="TEXT" mandatory="1" />
+    <index><attribute label="job" /></index>
+    <index><attribute label="tag" /></index>
+  </object>
+
+  <object label="ProjectMD">
+    <object_ref label="project" type="MG_jobcache::Project" />
+    <scalar label="tag" type="CHAR(128)" mandatory="1" />
+    <scalar label="value" type="TEXT" mandatory="1" />
+    <index><attribute label="project" /></index>
+  </object>
+
+  <object label="Log">
+    <object_ref label="job" type="MG_jobcache::Job" />
+    <scalar label="type" type="CHAR(128)" />
+    <scalar label="entry" type="TEXT" />
+    <scalar label="time" type="TIMESTAMP" />
+    <index><attribute label="job" /></index>
+  </object>
+  
+</project_space>
