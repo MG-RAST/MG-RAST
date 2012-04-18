@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project label="WebComments">
+<object label="Comment">
+	<scalar label="ReferenceObject" type="CHAR(255)" mandatory="1" />
+	<object_ref label="User" type="WebServerBackend::User"  mandatory="1" />
+	<scalar label="Private" type="BOOLEAN" default="false" />
+	<scalar label="Date" type="TIMESTAMP" mandatory="1" />
+	<scalar label="Text" type="TEXT" default="" />
+	<scalar label="Page" type="CHAR(255)" default="" />
+	<scalar label="Cgi" type="TEXT" default="" />
+	<index>
+		<attribute label="ReferenceObject" />
+		<attribute label="Date" />
+	</index>
+	<index>
+		<attribute label="ReferenceObject" />
+		<attribute label="Page" />
+	</index>
+</object>
+<object label="CommentDirectedAt">
+	<object_ref label="Comment" type="Comment" mandatory="1" />
+	<object_ref label="User" type="WebServerBackend::User" mandatory="1" />
+	<index>
+		<attribute label="Comment" />
+		<attribute label="User" />
+	</index>
+</object>
+</project>
+

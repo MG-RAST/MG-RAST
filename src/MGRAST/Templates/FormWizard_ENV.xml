@@ -1,0 +1,2508 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="FormWizard_MetaData.xsd">
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Air</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Barometric pressure</text>
+		<name migs="M" definition="force per unit area exerted against a surface by the weight of air above that surface" >barometric_press</name>
+	</questions>
+	<questions>
+		<text>Carbon dioxide</text>
+		<name migs="M" definition="carbon dioxide (gas) amount or concentration at the time of sampling" >carb_dioxide</name>
+	</questions>
+	<questions>
+		<text>Carbon monoxide</text>
+		<name migs="M" definition="carbon monoxide (gas) amount or concentration at the time of sampling" >carb_monoxide</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Humidity</text>
+		<name migs="M" definition="'amount of water vapour in the air, at the time of sampling'" >humidity</name>
+	</questions>
+	<questions>
+		<text>Methane</text>
+		<name migs="M" definition="methane (gas) amount or concentration at the time of sampling" >methane</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Oxygen</text>
+		<name migs="M" definition="oxygen (gas) amount or concentration at the time of sampling" >oxygen</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Pollutants</text>
+		<name migs="M" definition="'pollutant types and, amount or concentrations measured at the time of sampling; can report multiple pollutants by entering numeric values preceded by name of pollutant'" >pollutants</name>
+	</questions>
+	<questions>
+		<text>Respirable particulate matter</text>
+		<name migs="M" definition="'concentration of substances that remain suspended in the air, and comprise mixtures of organic and inorganic substances (PM10 and PM2.5); can report multiple PM's by entering numeric values preceded by name of PM'" >resp_part_matter</name>
+	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Solar irradiance</text>
+		<name migs="M" definition="the amount of solar energy that arrives at a specific area of a surface during a specific time interval" >solar_irradiance</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Ventilation rate</text>
+		<name migs="M" definition="ventilation rate of the system in the sampled premises" >ventilation_rate</name>
+	</questions>
+	<questions>
+		<text>Ventilation type</text>
+		<name migs="M" definition="ventilation system used in the sampled premises" >ventilation_type</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Volatile organic compounds</text>
+		<name migs="M" definition="concentration of carbon-based chemicals that easily evaporate at room temperature; can report multiple volatile organic compounds by entering numeric values preceded by name of compound" >volatile_org_comp</name>
+	</questions>
+	<questions>
+		<text>Wind direction</text>
+		<name migs="M" definition="wind direction is the direction from which a wind originates" >wind_direction</name>
+	</questions>
+	<questions>
+		<text>Wind speed</text>
+		<name migs="M" definition="speed of wind measured at the time of sampling" >wind_speed</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Host-associated</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Host common name</text>
+		<name migs="M" definition="'common name of the host, e.g. human'" >host_common_name</name>
+	</questions>
+	<questions>
+		<text>Host taxid</text>
+		<name migs="M" definition="'NCBI taxon id of the host, e.g. 9606'" >host_taxid</name>
+	</questions>
+	<questions>
+		<text>Host subject id</text>
+		<name migs="M" definition="'a unique identifier by which each subject can be referred to, de-identified, e.g. #131'" >host_subject_id</name>
+	</questions>
+	<questions>
+		<text>Age</text>
+		<name migs="M" definition="'age of host at the time of sampling; relevant scale depends on species and study, e.g. could be seconds for amoebae or centuries for trees'" >age</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Life stage</text>
+		<name migs="M" definition="description of life stage of host" >life_stage</name>
+	</questions>
+	<questions>
+		<text>Sex</text>
+		<name migs="M" definition="physical sex of the host" >sex</name>
+<type>Sex</type>	</questions>
+	<questions>
+		<text>Disease status</text>
+		<name migs="M" definition="" >disease_stat</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Body habitat</text>
+		<name migs="M" definition="original body habitat where the sample was obtained from.name of body site that the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA" >body_habitat</name>
+<type>Ontology</type>	</questions>
+	<questions>
+		<text>Body site</text>
+		<name migs="M" definition="name of body site that the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA" >body_site</name>
+	</questions>
+	<questions>
+		<text>Body product</text>
+		<name migs="M" definition="'substance produced by the body, e.g. stool, mucus, where the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA'" >body_product</name>
+	</questions>
+	<questions>
+		<text>Total mass</text>
+		<name migs="M" definition="'total mass of the host at collection, the unit depends on host'" >tot_mass</name>
+	</questions>
+	<questions>
+		<text>Height or length</text>
+		<name migs="M" definition="measurement of height or length" >height_or_length</name>
+	</questions>
+	<questions>
+		<text>Diet</text>
+		<name migs="M" definition="'type of diet depending on the host, for animals omnivore, herbivore etc., for humans high-fat, meditteranean etc.; can include multiple diet types'" >diet</name>
+	</questions>
+	<questions>
+		<text>Last meal</text>
+		<name migs="M" definition="content of last meal and time since feeding; can include multiple values" >last_meal</name>
+	</questions>
+	<questions>
+		<text>Host growth conditions</text>
+		<name migs="M" definition="literature reference giving growth conditions of the host" >host_growth_cond</name>
+	</questions>
+	<questions>
+		<text>Substrate</text>
+		<name migs="M" definition="the growth substrate of the host " >substrate</name>
+	</questions>
+	<questions>
+		<text>Family relationship</text>
+		<name migs="M" definition="'relationships to other hosts in the same study, e.g. child of host # 131; can include multiple relationships'" >family_relationship</name>
+	</questions>
+	<questions>
+		<text>Infra_specific_name</text>
+		<name migs="M" definition="taxonomic information about the host below subspecies level" >infra_specific_name</name>
+	</questions>
+	<questions>
+		<text>Infra_specific_rank</text>
+		<name migs="M" definition="'taxonomic rank information about the host below subspecies level, such as variety, form, rank etc...'" >infra_specific_rank</name>
+	</questions>
+	<questions>
+		<text>Genotype</text>
+		<name migs="M" definition="observed genotype" >genotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Phenotype</text>
+		<name migs="M" definition="'phenotype of host. for PATO, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=PATO'" >phenotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Host body temperature</text>
+		<name migs="M" definition="core body temperature of the host when sample was collected" >host_body_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Dry mass</text>
+		<name migs="M" definition="measurement of dry mass" >dry_mass</name>
+	</questions>
+	<questions>
+		<text>Blood pressure diastolic</text>
+		<name migs="M" definition="'resting diastolic blood pressure, measured as mm mercury'" >blood_press_diast</name>
+	</questions>
+	<questions>
+		<text>Blood pressure systolic</text>
+		<name migs="M" definition="'resting systolic blood pressure, measured as mm mercury'" >blood_press_syst</name>
+	</questions>
+	<questions>
+		<text>Host color</text>
+		<name migs="M" definition="the color of host" >host_color</name>
+	</questions>
+	<questions>
+		<text>Host shape</text>
+		<name migs="M" definition="morphological shape of host " >host_shape</name>
+	</questions>
+	<questions>
+		<text>Gravidity</text>
+		<name migs="M" definition="'whether or not subject is gravid, and if yes date due or date post-conception, specifying which is used'" >gravidity</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Human-associated</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Host subject id</text>
+		<name migs="M" definition="'a unique identifier by which each subject can be referred to, de-identified, e.g. #131'" >host_subject_id</name>
+	</questions>
+	<questions>
+		<text>Age</text>
+		<name migs="M" definition="'age of host at the time of sampling; relevant scale depends on species and study, e.g. could be seconds for amoebae or centuries for trees'" >age</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sex</text>
+		<name migs="M" definition="physical sex of the host" >sex</name>
+<type>Sex</type>	</questions>
+	<questions>
+		<text>Disease status</text>
+		<name migs="M" definition="" >disease_stat</name>
+	</questions>
+	<questions>
+		<text>IHMC medication code</text>
+		<name migs="M" definition="" >ihmc_medication_code</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Body site</text>
+		<name migs="M" definition="name of body site that the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA" >body_site</name>
+	</questions>
+	<questions>
+		<text>Body product</text>
+		<name migs="M" definition="'substance produced by the body, e.g. stool, mucus, where the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA'" >body_product</name>
+	</questions>
+	<questions>
+		<text>Total mass</text>
+		<name migs="M" definition="'total mass of the host at collection, the unit depends on host'" >tot_mass</name>
+	</questions>
+	<questions>
+		<text>Height</text>
+		<name migs="M" definition="the height of subject" >height</name>
+	</questions>
+	<questions>
+		<text>Diet</text>
+		<name migs="M" definition="'type of diet depending on the host, for animals omnivore, herbivore etc., for humans high-fat, meditteranean etc.; can include multiple diet types'" >diet</name>
+	</questions>
+	<questions>
+		<text>Last meal</text>
+		<name migs="M" definition="content of last meal and time since feeding; can include multiple values" >last_meal</name>
+	</questions>
+	<questions>
+		<text>Family relationship</text>
+		<name migs="M" definition="'relationships to other hosts in the same study, e.g. child of host # 131; can include multiple relationships'" >family_relationship</name>
+	</questions>
+	<questions>
+		<text>Genotype</text>
+		<name migs="M" definition="observed genotype" >genotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Phenotype</text>
+		<name migs="M" definition="'phenotype of host. for PATO, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=PATO'" >phenotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Host body temperature</text>
+		<name migs="M" definition="core body temperature of the host when sample was collected" >host_body_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Smoker</text>
+		<name migs="M" definition="specification of smoking status" >smoker</name>
+	</questions>
+	<questions>
+		<text>HIV status</text>
+		<name migs="M" definition="'HIV status of subject, if yes HAART initiation status should also be indicated as [YES or NO]'" >hiv_stat</name>
+	</questions>
+	<questions>
+		<text>Drug usage</text>
+		<name migs="M" definition="any drug used by subject and the frequency of usage; can include multiple drugs used" >drug_usage</name>
+	</questions>
+	<questions>
+		<text>Body-mass index</text>
+		<name migs="M" definition="'body mass index, calculated as weight/(height)squared'" >body-mass_index</name>
+	</questions>
+	<questions>
+		<text>Major diet change in last six months</text>
+		<name migs="M" definition="'specification of major diet changes in the last six months, if yes the change should be specified'" >diet_last_six_month</name>
+	</questions>
+	<questions>
+		<text>Weight loss in last three months</text>
+		<name migs="M" definition="'specification of weight loss in the last three months, if yes should be further specified to include amount of weight loss'" >weight_loss_3_month</name>
+	</questions>
+	<questions>
+		<text>IHMC ethnicity</text>
+		<name migs="M" definition="'ethnicity of the subject. IHMC ethnicity codes are; 01=Hispanic or Latino or Spanish, 02=Non-Hispanic or Non-Latino or Non- Spanish'" >ihmc_ethnicity</name>
+	</questions>
+	<questions>
+		<text>Occupation</text>
+		<name migs="M" definition="" >occupation</name>
+	</questions>
+	<questions>
+		<text>Presence of pets or farm animals</text>
+		<name migs="M" definition="'specification of presence of pets or farm animals in the environment of subject, if yes the animals should be specified; can include multiple animals present'" >pet_farm_animal</name>
+	</questions>
+	<questions>
+		<text>Travel outside the country in last six months</text>
+		<name migs="M" definition="specification of the countries travelled in the last six months; can include multiple travels" >travel_out_six_month</name>
+	</questions>
+	<questions>
+		<text>Twin sibling presence</text>
+		<name migs="M" definition="specification of twin sibling presence" >twin_sibling</name>
+	</questions>
+	<questions>
+		<text>Medical history performed</text>
+		<name migs="M" definition="whether full medical history was collected" >medic_hist_perform</name>
+	</questions>
+	<questions>
+		<text>Study completion status</text>
+		<name migs="M" definition="'specification of study completion status, if no the reason should be specified'" >study_complt_stat</name>
+	</questions>
+	<questions>
+		<text>Lung/pulmonary disorder</text>
+		<name migs="M" definition="history of pulmonary disorders; can include multiple disorders" >pulmonary_disord</name>
+	</questions>
+	<questions>
+		<text>Lung/nose-throat disorder</text>
+		<name migs="M" definition="history of nose-throat disorders; can include multiple disorders" >nose_throat_disord</name>
+	</questions>
+	<questions>
+		<text>Blood/blood disorder</text>
+		<name migs="M" definition="history of blood disorders; can include multiple disorders" >blood_blood_disord</name>
+	</questions>
+	<questions>
+		<text>Pulse</text>
+		<name migs="M" definition="'resting pulse, measured as beats per minute'" >pulse</name>
+	</questions>
+	<questions>
+		<text>Amniotic fluid/gestation state</text>
+		<name migs="M" definition="specification of the gestation state" >gestation_state</name>
+	</questions>
+	<questions>
+		<text>Amniotic fluid/maternal health status</text>
+		<name migs="M" definition="specification of the maternal health status" >maternal_health_stat</name>
+	</questions>
+	<questions>
+		<text>Amniotic fluid/foetal health status</text>
+		<name migs="M" definition="'specification of foetal health status, should also include abortion'" >foetal_health_stat</name>
+	</questions>
+	<questions>
+		<text>Amniotic fluid/color</text>
+		<name migs="M" definition="specification of the color of the amniotic fluid sample" >amniotic_fluid_color</name>
+	</questions>
+	<questions>
+		<text>Urine/kidney disorder</text>
+		<name migs="M" definition="history of kidney disorders; can include multiple disorders" >kidney_disord</name>
+	</questions>
+	<questions>
+		<text>Urine/urogenital tract disorder</text>
+		<name migs="M" definition="history of urogenitaltract disorders; can include multiple disorders" >urogenit_tract_disor</name>
+	</questions>
+	<questions>
+		<text>Urine/collection method</text>
+		<name migs="M" definition="specification of urine collection method" >urine_collect_meth</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Human-gut</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Gastrointestinal tract disorder</text>
+		<name migs="M" definition="history of gastrointestinal tract disorders; can include multiple disorders " >gastrointest_disord</name>
+	</questions>
+	<questions>
+		<text>Liver disorder</text>
+		<name migs="M" definition="history of liver disorders; can include multiple disorders" >liver_disord</name>
+	</questions>
+	<questions>
+		<text>Special diet</text>
+		<name migs="M" definition="specification of special diet; can include multiple special diets" >special_diet</name>
+	</questions>
+	<questions>
+		<text>Host subject id</text>
+		<name migs="M" definition="'a unique identifier by which each subject can be referred to, de-identified, e.g. #131'" >host_subject_id</name>
+	</questions>
+	<questions>
+		<text>Age</text>
+		<name migs="M" definition="'age of host at the time of sampling; relevant scale depends on species and study, e.g. could be seconds for amoebae or centuries for trees'" >age</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sex</text>
+		<name migs="M" definition="physical sex of the host" >sex</name>
+<type>Sex</type>	</questions>
+	<questions>
+		<text>Disease status</text>
+		<name migs="M" definition="" >disease_stat</name>
+	</questions>
+	<questions>
+		<text>IHMC medication code</text>
+		<name migs="M" definition="" >ihmc_medication_code</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Body site</text>
+		<name migs="M" definition="name of body site that the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA" >body_site</name>
+	</questions>
+	<questions>
+		<text>Body product</text>
+		<name migs="M" definition="'substance produced by the body, e.g. stool, mucus, where the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA'" >body_product</name>
+	</questions>
+	<questions>
+		<text>Total mass</text>
+		<name migs="M" definition="'total mass of the host at collection, the unit depends on host'" >tot_mass</name>
+	</questions>
+	<questions>
+		<text>Height</text>
+		<name migs="M" definition="the height of subject" >height</name>
+	</questions>
+	<questions>
+		<text>Diet</text>
+		<name migs="M" definition="'type of diet depending on the host, for animals omnivore, herbivore etc., for humans high-fat, meditteranean etc.; can include multiple diet types'" >diet</name>
+	</questions>
+	<questions>
+		<text>Last meal</text>
+		<name migs="M" definition="content of last meal and time since feeding; can include multiple values" >last_meal</name>
+	</questions>
+	<questions>
+		<text>Family relationship</text>
+		<name migs="M" definition="'relationships to other hosts in the same study, e.g. child of host # 131; can include multiple relationships'" >family_relationship</name>
+	</questions>
+	<questions>
+		<text>Genotype</text>
+		<name migs="M" definition="observed genotype" >genotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Phenotype</text>
+		<name migs="M" definition="'phenotype of host. for PATO, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=PATO'" >phenotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Host body temperature</text>
+		<name migs="M" definition="core body temperature of the host when sample was collected" >host_body_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Body-mass index</text>
+		<name migs="M" definition="'body mass index, calculated as weight/(height)squared'" >body-mass_index</name>
+	</questions>
+	<questions>
+		<text>IHMC ethnicity</text>
+		<name migs="M" definition="'ethnicity of the subject. IHMC ethnicity codes are; 01=Hispanic or Latino or Spanish, 02=Non-Hispanic or Non-Latino or Non- Spanish'" >ihmc_ethnicity</name>
+	</questions>
+	<questions>
+		<text>Occupation</text>
+		<name migs="M" definition="" >occupation</name>
+	</questions>
+	<questions>
+		<text>Medical history performed</text>
+		<name migs="M" definition="whether full medical history was collected" >medic_hist_perform</name>
+	</questions>
+	<questions>
+		<text>Pulse</text>
+		<name migs="M" definition="'resting pulse, measured as beats per minute'" >pulse</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Human-oral</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Nose/mouth/teeth/throat disorder</text>
+		<name migs="M" definition="history of nose/mouth/teeth/throat disorders; can include multiple disorders" >nose_mouth_teeth_throat_disord</name>
+	</questions>
+	<questions>
+		<text>Time since last toothbrushing</text>
+		<name migs="M" definition="specification of the time since last toothbrushing" >time_last_toothbrush</name>
+	</questions>
+	<questions>
+		<text>Host subject id</text>
+		<name migs="M" definition="'a unique identifier by which each subject can be referred to, de-identified, e.g. #131'" >host_subject_id</name>
+	</questions>
+	<questions>
+		<text>Age</text>
+		<name migs="M" definition="'age of host at the time of sampling; relevant scale depends on species and study, e.g. could be seconds for amoebae or centuries for trees'" >age</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sex</text>
+		<name migs="M" definition="physical sex of the host" >sex</name>
+<type>Sex</type>	</questions>
+	<questions>
+		<text>Disease status</text>
+		<name migs="M" definition="" >disease_stat</name>
+	</questions>
+	<questions>
+		<text>IHMC medication code</text>
+		<name migs="M" definition="" >ihmc_medication_code</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Body site</text>
+		<name migs="M" definition="name of body site that the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA" >body_site</name>
+	</questions>
+	<questions>
+		<text>Body product</text>
+		<name migs="M" definition="'substance produced by the body, e.g. stool, mucus, where the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA'" >body_product</name>
+	</questions>
+	<questions>
+		<text>Total mass</text>
+		<name migs="M" definition="'total mass of the host at collection, the unit depends on host'" >tot_mass</name>
+	</questions>
+	<questions>
+		<text>Height</text>
+		<name migs="M" definition="the height of subject" >height</name>
+	</questions>
+	<questions>
+		<text>Diet</text>
+		<name migs="M" definition="'type of diet depending on the host, for animals omnivore, herbivore etc., for humans high-fat, meditteranean etc.; can include multiple diet types'" >diet</name>
+	</questions>
+	<questions>
+		<text>Last meal</text>
+		<name migs="M" definition="content of last meal and time since feeding; can include multiple values" >last_meal</name>
+	</questions>
+	<questions>
+		<text>Family relationship</text>
+		<name migs="M" definition="'relationships to other hosts in the same study, e.g. child of host # 131; can include multiple relationships'" >family_relationship</name>
+	</questions>
+	<questions>
+		<text>Genotype</text>
+		<name migs="M" definition="observed genotype" >genotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Phenotype</text>
+		<name migs="M" definition="'phenotype of host. for PATO, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=PATO'" >phenotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Host body temperature</text>
+		<name migs="M" definition="core body temperature of the host when sample was collected" >host_body_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Body-mass index</text>
+		<name migs="M" definition="'body mass index, calculated as weight/(height)squared'" >body-mass_index</name>
+	</questions>
+	<questions>
+		<text>IHMC ethnicity</text>
+		<name migs="M" definition="'ethnicity of the subject. IHMC ethnicity codes are; 01=Hispanic or Latino or Spanish, 02=Non-Hispanic or Non-Latino or Non- Spanish'" >ihmc_ethnicity</name>
+	</questions>
+	<questions>
+		<text>Occupation</text>
+		<name migs="M" definition="" >occupation</name>
+	</questions>
+	<questions>
+		<text>Medical history performed</text>
+		<name migs="M" definition="whether full medical history was collected" >medic_hist_perform</name>
+	</questions>
+	<questions>
+		<text>Pulse</text>
+		<name migs="M" definition="'resting pulse, measured as beats per minute'" >pulse</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Human-skin</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Dermatology disorder</text>
+		<name migs="M" definition="history of dermatology disorders; can include multiple disorders" >dermatology_disord</name>
+	</questions>
+	<questions>
+		<text>Time since last wash</text>
+		<name migs="M" definition="specification of the time since last wash" >time_since_last_wash</name>
+	</questions>
+	<questions>
+		<text>Dominant hand</text>
+		<name migs="M" definition="dominant hand of the subject" >dominant_hand</name>
+	</questions>
+	<questions>
+		<text>Host subject id</text>
+		<name migs="M" definition="'a unique identifier by which each subject can be referred to, de-identified, e.g. #131'" >host_subject_id</name>
+	</questions>
+	<questions>
+		<text>Age</text>
+		<name migs="M" definition="'age of host at the time of sampling; relevant scale depends on species and study, e.g. could be seconds for amoebae or centuries for trees'" >age</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sex</text>
+		<name migs="M" definition="physical sex of the host" >sex</name>
+<type>Sex</type>	</questions>
+	<questions>
+		<text>Disease status</text>
+		<name migs="M" definition="" >disease_stat</name>
+	</questions>
+	<questions>
+		<text>IHMC medication code</text>
+		<name migs="M" definition="" >ihmc_medication_code</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Body site</text>
+		<name migs="M" definition="name of body site that the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA" >body_site</name>
+	</questions>
+	<questions>
+		<text>Body product</text>
+		<name migs="M" definition="'substance produced by the body, e.g. stool, mucus, where the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA'" >body_product</name>
+	</questions>
+	<questions>
+		<text>Total mass</text>
+		<name migs="M" definition="'total mass of the host at collection, the unit depends on host'" >tot_mass</name>
+	</questions>
+	<questions>
+		<text>Height</text>
+		<name migs="M" definition="the height of subject" >height</name>
+	</questions>
+	<questions>
+		<text>Diet</text>
+		<name migs="M" definition="'type of diet depending on the host, for animals omnivore, herbivore etc., for humans high-fat, meditteranean etc.; can include multiple diet types'" >diet</name>
+	</questions>
+	<questions>
+		<text>Last meal</text>
+		<name migs="M" definition="content of last meal and time since feeding; can include multiple values" >last_meal</name>
+	</questions>
+	<questions>
+		<text>Family relationship</text>
+		<name migs="M" definition="'relationships to other hosts in the same study, e.g. child of host # 131; can include multiple relationships'" >family_relationship</name>
+	</questions>
+	<questions>
+		<text>Genotype</text>
+		<name migs="M" definition="observed genotype" >genotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Phenotype</text>
+		<name migs="M" definition="'phenotype of host. for PATO, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=PATO'" >phenotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Host body temperature</text>
+		<name migs="M" definition="core body temperature of the host when sample was collected" >host_body_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Body-mass index</text>
+		<name migs="M" definition="'body mass index, calculated as weight/(height)squared'" >body-mass_index</name>
+	</questions>
+	<questions>
+		<text>IHMC ethnicity</text>
+		<name migs="M" definition="'ethnicity of the subject. IHMC ethnicity codes are; 01=Hispanic or Latino or Spanish, 02=Non-Hispanic or Non-Latino or Non- Spanish'" >ihmc_ethnicity</name>
+	</questions>
+	<questions>
+		<text>Occupation</text>
+		<name migs="M" definition="" >occupation</name>
+	</questions>
+	<questions>
+		<text>Medical history performed</text>
+		<name migs="M" definition="whether full medical history was collected" >medic_hist_perform</name>
+	</questions>
+	<questions>
+		<text>Pulse</text>
+		<name migs="M" definition="'resting pulse, measured as beats per minute'" >pulse</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Human-vaginal</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Menarche</text>
+		<name migs="M" definition="date of most recent menstruation" >menarche</name>
+	</questions>
+	<questions>
+		<text>Sexual activity</text>
+		<name migs="M" definition="current sexual partner and frequency of sex" >sexual_act</name>
+	</questions>
+	<questions>
+		<text>Pregnancy</text>
+		<name migs="M" definition="date due of pregnancy" >pregnancy</name>
+	</questions>
+	<questions>
+		<text>Douche</text>
+		<name migs="M" definition="date of most recent douche" >douche</name>
+	</questions>
+	<questions>
+		<text>Birth control</text>
+		<name migs="M" definition="specification of birth control medication used" >birth_control</name>
+	</questions>
+	<questions>
+		<text>Menopause</text>
+		<name migs="M" definition="date of onset of menopause" >menopause</name>
+	</questions>
+	<questions>
+		<text>HRT</text>
+		<name migs="M" definition="'whether subject had hormone replacement theraphy, and if yes start date'" >hrt</name>
+	</questions>
+	<questions>
+		<text>Hysterectomy</text>
+		<name migs="M" definition="specification of whether hysterectomy was performed" >hysterectomy</name>
+	</questions>
+	<questions>
+		<text>Gynecological disorder</text>
+		<name migs="M" definition="history of gynecological disorders; can include multiple disorders" >gynecologic_disord</name>
+	</questions>
+	<questions>
+		<text>Urogenital disorder</text>
+		<name migs="M" definition="'history of urogenital disorders, can include multiple disorders'" >urogenit_disord</name>
+	</questions>
+	<questions>
+		<text>Host subject id</text>
+		<name migs="M" definition="'a unique identifier by which each subject can be referred to, de-identified, e.g. #131'" >host_subject_id</name>
+	</questions>
+	<questions>
+		<text>Age</text>
+		<name migs="M" definition="'age of host at the time of sampling; relevant scale depends on species and study, e.g. could be seconds for amoebae or centuries for trees'" >age</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sex</text>
+		<name migs="M" definition="physical sex of the host" >sex</name>
+<type>Sex</type>	</questions>
+	<questions>
+		<text>Disease status</text>
+		<name migs="M" definition="" >disease_stat</name>
+	</questions>
+	<questions>
+		<text>IHMC medication code</text>
+		<name migs="M" definition="" >ihmc_medication_code</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Body site</text>
+		<name migs="M" definition="name of body site that the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA" >body_site</name>
+	</questions>
+	<questions>
+		<text>Body product</text>
+		<name migs="M" definition="'substance produced by the body, e.g. stool, mucus, where the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA'" >body_product</name>
+	</questions>
+	<questions>
+		<text>Total mass</text>
+		<name migs="M" definition="'total mass of the host at collection, the unit depends on host'" >tot_mass</name>
+	</questions>
+	<questions>
+		<text>Height</text>
+		<name migs="M" definition="the height of subject" >height</name>
+	</questions>
+	<questions>
+		<text>Diet</text>
+		<name migs="M" definition="'type of diet depending on the host, for animals omnivore, herbivore etc., for humans high-fat, meditteranean etc.; can include multiple diet types'" >diet</name>
+	</questions>
+	<questions>
+		<text>Last meal</text>
+		<name migs="M" definition="content of last meal and time since feeding; can include multiple values" >last_meal</name>
+	</questions>
+	<questions>
+		<text>Family relationship</text>
+		<name migs="M" definition="'relationships to other hosts in the same study, e.g. child of host # 131; can include multiple relationships'" >family_relationship</name>
+	</questions>
+	<questions>
+		<text>Genotype</text>
+		<name migs="M" definition="observed genotype" >genotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Phenotype</text>
+		<name migs="M" definition="'phenotype of host. for PATO, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=PATO'" >phenotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Host body temperature</text>
+		<name migs="M" definition="core body temperature of the host when sample was collected" >host_body_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Body-mass index</text>
+		<name migs="M" definition="'body mass index, calculated as weight/(height)squared'" >body-mass_index</name>
+	</questions>
+	<questions>
+		<text>IHMC ethnicity</text>
+		<name migs="M" definition="'ethnicity of the subject. IHMC ethnicity codes are; 01=Hispanic or Latino or Spanish, 02=Non-Hispanic or Non-Latino or Non- Spanish'" >ihmc_ethnicity</name>
+	</questions>
+	<questions>
+		<text>Occupation</text>
+		<name migs="M" definition="" >occupation</name>
+	</questions>
+	<questions>
+		<text>Medical history performed</text>
+		<name migs="M" definition="whether full medical history was collected" >medic_hist_perform</name>
+	</questions>
+	<questions>
+		<text>Pulse</text>
+		<name migs="M" definition="'resting pulse, measured as beats per minute'" >pulse</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Microbial mat/biofilm</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Alkalinity</text>
+		<name migs="M" definition="alkalinity measurement" >alkalinity</name>
+	</questions>
+	<questions>
+		<text>Alkyl diethers</text>
+		<name migs="M" definition="concentration of alkyl diethers " >alkyl_diethers</name>
+	</questions>
+	<questions>
+		<text>Aminopeptidase activity</text>
+		<name migs="M" definition="measurement of aminopeptidase activity" >aminopept_act</name>
+	</questions>
+	<questions>
+		<text>Ammonium</text>
+		<name migs="M" definition="concentration of ammonium" >ammonium</name>
+	</questions>
+	<questions>
+		<text>Bacterial carbon production</text>
+		<name migs="M" definition="measurement of bacterial carbon production" >bacteria_carb_prod</name>
+	</questions>
+	<questions>
+		<text>Biomass</text>
+		<name migs="M" definition="'amount of biomass; should include the name for the part of biomass measured, e.g. microbial, total. can include multiple measurements'" >biomass</name>
+	</questions>
+	<questions>
+		<text>Bishomohopanol</text>
+		<name migs="M" definition="concentration of bishomohopanol " >bishomohopanol</name>
+	</questions>
+	<questions>
+		<text>Bromide</text>
+		<name migs="M" definition="concentration of bromide " >bromide</name>
+	</questions>
+	<questions>
+		<text>Calcium</text>
+		<name migs="M" definition="concentration of calcium" >calcium</name>
+	</questions>
+	<questions>
+		<text>Carbon/nitrogen ratio</text>
+		<name migs="M" definition="ratio of amount or concentrations of carbon to nitrogen" >carb_nitro_ratio</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Chloride</text>
+		<name migs="M" definition="concentration of chloride " >chloride</name>
+	</questions>
+	<questions>
+		<text>Chlorophyll</text>
+		<name migs="M" definition="concentration of chlorophyll" >chlorophyll</name>
+	</questions>
+	<questions>
+		<text>Diether lipids</text>
+		<name migs="M" definition="concentration of diether lipids; can include multiple types of diether lipids" >diether_lipids</name>
+	</questions>
+	<questions>
+		<text>Dissolved carbon dioxide</text>
+		<name migs="M" definition="concentration of dissolved carbon dioxide" >diss_carb_dioxide</name>
+	</questions>
+	<questions>
+		<text>Dissolved hydrogen</text>
+		<name migs="M" definition="concentration of dissolved hydrogen" >diss_hydrogen</name>
+	</questions>
+	<questions>
+		<text>Dissolved organic carbon</text>
+		<name migs="M" definition="concentration of dissolved organic carbon" >diss_org_carb</name>
+	</questions>
+	<questions>
+		<text>Dissolved oxygen</text>
+		<name migs="M" definition="concentration of dissolved oxygen" >diss_oxygen</name>
+	</questions>
+	<questions>
+		<text>Glucosidase activity</text>
+		<name migs="M" definition="measurement of glucosidase activity" >glucosidase_act</name>
+	</questions>
+	<questions>
+		<text>Magnesium</text>
+		<name migs="M" definition="concentration of magnesium" >magnesium</name>
+	</questions>
+	<questions>
+		<text>Mean friction velocity</text>
+		<name migs="M" definition="measurement of mean friction velocity" >mean_frict_vel</name>
+	</questions>
+	<questions>
+		<text>Mean peak friction velocity</text>
+		<name migs="M" definition="measurement of mean peak friction velocity" >mean_peak_frict_vel</name>
+	</questions>
+	<questions>
+		<text>Methane</text>
+		<name migs="M" definition="methane (gas) amount or concentration at the time of sampling" >methane</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+	<questions>
+		<text>N-alkanes</text>
+		<name migs="M" definition="concentration of n-alkanes; can include multiple n-alkanes" >n-alkanes</name>
+	</questions>
+	<questions>
+		<text>Nitrate</text>
+		<name migs="M" definition="concentration of nitrate" >nitrate</name>
+	</questions>
+	<questions>
+		<text>Nitrite</text>
+		<name migs="M" definition="concentration of nitrite" >nitrite</name>
+	</questions>
+	<questions>
+		<text>Nitrogen</text>
+		<name migs="M" definition="concentration of nitrogen (total)" >nitro</name>
+	</questions>
+	<questions>
+		<text>Organic carbon</text>
+		<name migs="M" definition="concentration of organic carbon" >org_carb</name>
+	</questions>
+	<questions>
+		<text>Organic matter</text>
+		<name migs="M" definition="concentration of organic matter " >org_matter</name>
+	</questions>
+	<questions>
+		<text>Organic nitrogen</text>
+		<name migs="M" definition="concentration of organic nitrogen" >org_nitro</name>
+	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>PH</text>
+		<name migs="M" definition="pH measurement" >ph</name>
+	</questions>
+	<questions>
+		<text>Particulate organic carbon</text>
+		<name migs="M" definition="concentration of particulate organic carbon" >part_org_carb</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Petroleum hydrocarbon</text>
+		<name migs="M" definition="concentration of petroleum hydrocarbon" >petroleum_hydrocarb</name>
+	</questions>
+	<questions>
+		<text>Phaeopigments</text>
+		<name migs="M" definition="concentration of phaeopigments; can include multiple phaeopigments" >phaeopigments</name>
+	</questions>
+	<questions>
+		<text>Phosphate</text>
+		<name migs="M" definition="concentration of phosphate" >phosphate</name>
+	</questions>
+	<questions>
+		<text>Phospholipid fatty acid</text>
+		<name migs="M" definition="concentration of phospholipid fatty acids; can include multiple values" >phosplipid_fatt_acid</name>
+	</questions>
+	<questions>
+		<text>Potassium</text>
+		<name migs="M" definition="concentration of potassium " >potassium</name>
+	</questions>
+	<questions>
+		<text>Pressure</text>
+		<name migs="M" definition="'pressure to which the sample is subject, in atmospheres'" >press</name>
+	</questions>
+	<questions>
+		<text>Redox potential</text>
+		<name migs="M" definition="'redox potential, measured relative to a hydrogen cell, indicating oxidation or reduction potential'" >redox_potential</name>
+	</questions>
+	<questions>
+		<text>Salinity</text>
+		<name migs="M" definition="salinity measurement" >salinity</name>
+	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Silicate</text>
+		<name migs="M" definition="concentration of silicate" >silicate</name>
+	</questions>
+	<questions>
+		<text>Sulfate</text>
+		<name migs="M" definition="concentration of sulfate" >sulfate</name>
+	</questions>
+	<questions>
+		<text>Sulfide</text>
+		<name migs="M" definition="concentration of sulfide" >sulfide</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Total carbon</text>
+		<name migs="M" definition="total carbon content" >tot_carb</name>
+	</questions>
+	<questions>
+		<text>Total nitrogen</text>
+		<name migs="M" definition="total amount or concentration of nitrogenous substances" >tot_nitro</name>
+	</questions>
+	<questions>
+		<text>Total organic carbon</text>
+		<name migs="M" definition="total organic carbon content" >tot_org_carb</name>
+	</questions>
+	<questions>
+		<text>Turbidity</text>
+		<name migs="M" definition="turbidity measurement" >turbidity</name>
+	</questions>
+	<questions>
+		<text>Water content</text>
+		<name migs="M" definition="water content measurement" >water_content</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Miscellaneous natural or artificial environment</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Alkalinity</text>
+		<name migs="M" definition="alkalinity measurement" >alkalinity</name>
+	</questions>
+	<questions>
+		<text>Ammonium</text>
+		<name migs="M" definition="concentration of ammonium" >ammonium</name>
+	</questions>
+	<questions>
+		<text>Biomass</text>
+		<name migs="M" definition="'amount of biomass; should include the name for the part of biomass measured, e.g. microbial, total. can include multiple measurements'" >biomass</name>
+	</questions>
+	<questions>
+		<text>Bromide</text>
+		<name migs="M" definition="concentration of bromide " >bromide</name>
+	</questions>
+	<questions>
+		<text>Calcium</text>
+		<name migs="M" definition="concentration of calcium" >calcium</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Chloride</text>
+		<name migs="M" definition="concentration of chloride " >chloride</name>
+	</questions>
+	<questions>
+		<text>Chlorophyll</text>
+		<name migs="M" definition="concentration of chlorophyll" >chlorophyll</name>
+	</questions>
+	<questions>
+		<text>Current</text>
+		<name migs="M" definition="measurement of current " >current</name>
+	</questions>
+	<questions>
+		<text>Density</text>
+		<name migs="M" definition="density of sample" >density</name>
+	</questions>
+	<questions>
+		<text>Diether lipids</text>
+		<name migs="M" definition="concentration of diether lipids; can include multiple types of diether lipids" >diether_lipids</name>
+	</questions>
+	<questions>
+		<text>Dissolved carbon dioxide</text>
+		<name migs="M" definition="concentration of dissolved carbon dioxide" >diss_carb_dioxide</name>
+	</questions>
+	<questions>
+		<text>Dissolved hydrogen</text>
+		<name migs="M" definition="concentration of dissolved hydrogen" >diss_hydrogen</name>
+	</questions>
+	<questions>
+		<text>Dissolved oxygen</text>
+		<name migs="M" definition="concentration of dissolved oxygen" >diss_oxygen</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+	<questions>
+		<text>Nitrate</text>
+		<name migs="M" definition="concentration of nitrate" >nitrate</name>
+	</questions>
+	<questions>
+		<text>Nitrite</text>
+		<name migs="M" definition="concentration of nitrite" >nitrite</name>
+	</questions>
+	<questions>
+		<text>Nitrogen</text>
+		<name migs="M" definition="concentration of nitrogen (total)" >nitro</name>
+	</questions>
+	<questions>
+		<text>Organic carbon</text>
+		<name migs="M" definition="concentration of organic carbon" >org_carb</name>
+	</questions>
+	<questions>
+		<text>Organic matter</text>
+		<name migs="M" definition="concentration of organic matter " >org_matter</name>
+	</questions>
+	<questions>
+		<text>Organic nitrogen</text>
+		<name migs="M" definition="concentration of organic nitrogen" >org_nitro</name>
+	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>PH</text>
+		<name migs="M" definition="pH measurement" >ph</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Phosphate</text>
+		<name migs="M" definition="concentration of phosphate" >phosphate</name>
+	</questions>
+	<questions>
+		<text>Phospholipid fatty acid</text>
+		<name migs="M" definition="concentration of phospholipid fatty acids; can include multiple values" >phosplipid_fatt_acid</name>
+	</questions>
+	<questions>
+		<text>Potassium</text>
+		<name migs="M" definition="concentration of potassium " >potassium</name>
+	</questions>
+	<questions>
+		<text>Pressure</text>
+		<name migs="M" definition="'pressure to which the sample is subject, in atmospheres'" >press</name>
+	</questions>
+	<questions>
+		<text>Salinity</text>
+		<name migs="M" definition="salinity measurement" >salinity</name>
+	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Silicate</text>
+		<name migs="M" definition="concentration of silicate" >silicate</name>
+	</questions>
+	<questions>
+		<text>Sulfate</text>
+		<name migs="M" definition="concentration of sulfate" >sulfate</name>
+	</questions>
+	<questions>
+		<text>Sulfide</text>
+		<name migs="M" definition="concentration of sulfide" >sulfide</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Plant-associated</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Age</text>
+		<name migs="M" definition="'age of host at the time of sampling; relevant scale depends on species and study, e.g. could be seconds for amoebae or centuries for trees'" >age</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Air temperature regimen</text>
+		<name migs="M" definition="'information about treatment involving an exposure to varying temperatures; should include the temperature, treatment duration, interval and total experimental duration; can include different temperature regimens'" >air_temp_regm</name>
+	</questions>
+	<questions>
+		<text>Antibiotic regimen</text>
+		<name migs="M" definition="'information about treatment involving antibiotic administration; should include the name of antibiotic, amount administered, treatment duration, interval and total experimental duration; can include multiple antibiotic regimens'" >antibiotic_regm</name>
+	</questions>
+	<questions>
+		<text>Body product</text>
+		<name migs="M" definition="'substance produced by the body, e.g. stool, mucus, where the sample was obtained from. for FMA (Foundational Model of Anatomy) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=FMA'" >body_product</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Chemical mutagen</text>
+		<name migs="M" definition="'treatment involving use of mutagens; should include the name of mutagen, amount administered, treatment duration, interval and total experimental duration; can include multiple mutagen regimens'" >chem_mutagen</name>
+	</questions>
+	<questions>
+		<text>Climate environment</text>
+		<name migs="M" definition="treatment involving an exposure to a particular climate; can include multiple climates" >climate_environment</name>
+	</questions>
+	<questions>
+		<text>Disease status</text>
+		<name migs="M" definition="" >disease_stat</name>
+	</questions>
+	<questions>
+		<text>Dry mass</text>
+		<name migs="M" definition="measurement of dry mass" >dry_mass</name>
+	</questions>
+	<questions>
+		<text>Fertilizer regimen</text>
+		<name migs="M" definition="'information about treatment involving the use of fertilizers; should include the name fertilizer, amount administered, treatment duration, interval and total experimental duration; can include multiple fertilizer regimens'" >fertilizer_regm</name>
+	</questions>
+	<questions>
+		<text>Fungicide regimen</text>
+		<name migs="M" definition="'information about treatment involving use of fungicides; should include the name of fungicide, amount administered, treatment duration, interval and total experimental duration; can include multiple fungicide regimens'" >fungicide_regm</name>
+	</questions>
+	<questions>
+		<text>Gaseous environment</text>
+		<name migs="M" definition="'use of conditions with differing gaseous environments; should include the name of gaseous compound, amount administered, treatment duration, interval and total experimental duration; can include multiple gaseous environment regimens'" >gaseous_environment</name>
+	</questions>
+	<questions>
+		<text>Genotype</text>
+		<name migs="M" definition="observed genotype" >genotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Gravity</text>
+		<name migs="M" definition="'information about treatment involving use of gravity factor to study various types of responses in presence, absence or modified levels of gravity; can include multiple treatments'" >gravity</name>
+	</questions>
+	<questions>
+		<text>Growth hormone regimen</text>
+		<name migs="M" definition="'information about treatment involving use of growth hormones; should include the name of growth hormone, amount administered, treatment duration, interval and total experimental duration; can include multiple growth hormone regimens'" >growth_hormone_regm</name>
+	</questions>
+	<questions>
+		<text>Growth media</text>
+		<name migs="M" definition="information about growth media for growing the plants or tissue cultured samples" >growth_med</name>
+	</questions>
+	<questions>
+		<text>Height or length</text>
+		<name migs="M" definition="measurement of height or length" >height_or_length</name>
+	</questions>
+	<questions>
+		<text>Herbicide regimen</text>
+		<name migs="M" definition="" >herbicide_regm</name>
+	</questions>
+	<questions>
+		<text>Host common name</text>
+		<name migs="M" definition="'common name of the host, e.g. human'" >host_common_name</name>
+	</questions>
+	<questions>
+		<text>Host taxid</text>
+		<name migs="M" definition="'NCBI taxon id of the host, e.g. 9606'" >host_taxid</name>
+	</questions>
+	<questions>
+		<text>Humidity regimen</text>
+		<name migs="M" definition="" >humidity_regm</name>
+	</questions>
+	<questions>
+		<text>Infra_specific_name</text>
+		<name migs="M" definition="taxonomic information about the host below subspecies level" >infra_specific_name</name>
+	</questions>
+	<questions>
+		<text>Infra_specific_rank</text>
+		<name migs="M" definition="'taxonomic rank information about the host below subspecies level, such as variety, form, rank etc...'" >infra_specific_rank</name>
+	</questions>
+	<questions>
+		<text>Life stage</text>
+		<name migs="M" definition="description of life stage of host" >life_stage</name>
+	</questions>
+	<questions>
+		<text>Mechanical damage</text>
+		<name migs="M" definition="information about any mechanical damage exerted on the plant; can include multiple damages and sites" >mechanical_damage</name>
+	</questions>
+	<questions>
+		<text>Mineral nutrient regimen</text>
+		<name migs="M" definition="'information about treatment involving the use of mineral supplements; should include the name of mineral nutrient, amount administered, treatment duration, interval and total experimental duration; can include multiple mineral nutrient regimens'" >mineral_nutr_regm</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+	<questions>
+		<text>Non-mineral nutrient regimen</text>
+		<name migs="M" definition="" >non_mineral_nutr_regm</name>
+	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>PH regimen</text>
+		<name migs="M" definition="information about treatment involving exposure of plants to varying levels of pH of the growth media; can include multiple regimen" >ph_regm</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Pesticide regimen</text>
+		<name migs="M" definition="'information about treatment involving use of insecticides; should include the name of pesticide, amount administered, treatment duration, interval and total experimental duration; can include multiple pesticide regimens'" >pesticide_regm</name>
+	</questions>
+	<questions>
+		<text>Phenotype</text>
+		<name migs="M" definition="'phenotype of host. for PATO, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=PATO'" >phenotype</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Plant body site</text>
+		<name migs="M" definition="name of body site that the sample was obtained from. for PO (Plant Ontology) browser see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=PO" >plant_body_site</name>
+	</questions>
+	<questions>
+		<text>Plant product</text>
+		<name migs="M" definition="'substance produced by the plant, where the sample was obtained from'" >plant_product</name>
+	</questions>
+	<questions>
+		<text>Radiation regimen</text>
+		<name migs="M" definition="" >radiation_regm</name>
+	</questions>
+	<questions>
+		<text>Rainfall regimen</text>
+		<name migs="M" definition="information about treatment involving an exposure to a given amount of rainfall; can include multiple regimens" >rainfall_regm</name>
+	</questions>
+	<questions>
+		<text>Salt regimen</text>
+		<name migs="M" definition="'information about treatment involving use of salts as supplement to liquid and soil growth media; should include the name of salt, amount administered, treatment duration, interval and total experimental duration; can include multiple salt regimens'" >salt_regm</name>
+	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Seasonal environment</text>
+		<name migs="M" definition="'treatment involving an exposure to a particular season (e.g. winter, summer, rabi, rainy etcÉ)'" >season_environment</name>
+	</questions>
+	<questions>
+		<text>Standing water regimen</text>
+		<name migs="M" definition="'treatment involving an exposure to standing water during a plant's life span, types can be flood water or standing water; can include multiple regimens'" >standing_water_regm</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Tissue culture growth media</text>
+		<name migs="M" definition="description of plant tissue culture growth media used" >tiss_cult_growth_med</name>
+	</questions>
+	<questions>
+		<text>Total mass</text>
+		<name migs="M" definition="'total mass of the host at collection, the unit depends on host'" >tot_mass</name>
+	</questions>
+	<questions>
+		<text>Water temperature regimen</text>
+		<name migs="M" definition="information about treatment involving an exposure to water with varying degree of temperature; can include multiple regimens" >water_temp_regm</name>
+	</questions>
+	<questions>
+		<text>Watering regimen</text>
+		<name migs="M" definition="information about treatment involving an exposure to watering frequencies; can include multiple regimens" >watering_regm</name>
+	</questions>
+	<questions>
+		<text>Wet mass</text>
+		<name migs="M" definition="measurement of wet mass" >wet_mass</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Sediment</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Alkalinity</text>
+		<name migs="M" definition="alkalinity measurement" >alkalinity</name>
+	</questions>
+	<questions>
+		<text>Alkyl diethers</text>
+		<name migs="M" definition="concentration of alkyl diethers " >alkyl_diethers</name>
+	</questions>
+	<questions>
+		<text>Aminopeptidase activity</text>
+		<name migs="M" definition="measurement of aminopeptidase activity" >aminopept_act</name>
+	</questions>
+	<questions>
+		<text>Ammonium</text>
+		<name migs="M" definition="concentration of ammonium" >ammonium</name>
+	</questions>
+	<questions>
+		<text>Bacterial carbon production</text>
+		<name migs="M" definition="measurement of bacterial carbon production" >bacteria_carb_prod</name>
+	</questions>
+	<questions>
+		<text>Biomass</text>
+		<name migs="M" definition="'amount of biomass; should include the name for the part of biomass measured, e.g. microbial, total. can include multiple measurements'" >biomass</name>
+	</questions>
+	<questions>
+		<text>Bishomohopanol</text>
+		<name migs="M" definition="concentration of bishomohopanol " >bishomohopanol</name>
+	</questions>
+	<questions>
+		<text>Bromide</text>
+		<name migs="M" definition="concentration of bromide " >bromide</name>
+	</questions>
+	<questions>
+		<text>Calcium</text>
+		<name migs="M" definition="concentration of calcium" >calcium</name>
+	</questions>
+	<questions>
+		<text>Carbon/nitrogen ratio</text>
+		<name migs="M" definition="ratio of amount or concentrations of carbon to nitrogen" >carb_nitro_ratio</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Chloride</text>
+		<name migs="M" definition="concentration of chloride " >chloride</name>
+	</questions>
+	<questions>
+		<text>Chlorophyll</text>
+		<name migs="M" definition="concentration of chlorophyll" >chlorophyll</name>
+	</questions>
+	<questions>
+		<text>Density</text>
+		<name migs="M" definition="density of sample" >density</name>
+	</questions>
+	<questions>
+		<text>Diether lipids</text>
+		<name migs="M" definition="concentration of diether lipids; can include multiple types of diether lipids" >diether_lipids</name>
+	</questions>
+	<questions>
+		<text>Dissolved carbon dioxide</text>
+		<name migs="M" definition="concentration of dissolved carbon dioxide" >diss_carb_dioxide</name>
+	</questions>
+	<questions>
+		<text>Dissolved hydrogen</text>
+		<name migs="M" definition="concentration of dissolved hydrogen" >diss_hydrogen</name>
+	</questions>
+	<questions>
+		<text>Dissolved organic carbon</text>
+		<name migs="M" definition="concentration of dissolved organic carbon" >diss_org_carb</name>
+	</questions>
+	<questions>
+		<text>Dissolved oxygen</text>
+		<name migs="M" definition="concentration of dissolved oxygen" >diss_oxygen</name>
+	</questions>
+	<questions>
+		<text>Glucosidase activity</text>
+		<name migs="M" definition="measurement of glucosidase activity" >glucosidase_act</name>
+	</questions>
+	<questions>
+		<text>Magnesium</text>
+		<name migs="M" definition="concentration of magnesium" >magnesium</name>
+	</questions>
+	<questions>
+		<text>Mean friction velocity</text>
+		<name migs="M" definition="measurement of mean friction velocity" >mean_frict_vel</name>
+	</questions>
+	<questions>
+		<text>Mean peak friction velocity</text>
+		<name migs="M" definition="measurement of mean peak friction velocity" >mean_peak_frict_vel</name>
+	</questions>
+	<questions>
+		<text>Methane</text>
+		<name migs="M" definition="methane (gas) amount or concentration at the time of sampling" >methane</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+	<questions>
+		<text>N-alkanes</text>
+		<name migs="M" definition="concentration of n-alkanes; can include multiple n-alkanes" >n-alkanes</name>
+	</questions>
+	<questions>
+		<text>Nitrate</text>
+		<name migs="M" definition="concentration of nitrate" >nitrate</name>
+	</questions>
+	<questions>
+		<text>Nitrite</text>
+		<name migs="M" definition="concentration of nitrite" >nitrite</name>
+	</questions>
+	<questions>
+		<text>Nitrogen</text>
+		<name migs="M" definition="concentration of nitrogen (total)" >nitro</name>
+	</questions>
+	<questions>
+		<text>Organic carbon</text>
+		<name migs="M" definition="concentration of organic carbon" >org_carb</name>
+	</questions>
+	<questions>
+		<text>Organic matter</text>
+		<name migs="M" definition="concentration of organic matter " >org_matter</name>
+	</questions>
+	<questions>
+		<text>Organic nitrogen</text>
+		<name migs="M" definition="concentration of organic nitrogen" >org_nitro</name>
+	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>PH</text>
+		<name migs="M" definition="pH measurement" >ph</name>
+	</questions>
+	<questions>
+		<text>Particle classification</text>
+		<name migs="M" definition="'particles are classified, based on their size, into six general categories:clay, silt, sand, gravel, cobbles, and boulders; should include amount of particle preceded by the name of the particle type; can include multiple values'" >particle_class</name>
+	</questions>
+	<questions>
+		<text>Particulate organic carbon</text>
+		<name migs="M" definition="concentration of particulate organic carbon" >part_org_carb</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Petroleum hydrocarbon</text>
+		<name migs="M" definition="concentration of petroleum hydrocarbon" >petroleum_hydrocarb</name>
+	</questions>
+	<questions>
+		<text>Phaeopigments</text>
+		<name migs="M" definition="concentration of phaeopigments; can include multiple phaeopigments" >phaeopigments</name>
+	</questions>
+	<questions>
+		<text>Phosphate</text>
+		<name migs="M" definition="concentration of phosphate" >phosphate</name>
+	</questions>
+	<questions>
+		<text>Phospholipid fatty acid</text>
+		<name migs="M" definition="concentration of phospholipid fatty acids; can include multiple values" >phosplipid_fatt_acid</name>
+	</questions>
+	<questions>
+		<text>Porosity</text>
+		<name migs="M" definition="porosity of deposited sediment is volume of voids divided by the total volume of sample" >porosity</name>
+	</questions>
+	<questions>
+		<text>Potassium</text>
+		<name migs="M" definition="concentration of potassium " >potassium</name>
+	</questions>
+	<questions>
+		<text>Pressure</text>
+		<name migs="M" definition="'pressure to which the sample is subject, in atmospheres'" >press</name>
+	</questions>
+	<questions>
+		<text>Redox potential</text>
+		<name migs="M" definition="'redox potential, measured relative to a hydrogen cell, indicating oxidation or reduction potential'" >redox_potential</name>
+	</questions>
+	<questions>
+		<text>Salinity</text>
+		<name migs="M" definition="salinity measurement" >salinity</name>
+	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Sediment type</text>
+		<name migs="M" definition="information about the sediment type based on major constituents" >sediment_type</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Silicate</text>
+		<name migs="M" definition="concentration of silicate" >silicate</name>
+	</questions>
+	<questions>
+		<text>Sulfate</text>
+		<name migs="M" definition="concentration of sulfate" >sulfate</name>
+	</questions>
+	<questions>
+		<text>Sulfide</text>
+		<name migs="M" definition="concentration of sulfide" >sulfide</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Total carbon</text>
+		<name migs="M" definition="total carbon content" >tot_carb</name>
+	</questions>
+	<questions>
+		<text>Total nitrogen</text>
+		<name migs="M" definition="total amount or concentration of nitrogenous substances" >tot_nitro</name>
+	</questions>
+	<questions>
+		<text>Total organic carbon</text>
+		<name migs="M" definition="total organic carbon content" >tot_org_carb</name>
+	</questions>
+	<questions>
+		<text>Turbidity</text>
+		<name migs="M" definition="turbidity measurement" >turbidity</name>
+	</questions>
+	<questions>
+		<text>Water content</text>
+		<name migs="M" definition="water content measurement" >water_content</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Soil</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Current land use</text>
+		<name migs="M" definition="" >cur_land_use</name>
+	</questions>
+	<questions>
+		<text>Current vegetation</text>
+		<name migs="M" definition="'vegetation classification from one or more standard classification systems, or agricultural crop'" >cur_vegetation</name>
+	</questions>
+	<questions>
+		<text>Current vegetation method</text>
+		<name migs="M" definition="reference or method used in vegetation classification " >cur_vegetation_meth</name>
+	</questions>
+	<questions>
+		<text>History/previous land use</text>
+		<name migs="M" definition="previous land use and dates" >previous_land_use</name>
+	</questions>
+	<questions>
+		<text>History/previous land use method</text>
+		<name migs="M" definition="reference or method used in determining previous land use and dates" >previous_land_use_meth</name>
+	</questions>
+	<questions>
+		<text>History/crop rotation</text>
+		<name migs="M" definition="'whether or not crop is rotated, and if yes, rotation schedule'" >crop_rotation</name>
+	</questions>
+	<questions>
+		<text>History/agrochemical additions</text>
+		<name migs="M" definition="'addition of fertilizers, pesticides, etc. - amount and time of applications'" >agrochem_addition</name>
+	</questions>
+	<questions>
+		<text>History/tillage</text>
+		<name migs="M" definition="'note method(s) used for tilling. values are conservation tillage or zero tillage: drill or cutting disc; reduced tillage: ridge till, strip tillage, zonal tillage, chisel or tined; conventional tillage: mouldboard or disc plough'" >tillage</name>
+	</questions>
+	<questions>
+		<text>History/fire</text>
+		<name migs="M" definition="historical and/or physical evidence of fire" >fire</name>
+	</questions>
+	<questions>
+		<text>History/flooding</text>
+		<name migs="M" definition="historical and/or physical evidence of flooding" >flooding</name>
+	</questions>
+	<questions>
+		<text>History/extreme events</text>
+		<name migs="M" definition="unusual physical events that may have affected microbial populations" >extreme_event</name>
+	</questions>
+	<questions>
+		<text>Other</text>
+		<name migs="M" definition="additional relevant information" >other</name>
+	</questions>
+	<questions>
+		<text>Horizon</text>
+		<name migs="M" definition="'specific layer in the land area which measures parallel to the soil surface and possesses physical characteristics which differ from the layers above and beneath. values are; O horizon, A horizon, E horizon, B horizon, C horizon, R layer, Permafrost'" >horizon</name>
+	</questions>
+	<questions>
+		<text>Horizon method</text>
+		<name migs="M" definition="reference or method used in determining the horizon" >horizon_meth</name>
+	</questions>
+	<questions>
+		<text>Composite design/sieving (if any)</text>
+		<name migs="M" definition="collection design of pooled samples and/or sieve size and amount of sample sieved " >sieving</name>
+	</questions>
+	<questions>
+		<text>Water content of soil</text>
+		<name migs="M" definition="water content (g/g or cm3/cm3)" >water_content_soil</name>
+	</questions>
+	<questions>
+		<text>Water content of soil method</text>
+		<name migs="M" definition="reference or method used in determining the water content of soil" >water_content_soil_meth</name>
+	</questions>
+	<questions>
+		<text>Sample weight for DNA extraction</text>
+		<name migs="M" definition="weight (g) of soil processed" >samp_weight_dna_ext</name>
+	</questions>
+	<questions>
+		<text>Pooling of DNA extracts (if done)</text>
+		<name migs="M" definition="were multiple DNA extractions mixed? how many?" >pool_dna_extracts</name>
+	</questions>
+	<questions>
+		<text>Storage conditions (fresh/frozen/other)</text>
+		<name migs="M" definition="explain how and for how long the soil sample was stored before DNA extraction." >store_cond</name>
+	</questions>
+	<questions>
+		<text>Link to climate information</text>
+		<name migs="M" definition="link to climate resource" >link_climate_info</name>
+	</questions>
+	<questions>
+		<text>Mean annual and seasonal temperature</text>
+		<name migs="M" definition="mean annual and seasonal temperature (oC)" >annual_season_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Mean annual and seasonal precipitation</text>
+		<name migs="M" definition="mean annual and seasonal precipitation (mm)" >annual_season_precpt</name>
+	</questions>
+	<questions>
+		<text>Link to classification information</text>
+		<name migs="M" definition="link to digitized soil maps or other soil classification information" >link_class_info</name>
+	</questions>
+	<questions>
+		<text>Soil_taxonomic/FAO classification</text>
+		<name migs="M" definition="soil classification from the FAO World Reference Database for Soil Resources http://www.fao.org/ag/agl/agll/wrb/doc/wrb2007_corr.pdf" >fao_class</name>
+	</questions>
+	<questions>
+		<text>Soil_taxonomic/local classification</text>
+		<name migs="M" definition="soil classification based on local soil classification system" >local_class</name>
+	</questions>
+	<questions>
+		<text>Soil_taxonomic/local classification method</text>
+		<name migs="M" definition="reference or method used in determining the local soil classification " >local_class_meth</name>
+	</questions>
+	<questions>
+		<text>Soil type</text>
+		<name migs="M" definition="soil series name or other lower-level classification" >soil_type</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Soil type method</text>
+		<name migs="M" definition="reference or method used in determining soil series name or other lower-level classification" >soil_type_meth</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Slope gradient</text>
+		<name migs="M" definition="commonly called Òslope.Ó  The angle between ground surface and a horizontal line (in percent).  This is the direction that overland water would flow.  This measure is usually taken with a hand level meter or clinometer. " >slope_gradient</name>
+	</questions>
+	<questions>
+		<text>Slope aspect</text>
+		<name migs="M" definition="" >slope_aspect</name>
+	</questions>
+	<questions>
+		<text>Profile position</text>
+		<name migs="M" definition="" >profile_position</name>
+	</questions>
+	<questions>
+		<text>Drainage classification</text>
+		<name migs="M" definition="'drainage classification from a standard system such as the USDA system. possible values are; very poorly, poorly, somewhat poorly, moderately well, well, excessively drained'" >drainage_class</name>
+	</questions>
+	<questions>
+		<text>Texture</text>
+		<name migs="M" definition="'the relative proportion of different grain sizes of mineral particles in a soil, as described using a standard system; express as % sand (50 um to 2 mm), silt (2 um to 50 um), and clay (&lt;2 um) with textural name (e.g., silty clay loam) optional.'" >texture</name>
+	</questions>
+	<questions>
+		<text>Texture method</text>
+		<name migs="M" definition="reference or method used in determining soil texture" >texture_meth</name>
+	</questions>
+	<questions>
+		<text>PH</text>
+		<name migs="M" definition="pH measurement" >ph</name>
+	</questions>
+	<questions>
+		<text>PH method</text>
+		<name migs="M" definition="reference or method used in determining pH" >ph_meth</name>
+	</questions>
+	<questions>
+		<text>Total organic C</text>
+		<name migs="M" definition="total organic C content of the soil units of g C/kg soil" >tot_org_c</name>
+	</questions>
+	<questions>
+		<text>Total organic C method</text>
+		<name migs="M" definition="reference or method used in determining total organic C" >tot_org_c_meth</name>
+	</questions>
+	<questions>
+		<text>Total N</text>
+		<name migs="M" definition="total nitrogen content of the soil Units of g N/kg soil" >tot_n</name>
+	</questions>
+	<questions>
+		<text>Total N method</text>
+		<name migs="M" definition="reference or method used in determining the total N" >tot_n_meth</name>
+	</questions>
+	<questions>
+		<text>Microbial biomass</text>
+		<name migs="M" definition="'the part of the organic matter in the soil that constitutes living microorganisms smaller than 5-10 µm. IF you keep this, you would need to have correction factors used for conversion to the final units, which should be mg C (or N)/kg soil).'" >microbial_biomass</name>
+	</questions>
+	<questions>
+		<text>Microbial biomass method</text>
+		<name migs="M" definition="reference or method used in determining microbial biomass" >microbial_biomass_meth</name>
+	</questions>
+	<questions>
+		<text>Links to additional analysis</text>
+		<name migs="M" definition="" >link_addit_analys</name>
+	</questions>
+	<questions>
+		<text>Extreme_unusual_properties/salinity</text>
+		<name migs="M" definition="measured salinity " >extreme_salinity</name>
+	</questions>
+	<questions>
+		<text>Extreme_unusual_properties/salinity method</text>
+		<name migs="M" definition="reference or method used in determining salinity" >salinity_meth</name>
+	</questions>
+	<questions>
+		<text>Extreme_unusual_properties/heavy metals</text>
+		<name migs="M" definition="heavy metals present and concentrations" >heavy_metals</name>
+	</questions>
+	<questions>
+		<text>Extreme_unusual_properties/heavy metals method</text>
+		<name migs="M" definition="reference or method used in determining heavy metals" >heavy_metals_meth</name>
+	</questions>
+	<questions>
+		<text>Extreme_unusual_properties/Al saturation</text>
+		<name migs="M" definition="aluminum saturation (esp. for tropical soils)" >al_sat</name>
+	</questions>
+	<questions>
+		<text>Extreme_unusual_properties/Al saturation method</text>
+		<name migs="M" definition="reference or method used in determining Al saturation" >al_sat_meth</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Wastewater/sludge</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Alkalinity</text>
+		<name migs="M" definition="alkalinity measurement" >alkalinity</name>
+	</questions>
+	<questions>
+		<text>Biochemical oxygen demand</text>
+		<name migs="M" definition="a measure of the relative oxygen-depletion effect of a waste contaminant" >biochem_oxygen_dem</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Chemical oxygen demand</text>
+		<name migs="M" definition="a measure of the relative oxygen-depletion effect of a waste contaminant" >chem_oxygen_dem</name>
+	</questions>
+	<questions>
+		<text>Efficiency percent</text>
+		<name migs="M" definition="percentage of volatile solids removed from the anaerobic digestor" >efficiency_percent</name>
+	</questions>
+	<questions>
+		<text>Emulsions</text>
+		<name migs="M" definition="'amount or concentration of substances such as paints, adhesives, mayonnaise, hair colorants, emulsified oils, etc.; can include multiple emulsion types'" >emulsions</name>
+	</questions>
+	<questions>
+		<text>Gaseous substances</text>
+		<name migs="M" definition="'amount or concentration of substances such as hydrogen sulfide, carbon dioxide, methane, etc.; can include multiple substances'" >gaseous_substances</name>
+	</questions>
+	<questions>
+		<text>Industrial effluent percent</text>
+		<name migs="M" definition="percentage of industrial effluents received by wastewater treatment plant" >indust_eff_percent</name>
+	</questions>
+	<questions>
+		<text>Inorganic particles</text>
+		<name migs="M" definition="'concentration of particles such as sand, grit, metal particles, ceramics, etc.; can include multiple particles'" >inorg_particles</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+	<questions>
+		<text>Nitrate</text>
+		<name migs="M" definition="concentration of nitrate" >nitrate</name>
+	</questions>
+	<questions>
+		<text>Organic particles</text>
+		<name migs="M" definition="'concentration of particles such as faeces, hairs, food, vomit, paper fibers, plant material, humus, etcÉ'" >org_particles</name>
+	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>PH</text>
+		<name migs="M" definition="pH measurement" >ph</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Phosphate</text>
+		<name migs="M" definition="concentration of phosphate" >phosphate</name>
+	</questions>
+	<questions>
+		<text>Pre-treatment</text>
+		<name migs="M" definition="the process of pre-treatment removes materials that can be easily collected from the raw wastewater" >pre-treatment</name>
+	</questions>
+	<questions>
+		<text>Primary treatment</text>
+		<name migs="M" definition="the process to produce both a generally homogeneous liquid capable of being treated biologically and a sludge that can be separately treated or processed" >primary_treatment</name>
+	</questions>
+	<questions>
+		<text>Reactor type</text>
+		<name migs="M" definition="'anaerobic digesters can be designed and engineered to operate using a number of different process configurations, as batch or continuous, mesophilic, high solid or low solid, and single stage or multistage'" >reactor_type</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Sample salinity</text>
+		<name migs="M" definition="'salinity of sample, i.e. measure of total salt concentration'" >samp_salinity</name>
+	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Secondary treatment</text>
+		<name migs="M" definition="the process for substantially degrading the biological content of the sewage " >secondary_treatment</name>
+	</questions>
+	<questions>
+		<text>Sewage type</text>
+		<name migs="M" definition="type of wastewater treatment plant as municipial or industrial" >sewage_type</name>
+<type>OOD_List</type>	</questions>
+	<questions>
+		<text>Sludge retention time</text>
+		<name migs="M" definition="the time activated sludge remains in reactor" >sludge_retent_time</name>
+	</questions>
+	<questions>
+		<text>Soluble inorganic material</text>
+		<name migs="M" definition="'concentration of substances such as ammonia, road-salt, sea-salt, cyanide, hydrogen sulfide, thiocyanates, thiosulfates, etcÉ'" >soluble_inorg_mat</name>
+	</questions>
+	<questions>
+		<text>Soluble organic material</text>
+		<name migs="M" definition="'concentration of substances such as urea, fruit sugars, soluble proteins, drugs, pharmaceuticals, etcÉ'" >soluble_org_mat</name>
+	</questions>
+	<questions>
+		<text>Suspended solids</text>
+		<name migs="M" definition="'concentration of substances including a wide variety of material, such as silt, decaying plant and animal matter, etc,; can include multiple substances'" >suspend_solids</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Tertiary treatment</text>
+		<name migs="M" definition="the process providing a final treatment stage to raise the effluent quality before it is discharged to the receiving environment" >tertiary_treatment</name>
+	</questions>
+	<questions>
+		<text>Total nitrogen</text>
+		<name migs="M" definition="total amount or concentration of nitrogenous substances" >tot_nitro</name>
+	</questions>
+	<questions>
+		<text>Total phosphate</text>
+		<name migs="M" definition="total amount or concentration of phosphate" >tot_phosphate</name>
+	</questions>
+	<questions>
+		<text>Wastewater type</text>
+		<name migs="M" definition="'the origin of wastewater such as human waste, rainfall, storm drains, etcÉ'" >wastewater_type</name>
+<type>OOD_List</type>	</questions>
+</step>
+<step category="Environmentanl Package" exclusive="1">
+	<data>
+		<title>Water</title>
+		<layout>double-column</layout>
+	</data>
+	<questions>
+		<text>Alkalinity</text>
+		<name migs="M" definition="alkalinity measurement" >alkalinity</name>
+	</questions>
+	<questions>
+		<text>Alkyl diethers</text>
+		<name migs="M" definition="concentration of alkyl diethers " >alkyl_diethers</name>
+	</questions>
+	<questions>
+		<text>Aminopeptidase activity</text>
+		<name migs="M" definition="measurement of aminopeptidase activity" >aminopept_act</name>
+	</questions>
+	<questions>
+		<text>Ammonium</text>
+		<name migs="M" definition="concentration of ammonium" >ammonium</name>
+	</questions>
+	<questions>
+		<text>Atmospheric data</text>
+		<name migs="M" definition="measurement of atmospheric data; can include multiple data" >atmospheric_data</name>
+	</questions>
+	<questions>
+		<text>Bacterial carbon production</text>
+		<name migs="M" definition="measurement of bacterial carbon production" >bacteria_carb_prod</name>
+	</questions>
+	<questions>
+		<text>Biomass</text>
+		<name migs="M" definition="'amount of biomass; should include the name for the part of biomass measured, e.g. microbial, total. can include multiple measurements'" >biomass</name>
+	</questions>
+	<questions>
+		<text>Bishomohopanol</text>
+		<name migs="M" definition="concentration of bishomohopanol " >bishomohopanol</name>
+	</questions>
+	<questions>
+		<text>Bromide</text>
+		<name migs="M" definition="concentration of bromide " >bromide</name>
+	</questions>
+	<questions>
+		<text>Calcium</text>
+		<name migs="M" definition="concentration of calcium" >calcium</name>
+	</questions>
+	<questions>
+		<text>Carbon/nitrogen ratio</text>
+		<name migs="M" definition="ratio of amount or concentrations of carbon to nitrogen" >carb_nitro_ratio</name>
+	</questions>
+	<questions>
+		<text>Chemical administration</text>
+		<name migs="M" definition="'list of chemical compounds administered to the host or site where sampling occurred, and when (e.g. antibiotics, N fertilizer, air filter); can include multiple compounds. for CHEBI, see http://www.ebi.ac.uk/ontology-lookup/browse.do?ontName=CHEBI'" >chem_administration</name>
+	</questions>
+	<questions>
+		<text>Chloride</text>
+		<name migs="M" definition="concentration of chloride " >chloride</name>
+	</questions>
+	<questions>
+		<text>Chlorophyll</text>
+		<name migs="M" definition="concentration of chlorophyll" >chlorophyll</name>
+	</questions>
+	<questions>
+		<text>Current</text>
+		<name migs="M" definition="measurement of current " >current</name>
+	</questions>
+	<questions>
+		<text>Density</text>
+		<name migs="M" definition="density of sample" >density</name>
+	</questions>
+	<questions>
+		<text>Diether lipids</text>
+		<name migs="M" definition="concentration of diether lipids; can include multiple types of diether lipids" >diether_lipids</name>
+	</questions>
+	<questions>
+		<text>Dissolved carbon dioxide</text>
+		<name migs="M" definition="concentration of dissolved carbon dioxide" >diss_carb_dioxide</name>
+	</questions>
+	<questions>
+		<text>Dissolved hydrogen</text>
+		<name migs="M" definition="concentration of dissolved hydrogen" >diss_hydrogen</name>
+	</questions>
+	<questions>
+		<text>Dissolved inorganic nitrogen</text>
+		<name migs="M" definition="concentration of dissolved inorganic nitrogen " >diss_inorg_nitro</name>
+	</questions>
+	<questions>
+		<text>Dissolved inorganic phosphorus</text>
+		<name migs="M" definition="concentration of dissolved inorganic phosphorus " >diss_inorg_phosp</name>
+	</questions>
+	<questions>
+		<text>Dissolved organic carbon</text>
+		<name migs="M" definition="concentration of dissolved organic carbon" >diss_org_carb</name>
+	</questions>
+	<questions>
+		<text>Dissolved oxygen</text>
+		<name migs="M" definition="concentration of dissolved oxygen" >diss_oxygen</name>
+	</questions>
+	<questions>
+		<text>Glucosidase activity</text>
+		<name migs="M" definition="measurement of glucosidase activity" >glucosidase_act</name>
+	</questions>
+	<questions>
+		<text>Light intensity</text>
+		<name migs="M" definition="measurement of light intensity" >light_intensity</name>
+	</questions>
+	<questions>
+		<text>Magnesium</text>
+		<name migs="M" definition="concentration of magnesium" >magnesium</name>
+	</questions>
+	<questions>
+		<text>Mean friction velocity</text>
+		<name migs="M" definition="measurement of mean friction velocity" >mean_frict_vel</name>
+	</questions>
+	<questions>
+		<text>Mean peak friction velocity</text>
+		<name migs="M" definition="measurement of mean peak friction velocity" >mean_peak_frict_vel</name>
+	</questions>
+	<questions>
+		<text>Miscellaneous parameter</text>
+		<name migs="M" definition="'any other measurement performed or parameter collected, that is not listed here.should be given in the form of measurement name/parameter name=value and unit; can include multiple measurements or parameters'" >misc_param</name>
+	</questions>
+	<questions>
+		<text>N-alkanes</text>
+		<name migs="M" definition="concentration of n-alkanes; can include multiple n-alkanes" >n-alkanes</name>
+	</questions>
+	<questions>
+		<text>Nitrate</text>
+		<name migs="M" definition="concentration of nitrate" >nitrate</name>
+	</questions>
+	<questions>
+		<text>Nitrite</text>
+		<name migs="M" definition="concentration of nitrite" >nitrite</name>
+	</questions>
+	<questions>
+		<text>Nitrogen</text>
+		<name migs="M" definition="concentration of nitrogen (total)" >nitro</name>
+	</questions>
+	<questions>
+		<text>Organic carbon</text>
+		<name migs="M" definition="concentration of organic carbon" >org_carb</name>
+	</questions>
+	<questions>
+		<text>Organic matter</text>
+		<name migs="M" definition="concentration of organic matter " >org_matter</name>
+	</questions>
+	<questions>
+		<text>Organic nitrogen</text>
+		<name migs="M" definition="concentration of organic nitrogen" >org_nitro</name>
+	</questions>
+	<questions>
+		<text>Organism count</text>
+		<name migs="M" definition="'total count of any organism per gram or volume of sample,should include name of organism followed by count; can include multiple organism counts'" >organism_count</name>
+	</questions>
+	<questions>
+		<text>Oxygenation status of sample</text>
+		<name migs="M" definition="oxygenation status of sample" >oxy_stat_samp</name>
+	</questions>
+	<questions>
+		<text>PH</text>
+		<name migs="M" definition="pH measurement" >ph</name>
+	</questions>
+	<questions>
+		<text>Particulate organic carbon</text>
+		<name migs="M" definition="concentration of particulate organic carbon" >part_org_carb</name>
+	</questions>
+	<questions>
+		<text>Particulate organic nitrogen</text>
+		<name migs="M" definition="concentration of particulate organic nitrogen" >part_org_nitro</name>
+	</questions>
+	<questions>
+		<text>Perturbation</text>
+		<name migs="M" definition="'type of perturbation, e.g. chemical administration, physical disturbance, etc., coupled with time that perturbation occurred; can include multiple perturbation types'" >perturbation</name>
+	</questions>
+	<questions>
+		<text>Petroleum hydrocarbon</text>
+		<name migs="M" definition="concentration of petroleum hydrocarbon" >petroleum_hydrocarb</name>
+	</questions>
+	<questions>
+		<text>Phaeopigments</text>
+		<name migs="M" definition="concentration of phaeopigments; can include multiple phaeopigments" >phaeopigments</name>
+	</questions>
+	<questions>
+		<text>Phosphate</text>
+		<name migs="M" definition="concentration of phosphate" >phosphate</name>
+	</questions>
+	<questions>
+		<text>Phospholipid fatty acid</text>
+		<name migs="M" definition="concentration of phospholipid fatty acids; can include multiple values" >phosplipid_fatt_acid</name>
+	</questions>
+	<questions>
+		<text>Photon flux</text>
+		<name migs="M" definition="measurement of photon flux" >photon_flux</name>
+	</questions>
+	<questions>
+		<text>Potassium</text>
+		<name migs="M" definition="concentration of potassium " >potassium</name>
+	</questions>
+	<questions>
+		<text>Pressure</text>
+		<name migs="M" definition="'pressure to which the sample is subject, in atmospheres'" >press</name>
+	</questions>
+	<questions>
+		<text>Primary production</text>
+		<name migs="M" definition="measurement of primary production " >primary_prod</name>
+	</questions>
+	<questions>
+		<text>Redox potential</text>
+		<name migs="M" definition="'redox potential, measured relative to a hydrogen cell, indicating oxidation or reduction potential'" >redox_potential</name>
+	</questions>
+	<questions>
+		<text>Salinity</text>
+		<name migs="M" definition="salinity measurement" >salinity</name>
+	</questions>
+	<questions>
+		<text>Sample storage duration</text>
+		<name migs="M" definition="'duration for which sample was stored, e.g. 8/1/2003-7/24/2005'" >samp_store_dur</name>
+<type>Age</type>	</questions>
+	<questions>
+		<text>Sample storage location</text>
+		<name migs="M" definition="'location at which sample was stored, usually name of a specific freezer/room'" >samp_store_loc</name>
+	</questions>
+	<questions>
+		<text>Sample storage temperature</text>
+		<name migs="M" definition="'temperature at which sample was stored, e.g. -80'" >samp_store_temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Silicate</text>
+		<name migs="M" definition="concentration of silicate" >silicate</name>
+	</questions>
+	<questions>
+		<text>Soluble reactive phosphorus</text>
+		<name migs="M" definition="concentration of soluble reactive phosphorus" >soluble_react_phosp</name>
+	</questions>
+	<questions>
+		<text>Sulfate</text>
+		<name migs="M" definition="concentration of sulfate" >sulfate</name>
+	</questions>
+	<questions>
+		<text>Sulfide</text>
+		<name migs="M" definition="concentration of sulfide" >sulfide</name>
+	</questions>
+	<questions>
+		<text>Suspended particulate matter</text>
+		<name migs="M" definition="concentration of suspended particulate matter" >suspend_part_matter</name>
+	</questions>
+	<questions>
+		<text>Temperature</text>
+		<name migs="M" definition="temperature of the sample at time of sampling" >temp</name>
+<type>Temperature</type>	</questions>
+	<questions>
+		<text>Total depth of water column</text>
+		<name migs="M" definition="measurement of total depth of water column" >tot_depth_water_col</name>
+	</questions>
+	<questions>
+		<text>Total inorganic nitrogen</text>
+		<name migs="M" definition="total inorganic nitrogen content" >tot_inorg_nitro</name>
+	</questions>
+	<questions>
+		<text>Total nitrogen</text>
+		<name migs="M" definition="total amount or concentration of nitrogenous substances" >tot_nitro</name>
+	</questions>
+	<questions>
+		<text>Total particulate carbon</text>
+		<name migs="M" definition="total particulate carbon content" >tot_part_carb</name>
+	</questions>
+	<questions>
+		<text>Total phosphorus</text>
+		<name migs="M" definition="total phosphorus content" >tot_phosp</name>
+	</questions>
+</step>
+</config>

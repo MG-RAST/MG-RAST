@@ -1,0 +1,19 @@
+#!/bin/sh
+
+TOOL_HDR=$1
+
+echo "#!/usr/bin/env perl
+
+BEGIN {
+    unshift @INC, qw(
+              ${TARGETDIR}/lib
+              ${TARGETDIR}/lib/WebApplication
+              ${TARGETDIR}/lib/PPO
+              ${TARGETDIR}/lib/MGRAST
+              ${TOPDIR}/conf
+	);
+}
+use Data::Dumper;
+use FIG_Config;
+# end of tool_hdr
+########################################################################" > ${TOOL_HDR}
