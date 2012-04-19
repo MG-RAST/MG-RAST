@@ -1,9 +1,15 @@
 # git ignore file 
 
 # ignore all generated files
-common
-common/**/*
+site
+site/**/*
 
 # ignore files with # and ~
 *\#*
 *\~*
+
+# os x files
+*.DS_Store
+
+# Thumbnails
+._*
