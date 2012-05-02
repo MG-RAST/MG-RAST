@@ -3,6 +3,8 @@
 # ignore all generated files
 site
 site/**/*
+conf/Config.pm
+conf/FIG_Config.pm
 
 # ignore files with # and ~
 *\#*
