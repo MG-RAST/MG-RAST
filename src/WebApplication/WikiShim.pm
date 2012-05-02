@@ -20,7 +20,6 @@
 package WikiShim;
 
     use strict;
-    use Tracer;
     use CGI;
     use HTML::Template;
     use DBMaster;
@@ -92,7 +91,6 @@ sub new {
     my $cgi = $options{cgi} || CGI->new();
     my $applicationID = $options{application} || 'SeedViewer';
     my $defaultPage = $options{default} || 'Home';
-    Trace("Wiki shim for $applicationID.") if T(3);
     # Compute the application label. This is "GenomeViewer" for the SEED viewer and is
     # otherwise unaltered.
     my $appName = ($applicationID eq 'SeedViewer' ? 'GenomeViewer' : $applicationID);
@@ -103,7 +101,6 @@ sub new {
     my $template = TWiki::Func::loadTemplate('view');
     # Get rid of the unneeded meta-variable values.
     $template =~ s/%REVTITLE%//g;
-    Trace("Template string is:\n$template") if T(3);
     # Expand it.
     my $raw = TWiki::Func::expandCommonVariables($template, $appName, 'Main');
     # Render it into HTML.
@@ -152,13 +149,12 @@ ____END
     my $layout = WebLayout->new({ frame => $html, body => $bodyTemplateText });
     # Tell the layout object we need to fix up links.
     $layout->set_relocation("$FIG_Config::cgi_url/");
-    # Create the web-application object. We set noTrace because tracing is already
-    # turned on, and we pass the CGI object so that the correct parameters are
+    # Create the web-application object.
+    # We pass the CGI object so that the correct parameters are
     # available.
     my $retVal = WebApplication::new($class,
                                       { id       => $applicationID,
                                         cgi      => $cgi,
-                                        noTrace  => 1,
                                         dbmaster => DBMaster->new(-database => $FIG_Config::webapplication_db,
                                                                   -host     => $FIG_Config::webapplication_host,
                                                                   -user     => $FIG_Config::webapplication_user,

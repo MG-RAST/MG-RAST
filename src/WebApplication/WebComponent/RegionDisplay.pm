@@ -9,7 +9,6 @@ use FIG;
 use FIGV;
 use PinnedRegions;
 use FIG_Config;
-use Tracer;
 use BasicLocation;
 use SeedViewer::SeedViewer;
 
@@ -146,7 +145,6 @@ sub output {
 
     my $number_of_regions = $cgi->param('number_of_regions') || $self->number_of_regions();
     $self->number_of_regions($number_of_regions);
-    Trace("Number of regions is $number_of_regions.") if T(3);
     my $select_pinned_pegs = $cgi->param('select_pinned_pegs') || $self->select_pinned_pegs();
     $self->select_pinned_pegs($select_pinned_pegs);
 
@@ -541,7 +539,6 @@ sub commentary_page_form {
 
 sub pinned_regions_image {
     my($self, $maps, $seed_user) = @_;
-    Trace("Pinned regions image called.") if T(3);
     return '' if ($self->graphical_output == 0);
 
     
@@ -567,7 +564,6 @@ sub pinned_regions_image {
 	foreach my $feature ( @$features )
 	{
 	    my $fid  = $feature->{'fid'};
-	    Trace("Processing feature $fid in pinned_regions_image.") if T(4);
 	    $fid =~ /(glimmer|critica)/;
 	    if ($1) {
 	      next if ($1 eq 'glimmer' || $1 eq 'critica');
@@ -587,7 +583,6 @@ sub pinned_regions_image {
 	    my $ln_aa    = int($ln_bp/3);          # should be integer for pegs, but let's make sure
 	    my $size     = ($type eq 'peg')? "$ln_bp bp, $ln_aa aa" : "$ln_bp bp";
 
-	    Trace("Regions is from $beg1 to $end1 for set $set.") if T(4);
 	    my $color;
 	    if ( defined($set) )
 	    {
@@ -737,13 +732,11 @@ sub pinned_regions_table {
     my %input_peg  = map {$_ => 1} @$pegs;
     my $table      = $self->application->component('pinned_region_table');
     my $table_data = [];
-    Trace("Processing region display table.") if T(3);
     # write information into tabular format                                                                               
     foreach my $map ( @$maps )
     {
  	my $org_name   = $map->{'org_name'};
 	my $features   = $map->{'features'};
-	Trace("Processing region display map for $org_name.") if T(3);
 	# my $genome     = $map->{'genome'};
 	# my $contig     = $map->{'contig'};
 	# my $min        = $map->{'beg'};
@@ -763,7 +756,6 @@ sub pinned_regions_table {
 				    $a->{fid}   cmp $b->{fid} } @$features )
 	{
 	    my $fid   =  $feature->{'fid'};
-            Trace("Processing feature $fid for region display.") if T(3);
 	    $fid      =~ /^fig\|\d+\.\d+\.(.+)/;
 	    my $fid_num = $1;
 	    

@@ -9,7 +9,6 @@ use Data::Dumper;
 use FIG;
 use FIGV;
 use UnvSubsys;
-use Tracer;
 
 use base qw( WebPage );
 
@@ -53,9 +52,7 @@ sub output {
 
   # needed objects #
   my $application = $self->application();
-  Trace("Accessing FIG object.") if T(3);
   $self->{ 'fig' } = $application->data_handle( 'FIG' );
-  Trace("No FIG object returned.") if T(3) && ! defined ($self->{'fig'});
   $self->{ 'cgi' } = $application->cgi;
   my $cgi          = $application->cgi;
   my $hiddenvalues = {};
@@ -125,7 +122,6 @@ sub output {
 
   my $wasin = 0;
   foreach my $key ( @figids ) {
-    Trace("Processing $key.") if T(3);
     if ( $key =~ /cds_checkbox_(.*)/ ) {
       $key = $1;
     }

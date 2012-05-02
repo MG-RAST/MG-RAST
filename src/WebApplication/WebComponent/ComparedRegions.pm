@@ -8,7 +8,6 @@ use strict;
 use warnings;
 
 use FIG;
-use Tracer;
 use Data::Dumper;
 
 use base qw( WebComponent );
@@ -64,7 +63,6 @@ Returns the html output of the ComparedRegions component.
 
 sub output {
   my ($self) = @_;
-  Trace("ComparedRegions in progress.") if T(3);
   # check parameters
   my $application = $self->application();
   my $fig = $self->fig();
@@ -77,8 +75,6 @@ sub output {
   my $table_data = [];
   # get the n pegs closest to the one passed
   my @closest_pegs = $self->get_closest_pegs();
-  Trace(scalar(@closest_pegs) . " close pegs found for focus $peg.") if T(3);
-  Trace("Application URL = " . $application->url) if T(3);
   # add the selected peg to the list
   unshift(@closest_pegs, $peg);
 
@@ -334,7 +330,6 @@ sub get_closest_pegs {
   my $peg = $self->focus();
   my $n = $self->number_of_genomes();
   my $evalue = $self->evalue();
-  Trace("Searching for closest pegs of $peg with $n genomes.") if T(3);
 
   my($id2, $d, $peg2, $i);
   my @closest = map { $id2 = $_->id2; ($id2 =~ /^fig\|/) ? $id2 : () } $fig->sims($peg,&FIG::max(20,$n*4),$evalue,"fig",&FIG::max(20,$n*4));

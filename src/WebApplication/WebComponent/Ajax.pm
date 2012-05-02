@@ -11,7 +11,6 @@ use CGI;
 
 use WebApplication;
 use FIG_Config;
-use Tracer;
 
 1;
 
@@ -95,7 +94,6 @@ sub render {
   my $page_object = $page->new($application);
   $application->page($page_object);
   $page_object->init();
-  Trace("Calling page subroutine $sub_to_call.") if T(3);
   my $html = "";
   if ($cgi->param('component')) {
     my ($component, $id) = split(/\|/, $cgi->param('component'));

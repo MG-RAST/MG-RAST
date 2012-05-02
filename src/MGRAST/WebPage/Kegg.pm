@@ -6,7 +6,6 @@ use base qw( WebPage );
 
 use strict;
 use warnings;
-use Tracer;
 use URI::Escape;
 
 use FIG_Config;
@@ -509,7 +508,6 @@ sub all_genome_list {
     my $seed_genomes = $fig->genome_list();
 
     push @genome_list, sort {$a->[1] cmp $b->[1]} @$seed_genomes;
-    Trace("KEGG genome list has " . scalar(@genome_list) . " entries.") if T(3);
     return \@genome_list;
 }
 

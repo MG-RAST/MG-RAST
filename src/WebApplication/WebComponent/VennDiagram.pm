@@ -8,7 +8,6 @@ use strict;
 use warnings;
 
 use URI::Escape;
-use Tracer;
 use GD;
 use GD::Polyline;
 use Math::Trig;

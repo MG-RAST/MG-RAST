@@ -15,7 +15,6 @@ use FIGM;
 use FIG_Config;
 use SFXlate;
 use FIGRules;
-use Tracer;
 
 1; 
 
@@ -58,7 +57,6 @@ sub handle {
   my ($self, $optional_id) = @_;
   # Get the CGI object.
   my $cgi = $self->application->cgi;
-  Trace("Data handler called.") if T(3);
   # find out about organism/metagenome id
   my @keywords = qw( organism metagenome feature pattern );
   my $id;
@@ -86,7 +84,6 @@ sub handle {
       # No cookie. Check nmpdr_mode.
       $sprout = (FIGRules::nmpdr_mode($cgi) ? 'Sprout' : 'FIG');
     } else {
-      Trace("Mode cookie found: $sprout") if T(3);
       # Here we have a mode cookie override, so we put an info line in the output.
       $self->application->add_message(info => "Data source override: $sprout");
     }
@@ -94,10 +91,6 @@ sub handle {
     # We convert this into the two parameters required by FIGV. Note that eventually
     # there will be a SproutV, but not yet.
     my ($mode, $dir) = split /\s*,\s*/, $sprout, 2;
-    if (T(3)) {
-      my $traceDir = (! defined($dir) ? "no directory" : "directory $dir");
-      Trace("Operating mode is $mode with $traceDir.");
-    }
     if ($mode eq 'FIG') {
       $self->{_fig} = FIG->new();
     } elsif ($mode eq 'Sprout') {
@@ -108,14 +101,12 @@ sub handle {
       $self->{_fig} = FIGV->new($dir, $mode);
     }
   }
-  Trace("Initial object type is " . ref($self->{_fig}) . ".") if T(3);
   # Start of FIGM part
   # check if there are rast jobs and a user
   if (exists($self->{_figm})) {
     return $self->{_figm};
   }
   if ($FIG_Config::rast_jobs && $self->application->session->user) {
-    Trace("FIGM processing.") if T(3);
     my $application = $self->application;
     my $user = $application->session->user;
     my $master = $application->dbmaster;
@@ -184,7 +175,7 @@ sub handle {
 
   # return fig if there's no id
   return $self->{_fig} unless ($id);
-  Trace("ID is \"$id\".") if T(3);
+
   # check if normal fig has that organism
   return $self->{_fig} if ($id and $self->{_fig}->genome_version($id));
 

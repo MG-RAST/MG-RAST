@@ -48,7 +48,6 @@ eval {
 };
 
 if ($@) {
-  Trace("Transaction aborted: $@") if T(0);
   eval { $dbh->rollback };
   if ($@) {
     Confess("Rollback failed: $@");

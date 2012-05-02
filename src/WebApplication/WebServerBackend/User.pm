@@ -8,7 +8,6 @@ use Mail::Mailer;
 
 use Data::Dumper;
 use WebConfig;
-use Tracer;
 use strict;
 use warnings;
 no warnings 'redefine'; # Not sure why we need this, but it prevents
@@ -783,7 +782,6 @@ sub has_right {
   $delegatable = ($delegatable) ? " AND Rights.delegated=0" : '';
 
   my $sql = qq~SELECT data_id FROM (SELECT UserHasScope.scope FROM Scope LEFT JOIN UserHasScope ON Scope._id = UserHasScope.scope WHERE $scope_app AND UserHasScope.user=$user_id and UserHasScope.granted=1) AS t1 LEFT JOIN (SELECT data_id, scope FROM Rights WHERE $rights_app AND Rights.name=$right$data_type$data_id$delegatable AND Rights.granted=1) AS t2 ON t1.scope=t2.scope WHERE data_id IS NOT NULL;~;
-  Trace("Checking for right using SQL command: $sql") if T(Login => 3);
   # query database
   my $sth = $self->_master->db_handle->prepare($sql);
   $sth->execute;

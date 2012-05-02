@@ -16,7 +16,6 @@ use GD;
 use Math::Trig;
 
 use WebColors;
-use Tracer;
 
 =pod
 

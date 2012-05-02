@@ -9,7 +9,6 @@ use base qw( DataHandler );
 use lib '/vol/model-prod/Model-SEED-core/config/';
 use ModelSEEDbootstrap;
 use ModelSEED::FIGMODEL;
-use Tracer;
 
 =head1 FIGMODEL Data Handler
 #TITLE FIGMODELpmDataHandler
@@ -21,7 +20,6 @@ use Tracer;
 sub handle {
   my ($self, $optional_id) = @_;
   my $cgi = $self->application->cgi;
-  Trace("Data handler called.") if T(3);
   if (!defined($self->{'FIGMODEL'})) {
   	my $user = $self->application()->session->user;
   	$self->{'FIGMODEL'} = ModelSEED::FIGMODEL->new();

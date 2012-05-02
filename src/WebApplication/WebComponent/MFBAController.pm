@@ -1,7 +1,6 @@
 package WebComponent::MFBAController;
 use warnings;
 use URI::Escape;
-use Tracer;
 use File::Path;
 use base qw( WebComponent );
 1;

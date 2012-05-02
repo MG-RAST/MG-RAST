@@ -2,7 +2,6 @@ use strict;
 use warnings;
 use CGI;
 use WebComponent::Ajax;
-use Tracer;
 
 use IO::Handle;
 #open(TICKLOG, ">/dev/pts/9") or open(TICKLOG, ">&STDERR");
@@ -113,10 +112,6 @@ sub main
     my($cgi) = @_;
     my ($ajaxError, @cookieList);
     
-    if (! $cgi->param('ajaxQuiet')) {
-	ETracing($cgi);
-	Trace("Ajax script in progress.") if T(3);
-    }
     my $app = $cgi->param('app');
     my $page = $cgi->param('page');
     my $sub_to_call = $cgi->param('sub');
@@ -143,7 +138,6 @@ sub main
     $cgi->delete('cookies');
     if ($cookies && ! defined $ajaxError) {
 	my $method = $realPage . "::" . $cookies;
-	Trace("Calling cookie method $method.") if T(3);
 	@cookieList = eval("$method(\$cgi)");
 	if ($@) {
 	    $ajaxError = $@;
@@ -152,7 +146,6 @@ sub main
     print $cgi->header(-cookie => \@cookieList);
     my $result;
     if (! defined $ajaxError) {
-	Trace("Calling render method.") if T(3);
 	eval {
 	    $result = &WebComponent::Ajax::render($app, $realPage, $sub_to_call, $cgi);
 	};
@@ -171,8 +164,6 @@ sub main
 					  "border: 2px solid #ee2222;") },
 			   "Failure in component: $ajaxError");
     }
-    Tracer::TraceImages($result);
-    Trace("Printing result.") if T(3);
     print $result;
 }
 

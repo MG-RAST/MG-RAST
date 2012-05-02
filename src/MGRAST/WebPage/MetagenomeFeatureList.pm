@@ -8,7 +8,6 @@ use URI::Escape;
 
 use strict;
 use warnings;
-use Tracer;
 use HTML;
 
 use MGRAST::MGRAST qw( get_menu_metagenome );
