@@ -39,6 +39,7 @@ WEBPAGES := $(wildcard *.tmpl) \
         $(wildcard *.js) \
 	$(wildcard *.css) \
 	$(wildcard *.jar) \
+	$(wildcard *.html) \
 	$(wildcard images/*.ico)
 
 INST_PERL_LIB = $(foreach var, $(PERL_LIB), $(libdir)/$(PKGNAME)/$(var))
