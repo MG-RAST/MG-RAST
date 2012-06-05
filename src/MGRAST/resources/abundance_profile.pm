@@ -13,10 +13,15 @@ my $json = new JSON;
 $json = $json->utf8();
 
 sub about {
+  my $ach = new Babel::lib::Babel;
   my $content = { 'description' => "metagenomic abundance profile",
-		  'parameters' => { "id" => "string",
-				    "type" => [ "organism", "function" ],
-				    "source" => "string" },
+		  'parameters'  => { "id" => "string",
+				     "type" => [ "organism", "function" ],
+				     "source" => { "protein"  => [ 'm5nr', map {$_->[0]} @{$ach->get_protein_sources} ],
+						   "ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
+						   "rna"      => [ 'm5rna', map {$_->[0]} @{$ach->get_rna_sources} ]
+						 }
+				   },
 		  'return_type' => "application/json" };
 
   print $cgi->header(-type => 'application/json',
@@ -87,7 +92,7 @@ sub request {
     $params->{$key} = $value;
   }
 
-  my $source = 'RefSeq';
+  my $source = 'M5NR';
   if ($params->{source}) {
     $source = $params->{source};
   } elsif ($cgi->param('source')) {
@@ -195,7 +200,7 @@ sub request {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid type for profile call: ".$params->{type}." - valid types are [ 'taxonomy', 'function' ]";
+    print "ERROR: Invalid type for profile call: ".$params->{type}." - valid types are [ 'organism', 'function' ]";
     exit 0;
   }
 

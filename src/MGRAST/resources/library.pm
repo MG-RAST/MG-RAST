@@ -3,6 +3,7 @@ package resources::library;
 use CGI;
 use JSON;
 
+use MGRAST::Metadata;
 use WebServiceObject;
 
 my $cgi = new CGI;
@@ -70,11 +71,16 @@ sub request {
 
   if ($library && ref($library)) {
     my $obj    = {};
+    my $mddb   = MGRAST::Metadata->new();
     my $mdata  = $library->data();
     my $name   = $library->name ? $library->name : (exists($mdata->{sample_name}) ? $mdata->{sample_name} : '');
     my $proj   = $library->project;
     my @jobs   = grep { $_->public || exists($rights{$_->metagenome_id}) || exists($rights{'*'}) } @{ $library->jobs };
-    my $sample = $master->MetaDataCollection->get_objects( {parent => $library, type => 'sample'} );
+    my $libjob = (@jobs > 0) ? $jobs[0] : undef;
+    my $sample = ref($library->parent) ? $library->parent : undef;
+    if ($cgi->param('template')) {
+      $mdata = $mddb->add_template_to_data($library->lib_type, $mdata);
+    }
 
     $obj->{id}       = "mgl".$library->ID;
     $obj->{about}    = "metagenomics library";
@@ -84,9 +90,10 @@ sub request {
     $obj->{created}  = $library->entry_date;
     $obj->{metadata} = $mdata;
     $obj->{project}  = $proj ? "mgp".$proj->{id} : undef;
-    $obj->{sample}   = @$sample ? $sample->[0]->{ID} : undef;
-    @{ $obj->{metagenomes} } = map { "mgm".$_->metagenome_id } @jobs;
-    @{ $obj->{sequence_sets} } = map { get_sequence_sets($_) } @jobs;
+    $obj->{sample}   = $sample ? "mgs".$sample->{ID} : undef;
+    $obj->{reads}    = $libjob ? "mgm".$libjob->metagenome_id : undef;
+    $obj->{metagenome} = $libjob ? "mgm".$libjob->metagenome_id : undef;
+    $obj->{sequence_sets} = $libjob ? get_sequence_sets($libjob) : [];
 
     print $cgi->header(-type => 'application/json',
 		       -status => 200,
@@ -106,10 +113,26 @@ sub request {
 sub get_sequence_sets {
   my ($job) = @_;
   
-  my $adir   = $job->analysis_dir;
+  my $mgid = $job->metagenome_id;
+  my $rdir = $job->download_dir;
+  my $adir = $job->analysis_dir;
   my $stages = [];
+  if (opendir(my $dh, $rdir)) {
+    my @rawfiles = sort grep { /^.*(fna|fastq)(\.gz)?$/ && -f "$rdir/$_" } readdir($dh);
+    closedir $dh;
+    my $fnum = 1;
+    foreach my $rf (@rawfiles) {
+      my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
+      push(@$stages, { id => "mgm".$mgid."-050-".$fnum,
+		       stage_id => "050",
+		       stage_name => "upload",
+		       stage_type => $ftype,
+		       file_name => $rf });
+      $fnum += 1;
+    }
+  }
   if (opendir(my $dh, $adir)) {
-    my @stagefiles = grep { /^.*(fna|faa)(\.gz)?$/ && -f "$adir/$_" } readdir($dh);
+    my @stagefiles = sort grep { /^.*(fna|faa)(\.gz)?$/ && -f "$adir/$_" } readdir($dh);
     closedir $dh;
     my $stagehash = {};
     foreach my $sf (@stagefiles) {
@@ -126,10 +149,8 @@ sub get_sequence_sets {
 		       stage_type => $stageresult,
 		       file_name => $sf });
     }
-    return $stages;
-  } else {
-    return [];
   }
+  return $stages;
 }
 
 sub TO_JSON { return { %{ shift() } }; }

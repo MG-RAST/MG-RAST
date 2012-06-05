@@ -47,7 +47,6 @@ sub init {
   my $job = $self->SUPER::init(@_);
   unless (ref $job) {
     print STDERR "Job init call failed.\n";
-#    print STDERR Dumper $self ;
     return undef;
   }
 
@@ -57,14 +56,10 @@ sub init {
       return undef;
     }
   }
-
-
-
-  
   return $job;
 }
 
-sub name{
+sub name {
   my ($self , $value) = @_ ;
   
   if ($value){
@@ -84,51 +79,49 @@ sub name{
   return $self->SUPER::name() || 'unknown';
 }
 
-sub reserve_job {
-  my ($self, $user , $options , $stats) = @_;
-  
+sub initialize {
+  my ($self, $user, $data) = @_;
+
   my $master = $self->_master();
   unless (ref($master)) {
-    die "reserve_job called without a dbmaster reference";
+    print STDRER "reserve_job called without a dbmaster reference";
+    return undef;
   }
-  
   unless (ref($user)) {
-    die "reserve_job called without a user";
+    print STDRER "reserve_job called without a user";
+    return undef;
+  }
+
+  my $dbh = $master->db_handle;
+  my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
+  my $job_id  = $max->[0] + 1;
+  my $mg_id   = $max->[1] + 1;
+  my $options = { owner => $user, job_id => $job_id, metagenome_id => $mg_id, server_version => 3 };
+  my $params  = {};
+ 
+  if (ref($data) eq "HASH") {
+    $params = $data;
+  }
+  elsif ((! ref($data)) && (-s $data)) {
+    my @lines = `cat $data`;
+    chomp @lines;
+    foreach my $line (@lines) {
+      my ($k, $v) = split(/\t/, $line);
+      $params->{$k} = $v;
+    }
   }
   
-  my $dbh = $master->db_handle;
-  my $sth = $dbh->prepare("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
-  $sth->execute;
-  my $result = $sth->fetchrow_arrayref();
+  my $job_keys  = ['name','file','file_size','file_checksum','sequence_type'];
+  my $stat_keys = ['bp_count','sequence_count','average_length','standard_deviation_length','length_min','length_max','average_gc_content','standard_deviation_gc_content','average_gc_ratio','standard_deviation_gc_ratio','ambig_char_count','ambig_sequence_count','average_ambig_chars','drisee_score'];
 
-  my $job_id        = $result->[0] + 1;
-  my $metagenome_id = $result->[1] + 1;
-  
-  ##################################################################################################################################
-  # hack to balance the load on the disks by skipping some job numbers
-  # delete this code when the space issues are solved
-  # MJD, 2011-12-01
-  
-  my ($last_two_digits) = ($job_id =~ /(\d\d)$/);
-  my %kass_1 = map {$_ => 1} ('00', '03', '06', '09', 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57, 60, 63, 66, 69, 72, 75, 78, 81, 84, 87, 90, 93, 96, 99);
-  my %kass_2 = map {$_ => 1} ('01', '04', '07', 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91, 94, 97);
-  my %kass_4 = map {$_ => 1} ('02', '05', '08', 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 86, 89, 92, 95, 98);
-
-  # don't assign job_ids which would have directories on kasserine-2
-  #if ( exists $kass_2{$last_two_digits} ) { $job_id++; }
-
-  # don't assign job_ids which would have directories on kasserine-4
-  if ( exists $kass_4{$last_two_digits} ) { $job_id++; }
-
-  # don't assign job_ids which would have directories on kasserine-1 or kasserine-2
-  #while ( exists($kass_2{$last_two_digits}) || exists($kass_1{$last_two_digits}) ) { $job_id++; ($last_two_digits) = ($job_id =~ /(\d\d)$/); }
-  ##################################################################################################################################  
-  
-  my $job = $master->Job->create( { owner => $user, job_id => $job_id, metagenome_id => $metagenome_id , server_version => 3 } );
-
-  unless(ref $job){
-    print STDRER "Can't create job for: { owner => $user, job_id => $job_id, metagenome_id => $metagenome_id , server_version => 3 }\n";
-    exit;
+  foreach my $key (@$job_keys) {
+    if (exists $params->{$key}) {
+      if ($key =~ /^file_(size|checksum)/) {
+	$options->{$key.'_raw'} = $params->{$key};
+      } else {
+	$options->{$key} = $params->{$key};
+      }
+    }
   }
 
   # Connect to User/Rights DB
@@ -137,53 +130,79 @@ sub reserve_job {
 			  -host     => $FIG_Config::webapplication_host,
 			  -user     => $FIG_Config::webapplication_user,
 			 );
-     
   # check rights
-  my $rights = [ 'view', 'edit', 'delete' ];
+  my $rights = ['view', 'edit', 'delete'];
   foreach my $right_name (@$rights) {
-    unless( scalar( @{ $dbm->Rights->get_objects({ scope       => $user->get_user_scope,
-						   data_type   => 'metagenome',
-						   data_id     => $metagenome_id,
-						   name        => $right_name,
-						   granted     => 1,
-						 }) 
-		     }))
-      {
-	my $right = $dbm->Rights->create({ scope       => $user->get_user_scope,
-					   data_type   => 'metagenome',
-					   data_id     => $metagenome_id,
-					   name        => $right_name,
-					   granted     => 1,
-					 });
-	unless (ref $right) {
-	  die "Unable to create Right $right_name - metagenome - $metagenome_id.";
-	}
+    my $objs = $dbm->Rights->get_objects({ scope     => $user->get_user_scope,
+					   data_type => 'metagenome',
+					   data_id   => $mg_id,
+					   name      => $right_name,
+					   granted   => 1 });
+    unless (@$objs > 0) {
+      my $right = $dbm->Rights->create({ scope     => $user->get_user_scope,
+					 data_type => 'metagenome',
+					 data_id   => $mg_id,
+					 name      => $right_name,
+					 granted   => 1 });
+      unless (ref $right) {
+	print STDRER "Unable to create Right $right_name - metagenome - $mg_id.";
+	return undef;
       }
+    }
+  }
+
+  ### now create job
+  my $job = $master->Job->create($options);
+  unless (ref $job) {
+    print STDRER "Can't create job\n";
+    return undef;
   }
   
   # store raw stats
-  if ($stats and ref $stats){
-    foreach my $s (keys %$stats) {
-      $job->stats( $s.'_raw', $stats->{$s} );
+  foreach my $key (@$stat_keys) {
+    if (exists $params->{$key}) {
+      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
+    } elsif (exists $params->{$key.'_raw'}) {
+      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
     }
   }
 
-  # store options
-  if ($options and ref $options){
-    my $default =  $FIG_Config::mgrast_pipeline_default_options ;
-    foreach my $opt (keys %$options){
-      $default->{ $opt } = $options->{ $opt} ;
-    }
-
-    foreach my $opt (keys %$default){
-      $job->data( $opt, $default->{$opt} );
-    }
+  # store attributes
+  my $used_keys = {};
+  map { $used_keys->{$_} = 1 } @$job_keys;
+  map { $used_keys->{$_} = 1 } @$stat_keys;
+  map { $used_keys->{$_.'_raw'} = 1 } @$stat_keys;
+  
+  foreach my $key (keys %$params) {
+    next if (exists $used_keys->{$key});
+    $key =~ s/\s+/_/;
+    $params->{$key} =~ s/\s+/_/;
+    $master->JobAttributes->create({ job => $job, tag => $key, value => $params->{$key} });
   }
-  $self->set_filter_options();
-    
+  $job->set_filter_options();
+
   return $job;
 }
 
+sub reserve_job {
+  my ($self, $user, $options, $stats) = @_;
+
+  my $data = {};
+  if (ref $options) {
+    map { $data->{$_} = $options->{$_}; } keys %$options;
+  }
+  if (ref $stats) {
+    map { $data->{$_} = $stats->{$_}; } keys %$stats;
+  }
+  return $self->initalize($user, $data);
+}
+
+sub has_checksum {
+  my ($self, $checksum, $user) = @_;
+  my $dbh = $self->_master->db_handle;
+  my $md5 = $dbh->selectcol_arrayref("SELECT count(*) FROM Job WHERE file_checksum_raw='$checksum'".(($user && ref($user)) ? " AND owner=".$user->_id : ""));
+  return ($md5 && @$md5 && ($md5->[0] > 0)) ? 1 : 0;  
+}
 
 sub finish_upload {
   my ($self, $file, $file_format) = @_ ;
@@ -208,16 +227,6 @@ sub finish_upload {
   }
 }
 
-sub create_job{
-  my ($self , $file) = @_ ;
-  #my $cmd = $FIG_Config::Pipeline . "/create_job -j $id -u $file -f $file " ;
-}
-
-sub submit {
-  my ($self , $sequence_type) = @_ ;
-  #my $cmd = $FIG_Config::Pipeline . "/submit_stages -j $id $pipeline " ;  
-}
-
 =pod 
 
 =item * B<directory> ()
@@ -227,12 +236,13 @@ Returns the full path the job directory (without a trailing slash).
 =cut
 
 sub directory {
-  return $FIG_Config::mgrast_jobs.'/'.$_[0]->job_id;
+  my ($self) = @_;
+  return $FIG_Config::mgrast_jobs.'/'.$self->job_id;
 }
 
-sub dir{
+sub dir {
   my ($self) = @_;
-  return $self->directory ;
+  return $self->directory;
 }
 
 =pod 
@@ -244,13 +254,12 @@ Returns the full path the download directory inside the job (without a trailing 
 =cut
 
 sub download_dir {
-    my ($self , $stage) = @_ ;
-    if ($stage){
-	return $_[0]->directory.'/analysis/';
+    my ($self, $stage) = @_ ;
+    if ($stage) {
+	return $self->directory.'/analysis/';
     }
-    return $_[0]->directory.'/raw/';
+    return $self->directory.'/raw/';
 }
-
 
 =pod 
 
@@ -261,25 +270,14 @@ Returns the full path the analysis directory inside the job (without a trailing 
 =cut
 
 sub analysis_dir {
-  unless (-d $_[0]->directory.'/analysis') {
-    chdir($_[0]->directory) or 
-      die("Unable to change directory to ".$_[0]->directory.": $!");
+  my ($self) = @_;
+  unless (-d $self->directory.'/analysis') {
+    chdir($self->directory) or 
+      die("Unable to change directory to ".$self->directory.": $!");
     mkdir "analysis", 0777 or 
-      die("Unable to create directory analysis in ".$_[0]->directory.": $!");
+      die("Unable to create directory analysis in ".$self->directory.": $!");
   }
-  return $_[0]->directory.'/analysis';
-}
-
-=pod
-
-=item * B<downloads> ()
-
-Returns the name of the project
-
-=cut
-
-sub downloads {
-  return [];
+  return $self->directory.'/analysis';
 }
 
 =pod
@@ -293,8 +291,7 @@ Returns the name of the project
 sub download {
   my ($self , $stage_id , $file) = @_;
 
-
-  if ($file){
+  if ($file) {
     if (open(FH, $self->download_dir($stage_id) . "/" . $file)) {
       print "Content-Type:application/x-download\n";  
       # print "Content-Length: " . length($content) . "\n";
@@ -310,8 +307,6 @@ sub download {
     }
   }
   elsif (defined $stage_id){
-    print STDERR "Found defined stage '$stage_id' '$file'\n";
-    
     # Download uploaded files
     unless ($stage_id){ 
       
@@ -331,22 +326,6 @@ sub download {
   }
   
   return 1;
-}
-
-
-
-
-
-=pod
-
-=item * B<project> ()
-
-Returns the name of the project
-
-=cut
-
-sub project {
-  return;
 }
 
 =pod
@@ -437,8 +416,6 @@ sub get_jobs_for_user_fast {
       $job_cond .= " AND metagenome_id IN ( " . join(", ", map { "'$_'" } @g) . ")";
     }
 
-#SELECT j.job_id, j.metagenome_id, j.name, p.name, j.file_size_raw, j.server_version, j.created_on, j.owner, j._owner_db, j.viewable, j.sequence_type, s.stage, s.status, s.timestamp, j._id FROM Job j LEFT JOIN (PipelineStage s, Project p) ON (s.job = j._id AND p._id = j.Project) ORDER BY j.job_id DESC, s.timestamp ASC LIMIT 100;
-
     my $dbh  = $self->_master()->db_handle();
     my $skip = $dbh->selectcol_arrayref(qq(SELECT DISTINCT job FROM JobAttributes WHERE tag='deleted' OR tag='no_sims_found'));
     if ($skip && @$skip) {
@@ -493,54 +470,43 @@ sub get_jobs_for_user_fast {
 =item * B<stats> ()
 
 Returns a hash of all stats keys and values for a job. 
-If a key is given , returns only hash of specified 
-key , value pair. Sets a value if key and value is given
+If a key is given , returns only hash of specified key, value pair.
+Sets a value if key and value is given (return true or false if works)
 
 =cut
 
 sub stats {
-  my ( $self , $tag , $value ) = @_;
+  my ($self, $tag, $value) = @_;
 
   my $dbh = $self->_master->db_handle;
-  my $sth ;
+  my $sth;
   
-  if (defined($value) and $tag){
-    my $jstat = $self->_master->JobStatistics->get_objects( { job   => $self ,
-							      tag   => $tag  ,
-							      value => $value ,
+  if (defined($value) and $tag) {
+    my $jstat = $self->_master->JobStatistics->get_objects( { job   => $self,
+							      tag   => $tag,
+							      value => $value
 							    });
-    if ( ref $jstat and scalar @$jstat ){
-      $jstat->[0]->value($value) ;
+    if (ref $jstat and scalar @$jstat) {
+      $jstat->[0]->value($value);
     }
     else{
-      $jstat = $self->_master->JobStatistics->create( { job   => $self ,
-							tag   => $tag  ,
-							value => $value ,
+      $jstat = $self->_master->JobStatistics->create( { job   => $self,
+							tag   => $tag,
+							value => $value
 						      });
     }
-
-    return { $tag => $value } ;
+    return 1;
   }
-  elsif( $tag ){
-    $sth = $dbh->prepare("SELECT tag , value FROM JobStatistics where job='". $self->_id ."' and tag='$tag'") ;
-
-    $sth->execute;
-    my $results = $sth->fetchall_arrayref();
-    if (ref $results and scalar @$results == 1){ 
-      return $results->[0]->[1] ;
-    }
-    else { 
-      return map { $_->[1] } @$results  ;
-    }
-    
+  elsif ($tag) {
+    $sth = $dbh->prepare("SELECT tag , value FROM JobStatistics where job=".$self->_id." and tag='$tag'");
   }
-  else{
-    $sth = $dbh->prepare("SELECT tag , value FROM JobStatistics where job='". $self->_id ."'");
+  else {
+    $sth = $dbh->prepare("SELECT tag , value FROM JobStatistics where job=".$self->_id);
   }
   
   $sth->execute;
   my $results = $sth->fetchall_arrayref();
-  my $rhash = {};
+  my $rhash   = {};
   map { $rhash->{ $_->[0] } = $_->[1] } @$results ;
   
   return $rhash;
@@ -645,7 +611,7 @@ sub stage {
 
   my $results = $sth->fetchall_arrayref();
   my $rhash = {};
-  map { $rhash->{ $_->[0] } = $_->[1] } @$results ;
+  map { $rhash->{ $_->[0] } = $_->[1] } @$results;
   
   return $rhash;
 }
@@ -654,55 +620,51 @@ sub stage {
 
 =item * B<data> ()
 
-Returns a hash of all stats keys and values for a job. 
-If a key is given , returns only hash of specified 
-key , value pair. Sets a value if key and value is given
+Returns a hash of all attribute keys and values for a job. 
+If a key is given , returns only hash of specified key, value pair.
+Sets a value if key and value is given (return true or false if works)
 
 =cut
 
 sub data {
-  my ( $self , $tag , $value ) = @_;
+  my ($self, $tag, $value) = @_;
 
   my $dbh = $self->_master->db_handle;
-  my $sth ;
+  my $sth;
   
-  if (defined($value) and $tag){
+  if (defined($value) and $tag) {
 
     if (ref $value){
-      print STDERR "ERROR: invalid value type for $tag  ($value) \n" ;
-      print STDERR Dumper $value ;
-      return 0 ;
+      print STDERR "ERROR: invalid value type for $tag  ($value) \n";
+      print STDERR Dumper $value;
+      return 0;
     }
-    my $jstat = $self->_master->JobAttributes->get_objects( { job   => $self ,
-							      tag   => $tag  ,
-							      value => $value ,
+    my $jstat = $self->_master->JobAttributes->get_objects( { job   => $self,
+							      tag   => $tag,
+							      value => $value
 							    });
-    if ( ref $jstat and scalar @$jstat ){
-      $jstat->[0]->value($value) ;
+    if (ref $jstat and scalar @$jstat) {
+      $jstat->[0]->value($value);
     }
-    else{
-      $jstat = $self->_master->JobAttributes->create( { job   => $self ,
-							tag   => $tag  ,
-							value => $value ,
+    else {
+      $jstat = $self->_master->JobAttributes->create( { job   => $self,
+							tag   => $tag,
+							value => $value
 						      });
     }
-
-    return { $tag => $value } ;
+    return 1;
   }
-  elsif( $tag ){
-    $sth = $dbh->prepare("SELECT tag, value FROM JobAttributes where job='". $self->_id ."' and tag='$tag'") ;
-    $sth->execute;
-    my $results = $sth->fetchall_arrayref();
-    return map { $_->[1] } @$results ;
+  elsif ($tag) {
+    $sth = $dbh->prepare("SELECT tag, value FROM JobAttributes where job=". $self->_id ." and tag='$tag'");
   }
-  else{
-    $sth = $dbh->prepare("SELECT tag, value FROM JobAttributes where job='". $self->_id ."'");
+  else {
+    $sth = $dbh->prepare("SELECT tag, value FROM JobAttributes where job=". $self->_id);
   }
   
   $sth->execute;
   my $results = $sth->fetchall_arrayref();
-  my $rhash = {};
-  map { $rhash->{ $_->[0] } = $_->[1] } @$results ;
+  my $rhash   = {};
+  map { $rhash->{ $_->[0] } = $_->[1] } @$results;
   
   return $rhash;
 }
@@ -749,7 +711,7 @@ sub set_filter_options {
 
 =pod
 
-=item * B<set_filter_options> ()
+=item * B<set_job_options> ()
 
 job function that creates an options string based upon all tag / value pairs
 in JobAttributes for job and sets $job->{options} to its value.
@@ -773,119 +735,115 @@ sub set_job_options {
   return $opts_string;
 }
 
+sub env_package {
+  my ($self) = @_;
+
+  if ($self->sample) {
+    my $eps = $self->sample->children('ep');
+    if ($eps && @$eps) {
+      return $eps->[0];
+    }
+  }
+  return undef;
+}
+
 ######################
 # MIxS metadata methods
 #####################
 
-sub biomes {
+sub enviroment {
   my ($self) = @_;
-  my @biomes = ( @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "biome-information_envo_lite" }) },
-                 @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "env_biome" }) },
-		 @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "env_feature" }) },
-		 @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "env_material" }) }
-	       );
-  my %results = map { $_->value, 1 } grep { defined($_->value) && ($_->value =~ /\S/) } @biomes;
-  return [keys %results];
+  unless (defined $self->sample) { return []; }
+  my $results = {};
+  foreach my $type (('biome', 'feature', 'material')) {
+    foreach my $val (@{$self->sample->value_set($type)}) {
+      $val =~ s/^envo:\s?//i;
+      $results->{$val} = 1;
+    }
+  }
+  return [keys %$results];
 }
 
 sub biome {
   my ($self) = @_;
+  unless (defined $self->sample) { return ''; }
   my $results = {};
-  my @biomes  = ( @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "biome-information_envo_lite" }) },
-		  @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "env_biome" }) }
-		);
-  foreach my $b (grep {defined($_->value) && ($_->value =~ /\S/)} @biomes) {
-      my $name = $b->value;
-      $name =~ s/^[A-Z]+\://;
-      $results->{$name} = 1;
+  foreach my $val (@{$self->sample->value_set('biome')}) {
+    $val =~ s/^envo:\s?//i;
+    $results->{$val} = 1;
   }
   return (scalar(keys %$results) > 0) ? join(", ", keys %$results) : '';
 }
 
 sub feature {
   my ($self) = @_;
-  my $results  = {};
-  my @features = @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "env_feature" }) };
-  foreach my $f (grep {defined($_->value) && ($_->value =~ /\S/)} @features) {
-      my $name = $f->value;
-      $name =~ s/^[A-Z]+\://;
-      $results->{$name} = 1;
+  unless (defined $self->sample) { return ''; }
+  my $results = {};
+  foreach my $val (@{$self->sample->value_set('feature')}) {
+    $val =~ s/^envo:\s?//i;
+    $results->{$val} = 1;
   }
   return (scalar(keys %$results) > 0) ? join(", ", keys %$results) : '';
 }
 
 sub material {
   my ($self) = @_;
-  my $results   = {};
-  my @materials = ( @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "env_material" }) },
-		    @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "env_matter" }) }
-		  );
-  foreach my $m (grep {defined($_->value) && ($_->value =~ /\S/)} @materials) {
-      my $name = $m->value;
-      $name =~ s/^[A-Z]+\://;
-      $results->{$name} = 1;
+  unless (defined $self->sample) { return ''; }
+  my $results = {};
+  foreach my $val (@{$self->sample->value_set('material')}) {
+    $val =~ s/^envo:\s?//i;
+    $results->{$val} = 1;
   }
   return (scalar(keys %$results) > 0) ? join(", ", keys %$results) : '';
 }
 
 sub seq_method {
   my ($self) = @_;
-  my $obj_mdata = $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "sequencing_sequencing_method" });
-  my @obj_guess = $self->data('sequencing_method_guess');
-  if (@$obj_mdata && defined($obj_mdata->[0]->value) && ($obj_mdata->[0]->value =~ /\S/)) {
-    return $obj_mdata->[0]->value;
-  }
-  elsif (@obj_guess > 0) {
-    return $obj_guess[0];
-  }
-  else {
-    return '';
-  }
+  my $sm_mdata = $self->get_metadata_value('seq_meth', 'library');
+  my $sm_guess = $self->data('sequencing_method_guess');
+  return $sm_mdata ? $sm_mdata : (exists($sm_guess->{sequencing_method_guess}) ? $sm_guess->{sequencing_method_guess} : '');
+}
+
+sub seq_type {
+  my ($self) = @_;
+  my $guess = $self->sequence_type || '';
+  my $input = $self->get_metadata_value('investigation_type', 'library');
+  ## calculated takes precidence over inputed
+  $input = ($input =~ /metagenome/i) ? 'WGS' : (($input =~ /mimarks/i) ? 'Amplicon' : '');
+  return $guess ? $guess : $input;
 }
 
 sub pubmed {
   my ($self) = @_;
-  my $obj = $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "external-ids_pubmed_id" });
-  return (@$obj && defined($obj->[0]->value) && ($obj->[0]->value =~ /\S/)) ? $obj->[0]->value : '';
+  my $ids = $self->external_ids();
+  return $ids->{pubmed_id} ? $ids->{pubmed_id} : '';
 }
 
 sub external_ids {
   my ($self) = @_;
-  
   my $id_set = {};
-  foreach my $id (("pubmed", "project", "greengenes_study", "gold", "mims")) {
-    my $obj = $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "external-ids_".$id."_id" });
-    if ($id eq "project") {
-      $id_set->{"ncbi"} = (@$obj && defined($obj->[0]->value) && ($obj->[0]->value =~ /\S/)) ? $obj->[0]->value : '';
-    } else {
-      $id_set->{$id} = (@$obj && defined($obj->[0]->value) && ($obj->[0]->value =~ /\S/)) ? $obj->[0]->value : '';
-    }
+  foreach my $id (("project", "ncbi", "greengenes")) {
+    my $val = $self->get_metadata_value($id."_id", 'primary_project');
+    $id_set->{$id} = $val;
+  }
+  foreach my $id (("pubmed", "gold")) {
+    my $val = $self->get_metadata_value($id."_id", 'library');
+    $id_set->{$id} = $val;
   }
   return $id_set;
 }
 
 sub location {
   my ($self) = @_;
-  my @locations = ( @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "sample-origin_location" }) },
-		    @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "specific_location" }) }
-		  );
-  my %results = map { $_->value, 1 } grep { defined($_->value) && ($_->value =~ /\S/) } @locations;
-  return (scalar(keys %results) > 0) ? join(", ", keys %results) : '';
+  my $location = $self->get_metadata_value('location', 'sample');
+  return $location;
 }
 
 sub country {
-  my ($self) = @_;
-  my $mddb = MGRAST::Metadata->new();
-  my $results   = {};
-  my @countries = ( @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "sample-origin_country" }) },
-		    @{ $self->_master->MetaDataEntry->get_objects({ job => $self, tag => "country" }) } 
-		  );
-  foreach my $c (grep {defined($_->value) && ($_->value =~ /\S/)} @countries) {
-      my $name = $mddb->unencode_value($c->tag, $c->value);
-      $name =~ s/^[A-Z]+\://;
-      $results->{$name} = 1;
-  }
-  return (scalar(keys %$results) > 0) ? join(", ", keys %$results) : '';
+  my ($self) = @_;  
+  my $country = $self->get_metadata_value('country', 'sample');
+  $country =~ s/^(gaz|country):\s?//i;
+  return $country;
 }
 
 sub geo_loc_name {
@@ -894,27 +852,46 @@ sub geo_loc_name {
   my $location = $self->location;
   my $county   = $self->country;
   foreach my $md (($county, $location)) {
-      if ($md) { push @$region, $md; }
+    if ($md) { push @$region, $md; }
   }
   return $region;
 }
 
 sub lat_lon {
   my ($self) = @_;
-  my $mddb = MGRAST::Metadata->new();
-  return $mddb->get_coordinates($self);
+  my $lat = $self->get_metadata_value('latitude', 'sample');
+  my $lon = $self->get_metadata_value('longitude', 'sample');
+  return ($lat && $lon) ? [$lat, $lon] : [];
 }
 
 sub collection_date {
   my ($self) = @_;
-  my $mddb = MGRAST::Metadata->new();
-  return $mddb->get_date_time($self);
+  my $time_set = [];
+  foreach my $tag (('collection_date', 'collection_time', 'collection_timezone')) {
+    last if (($tag eq 'collection_timezone') && (@$time_set == 0));
+    my $val = $self->get_metadata_value($tag, 'sample');
+    if ($val) { push @$time_set, $val; }
+  }
+  return join(" ", @$time_set);
 }
 
-sub env_package {
+sub env_package_type {
   my ($self) = @_;
-  my $mddb = MGRAST::Metadata->new();
-  return $mddb->get_env_package($self);
+  return $self->get_metadata_value('env_package', 'sample');
+}
+
+sub get_metadata_value {
+  my ($self, $tag, $type) = @_;
+  unless (defined $self->$type) { return ''; }
+  my $data = $self->$type->data($tag);
+  return exists($data->{$tag}) ? $data->{$tag} : '';
+}
+
+sub jobs_mixs_metadata_fast {
+  my ($self, $mgids) = @_;
+  my $data = {};
+  map { $data->{$_->{metagenome_id}} = $_ } @{ $self->fetch_browsepage_viewable(undef, $mgids) };
+  return $data;
 }
 
 ######################
@@ -999,129 +976,98 @@ sub fetch_browsepage_in_progress {
 	}
 	return $return_results;
 }
- 
+
 sub fetch_browsepage_viewable {
-	my ($self, $user) = @_;
-	my $mddb = MGRAST::Metadata->new();
-	my $md_data = {};
-	my $pi_data = {};
-	my $jobselopt = "";
-	my $projselopt = "";
-	my $user_id = ""; 
+  my ($self, $user, $mgids) = @_;
+  my $mddb = MGRAST::Metadata->new();
+  my $jobselopt = "";
+  my $user_id = ""; 
+  
+  if ($mgids && (@$mgids > 0)) {
+    $jobselopt = "viewable=1 and metagenome_id in (".join(",", map {"'$_'"} @$mgids).")";
+  }
+  elsif (ref $user and ( $user->isa("WebServerBackend::User"))) {
+    $user_id = $user->_id();
+    if ($user->has_star_right('view', 'metagenome')) {
+      $jobselopt = "viewable=1";
+    } else {
+      my $userjobs = $user->has_right_to(undef, 'view', 'metagenome');
+      if ($userjobs->[0] eq '*') {
+	$jobselopt = "viewable=1";
+      } else {
+	$jobselopt = "viewable=1 and (public=1 or metagenome_id in (".join(",", map {"'$_'"} @$userjobs)."))";
+      }
+    }
+  } else {
+    $jobselopt = "viewable=1 and public=1";
+  }
+  
+  # metadata
+  my $data = [];
+  my $dbh  = $self->_master()->db_handle();
+  my $jsql = "select _id, job_id, metagenome_id, name, public, owner, sequence_type from Job where job_id is not null and ".$jobselopt;
+  my $jobs = $dbh->selectall_arrayref($jsql);
+  my @jids = map { $_->[1] } @$jobs;
+  my $jmd  = $mddb->get_jobs_metadata_fast(\@jids);
 
-	if (ref $user and ( $user->isa("WebServerBackend::User"))) {
-		$user_id = $user->_id();
-		if ($user->has_star_right('view', 'metagenome')){
-			$jobselopt = 'viewable=1';
-			$projselopt = 'Job.viewable=1';
-		} else {
-			$jobselopt = 'viewable=1 and ( public=1 or metagenome_id in ("';
-			$projselopt = 'Job.viewable=1 and ( Job.public=1 or Job.metagenome_id in ("';
-			my @userjobs = $self->get_jobs_for_user_fast($user, 'view');
-			my $mgids = join '","', map { $_->{'metagenome_id'} } @userjobs;
-			$jobselopt .= $mgids.'"))';
-			$projselopt .= $mgids.'"))';
-		}
-	} else {
-		$jobselopt = 'viewable=1 and public=1';
-		$projselopt = 'Job.viewable=1 and Job.public=1';		
-	}
+  my $tags = ['bp_count_raw','sequence_count_raw','average_length_raw', 'drisee_score_raw', 'alpha_diversity_shannon'];
+  my $ssql = "select job, tag, value from JobStatistics where job in (".join(",", map {$_->[0]}  @$jobs).") and tag in (".join(",", map {"'$_'"} @$tags).")";
+  my $tmp  = $dbh->selectall_arrayref($ssql);
+  my $stat = {};
+  map { $stat->{$_->[0]}{$_->[1]} = $_->[2] } @$tmp;
 
-	# metadata
-	my $statement = "select tag, value, job from MetaDataEntry join Job on Job._id=MetaDataEntry.job where tag in ('env_biome', 'biome-information_envo_lite', 'sample-origin_altitude', 'sample-origin_depth', 'sample-origin_location', 'sample-origin_ph', 'sample-origin_country', 'sample-origin_temperature', 'sequencing_sequencing_method') and job is not null and ".$jobselopt;
-
-
-	my $dbh = $self->_master()->db_handle();
-	my $sth = $dbh->prepare($statement);
-	$sth->execute;
-	while(my @row = $sth->fetchrow_array) {
-		unless (exists($md_data->{$row[2]})) {
-			$md_data->{$row[2]} = [];
-		}
-		push @{$md_data->{$row[2]}}, \@row;
-	}
-	$sth->finish;
-
-	# pi data
-	$statement = "select j, value, tag from (select job as j, ProjectJob.project as p from ProjectJob join Job on Job._id=job where ".$jobselopt.") as t1 join ProjectMD on ProjectMD.project=p where tag='PI_lastname'";
-	
-	$sth = $dbh->prepare($statement);
-	$sth->execute;
-	while(my @row = $sth->fetchrow_array) {
-		unless (exists($pi_data->{$row[0]})) {
-			$pi_data->{$row[0]} = [];
-		}
-		push @{$pi_data->{$row[0]}}, \@row;
-	}
-	$sth->finish;
-
-	# project and job data
-	$statement = "select Job._id, Job.name, t1.name, Job.metagenome_id, t1.id, Job.job_id, Job.public, Job.owner, Job.sequence_type, t1.public from Job left join (select Project.name, job, Project.id, Project.public from ProjectJob join Project on Project._id=ProjectJob.project) as t1 on Job._id=t1.job where ".$projselopt;
-	
-
-
-	# added here to test if similar 
-	#$statement = "select Job._id, Job.name, Project.name, Job.metagenome_id, Project.id, Job.job_id, Job.public, Job.owner, Job.sequence_type,Project.public from Job,Project,ProjectJob where Project._id=ProjectJob.project and  Job._id=ProjectJob.job and ". $projselopt;
-
- 
-
-	my $project_data = [];
-	$sth = $dbh->prepare($statement);
-	$sth->execute;
-	while(my @row = $sth->fetchrow_array) {
-		push @$project_data, \@row;
-	}
-	$sth->finish;
-
-	my $md_list = { 'biome-information_envo_lite' => 'biome',
-					'env_biome' => 'biome',
-					'sample-origin_altitude' => 'altitude',
-					'sample-origin_depth' => 'depth',
-					'sample-origin_location' => 'location',
-					'sample-origin_ph' => 'ph',
-					'sample-origin_country' => 'country',
-					'sample-origin_temperature' => 'temperature',
-					'sequencing_sequencing_method' => 'sequencing method', 
-					'PI_lastname' => 'pi' };
-	
-	my $data = [];
-	foreach my $job (@$project_data) {
-        # [ 'job_id', 'metagenome_id', 'name', 'project', 'project_id', 'biome', 'altitude', 'depth', 'location', 'ph', 'country', 'temperature', 'sequencing method', 'PI',  public, shared]
-		my $row = { 'job_id' => $job->[5], 
-					'metagenome_id' => $job->[3], 
-					'name' =>  $job->[1], 
-					'project' => $job->[2] || "", 
-					'project_id' => $job->[4] || "",
-					'public' => ($job->[6]) ? 1 : 0,
-					'shared' => ($job->[6]) ? '' : ($job->[7] eq $user_id) ? 0 : 1,
-					'sequence_type' => $job->[8] };
-		
-		if (exists($md_data->{$job->[0]})) {
-			foreach my $m (@{$md_data->{$job->[0]}}) {
-				if ($m->[1] ne "" && $md_list->{$m->[0]}) {
-					unless ( exists $row->{$md_list->{$m->[0]}} ) {
-						$row->{$md_list->{$m->[0]}} = $mddb->unencode_value($m->[0], $m->[1]);
-					} else {
-						$row->{$md_list->{$m->[0]}} .= ", ".$mddb->unencode_value($m->[0], $m->[1])
-					}
-				}
-			}
-		}
-		if (exists($pi_data->{$job->[0]})) {
-			foreach my $m (@{$pi_data->{$job->[0]}}) {
-				if ($m->[1] ne "" && $md_list->{$m->[2]}) {
-					unless (exists $row->{$md_list->{$m->[2]}}) {
-						$row->{$md_list->{$m->[2]}} = $mddb->unencode_value($m->[2], $m->[1]);
-					} else {
-						$row->{$md_list->{$m->[2]}} .= ", ".$mddb->unencode_value($m->[2], $m->[1]);
-					}
-				}
-			}
-		}
-		push(@$data, $row);
-	}
-	
-	return $data;
+  foreach my $job (@$jobs) { #_id, job_id, metagenome_id, name, public, owner, sequence_type
+    my $row = { '_id'             => $job->[0],
+		'job_id'          => $job->[1],
+		'metagenome_id'   => $job->[2],
+		'name'            => $job->[3] || '',
+		'public'          => ($job->[4]) ? 1 : 0,
+		'shared'          => ($job->[4]) ? '' : ($job->[5] eq $user_id) ? 0 : 1,
+		'bp_count'        => $stat->{$job->[0]}{bp_count_raw} || 0,
+		'sequence_count'  => $stat->{$job->[0]}{sequence_count_raw} || 0,
+		'average_length'  => $stat->{$job->[0]}{average_length_raw} || '',
+		'drisee'          => $stat->{$job->[0]}{drisee_score_raw} || '',
+		'alpha_diversity' => $stat->{$job->[0]}{alpha_diversity_shannon} || ''
+	      };
+    if (exists $jmd->{$job->[1]}{project}) {
+      my $proj = $jmd->{$job->[1]}{project};
+      $proj->{id} =~ s/^mgp//;
+      $row->{project}      = $proj->{name};
+      $row->{project_id}   = $proj->{id};
+      $row->{pi}           = exists($proj->{data}{PI_lastname}) ? $proj->{data}{PI_lastname} : '';
+      $row->{pi_firstname} = exists($proj->{data}{PI_firstname}) ? $proj->{data}{PI_firstname} : '';
+      $row->{pi_email}     = exists($proj->{data}{PI_email}) ? $proj->{data}{PI_email} : '';
+    }
+    if (exists $jmd->{$job->[1]}{sample}) {
+      my $samp = $jmd->{$job->[1]}{sample};
+      my $dt = [];
+      foreach my $tag (('collection_date', 'collection_time', 'collection_timezone')) {
+	my $val = exists($samp->{data}{$tag}) ? $samp->{data}{$tag} : '';
+	if ($val) { push @$dt, $val; }
+      }
+      $row->{collection_date} = (@$dt > 0) ? join(' ', @$dt) : '';
+      $row->{biome}       = exists($samp->{data}{biome}) ? $samp->{data}{biome} : '';
+      $row->{feature}     = exists($samp->{data}{feature}) ? $samp->{data}{feature} : '';
+      $row->{material}    = exists($samp->{data}{material}) ? $samp->{data}{material} : '';
+      $row->{env_package} = exists($samp->{data}{env_package}) ? $samp->{data}{env_package} : (exists($jmd->{$job->[1]}{env_package}) ? $jmd->{$job->[1]}{env_package}{type} : '');
+      $row->{altitude}    = exists($samp->{data}{altitude}) ? $samp->{data}{altitude} : (exists($samp->{data}{elevation}) ? $samp->{data}{elevation} : '');
+      $row->{depth}       = exists($samp->{data}{depth}) ? $samp->{data}{depth} : '';
+      $row->{location}    = exists($samp->{data}{location}) ? $samp->{data}{location} : '';
+      $row->{country}     = exists($samp->{data}{country}) ? $samp->{data}{country} : '';
+      $row->{latitude}    = exists($samp->{data}{latitude}) ? $samp->{data}{latitude} : '';
+      $row->{longitude}   = exists($samp->{data}{longitude}) ? $samp->{data}{longitude} : '';
+      $row->{temperature} = exists($samp->{data}{temperature}) ? $samp->{data}{temperature} : '';
+      $row->{ph}          = exists($samp->{data}{ph}) ? $samp->{data}{ph} : '';
+    }
+    if (exists $jmd->{$job->[1]}{library}) {
+      my $lib = $jmd->{$job->[1]}{library};
+      $row->{'sequencing method'} = exists($lib->{data}{seq_meth}) ? $lib->{data}{seq_meth} : '';
+      $row->{sequence_type}       = $lib->{type} ? $lib->{type} : $job->[6];
+    }
+    push(@$data, $row);
+  }
+  
+  return $data;
 }
 
 sub last_id {
@@ -1153,9 +1099,8 @@ sub count_total_bp {
   return ( $result->[0] ) ;
 }
 
-
-sub in_projects{
-  my ($self , $public ) = @_;
+sub in_projects {
+  my ($self, $public) = @_;
   
   my $pub_option = "";
   if ((defined $public) && ($public == 0)) {
@@ -1166,15 +1111,15 @@ sub in_projects{
   
   my $dbh = $self->_master()->db_handle();
   
-  my $statement = "select metagenome_id , name , sequence_type , file_size_raw , public , viewable from Job where $pub_option and exists (select ProjectJob.job from ProjectJob where ProjectJob.job = Job._id )";
+  my $statement = "select metagenome_id, name, sequence_type, file_size_raw, public, viewable from Job where $pub_option and exists (select ProjectJob.job from ProjectJob where ProjectJob.job = Job._id)";
   my $sth = $dbh->prepare($statement);
   $sth->execute;
   my $data = $sth->fetchall_arrayref();
-  return $data ;
+  return $data;
 }
 
-sub without_project{
-  my ($self , $public ) = @_;
+sub without_project {
+  my ($self, $public) = @_;
 
   my $pub_option = "";
   if ((defined $public) && ($public == 0)) {
@@ -1185,11 +1130,11 @@ sub without_project{
 
   my $dbh = $self->_master()->db_handle();
 
-  my $statement = "select metagenome_id , name , sequence_type , file_size_raw , public , viewable from Job where $pub_option and not exists (select ProjectJob.job from ProjectJob where ProjectJob.job = Job._id )";
+  my $statement = "select metagenome_id, name, sequence_type, file_size_raw, public, viewable from Job where $pub_option and not exists (select ProjectJob.job from ProjectJob where ProjectJob.job = Job._id)";
   my $sth = $dbh->prepare($statement);
   $sth->execute;
   my $data = $sth->fetchall_arrayref();
-  return $data ;
+  return $data;
 }
 
 
@@ -1200,7 +1145,7 @@ sub count_total_sequences {
   my $sth = $dbh->prepare("select sum(value) from JobStatistics where tag = 'sequence_count_raw'");
   $sth->execute;
   my $result = $sth->fetchrow_arrayref();
-  return ( $result->[0] ) ;
+  return ( $result->[0] );
 }
 
 sub count_all {
@@ -1211,7 +1156,7 @@ sub count_all {
  $sth = $dbh->prepare("SELECT count(_id) FROM Job where owner=".$user->_id." and job_id is not null") if ($user and ref $user);
  $sth->execute;
  my $result = $sth->fetchrow_arrayref();
- return ( $result->[0] ) ;
+ return ( $result->[0] );
 }
 
 sub count_public {
@@ -1220,7 +1165,7 @@ sub count_public {
  my $sth = $dbh->prepare("SELECT count(*) FROM Job where public and viewable");
  $sth->execute;
  my $result = $sth->fetchrow_arrayref();
- return ( $result->[0] ) ;
+ return ( $result->[0] );
 }
 
 sub count_public_wgs {
@@ -1229,7 +1174,7 @@ sub count_public_wgs {
  my $sth = $dbh->prepare("SELECT count(*) FROM Job where public and viewable and sequence_type = 'WGS' ");
  $sth->execute;
  my $result = $sth->fetchrow_arrayref();
- return ( $result->[0] ) ;
+ return ( $result->[0] );
 }
 
 sub count_public_amplicon {
@@ -1238,7 +1183,7 @@ sub count_public_amplicon {
  my $sth = $dbh->prepare("SELECT count(*) FROM Job where public and viewable and sequence_type = 'Amplicon'");
  $sth->execute;
  my $result = $sth->fetchrow_arrayref();
- return ( $result->[0] ) ;
+ return ( $result->[0] );
 }
 
 sub get_timestamp {
@@ -1267,7 +1212,6 @@ sub delete {
 
   # get the job master
   my $dbm = $self->_master();
-
   unless (ref($webapp_dbm)) {
     die "Could not initialize WebApplication DBMaster in Job->delete";
   }
@@ -1275,58 +1219,38 @@ sub delete {
   # delete all rights to the job
   my $job_rights = $webapp_dbm->Rights->get_objects( { data_type => 'metagenome',
                                                        data_id => $self->metagenome_id } );
-  
   foreach my $right (@$job_rights) {
     $right->delete();
   }
   
   # delete all pipeline stages
   my $pipeline_stages = $dbm->PipelineStage->get_objects( { job => $self } );
-
   foreach my $pipeline_stage (@$pipeline_stages) {
     $pipeline_stage->delete();
   }
 
   # delete all job statistics
   my $statistics = $dbm->JobStatistics->get_objects( { job => $self } );
-  
   foreach my $statistic (@$statistics) {
     $statistic->delete();
   }
 
   # delete all references to projects
   my $projectjobs = $dbm->ProjectJob->get_objects( { job => $self } );
-
   foreach my $projectjob (@$projectjobs) {
     $projectjob->delete();
   }
 
   # delete all attributes
   my $jobattributes = $dbm->JobAttributes->get_objects( { job => $self } );
-  
   foreach my $jobattribute (@$jobattributes) {
     $jobattribute->delete();
   }
 
-  # delete all metadata
-  my $metadataentries = $dbm->MetaDataEntry->get_objects( { job => $self } );
-
-  foreach my $metadataentry (@$metadataentries) {
-    $metadataentry->delete();
-  }
-
   # delete all jobgroup references
   my $jobgroupjobs = $dbm->JobgroupJob->get_objects( { job => $self } );
-
   foreach my $jobgroupjob (@$jobgroupjobs) {
     $jobgroupjob->delete();
-  }
-
-  # delete all metadata collections
-  my $metadatacollections = $dbm->MetaDataCollection->get_objects( { job => $self } );
-
-  foreach my $metadatacollection (@$metadatacollections) {
-    $metadatacollection->delete();
   }
 
   # delete the job directory
@@ -1340,7 +1264,6 @@ sub delete {
 
   # delete self
   $self->SUPER::delete(@_);
-
   return 1;
 }
 

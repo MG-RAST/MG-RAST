@@ -37,9 +37,9 @@ sub init {
 
   # get data
   my (%projs, %jobs);
-  my $p_ids = join(",", map {qq('$_')} @{ $md_db->get_projects() });
+  my $p_ids = join(",", map {qq('$_')} @{ $md_db->get_projects({all => 1}) });
   if ($p_ids) {
-    my $pl = $mg_dbh->selectall_arrayref("SELECT _id, id, name FROM Project WHERE _id IN ($p_ids)");
+    my $pl = $mg_dbh->selectall_arrayref("SELECT _id, id, name FROM Project WHERE id IN ($p_ids)");
     %projs = ($pl && scalar(@$pl)) ? (map {$_->[0], $_} grep {$_->[2] =~ /\S/} @$pl) : {};
   }
 

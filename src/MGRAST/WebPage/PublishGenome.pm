@@ -40,6 +40,7 @@ sub init {
   # register components
   $self->application->register_component('Table', 'DisplayMetaData');
   $self->application->register_component('Ajax', 'Display_Ajax');
+  $self->application->register_action($self, 'download_template', 'download_template');
 
   # init data
   my $meta = MGRAST::Metadata->new();
@@ -54,7 +55,7 @@ sub init {
     return;
   }
   $self->data('job', $job);
-  $self->data('linkin', "http://metagenomics.anl.gov/metagenomics.cgi?page=MetagenomeOverview&metagenome=" . $job->metagenome_id);
+  $self->data('linkin', "http://metagenomics.anl.gov/linkin.cgi?metagenome=$id");
 }
 
 
@@ -79,7 +80,8 @@ sub output {
     if ($user && $user->has_right($self->application, 'edit', 'metagenome', $job->metagenome_id)) {
       $content .= '<h1>' . $job->name . ' (' . $job->metagenome_id . ')</h1>';
       $content .= "<p style='width:800px; text-align: justify;'>Please note: You will not be able to make your metagenome private again from this website. In order to do so you will have to contact mg-rast\@mcs.anl.gov.</p>";
-      $content .= "<p>MG-RAST has implemented the use of \"Minimum Information about a MetaGenome Sequence\" developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC). The Genomic Standards Consortium is an open-membership working body which formed in September 2005. The goal of this international community is to promote mechanisms that standardize the description of genomes and the exchange and integration of genomic data. MG-RAST supports this goal as it allows for transparency in comparative analyses, interpretation of results, and integration of metagenomic data.</p>";
+      $content .= "<p>Metadata (or data about the data) has become a necessity as the community generates large quantities of data sets.<br>";
+      $content .= "Using community generated questionnaires we capture this metadata. MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank >Minimum Information about any (X) Sequence</a> (MIxS) developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC).</p>";
       $content .= "<div id='display_div'></div>";
       $content .= "<img src='./Html/clear.gif' onload='execute_ajax(\"meta_info\", \"display_div\", \"metagenome=" . $job->metagenome_id . "\");'>";
     } else {
@@ -98,58 +100,81 @@ sub output {
 
 sub meta_info {
   my ($self) = @_;
-  
-  my $mg_id   = $self->application->cgi->param('metagenome');
-  my $user    = $self->application->session->user;
-  my $uname   = $user->firstname." ".$user->lastname;
-  my $content = "<p><strong>Dear $uname, please confirm that the following meta-data is correct:</strong><br>";
-  $content   .= "If you are satisfied with the below meta-data, click 'Publish Metagenome'.  If you wish to change any meta-data, click 'Edit Meta-Data'.<br>";
-  $content   .= "Questions in <font color='red'>red</font> are manditory MIGS fields, they are required to be filled out in order to publish your metagenome.</p>";
-  
-  my %meta_data = map { $_->[0], $_ } @{ $self->data('meta')->get_metadata_for_table( $self->data('job') ) };
-  my $all_meta  = $self->data('meta')->get_template_data();
-  my $migs_tags = $self->data('meta')->get_migs_tags();
-  my $table     = $self->application->component('DisplayMetaData');
-  my @miss_migs = ();
-  my @tbl_data  = ();
 
-  foreach my $tag (keys %$all_meta) {
-    my ($cat, $quest) = @{$all_meta->{$tag}};
-    if (exists $meta_data{$tag}) {
-      if (exists $migs_tags->{$tag}) { $quest = "<font color='red'>$quest</font>"; }    
-      push @tbl_data, [ $tag, $cat, $quest, $meta_data{$tag}[3] ];
+  my $mg_id   = $self->application->cgi->param('metagenome');
+  my $job     = $self->data('job');
+  my $project = $job->primary_project;
+  my $user    = $self->application->session->user;
+  my $content = "<p><strong>Please confirm that the following metadata is correct:</strong><br>";
+  $content .= "Labels in <font color='red'>red</font> are manditory MIxS fields, they are required to be filled out in order to publish your metagenome.</p>";
+  $content .= "<p>If you wish to change any metadata in this metagenome, use the 'Upload MetaData' button within project <a href='metagenomics.cgi?page=MetagenomeProject&project=".$project->id."'>".$project->name."</a> to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='metagenomics.cgi?page=PublishGenome&metagenome=$mg_id&action=download_template'>metadata spreadsheet template</a>.</p>";
+
+  my $mdata = $self->data('meta')->get_metadata_for_table($job);
+  my $mixs  = $self->data('meta')->mixs();
+  my $table = $self->application->component('DisplayMetaData');
+  my @tdata = ();
+  my @miss  = ();
+  my %seen  = ();
+  
+  my $no_proj_md = 0;
+  foreach my $row (@$mdata) {
+    my ($cat, $tag, $val) = @$row;
+    next unless ($val && ($val =~ /\S/) && ($val ne '-'));
+    next if (exists $seen{$cat.$tag.$val});
+    my $ccat = (split(/:/, lc($cat)))[0];
+    if (exists $mixs->{$ccat}{$tag}) {
+      push @tdata, [ "<font color='red'>$cat</font>", "<font color='red'>$tag</font>", $val ];
+      $mixs->{$ccat}{$tag} = 'yes';
+    } else {
+      push @tdata, $row;
     }
-    elsif (exists($migs_tags->{$tag}) && ($migs_tags->{$tag}->{mandatory})) {
-      push @miss_migs, $cat . " : " . $quest;
-      push @tbl_data, [ $tag, $cat, "<font color='red'>$quest</font>", "" ];
-    }
+    $seen{$cat.$tag.$val} = 1;
   }
 
-  if ( scalar(@tbl_data) > 50 ) {
+  foreach my $cat (keys %$mixs) {
+    foreach my $tag (keys %{$mixs->{$cat}}) {
+      if ($mixs->{$cat}{$tag} ne 'yes') {
+	if ($cat =~ /project/i) {
+	  $no_proj_md = 1;
+	} else {
+	  push @miss, [ ucfirst($cat), $tag ];
+	}
+      }
+    }
+  }
+  if ($no_proj_md && ref($project)) {
+    unshift @tdata, [ "<font color='red'>Project</font>", "<font color='red'>project_name</font>", $project->name ];
+  } elsif ($no_proj_md) {
+    my $error = "<p><font color='red'>We are unable to publish your metagenome due to the following errors:</font></p>";
+    $error .= "<p>Your metagenome does not exist in a project. Please create a new project or add it to an existing project before you can publish.<br>";
+    $error .= "This can be done through the Browse Page: <a title='Browse Metagenomes' href='?page=MetagenomeSelect'>";
+    $error .= "<img style='padding-left:15px; height:25px;' src='./Html/mgrast_globe.png'></a></p>";
+    return $error;
+  }
+  
+  if ( scalar(@tdata) > 50 ) {
     $table->show_top_browse(1);
     $table->show_bottom_browse(1);
     $table->items_per_page(50);
-    $table->show_select_items_per_page(1); 
+    $table->show_select_items_per_page(1);
   }
   $table->width(800);
-  $table->columns([ { name => 'Key'     , visible => 0 },
-		    { name => 'Category', filter  => 1, sortable => 1, operator => 'combobox' },
-		    { name => 'Question', filter  => 1, sortable => 1 },
-		    { name => 'Value'   , filter  => 1, sortable => 1 }
+  $table->columns([ { name => 'Category', filter  => 1, sortable => 1, operator => 'combobox' },
+		    { name => 'Label', filter  => 1, sortable => 1 },
+		    { name => 'Value', filter  => 1, sortable => 1 }
 		  ]);
+  $table->data(\@tdata);
 
-  $table->data(\@tbl_data);
-  $content .= $table->output();
-
-  my $md_button  = qq(<button onClick="parent.location='?page=MetaDataMG&metagenome=$mg_id&edit=1&view=all'">Edit Meta-Data</button>);
-  my $pub_button = qq(<button onclick="execute_ajax('publish', 'status_div', 'metagenome=$mg_id');">Publish Metagenome</button>);
-
-  if (@miss_migs > 0) {
-    $content .= "<p>You are missing the following " . scalar(@miss_migs) . " manditory MIGS field(s):<blockquote>" . join(", ", @miss_migs) . "</blockquote>";
-    $content .= "Please update the meta-data for your metagenome:<span style='padding-left:10px'>$md_button</span></p>";
+  if (scalar(@miss) > 0) {
+    $content .= "<p>You are missing the following ".scalar(@miss)." manditory MIxS field(s):";
+    $content .= "<blockquote><table><tr><th>Category</th><th>Label</th></tr>";
+    map { $content .= "<tr><td>".$_->[0]."</td><td>".$_->[1]."</td></tr>" } @miss;
+    $content .= "</table></blockquote>";
   } else {
-    $content .= "<p><table width='800'><tr><td align='center'>$md_button</td><td align='center'>$pub_button</td></tr></table></p>";
+    my $pub_button = qq(<button style='cursor:pointer;' onclick="execute_ajax('publish', 'status_div', 'metagenome=$mg_id');">Publish Metagenome</button>);
+    $content .= "<p>If you are satisfied with the below metadata, click here:<span style='padding-left:10px'>$pub_button</span></p>";
   }
+  $content .= $table->output();
   return $content; 
 }
 
@@ -172,4 +197,18 @@ sub publish {
   $content   .= "<p>Dear $uname, thank you for making your metagenome publicly available. You can link to your public metagenome using this link: ";
   $content   .= "<a href='".$self->data('linkin')."'>".$self->data('linkin')."</a>. If you believe this is a mistake please contact mg-rast\@mcs.anl.gov.</p>";
   return $content;
+}
+
+sub download_template {
+  my $fn = $FIG_Config::html_base.'/'.$FIG_Config::mgrast_metadata_template;
+
+  if (open(FH, $fn)) {
+    print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
+    print "Content-Length: " . (stat($fn))[7] . "\n";
+    print "Content-Disposition:attachment;filename=".$FIG_Config::mgrast_metadata_template."\n\n";
+    while (<FH>) {
+      print $_;
+    }
+    close FH;
+  }
 }

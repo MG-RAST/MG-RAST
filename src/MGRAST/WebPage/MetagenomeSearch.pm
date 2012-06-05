@@ -75,26 +75,33 @@ sub init {
 	       ["metadata", "Metadata", "meta"]
 	     ];
   my $meta = [ ["all", "All", "text"],
-	       ["project_name", "Project Name", "text"],
-	       ["metagenome_name", "Metagenome Name", "text"],
+	       ["project", "Project Name", "text"],
+	       ["name", "Metagenome Name", "text"],
 	       ["metagenome_id", "Metagenome ID", "text"],
-	       ["PI_lastname", "Principal Investigator", "text"],
-	       ["biome-information_envo_lite", "Biome", "select"],
-	       ["sample-origin_country", "Country", "select"],
-	       ["sample-origin_latitude", "Latitude", "range"],
-	       ["sample-origin_longitude", "Longitude", "range"],
-	       ["sample-origin_location", "Location", "text"],
-	       ["sample-origin_altitude", "Altitude", "range"],
-	       ["sample-origin_depth", "Depth", "range"],
-	       ["sample-origin_temperature", "Temperature", "range"],
-	       ["sample-origin_ph", "pH", "range"],
-	       ["sequencing_sequencing_method", "Sequencing method", "select"]
+	       ["pi", "Principal Investigator", "text"],
+	       ["biome", "Biome", "select"],
+	       ["feature", "Feature", "select"],
+	       ["material", "Material", "select"],
+	       ["env_package", "Enviromental Package", "select"],
+	       ["country", "Country", "select"],
+	       ["latitude", "Latitude", "range"],
+	       ["longitude", "Longitude", "range"],
+	       ["location", "Location", "text"],
+	       ["altitude", "Altitude", "range"],
+	       ["depth", "Depth", "range"],
+	       ["temperature", "Temperature", "range"],
+	       ["ph", "pH", "range"],
+	       ["sequencing method", "Sequencing method", "select"],
+	       ["bp_count", "bp Count", "range"],
+	       ["sequence_count", "Sequence Count", "range"],
+	       ["alpha_diversity", "Alpha Diversity", "range"],
+	       ["drisee", "DRISEE Score", "range"]
 	     ];
   my $taxon = [ ['name', 'Organism Name', "text"],
 		['tax_family', 'Family', "text"],
 		['tax_order', 'Order', "text"],
 		['tax_class', 'Class', "text"],
-		['tax_phylum', 'Phylum', "text"],
+		['tax_phylum', 'Phylum', "select"],
 		['tax_domain', 'Domain', "select"],
 		['ncbi_tax_id', 'NCBI Taxonomy ID', "text"]
 	      ];
@@ -141,10 +148,14 @@ sub output {
   my $mgdb   = $self->data('mgdb');
   my $match  = $self->data('match');
   my $modes  = { 1 => "dSimple", 2 => "dAdvanced" };
-  my $extras = { "metadata"   => { "biome-information_envo_lite"  => $mddb->get_biomes(0,1),
-				   "sample-origin_country"        => $mddb->get_countries,
-				   "sequencing_sequencing_method" => $mddb->get_sequencers },
-		 "organism"   => { "tax_domain" => $mgdb->ach->get_taxonomy4level("tax_domain") },
+  my $extras = { "metadata"   => { "biome"       => $self->get_unique_job_info('biome'),
+				   "feature"     => $self->get_unique_job_info('feature'),
+				   "material"    => $self->get_unique_job_info('material'),
+				   "env_package" => $mddb->get_cv_list('env_package'),
+				   "country"     => $self->get_unique_job_info('country'),
+				   "sequencing method" => $mddb->get_cv_list('seq_method') },
+		 "organism"   => { "tax_phylum" => $mgdb->ach->get_taxonomy4level("tax_phylum"),
+				   "tax_domain" => $mgdb->ach->get_taxonomy4level("tax_domain") },
 		 "Subsystems" => { "level1" => $mgdb->ach->get_level4ontology("Subsystems","level1"),
 				   "level2" => $mgdb->ach->get_level4ontology("Subsystems","level2") },
 		 "KO"         => { "level1" => $mgdb->ach->get_level4ontology("KO","level1"),
@@ -403,7 +414,13 @@ sub output {
     }
     \$("#dResult").html(msg);
     if ((msg == "") && (items.length == 1)) {
-      execute_ajax( 'get_simple_table', 'dResult', param.join("&") );
+      if (cText.match(/^mgm\\d+\\.\\d+\$/)) {
+        window.location = "?page=MetagenomeOverview&metagenome="+cText.substring(3);
+      } else if (cText.match(/^mgp\\d+\$/)) {
+        window.location = "?page=MetagenomeProject&project="+cText.substring(3);
+      } else {
+        execute_ajax( 'get_simple_table', 'dResult', param.join("&") );
+      }
     }
   }
   function switch_mode( aMode ) {
@@ -495,17 +512,14 @@ sub get_simple_table {
   my $text  = uri_unescape( $self->app->cgi->param('text') );
   my $types = $self->app->cgi->param('type') || "metadata,function,organism";
   my $table = $self->application->component('sResult');
-  my $tags  = $self->data('mddb')->get_template_data();
   my $jobs  = $self->data('jobs');
   my $mgs   = [ keys %$jobs ];
 
   my %type_set = map {$_, 1} split(/,/, $types);
   my $tomany   = "<p><b style='color:red'>Your search request returned to many results.<br>Please try again with more specific criteria.</b></p>";
-  my $show_md  = [['biome-information_envo_lite','sample-origin_country','sample-origin_location','PI_lastname'], ['Biome','Country','Location','PI']];
-  my $md_tag   = $self->get_metadata_by_tags($show_md->[0], $mgs);
+  my $show_md  = [['biome','feature','material','country','location','pi'], ['Biome','Feature','Material','Country','Location','PI']];
   my %type_map = map { $_->[0], $_->[1] } @{ $self->data('type') };
   my %meta_map = map { $_->[0], $_->[1] } @{ $self->data('meta') };
-  my %tag_map  = map { $_, qq($tags->{$_}[0] : $tags->{$_}[1]) } keys %$tags;
   my @data     = ();
   my $uniq_job = {};
   my $uniq_hit = {};
@@ -550,9 +564,9 @@ sub get_simple_table {
     foreach my $j ( keys %$md_jobs ) {
       my $hits = {};
       foreach my $r ( @{$md_jobs->{$j}} ) {
-	my $name = exists($r->{name}) ? $r->{name} : "";
-	$hits->{$name} = 1;
-	$uniq_hit->{metadata}{$name} = 1;
+	my $val = exists($r->{value}) ? $r->{value} : "";
+	$hits->{$val} = 1;
+	$uniq_hit->{metadata}{$val} = 1;
       }
       $uniq_job->{$j}{metadata} = scalar(keys %$hits);
     }
@@ -560,8 +574,8 @@ sub get_simple_table {
     foreach my $j ( keys %$jobs ) {
       my $qtext = quotemeta($text);
       my $mg_id = $jobs->{$j}{metagenome_id};
-      my $gname = $jobs->{$j}{metagenome_name};
-      my $pname = $jobs->{$j}{project_name} || '';
+      my $gname = $jobs->{$j}{name};
+      my $pname = $jobs->{$j}{project} || '';
       if ($mg_id =~ /$qtext/i) {
 	$uniq_job->{$j}{metadata} += 1;
 	$uniq_hit->{metadata}{$mg_id} = 1;
@@ -580,9 +594,9 @@ sub get_simple_table {
   if (scalar(keys %$uniq_job) > 0) {
     foreach my $j (keys %$uniq_job) {
       my $row = [ $j,
-		  '<a href="?page=MetagenomeOverview&metagenome='.$jobs->{$j}{metagenome_id}.'">'.$jobs->{$j}{metagenome_name}.'</a>',
+		  '<a href="?page=MetagenomeOverview&metagenome='.$jobs->{$j}{metagenome_id}.'">'.$jobs->{$j}{name}.'</a>',
 		  $jobs->{$j}{metagenome_id},
-		  $jobs->{$j}{project_name} ? '<a href="?page=MetagenomeProject&project='.$jobs->{$j}{project_id}.'">'.$jobs->{$j}{project_name}.'</a>' : '',
+		  $jobs->{$j}{project} ? '<a href="?page=MetagenomeProject&project='.$jobs->{$j}{project_id}.'">'.$jobs->{$j}{project}.'</a>' : '',
 		  $jobs->{$j}{public} ];
       if (scalar(keys %type_set) > 1) {
 	push @$row, join(", ", sort keys %{$uniq_job->{$j}});
@@ -591,7 +605,7 @@ sub get_simple_table {
       push @$row, join(", ", sort @counts);
       
       foreach my $t (@{$show_md->[0]}) {
-	push @$row, ( exists($md_tag->{$j}{$t}) ? join(" ; ", @{$md_tag->{$j}{$t}}) : '' );
+	push @$row, $jobs->{$j}{$t};
       }
       push @data, $row;
     }
@@ -621,8 +635,7 @@ sub get_simple_table {
   push @$cols, { name => 'Match Counts', sortable => 1 };
 
   foreach my $md ( @{$show_md->[1]} ) {
-    my $col = { name => $md, filter => 1, operator => 'like', sortable => 1 };
-    if ($md =~ /(biome|country)/i) { $col->{operator} = 'combobox'; }
+    my $col = { name => $md, filter => 1, operator => 'combobox', sortable => 1 };
     push @$cols, $col;
   }
 
@@ -648,12 +661,12 @@ sub get_advanced_table {
   my $table  = $self->application->component('sResult');
   my $qnum   = $cgi->param('qnum');
   my $show   = $cgi->param('show_match') || 0;
-  my $tags   = $self->data('mddb')->get_template_data();
   my $jobs   = $self->data('jobs');
   my $tomany = "<p><b style='color:red'>Your search request returned to many results.<br>Please try again with more specific criteria.</b></p>";
   my $empty  = "<p><b style='color:red'>No Metagenomes found for the above selected criteria.</b></p>";
-  my $max    = 0;
-  my $limit  = $self->data('max_results');
+  my $show_md = [['biome','feature','material','country','location','pi'], ['Biome','Feature','Material','Country','Location','PI']];
+  my $max     = 0;
+  my $limit   = $self->data('max_results');
 
   my $type_map  = {};
   my $hier_map  = {};
@@ -666,7 +679,6 @@ sub get_advanced_table {
     }
     $type_map->{$t->[0]} = $t->[1];
   }
-  my %tag_map = map { $_, qq($tags->{$_}[0] : $tags->{$_}[1]) } keys %$tags;
 
   ### parse cgi params
   my $c_order  = [];  # [ cat1, cat2, .. ] , based on mapping from type & extra
@@ -679,16 +691,11 @@ sub get_advanced_table {
     my ($eql, $has) = split(/_/, $cgi->param("match_q$i"));
     
     if ($type eq "metadata") {
-      if (($extra eq "project_name") || ($extra eq "metagenome_name") || ($extra eq "metagenome_id")) {
-	push @$c_order, $extra_map->{$type}{$extra};
-	$type = "jobcache";
-      }
-      elsif ($extra eq "all") {
+      if ($extra eq "all") {
 	push @$c_order, $extra_map->{$type}{all} . " " . $type_map->{$type};
       }
       else {
-	my $tag = exists($extra_map->{$type}{$extra}) ? $extra_map->{$type}{$extra} : $tag_map{$extra};
-	push @$c_order, $tag;
+	push @$c_order, $extra_map->{$type}{$extra};
       }
     }
     elsif ($type eq "function") {
@@ -714,22 +721,7 @@ sub get_advanced_table {
   my $cur_mgs = [ keys %$jobs ];
 
   foreach my $type (keys %$searches) {
-    if ($type eq 'jobcache') {
-      my $to_search = $self->get_search_list($searches->{$type});
-      my $jdata = $self->search_jobcache($to_search, $cur_mgs);
-      return "<p><pre>".Dumper($jdata)."</pre></p>";
-      foreach my $extra (keys %{$searches->{$type}}) {
-	my $cat = $extra_map->{metadata}{$extra};
-	foreach my $j (keys %$jdata) {
-	  if ($max > $limit) { return $tomany; }
-	  $results->{$j}{$cat}{ $jdata->{$j}{$extra} } = 1;
-	  $max += 1;
-	}
-      }
-      @$cur_mgs = keys %$jdata;
-      unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
-    }
-    elsif ($type eq 'metadata') {
+    if ($type eq 'metadata') {
       if (exists $searches->{$type}{all}) {
 	# search all metadata dbs using 'OR' matching
 	my $cat = $extra_map->{$type}{all} . " " . $type_map->{$type};
@@ -738,14 +730,14 @@ sub get_advanced_table {
 	my $md_data   = $self->search_metadata($to_search, $cur_mgs);
 	foreach my $j (keys %$md_data) {
 	  foreach my $r (@{$md_data->{$j}}) {
-	    my $tag = exists($extra_map->{$type}{$r->{tag}}) ? $extra_map->{$type}{$r->{tag}} : $tag_map{$r->{tag}};
+	    my $name = $r->{cat} . ": " . $r->{tag};
 	    if ($max > $limit) { return $tomany; }
-	    $results->{$j}{$cat}{ "$tag<br>" . $r->{value} } = 1;
+	    $results->{$j}{$cat}{ "$name<br>" . $r->{value} } = 1;
 	    $max += 1;
 	  }
 	}
 	my %merge = map { $_, 1 } keys %$md_data;
-	foreach my $jc_item (('project_name', 'metagenome_name', 'metagenome_id')) {
+	foreach my $jc_item (('project', 'name', 'metagenome_id')) {
 	  $to_search  = $self->get_search_list({$jc_item => $srch_info});
 	  my $jc_data = $self->search_jobcache($to_search, $cur_mgs);
 	  foreach my $j (keys %$jc_data) {
@@ -758,15 +750,17 @@ sub get_advanced_table {
 	@$cur_mgs = keys %merge;
 	unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
       }
-      my %remaining = map { $_, $searches->{$type}{$_} } grep {$_ !~ /(all|project_name|metagenome_name|metagenome_id)/} keys %{$searches->{$type}};
+      my %remaining = map { $_, $searches->{$type}{$_} } grep {$_ !~ /all/} keys %{$searches->{$type}};
       if (scalar(keys %remaining) > 0) {
 	my $to_search = $self->get_search_list($searches->{$type});
-	my $jdata = $self->search_metadata_tags($to_search, $cur_mgs);
+	my %tag_set = map { $_->[0], 1 } @$to_search;
+	my $jdata = $self->search_jobcache($to_search, $cur_mgs);
 	foreach my $j (keys %$jdata) {
-	  foreach my $r (@{$jdata->{$j}}) {
-	    my $cat = exists($extra_map->{$type}{$r->{tag}}) ? $extra_map->{$type}{$r->{tag}} : $tag_map{$r->{tag}};
+	  foreach my $t (keys %tag_set) {
+	    next unless (exists($jdata->{$j}{$t}) && exists($extra_map->{$type}{$t}));
+	    my $cat = $extra_map->{$type}{$t};
 	    if ($max > $limit) { return $tomany; }
-	    $results->{$j}{$cat}{ $r->{value} } = 1;
+	    $results->{$j}{$cat}{ $jdata->{$j}{$t} } = 1;
 	    $max += 1;
 	  }
 	}
@@ -859,10 +853,6 @@ sub get_advanced_table {
     }
   }
 
-  ## extra display metadata
-  my $show_md = [['biome-information_envo_lite','sample-origin_country','sample-origin_location','PI_lastname'], ['Biome','Country','Location','PI']];
-  my $md_tag  = $self->get_metadata_by_tags($show_md->[0], $cur_mgs);
-
   ## keep only jobs that hit all search criteria
   my %hmap  = ();
   my %final = ();
@@ -905,12 +895,12 @@ sub get_advanced_table {
 
     if (! $show) {
       my $row = [ $j,
-		  '<a href="?page=MetagenomeOverview&metagenome='.$job->{metagenome_id}.'">'.$job->{metagenome_name}.'</a>',
+		  '<a href="?page=MetagenomeOverview&metagenome='.$job->{metagenome_id}.'">'.$job->{name}.'</a>',
 		  $job->{metagenome_id},
-		  $job->{project_name} ? '<a href="?page=MetagenomeProject&project='.$job->{project_id}.'">'.$job->{project_name}.'</a>' : '',
+		  $job->{project} ? '<a href="?page=MetagenomeProject&project='.$job->{project_id}.'">'.$job->{project}.'</a>' : '',
 		  $job->{public} ];
       foreach my $t ( @{$show_md->[0]} ) {
-	push @$row, ( exists($md_tag->{$j}{$t}) ? join(" ; ", @{$md_tag->{$j}{$t}}) : '' );
+	push @$row, $job->{$t};
       }
       push @data, $row;
       next;
@@ -923,13 +913,13 @@ sub get_advanced_table {
     foreach my $line ( @set ) {
       if ($max > $limit) { return $tomany; }
       my $row = [ $j,
-		  '<a href="?page=MetagenomeOverview&metagenome='.$job->{metagenome_id}.'">'.$job->{metagenome_name}.'</a>',
+		  '<a href="?page=MetagenomeOverview&metagenome='.$job->{metagenome_id}.'">'.$job->{name}.'</a>',
 		  $job->{metagenome_id},
-		  $job->{project_name} ? '<a href="?page=MetagenomeProject&project='.$job->{project_id}.'">'.$job->{project_name}.'</a>' : '',
+		  $job->{project} ? '<a href="?page=MetagenomeProject&project='.$job->{project_id}.'">'.$job->{project}.'</a>' : '',
 		  $job->{public},
 		  @$line ];
       foreach my $t ( @{$show_md->[0]} ) {
-	push @$row, ( exists($md_tag->{$j}{$t}) ? join(" ; ", @{$md_tag->{$j}{$t}}) : '' );
+	push @$row, $job->{$t};
       }
       push @data, $row;
       $max += 1;
@@ -951,8 +941,7 @@ sub get_advanced_table {
     }
   }
   foreach my $md ( @{$show_md->[1]} ) {
-    my $col = { name => $md, filter => 1, operator => 'like', visible => ($show ? 0 : 1) };
-    if ($md =~ /(biome|country)/i) { $col->{operator} = 'combobox'; }
+    my $col = { name => $md, filter => 1, operator => 'combobox', visible => ($show ? 0 : 1) };
     push @$cols, $col;
   }
   
@@ -978,8 +967,7 @@ sub combinations {
   unless ($list && @$list) { return; }
 
   my @array = grep { $_ ne '' } @{ shift @$list };
-
-  my @subs = $self->combinations($list);
+  my @subs  = $self->combinations($list);
   if (! @subs) {
     return map { [$_] } @array;
   }
@@ -990,7 +978,6 @@ sub combinations {
       push @out, [ $item, @$sub ];
     }
   }
-  
   return @out;
 }
 
@@ -1000,17 +987,16 @@ sub get_mg_map {
   my $jobs = $self->data('jobs');
   my $set  = $self->app->cgi->param('mg_set') || "";
   my %mgs  = map { $_, 1 } split(/~/, $set);
-  my $tags = $self->get_metadata_by_tags(['sample-origin_longitude','sample-origin_latitude','biome-information_envo_lite'], [keys %mgs]);
   my $locs = {};
   my @data = ();
 
-  foreach my $j (keys %$tags) {
-    my $bio = $tags->{$j}{'biome-information_envo_lite'}[0];
-    my $lat = $tags->{$j}{'sample-origin_latitude'}[0];
-    my $lng = $tags->{$j}{'sample-origin_longitude'}[0];
+  foreach my $j (keys %mgs) {
+    my $bio = $jobs->{$j}{biome};
+    my $lat = $jobs->{$j}{latitude};
+    my $lng = $jobs->{$j}{longitude};
     unless (defined($lat) && defined($lng)) { next; }
     my $key = sprintf("%.0f",$lat) . "~" . sprintf("%.0f",$lng);
-    push @{ $locs->{$key} }, { id => $jobs->{$j}{metagenome_id}, name => $jobs->{$j}{metagenome_name}, lat => $lat, lng => $lng, biome => $bio };
+    push @{ $locs->{$key} }, { id => $jobs->{$j}{metagenome_id}, name => $jobs->{$j}{name}, lat => $lat, lng => $lng, biome => $bio };
   }
 
   if (scalar(keys %$locs) == 0) {
@@ -1093,50 +1079,6 @@ sub set_mg_col {
   return "<p><b>Collection '$col' of $num metagenomes created.</b></p>";
 }
 
-sub get_metadata_by_tags {
-  my ($self, $tags, $jobs) = @_;
-
-  unless ($tags && (@$tags)) { return {}; }
-
-  ## note: 1. map from job id to job index, 2. search, 3. map from job index to job id
-  my $all_jobs  = $self->data('jobs');
-  my $idx_jobs  = $self->data('jmap');
-  my $proj_jobs = $self->data('pmap');
-
-  my $data  = {};
-  my $tlist = join(",", map {"'$_'"} @$tags);
-  my $jlist = '';
-  my $plist = '';
-  if ($jobs && (@$jobs > 0)) {
-    my @jset = map {$all_jobs->{$_}{_id}} grep {exists $all_jobs->{$_}{_id}} @$jobs;
-    my @pset = map {$all_jobs->{$_}{project_id}} grep {exists $all_jobs->{$_}{project_id}} @$jobs;
-    if (@jset > 0) { $jlist = " AND job IN (" . join(",", @jset) . ")"; }
-    if (@pset > 0) { $plist = " AND project IN (" . join(",", @pset) . ")"; }
-  }
-
-  my $jsql  = "SELECT job, tag, value FROM MetaDataEntry WHERE job IS NOT NULL AND tag IN ($tlist)$jlist";
-  my $psql  = "SELECT project, tag, value FROM ProjectMD WHERE project IS NOT NULL AND tag IN ($tlist)$plist";
-  my $jrows = $self->data('mddb')->{_handle}->db_handle->selectall_arrayref($jsql);
-  my $prows = $self->data('mddb')->{_handle}->db_handle->selectall_arrayref($psql);
-
-  if ($jrows && (@$jrows > 0)) {
-    foreach my $r (@$jrows) {
-      my $val = $self->data('mddb')->unencode_value($r->[1], $r->[2]);
-      if (defined $val) { push @{ $data->{ $idx_jobs->{$r->[0]} }->{ $r->[1] } }, $val; }
-    }
-  }
-  if ($prows && (@$prows > 0)) {
-    foreach my $r (@$prows) {
-      if (exists $proj_jobs->{$r->[0]}) {
-	foreach my $j (@{$proj_jobs->{$r->[0]}}) {
-	  push @{ $data->{ $j }->{ $r->[1] } }, $r->[2];
-	}
-      }
-    }
-  }
-  return $data;
-}
-
 ### search functions: queries are all 'AND'
 # $to_search = [ [column (string), text (string), equal (bool), has (bool)] ]
 
@@ -1152,20 +1094,27 @@ sub search_jobcache {
     }
     %jdata = %tmp;
   }
-  if ($to_search && (@$to_search > 0)) {
-    foreach my $srch (@$to_search) {
-      my ($cat, $text, $eql, $has) = @$srch;
-      my %tmp = ();
-      foreach my $j (keys %jdata) {
-	unless (exists $jdata{$j}{$cat}) { next; }
-	my $val = $jdata{$j}{$cat};
-	if    ($eql     && $has     && ($val eq $text))    { $tmp{$j} = $jdata{$j}; }
-	elsif ($eql     && (! $has) && ($val ne $text))    { $tmp{$j} = $jdata{$j}; }
-	elsif ((! $eql) && $has     && ($val =~ /$text/i)) { $tmp{$j} = $jdata{$j}; }
-	elsif ((! $eql) && (! $has) && ($val !~ /$text/i)) { $tmp{$j} = $jdata{$j}; }
+  foreach my $srch (@$to_search) {
+    my ($cat, $text, $eql, $has) = @$srch;
+    my %tmp = ();
+    foreach my $j (keys %jdata) {
+      unless (exists $jdata{$j}{$cat}) { next; }
+      my $val = $jdata{$j}{$cat};
+      next unless (defined($val) && ($val =~ /\S/));
+      if ($eql == 2) {
+	my @rng = split(/_/, $text);
+	if (($val =~ /^\s*([+-]?\d*\.?\d+)/) && (@rng == 2)) {
+	  my $num = $1 * 1.0;
+	  if    ($has && ($rng[0] <= $num) && ($num <= $rng[1]))   { $tmp{$j} = $jdata{$j}; }
+	  elsif ((! $has) && ($num < $rng[0]) && ($rng[1] > $num)) { $tmp{$j} = $jdata{$j}; }
+	}
       }
-      %jdata = %tmp;
+      elsif ($eql     && $has     && ($val eq $text))    { $tmp{$j} = $jdata{$j}; }
+      elsif ($eql     && (! $has) && ($val ne $text))    { $tmp{$j} = $jdata{$j}; }
+      elsif ((! $eql) && $has     && ($val =~ /$text/i)) { $tmp{$j} = $jdata{$j}; }
+      elsif ((! $eql) && (! $has) && ($val !~ /$text/i)) { $tmp{$j} = $jdata{$j}; }
     }
+    %jdata = %tmp;
   }
   return \%jdata;
 }
@@ -1173,88 +1122,45 @@ sub search_jobcache {
 sub search_metadata {
   my ($self, $to_search, $jobs) = @_;
 
-  ## note: 1. map from job id to job index, 2. search, 3. map from job index to job id
-  my $all_jobs  = $self->data('jobs');
-  my $idx_jobs  = $self->data('jmap');
-  my $proj_jobs = $self->data('pmap');
-
-  my $data   = {};
-  my @jwhere = ();
-  if ($to_search && (@$to_search > 0)) {
-    @jwhere = map {$self->get_search_str('mysql', $_->[0], $_->[1], $_->[2], $_->[3])} @$to_search;
-  }
-  my @pwhere = @jwhere;
-  push @jwhere, "job IS NOT NULL";
-  push @pwhere, "project IS NOT NULL";
-
-  if ($jobs && (@$jobs > 0)) {
-    my @jset = map {$all_jobs->{$_}{_id}} grep {exists $all_jobs->{$_}{_id}} @$jobs;
-    my @pset = map {$all_jobs->{$_}{project_id}} grep {exists $all_jobs->{$_}{project_id}} @$jobs;
-    if (@jset > 0) { push @jwhere, "job IN (" . join(",", @jset) . ")"; }
-    if (@pset > 0) { push @pwhere, "project IN (" . join(",", @pset) . ")"; }
-  }
-
-  my $jsql = "SELECT job, tag, value FROM MetaDataEntry" . $self->get_where_str(\@jwhere);
-  my $psql = "SELECT project, tag, value FROM ProjectMD" . $self->get_where_str(\@pwhere);
-  my $jrows = $self->data('mddb')->{_handle}->db_handle->selectall_arrayref($jsql);
-  my $prows = $self->data('mddb')->{_handle}->db_handle->selectall_arrayref($psql);
-
-  if ($jrows && (@$jrows > 0)) {
-    foreach my $r (@$jrows) {
-      my $val = $self->data('mddb')->unencode_value($r->[1], $r->[2]);
-      if (defined $val) { push @{ $data->{ $idx_jobs->{$r->[0]} } }, { tag => $r->[1], value => $val }; }
-    }
-  }
-  if ($prows && (@$prows > 0)) {
-    foreach my $r (@$prows) {
-      if (exists $proj_jobs->{$r->[0]}) {
-	foreach my $j (@{$proj_jobs->{$r->[0]}}) {
-	  push @{ $data->{$j} }, { tag => $r->[1], value => $r->[2] };
-	}
-      }
-    }
-  }
-  return $data;
-}
-
-sub search_metadata_tags {
-  my ($self, $to_search, $jobs) = @_;
-
-  my @tags  = map { $_->[0] } @$to_search;
-  my %mdata = %{ $self->get_metadata_by_tags(\@tags, $jobs) }; # job => tag => [ value ]
-
-  foreach my $srch (@$to_search) {
-    my ($tag, $text, $eql, $has) = @$srch;
-    my %tmp = ();
-    foreach my $j (keys %mdata) {
-      unless (exists $mdata{$j}{$tag}) { next; }
-      foreach my $v (@{$mdata{$j}{$tag}}) {
-        if ($eql == 2) {
-	  my @rng = split(/_/, $text);
-	  if (($v =~ /^\s*([+-]?\d*\.?\d+)/) && (@rng == 2)) {
-	    my $num = $1 * 1.0;
-	    if    ($has && ($rng[0] <= $num) && ($num <= $rng[1]))   { $tmp{$j} = $mdata{$j}; }
-	    elsif ((! $has) && ($num < $rng[0]) && ($rng[1] > $num)) { $tmp{$j} = $mdata{$j}; }
-	  }
-	}
-	elsif ($eql     && $has     && ($v eq $text))    { $tmp{$j} = $mdata{$j}; }
-	elsif ($eql     && (! $has) && ($v ne $text))    { $tmp{$j} = $mdata{$j}; }
-	elsif ((! $eql) && $has     && ($v =~ /$text/i)) { $tmp{$j} = $mdata{$j}; }
-	elsif ((! $eql) && (! $has) && ($v !~ /$text/i)) { $tmp{$j} = $mdata{$j}; }
-      }
-    }
-    %mdata = %tmp;
-  }
-
+  my $db_hdl   = $self->app->data_handle('MGRAST')->db_handle;
+  my $all_jobs = $self->data('jobs');
   my $data = {};
-  foreach my $j (keys %mdata) {
-    foreach my $t (keys %{$mdata{$j}}) {
-      foreach my $v (@{$mdata{$j}{$t}}) {
-	push @{ $data->{$j} }, {tag => $t, value => $v};
-      }
+  my $wstr = '';
+  if ($to_search && (@$to_search > 0)) {
+    my @where = map { $self->get_search_str('mysql', $_->[0], $_->[1], $_->[2], $_->[3]) } @$to_search;
+    $wstr = $self->get_where_str(\@where);
+  }
+  my $cdata = {};
+  my $pdata = {};
+  foreach my $row (@{$db_hdl->selectall_arrayref("SELECT collection, tag, value FROM MetaDataEntry".$wstr)}) {
+    next unless ($row->[2] && ($row->[2] =~ /\S/));
+    push @{ $cdata->{$row->[0]} }, { tag => $row->[1], value => $row->[2] };
+  }
+  foreach my $row (@{$db_hdl->selectall_arrayref("SELECT project, tag, value FROM ProjectMD".$wstr)}) {
+    next unless ($row->[2] && ($row->[2] =~ /\S/));
+    push @{ $pdata->{$row->[0]} }, { tag => $row->[1], value => $row->[2], cat => 'project' };
+  }
+
+  my @search_jobs = ($jobs && (@$jobs > 0)) ? @$jobs : keys %$all_jobs;
+  foreach my $j (@search_jobs) {
+    if (exists $pdata->{$all_jobs->{$j}{_id_project}}) {
+      push @{ $data->{$j} }, @{ $pdata->{$all_jobs->{$j}{_id_project}} };
+    }
+    if (exists $cdata->{$all_jobs->{$j}{_id_sample}}) {
+      map { $_->{cat} = 'sample' } @{ $cdata->{$all_jobs->{$j}{_id_sample}} };
+      push @{ $data->{$j} }, @{ $cdata->{$all_jobs->{$j}{_id_sample}} };
+    }
+    if (exists $cdata->{$all_jobs->{$j}{_id_library}}) {
+      map { $_->{cat} = 'library' } @{ $cdata->{$all_jobs->{$j}{_id_library}} };
+      push @{ $data->{$j} }, @{ $cdata->{$all_jobs->{$j}{_id_library}} };
+    }
+    if (exists $cdata->{$all_jobs->{$j}{_id_ep}}) {
+      map { $_->{cat} = 'enviroment' } @{ $cdata->{$all_jobs->{$j}{_id_ep}} };
+      push @{ $data->{$j} }, @{ $cdata->{$all_jobs->{$j}{_id_ep}} };
     }
   }
   return $data;
+  # hash: job_id => [ {tag=>'tag', value=>'value', cat=>'category'} ]
 }
 
 sub search_jobdata {
@@ -1337,62 +1243,35 @@ sub search_ontology {
 sub get_user_jobs {
   my ($self, $mgs) = @_;
 
-  my $user    = $self->app->session->user;
-  my $mgrast  = $self->app->data_handle('MGRAST');
-  my $data    = {};
-  my $where   = '';
-  my $all_mgs = 0;
-  
-  ### use user viewable MGs if not entered
-  if ($user && (@$mgs == 0)) {
-    my $right_to = $user->has_right_to(undef, 'view', 'metagenome');
-    if ($right_to && @$right_to) {
-      my @all = grep { $_ eq '*' } @$right_to;
-      if (@all > 0) {
-	$all_mgs = 1;
-      }
-      else {
-	@$mgs = map { $_ } @$right_to;
-      }
-    }
-  }
+  my $user   = $self->app->session->user;
+  my $mgrast = $self->app->data_handle('MGRAST');
+  my $data   = {};
+  map { $data->{$_->{job_id}} = $_ } @{ $mgrast->Job->fetch_browsepage_viewable($user, $mgs) };
 
-  ## has admin rights
-  if ($all_mgs) {
-    $where = "viewable=1";
-  }
-  ## has private
-  elsif ($user && (@$mgs > 0)) {
-    $where = "viewable=1 AND (public=1 OR metagenome_id IN (" . join(",", map {"'$_'"} @$mgs) . "))";
-  }
-  ## has no private or no user
-  else {
-    $where = "viewable=1 AND public=1";
-  }
+  my $sql = "SELECT parent, _id FROM MetaDataCollection WHERE type='ep' AND parent IS NOT NULL";
+  my $tmp = $mgrast->db_handle->selectall_arrayref($sql);
+  my %eps = map { $_->[0], $_->[1] } @$tmp;
 
-  ## get job data
-  my $sql  = "SELECT job_id, _id, metagenome_id, name, public FROM Job WHERE $where";
-  my $rows = $mgrast->db_handle->selectall_arrayref($sql);
-  if ($rows && (@$rows > 0)) {
-    foreach my $r (@$rows) {
-      my $name = $r->[3] ? $r->[3] : "";
-      my $pub  = $r->[4] ? 'yes' : 'no';
-      $data->{$r->[0]} = {job_id => $r->[0], _id => $r->[1], metagenome_id => $r->[2], metagenome_name => $name, public => $pub};
-    }
+  $sql = "SELECT job_id, primary_project, sample, library FROM Job WHERE job_id IN (".join(",", keys %$data).")";
+  $tmp = $mgrast->db_handle->selectall_arrayref($sql);
+  foreach my $row (@$tmp) {
+    $data->{$row->[0]}{_id_project} = $row->[1] ? $row->[1] : 0;
+    $data->{$row->[0]}{_id_sample}  = $row->[2] ? $row->[2] : 0;
+    $data->{$row->[0]}{_id_library} = $row->[3] ? $row->[3] : 0;
+    $data->{$row->[0]}{_id_ep} = exists($eps{$data->{$row->[0]}{_id_sample}}) ? $eps{$data->{$row->[0]}{_id_sample}} : 0;
   }
-  unless (scalar(keys %$data) > 0) { return {}; }
-
-  ## get project data
-  $sql  = "SELECT j.job_id, p.id, p.name FROM Job j, Project p, ProjectJob pj WHERE p._id=pj.project AND j._id=pj.job AND j.job_id IN (" . join(",", keys %$data) . ")";
-  $rows = $mgrast->db_handle->selectall_arrayref($sql);
-  if ($rows && (@$rows > 0)) {
-    foreach my $r (@$rows) {
-      if ($r->[1] && (exists $data->{$r->[0]})) { $data->{$r->[0]}{project_id} = $r->[1]; }
-      if ($r->[2] && (exists $data->{$r->[0]})) { $data->{$r->[0]}{project_name} = $r->[2]; }
-    }
-  }
-
   return $data;
+}
+
+sub get_unique_job_info {
+  my ($self, $item) = @_;
+
+  my $set = {};
+  my $all_jobs = $self->data('jobs');
+  map { $set->{ $all_jobs->{$_}{$item} } = 1 }
+    grep { exists($all_jobs->{$_}{$item}) && defined($all_jobs->{$_}{$item}) && ($all_jobs->{$_}{$item} ne '') }
+      keys %$all_jobs;
+  return [ sort keys %$set ];
 }
 
 sub get_where_str {

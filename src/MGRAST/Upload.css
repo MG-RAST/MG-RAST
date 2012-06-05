@@ -1,0 +1,10 @@
+.pill_incomplete {
+    background-color: #3a87ad;
+    color: white;
+    cursor: pointer;
+}
+.pill_complete {
+    background-color: #468847;
+    color: white;
+    cursor: pointer;
+}

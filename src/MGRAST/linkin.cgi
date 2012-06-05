@@ -33,16 +33,16 @@ sub main {
     my $error = -1;
     if ($cgi->param('metagenome')) {
 	
-	if ($cgi->param('metagenome') =~ /^\d+\.\d+$/) {
-	    print $cgi->redirect('metagenomics.cgi?page=MetagenomeOverview&metagenome='.$cgi->param('metagenome'));
+	if ($cgi->param('metagenome') =~ /^(mgm)?(\d+\.\d+)$/) {
+	    print $cgi->redirect('metagenomics.cgi?page=MetagenomeOverview&metagenome='.$2);
 	} else {
-	    $error = '<h2>Invalid link</h2><p>You linked to MG-RAST using an invalid id format: '.$cgi->param('metagenome').'<br>Valid ids for metagenomes are of the format 12345.6.</p>';
+	    $error = '<h2>Invalid link</h2><p>You linked to MG-RAST using an invalid id format: '.$cgi->param('metagenome').'<br>Valid ids for metagenomes are of the format 12345.6 or mgm12345.6.</p>';
 	}
     } elsif ($cgi->param('project')) {
-	if ($cgi->param('project') =~ /^\d+$/) {
-	    print $cgi->redirect('metagenomics.cgi?page=MetagenomeProject&project='.$cgi->param('project'));
+	if ($cgi->param('project') =~ /^(mgp)?(\d+)$/) {
+	    print $cgi->redirect('metagenomics.cgi?page=MetagenomeProject&project='.$2);
 	} else {
-	    $error = '<h2>Invalid link</h2><p>You linked to MG-RAST using an invalid id format: '.$cgi->param('project').'<br>Valid ids for projects consist of digits only.</p>';
+	    $error = '<h2>Invalid link</h2><p>You linked to MG-RAST using an invalid id format: '.$cgi->param('project').'<br>Valid ids for projects are of the format 123 or mgp123.</p>';
 	}
     
     } else {

@@ -92,7 +92,7 @@ sub output {
     $self->fetch_data();
   }
 
-  my $data_description = "job_id|jobname|metagenome_id|project|biome|altitude|depth|location|ph|country|temperature|sequencing method|PI";
+  my $data_description = "job_id|jobname|metagenome_id|project|biome|feature|material|enviroment package|sequencing type|altitude|depth|location|ph|country|temperature|sequencing method|PI";
 
   my $table = $application->component('selection_table');
   $table->columns( [ { name => 'select', input_type => 'checkbox' },
@@ -101,6 +101,10 @@ sub output {
 		     { name => 'metagenome id', visible => 0, filter => 1, sortable => 1 },
 		     { name => 'project', filter => 1, operator => 'combobox', sortable => 1 },
 		     { name => 'biome', visible => 0, filter => 1, operator => 'combobox', sortable => 1 },
+		     { name => 'feature', visible => 0, filter => 1, operator => 'combobox', sortable => 1 },
+		     { name => 'material', visible => 0, filter => 1, operator => 'combobox', sortable => 1 },
+		     { name => 'enviroment package', visible => 0, filter => 1, operator => 'combobox', sortable => 1 },
+		     { name => 'sequencing type', visible => 0, filter => 1, operator => 'combobox', sortable => 1 },
 		     { name => 'altitude', visible => 0, filter => 1, sortable => 1 },
 		     { name => 'depth', visible => 0, filter => 1, sortable => 1 },
 		     { name => 'location', visible => 0, filter => 1, sortable => 1 },
@@ -109,6 +113,7 @@ sub output {
 		     { name => 'temperature', visible => 0, filter => 1, sortable => 1 },
 		     { name => 'sequencing method', visible => 0, filter => 1, operator => 'combobox', sortable => 1 },
 		     { name => 'PI', visible => 0, filter => 1, sortable => 1 }] );
+
   $table->show_top_browse(1);
   $table->show_bottom_browse(1);
   $table->show_select_items_per_page(1);
@@ -162,7 +167,6 @@ sub fetch_data {
 
   # get the data connections
   my $mgrast = $self->{mgrast};
-  my $metadata = MGRAST::Metadata->new();
   my $dbmaster = $application->dbmaster;
 
   # extract the initial data
@@ -176,32 +180,19 @@ sub fetch_data {
       $jobs->[scalar(@$jobs) - 1]->{project} = $project;
     }
   }
-  my $md_list = { 'biome-information_envo_lite' => 4,
-		  'sample-origin_altitude' => 5,
-		  'sample-origin_depth' => 6,
-		  'sample-origin_location' => 7,
-		  'sample-origin_ph' => 8,
-		  'sample-origin_country' => 9,
-		  'sample-origin_temperature' => 10,
-		  'sequencing_sequencing_method' => 11,
-		  'PI_lastname' => 12 };
-  my $data = [];
-  foreach my $job (@$jobs) {
-    $job->{name} =~ s/'//g;
-    $job->{pname} =~ s/'//g;
-    my $row = [ $job->{job_id}, $job->{name}, $job->{metagenome_id}, $job->{pname}, '- no data -', '- no data -', '- no data -', '- no data -', '- no data -', '- no data -', '- no data -', '- no data -', '- no data -' ];
-    my $md = $metadata->MetaDataEntry->get_objects( { job => $job } );
-    push(@$md, @{$metadata->ProjectMD->get_objects( { project => $job->{project} } )});
-    foreach my $m (@$md) {
-      if ($m->{value} ne "") {
-	if ($md_list->{$m->{tag}}) {
-	  $row->[$md_list->{$m->{tag}}] = $m->{value};
-	}
-      }
-    }
-    push(@$data, $row);
-  }
+  my $data  = [];
+  my @mgids = map { $_->{metagenome_id} } @$jobs;
+  my $jobmd = $mgrast->Job->jobs_mixs_metadata_fast(\@mgids);
 
+  foreach my $job (@$jobmd) {
+    my $row = [];
+    foreach my $tag (('job_id','name','metagenome_id','project','biome','feature','material','env_package','sequence_type','altitude','depth','location','ph','country','temperature','sequencing method','pi')) {
+      my $val = (exists($job->{$tag}) && ($job->{$tag} ne '')) ? $job->{$tag} : '- no data -';
+      $val =~ s/'//g;
+      push @$row, $val;
+    }
+    push @$data, $row;
+  }
   $self->{data_table} = $data;
 
   # store the data in the html

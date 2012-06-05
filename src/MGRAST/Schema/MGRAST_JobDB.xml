@@ -2,17 +2,15 @@
 
 <project_space label="JobDB">
 
-
   <object label="Job">
     <object_ref label="owner" type="WebServerBackend::User" />
-    <scalar label="job_id" type="INTEGER" mandatory="1" /> 
-    <scalar label="metagenome_id" type="CHAR(64)" /> 
+    <scalar label="job_id" type="INTEGER" mandatory="1" />
+    <scalar label="metagenome_id" type="CHAR(64)" />
     <scalar label="name" type="CHAR(128)" /> 
-    <scalar label="created_on" type="TIMESTAMP" /> 
-    
-    <object_ref label="project" type="Project" />  
-    <object_ref label="sample" type="MetaDataCollection" />  
-  
+    <scalar label="created_on" type="TIMESTAMP" />
+    <object_ref label="primary_project" type="Project" />
+    <object_ref label="sample" type="MetaDataCollection" />
+    <object_ref label="library" type="MetaDataCollection" />
     <scalar label="public" type="BOOLEAN"/>
     <scalar label="viewable" type="BOOLEAN"/>
     <scalar label="server_version" type="CHAR(64)" />
@@ -22,12 +20,11 @@
     <scalar label="current_stage" type="TEXT"/>
     <scalar label="options" type="TEXT" />
     <scalar label="sequence_type" type="TEXT" />
-    
     <unique_index><attribute label="job_id" /></unique_index>
     <unique_index><attribute label="metagenome_id" /></unique_index>
     <index><attribute label="owner"/></index>
     <index><attribute label="viewable"/></index>
-    <index><attribute label="public"/></index>  
+    <index><attribute label="public"/></index>
   </object>
 
   <object label="UploadStatus">
@@ -42,13 +39,13 @@
 
   <object label="PipelineStage">
     <object_ref label="job" type="Job" />
-    <scalar label="stage" type="CHAR(128)" /> 
+    <scalar label="stage" type="CHAR(128)" />
     <scalar label="status"       type="CHAR(128)" />
     <scalar label="options"      type="TEXT" />
     <scalar label="display_name" type="TEXT"/>
     <scalar label="position"     type="INTEGER"/>
-    <scalar label="version"      type="CHAR(64)" /> 
-    <scalar label="timestamp"    type="TIMESTAMP"/>  
+    <scalar label="version"      type="CHAR(64)" />
+    <scalar label="timestamp"    type="TIMESTAMP"/>
     <unique_index>
       <attribute label="job"/>
       <attribute label="stage"/>
@@ -59,7 +56,7 @@
   <object label="JobStatistics">
     <object_ref label="job" type="Job" />
     <scalar label="tag" type="CHAR(128)" />
-    <scalar label="value"  type="TEXT" />
+    <scalar label="value" type="TEXT" />
     <scalar label="timestamp" type="TIMESTAMP"/>  
     <unique_index>
       <attribute label="job"/>
@@ -70,12 +67,35 @@
   <object label="JobAttributes">
     <object_ref label="job" type="Job" />
     <scalar label="tag" type="CHAR(128)" />
-    <scalar label="value"  type="TEXT" />
+    <scalar label="value" type="TEXT" />
     <scalar label="timestamp" type="TIMESTAMP"/>
     <unique_index>
       <attribute label="job"/>
       <attribute label="tag"/>
     </unique_index>
+  </object>
+
+  <object label="JobInfo">
+    <object_ref label="job" type="Job" />
+    <scalar label="timestamp" type="TIMESTAMP"/>
+    <scalar label="sequence_type" type="TEXT" />
+    <scalar label="sequence_tech" type="TEXT" />
+    <scalar label="project_name" type="TEXT" />
+    <scalar label="project_pi" type="TEXT" />
+    <scalar label="latitude" type="FLOAT" />
+    <scalar label="longitude" type="FLOAT" />
+    <scalar label="country" type="TEXT" />
+    <scalar label="location" type="TEXT" />
+    <scalar label="biome" type="TEXT" />
+    <scalar label="feature" type="TEXT" />
+    <scalar label="material" type="TEXT" />
+    <scalar label="env_package" type="TEXT" />
+    <scalar label="bp_count" type="INTEGER" />
+    <scalar label="seq_count" type="INTEGER" />
+    <scalar label="avg_len" type="FLOAT" />
+    <scalar label="drisee" type="FLOAT" />
+    <scalar label="alpha_diverse" type="FLOAT" />
+    <unique_index><attribute label="job"/></unique_index>
   </object>
 
   <object label="Project">
@@ -100,8 +120,8 @@
   <object label="ProjectCollection">
     <object_ref label="collection" type="MetaDataCollection" mandatory="1" />
     <object_ref label="project" type="Project" mandatory="1" />
-    <index><attribute label="collection"/></index>  
-    <index><attribute label="project"/></index>  
+    <index><attribute label="collection"/></index>
+    <index><attribute label="project"/></index>
   </object>
   
   <object label="Jobgroup">
@@ -113,21 +133,19 @@
     <object_ref label="jobgroup" type="Jobgroup" mandatory="1" />
   </object>
 
-
   <object label="MetaDataCollection">
-    <object_ref label="job"     type="Job" />     <!-- may contain more then one , look at Jobs              -->
-    <object_ref label="project" type="Project" /> <!-- may contain more then one , look at ProjectCollection -->
-    <scalar label="type" type="text" mandatory="1"/> 
+    <scalar label="type" type="CHAR(64)" mandatory="1"/> 
     <scalar label="ID" type="INTEGER" mandatory="1"/>
+    <scalar label="name" type="CHAR(128)" />
     <scalar label="source" type="CHAR(128)" mandatory="1" />
-    <scalar label="url" type="CHAR(128)" mandatory="1" />
-    <scalar label="entry_date" type="TIMESTAMP" /> 
+    <scalar label="url" type="CHAR(128)" />
+    <scalar label="entry_date" type="TIMESTAMP" />
+    <object_ref label="parent" type="MetaDataCollection"/>
     <object_ref label="creator" type="Curator" />
-
     <unique_index><attribute label="ID" /></unique_index>
-    <index><attribute label="job"/></index>
     <index><attribute label="source"/></index>
     <index><attribute label="creator"/></index>
+    <index><attribute label="type"/></index>
   </object>
  
   <object label="UpdateLog">
@@ -136,7 +154,6 @@
     <scalar label="type" type="CHAR(128)" />
     <scalar label="comment" type="CHAR(128)" />
     <scalar label="date" type="TIMESTAMP" />
-
     <index><attribute label="curator"/></index>
     <index><attribute label="collection"/></index>
     <index><attribute label="date"/></index>
@@ -155,37 +172,58 @@
     <index><attribute label="name"/></index>
     <index><attribute label="user"/></index>
   </object>
-
-
+  
   <object label="MetaDataEntry">
     <object_ref label="collection" type="MetaDataCollection" mandatory="1" />
-    <object_ref label="job" type="Job" />
     <scalar label="tag" type="CHAR(128)" mandatory="1" />
     <scalar label="value" type="TEXT" mandatory="1" />
-    <scalar label="type" type="CHAR(128)" /> <!-- question type-->
-    <scalar label="migs" type="BOOLEAN" />
+    <scalar label="required" type="BOOLEAN" />
+    <scalar label="mixs" type="BOOLEAN" />
     <index><attribute label="tag"/></index>
     <index><attribute label="value"/></index>
     <index><attribute label="collection"/></index>
-    <index><attribute label="job"/></index>
-
   </object>
 
-   <object label="Measurement">
+  <object label="MetaDataTemplate">
+    <scalar label="category" type="CHAR(64)" mandatory="1" />
+    <scalar label="category_type" type="CHAR(32)" />
+    <scalar label="qiime_tag" type="CHAR(128)" />
+    <scalar label="mgrast_tag" type="CHAR(128)" />
+    <scalar label="tag" type="CHAR(128)" mandatory="1" />
+    <scalar label="definition" type="TEXT" mandatory="1" />
+    <scalar label="required" type="BOOLEAN" mandatory="1" />
+    <scalar label="mixs" type="BOOLEAN" mandatory="1" />
+    <scalar label="type" type="TEXT" mandatory="1" />
+    <scalar label="fw_type" type="TEXT" />
+    <scalar label="unit" type="TEXT" />
+    <unique_index>
+      <attribute label="category"/>
+      <attribute label="tag"/>
+    </unique_index>
+    <index><attribute label="required"/></index>
+  </object>
+
+  <object label="MetaDataCV">
+    <scalar label="type" type="CHAR(32)" mandatory="1" />
+    <scalar label="tag" type="CHAR(128)" mandatory="1" />
+    <scalar label="value" type="TEXT" />
+    <unique_index>
+      <attribute label="type"/>
+      <attribute label="tag"/>
+    </unique_index>
+  </object>
+  
+  <object label="Measurement">
     <object_ref label="collection" type="MetaDataCollection" />
     <object_ref label="field" type="MetaDataEntry" mandatory="1" />
     <scalar label="name" type="CHAR(128)"  />
     <scalar label="value" type="TEXT" mandatory="1" />
     <scalar label="unit" type="CHAR(128)" />
-    
     <index><attribute label="collection"/></index>
     <index><attribute label="field"/></index>
     <index><attribute label="value"/></index>
     <index><attribute label="unit"/></index>
   </object>
-
-
-  
 
   <object label="ProjectMD">
     <object_ref label="project" type="Project" />
@@ -194,8 +232,5 @@
     <index><attribute label="project"/></index>
     <index><attribute label="tag"/></index>
   </object>
-
-
-  
 
 </project_space>
