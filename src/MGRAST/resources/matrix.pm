@@ -13,13 +13,18 @@ my $json = new JSON;
 $json = $json->utf8();
 
 sub about {
+  my $ach = new Babel::lib::Babel;
   my $content = { 'description' => "metagenomic matrix",
 		  'parameters' => { "id" => "string",
-				    "source" => "string",
+				    "source" => { "protein"  => [ 'm5nr', map {$_->[0]} @{$ach->get_protein_sources} ],
+						  "ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
+						  "rna"      => [ 'm5rna', map {$_->[0]} @{$ach->get_rna_sources} ]
+						},
 				    "type" => [ "function", "organism" ],
 				    "format" => [ "plain", "biome" ],
 				    "result_column" => [ "abundance","evalue","length","identity" ],
-				    "group_level" => "string",
+				    "group_level" => { "function" => ['level1','level2','level3','function'],
+						       "organism" => ['domain','phylum','class','order','family','genus','species','strain'] },
 				    "show_hierarchy" => "boolean" },
 		  'return_type' => "application/json" };
 
@@ -125,7 +130,7 @@ sub request {
     $params->{$key} = $value;
   }
 
-  my $source = 'RefSeq';
+  my $source = 'M5NR';
   if ($params->{source}) {
     $source = $params->{source};
   } elsif ($params->{type} && $params->{type} eq 'function') {
@@ -137,7 +142,7 @@ sub request {
 
   if (! $params->{type} || ($params->{type} && $params->{type} eq 'organism')) {
     ($md5_abund, $result) = $mgdb->get_organisms_for_sources([$source]);   
-  } elsif ($params->{type} && $params->{type} eq 'organism') {
+  } elsif ($params->{type} && $params->{type} eq 'function') {
     ($md5_abund, $result) = $mgdb->get_ontology_for_source($source);
   } else {
     print $cgi->header(-type => 'text/plain',
@@ -160,7 +165,7 @@ sub request {
     }
     my $first_val_cell = 1;
     my $row_hash = {};
-    if (! $params->{type} || ($params->{type} && $params->{type} eq 'taxonomy')) {
+    if (! $params->{type} || ($params->{type} && $params->{type} eq 'organism')) {
       # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
       my $colmapping = { 'abundance' => 10,
 			 'evalue'   => 12,
@@ -287,14 +292,13 @@ sub request {
       push(@$header, $ids->[$i]);
     }
     
-    print $cgi->header(-type => 'application/json',
+    print $cgi->header(-type => 'text/plain',
 		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );
     print join("\t", @$header)."\n";
     print join("\n", map { join("\t", @$_) } @$data);
     exit 0;
   } else {
-
     if (! $params->{type} || ($params->{type} && $params->{type} eq 'organism')) {
       my $value_index = 10;
       my $strain2tax = {};

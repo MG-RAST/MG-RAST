@@ -2,27 +2,27 @@ package MGRAST::Metadata;
 
 use strict;
 use warnings;
-use Data::Dumper;
 
-use WebComponent::FormWizard::DataStructures;
+use LWP::Simple;
+use URI::Escape;
+use Storable qw(dclone);
+use Data::Dumper;
+use File::Temp qw/ tempfile tempdir /;
+use JSON;
+
 use DBMaster;
 use FIG_Config;
-
-#
-# Add following lines to FIGConfig.pm
-# $mgrast_metadata_db  = "MGRASTMetadata";
-# $mgrast_metadata_host = "mg-rast.mcs.anl.gov";
-# $mgrast_metadata_user  = "mgrast";
-#
 
 sub new {
   my ($class, $app, $debug) = @_;
 
   $app   = $app   || '';
   $debug = $debug || '';
-  my $self = { app      => $app,
-	       debug    => $debug,
-	       template => $FIG_Config::mgrast_formWizard_templates . "/FormWizard_MetaData.xml"
+  my $self = { app   => $app,
+	       debug => $debug,
+	       ontology_url => 'http://bioportal.bioontology.org/ontologies/',
+	       ontology_api => 'http://rest.bioontology.org/bioportal/search',
+	       ontology_key => '56a9721b-0d62-4185-933d-81447db2457a'
 	     };
   eval {
       $self->{_handle} = DBMaster->new( -database => $FIG_Config::mgrast_metadata_db || 'MGRASTMetadata',
@@ -41,95 +41,497 @@ sub new {
 
 =pod
 
-=item * B<is_job_compliant> (JobObject<job>)
+=item * B<template> ()
 
-Returns true if job exists and has all mandatory migs fields filled out.
+Returns the metadata temple in the format:
+category => 'category_type' => <category_type>
+category => tag => { mgrast_tag, qiime_tag, definition, type, fw_type, required, mixs }
 
-=cut 
+=cut
 
-sub is_job_compliant {
-  my ($self, $job) = @_;
+sub template {
+  my ($self) = @_;
 
-  my $data = $self->get_all_for_job($job);
-  if (@$data == 0) { return 0; }
-  
-  my %job_tags  = map { $_->tag, 1 } grep { defined($_->value) && ($_->value =~ /\S/) } @$data;
-  my $migs_tags = $self->get_migs_tags();
-  my $env_tags  = $self->get_enviroment_tags();
-  my %env_nums  = map { $_, scalar(keys %{$env_tags->{$_}}) } keys %$env_tags;
-  
-  my $miss_migs = 0;
-  while ( my ($tag, $quest) = each %$migs_tags ) {
-    if ( ($quest->{mandatory}) && (! exists $job_tags{$tag}) ) {
-      $miss_migs += 1;
-    }
+  unless ($self->{data} && ref($self->{data})) {
+    my $data = {};
+    my $dbh  = $self->{_handle}->db_handle;
+    my $tmp  = $dbh->selectall_arrayref("SELECT category_type,category,tag,mgrast_tag,qiime_tag,definition,type,fw_type,required,mixs,unit FROM MetaDataTemplate");
+    unless ($tmp && (@$tmp)) { return $data; }
+    map { $data->{$_->[1]}{category_type} = $_->[0] } @$tmp;
+    map { $data->{$_->[1]}{$_->[2]} = { mgrast_tag => $_->[3],
+					qiime_tag  => $_->[4],
+					definition => $_->[5],
+					type       => $_->[6],
+					fw_type    => $_->[7],
+					required   => $_->[8],
+					mixs       => $_->[9],
+					unit       => $_->[10]
+				      } } @$tmp;
+    $self->{data} = $data;
   }
+  return $self->{data};
+}
 
-  my $job_env   = '';
-  my $env_count = 0;
-  my $has_env   = 0;
-  foreach my $env ( keys %$env_tags ) {
-    if ($job_env && ($job_env ne $env)) {
-      next;
-    }
-    foreach my $tag ( keys %{ $env_tags->{$env} } ) {
-      if ( exists $job_tags{$tag} ) {
-	$job_env    = $env if (! $job_env);
-	$env_count += 1;
-      }
-    }
-  }
-  if ($job_env && ($env_count > ($env_nums{$job_env} * 0.8)) ) {
-    $has_env = 1;
-  }
+sub get_cv_list {
+  my ($self, $tag) = @_;
+  my $dbh = $self->{_handle}->db_handle;
+  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='select'");
+  return ($tmp && @$tmp) ? $tmp : [];
+}
 
-  return ( (! $miss_migs) && $has_env ) ? 1 : 0;
+sub get_ont_id {
+  my ($self, $tag) = @_;
+  my $dbh = $self->{_handle}->db_handle;
+  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='ontology'");
+  return ($tmp && @$tmp) ? $tmp->[0] : '';
 }
 
 =pod
 
-=item * B<export_metadata_for_jobs> (Arrayref<JobObject job>, Scalar<file>)
+=item * B<mixs> ()
 
-For a given list of Job Objs and a file name, return a filepath with:
-column header is metagenome_id, row header is format (question | tag), cell is value
+Returns set of all required mixs tags in the format:
+category_type => tag => 1
+
+=cut
+
+sub mixs {
+  my ($self) = @_;
+
+  my $mixs = {};
+  my $template = $self->template();
+  foreach my $cat (keys %$template) {
+    my $ct = $template->{$cat}{category_type};
+    foreach my $tag (keys %{$template->{$cat}}) {
+      next if ($tag eq 'category_type');
+      if ($template->{$cat}{$tag}{required} && $template->{$cat}{$tag}{mixs}) {
+	$mixs->{$ct}{$tag} = 1;
+      }
+    }
+  }
+  return $mixs;
+}
+
+=pod
+
+=item * B<validate_mixs> (Scalar<tag>)
+
+Check that tag is mixs tag
+return boolean
+
+=cut
+
+sub validate_mixs {
+  my ($self, $tag) = @_;
+  my $dbh = $self->{_handle}->db_handle;
+  my $tmp = $dbh->selectcol_arrayref("SELECT count(*) FROM MetaDataTemplate WHERE tag='$tag' AND mixs=1");
+  return ($tmp && @$tmp && ($tmp->[0] > 0)) ? 1 : 0;
+}
+
+=pod
+
+=item * B<validate_tag> (Scalar<category>, Scalar<tag>)
+
+Check that tag exists for category
+return boolean
+
+=cut
+
+sub validate_tag {
+  my ($self, $cat, $tag) = @_;
+  my $dbh = $self->{_handle}->db_handle;
+  my $tmp = $dbh->selectcol_arrayref("SELECT count(*) FROM MetaDataTemplate WHERE category_type='$cat' AND tag='$tag'");
+  return ($tmp && @$tmp && ($tmp->[0] > 0)) ? 1 : 0;
+}
+
+=pod
+
+=item * B<validate_value> (Scalar<category>, Scalar<tag>, Scalar<value>)
+
+Based on category and tag, check that value is of correct type
+return tuple ref: [ boolean, error_message ]
+
+=cut
+
+sub validate_value {
+  my ($self, $cat, $tag, $val) = @_;
+
+  my $dbh  = $self->{_handle}->db_handle;
+  my $tmp  = $dbh->selectcol_arrayref("SELECT distinct type FROM MetaDataTemplate WHERE category_type='$cat' AND tag='$tag'");
+  my $type = $tmp->[0];
+
+  if ($type eq 'int') {
+    return ($val =~ /^[+-]?\d+$/) ? [1, ''] : [0, 'not an integer'];
+  } elsif ($type eq 'float') {
+    return ($val =~ /^[+-]?\d+\.?\d*$/) ? [1, ''] : [0, 'not a float'];
+  } elsif ($type eq 'boolean') {
+    return (($val eq '1') || (lc($val) eq 'yes') || (lc($val) eq 'true')) ? [1, ''] : [0, 'not a boolean'];
+  } elsif ($type eq 'email') {
+    return ($val =~ /^\S+\@\S+\.\S+$/) ? [1, ''] : [0, 'invalid email'];
+  } elsif ($type eq 'url') {
+    return ($val =~ /^(ht|f)tp(s)?:\/\//) ? [1, ''] : [0, 'invalid url'];
+  } elsif ($type eq 'date') {
+    return ($val =~ /^\d{4}(-\d\d){0,2}/) ? [1, ''] : [0, 'not ISO8601 compliant date'];
+  } elsif ($type eq 'time') {
+    return ($val =~ /^\d\d:\d\d(:\d\d)?/) ? [1, ''] : [0, 'not ISO8601 compliant time'];
+  } elsif ($type eq 'timezone') {
+    return ($val =~ /^UTC/) ? [1, ''] : [0, 'not ISO8601 compliant timezone'];
+  } elsif ($type eq 'select') {
+    my %cvs = map {$_, 1} @{ $self->get_cv_list($tag) };
+    return exists($cvs{lc($val)}) ? [1, ''] : [0, 'not one of: '.join(', ', sort keys %cvs)];
+  } elsif ($type eq 'ontology') {
+    my $check = $self->validate_ontology($tag, $val);
+    return ($check eq 'valid') ? [1, ''] : [0, $check];
+  } else {
+    return [0, 'unknown type'];
+  }
+}
+
+sub validate_ontology {
+  my ($self, $tag, $val) = @_;
+
+  my $oid = $self->get_ont_id($tag);
+  unless ($oid) {
+    return 'not ontology label: '.$tag;
+  }
+  my $url = $self->{ontology_api}.'?isexactmatch=1&apikey='.$self->{ontology_key}.'&ontologyids='.$oid.'&query='.uri_escape($val);
+  my $res = get($url);
+  unless ($res && ($res =~ /<success>/)) {
+    return 'bioportal inaccessable: can not connect to: '.$url;
+  }
+  if ($res =~ /<numHitsTotal>(\d+)<\/numHitsTotal>/) {
+    return ($1 > 0) ? 'valid' : 'not part of: '.$self->{ontology_url}.$oid;
+  }
+  else {
+    return "ontology ID $oid has malformed return structure from ".$url;
+  }
+}
+
+=pod
+
+=item * B<get_jobs_metadata_fast> (Array<ids>, Boolean<is_mgid>)
+
+if input array has metagenome ids then use is_mgis = 1
+if input array has job ids then use is_mgis = 0 (default)
+Returns Metadata for jobs in the format:
+key => category_type => { id => #, name => '', type => '', data => {tag => value} }
+where key is same type as input array
+
+=cut 
+
+sub get_jobs_metadata_fast {
+  my ($self, $job_ids, $is_mgid) = @_;
+
+  my $data  = {};
+  my $projs = {};
+  my $samps = {};
+  my $libs  = {};
+  my $epks  = {};
+  my $dbh   = $self->{_handle}->db_handle;
+  my $key   = $is_mgid ? 'metagenome_id' : 'job_id';
+  my $where = $is_mgid ? 'metagenome_id IN ('.join(',', map {"'$_'"} @$job_ids).')' : 'job_id IN ('.join(',', @$job_ids).')';
+  my $jobs = $dbh->selectall_arrayref("SELECT ".$key.", primary_project, sample, library, sequence_type, name FROM Job WHERE ".$where);
+  my $meth = $dbh->selectall_arrayref("SELECT j.".$key.", a.value FROM Job j, JobAttributes a WHERE j._id=a.job AND a.tag='sequencing_method_guess'");
+  my %pids = map { $_->[1], 1 } grep {$_->[1] && ($_->[1] =~ /\d+/)} @$jobs;
+  my %sids = map { $_->[2], 1 } grep {$_->[2] && ($_->[2] =~ /\d+/)} @$jobs;
+  my %lids = map { $_->[3], 1 } grep {$_->[3] && ($_->[3] =~ /\d+/)} @$jobs;
+  my %mmap = map { $_->[0], $_->[1] } @$meth;
+
+  if (scalar(keys %pids) > 0) {
+    my $ptmp = $dbh->selectall_arrayref("SELECT p._id, p.id, p.name, p.public, md.tag, md.value FROM Project p, ProjectMD md WHERE p._id = md.project AND p._id IN (".join(',', keys %pids).")");
+    foreach my $p (@$ptmp) {
+      $projs->{$p->[0]}{id} = 'mgp'.$p->[1];
+      $projs->{$p->[0]}{name} = $p->[2];
+      $projs->{$p->[0]}{public} = $p->[2];
+      $projs->{$p->[0]}{data}{$p->[4]} = $p->[5];
+    }
+  }
+  if (scalar(keys %sids) > 0) {
+    my $stmp = $dbh->selectall_arrayref("SELECT s._id, s.ID, s.name, md.tag, md.value FROM MetaDataCollection s, MetaDataEntry md WHERE s.type = 'sample' AND s._id = md.collection AND s._id IN (".join(',', keys %sids).")");
+    my $etmp = $dbh->selectall_arrayref("SELECT e.parent, e.ID, e.name, md.tag, md.value FROM MetaDataCollection e, MetaDataEntry md WHERE e.type = 'ep' AND e._id = md.collection AND e.parent IN (".join(',', keys %sids).")");
+    foreach my $s (@$stmp) {
+      $samps->{$s->[0]}{id} = 'mgs'.$s->[1];
+      $samps->{$s->[0]}{name} = $s->[2];
+      $samps->{$s->[0]}{data}{$s->[3]} = $s->[4];
+    }
+    foreach my $e (@$etmp) {
+      $epks->{$e->[0]}{id} = 'mge'.$e->[1];
+      $epks->{$e->[0]}{name} = $e->[2];
+      $epks->{$e->[0]}{data}{$e->[3]} = $e->[4];
+    }
+  }
+  if (scalar(keys %lids) > 0) {
+    my $ltmp  = $dbh->selectall_arrayref("SELECT l._id, l.ID, l.name, md.tag, md.value FROM MetaDataCollection l, MetaDataEntry md WHERE l.type = 'library' AND l._id = md.collection AND l._id IN (".join(',', keys %lids).")");
+    foreach my $l (@$ltmp) {
+      $libs->{$l->[0]}{id} = 'mgl'.$l->[1];
+      $libs->{$l->[0]}{name} = $l->[2];
+      $libs->{$l->[0]}{data}{$l->[3]} = $l->[4];
+    }
+  }
+
+  foreach my $row (@$jobs) {
+    my ($j, $p, $s, $l, $t, $n) = @$row;
+    $n = $n || '';
+    if ($p && exists($projs->{$p})) {
+      map { $projs->{$p}{data}{$_} =~ s/^(gaz|country):\s?//i } grep {$projs->{$p}{data}{$_}} keys %{$projs->{$p}{data}};
+      $data->{$j}{project} = $projs->{$p};
+    }
+    if ($s && exists($samps->{$s})) {
+      map { $samps->{$s}{data}{$_} =~ s/^(gaz|country|envo):\s?//i } grep {$samps->{$s}{data}{$_}} keys %{$samps->{$s}{data}};
+      $data->{$j}{sample} = $samps->{$s};
+      unless ($data->{$j}{sample}{name}) {
+	$data->{$j}{sample}{name} = $n;
+      }
+    }
+    if ($l && exists($libs->{$l})) {
+      $data->{$j}{library} = $libs->{$l};
+      unless ($data->{$j}{library}{name}) {
+	$data->{$j}{library}{name} = $n;
+      }
+      ## type: calculated takes precidence over inputed
+      if ($t) {
+	$data->{$j}{library}{type} = $t;
+      } else {
+	$data->{$j}{library}{type} = $libs->{$l}{data}{investigation_type} || '';
+	$data->{$j}{library}{type} = ($data->{$j}{library}{type} =~ /metagenome/i) ? 'WGS' : (($data->{$j}{library}{type} =~ /mimarks/i) ? 'Amplicon' : '');
+      }
+      unless ($data->{$j}{data}{seq_meth}) {
+	$data->{$j}{data}{seq_meth} = exists($mmap{$j}) ? $mmap{$j} : '';
+      }
+    }
+    if ($s && exists($epks->{$s})) {
+      $data->{$j}{env_package} = $epks->{$s};
+      $data->{$j}{env_package}{type} = exists($epks->{$s}{data}{env_package}) ? $epks->{$s}{data}{env_package} : (exists($samps->{$s}{data}{env_package}) ? $samps->{$s}{data}{env_package} : '');
+      unless ($data->{$j}{env_package}{name}) {
+	$data->{$j}{env_package}{name} = $data->{$j}{env_package}{type} ? $n.": ".$data->{$j}{env_package}{type} : $n;
+      }
+    }
+  }
+  return $data;
+}
+
+=pod
+
+=item * B<get_jobs_metadata> (Array(JobObject<job>), Boolean<is_mgid>)
+
+Returns Metadata for jobs in the format:
+key => category_type => { id => #, name => '', type => '', data => {tag => value} }
+where key is metageome_id if is_mgid=1, else job_id (default)
+
+=cut 
+
+sub get_jobs_metadata {
+  my ($self, $jobs, $is_mgid, $full_data) = @_;
+
+  my $data = {};
+  foreach my $job (@$jobs) {
+    my $key = $is_mgid ? $job->metagenome_id : $job->job_id;
+    if ($job->primary_project) {
+      $data->{$key}{project} = {id => 'mgp'.$job->primary_project->id, name => $job->primary_project->name, public => $job->primary_project->public, data => $job->primary_project->data};
+      map { $data->{$key}{project}{data}{$_} =~ s/^(gaz|country):\s?//i } grep {$data->{$key}{project}{data}{$_}} keys %{$data->{$key}{project}{data}};
+      if ($full_data) {
+	$data->{$key}{project}{data} = $self->add_template_to_data('project', $data->{$key}{project}{data});
+      }
+    }
+    if ($job->sample) {
+      $data->{$key}{sample} = {id => 'mgs'.$job->sample->ID, name => $job->sample->name || $job->name, data => $job->sample->data};
+      map { $data->{$key}{sample}{data}{$_} =~ s/^(gaz|country|envo):\s?//i } grep {$data->{$key}{sample}{data}{$_}} keys %{$data->{$key}{sample}{data}};
+      if ($full_data) {
+	$data->{$key}{sample}{data} = $self->add_template_to_data('sample', $data->{$key}{sample}{data});
+      }
+    }
+    if ($job->library) {
+      $data->{$key}{library} = {id => 'mgl'.$job->library->ID, name => $job->library->name || $job->name, data => $job->library->data};
+      ## type: calculated takes precidence over inputed
+      if ($job->sequence_type) {
+	$data->{$key}{library}{type} = $job->sequence_type;
+      } else {
+	$data->{$key}{library}{type} = $job->library->lib_type || '';
+	$data->{$key}{library}{type} = ($data->{$key}{library}{type} =~ /metagenome/i) ? 'WGS' : (($data->{$key}{library}{type} =~ /mimarks/i) ? 'Amplicon' : '');
+      }
+      unless ($data->{$key}{library}{data}{seq_meth}) {
+	$data->{$key}{library}{data}{seq_meth} = $job->data('sequencing_method_guess')->{sequencing_method_guess} || '';
+      }
+      if ($full_data) {
+	$data->{$key}{library}{data} = $self->add_template_to_data($job->library->lib_type, $data->{$key}{library}{data});
+      }
+    }
+    my $ep = $job->env_package;
+    if ($ep) {
+      $data->{$key}{env_package} = {id => 'mge'.$ep->ID, name => $ep->name || $job->name.": ".$ep->ep_type, type => $ep->ep_type, data => $ep->data};
+      if ($full_data) {
+	$data->{$key}{env_package}{data} = $self->add_template_to_data($ep->ep_type, $data->{$key}{env_package}{data});
+      }
+    }
+  }
+  return $data;
+}
+
+=pod
+
+=item * B<get_job_metadata> (JobObject<job>)
+
+Returns Metadata for a job in the format:
+category_type => { id => #, name => '', type => '', data => {tag => value} }
+
+=cut 
+
+sub get_job_metadata {
+  my ($self, $job, $full_data) = @_;
+
+  my $data = $self->get_jobs_metadata([$job], 0, $full_data);
+  return exists($data->{$job->job_id}) ? $data->{$job->job_id} : {};
+}
+
+=pod
+
+=item * B<is_job_compliant> (JobObject<job>)
+
+Returns true if job exists and has all mandatory mixs fields filled out.
+
+=cut
+
+sub is_job_compliant {
+  my ($self, $job) = @_;
+
+  my $mixs = $self->mixs();
+  my $data = $self->get_job_metadata($job);
+  foreach my $cat (keys %$mixs) {
+    $cat = ($cat eq 'ep') ? 'env_package' : $cat;
+    foreach my $tag (keys %{$mixs->{$cat}}) {
+      if (! exists($data->{$cat}{data}{$tag})) {
+	return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+=pod
+
+=item * B<get_metadata_for_tables> (Array[JobObject<job> || Scalar<id>], Boolean<is_mgid>,  Boolean<use_fast>)
+
+Given an array of Job PPO objects (or job/metagenome id if use_fast true),
+return a hash refrence of { key => [ category, tag, value ] }
+where key is metageome_id if is_mgid=1, else job_id (default)
+
+=cut
+
+sub get_metadata_for_tables {
+  my ($self, $jobs, $is_mgid, $use_fast) = @_;
+  
+  my $data  = $use_fast ? $self->get_jobs_metadata_fast($jobs, $is_mgid) : $self->get_jobs_metadata($jobs, $is_mgid);
+  my $table = {};
+  foreach my $job (keys %$data) {
+    if ($data->{$job}{project}) {
+      push @{$table->{$job}}, [ 'Project', 'project_name', $data->{$job}{project}{name} ];
+      push @{$table->{$job}}, [ 'Project', 'mgrast_id', $data->{$job}{project}{id} ];
+      while ( my ($k, $v) = each %{ $data->{$job}{project}{data} } ) {
+	$v = clean_value($v);
+	next unless (defined($v) && ($v =~ /\S/));
+	push @{$table->{$job}}, [ 'Project', $k, $v ];
+      }
+    }
+    if ($data->{$job}{sample}) {
+      push @{$table->{$job}}, [ 'Sample', 'sample_name', $data->{$job}{sample}{name} ];
+      push @{$table->{$job}}, [ 'Sample', 'mgrast_id', $data->{$job}{sample}{id} ];
+      while ( my ($k, $v) = each %{ $data->{$job}{sample}{data} } ) {
+	$v = clean_value($v);
+	next unless (defined($v) && ($v =~ /\S/));
+	push @{$table->{$job}}, [ 'Sample', $k, $v ];
+      }
+    }
+    if ($data->{$job}{library}) {
+      my $ltype = $data->{$job}{library}{data}{investigation_type} || $data->{$job}{library}{type};
+      push @{$table->{$job}}, [ "Library: $ltype", 'library_name', $data->{$job}{library}{name} ];
+      push @{$table->{$job}}, [ "Library: $ltype", 'mgrast_id', $data->{$job}{library}{id} ];
+      while ( my ($k, $v) = each %{ $data->{$job}{library}{data} } ) {
+	$v = clean_value($v);
+	next unless (defined($v) && ($v =~ /\S/));
+	push @{$table->{$job}}, [ "Library: $ltype", $k, $v ];
+      }
+    }
+    if ($data->{$job}{env_package}) {
+      my $etype = $data->{$job}{env_package}{type};
+      push @{$table->{$job}}, [ "Enviromental Package: $etype", 'mgrast_id', $data->{$job}{env_package}{id} ];
+      while ( my ($k, $v) = each %{ $data->{$job}{env_package}{data} } ) {
+	$v = clean_value($v);
+	next unless (defined($v) && ($v =~ /\S/));
+	push @{$table->{$job}}, [ "Enviromental Package: $etype", $k, $v ];
+      }
+
+    }
+  }
+  return $table;
+}
+
+sub get_metadata_for_table {
+  my ($self, $job, $is_mgid, $use_fast) = @_;
+
+  my $result = $self->get_metadata_for_tables([$job], $is_mgid, $use_fast);
+  my $table  = [];
+
+  if ($use_fast && exists($result->{$job})) {
+    $table = $result->{$job};
+  }
+  elsif ((! $use_fast) && $is_mgid && exists($result->{$job->metagenome_id})) {
+    $table = $result->{$job->metagenome_id};
+  }
+  elsif ((! $use_fast) && (! $is_mgid) && exists($result->{$job->job_id})) {
+    $table = $result->{$job->job_id};
+  }
+  return $table;
+}
+
+=pod
+
+=item * B<export_metadata_for_jobs> (Arrayref<JobObject job>, Scalar<file>, Scalar<orient>)
+
+For a given list of Job Objs and a file name.
+return a filepath with a matrix of metagenome ids X metadata names, cell is value
+orient = 'job' sets mgid as column header
+orient = 'key' sets metadata category:tag as column header
 
 =cut
 
 sub export_metadata_for_jobs {
-  my ($self, $jobs, $file, $format, $orient) = @_;
+  my ($self, $jobs, $file, $orient) = @_;
 
-  unless ($format) { $format = "tag"; }
-  unless ($orient) { $orient = "key"; }
+  unless ($orient) { $orient = "tag"; }
 
   my $fpath = "$FIG_Config::temp/$file";
   my $keys  = {};
-  my $data  = $self->get_metadata_for_jobs($jobs); # job => [ [tag, category, question, value] ]
-  my @jobs  = sort keys %$data;
+  my $jset  = [];
 
-  foreach my $job (@jobs) {
-    foreach my $set ( @{$data->{$job}} ) {
-      my $key = ($format eq "question") ? $set->[1] . " : " . $set->[2] : $set->[0];
-      if ( defined($set->[3]) && ($set->[3] =~ /\S/) ) {
-	$keys->{$key}->{$job} = $set->[3];
+  foreach my $jobj (@$jobs) {
+    my $jid  = $jobj->metagenome_id;
+    my $data = $self->get_job_metadata($jobj);
+    push @$jset, $jid;
+    foreach my $cat (keys %$data) {
+      foreach my $tag (keys %{$data->{$cat}{data}}) {
+	my $key = exists($data->{$cat}{type}) ? $cat.':'.$data->{$cat}{type}.':'.$tag : $cat.':'.$tag;
+	if ( defined($data->{$cat}{data}{$tag}) && ($data->{$cat}{data}{$tag} =~ /\S/) ) {
+	  $keys->{$key}{$jid} = $data->{$cat}{data}{$tag};
+	}
       }
     }
   }
 
   if (open(FILE, ">$fpath")) {
     if ($orient eq "job") {
-      print FILE "#SampleID\t" . join("\t", @jobs) . "\n";
-      foreach my $k ( sort keys %$keys ) {
+      print FILE "#SampleID\t" . join("\t", @$jset) . "\n";
+      foreach my $k (sort keys %$keys) {
 	my @row = ();
-	foreach my $j (@jobs) {
+	foreach my $j (@$jset) {
 	  push @row, exists($keys->{$k}{$j}) ? $keys->{$k}{$j} : '';
 	}
 	print FILE "$k\t" . join("\t", @row) . "\n";
       }
     } else {
       print FILE "#SampleID\t" . join("\t", sort keys %$keys) . "\n";
-      foreach my $j (@jobs) {
+      foreach my $j (@$jset) {
 	my @row = ();
-	foreach my $k ( sort keys %$keys ) {
+	foreach my $k (sort keys %$keys) {
 	  push @row, exists($keys->{$k}{$j}) ? $keys->{$k}{$j} : '';
 	}
 	print FILE "$j\t" . join("\t", @row) . "\n";
@@ -147,150 +549,115 @@ sub export_metadata_for_jobs {
 
 =pod
 
-=item * B<get_metadata_for_jobs> (Arrayref<JobObject job>)
+=item * B<export_metadata_for_project> (ProjectObject<project>)
 
-For a given list of Job Objs, return a hash of data: job->metagenome_id => [ [tag, category, question, value] ]
-
-=cut
-
-sub get_metadata_for_jobs {
-  my ($self, $jobs) = @_;
-
-  my $set = {};
-
-  foreach my $j ( @$jobs ) {
-    my $data = $self->get_metadata_for_table($j);
-    unless (ref($data) && (scalar(@$data) > 0)) { $data = []; }
-
-    if    ($j && ref($j))         { $set->{$j->metagenome_id} = $data; }
-    elsif ($j && ($j =~ /^\d+$/)) { $set->{$j} = $data; }
-  }
-  return $set;
-}
-
-=pod
-
-=item * B<get_collection_for_job> (JobObject<job>)
-
-Returns a PPO MetaDataCollection obj for a specific job.
-If job not PPO obj and not in MetaDataCollection, return undef.
-
-=cut 
-
-sub get_collection_for_job {
-  my ($self, $job) = @_;
-  
-  my $mddb = $self->{_handle};
-
-  if ($job && ref($job)) {
-    my $colls = $mddb->MetaDataCollection->get_objects({job => $job});
-    if ($colls && (@$colls > 0)) { return $colls->[0]; }
-  }
-  return undef;
-}
-
-=pod
-
-=item * B<get_all_for_collection> (Scalar<collection>)
-
-For a specific collection ID, returns a PPO MetaDataCollection obj
-
-=cut 
-
-sub get_all_for_collection {
-  my ($self, $collection) = @_;
-  
-  my $mddb = $self->{_handle};
-  $collection = $collection || '';
-  return $mddb->MetaDataCollection->init({ID => $collection});
-}
-
-
-=pod
-
-=item * B<get_all_for_project> (ProjectObject<project>)
-
-Returns all data for a specific project from ProjectMD.
-If Project is PPO (jobcache obj) return PPO object array,
-else if Project is index return [ _id, tag, value ]
+return hash of metadata for project and its collections
+return hash: { name:<proj_name: str>, data:<proj_data: dict>, sampleNum:<number_samples: int>, samples:<list of sample objs> }
+objects:
+data:        { tag: {qiime_tag:<str>, mgrast_tag:<str>, definition:<str>, required:<bool>, mixs:<bool>, type:<str>, value:<str>} }
+sample:      { name:<samp_name: str>, data:<samp_data: dict>, envPackage:<env_package obj>, libNum:<number_libraries: int>, libraries:<list of library objs> }
+library:     { name:<metagenome_name: str>, type:<library_type: str>, data<library_data: dict> }
+env_package: { name:<samp_name-env_package_type: str>, type:<env_package_type: str>, data<env_package_data: dict> }
 
 =cut
 
-sub get_all_for_project {
-  my ($self, $proj) = @_;
-  
-  my $mddb = $self->{_handle};
+sub export_metadata_for_project {
+  my ($self, $project) = @_;
 
-  if ($proj && ref($proj)) {
-    return $mddb->ProjectMD->get_objects({project => $proj});
+  my $pdata = $project->data;
+  $pdata->{project_name} = $project->name;
+  $pdata->{mgrast_id}    = 'mgp'.$project->id;
+  my $mdata = { name => $project->name,
+		id   => 'mgp'.$project->id,
+		data => $self->add_template_to_data('project', $pdata),
+		sampleNum => 0,
+		samples   => [] };
+
+  foreach my $samp ( @{ $project->collections('sample') } ) {
+    my $e_obj = {};
+    my $epack = $samp->children('ep');
+    my $sdata = $samp->data;
+    my $sname = $samp->name || 'mgs'.$samp->ID;
+
+    if (@$epack && $epack->[0]->ep_type) {
+      my $edata = $epack->[0]->data;
+      $edata->{sample_name} = $sname;
+      $edata->{mgrast_id}   = 'mge'.$epack->[0]->ID;
+      $e_obj = { name => $epack->[0]->name || 'mge'.$epack->[0]->ID,
+		 id   => 'mge'.$epack->[0]->ID,
+		 type => $epack->[0]->ep_type,
+		 data => $self->add_template_to_data($epack->[0]->ep_type, $edata) };
+    }
+    $sdata->{sample_name} = $sname;
+    $sdata->{mgrast_id}   = 'mgs'.$samp->ID;
+    my $s_obj = { name   => $sname,
+		  id     => 'mgs'.$samp->ID,
+		  data   => $self->add_template_to_data('sample', $sdata),
+		  libNum => 0, libraries => [],
+		  envPackage => $e_obj };
+
+    foreach my $lib ( @{ $samp->children('library') } ) {
+      next unless ($lib->lib_type);
+      my $ldata = $lib->data;
+      $ldata->{sample_name} = $sname;
+      $ldata->{mgrast_id}   = 'mgl'.$lib->ID;
+      my $lib_jobs = $lib->jobs;
+      if (@$lib_jobs > 0) {
+	$ldata->{metagenome_id} = $lib_jobs->[0]->{metagenome_id};
+	unless (exists $ldata->{metagenome_name}) {
+	   $ldata->{metagenome_name} = $lib_jobs->[0]->{name};
+	}
+      }
+      push @{ $s_obj->{libraries} }, { name => $lib->name || 'mgl'.$lib->ID,
+				       id   => 'mgl'.$lib->ID,
+				       type => $lib->lib_type,
+				       data => $self->add_template_to_data($lib->lib_type, $ldata)};
+      $s_obj->{libNum} += 1;
+    }
+
+    push @{ $mdata->{samples} }, $s_obj;
+    $mdata->{sampleNum} += 1;
   }
-  elsif ($proj && ($proj =~ /^\d+$/)) {
-    my $tmp = $mddb->db_handle->selectall_arrayref("SELECT _id,tag,value FROM ProjectMD WHERE project=$proj;");
-    return ($tmp && @$tmp) ? $tmp : [];
-  }
-  return [];
+  return $mdata;
 }
 
+## input:  { tag => value }
+## output: { tag => {qiime_tag=><str>, mgrast_tag=><str>, definition=><str>, required=><bool>, mixs=><bool>, type=><str>, value=><str>} }
+## all required tags will be added
+sub add_template_to_data {
+  my ($self, $cat, $data) = @_;
+  my $t_data   = {};
+  my $template = $self->template;
+  my @required = grep { ($_ ne 'category_type') && $template->{$cat}{$_}{required} } keys %{$template->{$cat}};
+  map { $data->{$_} = '' } grep { ! exists($data->{$_}) } @required;
 
-=pod
-
-=item * B<get_entries> ( tag , CollectionObject<collection>)
-
-Returns values for a specific tag and collection from MetaDataEntry.
-If collection is PPO (Metadata obj) return PPO object array,
-else if Job is index return [ _id, tag, value ]
-
-=cut
-
-sub get_entries {
-  my ($self, $tag , $collection) = @_;
-  
-  my $mddb = $self->{_handle};
-
-  my $data = [];
-  if ($collection && ref($collection)) {
-    $data = $mddb->MetaDataEntry->get_objects({collection => $collection ,
-					       tag => $tag });
-  }
-  elsif ($collection && ($collection =~ /^\d+$/)) {
-    my $tmp  = $mddb->db_handle->selectall_arrayref("SELECT _id,tag,value,type,migs FROM MetaDataEntry WHERE collection=$collection and tag=$tag ;");
-    if ($tmp && @$tmp) {
-      foreach (@$tmp) {
-	push @$data, {_id => $_->[0], tag => $_->[1], value => $_->[2], type => $_->[3], migs => $_->[4]};
+  while ( my ($tag, $val) = each %$data ) {
+    next unless (exists $template->{$cat}{$tag});
+    $val = clean_value($val);
+    next unless ($template->{$cat}{$tag}{required} || (defined($val) && ($val =~ /\S/)));
+    $t_data->{$tag}{value} = $val;
+    $t_data->{$tag}{unit}  = $template->{$cat}{$tag}{unit};
+    $t_data->{$tag}{type}  = $template->{$cat}{$tag}{type};
+    $t_data->{$tag}{mixs}  = $template->{$cat}{$tag}{mixs};
+    $t_data->{$tag}{required}   = $template->{$cat}{$tag}{required};
+    $t_data->{$tag}{definition} = $template->{$cat}{$tag}{definition};
+    foreach my $alias (($template->{$cat}{$tag}{mgrast_tag}, $template->{$cat}{$tag}{qiime_tag})) {
+      if ($alias && ($alias ne $tag)) {
+	push @{ $t_data->{$tag}{aliases} }, $alias;
       }
     }
   }
-  return $data;
+  return $t_data;
 }
 
-=pod
-
-=item * B<get_all_for_job> (JobObject<job>)
-
-Returns all data for a specific job from MetaDataEntry.
-If Job is PPO (jobcache obj) return PPO object array,
-else if Job is index return [ _id, tag, value ]
-
-=cut
-
-sub get_all_for_job {
-  my ($self, $job) = @_;
-  
-  my $mddb = $self->{_handle};
-
-  my $data = [];
-  if ($job && ref($job)) {
-    $data = $mddb->MetaDataEntry->get_objects({job => $job});
+sub clean_value {
+  my ($val) = @_;
+  if ($val) {
+    $val =~ s/^\s+//;
+    $val =~ s/\s+$//;
+    $val =~ s/^-$//;
   }
-  elsif ($job && ($job =~ /^\d+$/)) {
-    my $tmp  = $mddb->db_handle->selectall_arrayref("SELECT _id,tag,value,type,migs FROM MetaDataEntry WHERE job=$job;");
-    if ($tmp && @$tmp) {
-      foreach (@$tmp) {
-	push @$data, {_id => $_->[0], tag => $_->[1], value => $_->[2], type => $_->[3], migs => $_->[4]};
-      }
-    }
-  }
-  return $data;
+  return $val;
 }
 
 =pod
@@ -298,7 +665,7 @@ sub get_all_for_job {
 =item * B<get_all_for_tag> (Scalar<tag>, Boolean<no_ppo>)
 
 Returns all data for a specific tag from MetaDataEntry.
-If no_ppo true return [ _id, job, value ], else return PPO object array.
+If no_ppo true return [ _id, collection, value ], else return PPO object array.
 
 =cut 
 
@@ -311,569 +678,83 @@ sub get_all_for_tag {
     return $mddb->MetaDataEntry->get_objects({tag => $tag});
   }
   else {
-    my $tmp = $mddb->db_handle->selectall_arrayref("SELECT _id,job,value FROM MetaDataEntry WHERE tag=\'$tag\'");
+    my $tmp = $mddb->db_handle->selectall_arrayref("SELECT _id,collection,value FROM MetaDataEntry WHERE tag=\'$tag\'");
     return ($tmp && @$tmp) ? $tmp : [];
   }
 }
 
 =pod
 
-=item * B<get_metadata_for_table> (JobObject<job>, Scalar<template>)
+=item * B<add_entry> (CollectionObject<collection>, Arrayref<data>, Boolean<append>)
 
-Given a Job PPO object and xml FormWizard template filename,
-return an array refrence of [ tag, category, question, value ]
-
-=cut
-
-sub get_metadata_for_table {
-  my ($self, $job, $template) = @_;
-
-  my (@data, %tags, $cat, $quest, $is_xml);
-  my $temp_data = $self->get_template_data($template);
-
-  foreach ( @{ $self->get_all_for_job($job) } ) {
-    $tags{$_->{tag}}->{$_->{value}}++;
-  }
-
-  foreach my $tag ( keys %tags ) {
-    if (exists $temp_data->{$tag}) {
-      ($cat, $quest, undef) = @{ $temp_data->{$tag} };
-      $is_xml = 1;
-    } else {
-      ($cat, $quest) = ("Unassigned", $tag);
-      $is_xml = 0;
-    }
-    foreach my $val ( keys %{ $tags{$tag} } ) {
-      unless ( defined($val) && ($val =~ /\S/) ) { next; }
-      if (($val eq "Please select") || ($val eq "not determined") || ($val eq "not selected")) { next; }
-      if ($is_xml)      { $val = $self->unencode_value($tag, $val); }
-      if (defined $val) { push @data, [ $tag, $cat, $quest, $val ]; }
-    }
-  }
-  return \@data;
-}
-
-=pod
-
-=item * B<get_metadata_for_display> (JobObject<job>, Scalar<template>)
-
-Given a Job PPO object and xml FormWizard template filename,
-return an hash refrence: category => question => [ value ]
-
-=cut
-
-sub get_metadata_for_display {
-  my ($self, $job, $template) = @_;
-
-  my (%data, %tags, $cat, $quest, $is_xml);
-  my $temp_data = $self->get_template_data($template);
-
-  foreach ( @{ $self->get_all_for_job($job) } ) {
-    push @{ $tags{$_->{tag}} }, $_->{value};
-  }
-  
-  foreach my $tag ( keys %tags ) {
-    if (exists $temp_data->{$tag}) {
-      ($cat, $quest, undef) = @{ $temp_data->{$tag} };
-      $is_xml = 1;
-    } else {
-      ($cat, $quest) = ("Unassigned", $tag);
-      $is_xml = 0;
-    }
-    foreach my $val ( @{ $tags{$tag} } ) {
-      unless ( defined($val) && ($val =~ /\S/) ) { next; }
-      if (($val eq "Please select") || ($val eq "not determined") || ($val eq "not selected")) { next; }
-      if ($is_xml)      { $val = $self->unencode_value($tag, $val); }
-      if (defined $val) {  push @{ $data{$cat}{$quest} }, $val; }
-    }
-  }
-  return \%data;
-}
-
-=pod
-
-=item * B<unencode_value> (Scalar<tag>, Scalar<value>, Scalar<template>)
-
-Given a tag and value, return the unencoded (display) value.
-
-=cut
-
-sub unencode_value {
-  my ($self, $tag, $value, $template) = @_;
-
-  unless ($self->{types} && ref($self->{types})) {
-    $self->{types} = $self->get_type_tags($template);
-  }
-  unless (exists $self->{types}->{$tag}) { return $value; }
-    
-  my $error   = '';
-  my $package = "WebComponent::FormWizard::" . $self->{types}->{$tag};
-
-  { # check if type package exists
-    no strict;
-    eval "require $package;";
-    $error = $@;
-  }
-  
-  # check it type package has check_data function
-  # check_data returns undef if bad; may change data depending on type
-  unless ($error) {
-    my $type_obj = $package->new($self);
-    if ($type_obj && $type_obj->can('unencode_value')) {
-      $value = $type_obj->unencode_value($value);
-    }
-  }
-  return $value;
-}
-
-=pod
-
-=item * B<get_type_tags> (Scalar<template>)
-
-Given an xml FormWizard template filename,
-return hash refrence. Key is tag that has a type, value is type.
-
-=cut
-
-sub get_type_tags {
-  my ($self, $template) = @_;
-
-  my $struct    = $self->get_template_struct($template);
-  my $prefix    = ($struct->noprefix == 0) ? $struct->prefix : '';
-  my $type_tags = {};
-
-  while ( my ($tag, $set) = each %{$struct->{name2original}} ) {
-    if ( $set->{question}->{type} ) {
-      my ($trim) = $tag =~ /^$prefix(.*)/;
-      $type_tags->{$trim} = $set->{question}->{type};
-    }
-  }
-  return $type_tags;
-}
-
-=pod
-
-=item * B<get_migs_tags> (Scalar<template>)
-
-Given an xml FormWizard template filename,
-return hash refrence. Key is tag that is a migs term, value is question.
-
-=cut
-
-sub get_migs_tags {
-  my ($self, $template) = @_;
-
-  my $struct    = $self->get_template_struct($template);
-  my $prefix    = ($struct->noprefix == 0) ? $struct->prefix : '';
-  my $migs_tags = {};
-
-  while ( my ($tag, $set) = each %{$struct->{name2original}} ) {
-    if ( $set->{question}->{migs} ) {
-      my ($trim) = $tag =~ /^$prefix(.*)/;
-      $migs_tags->{$trim} = $set->{question};
-    }
-  }
-  return $migs_tags;
-}
-
-=pod
-
-=item * B<get_enviroment_tags> (Scalar<template>)
-
-Given an xml FormWizard template filename,
-return hash refrence. Key is enviroment type, value is hash of tags.
-
-=cut
-
-sub get_enviroment_tags {
-  my ($self, $template) = @_;
-
-  my $struct   = $self->get_template_struct($template);
-  my $prefix   = ($struct->noprefix == 0) ? $struct->prefix : '';
-  my $env_tags = {};
-
-  while ( my ($tag, $set) = each %{$struct->{name2display}} ) {
-    if ( $set->{display_category} eq "Environmental Package" ) {
-      my ($trim) = $tag =~ /^$prefix(.*)/;
-      $env_tags->{ $set->{display_title} }->{$trim} = 1;
-    }
-  }
-  return $env_tags;
-}
-
-=pod
-
-=item * B<get_template_struct> (Scalar<template>)
-
-Given an xml FormWizard template filename,
-return DataStructure obj
-
-=cut
-
-sub get_template_struct {
-  my ($self, $template) = @_;
-
-  unless ($self->{struct} && ref($self->{struct})) {
-    $self->set_template_data($template);
-  }
-  return $self->{struct};
-}
-
-=pod
-
-=item * B<get_template_data> (Scalar<template>)
-
-Given an xml FormWizard template filename,
-return hash refrence: tag => [ category, question, default ]
-
-=cut
-
-sub get_template_data {
-  my ($self, $template) = @_;
-
-  unless ($self->{data} && ref($self->{data})) {
-    $self->set_template_data($template);
-  }
-  return $self->{data};
-}
-
-=pod
-
-=item * B<set_template_data> (Scalar<template>)
-
-Given an xml FormWizard template filename,
-set $self->{data} to tag => [ category, question, default ]
-
-=cut
-
-sub set_template_data {
-  my ($self, $template) = @_;
-
-  $template  = $template || $self->{template};
-  my $data   = {};
-  my $struct = WebComponent::FormWizard::DataStructures->new((template => $template));
-  if ( $struct && ref($struct) && $struct->{data} ) {
-    foreach my $set ( @{$struct->{data}} ) {
-      my ($tag, $step, $title, $name, $default) = @$set;
-      my $category = ($step eq $title) ? $step : "$step : $title";
-      $data->{$tag} = [ $category, $name, $default ];
-    }
-  }
-  $self->{data}   = $data;
-  $self->{struct} = $struct;
-}
-
-=pod
-
-=item * B<get_collections>
-
-Returns an array refrence of all MetaDataCollection IDs.
-
-=cut 
-
-sub get_collections {
-  my ($self) = @_;
-
-  my $dbh = $self->{_handle}->db_handle();
-  return $dbh->selectcol_arrayref("SELECT DISTINCT ID FROM MetaDataCollection");
-}
-
-=pod
-
-=item * B<get_projects>
-
-Returns an array refrence of all ProjectMD IDs.
-
-=cut 
-
-sub get_projects {
-  my ($self , $opt ) = @_;
-
-  my $results ;
-  $opt->{ public } = 1 unless ($opt) ;
-  my $dbh = $self->{_handle}->db_handle();
-  
-  if ( $opt->{ privat } ) {
-    $results = $dbh->selectcol_arrayref("SELECT DISTINCT id FROM Project where public!=1");
-  }
-  elsif ( $opt->{ all } ){
-    $results = $dbh->selectcol_arrayref("SELECT DISTINCT id FROM Project");
-  }
-  else{
-    $results = $dbh->selectcol_arrayref("SELECT DISTINCT id FROM Project where public=1 and ( type='study' or type='project' ) ");
-  }
-
-  return $results;
-}
-
-
-=pod
-
-=item * B<get_jobs>
-
-Returns an array refrence of all MetaDataEntry job refrence ids.
-
-=cut 
-
-sub get_jobs {
-  my ($self) = @_;
-
-  my $dbh = $self->{_handle}->db_handle();
-  return $dbh->selectcol_arrayref("SELECT DISTINCT job FROM MetaDataEntry");
-}
-
-=pod
-
-=item * B<get_tags>
-
-Returns an array refrence of all MetaDataEntry tags.
-
-=cut 
-
-sub get_tags {
-  my ($self) = @_;
-  
-  my $dbh = $self->{_handle}->db_handle();
-  return $dbh->selectcol_arrayref("SELECT DISTINCT tag FROM MetaDataEntry");
-}
-
-=pod
-
-=item * B<get_date_time> (JobObject<job>)
-
-return string: date-time-timezone of job for display
-
-=cut
-
-sub get_date_time {
-  my ($self, $job) = @_;
-  
-  my $mddb = $self->{_handle};
-  my @dt   = ();
-
-  if ($job && ref($job)) {
-    my @date = ( @{ $mddb->MetaDataEntry->get_objects({ job => $job, tag => "sample-origin_sampling_date" }) },
-		 @{ $mddb->MetaDataEntry->get_objects({ job => $job, tag => "collection_date" }) }
-	       );
-    my $time = $mddb->MetaDataEntry->get_objects({job => $job, tag => 'sample-origin_sampling_time'});
-    my $zone = $mddb->MetaDataEntry->get_objects({job => $job, tag => 'sample-origin_sampling_timezone'});
-
-    if (@date) {
-      push @dt, $date[0]->value;
-    }
-    if (@$time && @$zone) {
-      push @dt, $self->unencode_value($time->[0]->tag, $time->[0]->value);
-      push @dt, $zone->[0]->value;
-    }
-  }
-  return join(" ", @dt);
-}
-
-=pod
-
-=item * B<get_env_packages> (JobObject<job>)
-
-return string: enviroment package of job
-
-=cut
-
-sub get_env_package {
-  my ($self, $job) = @_;
-
-  my $dbh = $self->{_handle}->db_handle();
-  my $env = $self->get_enviroment_tags;
-
-  if ($job && ref($job)) {
-    my $tags = $dbh->selectcol_arrayref("SELECT DISTINCT tag FROM MetaDataEntry WHERE job=" . $job->_id);
-    if ($tags && (@$tags > 0)) {
-      foreach my $t (@$tags) {
-	foreach my $e (keys %$env) {
-	  if (exists $env->{$e}->{$t}) { return $e; }
-	}
-      }
-    }
-  }
-  return "";
-}
-
-=pod
-
-=item * B<get_coordinates> (JobObject<job>)
-
-Returns array refrence of all: [JobObj, Latitude, Longitude]
-If Job entered, return [Latitude, Longitude]
-
-=cut
-
-sub get_coordinates {
-  my ($self, $job) = @_;
-  
-  my $mddb = $self->{_handle};
-  my $lat_tag = "sample-origin_latitude";
-  my $lon_tag = "sample-origin_longitude";
-
-  if ($job && ref($job)) {
-    my $lat = $mddb->MetaDataEntry->get_objects({job => $job, tag => $lat_tag});
-    my $lon = $mddb->MetaDataEntry->get_objects({job => $job, tag => $lon_tag});
-    unless (@$lat && @$lon) {
-      $lat = $mddb->MetaDataEntry->get_objects({job => $job, tag => "latitude"});
-      $lon = $mddb->MetaDataEntry->get_objects({job => $job, tag => "longitude"});
-    }
-    return (@$lat && @$lon) ? [ $lat->[0]->value, $lon->[0]->value ] : [];
-  }
-  else {
-    my @cord = ();
-    my %lats = map { $_->job->job_id, $_ } @{ $mddb->MetaDataEntry->get_objects({tag => $lat_tag}) };
-    my %lons = map { $_->job->job_id, $_ } @{ $mddb->MetaDataEntry->get_objects({tag => $lon_tag}) };
-    foreach my $id (keys %lats) {
-      if (exists $lons{$id}) {
-	push @cord, [ $lats{$id}->job, $lats{$id}->value, $lons{$id}->value ];
-      }
-    }
-    return \@cord;
-  }
-}
-
-=pod
-
-=item * B<get_biomes> (JobObject<job>)
-
-Returns array refrence of all: [Biome]
-If Job entered, return [Biome] for job
-
-=cut
-
-sub get_biomes {
-  my ($self, $job) = @_;
-
-  my $mddb = $self->{_handle};
-  my $dbh  = $mddb->db_handle();
-  my $btag = "biome-information_envo_lite";
-
-  if ($job && ref($job)) {
-    my @biomes = map { $_->value } @{ $mddb->MetaDataEntry->get_objects({job => $job, tag => $btag}) };
-    return @biomes ? \@biomes : [];
-  }
-  else {
-    my $biomes = $dbh->selectcol_arrayref("SELECT DISTINCT value FROM MetaDataEntry WHERE tag = '$btag' order by value");
-    return ($biomes && (@$biomes > 0)) ? $biomes : [];
-  }
-}
-
-=pod
-
-=item * B<get_sequencers>
-
-Returns all sequencers
-
-=cut
-
-sub get_sequencers {
-  my ($self) = @_;
-
-  my $dbh  = $self->{_handle}->db_handle();
-  my $stag = "sequencing_sequencing_method";
-  my $seqs = $dbh->selectcol_arrayref("SELECT DISTINCT value FROM MetaDataEntry WHERE tag = '$stag' order by value");
-  return ($seqs && (@$seqs > 0)) ? $seqs : [];
-}
-
-=pod
-
-=item * B<get_countries>
-
-Returns all countries
-
-=cut
-
-sub get_countries {
-  my ($self) = @_;
-
-  my $package = "WebComponent::FormWizard::Country";
-  my @data  = ();
-  my $error = '';
-
-  { # check if package exists
-    no strict;
-    eval "require $package;";
-    $error = $@;
-  }
-
-  unless ($error) {
-    my $obj = $package->new($self);
-    if ($obj && $obj->can('countries')) {
-      @data = sort values %{ $obj->countries() };
-    }
-  }
-  return \@data;
-}
-
-=pod
-
-=item * B<add_entry> (CollectionObject<collection>, JobObject<job>, Hashref<attributes>, Scalar<append>)
-
-Adds/modifies tag information (type, migs, value) for inputed collection and job in MetaDataEntry.
+Adds/modifies tag / value for inputed collection and job in MetaDataEntry.
 If append option is true, will append value to tag list.
 
 =cut
 
 sub add_entries {
-  my ($self, $collection, $job, $attributes, $append) = @_;
+  my ($self, $collection, $data, $append) = @_;
 
-  my $mddb = $self->{_handle};
+  unless ($collection && ref($collection)) { return undef; }
+  my $template = $self->template();
+  my $mddb  = $self->{_handle};
+  my $ctype = $collection->category_type( $collection->type );
 
-  if ($job && ref($job) && $collection && ref($collection)) {
-    while (my ($tag, $data) = each %$attributes) {
-      my ($type, $migs, $vals) = @$data;
-      if (! $append) {
-	my $objs = $mddb->MetaDataEntry->get_objects({job => $job, tag => $tag});
-	foreach my $o (@$objs) { $o->delete(); }
-      }
-      my %attr = ( collection => $collection,
-		   job        => $job,
-		   tag        => $tag,
-		   type       => $type,
-		   migs       => $migs
-		 );
-      foreach my $v (@$vals) {
-	unless (defined($v) && ($v =~ /\S/)) { next; }  # skip empty or only whitespace
-	$attr{value} = $v;
-	$mddb->MetaDataEntry->create(\%attr);
-      }
+  foreach my $set (@$data) {
+    my ($tag, $val) = @$set;
+    next unless (defined($val) && ($val =~ /\S/));
+    if (! $append) {
+      my $objs = $mddb->MetaDataEntry->get_objects({collection => $collection, tag => $tag});
+      foreach my $o (@$objs) { $o->delete(); }
     }
+    my $attr = { collection => $collection,
+		 tag        => $tag,
+		 value      => $val,
+		 required   => exists($template->{$ctype}{$tag}{required}) ? $template->{$ctype}{$tag}{required} : 0,
+		 mixs       => exists($template->{$ctype}{$tag}{mixs}) ? $template->{$ctype}{$tag}{mixs} : 0
+	       };
+    $mddb->MetaDataEntry->create($attr);
   }
 }
 
 =pod
 
-=item * B<add_collection> (JobObject<job>, CuratorObject<creator>, Scalar<source>, Scalar<url>)
+=item * B<add_collection> (ProjectObject<project>,Scalar<type>,CuratorObject<creator>,Scalar<name>,MetaDataCollectionObject<parent>,Scalar<source>,Scalar<url>,JobObject<job>)
 
-Creates and returns a MetaDataCollection PPO obj,
-based upon given Job and Curator PPO objs.
-source and url are optional.
+Creates and returns a MetaDataCollection PPO obj.
+Creates links in Job obj and ProjectCollection obj.
+project and type are required, rest are optional
 
 =cut
 
 sub add_collection {
-  my ($self, $job, $creator, $source, $url , $type) = @_;
+  my ($self, $project, $type, $creator, $name, $parent, $source, $url, $job) = @_;
 
+  unless ($project && ref($project) && $type) { return undef; }
   my $mddb = $self->{_handle};
-
-  if ($job && ref($job) && $creator && ref($creator)) {
-    my $tmp = $mddb->db_handle->selectrow_arrayref("SELECT MAX(ID + 0) FROM MetaDataCollection");
-    my ($max) = $tmp->[0] =~/^(\d+)/ ; 
-    if ($max && ($max > 0)) {
-      my %attr = ( ID      => $max + 1,
-		   source  => ($source ? $source : "MG-RAST"),
-		   creator => $creator,
-		   url     => ($url ? $url : ''),
-		   job     => $job ,
-		   type    => ($type ? $type : 'sample') ,
-		 );
-      $self->html_dump(\%attr);
-      return $mddb->MetaDataCollection->create(\%attr);
+  my $id   = $mddb->MetaDataCollection->last_id + 1;
+  my $attr = { ID     => $id,
+	       type   => $type,
+	       source => ($source ? $source : "MG-RAST"),
+	       url    => ($url ? $url : ''),
+	       name   => ($name ? $name : '')
+	     };
+  if ($creator && ref($creator)) {
+    $attr->{creator} = $creator;
+  }
+  if ($parent && ref($parent)) {
+    $attr->{parent} = $parent;
+  }
+  my $coll = $mddb->MetaDataCollection->create($attr);
+  $mddb->ProjectCollection->create({project => $project, collection => $coll});
+  if ($job && ref($job)) {
+    if ($type eq 'sample') {
+      $job->sample($coll);
+    } elsif ($type eq 'library') {
+      $job->library($coll);
     }
   }
-  return undef;
+  return $coll;
 }
 
 =pod
@@ -888,24 +769,24 @@ status and url are optional.
 sub add_curator {
   my ($self, $user, $status, $url) = @_;
 
+  unless ($user && ref($user)) { return undef; }
   my $mddb = $self->{_handle};
-
-  if ($user && ref($user)) {
-    my $max = $mddb->db_handle->selectrow_arrayref("SELECT MAX(ID) FROM Curator");
-    if ($max && (@$max > 0)) {
-      my %attr = ( ID     => $max->[0] + 1,
-		   status => ($status ? $status : "manual"),
-		   name   => $user->firstname . " " . $user->lastname,
-		   email  => $user->email,
-		   url    => ($url ? $url : ''),
-		   user   => $user,
-		   type   => ($user->is_admin('MGRAST') ? "Admin" : "User")
-		 );
-      $self->html_dump(\%attr);
-      return $mddb->Curator->create(\%attr);
-    }
+  my $this_user = $mddb->Curator->get_objects({user => $user});
+  if (@$this_user > 0) {
+    return $this_user->[0];
   }
-  return undef;
+  my $max = $mddb->db_handle->selectrow_arrayref("SELECT MAX(ID) FROM Curator");
+  if ($max && (@$max > 0)) {
+    my $attr = { ID     => $max->[0] + 1,
+		 status => ($status ? $status : "manual"),
+		 name   => $user->firstname . " " . $user->lastname,
+		 email  => $user->email,
+		 url    => ($url ? $url : ''),
+		 user   => $user,
+		 type   => ($user->is_admin('MGRAST') ? "Admin" : "User")
+	       };
+    return $mddb->Curator->create($attr);
+  }
 }
 
 =pod
@@ -923,79 +804,14 @@ sub add_update {
 
   my $mddb = $self->{_handle};
   if ($collection && ref($collection) && $curator && ref($curator)) {
-    my %attr = ( comment    => ($comment ? $comment : ''),
+    my $attr = { comment    => ($comment ? $comment : ''),
 		 collection => $collection,
 		 curator    => $curator,
 		 type       => ($type ? $type : '')
-	       );
-    $self->html_dump(\%attr);
-    return $mddb->UpdateLog->create(\%attr);
+	       };
+    return $mddb->UpdateLog->create($attr);
   }
   return undef;
-}
-
-=pod
-
-=item * B<update_project_value> (Arrayref<values>)
-
-Updates values for ProjectMD.
-If input is [ ProjectMD PPO obj, value ], use PPO methods.
-Else if input is [ ProjectMD _id, value ], use SQL methods.
-
-=cut
-
-sub update_project_value {
-  my ($self, $values) = @_;
-
-  my $mddb = $self->{_handle};
-  
-  foreach my $set ( @$values ) {
-    my ($proj, $val) = @$set;
-    if ($proj && ref($proj)) {
-      if ($proj->value ne $val) {
-	$proj->value($val);
-	$self->html_dump([$proj, $val]);
-      }
-    }
-    elsif ($proj && ($proj =~ /^\d+$/)) {
-      my $qval = quotemeta($val);
-      my $sql  = qq(UPDATE ProjectMD SET value='$qval' WHERE _id=$proj);
-      $mddb->db_handle->do($sql);
-      $self->html_dump($sql);
-    }
-  }
-}
-
-=pod
-
-=item * B<update_entry_value> (Arrayref<values>)
-
-Updates values for MetaDataEntry.
-If input is [ MetaDataEntry PPO obj, value ], use PPO methods.
-Else if input is [ MetaDataEntry _id, value ], use SQL methods.
-
-=cut
-
-sub update_entry_value {
-  my ($self, $values) = @_;
-
-  my $mddb = $self->{_handle};
-  
-  foreach my $set ( @$values ) {
-    my ($mde, $val) = @$set;
-    if ($mde && ref($mde)) {
-      if ($mde->value ne $val) {
-	$mde->value($val);
-	$self->html_dump([$mde, $val]);
-      }
-    }
-    elsif ($mde && ($mde =~ /^\d+$/)) {
-      my $qval = quotemeta($val);
-      my $sql  = qq(UPDATE MetaDataEntry SET value='$qval' WHERE _id=$mde);
-      $mddb->db_handle->do($sql);
-      $self->html_dump($sql);
-    }
-  }
 }
 
 =pod
@@ -1008,10 +824,7 @@ Updates MetaDataCollection, based on collection ID, with inputed attributes.
 
 sub update_collection {
   my ($self, $collection, $attributes) = @_;
-
-  my $mddb = $self->{_handle};
-  $mddb->MetaDataCollection->init({ID => $collection})->set_attributes($attributes);
-  $self->html_dump([$collection, $attributes]);
+  $self->{_handle}->MetaDataCollection->init({ID => $collection})->set_attributes($attributes);
 }
 
 =pod
@@ -1024,81 +837,202 @@ Updates Curator, based on curator ID, with inputed attributes.
 
 sub update_curator {
   my ($self, $curator, $attributes) = @_;
-
-  my $mddb = $self->{_handle};
-  $mddb->Curator->init({ID => $curator})->set_attributes($attributes);
-  $self->html_dump([$curator, $attributes]);
+  $self->{_handle}->Curator->init({ID => $curator})->set_attributes($attributes);
 }
 
+sub validate_metadata {
+  my ($self, $filename, $skip_required) = @_;
 
-# export functions
+  my ($out_hdl, $out_name) = tempfile("metadata_XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.json');
+  close $out_hdl;
 
-sub export_metadata {
- my ($self, $job, $dir, $type) = @_;
-
- if ($dir && (! -d $dir))   { mkdir $dir; }
- unless ($dir && (-d $dir)) { $dir = "/tmp/"; }
-
- my ($file, $error) = ("", "");
- 
-
- unless($type){
-   ($file,$error) = $self->export2tab($job , $dir) ;
-   print STDERR $error if ($error);
- }
- return ($file, $error);
-}
-
-sub export2tab {
-  my ($self, $job, $dir) = @_;
-  
-  unless ($dir && (-d $dir)) {
-    return ("", "Export dir does not exist: $dir");
-  }
-
-  my $tmp = $self->get_all_for_job($job);
-  my $attr = {} ;
-  map { push @{ $attr->{ $_->tag } } , $_->value } @$tmp ;
-  my $file = "$dir/" . $job->metagenome_id . ".csv";
-  if (-f $file) { rename($file, $file.".".time); }
-
-  return $self->write2file($attr, $file);
-}
-
-# write meta data hash to file 
-sub write2file {
-  my ($self, $data, $file) = @_;
-  my $error = '';
-  
-  if (open(META, ">$file")) {
-    while ( my($tag, $val) = each %$data ) {
-      print META "$tag\t" . (ref($val) ? join("\t", @$val) : $val) . "\n";
-    }
-    close (META);
-  }
-  else {
-    $error = "Can't open $file!";
-  }
-
-  return ($file, $error);
-}
-
-# import file for a given job
-sub import_file {
-  my ($self, $file, $job) = @_;
-
-  # load data from file
-  open (META, "$file") or die "Can't open $file\n";
   my $data = {};
-  while (my $line = <META>) {
-    chomp $line;
-    my ($key, @val) = split(/\t/, $line);
-    if (@val > 0) { $data->{$key} = [ @val ]; }
-  }
-  close (META);
+  my $json = new JSON;
+  my $cmd  = $FIG_Config::validate_metadata.($skip_required ? " -s" : "")." -j $out_name $filename 2>&1";
+  my $log  = `$cmd`;
+  chomp $log;
+  
+  open(JSONF, "<$out_name") || die "can not read file $out_name: $!";
+  my $text = do { local $/; <JSONF> };
+  close JSONF;
 
-  # store into db
-  $self->add($job, $data);
+  if (! $text) {
+    $data = { is_valid => 0, data => ["Non validation error","","","","$log"] };
+  } else {
+    $json = $json->utf8();
+    $data = $json->decode($text);
+  }
+
+  my $is_valid = $data->{is_valid} ? 1 : 0;
+  return ($is_valid, $data, $log);
+}
+
+### this handels both new projects / collections and updating existing
+sub add_valid_metadata {
+  my ($self, $user, $data, $jobs, $project, $map_by_id, $delete_old) = @_;
+
+  unless ($user && ref($user)) {
+    print STDERR "invalid user object";
+    return [];
+  }
+
+  my $added   = [];
+  my $mddb    = $self->{_handle};
+  my $curator = $self->add_curator($user);
+  my $job_map = {};
+  if ($map_by_id) {
+    %$job_map = map { $_->metagenome_id, $_ } grep { $user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) } @$jobs;
+  } else {
+    %$job_map = map { $_->name, $_ } grep { $user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) } @$jobs;
+  }
+  
+  ### create project / add jobs and metadata
+  unless ($project && ref($project)) {
+    my @pmd  = map { [$_, $data->{data}{$_}{value}] } keys %{$data->{data}};
+    $project = $mddb->Project->create_project($user, $data->{name}, \@pmd, $curator, 0);
+  }
+  unless ( $user->has_right(undef, 'edit', 'project', $project->id) ) {
+    print STDERR "user lacks permission to edit project ".$project->id;
+    return [];
+  }
+
+  ## process samples
+  SAMP: foreach my $samp (@{$data->{samples}}) {
+    my $samp_coll = undef;
+    # use existing sample if ID given
+    if ($samp->{id}) {
+      my $samp_ID = $samp->{id};
+      $samp_ID    =~ s/mgs(.+)/$1/;
+      $samp_coll  = $mddb->MetaDataCollection->init({ID => $samp_ID});
+      my $samp_proj = [];
+      if (ref($samp_coll)) {
+	$samp_proj = $mddb->ProjectCollection->get_objects({project => $project, collection => $samp_coll});
+      }
+      if (@$samp_proj == 0) {
+	next SAMP;
+      } else {
+	# valid sample for this project
+	$samp_coll->name($samp->{name});
+      }
+    }
+    # else create new sample
+    else {
+      $samp_coll = $self->add_collection($project, 'sample', $curator, $samp->{name});
+    }
+    # delete / replace sample metadata
+    my $samp_mde = $mddb->MetaDataEntry->get_objects({collection => $samp_coll});
+    map { $_->delete() } @$samp_mde;
+    if (exists $samp->{data}{mgrast_id}) {
+      $samp->{data}{mgrast_id} = { value => 'mgs'.$samp_coll->ID };
+    }
+    my @samp_md = map { [ $_, $samp->{data}{$_}{value} ] } keys %{$samp->{data}};
+    $self->add_entries($samp_coll, \@samp_md);
+    
+    ## process sample env_package
+    my $ep_coll = undef;
+    # use existing env_package if ID given
+    if ($samp->{envPackage}{id}) {
+      my $ep_ID = $samp->{envPackage}{id};
+      $ep_ID    =~ s/mge(.+)/$1/;
+      $ep_coll  = $mddb->MetaDataCollection->init({ID => $ep_ID});
+      if (ref($ep_coll) && ($ep_coll->parent->{ID} == $samp_coll->ID)) {
+	# valid ep for this sample
+	$ep_coll->name($samp->{envPackage}{name});
+      }
+    }
+    # create new ep for this sample if not created above
+    unless (ref($ep_coll) && ($ep_coll->parent->{ID} == $samp_coll->ID)) {
+      $ep_coll = $self->add_collection($project, 'ep', $curator, $samp->{envPackage}{name}, $samp_coll);
+    }
+    # delete / replace ep metadata
+    my $ep_mde = $mddb->MetaDataEntry->get_objects({collection => $ep_coll});
+    map { $_->delete() } @$ep_mde;
+    if (exists $samp->{envPackage}{data}{mgrast_id}) {
+      $samp->{envPackage}{data}{mgrast_id} = { value => 'mge'.$ep_coll->ID };
+    }
+    my @ep_md = map { [ $_, $samp->{envPackage}{data}{$_}{value} ] } keys %{$samp->{envPackage}{data}};
+    push @ep_md, [ 'env_package', $samp->{envPackage}{type} ];
+    $self->add_entries($ep_coll, \@ep_md);
+
+    ## process libraries for sample
+    my $has_lib = 0;
+    LIB: foreach my $lib (@{$samp->{libraries}}) {
+      # find job associated with library (use id or name for mapping)
+      my $lib_mg  = $map_by_id ? ($lib->{data}{metagenome_id} ? $lib->{data}{metagenome_id}{value} : undef) : $lib->{data}{metagenome_name}{value};
+      my $lib_job = ($lib_mg && exists($job_map->{$lib_mg})) ? $job_map->{$lib_mg} : undef;
+      unless ($lib_job && ref($lib_job)) {
+	next LIB;
+      }
+
+      my $lib_coll = undef;
+      # use existing library if ID given
+      if ($lib->{id}) {
+	my $lib_ID = $lib->{id};
+	$lib_ID    =~ s/mgl(.+)/$1/;
+	$lib_coll  = $mddb->MetaDataCollection->init({ID => $lib_ID});
+	my $lib_proj = [];
+	if (ref($lib_coll)) {
+	  $lib_proj = $mddb->ProjectCollection->get_objects({project => $project, collection => $lib_coll});
+	}
+	if (@$lib_proj == 0) {
+	  next LIB;
+	} else {
+	  # valid library for this project
+	  $lib_coll->name($lib->{name});
+	}
+      }
+      # else create new library
+      else {
+	$lib_coll = $self->add_collection($project, 'library', $curator, $lib->{name}, $samp_coll);
+      }
+      # delete / replace library metadata
+      my $lib_mde = $mddb->MetaDataEntry->get_objects({collection => $lib_coll});
+      map { $_->delete() } @$lib_mde;
+      if (exists $lib->{data}{mgrast_id}) {
+	$lib->{data}{mgrast_id} = { value => 'mgl'.$lib_coll->ID };
+      }
+      my @lib_md = map { [$_, $lib->{data}{$_}{value}] } keys %{$lib->{data}};
+      $self->add_entries($lib_coll, \@lib_md);
+
+      ### add job to project
+      my $msg = $project->add_job($lib_job);
+      if ($msg =~ /error/i) {
+	print STDERR $msg;
+	next LIB;
+      } else {
+	## delete old if exists and not same as new
+	if ($delete_old && $lib_job->sample && ref($lib_job->sample) && ($lib_job->sample->ID != $samp_coll->ID)
+	                && $lib_job->library && ref($lib_job->library) && ($lib_job->library->ID != $lib_coll->ID)) {
+	  my $old_samp = $lib_job->sample;
+	  my $os_jobs  = $old_samp->jobs;
+	  if ((@$os_jobs == 1) && ($os_jobs->[0]->job_id == $lib_job->job_id)) {
+	    $old_samp->delete_all;
+	    $old_samp->delete;
+	  }
+	  else {
+	    my $old_lib = $lib_job->library;
+	    my $ol_jobs = $old_lib->jobs;
+	    if ((@$ol_jobs == 1) && ($ol_jobs->[0]->job_id == $lib_job->job_id)) {
+	      $old_lib->delete_all;
+	      $old_lib->delete;
+	    }
+	  }
+	}
+	## add new sample and library to job and project
+	$lib_job->sample($samp_coll);
+	$lib_job->library($lib_coll);
+	$project->add_collection( $lib_job->sample );
+	$project->add_collection( $lib_job->library );
+	push @$added, $lib_job;
+	$has_lib = 1;
+      }
+    }
+    unless ($has_lib) {
+      $samp_coll->delete_all;
+      $samp_coll->delete;
+    }
+  }
+  return $added;
 }
 
 sub html_dump {

@@ -23,7 +23,6 @@ sub request {
   my ($params) = @_;
 
   my $rest = $params->{rest_parameters};
-
   if ($rest && scalar(@$rest) == 1 && $rest->[0] eq 'about') {
     &about();
     exit 0;

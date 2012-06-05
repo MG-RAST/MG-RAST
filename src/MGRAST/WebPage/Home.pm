@@ -77,7 +77,23 @@ sub output {
   my $text_style ='font-size: 11pt; color: #8FBC3F; font-weight: bold; font-family: Verdana,Arial,sans-serif; margin:0px;float:left;';
   my $login_req = "<p style='color:#EA9D2F;float:left;font-size:16px;margin-bottom:0;margin-left:2px;margin-top:-2px;'>*</p>";
 
-  $content .=  "<script>function forward_to_search (e) { if (e.keyCode == 13) { if (document.getElementById('home_search').value.length) { window.top.location = '?page=MetagenomeSearch&init_search='+document.getElementById('home_search').value; } else { alert(\"Please enter a search term\"); } } }</script>";
+  $content .= '<script>
+function forward_to_search (e) {
+  if (e.keyCode == 13) {
+    var stext  = document.getElementById("home_search").value;
+    if (stext && stext.length) {
+      if (stext.match(/^mgm\d+\.\d+$/)) {
+        window.location = "?page=MetagenomeOverview&metagenome="+stext.substring(3);
+      } else if (stext.match(/^mgp\d+$/)) {
+        window.location = "?page=MetagenomeProject&project="+stext.substring(3);
+      } else {
+        window.location = "?page=MetagenomeSearch&init_search="+stext;
+      }
+    } else {
+      alert("Please enter a search term");
+    }
+  }
+}</script>';
   $content .= "<a title='Browse Metagenomes' href='?page=MetagenomeSelect'><img style='float: left; height: 30px; margin-bottom: 3px; margin-right: 7px;' src='./Html/mgrast_globe.png'><p style='".$text_style." margin-top: 4px;'>Browse Metagenomes</p></a><img onclick='event.keyCode = 13; forward_to_search(event);' style='cursor: pointer; float: right; height: 15px; margin-bottom: 3px; margin-top: 7px;' src='./Html/lupe.png'><input id='home_search' type='text' style='margin: 4px 4px 0px; float: right; color: gray; font-style: italic; font-size: 10px; width: 150px;' placeholder='search for metagenomes' onkeypress='forward_to_search(event);'><div class='clear'></div>";
   
   $text_style ='font-size: 11pt; color: #8FBC3F; font-weight: bold; font-family: Verdana,Arial,sans-serif;margin-top:6px;';
@@ -97,37 +113,28 @@ sub output {
   $content .= "<a href='?page=Register' title='Register a new account'><div style='float:left; cursor: pointer;padding-top:5px;'>".$register."</div></a>";  
   $content .= "<a href='?page=Contact' title='Click here for contact information'><div style='float:left; cursor: pointer;padding-top:5px;'>".$contact."</div></a>";
   $content .= "<a href='http://blog.metagenomics.anl.gov' title='Click here for support and FAQs'><div style='float:left; cursor: pointer;padding-top:5px;'>".$help."</div></a>";
-  $content .= "<a href='?page=CreateJob' title='Upload a new metagenome'><div style='float:left; cursor: pointer;padding-top:5px; margin-right:20px;'>".$upload."</div></a>"; #UploadMetagenome
+  $content .= "<a href='?page=Upload' title='Upload a new metagenome'><div style='float:left; cursor: pointer;padding-top:5px; margin-right:20px;'>".$upload."</div></a>";
   $content .= "<a href='http://blog.metagenomics.anl.gov/' target=_blank><div style='float:left; cursor: pointer;padding-top:5px;'>".$news."</div></a>";
   $content .= "</div>";
   $content .= "<div class='clear'></div>";
 
   my $formater = new Number::Format(-thousands_sep   => ',');
-  my $bpcount = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_bp() / 1000000000000), 2);
+  my $bpcount  = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_bp() / 1000000000000), 2);
   my $seqcount = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_sequences() / 1000000000), 2);
   my $jobcount =  $formater->format_number($self->app->data_handle('MGRAST')->Job->count_all());
-#  my $recentcount = $formater->format_number($self->app->data_handle('MGRAST')->Job->count_recent(30));
-  my $publiccount          = $formater->format_number($self->app->data_handle('MGRAST')->Job->count_public());
-  my $publiccount_wgs      = $formater->format_number($self->app->data_handle('MGRAST')->Job->count_public_wgs());
-  my $publiccount_amplicon = $formater->format_number($self->app->data_handle('MGRAST')->Job->count_public_amplicon());
+  my $publiccount = $formater->format_number($self->app->data_handle('MGRAST')->Job->count_public());
 
   $content .= "<div style='height:235px; background:white; width:650px; padding:10px;-webkit-border-radius-topright: 5px;-webkit-border-radius-bottomleft: 5px;-webkit-border-radius-bottomright: 5px;-moz-border-radius-bottomleft:5px;-moz-border-radius-bottomright:5px;-moz-border-radius-topright:5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; color:#848484; font-size:14;'>";
 
   $content .= "<div style='margin: 5 0 0 10;'>MG-RAST (the Metagenomics RAST) server is an automated analysis platform for metagenomes providing quantitative insights into microbial populations based on sequence data.</div>";
   $content .= "<div class='clear'></div>";
-  $content .= "<div style='background-color: #5281B0; border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; color: white; padding: 6px 10px 10px 10px; float: left; width: 200px; height: 120px; margin-top: 10px;'>";
+  $content .= "<div style='background-color: #5281B0; border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; color: white; padding: 6px 10px 10px 10px; float: left; width: 200px; height: 82px; margin-top: 10px;'>";
   $content .= "<div class='sidebar_subitem' style='font-size: 13px; margin-top:3px; padding: 1 0;'># of metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$jobcount."</span></div>";
-#  $content .= "<div class='sidebar_subitem' style='font-size: 12px; padding: 1 0;'># new submissions (30 days)<span class='sidebar_stat' style='padding-top:3px;'>".$recentcount ."</span></div>";
   $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># base pairs<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$bpcount." Tbp</span></div>";
   $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of sequences<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$seqcount." billion</span></div>";
- # $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of public metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$publiccount."</span><ul><li>Shotgun <span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$publiccount_wgs ."<li>" . "Amplicon <span class='sidebar_stat' style='font-size: 11px; padding-top:2px; padding-left:10px;'>".$publiccount_amplicon." </ul></div>";
  $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of public metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$publiccount."</span></div>";
- $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0; padding-left: 30px;'># shotgun <span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$publiccount_wgs." </span></div>";
- $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0; padding-left: 30px;'># amplicon <span class='sidebar_stat' style='font-size: 11px; padding-top:2px; padding-left:10px;'>".$publiccount_amplicon." </span></div>";
   $content .= "</div>";
-  $content .= "<div style='float: left; width: 410px; line-height: 17px; margin: 10 0 0 10;'>The server provides web based upload, quality control, automated annotation and analysis for samples up to 10GBp. Comparison between large numbers of samples is enabled via pre-computed abundance profiles. MG-RAST was launched in 2007 and has over 5000 registered users and ".$jobcount." data sets. The current server version is ".$FIG_Config::server_version.".</div>";
-
-  #$bpcount." Gbp total. Jobs in the last 30 days ".$recentcount.".</div>";
+  $content .= "<div style='float: left; width: 410px; line-height: 17px; margin: 10 0 0 10;'>The server provides web based upload, quality control, automated annotation and analysis for metagenomic samples. Comparison between large numbers of samples is enabled via pre-computed abundance profiles. MG-RAST was launched in 2007 and has over 5000 registered users and ".$jobcount." data sets. The current server version is ".$FIG_Config::server_version.".</div>";
 
   $content .= "<div class='clear'></div>";
   $content .= <<'END';

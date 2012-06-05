@@ -6,6 +6,8 @@ use strict;
 use warnings;
 use Data::Dumper;
 use IO::Handle;
+use File::Temp qw/ tempfile tempdir /;
+use JSON;
 
 use FIG_Config;
 use WebConfig;
@@ -53,11 +55,16 @@ sub init {
   # register actions
   $self->application->register_action($self, 'create_project', 'create');
   $self->application->register_action($self, 'upload_file', 'upload_file');
+  $self->application->register_action($self, 'download_md', 'download_md');
+  $self->application->register_action($self, 'download_template', 'download_template');
+  $self->application->register_action($self, 'upload_md', 'upload_md');
   $self->application->register_action($self, 'add_job_to_project', 'add_job_to_project');
   $self->application->register_action($self, 'share_project', 'share_project');
   $self->application->register_action($self, 'revoke_project', 'revoke_project');
   $self->application->register_action($self, 'delete_project', 'delete_project');
   $self->application->register_action($self, 'change_shared_metagenomes', 'change_shared_metagenomes');
+  $self->application->register_action($self, 'make_project_public', 'make_project_public');
+  $self->application->register_action($self, 'cancel_token', 'cancel_token');
 
   # init the metadata database
   my $mddb = MGRAST::Metadata->new();
@@ -95,11 +102,6 @@ sub output {
     
     my $jobdbm  = $application->data_handle('MGRAST');
     my $metadbm = MGRAST::Metadata->new->_handle();
-    
-    if ($id eq "no_project"){
-      return $self->no_project_job_list($jobdbm, $user);
-    }
-
     my $project = $jobdbm->Project->init({ id => $self->{project_id} });
     unless($project and ref $project){
       $application->add_message('warning', "No project for ID:" . ($self->{project_id} || 'missing ID')  );
@@ -108,7 +110,14 @@ sub output {
     
     unless ($project->public || ($user and $user->has_right(undef, 'view', 'project', $project->id)) ) {
       $application->add_message('warning', "This is not a public project. You are lacking the rights to view this project.");
-      return "<p>You are either not logged in or you have no right to view this project.</p>";
+      my $should_have_right = "";
+      if ($user) {
+	my $ua = $ENV{HTTP_USER_AGENT};
+	$ua =~ s/\s/\%20/g;
+	$should_have_right = "<br><p style='width: 800px;'>If you think this project should be public or you should be able to view it, please send us a message using this <a href='mailto:mg-rast\@mcs.anl.gov?subject=Access%20Privileges&amp;body=%0D%0A%0D%0A%0D%0A%0D%0A_____%0D%0A%0D%0Aproject%20id:%20".$self->{project_id}."%0D%0Auser:%20".$user->login."%0D%0Apage:%20".$cgi->param('page')."%0D%0Abrowser:%20".$ua."%0D%0A%0D%0A'>link</a></p>";
+      }
+
+      return "<p>You are either not logged in or you have no right to view this project.</p>".$should_have_right;
     }
     
     my $all_meta  = $metadbm->ProjectMD->get_objects( { project => $project } );
@@ -123,24 +132,22 @@ sub output {
     my $proj_link = "http://metagenomics.anl.gov/linkin.cgi?project=".$self->{project_id};
 
     if ($project->public) {
-      $down_info->add_tooltip('all_down', 'download all metagenomes for this project');
+      $down_info->add_tooltip('all_down', 'download all submitted and derived metagenome data for this project');
       $down_info->add_tooltip('meta_down', 'download project metadata');
-      $down_info->add_tooltip('derv_down', 'download all derived data for metagenomes of this project');
-      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"all_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/projects/$id.raw.tar'  ><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted metagenomes</small></a>";
-      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/metadata.project-$id.xml'><img src='./Html/mg-download.png' style='height:15px;'/><small>project metadata</small></a>";
-      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"derv_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/projects/$id.processed.tar'><img src='./Html/mg-download.png' style='height:15px;'/><small>MG-RAST analysis</small></a>";
+      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"all_down\",".$down_info->id.")' target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$id'><img src='./Html/mg-download.png' style='height:15px;'/><small>metagenomes</small></a>";
+      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://".$FIG_Config::ftp_download."/projects/$id/metadata.project-$id.xlsx'><img src='./Html/mg-download.png' style='height:15px;'/><small>project metadata</small></a>";
     }
-    $html .= $down_info->output() . "<h1 style='display: inline;'>" . $project->name .($user and $user->has_right(undef, 'edit', 'user', '*') ? " (ID ".$project->id.")": "")."</h1>". $download;
+    $html .= $down_info->output()."<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " (ID ".$project->id.")": "")."</h1>".$download;
     $html .= "<p><table>";
     $html .= "<tr><td><b>Visibility</b></td><td style='padding-left:15px;'>".($project->public ? 'Public' : 'Private')."</td></tr>";
     $html .= "<tr><td><b>Static Link</b></td><td style='padding-left:15px;'><a href='$proj_link'>$proj_link</a></td></tr></table>";
 
     if ($self->{is_editor}) {
+      my $delete_div    = $project->public ? '' : "<div style='display:none;' id='delete_div'>".$self->delete_info()."</div>";
       my $share_html    = $self->share_info();
       my $edit_html     = $self->edit_info();
-      my $delete_html   = $self->delete_info();
       my $add_info_html = $self->add_info_info($project->id);
-      my $delete_div    = $project->public ? '' : "<div style='display:none;' id='delete_div'>".$self->delete_info()."</div>";
+      my $add_md_html   = $self->add_md_info($project->id);
 
       $html .= "<p><div class='quick_links'><ul>";
       if (! $project->public) {
@@ -153,7 +160,9 @@ sub output {
 <li><a style='cursor:pointer;' onclick='
   if (document.getElementById("public_div").style.display == "none") {
     document.getElementById("public_div").style.display = "inline";
-    if (document.getElementById("add_job_div").innerHTML==""){execute_ajax("make_public_info", "public_div", "project=$id");}
+    if (document.getElementById("add_job_div").innerHTML == "") {
+      execute_ajax("make_public_info", "public_div", "project=$id");
+    }
   } else {
     document.getElementById("public_div").style.display = "none";
   }'>Make Public</a></li>~;
@@ -164,39 +173,67 @@ sub output {
     document.getElementById("share_div").style.display = "inline";
   } else {
     document.getElementById("share_div").style.display = "none";
-  }'>Share</a></li>
-<li><a style='cursor:pointer;' onclick='
-  if (document.getElementById("edit_div").style.display == "none") {
-    document.getElementById("edit_div").style.display = "inline";
-  } else {
-    document.getElementById("edit_div").style.display = "none";
-  }'>Edit Data</a></li>
+  }'>Share Project</a></li>
 <li><a style='cursor:pointer;' onclick='
   if (document.getElementById("add_job_div").style.display == "none") {
     document.getElementById("add_job_div").style.display = "inline";
     if (document.getElementById("add_job_div").innerHTML==""){execute_ajax("add_job_info", "add_job_div", "project=$id");}
   } else {
     document.getElementById("add_job_div").style.display = "none";
-  }'>Add Job</a></li>
+  }'>Add Jobs</a></li>
+<li><a style='cursor:pointer;' onclick='
+  if (document.getElementById("edit_div").style.display == "none") {
+    document.getElementById("edit_div").style.display = "inline";
+  } else {
+    document.getElementById("edit_div").style.display = "none";
+  }'>Edit Project Data</a></li>
 <li><a style='cursor:pointer;' onclick='
   if (document.getElementById("add_info_div").style.display == "none") {
     document.getElementById("add_info_div").style.display = "inline";
   } else {
     document.getElementById("add_info_div").style.display = "none";
-  }'>Add Info</a></li>
+  }'>Upload Info</a></li>
+<li><a style='cursor:pointer;' onclick='
+  if (document.getElementById("add_md_div").style.display == "none") {
+    document.getElementById("add_md_div").style.display = "inline";
+  } else {
+    document.getElementById("add_md_div").style.display = "none";
+  }'>Upload MetaData</a></li>
+<li><a style='cursor:pointer;' onclick='
+  if (document.getElementById("export_md_div").style.display == "none") {
+    document.getElementById("export_md_div").style.display = "inline";
+  } else {
+    document.getElementById("export_md_div").style.display = "none";
+  }'>Export MetaData</a></li>
 </ul></div></p>
 $delete_div
 <div style='display:none;' id='public_div'></div>
 <div style='display:none;' id='share_div'>$share_html</div>
-<div style='display:none;' id='edit_div'>$edit_html</div>
 <div style='display:none;' id='add_job_div'></div>
+<div style='display:none;' id='edit_div'>$edit_html</div>
 <div style='display:none;' id='add_info_div'>$add_info_html</div>
-~;
+<div style='display:none;' id='add_md_div'>$add_md_html</div>
+<img src='./Html/clear.gif' onload='execute_ajax(\"export_metadata\", \"export_md_div\", \"project=$id\");'>
+<div style='display:none;' id='export_md_div'></div>~;
+    } else {
+      $html .= qq~<p><div class='quick_links'><ul>
+<li><a style='cursor:pointer;' onclick='
+  if (document.getElementById("export_md_div").style.display == "none") {
+    document.getElementById("export_md_div").style.display = "inline";
+  } else {
+    document.getElementById("export_md_div").style.display = "none";
+  }'>Export MetaData</a></li>
+</ul></div></p>
+<img src='./Html/clear.gif' onload='execute_ajax(\"export_metadata\", \"export_md_div\", \"project=$id\");'>
+<div style='display:none;' id='export_md_div'></div>~;
     }
 
+    my $jobs = $project->metagenomes(1);
     $html .= $self->general_info();
-    $html .= "<h3>Metagenomes</h3><a name='jobs'></a>";
-    $html .= "<img src='./Html/clear.gif' onload='execute_ajax(\"job_list\", \"job_list_div\", \"project=$id\");'><div id='job_list_div'></div>";
+    if (@$jobs > 0) {
+      $html .= "<h3>Metagenomes</h3><a name='jobs'></a>";
+      $html .= "<img src='./Html/clear.gif' onload='execute_ajax(\"job_list\", \"job_list_div\", \"project=$id\");'><div id='job_list_div'></div>";
+    }
     $html .= $self->additional_info();
   }
   else {
@@ -213,13 +250,21 @@ sub project_list {
   my $application = $self->application;
   my $user = $application->session->user;
 
-  my $jobdbm = $application->data_handle('MGRAST');
-  my $projects = ($user) ? $user->has_right_to(undef, 'view', 'project') : [];
-  my $public_projects = $jobdbm->Project->get_objects( { public => 1 } );
   my $content = "<h3>select a project to view</h3>";
+  my $jobdbm  = $application->data_handle('MGRAST');
+  my $public_projects  = $jobdbm->Project->get_objects( {public => 1} );
+  my $private_proj_ids = ($user) ? $user->has_right_to(undef, 'view', 'project') : [];
+  my $private_projects = [];
 
-  if ( scalar(@$projects) || scalar(@$public_projects)  ) {
-    
+  if (@$private_proj_ids && ($private_proj_ids->[0] eq '*')) {
+    $private_projects = $jobdbm->Project->get_objects();
+  } else {
+    foreach my $pid (@$private_proj_ids) {
+      push @$private_projects, @{ $jobdbm->Project->get_objects({id => $pid}) };
+    }
+  }
+
+  if ( scalar(@$private_projects) || scalar(@$public_projects) ) {
     my $table = $application->component('project_table');
     $table->items_per_page(25);
     $table->show_top_browse(1);
@@ -228,21 +273,19 @@ sub project_list {
 		       { name => 'project' , filter => 1 , sortable => 1},
 		       { name => 'contact' , filter => 1 , sortable => 1},
 		       { name => 'jobs' , filter => 1  , sortable =>  1} ] );
-    my $data = [];
-    $projects = $jobdbm->Project->get_objects_for_ids($projects);
-    push(@$projects, @$public_projects);
+    my $data  = [];
     my $shown = {};
-    foreach my $project (@$projects) {
+    foreach my $project ((@$private_projects, @$public_projects)) {
       next if $shown->{$project->id};
       $shown->{$project->id} = 1;
-      my $jobs = $jobdbm->ProjectJob->get_objects( { project => $project } );
-      my $id = $project->id;
-   
-      push(@$data, [ $project->id, "<a href='metagenomics.cgi?page=MetagenomeProject&project=$id'>".$project->name."</a>", ( join "," , ($project->data('PI_lastname') , $project->data('PI_firstname') ) ) , scalar(@$jobs) ]);
+      my $jobs  = $jobdbm->ProjectJob->get_objects( {project => $project} );
+      my $pid   = $project->id;
+      my $pdata = $project->data;
+      my $name  = $pdata->{PI_lastname} ? $pdata->{PI_lastname}.($pdata->{PI_firstname} ? ', '.$pdata->{PI_firstname} : '') : '';
+      push(@$data, [ $pid, "<a href='metagenomics.cgi?page=MetagenomeProject&project=$pid'>".$project->name."</a>", $name, scalar(@$jobs) ]);
     }
     $table->data($data);
     $content .= $table->output();
-
   } else {
     $content .= "<p>you currently do not have access to any projects</p>";
   }
@@ -251,8 +294,7 @@ sub project_list {
   if ($user && $user->has_right(undef, 'edit', 'project', '*')) {
     $collection = "<input type=checkbox name='collection' value='1'> create public collection";
   }
-
-  if ($user){
+  if ($user) {
     $content .= "<p><a onclick='document.getElementById(\"create_div\").style.display=\"inline\"' style='cursor: pointer;'>create new project</a></p>";
     $content .= "<div id='create_div' style='display: none;'>".$self->start_form('new_project_form', { action => 'create' })."<table><tr><td>project name</td><td><input type='text' name='pname'>$collection</td></tr><tr><td colspan=2><input type='submit' value='create'></td></tr></table>".$self->end_form()."</div>";
   }
@@ -263,9 +305,8 @@ sub create_project {
   my ($self) = @_;
 
   my $application = $self->application;
-  my $cgi = $application->cgi();
-  my $user = $application->session->user();
-  
+  my $cgi   = $application->cgi();
+  my $user  = $application->session->user();
   my $pname = $cgi->param('pname');
 
   if ($pname) {
@@ -280,44 +321,10 @@ sub create_project {
 	$application->add_message('warning', "You project name is already taken. Creation aborted.");
       }
     } else {
-      my $pdir = $FIG_Config::mgrast_projects;
-      my $id = $pdbm->Project->last_id + 1;
-      while (-d "$pdir/$id") {
-	$id++;
+      my $project = $pdbm->Project->create_project($user, $pname);
+      unless ($project && ref($project)) {
+	$application->add_message('warning', "Error creating the project. Creation aborted.");
       }
-      unless ($pdir && $id) {
-	$application->add_message('warning', "Could not open project directory");
-	return 0;
-      }
-      mkdir("$pdir/$id");
-      mkdir("$pdir/$id/graphics");
-      mkdir("$pdir/$id/tables");
-      my $type   = 'study';
-      my $public = 0 ;
-      if ($cgi->param('collection')) {
-	$type   = 'collection';
-	$public = 1 ;
-      }
-      my $project = $pdbm->Project->create( { id     => $id,
-					      name   => $pname,
-					      type   => $type ,
-					      public => $public } );
-      my $dbm = $application->dbmaster;
-      $dbm->Rights->create( { application => undef,
-			      scope => $user->get_user_scope,
-			      name => 'view',
-			      data_type => 'project',
-			      data_id => $project->{id},
-			      granted => 1 } );
-      $dbm->Rights->create( { application => undef,
-			      scope => $user->get_user_scope,
-			      name => 'edit',
-			      data_type => 'project',
-			      data_id => $project->{id},
-			      granted => 1 } );
-      $dbm->Scope->create( { application => undef,
-			     name => 'MGRAST_project_'.$project->{id},
-			     description => 'MGRAST Project scope' } );
       $application->add_message('info', "successfully created project $pname");
       $application->cgi->param('project', $project->{id});
 
@@ -355,36 +362,14 @@ sub add_job_to_project {
     return "";
   }
 
-  my $pscope = $dbm->Scope->init( { application => undef,
-				    name => 'MGRAST_project_'.$project->{id} } );
-  unless ($pscope) {
-    $pscope = $dbm->Scope->create( { application => undef,
-				     name => 'MGRAST_project_'.$project->{id},
-				     description => 'MGRAST Project scope' } );
-  }
-  my $rights = $dbm->Rights->get_objects( { scope => $pscope } );
-  my $rhash = {};
-  %$rhash = map { $_->{data_id} => $_ } @$rights;
-
   my (@old, @new);
   foreach my $mg (@mg_ids) {
-    my $job   = $jobdbm->Job->init({ metagenome_id => $mg });
-    my $check = $jobdbm->ProjectJob->get_objects({ job => $job });
+    my $job = $jobdbm->Job->init({ metagenome_id => $mg });
+    my $msg = $project->add_job($job);
 
-    next unless ref($job);
-    unless (exists($rhash->{$job->{metagenome_id}}) || $job->public) {
-      $dbm->Rights->create( { granted => 1,
-			      name => 'view',
-			      data_type => 'metagenome',
-			      data_id => $job->{metagenome_id},
-			      delegated => 1,
-			      scope => $pscope } );
-    }
-    if (scalar(@$check)) {
+    if ($msg =~ /error/i) {
       push @old, $job->metagenome_id;
-    }
-    else {
-      $jobdbm->ProjectJob->create({ job => $job, project => $project });
+    } else {
       push @new, $job->metagenome_id;
     }
   }
@@ -392,10 +377,10 @@ sub add_job_to_project {
   my $html = "<blockquote>";
   if (@new > 0) {
     $html .= "<img src='./Html/clear.gif' onload='execute_ajax(\"job_list\", \"job_list_div\", \"project=$proj_id\");'>";
-    $html .= "<p>The following metagenomes have been added to project ".$project->name.":<br>".join(", ", @new)."</p>";
+    $html .= "<p>The following metagenomes have been added to or are already in project ".$project->name.":<br>".join(", ", @new)."</p>";
   }
   if (@old > 0) {
-    $html .= "<p>The following metagenomes already belong to a project:<br>".join(", ", @old)."</p>";
+    $html .= "<p>The following metagenomes could not be added:<br>".join(", ", @old)."</p>";
   }
   $html .= "</blockquote>";
 
@@ -422,15 +407,33 @@ sub general_info {
 
   $description = $meta_info->{project_description} ||  $meta_info->{study_abstract} || " - ";
   $funding = $meta_info->{project_funding} || " - ";
-  $admin = "<a href='mailto:".($meta_info->{PI_email} || "")."'>".($meta_info->{PI_firstname} || "")." ".($meta_info->{PI_lastname} || "")."</a>";
-  if ( $meta_info->{PI_organization_url} ) {
-    
-    $admin .= "(<a href='http://".($meta_info->{PI_organization_url} || "")."'>".($meta_info->{PI_organization} || "")."</a>)<br>".($meta_info->{PI_organization_address} || "") . ", " . ($meta_info->{PI_organization_country} || "") ;
+  if ($meta_info->{PI_email}) {
+    $admin = "<a href='mailto:".$meta_info->{PI_email}."'>".($meta_info->{PI_firstname} || "")." ".($meta_info->{PI_lastname} || "")."</a>";
+  } else {
+    $admin = ($meta_info->{PI_firstname} || "")." ".($meta_info->{PI_lastname} || "");
   }
-  else{
-    $admin .= ($meta_info->{PI_organization} || "")."<br>".($meta_info->{PI_organization_address} || "").", ".($meta_info->{PI_organization_country} || "");
+  if ($meta_info->{PI_organization}) {
+    my $pi_org = $meta_info->{PI_organization};
+    if ($meta_info->{PI_organization_url}) {
+      $meta_info->{PI_organization_url} = ($meta_info->{PI_organization_url} =~ /^http:\/\//) ? $meta_info->{PI_organization_url} : "http://".$meta_info->{PI_organization_url};
+      $pi_org = "<a href='".$meta_info->{PI_organization_url}."'>".$meta_info->{PI_organization}."</a>";
+    }
+    $admin .= "($pi_org)<br>".($meta_info->{PI_organization_address} || "").", ".($meta_info->{PI_organization_country} || "");
   }
-  $tech = "<a href='mailto:".($meta_info->{email} || "")."'>".($meta_info->{firstname} || "")." ".($meta_info->{lastname} || "")."</a> (<a href='".($meta_info->{organization_url} || "")."'>".($meta_info->{organization} || "")."</a>)<br>".($meta_info->{organization_address} || "").", ".($meta_info->{organization_country} || "");
+  
+  if ($meta_info->{email}) {
+    $tech = "<a href='mailto:".$meta_info->{email}."'>".($meta_info->{firstname} || "")." ".($meta_info->{lastname} || "")."</a>";
+  } else {
+    $tech = ($meta_info->{firstname} || "")." ".($meta_info->{lastname} || "");
+  }
+  if ($meta_info->{organization}) {
+    my $tech_org = $meta_info->{organization};
+    if ($meta_info->{organization_url}) {
+      $meta_info->{organization_url} = ($meta_info->{organization_url} =~ /^http:\/\//) ? $meta_info->{organization_url} : "http://".$meta_info->{organization_url};
+      $tech_org = "<a href='".$meta_info->{organization_url}."'>".$meta_info->{organization}."</a>";
+    }
+    $tech .= "($tech_org)<br>".($meta_info->{organization_address} || "").", ".($meta_info->{organization_country} || "");
+  }
   
   my $predefined = { email => 1 ,
 		     organizatioon => 1 ,
@@ -479,28 +482,48 @@ sub general_info {
 sub job_list {
   my ($self) = @_;
 
-  my $content = "";
-  my $proj_id = $self->application->cgi->param('project');
-  my $project = $self->application->data_handle('MGRAST')->Project->init({ id => $proj_id });
-  my @pdata   = @{ $project->metagenomes_summary };
+  my $content  = "";
+  my $proj_id  = $self->application->cgi->param('project');
+  my $project  = $self->application->data_handle('MGRAST')->Project->init({ id => $proj_id });
+  my $pdata    = $project->metagenomes_summary;
+  my @complete = map { [ @$_[0..11] ] } grep { $_->[12] } @$pdata;
+  my @inprogess = map { $_->[0] } grep { ! $_->[12] } @$pdata;
 
-  if (@pdata > 0) {
-    my $header = [ { name => 'MG-RAST ID', filter => 1 }, 	 
-		   { name => 'Metagenome Name', filter => 1, sortable => 1 },
-		   { name => 'Size (bp)', sortable => 1 },
-		   { name => 'Biome', filter => 1, sortable => 1, operator => 'combobox' },
-		   { name => 'Location', filter => 1, sortable => 1 }, 	 
-		   { name => 'Country', filter => 1, sortable => 1 },
-		   { name => 'Sequence Type', filter => 1, sortable => 1, operator => 'combobox' }
-		 ];
-    foreach my $row (@pdata) {
+  unless (@$pdata > 0) {
+    return "<p>There are currently no metagenomes assigned to this project.</p>";
+  }
+
+  if (@complete > 0) {
+    my @c_mgids  = map { $_->[0] } @complete;
+    my $metadata = $self->data('mddb')->get_metadata_for_tables(\@c_mgids, 1, 1);
+    my $header   = [ { name => 'MG-RAST ID', filter => 1 }, 	 
+		     { name => 'Metagenome Name', filter => 1, sortable => 1 },
+		     { name => 'bp Count', sortable => 1, filter => 1, operators => ['less','more'] },
+		     { name => 'Sequence Count', sortable => 1, filter => 1, operators => ['less','more'] },
+		     { name => 'Biome', filter => 1, sortable => 1, operator => 'combobox' },
+		     { name => 'Feature', filter => 1, sortable => 1, operator => 'combobox' },
+		     { name => 'Material', filter => 1, sortable => 1, operator => 'combobox' },
+		     { name => 'Location', filter => 1, sortable => 1 }, 	 
+		     { name => 'Country', filter => 1, sortable => 1 },
+		     { name => 'Coordinates', filter => 1, sortable => 1 },
+		     { name => 'Sequence Type', filter => 1, sortable => 1, operator => 'combobox' },
+		     { name => 'Sequence Method', filter => 1, sortable => 1, operator => 'combobox' }
+		   ];
+    foreach my $row (@complete) {
       my $mid = $row->[0];
+      my $mfile = "mgm".$mid.".metadata.txt";
+      if (exists($metadata->{$mid}) && open(FH, ">".$FIG_Config::temp."/".$mfile)) {
+	foreach my $line (@{$metadata->{$mid}}) {
+	  print FH join("\t", @$line)."\n";
+	}
+	close FH;
+      }
       my $download = "<table><tr align='center'>
-<td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$proj_id/$mid.raw.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download submitted metagenome' height='15'/><small>submitted</small></a></td>
-<td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$proj_id/$mid.metadata.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download metadata for this metagenome' height='15'/><small>metadata</small></a></td>
-<td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$proj_id/$mid.processed.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download all derived data for this metagenome' height='15'/><small>analysis</small></a></td>
+<td><a href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filetype=text&filename=$mfile'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download metadata for this metagenome' height='15'/><small>metadata</small></a></td>
+<td><a target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$proj_id/$mid/raw'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download submitted metagenome' height='15'/><small>submitted</small></a></td>
+<td><a target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$proj_id/$mid/processed'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download all derived data for this metagenome' height='15'/><small>analysis</small></a></td>
 </tr></table>";
-      $row->[0] = "<a href='?page=MetagenomeOverview&metagenome=$mid'>$mid</a>";
+      $row->[0] = "<a target=_blank href='?page=MetagenomeOverview&metagenome=$mid'>$mid</a>";
       push @$row, $download if ($project->public);
     }
     push @$header, { name => 'Download' } if ($project->public);
@@ -510,20 +533,94 @@ sub job_list {
     $ptable->width(800);
     $ptable->show_export_button({title => "Export Jobs Table", strip_html => 1});
 
-    if ( scalar(@pdata) > 50 ) {
+    if ( scalar(@complete) > 50 ) {
       $ptable->show_top_browse(1);
       $ptable->show_bottom_browse(1);
       $ptable->items_per_page(50);
       $ptable->show_select_items_per_page(1); 
     }
-    
-    $ptable->data(\@pdata);
+    $ptable->data(\@complete);
+
+    if (scalar(@inprogess) == 0) {
+      $content .= "<p>There are ".scalar(@$pdata)." metagenomes in this project.</p>";
+    } else {
+      $content .= "<p>There are ".scalar(@$pdata)." metagenomes in this project<br>".scalar(@inprogess)." are still in progress: ".join(", ", @inprogess)."</p>";
+    }
     $content .= $ptable->output();
   } else {
-    $content .= "<p>There are currently no jobs assigned to this project</p>";
+    $content .= "<p>There are ".scalar(@$pdata)." metagenomes in this project, all of them are still in progress:<br>".join(", ", @inprogess)."</p>";
   }
   
   return $content;
+}
+
+sub export_metadata {
+  my ($self) = @_;
+
+  my $html  = '';
+  my $json  = new JSON;
+  my $pid   = $self->application->cgi->param('project');
+  my $proj  = $self->application->data_handle('MGRAST')->Project->init({ id => $pid });
+  my $base  = "mgp".$pid."_metadata";
+  my $jfile = $FIG_Config::temp."/".$base.".json";
+  my $mfile = $FIG_Config::temp."/".$base.".xlsx";
+  my $pdata = $self->data('mddb')->export_metadata_for_project($proj);
+  
+  $json = $json->utf8();
+  open(JFH, ">$jfile") || return "<p>ERROR: Could not write results to file: $!</p>";
+  print JFH $json->encode($pdata);
+  close JFH;
+
+  my $cmd = $FIG_Config::export_metadata." -j $jfile -o $mfile";
+  unless (system($cmd) == 0) {
+    return "<p>ERROR: Could not transform metadata to excel format: $!</p>";
+  }
+  ## validate
+  my ($is_valid, $mdata, $log) = $self->data('mddb')->validate_metadata($mfile);
+  unless ($log =~ /no entries found/) {
+    $html = "<p><b>click to download: </b><a href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filetype=xlsx&filename=$base.xlsx'>MG-RAST metadata file</a></p>";
+  }
+  unless ($is_valid) {
+    $html .= "<p><font color='red'>This metadata file is currently invalid:</font><br><pre>$log</pre></p>";
+    $html .= "<p>To make sure your metadata is complete, please fill out and upload a <a href='metagenomics.cgi?page=MetagenomeProject&action=download_template'>metadata spreadsheet template</a></p>";
+  }
+  return $html;
+}
+
+sub download_md {
+  my ($self) = @_;
+
+  my $cgi   = $self->application->cgi;
+  my $file  = $cgi->param('filename');
+  my $ftype = $cgi->param('filetype') || 'text';
+  my $ctype = ($ftype eq 'xlsx') ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/plain';
+  
+  if (open(FH, "<".$FIG_Config::temp."/".$file)) {
+    my $content = do { local $/; <FH> };
+    close FH;
+    print "Content-Type:$ctype\n";  
+    print "Content-Length: " . length($content) . "\n";
+    print "Content-Disposition:attachment;filename=".$file."\n\n";
+    print $content;
+    exit;
+  } else {
+    $self->application->add_message('warning', "Could not open download file");
+  }
+  return 1;
+}
+
+sub download_template {
+  my $fn = $FIG_Config::html_base.'/'.$FIG_Config::mgrast_metadata_template;
+
+  if (open(FH, $fn)) {
+    print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
+    print "Content-Length: " . (stat($fn))[7] . "\n";
+    print "Content-Disposition:attachment;filename=".$FIG_Config::mgrast_metadata_template."\n\n";
+    while (<FH>) {
+      print $_;
+    }
+    close FH;
+  }
 }
 
 sub add_job_info {
@@ -547,7 +644,7 @@ sub add_job_info {
   $list_select->types($types);
 
   my $lid = $list_select->id;
-  $html .= "<h3>Add Job</h3><div id='list_select_div'>" . $list_select->output();
+  $html .= "<h3>Add Jobs</h3><div id='list_select_div'>" . $list_select->output();
   $html .= qq~<input type='button' value='ok' onclick='
 var sel_elem = document.getElementById("list_select_list_b_" + $lid);
 var mg_list  = [];
@@ -560,12 +657,24 @@ window.top.location="?page=MetagenomeProject&action=add_job_to_project&project=$
   return $html;
 }
 
+sub add_md_info {
+  my ($self, $pid) = @_;
+  
+  my $html = "<h3>Add / Relaod MetaData</h3>";
+  $html .= $self->start_form('upload_form', {project => $pid, action => 'upload_md'});
+  $html .= "Map metagenome to metadata by: <select name='map_type'><option value='name'>Metagenome Name</option><option value='id'>MG-RAST ID</option></select>";
+  $html .= "<br><br><input type='file' name='upload_md' size ='38'><span>&nbsp;&nbsp;&nbsp;</span><input type='submit' value='upload'>";
+  $html .= $self->end_form();
+  return $html;
+}
+
 sub add_info_info {
   my ($self, $pid) = @_;
 
-  my $html = "<h3>Add Info</h3>";
+  my $html = "<h3>Upload Info</h3>";
   $html .= $self->start_form('upload_form', {project => $pid, action => 'upload_file'});
-  $html .= "<select name='upload_type'><option value='graphic'>graphic</option><option value='table'>table</option></select><input type='file' name='upload_file'><input type='submit' value='upload'>";
+  $html .= "<select name='upload_type'><option value='graphic'>graphic</option><option value='table'>table</option></select>";
+  $html .= "<input type='file' name='upload_file'><input type='submit' value='upload'>";
   $html .= $self->end_form();
   return $html;
 }
@@ -655,11 +764,90 @@ sub additional_info {
   return $content;
 }
 
+sub upload_md {
+  my ($self) = @_;
+
+  my $application = $self->application();
+  my $cgi  = $application->cgi;
+  my $user = $application->session->user;
+  my $mgdb = $application->data_handle('MGRAST');
+  my $meta = $self->data('mddb');
+  my $pid  = $cgi->param('project');
+  my $skip = $cgi->param('skip') || 0;
+  my $map_by_id = ($cgi->param('map_type') && ($cgi->param('map_type') eq 'id')) ? 1 : 0;
+
+  if ($user->has_right(undef, 'edit', 'project', $pid)) {
+    my ($tmp_hdl, $tmp_name) = tempfile("metadata_XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.xlsx');
+    my $fname = $cgi->param('upload_md') || "<broken upload>";
+    my $fhdl  = $cgi->upload('upload_md');
+    if (defined $fhdl) {
+      while (<$fhdl>) { print $tmp_hdl $_; }
+      close $tmp_hdl;
+      close $fhdl;
+    } else {
+      $application->add_message('warning', "could not save $fname: $!");
+      return 0;
+    }
+    ## validate
+    my ($is_valid, $mdata, $log) = $meta->validate_metadata($tmp_name, $skip);
+    unless ($is_valid) {
+      $application->add_message('warning', "uploaded metadata is invalid:<br><pre>".$log."</pre>");
+      return 0;
+    }
+    my $skip_jobs = [];
+    my $edit_jobs = [];
+    my $project   = $mgdb->Project->init({id => $pid});
+    my %mg_rights = map { $_, 1 } @{ $user->has_right_to(undef, 'edit', 'metagenome') };
+
+    foreach my $pj ( @{ $mgdb->ProjectJob->get_objects({project => $project}) } ) {
+      my $job = $pj->job;
+      if (exists($mg_rights{'*'}) || exists($mg_rights{$job->metagenome_id})) {
+	push @$edit_jobs, $job;
+      } else {
+	push @$skip_jobs, $job;
+      }
+    }
+    if (@$edit_jobs == 0) {
+      $application->add_message('warning', 'you do not have the permissions to add metadata to any job in this project');
+      return 0;
+    }
+    if (@$skip_jobs > 0) {
+      $application->add_message('warning', "you do not have the permissions to add metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$skip_jobs));
+    }
+    
+    my $md_jobs = $meta->add_valid_metadata($user, $mdata, $edit_jobs, $project, $map_by_id, 1);
+    if ((@$md_jobs == @$edit_jobs) && (@$skip_jobs == 0)) {
+      $application->add_message('info', "successfully added / updated metadata to all jobs in this project");
+    }
+    elsif (@$md_jobs == @$edit_jobs) {
+      $application->add_message('info', "successfully added / updated metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$edit_jobs));
+    }
+    elsif ((@$md_jobs == 0) && (@$skip_jobs == 0)) {
+      $application->add_message('warning', "unable to add metadata to any job in this project");
+      return 0;
+    }
+    elsif (@$md_jobs == 0) {
+      $application->add_message('warning', "unable to add metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$edit_jobs));
+      return 0;
+    }
+    else {
+      my %md_map = map { $_->metagenome_id, 1 } @$md_jobs;
+      my @no_md  = grep { ! exists $md_map{$_} } map {$_->metagenome_id} @$edit_jobs;
+      $application->add_message('warning', "unable to add metadata to the following jobs:<br>".join(", ", sort @no_md));
+      $application->add_message('info', "successfully added/updated metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$md_jobs));
+    }
+  } else {
+    $application->add_message('warning', 'you do not have the permissions to add metadata to this project');
+    return 0;
+  }
+  return 1;
+}
+
 sub upload_file {
   my ($self) = @_;
 
   my $application = $self->application();
-  my $cgi = $application->cgi;
+  my $cgi  = $application->cgi;
   my $user = $application->session->user;
 
   my $project_id = $cgi->param('project');
@@ -667,25 +855,27 @@ sub upload_file {
     my $jobdbm = $application->data_handle('MGRAST');
     my $project = $jobdbm->Project->init({ id => $project_id });
     my $savedir = $FIG_Config::mgrast_projects."/".$project->{id}."/".$cgi->param('upload_type')."s/";
-    my $filename = $cgi->param('upload_file');
+    my $filename = $cgi->param('upload_file') || "<broken upload>";
     my $fh = $cgi->upload('upload_file');
     if (defined $fh) {
       if (open(OUTFILE, ">".$savedir.$filename)) {
-	while (<$fh>) {
-	  print OUTFILE;
-	}
+	while (<$fh>) { print OUTFILE $_; }
 	close OUTFILE;
-	$application->add_message('info', "file uploaded successfully");
+	close $fh;
+	chmod 0777, $savedir.$filename;
+	$application->add_message('info', "$filename uploaded successfully");
       } else {
-	$application->add_message('warning', "could not save file $!");
+	$application->add_message('warning', "could not save $filename: $!");
 	return 0;
       }
+    } else {
+      $application->add_message('warning', "could not save $filename: $!");
+      return 0;
     }
   } else {
     $application->add_message('warning', 'you do not have the permissions to add information to this project');
     return 0;
   }
-
   return 1;
 }
 
@@ -756,7 +946,7 @@ sub edit_info {
 
   my $meta_info = $self->{meta_info};
   my $project   = $self->{project};
-  my $content   = "<h3>Edit Data</h3>";
+  my $content   = "<h3>Edit Project Data</h3>";
   
   $content .= $self->start_form('additional_info_form', { update => 1, project => $project->{id} });
   $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>name</span><br><input type='text' name='project_name' style='width:250px;' value='".$project->{name}."'><br><br>";
@@ -789,7 +979,7 @@ sub share_info {
   my $email   = $self->app->cgi->param('email') || '';
   my $project = $self->{project};
   my $jobdbm = $self->application->data_handle('MGRAST');
-  my $content = "<h3>Share</h3>";
+  my $content = "<h3>Share Project</h3>";
   $content .= $self->start_form('share_project', { project => $project->id,
 						   action  => 'share_project' });
   $content .= "<p><strong>Enter an email address or group name:</strong> <input name='email' type='textbox' value='$email'><input type='checkbox' name='editable'> <span title='check to allow the user or group to edit this project'>editable</span>";
@@ -1031,65 +1221,64 @@ sub make_public_info {
   my $project = $jobdbm->Project->init({ id => $cgi->param('project') });
   my $project_jobs = $jobdbm->ProjectJob->get_objects( { project => $project } );
   my $master = $application->dbmaster;
-
-  my $html = "<h3>Make Project Public</h3>";
-  $html .= "<p style='font-variant: normal;'>When you make a project public, you should consider making the metagenomes belonging to the project public as well. The below lists show which metagenomes that are associated to this project you can make public, for which you are lacking the rights to do so and which are missing the MIGS metadata.</p><p style='font-variant: normal;'>Jobs that are missing MIGS metadata cannot be made public. You can add this information by clicking on the metagenome name. You also have the option to make these jobs public at a later time. You can only make jobs public, for which you have the edit right.</p><p style='font-variant: normal;'><b>Warning:</b> Making data publicly available is final and cannot be undone.</p>";
-
+  
   my $mddb = $self->data('mddb');
   my $publicizable = [];
-  my $missing_migs = [];
+  my $missing_mixs = [];
   my $missing_rights = [];
   foreach my $pj (@$project_jobs) {
     my $job = $pj->job;
     if ($user->has_right(undef, 'edit', 'metagenome', $job->metagenome_id)) {
       if ($mddb->is_job_compliant($job)) {
-	push(@$publicizable, $job);
+	push @$publicizable, $job;
       } else {
-	push(@$missing_migs, $job);
+	push @$missing_mixs, $job;
       }
     } else {
-      push(@$missing_rights, $job);
+      push @$missing_rights, $job;
     }
   }
 
-  my $data = [];
-  my $preselection = [];
-  foreach my $pub (@$publicizable) {
-    push(@$data, { value => $pub->{metagenome_id}, label => $pub->{name}.' ('.$pub->{metagenome_id}.')' });
-    push(@$preselection, $pub->{metagenome_id});
-  }
-  my $list_select = $self->application->component('public_job_select');
-  $list_select->data($data);
-  $list_select->preselection($preselection);
-  $list_select->multiple(1);
-  $list_select->filter(1);
-  $list_select->{max_width_list} = 250;
-  $list_select->left_header('metagenomes not to be public');
-  $list_select->right_header('metagenomes to be public');
-  $list_select->name('public_metagenomes');
+  my $html = "<h3>Make Project Public</h3>";
 
-  $html .= $self->start_form('makepublicform', { project => $project->id, action => 'make_project_public' });
-
-  $html .= "<p>By clicking the button below, you confirm that you have the copyright for the selected metagenomes and this project.</p>";
-
-  if (scalar(@$missing_migs)) {
-    $html .= "<b>missing metadata</b>";
-    $html .= "<p>".join("<br>", map { "<a href='?page=MetaDataMG&metagenome=".$_->{metagenome_id}."' target=_blank>".$_->{name}." (".$_->{metagenome_id} .")</a>"} @$missing_migs)."</p>";
+  if (@$missing_mixs > 0) {
+    $html .= "<p style='font-variant: normal;'>MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank >Minimum Information about any (X) Sequence</a> (MIxS) developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC). Metagenomes that are missing MIxS metadata cannot be made public. The below list shows which metagenomes associated with this project are missing MIxS metadata. Use the above 'Upload MetaData' button to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='metagenomics.cgi?page=MetagenomeProject&action=download_template'>metadata spreadsheet template</a>.</p>";
+    $html .= "<blockquote>".join("<br>", map { $_->{name}." (".$_->{metagenome_id} .")"} @$missing_mixs)."</blockquote>";
   }
   
-  if (scalar(@$missing_rights)) {
-    $html .= "<b>missing rights</b>";
-    $html .= "<p>".join("<br>", map { $_->{name}." (".$_->{id} .")"} @$missing_rights)."</p>";
+  if (@$missing_rights > 0) {
+    $html .= "<p style='font-variant: normal;'>When making metagenomes public you must have edit rights. The below metagenomes are unable to be made public due to missing rights.</p>";
+    $html .= "<blockquote>".join("<br>", map { $_->{name}." (".$_->{metagenome_id} .")"} @$missing_rights)."</blockquote>";
   }
 
-  $html .= "<b>publicizable</b>";
-  if (scalar(@$data)) {
-    $list_select->output();
-  } else {
+  $html .= "<p style='font-variant: normal;'>When you make a project public, you should consider making the metagenomes belonging to the project public as well. The below list shows which metagenomes associated with this project can be made public.</p>";
+  if (@$publicizable > 0) {
+    my $data = [];
+    my $preselection = [];
+    foreach my $pub (@$publicizable) {
+      push(@$data, { value => $pub->{metagenome_id}, label => $pub->{name}.' ('.$pub->{metagenome_id}.')' });
+      push(@$preselection, $pub->{metagenome_id});
+    }
+    my $list_select = $self->application->component('public_job_select');
+    $list_select->data($data);
+    $list_select->preselection($preselection);
+    $list_select->multiple(1);
+    $list_select->filter(1);
+    $list_select->{max_width_list} = 250;
+    $list_select->left_header('metagenomes not to be public');
+    $list_select->right_header('metagenomes to be public');
+    $list_select->name('public_metagenomes');
+
+    $html .= "<p style='font-variant: normal;'><b>Warning:</b> Making data publicly available is final and cannot be undone.</p>";
+    $html .= $self->start_form('makepublicform', { project => $project->id, action => 'make_project_public' });
+    $html .= $list_select->output();
+    $html .= "<p>By clicking the button below, you confirm that you have the copyright for the selected metagenomes and this project.</p>";
+    $html .= "<input type='button' value='make public' onclick='if(confirm(\"Do you really want to make this project and the selected metagenomes public?\")){list_select_select_all(\"".$list_select->id."\");document.forms.makepublicform.submit();}'><br><br>";
+    $html .= $self->end_form();
+  }
+  else {
     $html .= "<p>- no metagenomes belonging to this project can be made public -</p>";
   }
-  $html .= "<p>By clicking the button below, you confirm that you have the copyright for the selected metagenomes and this project.</p><input type='button' value='make public' onclick='if(confirm(\"Do you really want to make this project and the selected metagenomes public?\")){list_select_select_all(\"".$list_select->id."\");document.forms.makepublicform.submit();}'><br><br>";
-  $html .= $self->end_form();
 
   return $html;
 }
@@ -1102,7 +1291,7 @@ sub make_project_public {
   my $user = $application->session->user;
   my $project_id = $cgi->param('project');
   my @metagenomes = $cgi->param('public_metagenomes');
-  my $mgrast = $application->data_handler('MGRAST');
+  my $mgrast = $application->data_handle('MGRAST');
   
   # check rights
   if ($user->has_right(undef, 'edit', 'project', $project_id)) {
@@ -1346,82 +1535,6 @@ sub revoke_project {
 
   return 1;
 
-}
-
-# get all public jobs without project and display them for download
-sub no_project_job_list {
-  my ($self, $dbm, $user) = @_;
-
-  my $html = "";
-  my $id   = '0';
-  my @jobs = ();
-  my @data = ();
-  my $down_all  = "";
-  my $down_info = $self->app->component('download_info');
-
-  $down_info->add_tooltip('all_down', 'download all metagenomes for this project');
-  $down_info->add_tooltip('meta_down', 'download project metadata');
-  $down_info->add_tooltip('derv_down', 'download all derived data for metagenomes of this project');
-  $down_all .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"all_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/projects/$id.raw.tar'  ><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted metagenomes</small></a>";
-  $down_all .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/metadata.project-$id.xml'><img src='./Html/mg-download.png' style='height:15px;'/><small>project metadata</small></a>";
-  $down_all .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"derv_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/projects/$id.processed.tar'><img src='./Html/mg-download.png' style='height:15px;'/><small>MG-RAST analysis</small></a>";
-
-  $html .= $down_info->output() . "<h1 style='display: inline;'>public metagenomes not in any project</h1>". $down_all . "<br>";
-
-  foreach my $j ( @{$dbm->Job->without_project()} ) { # [metagenome_id, name, sequence_type, file_size_raw, public, viewable]
-    if ( ($j->[4] == 1) && ($j->[5] == 1) ) {
-      push @jobs, $dbm->Job->init({ metagenome_id => $j->[0] });
-    }
-  }
-
-  if (@jobs > 0) {
-    my $header = [ { name => 'MG-RAST ID', filter => 1 }, 	 
-		   { name => 'Metagenome Name', filter => 1, sortable => 1 },
-		   { name => 'Size (bp)', sortable => 1 },
-		   { name => 'Biome', filter => 1, sortable => 1, operator => 'combobox' },
-		   { name => 'Location', filter => 1, sortable => 1 }, 	 
-		   { name => 'Country', filter => 1, sortable => 1 },
-		   { name => 'Sequence Type', filter => 1, sortable => 1, operator => 'combobox' },
-		   { name => 'Download' }
-		 ];
-
-    foreach my $j (@jobs) {
-      my $mid = $j->metagenome_id;
-      my $biome = $j->biomes;
-      my $download = "<table><tr align='center'>
-<td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/$mid.raw.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download submitted metagenome' height='15'/><small>submitted</small></a></td>
-<td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/$mid/metadata.xml'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download metadata for this metagenome' height='15'/><small>metadata</small></a></td>
-<td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/$mid.processed.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download all derived data for this metagenome' height='15'/><small>analysis</small></a></td>
-</tr></table>";
-
-      push @data, [ "<a href='?page=MetagenomeOverview&metagenome=$mid'>$mid</a>",
-		    $j->name,
-		    format_number($j->stats->{bp_count_raw}),
-		    scalar(@$biome) ? join(", ", @$biome) : "-",
-		    $j->location,
-		    $j->country,
-		    $j->sequence_type,
-		    $download ];
-    }
-   
-    my $ptable = $self->application->component('jobs_table');
-    $ptable->columns( $header ); 
-    $ptable->width(800);
-    #$ptable->show_export_button({title => "Export Jobs Table", strip_html => 1});
-
-    if ( scalar(@data) > 50 ) {
-      $ptable->show_top_browse(1);
-      $ptable->show_bottom_browse(1);
-      $ptable->items_per_page(50);
-      $ptable->show_select_items_per_page(1); 
-    }    
-    $ptable->data(\@data);
-    $html .= "<br>" . $ptable->output();
-  } else {
-    $html .= "<p>There are currently no public jobs without projects</p>";
-  }
-  
-  return $html;
 }
 
 sub selectable_metagenomes {

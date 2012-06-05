@@ -50,9 +50,16 @@ sub request {
     $sample = $master->MetaDataCollection->init( {ID => $id} );
   } else {
     my $ids = {};
-    my $samples = $dbh->selectall_arrayref("SELECT s.ID, j.metagenome_id, j.public FROM Job j, MetaDataCollection s WHERE j.sample = s._id");
-    map { $ids->{"mgs".$_->[0]} = 1 } grep { $_->[2] == 1 } @$samples;
-    map { $ids->{"mgs".$_->[0]} = 1 } grep { exists $rights{$_->[1]} } @$samples;
+    my $sample_map   = {};
+    my $job_samp_map = {};
+    my $job_samples  = $dbh->selectall_arrayref("SELECT sample, metagenome_id, public FROM Job");
+    map { $job_samp_map->{$_->[0]} = 1 }  @$job_samples;
+    map { $sample_map->{$_->[0]} = $_->[1] } @{$dbh->selectall_arrayref("SELECT _id, ID FROM MetaDataCollection WHERE type='sample'")};
+
+    # add samples with job: public or rights
+    map { $ids->{"mgs".$sample_map->{$_->[0]}} = 1 } grep { ($_->[2] == 1) || exists($rights{$_->[1]}) || exists($rights{'*'}) } @$job_samples;
+    # add samples with no job
+    map { $ids->{"mgs".$sample_map->{$_}} = 1 } grep { ! exists $job_samp_map->{$_} } keys %$sample_map;
     
     print $cgi->header(-type => 'application/json',
 		       -status => 200,
@@ -62,12 +69,13 @@ sub request {
   }
   
   if ($sample && ref($sample)) {
-    my $mdata = $sample->data();
-    my $pre   = "        ";
-    my $attr  = "";
-    my @descs = sort { length($b) <=> length($a) } map { $mdata->{$_} } grep { $_ =~ /description/i } keys %$mdata;
-    my $dtext = (@descs > 0) ? "<DESCRIPTION>".$descs[0]."</DESCRIPTION>" : "";
-    my $name  = $sample->name ? $sample->name : (exists($mdata->{sample_name}) ? $mdata->{sample_name} : (exists($mdata->{sample_id}) ? $mdata->{sample_id} : ''));
+    my $mdata  = $sample->data();
+    my $sampID = "mgs".$sample->ID;
+    my @descs  = sort { length($b) <=> length($a) } map { $mdata->{$_} } grep { $_ =~ /description/i } keys %$mdata;
+    my $dtext  = (@descs > 0) ? "<DESCRIPTION>".$descs[0]."</DESCRIPTION>" : "";
+    my $name   = $sample->name ? $sample->name : (exists($mdata->{sample_name}) ? $mdata->{sample_name} : (exists($mdata->{sample_id}) ? $mdata->{sample_id} : ''));
+    my $pre    = "        ";
+    my $attr   = "";
 
     foreach my $tag (keys %$mdata) {
       $attr .= $pre."<SAMPLE_ATTRIBUTE>\n";
@@ -77,7 +85,7 @@ sub request {
     }
     my $xml = qq~<?xml version="1.0" encoding="UTF-8"?>
 <SAMPLE_SET>
-<SAMPLE alias="~.("mgs".$sample->ID).qq~" center_name="EBI" broker_name="MGRAST">
+<SAMPLE alias="$sampID" center_name="EBI" broker_name="MGRAST">
     <TITLE>$name</TITLE>
     <SAMPLE_NAME>
         <COMMON_NAME>$name</COMMON_NAME>

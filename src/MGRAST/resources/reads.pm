@@ -63,7 +63,7 @@ sub request {
     if ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $mgid))) {
       my $dir = $job->download_dir;
       if (opendir(my $dh, $dir)) {
-	my @readfile = grep { /^.+(\.fna|\.fasta|\.sff|\.fastq)(\.gz)?$/ && -f "$dir/$_" } readdir($dh);
+	my @readfile = sort grep { /^.+(\.fna|\.sff|\.fastq)(\.gz)?$/ && -f "$dir/$_" } readdir($dh);
 	closedir $dh;
 	if (scalar(@readfile)) {
 	  my $fn = $readfile[0];

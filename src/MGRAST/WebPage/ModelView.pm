@@ -6,6 +6,7 @@ use base qw( WebPage );
 
 use strict;
 use warnings;
+use Tracer;
 use URI::Escape;
 
 use FIG_Config;

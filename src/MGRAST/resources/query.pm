@@ -5,16 +5,21 @@ use JSON;
 
 use WebServiceObject;
 use MGRAST::MetagenomeAnalysis2;
+use Babel::lib::Babel;
 
 my $cgi = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
 sub about {
+  my $ach = new Babel::lib::Babel;
   my $content = { 'description' => "query metagenomes that have a certain annotation",
 		  'parameters' => { "annotation" => "string",
 				    "type" => [ 'organism', 'function'],
-				    "source" => "string",
+				    "source" => { "protein"  => [ map {$_->[0]} @{$ach->get_protein_sources} ],
+						  "ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
+						  "rna"      => [ map {$_->[0]} @{$ach->get_rna_sources} ]
+						},
 				    "partial" => "boolean" },
 		  'return_type' => "application/json" };
 

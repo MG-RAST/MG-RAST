@@ -3,6 +3,7 @@ package resources::project;
 use CGI;
 use JSON;
 
+use MGRAST::Metadata;
 use WebServiceObject;
 
 my $cgi = new CGI;
@@ -65,31 +66,32 @@ sub request {
   }
   
   if ($project && ref($project) && ($project->public || exists($rights{'*'}) || exists($rights{$project->id}))) {
-
-    my %meta_hash = map { $_->{tag} => $_->{value} } @{ $master->ProjectMD->get_objects({project => $project}) };
-    my $obj  = {};
-    my $data = $project->data();
-    my $dbh  = $master->db_handle();
-    my $sth  = $dbh->prepare("select Job.metagenome_id from ProjectJob, Job where ProjectJob.project=? and ProjectJob.job=Job._id");
-    $sth->execute($project->_id);
-
-    my @jobs = map { "mgm".$_->[0] } @{ $sth->fetchall_arrayref() };
-    my @colls = map { $_->collection } @{ $master->ProjectCollection->get_objects({project => $project}) };
-    my @samples = map { "mgs".$_->{ID} } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
+    my $metadata  = $project->data();
+    my @jobs      = map { "mgm".$_ } @{ $project->all_metagenome_ids };
+    my @colls     = @{ $project->collections };
+    my @samples   = map { "mgs".$_->{ID} } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
     my @libraries = map { "mgl".$_->{ID} } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
     
+    my $obj  = {};
+    my $mddb = MGRAST::Metadata->new();
+    my $desc = $metadata->{project_description} || $metadata->{study_abstract} || " - ";
+    my $fund = $metadata->{project_funding} || " - ";
+    if ($cgi->param('template')) {
+      $metadata = $mddb->add_template_to_data('project', $metadata);
+    }
+
     $obj->{id}             = "mgp".$project->id;
     $obj->{name}           = $project->name;
     $obj->{analyzed}       = \@jobs;
     $obj->{pi}             = $project->pi;
-    $obj->{metadata}       = \%meta_hash;
-    $obj->{description}    = $meta_hash->{project_description} || $meta_hash->{study_abstract} || " - ";
-    $obj->{funding_source} = $meta_hash->{project_funding} || " - ";
+    $obj->{metadata}       = $metadata;
+    $obj->{description}    = $desc;
+    $obj->{funding_source} = $fund;
     $obj->{samples}        = \@samples;
     $obj->{libraries}      = \@libraries;
     $obj->{about}          = "metagenomics project";
     $obj->{version}        = 1;
-    $obj->{url}            = $cgi->url.'/project/'.$object->{id};
+    $obj->{url}            = $cgi->url.'/project/'.$obj->{id};
     $obj->{created}        = "";
 
     print $cgi->header(-type => 'application/json',

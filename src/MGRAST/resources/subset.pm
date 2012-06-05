@@ -2,6 +2,7 @@ package resources::subset;
 
 use WebServiceObject;
 use MGRAST::MetagenomeAnalysis2;
+use Babel::lib::Babel;
 
 use CGI;
 use JSON;
@@ -11,10 +12,14 @@ my $json = new JSON;
 $json = $json->utf8();
 
 sub about {
+  my $ach = new Babel::lib::Babel;
   my $content = { 'description' => "md5s with counts for organism or function, given a metagenome and an optional source",
 		  'parameters' => { "id" => "string",
 				    "type" => [ "organism", "function" ],
-				    "source" => "string",
+				    "source" => { "protein"  => [ map {$_->[0]} @{$ach->get_protein_sources} ],
+						  "ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
+						  "rna"      => [ map {$_->[0]} @{$ach->get_rna_sources} ]
+						},
 				    "organism" => "string",
 				    "function" => "string" },
 		  'return_type' => "application/json" };

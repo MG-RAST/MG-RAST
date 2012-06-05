@@ -11,6 +11,7 @@ use Data::Dumper;
 use Babel::lib::Babel;
 
 use Cache::Memcached;
+use File::Temp qw/ tempfile tempdir /;
 
 1;
 
@@ -49,6 +50,7 @@ sub new {
 	       jcache => $job_dbh, # job cache db_handle
 	       jobs   => {},       # hash: mg_id => job_id
 	       tables => {},       # hash: job_id => table_type => table_name
+	       search => 'data_summary',  # nameof search table in dbh
 	       expire => $FIG_Config::web_memcache_expire || 172800 # use config or 48 hours
 	     };
   bless $self, $class;
@@ -133,6 +135,10 @@ sub set_public_jobs {
 sub get_jobid_map {
   my ($self, $mgids, $jids) = @_;
 
+  unless (scalar(@$mgids)) {
+    return {};
+  }
+
   my $hash = {};
   my $list = join(",", map {"'$_'"} @$mgids);
   my $rows;
@@ -152,6 +158,9 @@ sub get_jobs_tables {
 
   my $all  = {};
   my $tbls = {};
+
+  return $tbls unless (scalar @$jobs);
+
   my $list = join(",", @$jobs);
   my $rows = $self->dbh->selectall_arrayref("select job_id, table_type, seq_db_name, seq_db_version, table_name from job_tables where job_id in ($list) and loaded is true");
   if ($rows && (@$rows > 0)) {
@@ -231,6 +240,11 @@ sub ontology_stats_file {
 sub rarefaction_stats_file {
   my ($self, $job) = @_;
   return $job ? $self->analysis_dir($job) . "/999.done.rarefaction.stats" : '';
+}
+
+sub qc_stats_file {
+  my ($self, $job, $type) = @_;
+  return $job ? $self->analysis_dir($job) . "/075.$type.stats" : '';
 }
 
 sub length_hist_file {
@@ -326,6 +340,26 @@ sub get_where_str {
   }
 }
 
+sub run_fraggenescan {
+  my ($self, $fasta) = @_;
+
+  my ($infile_hdl, $infile_name) = tempfile("fgs_in_XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.fna');
+  print $infile_hdl $fasta;
+  close $infile_hdl;
+
+  my $fgs_cmd = $FIG_Config::run_fraggenescan." -genome=$infile_name -out=$infile_name.fgs -complete=0 -train=454_30";
+  `$fgs_cmd`;
+  my $output = "";
+  if (open(FH, "<".$infile_name.".fgs.faa")) {
+    while (<FH>) {
+      $output .= $_;
+    }
+    close FH;
+  }
+  unlink($infile_name, $infile_name.".fgs.faa", $infile_name.".fgs.ffn", $infile_name.".fgs.out");
+  return $output;
+}
+
 ####################
 # data from files
 ####################
@@ -363,7 +397,7 @@ sub file_to_array {
   while (my $line = <FILE>) {
     chomp $line;
     my @parts = split(/\t/, $line);
-    push @$data, [ $parts[0], $parts[1] ];
+    push @$data, [ @parts ];
   }
   close(FILE);
 
@@ -386,6 +420,12 @@ sub get_rarefaction_coords {
   my ($self, $jobid) = @_;
   return $self->file_to_array( $self->rarefaction_stats_file($jobid) );
   # [ x, y ]
+}
+
+sub get_qc_stats {
+  my ($self, $jobid, $type) = @_;
+  return $self->file_to_array( $self->qc_stats_file($jobid, $type) );
+  # matrix
 }
 
 sub get_histogram_nums {
@@ -458,6 +498,138 @@ sub gammaln {
   unless ($x > 0) { return 0; }
   my $s = log($x);
   return log(2 * 3.14159265458) / 2 + $x * $s + $s / 2 - $x;
+}
+
+####################
+# All functions conducted on individual job
+####################
+
+sub get_sources {
+  my ($self, $mgid, $type) = @_;
+
+  $self->set_jobs([$mgid]);
+  my $job = $self->jobs->{$mgid};
+
+  if ($type && exists($self->{tables}{$job}{$type})) {
+    my $srcs = $self->dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$self->{tables}{$job}{$type}." ORDER BY source");
+    return $srcs;
+  }
+  else {
+    my $total = {};
+    while ( my ($type, $name) = each %{$self->{tables}{$job}} ) {
+      next if ($type =~ /^(protein|lca)$/);
+      my $srcs = $self->dbh->selectcol_arrayref("SELECT DISTINCT source FROM $name");
+      map { $total->{$_} = 1 } @$srcs;
+    }
+    return [ sort keys %$total ];
+  }
+}
+
+sub md5_abundance_for_annotations {
+  my ($self, $mgid, $type, $srcs, $anns) = @_;
+
+  $self->set_jobs([$mgid]);
+  my $job = $self->jobs->{$mgid};
+  my $tbl = exists($self->{tables}{$job}{$type}) ? $self->{tables}{$job}{$type} : '';
+  unless ($tbl) { return {}; }
+
+  my ($name, $where);
+  if    ($type eq 'organism') { $name = "t.organism"; }
+  elsif ($type eq 'function') { $name = "t.function"; }
+  elsif ($type eq 'ontology') { $name = "t.id"; }
+  else  { return {}; }
+  
+  my $data = {};
+  my $qsrc = ($srcs && @$srcs) ? " AND t.source IN (".join(",", map {$self->dbh->quote($_)} @$srcs).")" : '';
+  my $qann = ($anns && @$anns) ? " AND $name IN (".join(",", map {$self->dbh->quote($_)} @$anns).")" : '';
+  my $sql  = "SELECT distinct $name, p.md5, p.abundance FROM $tbl t, ".$self->{tables}{$job}{protein}." p WHERE p.md5 = ANY(t.md5s)".$qsrc.$qann;
+  my $rows = $self->dbh->selectall_arrayref($sql);
+  if ($rows && (@$rows > 0)) {
+    map { $data->{$_->[0]}->{$_->[1]} = $_->[2] } @$rows;
+  }
+  # ann => md5 => abundance
+  return $data;  
+}
+
+sub sequences_for_md5s {
+  my ($self, $mgid, $type, $md5s) = @_;
+
+  $self->set_jobs([$mgid]);
+  my $data = {};
+  my $seqs = $self->md5s_to_read_sequences($md5s);
+  unless ($seqs && @$seqs) { return {}; }
+
+  if ($type eq 'dna') {
+    foreach my $set (@$seqs) {
+      push @{ $data->{$set->{md5}} }, $set->{sequence};
+    }
+  }
+  elsif ($type eq 'protein') {
+    my $fna = '';
+    map { $fna .= ">".$_->{md5}."|".$_->{id}."\n".$_->{sequence}."\n" } @$seqs;
+    my $faa = $self->run_fraggenescan($fna);
+    unless ($faa) { return {}; }
+    my @seqs = split(/\n/, $faa);
+    for (my $i=0; $i<@seqs; $i += 2) {
+      if ($seqs[$i] =~ /^>(\S+)/) {
+	my $id  = $1;
+	my $seq = $seqs[$i+1];
+	$id =~ /^(\w+)?\|/;
+	my $md5 = $1;
+	push @{ $data->{$md5} }, $seq;
+      }
+    }
+  }
+  else {
+    return {};
+  }
+  # md5 => [ seq list ]
+  return $data;
+}
+
+sub sequences_for_annotation {
+  my ($self, $mgid, $seq_type, $ann_type, $srcs, $anns) = @_;
+
+  my $data = {};
+  my $md5s = {};
+  my $ann  = $self->md5_abundance_for_annotations($mgid, $ann_type, $srcs, $anns);  # ann => md5 => abundance
+  foreach my $a (keys %$ann) {
+    map { $md5s->{$_} = 1; } keys %{$ann->{$a}};
+  }
+  
+  unless (scalar(keys(%$md5s))) {
+    return $data;
+  }
+  
+  my $seqs = $self->sequences_for_md5s($mgid, $seq_type, [keys %$md5s]);  # md5 => [ seq list ]
+  foreach my $a (keys %$ann) {
+    foreach my $m (keys %{$ann->{$a}}) {
+      next unless (exists $seqs->{$m});
+      map { push @{$data->{$a}}, $_ } @{$seqs->{$m}};
+    }
+  }
+  # ann => [ seq list ]
+  return $data;
+}
+
+sub metagenome_search {
+  my ($self, $type, $srcs, $ann, $exact) = @_;
+
+  my $jobs = {};
+  my $qann = $self->dbh->quote($ann);
+
+  my $qsrc = ($srcs && @$srcs) ? " AND source IN (".join(",", map {$self->dbh->quote($_)} @$srcs).")" : '';
+
+  my $opr  = $exact ? '=' : '~*';
+  my $rows = $self->dbh->selectcol_arrayref("SELECT jobs FROM ".$self->{search}." WHERE type = '$type' AND name $opr $qann".$qsrc);
+
+  if ($rows && (@$rows > 0)) {
+    foreach my $row (@$rows) {
+      map { $jobs->{$_} = 1 } @$row;
+    }
+  }
+
+  return [ keys %{$self->get_jobid_map([keys %$jobs], 1)} ];
 }
 
 ####################
@@ -619,14 +791,14 @@ sub get_md5_data_for_organism_source {
 
   my $w_org  = "o.organism = " . $self->dbh->quote($organism);
   my $w_src  = "o.source = " . $self->dbh->quote($source);
-  my $w_eval = (defined($eval) && ($eval =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
-  my $where  = $self->get_where_str([$w_org, $w_src, $w_eval, " p.md5 = ANY(o.md5s)", "seek IS NOT NULL", "length IS NOT NULL"]);
+  my $w_eval = (defined($eval) && ($eval =~ /^\d+$/)) ? "p.exp_avg <= " . ($eval * -1) : "";
+  my $where  = $self->get_where_str([$w_org, $w_src, $w_eval, " p.md5 = ANY(o.md5s)", "p.seek IS NOT NULL", "p.length IS NOT NULL"]);
   my @data   = ();
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
     unless ($self->md5_tbl($j) && $self->org_tbl($j)) { next; }
     my $sql = "SELECT distinct p.md5,p.abundance,p.exp_avg,p.exp_stdv,p.ident_avg,p.ident_stdv,p.len_avg,p.len_stdv,p.seek,p.length " .
-              "FROM " . $self->org_tbl($j) . " o, " . $self->md5_tbl($j) . " p" . $where . " ORDER BY seek";
+              "FROM " . $self->org_tbl($j) . " o, " . $self->md5_tbl($j) . " p" . $where . " ORDER BY p.seek";
     my $tmp = $self->dbh->selectall_arrayref($sql);
     if ($tmp && (@$tmp > 0)) {
       foreach my $row ( @$tmp ) {
@@ -776,7 +948,7 @@ sub get_abundance_for_hierarchy {
 	my $num   = 0;
 	my $count = 0;
 	map { $num += $md5s->{$_}; $count += 1; } grep { exists $md5s->{$_} } keys %{ $hier->{$h} };
-	if ($value ne "abundance") {
+	if (($value ne "abundance") && ($count > 0)) {
 	  $num = ($num * 1.0) / $count;
 	}
 	push @$data, [ $mg, $h, $num ];
@@ -820,7 +992,7 @@ sub search_organisms {
       $self->dbh->commit();
       $memd->set($mg.$cache_key, $cdata, $self->expire);
     } else {
-      $data{$mg} = @$cdata;
+      $data{$mg} = $cdata;
     }
   }
   $memd->disconnect_all;
@@ -839,17 +1011,23 @@ sub get_organisms_for_md5s {
 
   unless ($sources && (@$sources > 0)) { $sources = []; }
 
-  my %md5_set  = map {$_, 1} @$md5s;
-  my $m5nr_map = {};
-  my $get_m5nr = first {$_ =~ /^m5nr$/i} @$sources;
+  my %md5_set   = map {$_, 1} @$md5s;
+  my $m5_map    = {};
+  my $get_m5nr  = first {$_ =~ /^m5nr$/i} @$sources;
+  my $get_m5rna = first {$_ =~ /^m5rna$/i} @$sources;
   my $mg_md5_abund = $self->get_md5_abundance();
 
   if ($get_m5nr) {
-    $m5nr_map = $self->ach->sources4type("protein");
-    @$sources = grep { (! exists $m5nr_map->{$_}) && ($_ !~ /m5nr/i) } @$sources;
-    push @$sources, keys %$m5nr_map;
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("protein") };
   }
-
+  if ($get_m5rna) {
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("rna") };
+  }
+  if ($get_m5nr || $get_m5rna) {
+    @$sources = grep { (! exists $m5_map->{$_}) && ($_ !~ /(m5nr|m5rna)/i) } @$sources;
+    push @$sources, keys %$m5_map;
+  }
+  #return (undef, $sources);
   my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "org";
   $cache_key .= defined($eval) ? $eval : ":";
@@ -882,8 +1060,8 @@ sub get_organisms_for_md5s {
 	foreach my $row ( @$tmp ) {
 	  $all_orgs{ $row->[1] } = 1;
 	  $corgs->{ $row->[1] } = 1;
-	  if ($get_m5nr) {
-	    my $src = exists($m5nr_map->{$row->[0]}) ? 'M5NR' : $row->[0];
+	  if ($get_m5nr || $get_m5rna) {
+	    my $src = exists($m5_map->{$row->[0]}) ? ($get_m5nr ? 'M5NR' : 'M5RNA') : $row->[0];
 	    push @{ $orgs{$src}{$row->[1]} }, [ @$row[2..9] ];
 	    map { $mdata{$mg}{$_} = $md5n->{$_} } grep { exists $md5n->{$_} } @{$row->[9]};
 	  }
@@ -900,7 +1078,7 @@ sub get_organisms_for_md5s {
 	  }
 	}
       }
-      if ($get_m5nr) {
+      if ($get_m5nr || $get_m5rna) {
 	foreach my $s (keys %orgs) {
 	  foreach my $o (keys %{$orgs{$s}}) {
 	    my ($tot,$sub,$ea,$es,$ia,$is,$la,$ls) = (0,0,0,0,0,0,0,0);
@@ -1003,7 +1181,7 @@ sub search_ontology {
       $self->dbh->commit();
       $memd->set($mg.$cache_key, $cdata, $self->expire);
     } else {
-      $data{$mg} = @$cdata;
+      $data{$mg} = $cdata;
     }
   }
   $memd->disconnect_all;
@@ -1267,12 +1445,19 @@ sub get_org_md5 {
   my ($self, $eval, $ident, $alen, $sources) = @_;
 
   unless ($sources && (@$sources > 0)) { $sources = []; }
-  my $get_m5nr = first {$_ =~ /^m5nr$/i} @$sources;
+  my $m5_map    = {};
+  my $get_m5nr  = first {$_ =~ /^m5nr$/i} @$sources;
+  my $get_m5rna = first {$_ =~ /^m5rna$/i} @$sources;
 
   if ($get_m5nr) {
-    my $m5nr_map = $self->ach->sources4type("protein");
-    @$sources = grep { (! exists $m5nr_map->{$_}) && ($_ !~ /m5nr/i) } @$sources;
-    push @$sources, keys %$m5nr_map;
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("protein") };
+  }
+  if ($get_m5rna) {
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("rna") };
+  }
+  if ($get_m5nr || $get_m5rna) {
+    @$sources = grep { (! exists $m5_map->{$_}) && ($_ !~ /(m5nr|m5rna)/i) } @$sources;
+    push @$sources, keys %$m5_map;
   }
 
   my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };

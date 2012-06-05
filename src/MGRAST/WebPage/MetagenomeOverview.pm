@@ -1,6 +1,6 @@
 package MGRAST::WebPage::MetagenomeOverview;
 
-# $Id: MetagenomeOverview.pm,v 1.102 2011-12-16 16:05:05 tharriso Exp $
+# $Id: MetagenomeOverview.pm,v 1.119 2012-05-30 17:22:14 tharriso Exp $
 
 use base qw( WebPage );
 
@@ -8,7 +8,7 @@ use strict;
 use warnings;
 
 use List::Util qw(first max min sum);
-use Math::Round;
+use POSIX;
 use Data::Dumper;
 use DateTime;
 use Date::Parse;
@@ -54,6 +54,7 @@ sub init {
   $self->application->register_component('Table', 'org_tbl');
   $self->application->register_component('Ajax', 'ajax');
 
+  $self->application->register_action($self, 'edit_name', 'edit_name');
   $self->application->register_action($self, 'chart_export', 'chart_export');
 
   # get the metagenome id
@@ -61,7 +62,7 @@ sub init {
 
   # sanity check on job
   if ($id) { 
-    my $job = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $id });
+    my $job = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $id }); 
     unless (ref($job) && $job->viewable) {
       $self->app->error("Unable to retrieve the job for metagenome '$id'.");
       return 1;
@@ -115,27 +116,22 @@ sub output {
   my $mg_link = "http://metagenomics.anl.gov/linkin.cgi?metagenome=$mgid";
 
   # get project information
-  my $project_link = "";
+  my $project_link   = "";
   my $projectjob_num = 0;
   my $projectjob_url = "";
-  my $jobdbm = $self->application->data_handle('MGRAST');
-  my $projectjob = $jobdbm->ProjectJob->get_objects( { job => $job } );
-  my $project_jobs = [];
-  if (scalar(@$projectjob)) {
-    my $project = $projectjob->[0]->project;
-    $project_jobs = $jobdbm->ProjectJob->get_objects( { project => $project } );
-    $self->{project} = $project;
-    my $all_meta = $jobdbm->ProjectMD->get_objects( { project => $project } );
-    my $meta_hash = {};
-    %$meta_hash = map { $_->{tag} => $_->{value} } @$all_meta;
-    $self->{meta_info} = $meta_hash;
-    $project_link = "<a target=_blank href='?page=MetagenomeProject&project=".$self->{project}->id."'>".$self->{project}->name."</a>";
-    $projectjob_num = scalar(@$project_jobs) - 1;
-    $projectjob_url = "?page=MetagenomeProject&project=".$self->{project}->id."#jobs";
+  my $jobdbm  = $self->application->data_handle('MGRAST');
+  my $project = $job->primary_project;
+  if ($project && ref($project)) {
+    $self->{project}   = $project;
+    $self->{meta_info} = $project->data;
+    my $proj_jobs = $jobdbm->ProjectJob->get_objects({project => $project});
+    $project_link = "<a target=_blank href='?page=MetagenomeProject&project=".$project->id."'>".$project->name."</a>";
+    $projectjob_num = scalar(@$proj_jobs) - 1;
+    $projectjob_url = "?page=MetagenomeProject&project=".$project->id."#jobs";
   }
 
   # get job metadata
-  my $md_seq_type   = $job->sequence_type || '';
+  my $md_seq_type   = $job->seq_type;
   my $md_biome      = $job->biome;
   my $md_feature    = $job->feature;
   my $md_material   = $job->material;
@@ -145,7 +141,7 @@ sub output {
   my $md_ext_ids    = $job->external_ids;
   my $md_coordinate = $job->lat_lon;
   my $md_date_time  = $job->collection_date;
-  my $md_enviroment = $job->env_package;
+  my $md_enviroment = $job->env_package_type;
 
   # short info
   my $html = $self->application->component('ajax')->output;
@@ -171,14 +167,20 @@ sub output {
   $html .= "<tr><td><b>PubMed ID</b></td><td>".($md_ext_ids->{pubmed} ? join(", ", map { "<a href='http://www.ncbi.nlm.nih.gov/pubmed/".$_."' target=_blank>".$_."</a>" } split(/, /, $md_ext_ids->{pubmed})) : "-")."</td></tr>";
   $html .= "</table></div></div></p>";
   $html .= "<div style='clear: both; height: 10px'></div>";
-  if ($user && $user->has_right(undef, 'edit', 'metagenome', $mgid)) {    
+  if ($user && $user->has_right(undef, 'edit', 'metagenome', $mgid)) {
     $html .= "<p><div class='quick_links'><ul>";
     $html .= "<li><a target=_blank href='?page=JobShare&metagenome=$mgid&job=".$job->job_id."'>Share</a></li>";
-    $html .= "<li><a target=_blank href='?page=MetaDataMG&metagenome=$mgid'>Edit Metadata</a></li>";
+    $html .= qq~<li><a style='cursor:pointer;' onclick='
+  if (document.getElementById("edit_name_div").style.display == "none") {
+    document.getElementById("edit_name_div").style.display = "inline";
+  } else {
+    document.getElementById("edit_name_div").style.display = "none";
+  }'>Edit Name</a></li>~;
+    #$html .= "<li><a target=_blank href='?page=MetaDataMG&metagenome=$mgid'>Edit Metadata</a></li>";
     unless ($job->public) {
-      $html .= "<li><a target=_blank href='?page=PublishGenome&metagenome=$mgid&job=".$job->job_id."'>Make Public</a></li>";
+      $html .= "<li><a target=_blank href='?page=PublishGenome&metagenome=$mgid'>Make Public</a></li>";
     }
-    $html .= "</ul></div></p>";
+    $html .= "</ul></div></p><p><div style='display:none;' id='edit_name_div'>".$self->edit_name_info($job)."</div></p>";
   }
 
   # get job stats
@@ -214,7 +216,8 @@ sub output {
   my $aa_ontol    = exists($job_stats->{sequence_count_ontology}) ? $job_stats->{sequence_count_ontology} : 0;
   my $ann_reads   = exists($job_stats->{read_count_annotated}) ? $job_stats->{read_count_annotated} : 0;
   my $alpha_num   = exists($job_stats->{alpha_diversity_shannon}) ? $job_stats->{alpha_diversity_shannon} : 0;
-  
+  my $drisee_num  = exists($job_stats->{drisee_score_raw}) ? $job_stats->{drisee_score_raw} : 0;
+
   my $is_rna = ($md_seq_type =~ /amplicon/i) ? 1 : 0;
   my $qc_fail_seqs  = $raw_seqs - $qc_seqs;
   my $ann_rna_reads = $rna_sims ? ($rna_sims - $r_clusts) + $r_clust_seq : 0;
@@ -231,11 +234,11 @@ sub output {
       if ($unknown_all < 0) { $unknown_all = 0; }
       if ($raw_seqs < ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads)) {
 	my $diff = ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
-	$unknown_all = ($diff > $unknown_all) ? 0: $unknown_all - $diff;
+	$unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
       }
       if (($unknown_all == 0) && ($raw_seqs < ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads))) {
 	my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
-	$unkn_aa_reads = ($diff > $unkn_aa_reads) ? 0: $unkn_aa_reads - $diff;
+	$unkn_aa_reads = ($diff > $unkn_aa_reads) ? 0 : $unkn_aa_reads - $diff;
       }
   }
 
@@ -245,6 +248,8 @@ sub output {
   my $source_chart  = $self->get_source_chart($job, $is_rna, format_number($aa_sims), percent($aa_sims,$aa_feats), format_number($aa_ontol), percent($aa_ontol,$aa_sims), format_number($ann_rna_reads), percent($ann_rna_reads,$raw_seqs));
   my $taxa_chart    = $self->get_taxa_chart($job);
   my $func_chart    = $self->get_func_charts($job, $aa_feats, $aa_sims);
+  my $drisee_plot   = $self->get_drisee_chart($job);
+  my $bp_consensus  = $self->get_consensus_chart($job);
 
   # mg summary text
   $html .= "<a name='summary_ref'></a><table><tr><td>";
@@ -258,7 +263,8 @@ sub output {
   unless ($is_rna) {
     $html .= " or predicted proteins";
   }
-  $html .= ".</p><p><a class='nav_top' target=_blank href='metagenomics.cgi?page=DownloadMetagenome&metagenome=$mgid'><img src='./Html/mg-download.png' style='width:20px;height:20px;' title='Download $mgid'></a>&nbsp;&nbsp;&nbsp;<span style='font-variant:small-caps'>download</span> data and annotations";
+  $html .= ".</p><p>The analysis results shown on this page are computed by MG-RAST. Please note that authors may upload data that they have published their own analysis for, in such cases comparison within the MG-RAST framework can not be done.</p>";
+  $html .= "<p><a class='nav_top' target=_blank href='metagenomics.cgi?page=DownloadMetagenome&metagenome=$mgid'><img src='./Html/mg-download.png' style='width:20px;height:20px;' title='Download $mgid'></a>&nbsp;&nbsp;&nbsp;<span style='font-variant:small-caps'>download</span> data and annotations";
   $html .= "<br><a class='nav_top' target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'><img src='./Html/analysis.gif' style='width:20px;height:20px;' title='Analyze $mgid'></a>&nbsp;&nbsp;&nbsp;<span style='font-variant:small-caps'>analyze</span> annotations in detail.";
   $html .= "<br><a class='nav_top' href='#search_ref'><img src='./Html/lupe.png' style='width:20px;height:20px;' title='Search $mgid'></a>&nbsp;&nbsp;&nbsp;<span style='font-variant:small-caps'>search</span> through annotations.</p>";
   $html .= "</div><p><span style='padding-left:15px;'><b>Sequence Breakdown</b></span>$summary_chart";
@@ -288,6 +294,21 @@ sub output {
     $html .= "<li><a href='#pub_ref'>Publication Abstracts</a></li>";
   }
   $html .= "</ul>";
+  # qc
+  if ((! $is_rna) || $bp_consensus) {
+    $html .= "<li style='padding-top:5px;'>Metagenome QC</li>";
+    $html .= "<ul style='margin:0;'>";
+    if (($drisee_num > 0) && (! $is_rna)) {
+      $html .= "<li><a href='#drisee_ref'>DRISEE</a></li>";
+    }
+    if (! $is_rna) {
+      $html .= "<li><a href='#kmer_ref'>Kmer Profile</a></li>";
+    }
+    if ($bp_consensus) {
+      $html .= "<li><a href='#consensus_ref'>Nucleotide Histogram</a></li>";
+    }
+    $html .= "</ul>";
+  }
   # organism
   $html .= "<li style='padding-top:5px;'>Organism Breakdown</li>";
   $html .= "<ul style='margin:0;'>";
@@ -432,6 +453,69 @@ sub output {
   $html .= "<tr><td><div id='flowchart_div'></div>";
   $html .= "<img src='./Html/clear.gif' onload='draw_bar_plot(\"flowchart_div\", $fc_titles, $fc_colors, $fc_data);'></td></tr></table>";
 
+  # drisee score
+  if (($drisee_num > 0) && (! $is_rna)) {
+    my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw') };
+    my $drisee_score = sprintf("%.3f", $drisee_num);
+    $html .= qq~<a name='drisee_ref'></a>
+<h3>DRISEE
+<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee_score' style='font-size:14px;padding-left:5px;'>[?]</a>
+<a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='
+  if (this.innerHTML=="show") {
+    this.innerHTML = "hide";
+    document.getElementById("drisee_show").style.display = "";
+  } else {
+    document.getElementById("drisee_show").style.display = "none";
+    this.innerHTML = "show";
+  }'>hide</a></h3>
+<div id='drisee_show'>
+  <p><b>DRISEE score = $drisee_score</b></p>
+  <img src='./Html/clear.gif' onload='draw_position_on_range("drisee_bar_div", $drisee_num, $min, $max, $avg, $stdv);'>
+  <div id='drisee_bar_div'></div>
+  <p>DRISEE: Duplicate Read Inferred Sequencing Error Estimation (Keegan et al., PLoS Computational Biology, 2012, In Press)</p>
+  <p>DRISEE is a tool that utilizes artifactual duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
+  $drisee_plot
+</div>~;
+  }
+
+  # kmer profiles
+  if (! $is_rna) {
+    $html .= qq~<a name='kmer_ref'></a>
+<h3>Kmer Profiles
+<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#kmer_profile' style='font-size:14px;padding-left:5px;'>[?]</a>
+<a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='
+  if (this.innerHTML=="show") {
+    this.innerHTML = "hide";
+    document.getElementById("kmer_show").style.display = "";
+  } else {
+    document.getElementById("kmer_show").style.display = "none";
+    this.innerHTML = "show";
+  }'>hide</a></h3>
+<a style='cursor:pointer;clear:both;padding-right:20px;' onclick='
+    var new_type = document.getElementById("kmer_type").value;
+    var new_size = document.getElementById("kmer_size").value;
+    execute_ajax("get_kmer_plot", "kmer_div", "metagenome=$mgid&job=$job_id&size="+new_size+"&type="+new_type);'>
+  Redraw the below plot using the following kmer-plot type:</a>
+<select id='kmer_type'>
+  <option value='abundance'>kmer rank abundance</option>
+  <option value='ranked'>ranked kmer consumed</option>
+  <option value='spectrum'>kmer spectrum</option>
+</select>
+<select id='kmer_size'>
+  <option value='15'>15-mer</option>
+  <option value='6'>6-mer</option>
+</select>
+<br><div id='kmer_show'>
+  <img src='./Html/clear.gif' onload='execute_ajax("get_kmer_plot", "kmer_div", "metagenome=$mgid&job=$job_id&size=15&type=abundance");'>
+  <div id='kmer_div'></div>
+</div>~;
+  }
+
+  # consensus plot
+  if ($bp_consensus && (! $is_rna)) {
+    $html .= $bp_consensus;
+  }
+
   # source hits distribution
   if ($source_chart) {
     $html .= $source_chart;
@@ -511,8 +595,8 @@ sub output {
   # sequence length histogram
   my @len_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'raw') };
   my @len_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'qc') };
-  my $len_min = min($len_raw_hist[0][0], $len_qc_hist[0][0]);
-  my $len_max = max($len_raw_hist[-1][0], $len_qc_hist[-1][0]);
+  my $len_min = (@len_raw_hist && @len_qc_hist) ? min($len_raw_hist[0][0], $len_qc_hist[0][0]) : (@len_raw_hist ? $len_raw_hist[0][0] : (@len_qc_hist ? $len_qc_hist[0][0] : 0));
+  my $len_max = (@len_raw_hist && @len_qc_hist) ? max($len_raw_hist[-1][0], $len_qc_hist[-1][0]) : (@len_raw_hist ? $len_raw_hist[-1][0] : (@len_qc_hist ? $len_qc_hist[-1][0] : 0));
   my $len_raw_bins = @len_raw_hist ? &get_bin_set(\@len_raw_hist, $len_min, $len_max, $self->data('bin_size')) : [];
   my $len_qc_bins  = @len_qc_hist  ? &get_bin_set(\@len_qc_hist, $len_min, $len_max, $self->data('bin_size')) : [];
 
@@ -663,7 +747,7 @@ The image is currently dynamic. To be able to right-click/save the image, please
   $html .= "<p>Please note: The graphs on this page allow downloading the underlying information as tables. The search results and most of the pie-charts allow selecting the fraction of sequences in an element to work with in the <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#workbench'>workbench</a> feature on the <a target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'>analysis page</a>.</p>";
 
   # analysis
-  $html .= "<a name='analysis_ref'></a><h3>Analyze This Metagenome</h3>";
+  $html .= "<a name='analyze_ref'></a><h3>Analyze This Metagenome</h3>";
   $html .= "<p>The <a target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'>analysis page</a> provides access to analysis and comparative tools including tables, bar charts, trees, principle coordinate analysis, heatmaps and various exports (including FASTA and QIIME). The <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#workbench'>workbench</a> feature allows sub-selections of data to be used e.g. select all E. coli reads and then display the functional categories present just in E. coli reads across multiple data sets.</p>";
 
   # MG search
@@ -694,10 +778,9 @@ The image is currently dynamic. To be able to right-click/save the image, please
       $mtable->items_per_page(25);
       $mtable->show_select_items_per_page(1); 
     }   
-    $mtable->columns([ { name => 'Key'     , visible => 0 },
-		       { name => 'Category', filter  => 1, sortable => 1, operator => 'combobox' },
-		       { name => 'Question', filter  => 1, sortable => 1 },
-		       { name => 'Value'   , filter  => 1, sortable => 1 }
+    $mtable->columns([ { name => 'Category', filter  => 1, sortable => 1, operator => 'combobox' },
+		       { name => 'Label', filter  => 1, sortable => 1 },
+		       { name => 'Value', filter  => 1, sortable => 1 }
 		     ]);
     $mtable->data($mdata);
     $html .= qq~<a name='meta_ref'></a>
@@ -730,6 +813,48 @@ The image is currently dynamic. To be able to right-click/save the image, please
   # bottom padding
   $html .= "<br><br><br><br>";
   return $html;
+}
+
+sub edit_name_info {
+  my ($self, $job) = @_;
+
+  my $html = "<h3>Edit Metagenome Name</h3>";
+  $html .= $self->start_form('edit_name', {metagenome => $job->metagenome_id, action => 'edit_name'});
+  $html .= "Enter new metagenome name: <input type='text' name='new_name' style='width:250px;' value='".$job->name."' />";
+  $html .= "<span>&nbsp;&nbsp;&nbsp;</span><input type='submit' value='update'>".$self->end_form();
+  return $html;
+}
+
+sub edit_name {
+  my ($self) = @_;
+
+  my $app  = $self->application();
+  my $cgi  = $app->cgi;
+  my $user = $app->session->user;
+  my $mgid = $cgi->param('metagenome');
+  my $name = $cgi->param('new_name') || '';
+  $name =~ s/^\s+//;
+  $name =~ s/\s+$//;
+
+  if ($user && ($user->has_right(undef, 'edit', 'metagenome', $mgid))) {
+    my $job  = $app->data_handle('MGRAST')->Job->init({ metagenome_id => $mgid });
+    my $size = length($name);
+    if ($size < 5) {
+      $app->add_message('warning', "new name is too short: ".$name); return 0;
+    }
+    elsif ($size > 64) {
+      $app->add_message('warning', "new name is too long: ".$name); return 0;
+    }
+    if ($name eq $job->name) {
+      $app->add_message('warning', "new name same as old: ".$name); return 0;
+    }
+    $job->name($name);
+    $app->add_message('info', "successfully changed name of $mgid to $name");
+  }
+  else {
+    $app->add_message('warning', "you do not have the permission to edit $mgid"); return 0;
+  }
+  return 1;
 }
 
 sub get_summary_chart {
@@ -800,6 +925,8 @@ sub get_source_chart {
     }
     pop @divs;
     my %divs  = map {$_, 1} @divs;
+    my $pmd5s = format_number( $mgdb->ach->count4md5s('protein') );
+    my $rmd5s = format_number( $mgdb->ach->count4md5s('rna') );
     my $link  = $self->chart_export_link(\@chart, 'source_hits');
     my $ptext = $is_rna ? "" : "$n_prot ($p_prot) of the predicted protein features could be annotated with similarity to a protein of known function. $n_func ($p_func) of these annotated features could be placed in a functional hierarchy. ";
 
@@ -830,6 +957,7 @@ sub get_source_chart {
 <div id='source_show'>
 <p>$ptext$n_rna ($p_rna) of reads had similarity to ribosomal RNA genes.</p>
 <p>The graph below displays the number of features in this dataset that were annotated by the different databases below. These include protein databases, protein databases with functional hierarchy information, and ribosomal RNA databases. The bars representing annotated reads are colored by e-value range. Different databases have different numbers of hits, but can also have different types of annotation data.</p>
+<p>There are $pmd5s sequences in the M5NR protein database and $rmd5s sequences in the M5RNA ribosomal database. The M5NR protein database contains all the unique sequences from the below protein databases and the M5RNA ribosomal database contains all the unique sequences from the below ribosomal RNA databases.</p>
 <p>$link</p>
 <table><tr><td>~.$src_vbar->output."</td><tr><td>".$src_vbar->legend."</td></tr></table></div><br>";
   }
@@ -1062,6 +1190,171 @@ sub draw_krona {
   }
 }
 
+sub get_drisee_chart {
+  my ($self, $job) = @_;
+
+  my $mgdb = $self->data('mgdb');
+  my $data = [];
+  
+  my $drisee = $mgdb->get_qc_stats($job->job_id, 'drisee');
+  unless ($drisee && (@$drisee > 2) && ($drisee->[0][0] eq '#')) {
+    return "<p><em>Not yet computed</em></p>";
+  }
+
+  # data = [ pos, A, T, C, G, N, X, total ]
+  foreach my $row (@$drisee) {
+    my $x = shift @$row;
+    next if (($x eq '#') || (int($x) < 51));
+    my $sum = sum @$row;
+    my @per = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) } @$row;
+    push @$data, [ $x, @per[6..11], sum(@per[6..11]) ];
+  }
+  my $drisee_link = $self->chart_export_link($data, 'drisee_plot');
+  my $drisee_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
+  my $html = qq~
+<p>$drisee_link</p>
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  google.setOnLoadCallback(drawChart);
+  function drawChart() {
+    var color = bpColors();
+    var data = new google.visualization.arrayToDataTable([
+      ['Position','A','T','C','G','N','X','Total'],
+      $drisee_rows
+    ]);
+    var chart = new google.visualization.LineChart(document.getElementById("drisee_plot"));
+    var opts  = { width: 800, height: 250, colors: color,
+                  chartArea: { left:50, top:10, width:"80%", height:"80%" },
+                  vAxis: { minValue:0, maxValue:100, title:"Percent Error", gridlines:{count:11}, textStyle:{fontSize:10} },
+                  hAxis: { title:"bp Position", gridlines:{count:10}, textStyle:{fontSize:10} }
+                 };
+    chart.draw(data, opts);
+  }
+</script>
+<div id='drisee_plot'></div>~;
+
+  return $html;
+}
+
+sub get_kmer_plot {
+  my ($self) = @_;
+
+  my $mgdb = $self->data('mgdb');
+  my $mgid = $self->application->cgi->param('metagenome');
+  my $jid  = $self->application->cgi->param('job');
+  my $type = $self->application->cgi->param('type');
+  my $size = $self->application->cgi->param('size');
+  my $kmer = $mgdb->get_qc_stats($jid, 'kmer.'.$size);
+  my @data = ();
+  my ($xscale, $yscale, $xtext, $ytext);
+
+  unless ($kmer && (@$kmer > 1)) {
+    return "<p><em>Not yet computed</em></p>";
+  }
+  # data = [ x, y ]
+  if ($type eq 'abundance') {
+    @data = map { [ $_->[3], $_->[0] ] } @$kmer;
+    ($xscale, $yscale, $xtext, $ytext) = ('log', 'log', 'sequence size', 'kmer coverage');
+  } elsif ($type eq 'ranked') {
+    @data = map { [ $_->[3], (1 - (1.0 * $_->[5])) ] } @$kmer;
+    ($xscale, $yscale, $xtext, $ytext) = ('log', 'linear', 'sequence size', 'fraction of observed kmers');
+  } elsif ($type eq 'spectrum') {
+    @data = map { [ $_->[0], $_->[1] ] } @$kmer;
+    ($xscale, $yscale, $xtext, $ytext) = ('log', (($size == 6) ? 'linear' : 'log'), 'kmer coverage', 'number of kmers');
+  } else {
+    return "<p><em>Not yet computed</em></p>";
+  }
+  my $kmer_name = "kmer_".$size."_".$type;
+  my $kmer_data = join("~", map { $_->[0] .";;" . $_->[1] } @data);
+  my $kmer_link = $self->chart_export_link(\@data, $kmer_name);
+  my $html = qq~
+<p>The kmer abundance spectra are tools to summarize the redundancy (repetitiveness) of sequence datasets by counting the number of occurrences of 15 and 6 bp sequences.</p>
+<p>The kmer spectrum plots the number of distinct N-bp sequences as a function of coverage level, placing low-coverage (rare) sequences at left and high-coverage, repetitive sequences at right. The kmer rank abundance graph plots the kmer coverage as a function of abundance rank, with the most abundant sequences at left. The ranked kmer consumed graph shows the fraction of the dataset that is explained by the most abundant kmers, as a function of the number of kmers used.</p>
+<p>$kmer_link</p>
+<div id='static1'>
+The image is currently dynamic. To be able to right-click/save the image, please click the static button
+<input type='button' value='static' onclick='
+  document.getElementById("static1").style.display = "none";
+  document.getElementById("dynamic1").style.display = "";
+  save_image("$kmer_name");
+  document.getElementById("kmer_plotcanvas").style.display = "";
+  document.getElementById("kmer_plot").style.display = "none";'>
+</div>
+<div style='display: none;' id='dynamic1'>The image is currently static. You can right-click/save it. To enable dynamic image, please click the dynamic button
+<input type='button' value='dynamic' onclick='
+  document.getElementById("static1").style.display = "";
+  document.getElementById("dynamic1").style.display = "none";
+  document.getElementById("kmer_plotcanvas").style.display = "none";
+  document.getElementById("kmer_plot").style.display = "";'>
+</div>
+<div><div id='kmer_plot'></div></div>
+<input type='hidden' id='kmer_data' value='$kmer_data'>
+<img src='./Html/clear.gif' onload='draw_kmer_curve("kmer_data", "kmer_plot", "$xscale", "$yscale", "$xtext", "$ytext");'>~;
+
+  return $html;
+}
+
+sub get_consensus_chart {
+  my ($self, $job) = @_;
+
+  my $mgdb = $self->data('mgdb');
+  my $data = [];
+  
+  my $consensus = $mgdb->get_qc_stats($job->job_id, 'consensus');
+  unless ($consensus && (@$consensus > 2)) {
+    return "";
+  }
+
+  # rows = [ pos, A, C, G, T, N, total ]
+  # data = [ pos, N, G, C, T, A ]
+  foreach my $row (@$consensus) {
+    next if ($row->[0] eq '#');
+    my $sum = $row->[6];
+    my @per = map {  floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
+    push @$data, [ $row->[0] + 1, $per[5], $per[3], $per[2], $per[4], $per[1] ];
+  }
+  my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
+  my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
+
+  my $html .= qq~<a name='consensus_ref'></a>
+<h3>Nucleotide Position Histogram
+<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#consensus_plot' style='font-size:14px;padding-left:5px;'>[?]</a>
+<a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='
+  if (this.innerHTML=="show") {
+    this.innerHTML = "hide";
+    document.getElementById("consensus_show").style.display = "";
+  } else {
+    document.getElementById("consensus_show").style.display = "none";
+    this.innerHTML = "show";
+  }'>hide</a></h3>
+<div id='consensus_show'>
+  <p>These graphs show the fraction of base pairs of each type (A, C, G, T, or ambiguous base "N") at each position starting from the beginning of each read up to the first 100 base pairs. Amplicon datasets should show consensus sequences; shotgun datasets should have roughly equal proportions of basecalls.</p>
+  <p>$consensus_link</p>
+  <script type="text/javascript">
+    google.load("visualization", "1", {packages:["corechart"]});
+    google.setOnLoadCallback(drawChart);
+    function drawChart() {
+      var color = bpColors();
+      color.reverse().splice(0,2);
+      var data = new google.visualization.arrayToDataTable([
+        ['Position','N','G','C','T','A'],
+        $consensus_rows
+      ]);
+      var chart = new google.visualization.AreaChart(document.getElementById("consensus_plot"));
+      var opts  = { width: 800, height: 250, colors: color, areaOpacity: 1.0, isStacked: true,
+                    chartArea: { left:50, top:10, width:"80%", height:"80%" },
+                    vAxis: { minValue:0, maxValue:100, title:"Percent bp", gridlines:{count:11}, textStyle:{fontSize:10} },
+                    hAxis: { title:"bp Position", gridlines:{count:10}, textStyle:{fontSize:10} }
+                   };
+      chart.draw(data, opts);
+    }
+  </script>
+  <div id='consensus_plot'></div>
+</div>~;
+
+  return $html;
+}
+
 sub get_abund_plot {
   my ($self) = @_;
 
@@ -1167,6 +1460,7 @@ sub get_alpha {
 
   my $html  = "";
   my $mgdb  = $self->data('mgdb');
+  my $jobdb = $self->app->data_handle('MGRAST');
   my $mgid  = $self->application->cgi->param('metagenome');
   my $jid   = $self->application->cgi->param('job');
   my $alpha = $self->application->cgi->param('alpha') || 0;
@@ -1177,10 +1471,13 @@ sub get_alpha {
       $alpha = $tmp->{$mgid};
     }
   }
-  
+  my ($min, $max, $avg, $stdv) = @{ $jobdb->JobStatistics->stats_for_tag('alpha_diversity_shannon') };
+
   $html .= "<p><b>&alpha;-Diversity = ".sprintf("%.3f", $alpha)." species</b></p>";
+  $html .= "<img src='./Html/clear.gif' onload='draw_position_on_range(\"alpha_range_div\", $alpha, $min, $max, $avg, $stdv);'>";
+  $html .= "<div id='alpha_range_div'></div>";
   $html .= "<p>Alpha diversity summarizes the diversity of organisms in a sample with a single number. The alpha diversity of annotated samples can be estimated from the distribution of the species-level annotations.</p>";
-  $html .= "<p>Annotated species richness is the number of distinct speices annotations in the combined MG-RAST dataset. Shannon diversity is an abundance-weighted average of the logarithm of the relative abundances of annotated species. The species-level annotations are from all the annotation source databases used by MG-RAST.</p>";
+  $html .= "<p>Annotated species richness is the number of distinct species annotations in the combined MG-RAST dataset. Shannon diversity is an abundance-weighted average of the logarithm of the relative abundances of annotated species. The species-level annotations are from all the annotation source databases used by MG-RAST.</p>";
 
   my $sp_abund = $mgdb->get_taxa_stats($jid, 'species');
   if (@$sp_abund > 0) {
@@ -1347,7 +1644,7 @@ sub chart_export_link {
 
   if (open(FH, ">".$FIG_Config::temp."/".$file)) {
     foreach my $d (@$data) {
-      print FH $d->[0]."\t".$d->[1]."\n";
+      print FH join("\t", @$d)."\n";
     }
     close FH;
   }

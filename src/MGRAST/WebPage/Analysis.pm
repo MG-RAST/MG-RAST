@@ -85,6 +85,9 @@ sub init {
   }
   $self->{mgdb} = $mgdb;
 
+  $self->data('default_eval', '5');
+  $self->data('default_ident', '60');
+  $self->data('default_alen', '15');
   $self->data('max_ctg_num', 100);
   $self->data('min_ctg_len', 1000);
   $self->data('rplot_source', 'RefSeq');
@@ -262,9 +265,9 @@ sub phylogeny_select {
   $select .= "<tr><td style='font-weight: bold; width: 200px;' title='Select metagenomes for comparison from the drop-down menu'>Metagenomes</td><td id='mg_sel_td'>".$metagenome."</td><td>".$self->more_button('document.getElementById("sel_mg").style.display="";', 'ok_button("'.$mg_sel->id.'");')."</td></tr>";
   $select .= "<tr><td colspan=3 style='display: none;' id='sel_mg'><input type=radio name='mg_grp_sel' value='individual' checked=checked onclick='document.getElementById(\"mg_sel_div\").style.display=\"\";document.getElementById(\"grp_sel_div\").style.display=\"none\";'> compare individually <input type=radio name='mg_grp_sel' value='groups' onclick='document.getElementById(\"mg_sel_div\").style.display=\"none\";document.getElementById(\"grp_sel_div\").style.display=\"\";'> compare as groups <div id='mg_sel_div'><table><tr><td>".$mg_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$mg_sel->id."\");'></td></tr></table></div><div id='grp_sel_div' style='display: none;'><table><tr><td>".$grp_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$grp_sel->id."\", 1);'></td></tr></table></div></td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Select database for annotation sequence comparison from the drop-down menu'><a target=_blank href='metagenomics.cgi?page=Sources'>Annotation Sources</a></td><td id='src_sel_td'>M5NR</td><td>".$self->more_button('document.getElementById("phylo_sel_source").style.display="";')."</td><td style='display: none;' id='phylo_sel_source'>".$self->source_select('phylogeny', {'M5NR' => 1}, 0, 1)."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("phylo_sel_eval").style.display="";')."</td><td style='display: none;' id='phylo_sel_eval'>".$self->evalue_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("phylo_sel_ident").style.display="";')."</td><td style='display: none;' id='phylo_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("phylo_sel_eval").style.display="";')."</td><td style='display: none;' id='phylo_sel_eval'>".$self->evalue_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("phylo_sel_ident").style.display="";')."</td><td style='display: none;' id='phylo_sel_ident'>".$self->identity_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
   $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
   $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about all known members within each metagenome.'></td><td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td><td style='padding-right: 15px;'><img src='./Html/rarefaction.jpg'></td><td></td></tr><tr><td><input type=radio name='vis_type' value='vbar'>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td><td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td><td><input type=radio name='vis_type' value='rarefaction'>&nbsp;rarefaction</td><td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"phylogeny_visual\",\"buffer_space\",\"phylo_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
 
@@ -312,9 +315,9 @@ sub metabolism_select {
   $select .= "<tr><td style='font-weight: bold; width: 200px;' title='Select metagenomes for comparison from the drop-down menu'>Metagenomes</td><td id='mg_sel_td'>".$metagenome."</td><td>".$self->more_button('document.getElementById("sel_mg").style.display="";', 'ok_button("'.$mg_sel->id.'");')."</td></tr>";
   $select .= "<tr><td colspan=3 style='display: none;' id='sel_mg'><input type=radio name='mg_grp_sel' value='individual' checked=checked onclick='document.getElementById(\"mg_sel_div\").style.display=\"\";document.getElementById(\"grp_sel_div\").style.display=\"none\";'> compare individually <input type=radio name='mg_grp_sel' value='groups' onclick='document.getElementById(\"mg_sel_div\").style.display=\"none\";document.getElementById(\"grp_sel_div\").style.display=\"\";'> compare as groups <div id='mg_sel_div'><table><tr><td>".$mg_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$mg_sel->id."\");'></td></tr></table></div><div id='grp_sel_div' style='display: none;'><table><tr><td>".$grp_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$grp_sel->id."\", 1);'></td></tr></table></div></td></tr>";
   $select .= "<tr><td style='font-weight: bold;'><a target=_blank href='metagenomics.cgi?page=Sources' title='Select database for annotation sequence comparison from the drop-down menu'>Annotation Sources</a></td><td id='src_sel_td'>Subsystems</td><td>".$self->more_button('document.getElementById("meta_sel_source").style.display="";')."</td><td style='display: none;' id='meta_sel_source'>".$self->source_select('metabolism', {'Subsystems' => 1}, 1)."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("meta_sel_eval").style.display="";')."</td><td style='display: none;' id='meta_sel_eval'>".$self->evalue_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("meta_sel_ident").style.display="";')."</td><td style='display: none;' id='meta_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("meta_sel_eval").style.display="";')."</td><td style='display: none;' id='meta_sel_eval'>".$self->evalue_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("meta_sel_ident").style.display="";')."</td><td style='display: none;' id='meta_sel_ident'>".$self->identity_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
   $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
   $select .= "<br><table style='border-collapse:collapse;'><tr><td><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about all known members within each metagenome.'></td><td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic). Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species. The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles.  Can be used to cluster samples based on their taxonomic or functional content.'></td><td></td></tr><tr><td><input type=radio name='vis_type' value='vbar'>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td><td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td><td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"metabolism_visual\",\"buffer_space\",\"meta_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></td><td><div class='select_header'>KEGG Mapper</div><img src='./Html/keggico.png' style='margin-bottom: 5px; margin-top: 2px; margin-left: 30px;'><br>&nbsp;&nbsp;&nbsp;<input type='button' value='open KEGG Mapper' onclick='window.open(\"?page=KeggMapper\");'></td></tr></table></form>";
 
@@ -362,9 +365,9 @@ sub annotation_select {
   $select .= "<tr><td style='font-weight: bold; width: 200px;' title='Select metagenomes for comparison from the drop-down menu'>Metagenomes</td><td id='mg_sel_td'>".$metagenome."</td><td>".$self->more_button('document.getElementById("sel_mg").style.display="";', 'ok_button("'.$mg_sel->id.'");')."</td></tr>";
   $select .= "<tr><td colspan=3 style='display: none;' id='sel_mg'><input type=radio name='mg_grp_sel' value='individual' checked=checked onclick='document.getElementById(\"mg_sel_div\").style.display=\"\";document.getElementById(\"grp_sel_div\").style.display=\"none\";'> compare individually <input type=radio name='mg_grp_sel' value='groups' onclick='document.getElementById(\"mg_sel_div\").style.display=\"none\";document.getElementById(\"grp_sel_div\").style.display=\"\";'> compare as groups <div id='mg_sel_div'><table><tr><td>".$mg_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$mg_sel->id."\");'></td></tr></table></div><div id='grp_sel_div' style='display: none;'><table><tr><td>".$grp_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$grp_sel->id."\", 1);'></td></tr></table></div></td></tr>";
   $select .= "<tr><td style='font-weight: bold;'><a target=_blank href='metagenomics.cgi?page=Sources' title='Select database for annotation sequence comparison from the drop-down menu'>Annotation Sources</a></td><td id='src_sel_td'>GenBank</td><td>".$self->more_button('document.getElementById("ann_sel_source").style.display="";')."</td><td style='display: none;' id='ann_sel_source'>".$self->source_select('annotation', {'GenBank' => 1})."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("ann_sel_eval").style.display="";')."</td><td style='display: none;' id='ann_sel_eval'>".$self->evalue_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("ann_sel_ident").style.display="";')."</td><td style='display: none;' id='ann_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("ann_sel_eval").style.display="";')."</td><td style='display: none;' id='ann_sel_eval'>".$self->evalue_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("ann_sel_ident").style.display="";')."</td><td style='display: none;' id='ann_sel_ident'>".$self->identity_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
   $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
   $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr>";
   $select .= "<td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about all known members within each metagenome.'></td>";
@@ -416,9 +419,9 @@ sub lca_select {
   $select .= "<input type='hidden' name='metagenome' value='".($self->application->cgi->param('metagenome')||"")."'><table id='non_wb_sel'>";
   $select .= "<tr><td style='font-weight: bold; width: 200px;' title='Select metagenomes for comparison from the drop-down menu'>Metagenomes</td><td id='mg_sel_td'>".$metagenome."</td><td>".$self->more_button('document.getElementById("sel_mg").style.display="";', 'ok_button("'.$mg_sel->id.'");')."</td></tr>";
   $select .= "<tr><td colspan=3 style='display: none;' id='sel_mg'><input type=radio name='mg_grp_sel' value='individual' checked=checked onclick='document.getElementById(\"mg_sel_div\").style.display=\"\";document.getElementById(\"grp_sel_div\").style.display=\"none\";'> compare individually <input type=radio name='mg_grp_sel' value='groups' onclick='document.getElementById(\"mg_sel_div\").style.display=\"none\";document.getElementById(\"grp_sel_div\").style.display=\"\";'> compare as groups <div id='mg_sel_div'><table><tr><td>".$mg_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$mg_sel->id."\");'></td></tr></table></div><div id='grp_sel_div' style='display: none;'><table><tr><td>".$grp_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$grp_sel->id."\", 1);'></td></tr></table></div></td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("lca_sel_eval").style.display="";')."</td><td style='display: none;' id='lca_sel_eval'>".$self->evalue_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("lca_sel_ident").style.display="";')."</td><td style='display: none;' id='lca_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("lca_sel_alen").style.display="";')."</td><td style='display: none;' id='lca_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("lca_sel_eval").style.display="";')."</td><td style='display: none;' id='lca_sel_eval'>".$self->evalue_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("lca_sel_ident").style.display="";')."</td><td style='display: none;' id='lca_sel_ident'>".$self->identity_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("lca_sel_alen").style.display="";')."</td><td style='display: none;' id='lca_sel_alen'>".$self->alength_select()."</td></tr></table>";
   $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr>";
   $select .= "<td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td>";
   $select .= "<td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about all known members within each metagenome.'></td>";
@@ -453,7 +456,7 @@ sub recruitment_plot_select {
   $select .= "<tr><td colspan=3 style='display: none;' id='meta_sel_mg'>".$self->metagenome_switch($metagenome, "recruitment_plot")."</td></tr>";
   $select .= "<tr><td style='font-weight: bold; width: 200px;'>Reference Genome</td><td id='rg_sel_td'>$fg</td><td>".$self->more_button('document.getElementById("rplot_sel_rg").style.display="";')."</td></tr>";
   $select .= "<tr><td colspan=3 style='display: none;' id='rplot_sel_rg'>".$refsel."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>None</td><td>".$self->more_button('document.getElementById("rplot_sel_eval").style.display="";')."</td><td style='display: none;' id='rplot_sel_eval'>".$self->evalue_range_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-03</td><td>".$self->more_button('document.getElementById("rplot_sel_eval").style.display="";')."</td><td style='display: none;' id='rplot_sel_eval'>".$self->evalue_range_select()."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;'>Abundance Scale</td><td> log2 </td><td>".$self->more_button('document.getElementById("rplot_sel_scale").style.display="";')."</td><td style='display: none;' id='rplot_sel_scale'>".$self->scale_select()."</td></tr></table>";
   $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr>";
   $select .= "<td style='padding-right: 15px;'><img src='./Html/circle.png' title='Produces a circular graph mapping metagenome to chosen organism.'></td>";
@@ -533,8 +536,23 @@ sub phylogenetic_data {
   }
 
   if ($cgi->param('vis_type') eq 'rarefaction') {
-    my ($rare, $alpha) = $self->{mgdb}->get_rarefaction_curve(\@sources, $evalue, $identity, $alength);
-    @$result = map { [ $_, $rare->{$_}, $alpha->{$_} ] } keys %$rare;
+    my $mgid_alpha = {};
+    my $mgid_curve = {};
+    my $get_m5nr   = first {$_ =~ /^m5nr$/i} @sources;
+    if ($get_m5nr) {
+      while (my ($mgid, $jobid) = each %{$self->{mgdb}->jobs}) {
+	my $jobj  = $mgrast->Job->init( {job_id => $jobid} );
+	my $alpha = $jobj->stats('alpha_diversity_shannon');
+	my $curve = $self->{mgdb}->get_rarefaction_coords($jobid);
+	if ($alpha)  { $mgid_alpha->{$mgid} = $alpha; }
+	if (@$curve) { $mgid_curve->{$mgid} = $curve; }
+      }
+    }
+    else {
+      $mgid_alpha = $self->{mgdb}->get_rarefaction_curve(\@sources, 1);
+      $mgid_curve = $self->{mgdb}->get_rarefaction_curve(\@sources);
+    }
+    @$result = map { [ $_, $mgid_curve->{$_}, $mgid_alpha->{$_} ] } keys %$mgid_curve;
     return (undef, $result);
   }
 
@@ -1355,7 +1373,7 @@ sub workbench_blat_output {
 	if ($ncbi_ids->{$oname}) {
 	  $oname = "<a href='http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=".$ncbi_ids->{$oname}."' target=_blank>$oname</a>";
 	}
-	$overview .= "<tr><td style='border-left: 1px solid black;'><a href='#anchor$counter'>".join("&nbsp;", split(/\|/, $mg_seq_data->[$counter-1]->{id}))."</a></td><td>$oname</td><td>$main_source</td><td>$main_id</td><td><a href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=02f80381f1b4e60e55111d0bb861b4ec' title='click for M5NR entry (opens in new window)' target=_blank>$mainfunc</a></td><td>$evalue</td><td>$score</td><td style='border-right: 1px solid black;'>$identity</td></tr>";
+	$overview .= "<tr><td style='border-left: 1px solid black;'><a href='#anchor$counter'>".join("&nbsp;", split(/\|/, $mg_seq_data->[$counter-1]->{id}))."</a></td><td>$oname</td><td>$main_source</td><td>$main_id</td><td><a href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=".$id."' title='click for M5NR entry (opens in new window)' target=_blank>$mainfunc</a></td><td>$evalue</td><td>$score</td><td style='border-right: 1px solid black;'>$identity</td></tr>";
 	$lastid = $id;
 	$counter++;
       }
@@ -1698,6 +1716,7 @@ sub phylogeny_visual {
   my $content = "";
   my $cgi = $self->application->cgi;
   my ($md5_abund, $data) = $self->phylogenetic_data();
+  #return "<div><div>test</div><div><pre>".clear_progress_image().Dumper($data)."</pre></div></div>";
   # mgid => md5 => abundance
   # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
 
@@ -2536,7 +2555,7 @@ sub phylogeny_visual {
 	open(D, "<$pca_data");
 	while(<D>){
 	  chomp;
-	  s/"//g;
+	  s/"//g; #"
 	  my @fields = split /\t/;
 	  if ($fields[0] =~ /^PCO\d+$/) {
 	    push @comp, join("^", @fields); 
@@ -2547,39 +2566,17 @@ sub phylogeny_visual {
 	close(D);
 
 	# metadata coloring
-	my $md_list = { 'biome-information_envo_lite' => 0,
-			'sample-origin_altitude' => 1,
-			'sample-origin_depth' => 2,
-			'sample-origin_ph' => 3,
-			'sample-origin_country' => 4,
-			'sample-origin_temperature' => 5,
-			'sequencing_sequencing_method' => 6 };
-	my $md_blacklist = { 'sample-isolation-and-treatment_sample_isolation_description' => 1 };
-	my $md_names = ['biome','altitude','depth','ph','country','temperature','method','name'];
-	my $mgrast   = $self->application->data_handle('MGRAST');
-	my $mddb = MGRAST::Metadata->new();
-	my $mgmd = [];
-	my $iii = 0;
+	my $md_names = ['biome','feature','material','altitude','depth','ph','country','temperature','sequencing method','collection_date','name'];
+	my $jobmd = $self->app->data_handle('MGRAST')->Job->jobs_mixs_metadata_fast(\@comp_mgs);
+	my $mgmd  = [];
+	my $iii   = 0;
 	foreach my $mgid (@comp_mgs) {
-	  $mgmd->[$iii] = [];
-	  my $job = $mgrast->Job->init( { metagenome_id => $mgid } );
-	  my $md = $mgrast->MetaDataEntry->get_objects( { job => $job } );
-	  $mgmd->[$iii]->[7] = $job->name;
-	  foreach my $m (@$md) {
-	    next if ($md_blacklist->{$m->{tag}});
-	    if ($m->{value} ne "") {
-	      if (exists($md_list->{$m->{tag}})) {
-		$mgmd->[$iii]->[$md_list->{$m->{tag}}] = $mddb->unencode_value($m->{tag}, $m->{value});
-		$mgmd->[$iii]->[$md_list->{$m->{tag}}] =~ s/'//g;
-	      } else {
-		push(@$md_names, $m->{tag});
-		$md_list->{$m->{tag}} = scalar(@$md_names) - 1;
-		$mgmd->[$iii]->[$md_list->{$m->{tag}}] = $mddb->unencode_value($m->{tag}, $m->{value});
-		$mgmd->[$iii]->[$md_list->{$m->{tag}}] =~ s/'//g;
-	      }
-	    }
+	  foreach my $md (@$md_names) {
+	    my $val = (exists($jobmd->{$mgid}{$md}) && ($jobmd->{$mgid}{$md} ne '')) ? $jobmd->{$mgid}{$md} : undef;
+	    if ($val) { $val =~ s/'//g; }
+	    push @{ $mgmd->[$iii] }, $val;
 	  }
-	  $iii++;
+	  $iii += 1;
 	}
 	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
 	foreach my $md_name (@$md_names) {
@@ -3495,39 +3492,17 @@ sub metabolism_visual {
 	close(D);
 
 	# metadata coloring
-	my $md_list = { 'biome-information_envo_lite' => 0,
-			'sample-origin_altitude' => 1,
-			'sample-origin_depth' => 2,
-			'sample-origin_ph' => 3,
-			'sample-origin_country' => 4,
-			'sample-origin_temperature' => 5,
-			'sequencing_sequencing_method' => 6 };
-	my $md_blacklist = { 'sample-isolation-and-treatment_sample_isolation_description' => 1 };
-	my $md_names = ['biome','altitude','depth','ph','country','temperature','method','name'];
-	my $mgrast   = $self->application->data_handle('MGRAST');
-	my $mddb = MGRAST::Metadata->new();
-	my $mgmd = [];
-	my $iii = 0;
+	my $md_names = ['biome','feature','material','altitude','depth','ph','country','temperature','sequencing method','collection_date','name'];
+	my $jobmd = $self->app->data_handle('MGRAST')->Job->jobs_mixs_metadata_fast(\@comp_mgs);
+	my $mgmd  = [];
+	my $iii   = 0;
 	foreach my $mgid (@comp_mgs) {
-	  $mgmd->[$iii] = [];
-	  my $job = $mgrast->Job->init( { metagenome_id => $mgid } );
-	  my $md = $mgrast->MetaDataEntry->get_objects( { job => $job } );
-	  $mgmd->[$iii]->[7] = $job->name;
-	  foreach my $m (@$md) {
-	    next if ($md_blacklist->{$m->{tag}});
-	    if ($m->{value} ne "") {
-	      if (exists($md_list->{$m->{tag}})) {
-		$mgmd->[$iii]->[$md_list->{$m->{tag}}] = $mddb->unencode_value($m->{tag}, $m->{value});
-		$mgmd->[$iii]->[$md_list->{$m->{tag}}] =~ s/'//g;
-	      } else {
-		push(@$md_names, $m->{tag});
-		$md_list->{$m->{tag}} = scalar(@$md_names) - 1;
-		$mgmd->[$iii]->[$md_list->{$m->{tag}}] = $mddb->unencode_value($m->{tag}, $m->{value});
-		$mgmd->[$iii]->[$md_list->{$m->{tag}}] =~ s/'//g;
-	      }
-	    }
+	  foreach my $md (@$md_names) {
+	    my $val = (exists($jobmd->{$mgid}{$md}) && ($jobmd->{$mgid}{$md} ne '')) ? $jobmd->{$mgid}{$md} : undef;
+	    if ($val) { $val =~ s/'//g; }
+	    push @{ $mgmd->[$iii] }, $val;
 	  }
-	  $iii++;
+	  $iii += 1;
 	}
 	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
 	foreach my $md_name (@$md_names) {
@@ -4103,7 +4078,7 @@ sub recruitment_plot_visual {
     my $allctg    = $self->{mgdb}->ach->org2contignum($orgid);
     my $plotctg   = $self->{mgdb}->ach->org2contignum($orgid, $self->data('min_ctg_len'));
 
-    $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p><img width="960" src="$FIG_Config::temp_url/$file.png" onmouseover="TJPzoom(this);" /></p></div></div></div>~;
+    $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><p><a href="$FIG_Config::temp_url/$file.png">download image here</a></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p><img width="960" src="$FIG_Config::temp_url/$file.png" onmouseover="TJPzoom(this);" /></p></div></div></div>~;
     $tabnum++;
   }
   elsif ($cgi->param('vis_type') eq 'table') {
@@ -4438,7 +4413,7 @@ sub get_log {
 }
 
 sub get_evals {
-  return [ 'None', 1e-5, 1e-10, 1e-20, 1e-30 ];
+  return [ 1e-3, 1e-5, 1e-10, 1e-20, 1e-30 ];
 }
 
 sub get_eval_index {
@@ -4453,7 +4428,7 @@ sub evalue_histogram {
 
   my $width = 400;
   my $evalue_hist  = new WebGD($width, (scalar @$evals) * 20);
-  my $evalue_range = { 0.001 => "-3 to -5",
+  my $evalue_range = { 1e-3  => "-3 to -5",
 		       1e-5  => "-5 to -10",
 		       1e-10 => "-10 to -20",
 		       1e-20 => "-20 to -30",
@@ -4569,7 +4544,7 @@ sub evalue_range_select {
 sub evalue_select {
   my ($self) = @_;
 
-  my $eval = $self->application->cgi->param('evalue') || '0';
+  my $eval = $self->application->cgi->param('evalue') || $self->data('default_eval');
   my $html = qq(1e-&nbsp;<input type='text' name='evalue' value='$eval' size='5' /><span>&nbsp;</span><input type='button' onclick='
 var expNum = parseInt(this.previousSibling.previousSibling.value);
 if (isNaN(expNum) || (expNum < 0) || (expNum > 999)) {
@@ -4585,7 +4560,7 @@ if (isNaN(expNum) || (expNum < 0) || (expNum > 999)) {
 sub identity_select {
   my ($self) = @_;
 
-  my $ident = $self->application->cgi->param('identity') || '0';
+  my $ident = $self->application->cgi->param('identity') || $self->data('default_ident');
   my $html  = qq(<input type='text' name='identity' value='$ident' size='5' /><span>&nbsp;&#37;&nbsp;</span><input type='button' onclick='
 var identNum = parseInt(this.previousSibling.previousSibling.value);
 if (isNaN(identNum) || (identNum < 0) || (identNum > 100)) {
@@ -4601,7 +4576,7 @@ if (isNaN(identNum) || (identNum < 0) || (identNum > 100)) {
 sub alength_select { 	 
   my ($self) = @_; 	 
 
-  my $alen = $self->application->cgi->param('alength') || '1';
+  my $alen = $self->application->cgi->param('alength') || $self->data('default_alen');
   my $html = qq(<input type='text' name='alength' value='$alen' size='5' /><span>&nbsp;</span><input type='button' onclick='
 var alenNum = parseInt(this.previousSibling.previousSibling.value);
 if (isNaN(alenNum) || (alenNum < 1)) {
@@ -4623,7 +4598,7 @@ sub source_select {
 
   my @sources = ();
   if ($type eq 'phylogeny') {
-    @sources = ( ['M5NR', 'Non-Redundant Multi-Source Annotation Database'], @{$ach->get_protein_sources()} );
+    @sources = ( ['M5NR', 'Non-Redundant Multi-Source Protein Annotation Database'], @{$ach->get_protein_sources()} );
   }
   elsif ($type eq 'annotation') {
     @sources = @{$ach->get_protein_sources()};
@@ -4633,10 +4608,10 @@ sub source_select {
   }
 
   my $size = scalar @sources;
-  my $rnas = [];
+  my @rnas = ();
   if ($add_rna) {
-    $rnas = $ach->get_rna_sources();
-    $size += 2 + scalar(@$rnas);
+    @rnas = ( ['M5RNA', 'Non-Redundant Multi-Source Ribosomal RNA Annotation Database'], @{$ach->get_rna_sources()} );
+    $size += 2 + scalar(@rnas);
   }
   my $multiple = $single ? "" : " multiple='multiple'";
   my $select  .= "<select name='source'$multiple size='$size'>" . ($add_rna ? "<optgroup label='Protein'>" : "");
@@ -4651,7 +4626,7 @@ sub source_select {
   }
   if ($add_rna) {
     $select .= "</optgroup><optgroup label='RNA'>";
-    foreach my $src (@$rnas) {
+    foreach my $src (@rnas) {
       $select .= qq(<option style='cursor: help;' title='$src->[1]' value='$src->[0]'>$src->[0]</option>);
     }
     $select .= "</optgroup>";
