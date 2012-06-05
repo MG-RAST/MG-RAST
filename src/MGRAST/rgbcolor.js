@@ -5,6 +5,11 @@
  * @license Use it if you like it
  */
 
+function bpColors()
+{
+    return ["#109618","#dc3912","#3366cc","#ff9900","#8a4117","#000000","#990099"];
+}
+
 // return array of colors, length is inputed number (base_colors repeats)
 function GooglePalette(num)
 {

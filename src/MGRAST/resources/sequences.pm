@@ -4,17 +4,22 @@ use CGI;
 use JSON;
 
 use WebServiceObject;
+use Babel::lib::Babel;
 
 my $cgi = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
 sub about {
+  my $ach = new Babel::lib::Babel;
   my $content = { 'description' => "sequences for md5s or for annotations, given a metagenome",
 		  'parameters' => { "id" => "string",
 				    "type" => [ "organism", "function", "ontology" ],
 				    "seq" => [ "dna", "protein" ],
-				    "source" => "string",
+				    "source" => { "protein"  => [ map {$_->[0]} @{$ach->get_protein_sources} ],
+						  "ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
+						  "rna"      => [ map {$_->[0]} @{$ach->get_rna_sources} ]
+						},
 				    "organism" => "string",
 				    "function" => "array of string",
 				    "md5" => "array of string" },

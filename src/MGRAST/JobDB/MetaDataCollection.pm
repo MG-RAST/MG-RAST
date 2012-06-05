@@ -2,7 +2,7 @@ package JobDB::MetaDataCollection;
 
 use strict;
 use warnings;
-use Data::Dumper ;
+use Data::Dumper;
 
 sub last_id {
     my ($self) = @_;
@@ -15,80 +15,194 @@ sub last_id {
     return $id || "0" ;
 }
 
-
-
 =item * B<data> ()
 
-Returns a hash of all stats keys and values for a job. 
-If a key is given , returns only hash of specified 
-key , value pair. Sets a value if key and value is given
+Returns a hash of all MDE keys and values for a collection. 
+If a key is given, returns only hash of specified key, value pair.
+Sets a value if key and value is given (return true or false if works)
 
 =cut
 
 sub data {
-  my ( $self , $tag , $value ) = @_;
+  my ($self, $tag, $value) = @_;
 
   my $dbh = $self->_master->db_handle;
-  my $sth ;
+  my $sth;
   
-  if (defined($value) and $tag){
-
-    if (ref $value){
-      print STDERR "ERROR: invalid value type for $tag  ($value) \n" ;
-      print STDERR Dumper $value ;
-      return 0 ;
+  if (defined($value) and $tag) {
+    if (ref $value) {
+      print STDERR "ERROR: invalid value type for $tag  ($value) \n";
+      print STDERR Dumper $value;
+      return 0;
     }
-    
-    my $jstat = $self->_master->MetaDataEntry->get_objects( { collection   => $self ,
-							  tag       => $tag  ,
-							  value     => $value ,
-							});
-    if ( ref $jstat and scalar @$jstat ){
+    my $jstat = $self->_master->MetaDataEntry->get_objects( { collection => $self,
+							      tag        => $tag,
+							      value      => $value
+							    });
+    if (ref $jstat and scalar @$jstat) {
       $jstat->[0]->value($value) ;
     }
-    else{
-      $jstat = $self->_master->MetaDataEntry->create( { collection   => $self ,
-						    tag       => $tag  ,
-						    value     => $value ,
-						  });
+    else {
+      $jstat = $self->_master->MetaDataEntry->create( { collection => $self,
+							tag        => $tag,
+							value      => $value
+						      });
     }
-
-    return $value  ;
+    return 1;
   }
-  elsif( $tag ){
-    $sth = $dbh->prepare("SELECT tag, value FROM MetaDataEntry where collection='". $self->_id ."' and tag='$tag'") ;
-    $sth->execute;
-     my $results = $sth->fetchall_arrayref();
-  
-    return map { $_->[1] } @$results ;
-  }
-  else{
-    $sth = $dbh->prepare("SELECT tag, value FROM MetaDataEntry where collection='". $self->_id ."'");
+  elsif ($tag) {
+    $sth = $dbh->prepare("SELECT tag, value FROM MetaDataEntry where collection=".$self->_id." and tag='$tag'");
+  } else {
+    $sth = $dbh->prepare("SELECT tag, value FROM MetaDataEntry where collection=".$self->_id);
   }
   
   $sth->execute;
   my $results = $sth->fetchall_arrayref();
-  my $rhash = {};
-  map { $rhash->{ $_->[0] } = $_->[1] } @$results ;
-  
+  my $rhash   = {};
+  foreach my $set (@$results) {
+    if (defined($set->[1]) && ($set->[1] =~ /\S/)) {
+      $set->[1] =~ s/(envo|gaz)://i;
+      $rhash->{$set->[0]} = $set->[1];
+    }
+  }  
   return $rhash;
 }
 
+=item * B<value_set> ()
+
+Returns a list of values for given tag
+
+=cut
+
+sub value_set {
+  my ($self, $tag) = @_;
+
+  my $set  = [];
+  my $dbh  = $self->_master->db_handle;
+  my $results = $dbh->selectcol_arrayref("SELECT value FROM MetaDataEntry where collection=".$self->_id." and tag='$tag'");
+  if ($results && (@$results > 0)) {
+    foreach my $v (@$results) {
+      if (defined($v) && ($v =~ /\S/)) { push @$set, $v; }
+    }
+  }
+  return $set;
+}
+
+=item * B<project> ()
+
+Returns project that have this collection
+
+=cut
+
+sub project {
+  my ($self) = @_;
+  my $proj_coll = $self->_master->ProjectCollection->get_objects({collection => $self});
+  return (@$proj_coll > 0) ? $proj_coll->[0]->project : undef;
+}
+
+=item * B<jobs> ()
+
+Returns array of jobs that have this collection
+
+=cut
+
+sub jobs {
+  my ($self) = @_;
+
+  my $jobs = [];
+  if ($self->type eq 'sample') {
+    $jobs = $self->_master->Job->get_objects({sample => $self});
+  }
+  elsif ($self->type eq 'library') {
+    $jobs = $self->_master->Job->get_objects({library => $self});
+  }
+  elsif (($self->type eq 'ep') && $self->parent && ref($self->parent)) {
+    $jobs = $self->_master->Job->get_objects({sample => $self->parent});
+  }
+  return $jobs;
+}
+
+=item * B<children> ()
+
+Returns array of children collections,
+if type given only returns children of that type
+
+=cut
+
+sub children {
+  my ($self, $type) = @_;
+
+  my $children = [];
+  if ($type) {
+    $children = $self->_master->MetaDataCollection->get_objects({parent => $self, type => $type});
+  } else {
+    $children = $self->_master->MetaDataCollection->get_objects({parent => $self});
+  }
+  return $children;
+}
+
+sub category_type {
+  my ($self, $type) = @_;
+
+  my $ct = '';
+  if ($type eq 'library') {
+    $ct = $self->data('investigation_type')->{'investigation_type'};
+  }
+  elsif ($type eq 'ep') {
+    $ct = $self->data('env_package')->{'env_package'} || $self->parent->data('env_package')->{'env_package'};
+  }
+  return $ct ? $ct : ($self->type ? $self->type : '');
+}
+
+sub lib_type {
+  my ($self) = @_;
+  return $self->category_type('library');
+}
+
+sub ep_type {
+  my ($self) = @_;
+  return $self->category_type('ep');
+}
+
+sub delete_all {
+  my ($self) = @_;
+  $self->delete_children;
+  $self->delete_entries;
+  $self->delete_project;
+}
+
+sub delete_project {
+  my ($self) = @_;
+  foreach my $pc ( @{ $self->_master->ProjectCollection->get_objects({collection => $self}) } ) {
+    $pc->delete;
+  }
+}
+
+sub delete_entries {
+  my ($self) = @_;
+  foreach my $mde ( @{ $self->_master->MetaDataEntry->get_objects({collection => $self}) } ) {
+    $mde->delete;
+  }
+}
+
+sub delete_children {
+  my ($self) = @_;
+  foreach my $child ( @{ $self->children } ) {
+    $child->delete_all;
+    $child->delete;
+  }
+}
 
 sub xml {
-    my ($self) = @_ ;
-    
+    my ($self) = @_;
 
-    my $jobs = [] ;
+    my $jobs = [];
     push @$jobs , $self->job if ($self->job) ;
     push @$jobs , @{ $self->_master->Job->get_objects( {sample => $self} ) };
     
-   
-    my $pjs = {} ;
+    my $pjs = {};
   
     map { map {$pjs->{ $_->project->id } = $_->project }  @{ $self->_master->ProjectJob->get_objects( { job => $_ } ) } } @$jobs;
-    
-    
     
     my $xml = "<?xml version=\"1.0\" ?>\n" ;
     $xml .= "<sample>\n";
@@ -121,36 +235,6 @@ sub xml {
     $xml .= "</sample>\n";
     
     return $xml ;
-}
-
-
-sub tabular{
-    my ($self) = @_ ;
-    #  my $jids = {} ;
-    # map { print Dumper $jobs unless(ref $_) ; $jids->{$_->metagenome_id} }  @$jobs ;
-    # my $names = {} ;
-    # map { $names->{$_->name} } @$jobs ;
-    # my $jobs = [] ;
-    # push @$jobs , $self->job->metagenome_id if ($self->job) ;
-    # push @$jobs ,  $self->_master->Job->get_objects( {sample => $self} ) ;
-    
-    # # dump meta data
-    # my $mds =  $self->_master->MetaDataEntry->get_objects( { job => $j } ) ;
-    # 	if ($mds and scalar @$mds){
-    # 	  open(META , ">$tmp_dir/metadata.txt") or die "Can't open $tmp_dir/metadata.txt for writing!\n";
-    # 	  print META "metagenome_id\t".$j->metagenome_id."\n";
-	  
-    # 	  my $pjs = $self->_master->ProjectJob->get_objects( { job => $j } ) ;
-    # 	  if ($pjs and scalar @$pjs){
-    # 	    print "project_name\t" , join ";" , map { $pj->project->name } @$pjs ;
-    # 	    print "project_id\t" , join ";" , map { $pj->project->id } @$pjs ;
-    # 	  }
-	  
-    # 	  foreach my $md (@$mds){
-    # 	    print META $md->tag , "\t" , $md->value, "\n" ;	 
-    # 	  }
-    # 	  close(META) ;
-    # 	}
 }
 
 1;

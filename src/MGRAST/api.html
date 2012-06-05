@@ -1,460 +1,453 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<!DOCTYPE HTML>
 <HTML>
-<HEAD>
-	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=windows-1252">
-	<TITLE></TITLE>
-	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.2  (Win32)">
-	<META NAME="AUTHOR" CONTENT="Tobias Paczian">
-	<META NAME="CREATED" CONTENT="20120127;12064400">
-	<META NAME="CHANGEDBY" CONTENT="Tobias Paczian">
-	<META NAME="CHANGED" CONTENT="20120127;17464300">
-	<STYLE TYPE="text/css">
-	<!--
-		@page { margin: 2cm }
-		P { margin-bottom: 0.21cm }
-		H1 { margin-bottom: 0.21cm }
-		H1.western { font-family: "Arial", sans-serif; font-size: 16pt }
-		H1.cjk { font-family: "SimSun"; font-size: 16pt }
-		H1.ctl { font-family: "Tahoma"; font-size: 16pt }
-		H2 { margin-bottom: 0.21cm }
-		H2.western { font-family: "Arial", sans-serif; font-size: 14pt; font-style: italic }
-		H2.cjk { font-family: "SimSun"; font-size: 14pt; font-style: italic }
-		H2.ctl { font-size: 14pt; font-style: italic }
-		H3 { margin-bottom: 0.21cm }
-		H3.western { font-family: "Arial", sans-serif }
-		H3.cjk { font-family: "SimSun" }
-		A:link { so-language: zxx }
-	-->
-	</STYLE>
-</HEAD>
-<BODY LANG="de-DE" DIR="LTR">
-<H1 CLASS="western"><FONT FACE="Arial, sans-serif">Metagenomics API v0.1 alpha</FONT></H1>
-<P><FONT FACE="Arial, sans-serif">This document describes the usage
-of the metagenomics API at <A HREF="http://api.metagenomics.anl.gov/">http://api.metagenomics.anl.gov</A>.</FONT></P>
-<H2 CLASS="western" STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">General
-Usage</FONT></H2>
-<P><FONT FACE="Arial, sans-serif">This API uses a RESTful interface.
-To retrieve data, append the resource name and mandatory parameters
-to the URL, separated by '/'. Optional parameters can be appended
-after a '?' at the end of the URL as key-value pairs. The pairs are
-separated by '&amp;', the key and the value are separated by '='. The
-result will be a JSON structure of the requested data. In some cases
-the return value can also be a filestream. This will be noted in the
-according resource description. Accessing a resource without
-parameters will in general return a list of available items. See the
-resources description for details. By default the first mandatory
-parameter is the unique identifier of an item of the resource. The
-description of the resource will explicitly state if this is not the
-case.</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>Example</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><I><U>Query</U></I>:	<A HREF="http://api.metagenomics.anl.gov/abundance_profile/4441602.3?type=ontology&amp;source=Subsystems">http://api.metagenomics.anl.gov/abundance_profile/4441602.3?type=ontology&amp;source=Subsystems</A></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><I><U>Result</U></I>:	{&quot;generated_by&quot;:&quot;MGRAST&quot;,&quot;matrix_type&quot;:&quot;dense&quot;,&quot;date&quot;:&quot;2012-01-27T07:24:27&quot;,&quot;data&quot;:[[75],[27],[57],[42],[39],[2],[4],[1],[1],[2],[13],[5],...}</FONT></P>
-<H2 CLASS="western" STYLE="font-style: normal">Authorization</H2>
-<P><FONT FACE="Arial, sans-serif">Without authorization, only
-publicly available data will be returned. If you want to access
-private data, you need to authenticate your privileges via the auth
-parameter. This is an optional parameter to every resource. The key
-is 'auth' and the value is your private WebKey. You can obtain your
-key at any time in the preferences section of your MG-RAST account.
-The key will be valid for 24 hours. You can generate new keys
-indefinitely. Generating a new key will render your old key invalid.
-If you require a longer validation period for your key, please send a
-mail to mg-rast@mcs.anl.gov.</FONT></P>
-<H2 CLASS="western" STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">Resources</FONT></H2>
-<P><FONT FACE="Arial, sans-serif"><SPAN STYLE="font-style: normal">The
-following is a comprehensive list of available resources. In the
-description of the returned data structure variables will be written
-in italics, followed by a data type / possible values. Otherwise the
-standard JSON notation will be used.</SPAN></FONT></P>
-<P><A HREF="#1.3.1.project|outline"><FONT FACE="Arial, sans-serif">project</FONT></A></P>
-<P><A HREF="#1.3.2.sample|outline"><FONT FACE="Arial, sans-serif">sample</FONT></A></P>
-<P><A HREF="#1.3.3.library|outline"><FONT FACE="Arial, sans-serif">library</FONT></A></P>
-<P><A HREF="#1.3.4.metagenome|outline"><FONT FACE="Arial, sans-serif">metagenome</FONT></A></P>
-<P><A HREF="#1.3.5.subset|outline"><FONT FACE="Arial, sans-serif">subset</FONT></A></P>
-<P><A HREF="#1.3.6.sequenceSet|outline"><FONT FACE="Arial, sans-serif">sequenceSet</FONT></A></P>
-<P><A HREF="#1.3.7.sequences|outline"><FONT FACE="Arial, sans-serif">sequences</FONT></A></P>
-<P><A HREF="#1.3.8.annotation|outline"><FONT FACE="Arial, sans-serif">annotation</FONT></A></P>
-<P><A HREF="#1.3.10.reads|outline"><FONT FACE="Arial, sans-serif">reads</FONT></A></P>
-<P><A HREF="#1.3.11.abundance_profile|outline"><FONT FACE="Arial, sans-serif">abundance_profile</FONT></A></P>
-<P><A HREF="#1.3.12.matrix|outline"><FONT FACE="Arial, sans-serif">matrix</FONT></A></P>
-<P><A HREF="#1.3.13.query|outline"><FONT FACE="Arial, sans-serif">query</FONT></A></P>
-<H3 CLASS="western"><A NAME="__RefHeading__13_489491726"></A><A NAME="1.3.1.project|outline"></A>
-<FONT FACE="Arial, sans-serif">project</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">returns a list of available project
-ids</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>id</B>':			<I>unique_identifier</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>about</B>':			<I>about</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>version</B>':
-		<I>version_information</I> <B>int</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>created</B>':
-		<I>creation_date</I> <B>date</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>url</B>': 			<I>object_url</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>type</B>':
-			<I>project_type</I> <B>string</B> [project|study],</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>name</B>':
-			<I>project_name</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>public</B>': 		<I>public</I>
-<B>boolean</B> [0|1],</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>analyzed</B>':		<I>list
-of metagenome_id</I> <B>array of string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>pi</B>':			<I>last_and_firstname_of_PI</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>description</B>':		<I>project_description</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>funding_source</B>':	<I>funding_source</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>metadata</B>':		<I>list
-of metadata</I> <B>hash of key value pairs</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>samples</B>':		<I>list of
-sample_id</I> <B>array of string</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">}</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/project/3">http://api.metagenomics.anl.gov/project/3</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__15_489491726"></A><A NAME="1.3.2.sample|outline"></A>
-<FONT FACE="Arial, sans-serif">sample</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">returns a list of available sample
-ids</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>id</B>':			<I>unique_identifier</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>about</B>':			<I>about</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>version</B>':
-		<I>version_information</I> <B>int</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>created</B>':
-		<I>creation_date</I> <B>date</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>url</B>': 			<I>object_url</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>metagenome</B>':		<I>metagenome_id</I>
-string,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>libraries</B>':		<I>list
-of library_id</I>	<B>array of string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>metadata</B>':		<I>list
-of metadata</I> <B>hash of key value pairs</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">}</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/sample/mgs442">http://api.metagenomics.anl.gov/sample/mgs442</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__17_489491726"></A><A NAME="1.3.3.library|outline"></A>
-<FONT FACE="Arial, sans-serif">library</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">returns a list of available library
-ids</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>id</B>':			<I>unique_identifier</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>about</B>':			<I>about</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>version</B>':
-		<I>version_information</I> <B>int</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>created</B>':
-		<I>creation_date</I> <B>date</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>url</B>': 			<I>object_url</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>sample</B>':			<I>sample_id</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>metagenome</B>':		<I>metagenome_id</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>reads</B>':			<I>reads_id</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>sequence_sets</B>':	<I>list
-of sequenceSet_id</I> <B>array of string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>metadata</B>':		<I>list
-of metadata</I> <B>hash of key value pairs</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">}</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/library/mgl1">http://api.metagenomics.anl.gov/library/mgl1</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__19_489491726"></A><A NAME="1.3.4.metagenome|outline"></A>
-<FONT FACE="Arial, sans-serif">metagenome</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">returns a list of available
-metagenome objects with the following data:</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	type</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	id</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	name</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	sequence_type</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	sequence_method</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	server_version</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	file_size_raw</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	viewable</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	job_id</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	project</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	biome</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	pi</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	ph</FONT></P>
-<P><FONT FACE="Arial, sans-serif">	country</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>id</B>':			<I>unique_identifier</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>about</B>':			<I>about</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>version</B>':
-		<I>version_information</I> <B>int</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>created</B>':
-		<I>creation_date</I> <B>date</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>url</B>': 			<I>object_url</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>sample</B>':			<I>sample_id</I>	<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>description</B>':		<I>metagenome_description</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>project</B>':		<I>project_id</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>library</B>':		<I>library_id</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>metadata</B>':		<I>list
-of metadata</I> <B>hash of key value pairs</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">}</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/metagenome/mgm4447971.3">http://api.metagenomics.anl.gov/metagenome/mgm4447971.3</A></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>additional functions</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><I>-</I></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__21_489491726"></A><A NAME="1.3.5.subset|outline"></A>
-<FONT FACE="Arial, sans-serif">subset</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">type		[
-organism | functional ] (default organism)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	[
-list of namespaces ] (default all)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">organism	[
-list of organism names ] (default all)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">function	[
-list of function names ] (default all)</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	annotation:	{</FONT></P>
-<P><FONT FACE="Courier New, monospace">					md5: abundance</FONT></P>
-<P><FONT FACE="Courier New, monospace">					&hellip;</FONT></P>
-<P><FONT FACE="Courier New, monospace">				}</FONT></P>
-<P><FONT FACE="Courier New, monospace">	...</FONT></P>
-<P><FONT FACE="Courier New, monospace">}</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/subset/4441602.3?organism=Abiotrophia defectiva ATCC 49176">http://api.metagenomics.anl.gov/subset/4441602.3?organism=Abiotrophia
-defectiva ATCC 49176</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__23_489491726"></A><A NAME="1.3.6.sequenceSet|outline"></A>
-<FONT FACE="Arial, sans-serif">sequenceSet</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">if called with a metagenome id
-returns a list of sequenceSet descriptions for the metagenome:</FONT></P>
-<P><FONT FACE="Courier New, monospace">[</FONT></P>
-<P><FONT FACE="Courier New, monospace">	{</FONT></P>
-<P><FONT FACE="Courier New, monospace">		'<B>id</B>':		<I>unique_identifier</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">		'<B>stage_id</B>':	<I>about</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">		'<B>stage_name</B>':
+  <HEAD>
+    <META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html">
+    <TITLE>Metagenomics API 0.2 beta</TITLE>
+    <STYLE TYPE="text/css">
+      @page { margin: 2cm }
+      P { margin-bottom: 0.21cm }
+      H1 { margin-bottom: 0.21cm }
+      H1.western { font-family: "Arial", sans-serif; font-size: 16pt }
+      H1.cjk { font-family: "Arial"; font-size: 16pt }
+      H1.ctl { font-family: "Arial"; font-size: 16pt }
+      H2 { margin-bottom: 0.21cm }
+      H2.western { font-family: "Arial", sans-serif; font-size: 14pt; font-style: italic }
+      H2.cjk { font-family: "Arial"; font-size: 14pt; font-style: italic }
+      H2.ctl { font-size: 14pt; font-style: italic }
+      H3 { margin-bottom: 0.21cm }
+      H3.western { font-family: "Arial", sans-serif }
+      H3.cjk { font-family: "Arial" }
+      A:link { so-language: zxx }
+    </STYLE>
+  </HEAD>
+  <BODY>
+    <H1 CLASS="western"><FONT FACE="Arial, sans-serif">Metagenomics API 0.2 beta</FONT></H1>
+    <P><FONT FACE="Arial, sans-serif">This document describes the usage
+	of the metagenomics API at <A HREF="http://api.metagenomics.anl.gov/">http://api.metagenomics.anl.gov</A>.</FONT></P>
+    <H2 CLASS="western" STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">General
+	Usage</FONT></H2>
+    <P><FONT FACE="Arial, sans-serif">This API uses a RESTful interface.
+	To retrieve data, append the resource name and mandatory parameters
+	to the URL, separated by '/'. Optional parameters can be appended
+	after a '?' at the end of the URL as key-value pairs. The pairs are
+	separated by '&amp;', the key and the value are separated by '='. The
+	result will be a JSON structure of the requested data. In some cases
+	the return value can also be a filestream. This will be noted in the
+	according resource description. Accessing a resource without
+	parameters will in general return a list of available items. See the
+	resources description for details. By default the first mandatory
+	parameter is the unique identifier of an item of the resource. The
+	description of the resource will explicitly state if this is not the
+	case.</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>Example</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><I><U>Query</U></I>:	<A HREF="http://api.metagenomics.anl.gov/abundance_profile/4441602.3?type=organism&amp;source=Subsystems">http://api.metagenomics.anl.gov/abundance_profile/4441602.3?type=organism&amp;source=Subsystems</A></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><I><U>Result</U></I>:	{&quot;generated_by&quot;:&quot;MGRAST&quot;,&quot;matrix_type&quot;:&quot;dense&quot;,&quot;date&quot;:&quot;2012-01-27T07:24:27&quot;,&quot;data&quot;:[[75],[27],[57],[42],[39],[2],[4],[1],[1],[2],[13],[5],...}</FONT></P>
+    <H2 CLASS="western" STYLE="font-style: normal">Authorization</H2>
+    <P><FONT FACE="Arial, sans-serif">Without authorization, only
+	publicly available data will be returned. If you want to access
+	private data, you need to authenticate your privileges via the auth
+	parameter. This is an optional parameter to every resource. The key
+	is 'auth' and the value is your private WebKey. You can obtain your
+	key at any time <a href='http://metagenomics.anl.gov/?page=ManagePreferences' target=_blank>in the preferences section of your MG-RAST account</a>.
+	The key will be valid for one week. You can generate new keys
+	indefinitely. Generating a new key will render your old key invalid.
+	If you require a longer validation period for your key, please send a
+	mail to mg-rast@mcs.anl.gov.</FONT></P>
+    <H2 CLASS="western" STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">Resources</FONT></H2>
+    <P><FONT FACE="Arial, sans-serif"><SPAN STYLE="font-style: normal">The
+	  following is a comprehensive list of available resources. In the
+	  description of the returned data structure variables will be written
+	  in italics, followed by a data type / possible values. Otherwise the
+	  standard JSON notation will be used.</SPAN></FONT></P>
+    <P><A HREF="#1.3.1.project|outline"><FONT FACE="Arial, sans-serif">project</FONT></A></P>
+    <P><A HREF="#1.3.2.sample|outline"><FONT FACE="Arial, sans-serif">sample</FONT></A></P>
+    <P><A HREF="#1.3.3.library|outline"><FONT FACE="Arial, sans-serif">library</FONT></A></P>
+    <P><A HREF="#1.3.4.metagenome|outline"><FONT FACE="Arial, sans-serif">metagenome</FONT></A></P>
+    <P><A HREF="#1.3.5.subset|outline"><FONT FACE="Arial, sans-serif">subset</FONT></A></P>
+    <P><A HREF="#1.3.6.sequenceSet|outline"><FONT FACE="Arial, sans-serif">sequenceSet</FONT></A></P>
+    <P><A HREF="#1.3.7.sequences|outline"><FONT FACE="Arial, sans-serif">sequences</FONT></A></P>
+    <P><A HREF="#1.3.8.annotation|outline"><FONT FACE="Arial, sans-serif">annotation</FONT></A></P>
+    <P><A HREF="#1.3.10.reads|outline"><FONT FACE="Arial, sans-serif">reads</FONT></A></P>
+    <P><A HREF="#1.3.11.abundance_profile|outline"><FONT FACE="Arial, sans-serif">abundance_profile</FONT></A></P>
+    <P><A HREF="#1.3.12.matrix|outline"><FONT FACE="Arial, sans-serif">matrix</FONT></A></P>
+    <P><A HREF="#1.3.13.query|outline"><FONT FACE="Arial, sans-serif">query</FONT></A></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__13_489491726"></A><A NAME="1.3.1.project|outline"></A>
+      <FONT FACE="Arial, sans-serif">project</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">returns a list of available project
+	ids</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>id</B>':			<I>unique_identifier</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>about</B>':			<I>about</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>version</B>':
 	<I>version_information</I> <B>int</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">		'<B>stage_type</B>':
+    <P><FONT FACE="Courier New, monospace">	'<B>created</B>':
 	<I>creation_date</I> <B>date</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">		'<B>file_name</B>':
+    <P><FONT FACE="Courier New, monospace">	'<B>url</B>': 			<I>object_url</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>type</B>':
+	<I>project_type</I> <B>string</B> [project|study],</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>name</B>':
+	<I>project_name</I> <B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>public</B>': 		<I>public</I>
+	<B>boolean</B> [0|1],</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>analyzed</B>':		<I>list
+	  of metagenome_id</I> <B>array of string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>pi</B>':			<I>last_and_firstname_of_PI</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>description</B>':		<I>project_description</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>funding_source</B>':	<I>funding_source</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>metadata</B>':		<I>list
+	  of metadata</I> <B>hash of key value pairs</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>samples</B>':		<I>list of
+	  sample_id</I> <B>array of string</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">}</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/project/3">http://api.metagenomics.anl.gov/project/3</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__15_489491726"></A><A NAME="1.3.2.sample|outline"></A>
+      <FONT FACE="Arial, sans-serif">sample</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">returns a list of available sample
+	ids</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>id</B>':			<I>unique_identifier</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>about</B>':			<I>about</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>version</B>':
+	<I>version_information</I> <B>int</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>created</B>':
+	<I>creation_date</I> <B>date</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>url</B>': 			<I>object_url</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>metagenome</B>':		<I>metagenome_id</I>
+	string,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>libraries</B>':		<I>list
+	  of library_id</I>	<B>array of string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>metadata</B>':		<I>list
+	  of metadata</I> <B>hash of key value pairs</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">}</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/sample/mgs442">http://api.metagenomics.anl.gov/sample/mgs442</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__17_489491726"></A><A NAME="1.3.3.library|outline"></A>
+      <FONT FACE="Arial, sans-serif">library</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">returns a list of available library
+	ids</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>id</B>':			<I>unique_identifier</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>about</B>':			<I>about</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>version</B>':
+	<I>version_information</I> <B>int</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>created</B>':
+	<I>creation_date</I> <B>date</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>url</B>': 			<I>object_url</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>sample</B>':			<I>sample_id</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>metagenome</B>':		<I>metagenome_id</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>reads</B>':			<I>reads_id</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>sequence_sets</B>':	<I>list
+	  of sequenceSet_id</I> <B>array of string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>metadata</B>':		<I>list
+	  of metadata</I> <B>hash of key value pairs</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">}</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/library/mgl1">http://api.metagenomics.anl.gov/library/mgl1</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__19_489491726"></A><A NAME="1.3.4.metagenome|outline"></A>
+      <FONT FACE="Arial, sans-serif">metagenome</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">returns a list of available
+	metagenome objects with the following data:</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	type</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	name</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	sequence_type</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	sequence_method</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	server_version</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	file_size_raw</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	viewable</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	job_id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	project</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	biome</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	pi</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	ph</FONT></P>
+    <P><FONT FACE="Arial, sans-serif">	country</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>id</B>':			<I>unique_identifier</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>about</B>':			<I>about</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>version</B>':
+	<I>version_information</I> <B>int</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>created</B>':
+	<I>creation_date</I> <B>date</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>url</B>': 			<I>object_url</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>sample</B>':			<I>sample_id</I>	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>description</B>':		<I>metagenome_description</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>project</B>':		<I>project_id</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>library</B>':		<I>library_id</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>metadata</B>':		<I>list
+	  of metadata</I> <B>hash of key value pairs</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">}</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/metagenome/mgm4447971.3">http://api.metagenomics.anl.gov/metagenome/mgm4447971.3</A></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>additional functions</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><I>-</I></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__21_489491726"></A><A NAME="1.3.5.subset|outline"></A>
+      <FONT FACE="Arial, sans-serif">subset</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">type		[
+	organism | functional ] (default organism)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	[
+	list of namespaces ] (default all)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">organism	[
+	list of organism names ] (default all)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">function	[
+	list of function names ] (default all)</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	annotation:	{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">					md5: abundance</FONT></P>
+    <P><FONT FACE="Courier New, monospace">					&hellip;</FONT></P>
+    <P><FONT FACE="Courier New, monospace">				}</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	...</FONT></P>
+    <P><FONT FACE="Courier New, monospace">}</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/subset/4441602.3?organism=Abiotrophia defectiva ATCC 49176">http://api.metagenomics.anl.gov/subset/4441602.3?organism=Abiotrophia
+	  defectiva ATCC 49176</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__23_489491726"></A><A NAME="1.3.6.sequenceSet|outline"></A>
+      <FONT FACE="Arial, sans-serif">sequenceSet</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">if called with a metagenome id
+	returns a list of sequenceSet descriptions for the metagenome:</FONT></P>
+    <P><FONT FACE="Courier New, monospace">[</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">		'<B>id</B>':		<I>unique_identifier</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">		'<B>stage_id</B>':	<I>about</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">		'<B>stage_name</B>':
+	<I>version_information</I> <B>int</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">		'<B>stage_type</B>':
+	<I>creation_date</I> <B>date</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">		'<B>file_name</B>':
 	<I>object_url</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	}</FONT></P>
-<P><FONT FACE="Courier New, monospace">	&hellip;</FONT></P>
-<P><FONT FACE="Courier New, monospace">]</FONT></P>
-<P><FONT FACE="Courier New, monospace">if called with a sequenceSet
-id returns a filestream of the requested file.</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/sequenceSet/4441602.3-350-1">http://api.metagenomics.anl.gov/sequenceSet/4441602.3-350-1</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__25_489491726"></A><A NAME="1.3.7.sequences|outline"></A>
-<FONT FACE="Arial, sans-serif">sequences</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">type		[
-organism | functional ] (default organism)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	[
-list of namespaces ] (default all)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">seq		[
-dna | protein ] (default dna)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">organism	[
-list of organism names ] (default all)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">function	[
-list of function names ] (default all)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">md5s		[
-list of md5s ] (default none)</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	<I>annotation|md5</I>: [
-<I>sequence, sequence,</I> &hellip; ],</FONT></P>
-<P><FONT FACE="Courier New, monospace">	...</FONT></P>
-<P><FONT FACE="Courier New, monospace">}</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/sequences/4441602.3?md5s=5c6cdf00b3b2509879f412d55582af1a">http://api.metagenomics.anl.gov/sequences/4441602.3?md5s=5c6cdf00b3b2509879f412d55582af1a</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__27_489491726"></A><A NAME="1.3.8.annotation|outline"></A>
-<FONT FACE="Arial, sans-serif">annotation</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">list of available namespaces</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">md5</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><I>namespace</I></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>md5</B>':		<I>md5</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>source</B>':		<I>namespace</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>FID</B>': 		<I>function_id</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>function</B>':
+    <P><FONT FACE="Courier New, monospace">	}</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	&hellip;</FONT></P>
+    <P><FONT FACE="Courier New, monospace">]</FONT></P>
+    <P><FONT FACE="Courier New, monospace">if called with a sequenceSet
+	id returns a filestream of the requested file.</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/sequenceSet/4441602.3-350-1">http://api.metagenomics.anl.gov/sequenceSet/4441602.3-350-1</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__25_489491726"></A><A NAME="1.3.7.sequences|outline"></A>
+      <FONT FACE="Arial, sans-serif">sequences</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">type		[
+	organism | functional ] (default organism)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	[
+	list of namespaces ] (default all)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">seq		[
+	dna | protein ] (default dna)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">organism	[
+	list of organism names ] (default all)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">function	[
+	list of function names ] (default all)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">md5s		[
+	list of md5s ] (default none)</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	<I>annotation|md5</I>: [
+	<I>sequence, sequence,</I> &hellip; ],</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	...</FONT></P>
+    <P><FONT FACE="Courier New, monospace">}</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/sequences/4441602.3?md5s=5c6cdf00b3b2509879f412d55582af1a">http://api.metagenomics.anl.gov/sequences/4441602.3?md5s=5c6cdf00b3b2509879f412d55582af1a</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__27_489491726"></A><A NAME="1.3.8.annotation|outline"></A>
+      <FONT FACE="Arial, sans-serif">annotation</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">list of available namespaces</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">md5</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><I>namespace</I></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>md5</B>':		<I>md5</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>source</B>':		<I>namespace</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>FID</B>': 		<I>function_id</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>function</B>':
 	<I>function_name</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>organism</B>':
+    <P><FONT FACE="Courier New, monospace">	'<B>organism</B>':
 	<I>organism_name</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">}</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><A HREF="http://api.metagenomics.anl.gov/annotation/"><FONT FACE="Arial, sans-serif">http://api.metagenomics.anl.gov/annotation/</FONT></A></P>
-<H3 CLASS="western"><A NAME="__RefHeading__31_489491726"></A><A NAME="1.3.10.reads|outline"></A>
-<FONT FACE="Arial, sans-serif">reads</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P STYLE="font-weight: normal"><FONT FACE="Courier New, monospace">file
-stream</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/reads/mgm4447971.3">http://api.metagenomics.anl.gov/reads/mgm4447971.3</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__33_489491726"></A><A NAME="1.3.11.abundance_profile|outline"></A>
-<FONT FACE="Arial, sans-serif">abundance_profile</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">id</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">type		[
-organism | functional ] (default organism)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	namespace
-(default RefSeq)</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>id</B>':				<I>unique_identifier</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>format</B>':				<I>format_name</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>format_url</B>':
-			<I>format_url</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>type</B>': 				<I>data_type</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>generated_by</B>':
-		<I>creator_application</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>date</B>':				<I>creation_date</I>
-<B>date</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>matrix_type</B>':			<I>[dense|sparse]</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>matrix_element_type</B>':
+    <P><FONT FACE="Courier New, monospace">}</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><A HREF="http://api.metagenomics.anl.gov/annotation/"><FONT FACE="Arial, sans-serif">http://api.metagenomics.anl.gov/annotation/</FONT></A></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__31_489491726"></A><A NAME="1.3.10.reads|outline"></A>
+      <FONT FACE="Arial, sans-serif">reads</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P STYLE="font-weight: normal"><FONT FACE="Courier New, monospace">file
+	stream</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/reads/mgm4447971.3">http://api.metagenomics.anl.gov/reads/mgm4447971.3</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__33_489491726"></A><A NAME="1.3.11.abundance_profile|outline"></A>
+      <FONT FACE="Arial, sans-serif">abundance_profile</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">id</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">type		[
+	organism | functional ] (default organism)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	namespace
+	(default RefSeq)</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>id</B>':				<I>unique_identifier</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>format</B>':				<I>format_name</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>format_url</B>':
+	<I>format_url</I> <B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>type</B>': 				<I>data_type</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>generated_by</B>':
+	<I>creator_application</I> <B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>date</B>':				<I>creation_date</I>
+	<B>date</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>matrix_type</B>':			<I>[dense|sparse]</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>matrix_element_type</B>':
 	<I>[int|float|string]</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>shape</B>':
-				<I>dimensions_of_data</I> <B>array of int</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>columns</B>': 			<I>list
-of column_definitions</I> <B>array of hashes</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>rows</B>': 				<I>list of
-row_data</I> <B>array of hashes</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>data</B>': 				<I>list of
-list of data</I> <B>array of array of matrix_element_type</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">}</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/abundance_profile/4441602.3">http://api.metagenomics.anl.gov/abundance_profile/4441602.3</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__35_489491726"></A><A NAME="1.3.12.matrix|outline"></A>
-<FONT FACE="Arial, sans-serif">matrix</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">list of id (joined by ';')</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><SPAN STYLE="font-style: normal">type		[
-organism | functional ] (default organism)</SPAN></FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	namespace
-(default RefSeq)</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Courier New, monospace">{</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>id</B>':				<I>unique_identifier</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>format</B>':				<I>format_name</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>format_url</B>':
-			<I>format_url</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>type</B>': 				<I>data_type</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>generated_by</B>':
-		<I>creator_application</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>date</B>':				<I>creation_date</I>
-<B>date</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>matrix_type</B>':			<I>[dense|sparse]</I>
-<B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>matrix_element_type</B>':
+    <P><FONT FACE="Courier New, monospace">	'<B>shape</B>':
+	<I>dimensions_of_data</I> <B>array of int</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>columns</B>': 			<I>list
+	  of column_definitions</I> <B>array of hashes</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>rows</B>': 				<I>list of
+	  row_data</I> <B>array of hashes</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>data</B>': 				<I>list of
+	  list of data</I> <B>array of array of matrix_element_type</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">}</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/abundance_profile/4441602.3">http://api.metagenomics.anl.gov/abundance_profile/4441602.3</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__35_489491726"></A><A NAME="1.3.12.matrix|outline"></A>
+      <FONT FACE="Arial, sans-serif">matrix</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">list of id (joined by ';')</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><SPAN STYLE="font-style: normal">type		[
+	  organism | functional ] (default organism)</SPAN></FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	namespace
+	(default RefSeq)</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Courier New, monospace">{</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>id</B>':				<I>unique_identifier</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>format</B>':				<I>format_name</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>format_url</B>':
+	<I>format_url</I> <B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>type</B>': 				<I>data_type</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>generated_by</B>':
+	<I>creator_application</I> <B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>date</B>':				<I>creation_date</I>
+	<B>date</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>matrix_type</B>':			<I>[dense|sparse]</I>
+	<B>string</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>matrix_element_type</B>':
 	<I>[int|float|string]</I> <B>string</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>shape</B>':
-				<I>dimensions_of_data</I> <B>array of int</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>columns</B>': 			<I>list
-of column_definitions</I> <B>array of hashes</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>rows</B>': 				<I>list of
-row_data</I> <B>array of hashes</B>,</FONT></P>
-<P><FONT FACE="Courier New, monospace">	'<B>data</B>': 				<I>list of
-list of data</I> <B>array of array of matrix_element_type</B></FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Courier New, monospace"><FONT FACE="Courier New, monospace">}</FONT></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/matrix/mgm4440330.3;mgm4447971.3">http://api.metagenomics.anl.gov/matrix/mgm4440330.3;mgm4447971.3</A></FONT></P>
-<H3 CLASS="western"><A NAME="__RefHeading__37_489491726"></A><A NAME="1.3.13.query|outline"></A>
-<FONT FACE="Arial, sans-serif">query</FONT></H3>
-<P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
-without parameters</FONT></B></P>
-<P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">annotation	<B>Note:</B> <I>Even
-though this parameter is mandatory, it can be appended as a key
-values pair, since multiple annotations are possible in a single
-request</I></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">type		[
-organism | functional ] (default organism)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	[
-list of namespaces ] (default all)</FONT></P>
-<P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">partial		[
-1 | 0 ] (default 0)</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif">list of metagenome ids matching the
-query</FONT></P>
-<P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
-<P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/query/?type=function&amp;annotation=16S rRNA">http://api.metagenomics.anl.gov/query/?type=function&amp;annotation=16S
-rRNA</A></FONT></P>
-<P><BR><BR>
-</P>
-</BODY>
+    <P><FONT FACE="Courier New, monospace">	'<B>shape</B>':
+	<I>dimensions_of_data</I> <B>array of int</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>columns</B>': 			<I>list
+	  of column_definitions</I> <B>array of hashes</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>rows</B>': 				<I>list of
+	  row_data</I> <B>array of hashes</B>,</FONT></P>
+    <P><FONT FACE="Courier New, monospace">	'<B>data</B>': 				<I>list of
+	  list of data</I> <B>array of array of matrix_element_type</B></FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Courier New, monospace"><FONT FACE="Courier New, monospace">}</FONT></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/matrix/mgm4440330.3;mgm4447971.3">http://api.metagenomics.anl.gov/matrix/mgm4440330.3;mgm4447971.3</A></FONT></P>
+    <H3 CLASS="western"><A NAME="__RefHeading__37_489491726"></A><A NAME="1.3.13.query|outline"></A>
+      <FONT FACE="Arial, sans-serif">query</FONT></H3>
+    <P STYLE="font-style: normal"><B><FONT FACE="Arial, sans-serif">request
+	  without parameters</FONT></B></P>
+    <P><FONT FACE="Arial, sans-serif">invalid</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>mandatory parameters</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">annotation	<B>Note:</B> <I>Even
+	  though this parameter is mandatory, it can be appended as a key
+	  values pair, since multiple annotations are possible in a single
+	  request</I></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>optional parameters</B></FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">type		[
+	organism | functional ] (default organism)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">source	[
+	list of namespaces ] (default all)</FONT></P>
+    <P STYLE="font-style: normal"><FONT FACE="Arial, sans-serif">partial		[
+	1 | 0 ] (default 0)</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>returned data structure</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif">list of metagenome ids matching the
+	query</FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><B>example request</B></FONT></P>
+    <P><FONT FACE="Arial, sans-serif"><A HREF="http://api.metagenomics.anl.gov/query/?type=function&amp;annotation=16S rRNA">http://api.metagenomics.anl.gov/query/?type=function&amp;annotation=16S
+	  rRNA</A></FONT></P>
+    <P><BR><BR>
+    </P>
+  </BODY>
 </HTML>

@@ -2,6 +2,7 @@ package resources::sequenceSet;
 
 use CGI;
 use JSON;
+use Data::Dumper;
 
 use WebServiceObject;
 
@@ -68,7 +69,7 @@ sub request {
     exit 0;
   }
 
-  unless (defined $job) {
+  unless (defined($job) && ref($job)) {
     my ($pref, $jid) = $id =~ /^(mgm)?(\d+\.\d+)$/;
     if ($jid) {
       $job = $master->Job->init( {metagenome_id => $jid} );
@@ -77,12 +78,17 @@ sub request {
 	  print $cgi->header(-type => 'text/plain',
 			     -status => 401,
 			     -Access_Control_Allow_Origin => '*' );
-	  print "ERROR: Insufficient permissions for sequenceSet call for id: ".$id;
+	  print "ERROR: insufficient permissions for sequenceSet call for id: ".$id;
 	  exit 0;
 	}
-
 	return get_all_sets($job);
-      }
+      } else {
+	print $cgi->header(-type => 'text/plain',
+			   -status => 400,
+			   -Access_Control_Allow_Origin => '*' );
+	print "ERROR: unable to access metagenome: ".$id;
+	exit 0;
+      }      
     } else {
       print $cgi->header(-type => 'text/plain',
 			 -status => 400,
@@ -92,25 +98,37 @@ sub request {
     }
   }
 
-  my $adir = $job->analysis_dir;
-  my $stagefilename;
-  if (opendir(my $dh, $adir)) {
-    my @stagefiles = grep { /^$stageid.*(fna|faa)(\.gz)?$/ && -f "$adir/$_" } readdir($dh);
-    closedir $dh;
-    $stagefilename = $stagefiles[$stagenum - 1];
-  } else {
+  my $filedir  = '';
+  my $filename = '';
+  if ($stageid eq "050") {
+    $filedir = $job->download_dir;
+    if (opendir(my $dh, $filedir)) {
+      my @rawfiles = sort grep { /^.*(fna|fastq)(\.gz)?$/ && -f "$filedir/$_" } readdir($dh);
+      closedir $dh;
+      $filename = $rawfiles[$stagenum - 1];
+    }
+  }
+  else {
+    $filedir = $job->analysis_dir;
+    if (opendir(my $dh, $filedir)) {
+      my @stagefiles = sort grep { /^$stageid.*(fna|faa)(\.gz)?$/ && -f "$filedir/$_" } readdir($dh);
+      closedir $dh;
+      $filename = $stagefiles[$stagenum - 1];
+    }
+  }
+  
+  unless ("$filedir/$filename" && (-s "$filedir/$filename")) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
 		       -Access_Control_Allow_Origin => '*' );
     print "ERROR: could not access analysis directory";
     exit 0;
   }
-
-  if (open(FH, "<$adir/$stagefilename")) {
+  if (open(FH, "<$filedir/$filename")) {
     print "Content-Type:application/x-download\n";  
     print "Access-Control-Allow-Origin: *\n";
-    print "Content-Length: " . (stat("$adir/$stagefilename"))[7] . "\n";
-    print "Content-Disposition:attachment;filename=$stagefilename\n\n";
+    print "Content-Length: " . (stat("$filedir/$filename"))[7] . "\n";
+    print "Content-Disposition:attachment;filename=$filename\n\n";
     while (<FH>) {
       print $_;
     }
@@ -129,11 +147,26 @@ sub request {
 sub get_all_sets {
   my ($job) = @_;
 
-  my $mgid = $job->{metagenome_id};
+  my $mgid = $job->metagenome_id;
+  my $rdir = $job->download_dir;
   my $adir = $job->analysis_dir;
   my $stages = [];
+  if (opendir(my $dh, $rdir)) {
+    my @rawfiles = sort grep { /^.*(fna|fastq)(\.gz)?$/ && -f "$rdir/$_" } readdir($dh);
+    closedir $dh;
+    my $fnum = 1;
+    foreach my $rf (@rawfiles) {
+      my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
+      push(@$stages, { id => "mgm".$mgid."-050-".$fnum,
+		       stage_id => "050",
+		       stage_name => "upload",
+		       stage_type => $ftype,
+		       file_name => $rf });
+      $fnum += 1;
+    }
+  }
   if (opendir(my $dh, $adir)) {
-    my @stagefiles = grep { /^.*(fna|faa)(\.gz)?$/ && -f "$adir/$_" } readdir($dh);
+    my @stagefiles = sort grep { /^.*(fna|faa)(\.gz)?$/ && -f "$adir/$_" } readdir($dh);
     closedir $dh;
     my $stagehash = {};
     foreach my $sf (@stagefiles) {
@@ -150,6 +183,8 @@ sub get_all_sets {
 		       stage_type => $stageresult,
 		       file_name => $sf });
     }
+  }
+  if (@$stages > 0) {
     print $cgi->header(-type => 'application/json',
 		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );

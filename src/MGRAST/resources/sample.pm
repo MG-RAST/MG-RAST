@@ -3,6 +3,7 @@ package resources::sample;
 use CGI;
 use JSON;
 
+use MGRAST::Metadata;
 use WebServiceObject;
 
 my $cgi = new CGI;
@@ -70,11 +71,15 @@ sub request {
 
   if ($sample && ref($sample)) {
     my $obj   = {};
+    my $mddb  = MGRAST::Metadata->new();
     my $mdata = $sample->data();
     my $name  = $sample->name ? $sample->name : (exists($mdata->{sample_name}) ? $mdata->{sample_name} : (exists($mdata->{sample_id}) ? $mdata->{sample_id} : ''));
     my $proj  = $sample->project;
     my $epack = $sample->children('ep');
     my @jobs  = grep { $_->{public} || exists($rights{$_->{metagenome_id}}) || exists($rights{'*'}) } @{ $sample->jobs };
+    if ($cgi->param('template')) {
+      $mdata = $mddb->add_template_to_data('sample', $mdata);
+    }
 
     $obj->{id}       = "mgs".$sample->ID;
     $obj->{about}    = "sample";

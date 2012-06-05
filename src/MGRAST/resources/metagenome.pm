@@ -40,34 +40,34 @@ sub request {
     exit 0;
   }
 
+  my %rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
   my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
+
   unless ($id) {
-    my $result = $master->Job->get_objects( {public => 1, viewable => 1} );
-    if (ref($result) && ref($result) eq 'ARRAY' && scalar(@$result)) {
-      my $ids = {};
-      %$ids = map { "mgm".$_->{metagenome_id}, 1 } @$result;
-      if ($user) {
-	map { $ids->{"mgm".$_} = 1 } @{ $user->has_right_to(undef, 'view', 'metagenome') };
-      }
-      print $cgi->header(-type => 'application/json',
-			 -status => 200,
-			 -Access_Control_Allow_Origin => '*' );
-      print $json->encode([sort keys %$ids]);
-      exit 0;
-    } else {
-      print $cgi->header(-type => 'text/plain',
-			 -status => 500,
-			 -Access_Control_Allow_Origin => '*' );
-      print "ERROR: could not retrieve any datasets";
-      exit 0;
+    my $ids = {};
+    if (exists $rights{'*'}) {
+      map { $ids->{"mgm".$_->{metagenome_id}} = 1 } @{ $master->Job->get_objects({viewable => 1}) };
     }
+    else {
+      my $public = $master->Job->get_objects( {public => 1, viewable => 1} );
+      map { $ids->{"mgm".$_->{metagenome_id}} = 1 } @$public;
+      map { $ids->{"mgm".$_} = 1 } keys %rights;
+    }
+
+    print $cgi->header(-type => 'application/json',
+		       -status => 200,
+		       -Access_Control_Allow_Origin => '*' );
+    print $json->encode([sort keys %$ids]);
+    exit 0;
   }
 
-  my $job = $master->Job->init( {metagenome_id => $id} );
-  if ($job && ref($job)) {
-    if ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id}))) {
+  my $job = $master->Job->get_objects( {metagenome_id => $id} );
+  if (@$job) {
+    $job = $job->[0];
+    if ($job->public || exists($rights{'*'}) || exists($rights{$job->metagenome_id})) {
       my $obj  = {};
       my $mddb = MGRAST::Metadata->new();
+      my $temp = ($cgi->param('template')) ? 1 : 0;
 
       $obj->{_id}      = $job->_id;
       $obj->{id}       = "mgm".$job->metagenome_id;
@@ -78,7 +78,7 @@ sub request {
       $obj->{created}  = $job->created_on;
       $obj->{sample}   = $job->sample ? "mgs".$job->sample->ID : undef;
       $obj->{library}  = $job->library ? "mgl".$job->library->ID : undef;
-      $obj->{metadata} = $mddb->get_job_metadata($job);
+      $obj->{metadata} = $mddb->get_job_metadata($job, $temp);
 
       print $cgi->header(-type => 'application/json',
 			 -status => 200,

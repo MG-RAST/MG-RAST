@@ -21,9 +21,14 @@
     <output><file>The amino acid sequence FASTA formatted file 350.genecalling.coding.faa contains the predicted coding regions.</file></output>
     <output><file>The nucleotide sequence FASTA formatted file 350.genecalling.coding.fna contains the predicted coding regions.</file></output>
   </stage>
-  <stage num='440'>
+  <stage num='425'>
     <input>The input sequence data for this step is in the file 100.preprocess.passed.fna.</input>
-    <description>Sequences are pre-screened using usearch for at least 70% identity to ribosomal sequences and then clustered at 97% identity using UCLUST. The clustering process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
+    <description>Sequences are pre-screened using qiime-uclust for at least 70% identity to ribosomal sequences from the following RNA databases (Greengenes, LSU, SSU, and RDP).</description>
+    <output><file>The FASTA formatted file 425.search.rna.fna contains the predicted ribosomal sequences.</file></output>
+  </stage>
+  <stage num='440'>
+    <input>The input sequence data for this step is in the file 425.search.rna.fna.</input>
+    <description>Sequences are clustered at 97% identity using qiime-uclust. The clustering process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
     <output><file>The FASTA formatted file 440.cluster.rna97.fna contains sequence clusters that have at least 70% identity to ribosomal sequences and have sequences within 97% identity.</file></output>
     <output>
       <file>The tab-delimited file 440.cluster.rna97.mapping identifies the sequence clusters and the sequences which describe them, each line describes a single cluster.</file>
@@ -56,7 +61,7 @@
   </stage>
   <stage num='550'>
     <input>The input sequence data for this step is in the file 350.genecalling.coding.faa.</input>
-    <description>Protein coding sequences identified with FragGeneScan are clustered at 90% identity with UCLUST. This process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
+    <description>Protein coding sequences identified with FragGeneScan are clustered at 90% identity with qiime-uclust. This process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
     <output><file>The amino acid sequence FASTA formatted file 550.cluster.aa90.faa contains the translations of one sequence from each cluster (by cluster ids starting with aa90_) and all the unclustered (singleton) sequences with the original sequence ID.</file></output>
     <output>
       <file>The tab-delimited file 550.cluster.aa90.mapping identifies the sequence clusters and the sequences which describe them, each line describes a single cluster.</file>

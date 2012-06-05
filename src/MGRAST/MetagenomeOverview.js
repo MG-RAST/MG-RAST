@@ -291,22 +291,32 @@ function draw_generic_plot(data, labels, plabel, display_id, ptext, ltext, is_lo
     blanket.toFront();
 }
 
+function draw_kmer_curve(data_id, display_id, xscale, yscale, xlabel, ylabel) {
+    // Grab the data
+    var data_list = document.getElementById(data_id).value.split("~");
+    var pdata  = [];
+    var yfloat = (yscale == 'log') ? false : true;
+    for (i=0;i<data_list.length;i++) {
+	pdata[i] = data_list[i].split(";;");
+    }
+    draw_generic_curve(pdata, display_id, xlabel, ylabel, null, null, xscale, yscale, false, yfloat);
+}
+
 function draw_rarefaction_curve(data_id, display_id) {
     // Grab the data
     var data_list = document.getElementById(data_id).value.split("~");
     var pdata = [];
     for (i=0;i<data_list.length;i++) {
-	pdata[pdata.length] = data_list[i].split(";;");
+	pdata[i] = data_list[i].split(";;");
     }
-    draw_generic_curve(pdata, display_id, "Number of Reads", "Species Count", "reads", "species");
+    draw_generic_curve(pdata, display_id, "Number of Reads", "Species Count", "reads", "species", "linear", "linear", true, false);
 }
 
-function draw_generic_curve(data, display_id, xlabel, ylabel, xtext, ytext) {
+function draw_generic_curve(data, display_id, xlabel, ylabel, xtext, ytext, xscale, yscale, show_popup, yfloat) {
     // Draw
-    var bonus_x = 0, bonus_y = 0;
+    var bonus_x = 30, bonus_y = 30;
     if (xtext) { bonus_y = 30; }
     if (ytext) { bonus_x = 30; }
-
     var width  = 850,
         height = 250,
         ytick  = 10,
@@ -323,18 +333,32 @@ function draw_generic_curve(data, display_id, xlabel, ylabel, xtext, ytext) {
         size = data.length,
         maxX = width - leftgutter,
         maxY = height - bottomgutter - topgutter,
-        X    = maxX / data[size-1][0],
-        Y    = maxY / data[size-1][1];
+        Xopt = (xscale == 'log') ? matrix_max(data, 0, true) : matrix_max(data, 0, false),
+        Yopt = (yscale == 'log') ? matrix_max(data, 1, true) : matrix_max(data, 1, false),
+        X    = maxX / Xopt,
+        Y    = maxY / Yopt;
     // Raphael.fn.drawGrid = function (x, y, w, h, wv, hv, color)
-    r.drawGrid(leftgutter + X * .5 + .5, topgutter + .5, maxX - X, maxY, xtick, ytick, "#333");
+    //r.drawGrid(leftgutter + X * .5 + .5, topgutter + .5, maxX - X, maxY, xtick, ytick, "#333");
+    r.drawGrid(leftgutter, topgutter, maxX, maxY, xtick, ytick, "#333");
 
     // y-axis labels
     var maxLabelSizeY = 0;
     for (var i = 0; i < ytick; i++) {
 	var scaleHeight = maxY * ((ytick-i) / ytick);
-	var scaleValue  = Math.round(data[size-1][1] * ((i+1) / ytick));
-	r.text(leftgutter - (3 * scaleValue.toString().length) - 4, Math.round(scaleHeight) + 2, scaleValue).attr(txt2);
-	maxLabelSizeY = Math.max(maxLabelSizeY, 3 * scaleValue.toString().length);
+	var scaleValue;
+	if (yfloat) {
+	    scaleValue = Math.ceil(Yopt) * ((i+1) / ytick);
+	}
+	else {
+	    if (yscale == 'log') {
+		scaleValue = Math.round(Math.exp(Math.ceil(Yopt) * ((i+1) / ytick)));
+	    } else {
+		scaleValue = Math.round(Yopt * ((i+1) / ytick));
+	    }
+	}
+	var displayValue = (scaleValue.toString().length > 7) ? scaleValue.toExponential(2) : scaleValue.toString();
+	r.text(leftgutter - (3 * displayValue.length) - 4, Math.round(scaleHeight) + 2, displayValue).attr(txt2);
+	maxLabelSizeY = Math.max(maxLabelSizeY, 3 * displayValue.length);
     }
     r.text(leftgutter - (3 * "0".length) - 4, height - bottomgutter, "0").attr(txt2);
     if (ylabel) {
@@ -345,9 +369,15 @@ function draw_generic_curve(data, display_id, xlabel, ylabel, xtext, ytext) {
     var maxLabelSizeX = 0;
     for (var i = 0; i < xtick; i++) {
 	var scaleWidth = maxX * ((i+1) / xtick);
-	var scaleValue = Math.round(data[size-1][0] * ((i+1) / xtick));
-	r.text(Math.round(scaleWidth) + leftgutter - 4, height - 10, scaleValue).attr(txt2).rotate(315).toBack();
-	maxLabelSizeX = Math.max(maxLabelSizeX, 3 * scaleValue.toString().length);
+	var scaleValue;
+	if (xscale == 'log') {
+	    scaleValue = Math.round(Math.exp(Math.ceil(Xopt) * ((i+1) / xtick)));
+	} else {
+	    scaleValue = Math.round(Xopt * ((i+1) / xtick));
+	}
+	var displayValue = (scaleValue.toString().length > 5) ? scaleValue.toExponential(2) : scaleValue.toString();
+	r.text(Math.round(scaleWidth) + leftgutter - 4, height - 10, displayValue).attr(txt2).rotate(315).toBack();
+	maxLabelSizeX = Math.max(maxLabelSizeX, 3 * displayValue.length);
     }
     r.text(leftgutter - 4, height - 15, "0").attr(txt2);
     if (xlabel) {
@@ -355,57 +385,75 @@ function draw_generic_curve(data, display_id, xlabel, ylabel, xtext, ytext) {
     }
 
     // draw path
+    var labels, hovers, frame;
     var x0     = leftgutter + 2,
         y0     = height - bottomgutter + 2,
         xrange = maxX / size,
-        xy_pos = ["M "+x0+" "+y0],
         aPath  = r.path().attr({stroke: color, "stroke-width": 4, "stroke-linejoin": "round"}),
-        labels = r.set(),
-        hovers = r.set(),
         is_label_visible = false,
         leave_timer;
-    labels.push(r.text(60, 12, ytext+': '+Math.round(data[0][1])).attr(txt));
-    labels.push(r.text(60, 27, xtext+': '+data[0][0]).attr(txt));
-    labels.hide();
-    var frame = r.popup(100, 100, labels, "right").attr({fill: "#000", stroke: "#666", "stroke-width": 2, "fill-opacity": .7}).hide();
-
-    for (var i=0; i<size; i++) {
-	var pX = x0 + (X * data[i][0]);
-	var pY = y0 - (Y * data[i][1]);
-	xy_pos.push( "L "+pX+" "+pY );
-	hovers.push( r.rect(pX, topgutter, xrange, y0).attr({stroke: "none", fill: "#fff", opacity: 0}) );
-        var rect = hovers[hovers.length - 1];
-
-        (function (xpos, ypos, xdata, ydata) {
-	  var timer, i = 0;
-	  rect.hover(function () {
-	      clearTimeout(leave_timer);
-	      var side = "right";
-	      if (xpos + frame.getBBox().width > width) {
-		side = "left";
-	      }
-	      labels[0].attr({text: ytext+': '+Math.round(ydata)});
-	      labels[1].attr({text: xtext+': '+xdata});
-	      var ppp = r.popup(xpos, ypos, labels, side, 1);
-	      frame.show().stop().animate({path: ppp.path}, 200 * is_label_visible);
-	      labels[0].show().stop().animateWith(frame, {translation: [ppp.dx, ppp.dy]}, 200 * is_label_visible);
-	      labels[1].show().stop().animateWith(frame, {translation: [ppp.dx, ppp.dy]}, 200 * is_label_visible);
-	      is_label_visible = true;
-            }, function () {
-	      leave_timer = setTimeout(function () {
-		  frame.hide();
-		  labels[0].hide();
-		  labels[1].hide();
-		  is_label_visible = false;
-                }, 1);
-	    });
-        })(pX, pY, data[i][0], data[i][1]);
+    if (show_popup) {
+	labels = r.set();
+	hovers = r.set();
+	var Ystart = (yscale == 'log') ?  Math.log(data[0][1]) : data[0][1];
+	var Xstart = (xscale == 'log') ?  Math.log(data[0][0]) : data[0][0];
+	labels.push(r.text(60, 12, ytext+': '+Ystart).attr(txt));
+	labels.push(r.text(60, 27, xtext+': '+Xstart).attr(txt));
+	labels.hide();
+	frame = r.popup(100, 100, labels, "right").attr({fill: "#000", stroke: "#666", "stroke-width": 2, "fill-opacity": .7}).hide();
     }
-    aPath.attr({path: xy_pos.join(" ")});
-    frame.toFront();
-    labels[0].toFront();
-    labels[1].toFront();
-    hovers.toFront();
+    var xy_pos = [];
+    for (var i=0; i<size; i++) {
+	var xdataval = (xscale == 'log') ? Math.log(data[i][0]) : data[i][0];
+	var ydataval = (yscale == 'log') ? Math.log(data[i][1]) : data[i][1];
+	var pX = Math.round(x0 + (X * xdataval));
+	var pY = Math.round(y0 - (Y * ydataval));
+	if (i == 0) {
+	    if ((yscale == 'log') || (xscale == 'log')) {
+		xy_pos.push( "M"+pX+","+pY );
+	    } else {
+		xy_pos.push( "M"+x0+","+y0 );
+		xy_pos.push( "L"+pX+","+pY );
+	    }
+	} else {
+	    xy_pos.push( "L"+pX+","+pY );
+	}
+	if (show_popup) {
+	    hovers.push( r.rect(pX, topgutter, xrange, y0).attr({stroke: "none", fill: "#fff", opacity: 0}) );
+	    var rect = hovers[hovers.length - 1];
+            (function (xpos, ypos, xdata, ydata) {
+		var timer, i = 0;
+		rect.hover(function () {
+		    clearTimeout(leave_timer);
+		    var side = "right";
+		    if (xpos + frame.getBBox().width > width) {
+			side = "left";
+		    }
+		    labels[0].attr({text: ytext+': '+Math.round(ydata)});
+		    labels[1].attr({text: xtext+': '+xdata});
+		    var ppp = r.popup(xpos, ypos, labels, side, 1);
+		    frame.show().stop().animate({path: ppp.path}, 200 * is_label_visible);
+		    labels[0].show().stop().animateWith(frame, {translation: [ppp.dx, ppp.dy]}, 200 * is_label_visible);
+		    labels[1].show().stop().animateWith(frame, {translation: [ppp.dx, ppp.dy]}, 200 * is_label_visible);
+		    is_label_visible = true;
+		}, function () {
+		    leave_timer = setTimeout(function () {
+			frame.hide();
+			labels[0].hide();
+			labels[1].hide();
+			is_label_visible = false;
+                    }, 1);
+		});
+            })(pX, pY, xdataval, ydataval);
+	}
+    }
+    aPath.attr({path: xy_pos.join("")});
+    if (show_popup) {
+	frame.toFront();
+	labels[0].toFront();
+	labels[1].toFront();
+	hovers.toFront();
+    }
 }
 
 function draw_bar_plot(display_id, labels, colors, data) {
@@ -481,6 +529,79 @@ function draw_bar_plot(display_id, labels, colors, data) {
     }
 }
 
+function draw_position_on_range(display_id, thisVal, minVal, maxVal, avgVal, stdVal) {
+    var topgutter  = 12,
+        leftgutter = 40
+        barHeight  = 35,
+        barWidth   = 350,
+        rWidth     = leftgutter + barWidth + 10,
+        rHeight    = topgutter + barHeight + 15,
+        color = "hsb(" + [.6, .5, 1] + ")",
+        txt1 = {font: '10px Helvetica, Arial', fill: "#fff"},
+        txt2 = {font: '10px Helvetica, Arial', fill: "#000"},
+        r    = Raphael(display_id, rWidth, rHeight);
+
+    var sigma   = '\u03C3',
+        txtY    = barHeight + topgutter + 10,
+        avgX    = Math.round(barWidth * (avgVal / maxVal)),
+        stdX    = Math.round(barWidth * (stdVal / maxVal)),
+        thisX   = Math.round(barWidth * (thisVal / maxVal)),
+        thisTxt = thisVal.toFixed(2),
+        minTxt  = minVal.toFixed(2),
+        avgTxt  = avgVal.toFixed(2),
+        maxTxt  = maxVal.toFixed(2);
+
+    if (minVal == 0) {
+	minTxt = '0';
+    }
+    // min to 2-sigma-low
+    var sigma2low = Math.round(avgX - (2 * stdX))
+    if (sigma2low > 0) {
+	r.rect(leftgutter, topgutter, sigma2low, barHeight).attr({stroke: color, 'stroke-width': 1, 'fill-opacity': .2, fill: color});
+    } else {
+	sigma2low = 0;
+    }
+    // 2-sigma-high to max
+    var sigma2high = Math.round(avgX + (2 * stdX))
+    if (sigma2high < barWidth) {
+	r.rect(leftgutter+sigma2high, topgutter, (barWidth-sigma2high), barHeight).attr({stroke: color, 'stroke-width': 1, 'fill-opacity': .2, fill: color});
+    } else {
+	sigma2high = barWidth;
+    }
+    // 2-sigma-low to 1-sigma-low
+    var sigma1low = Math.round(avgX - stdX)
+    if (sigma1low > 0) {
+	r.rect(leftgutter+sigma2low, topgutter, (sigma1low-sigma2low), barHeight).attr({stroke: color, 'stroke-width': 1, 'fill-opacity': .45, fill: color});
+    } else {
+	sigma1low = 0;
+    }
+    // 1-sigma-high to 2-sigma-high
+    var sigma1high = Math.round(avgX + stdX)
+    if (sigma1high < barWidth) {
+	r.rect(leftgutter+sigma1high, topgutter, (sigma2high-sigma1high), barHeight).attr({stroke: color, 'stroke-width': 1, 'fill-opacity': .45, fill: color});
+    } else {
+	sigma1high = barWidth;
+    }
+    // 1-sigma-low to 1-sigma-high
+    r.rect(leftgutter+sigma1low, topgutter, (sigma1high-sigma1low), barHeight).attr({stroke: color, 'stroke-width': 1, 'fill-opacity': .7, fill: color});
+    // min max text
+    r.text(leftgutter + Math.round(2.2 * minTxt.length), txtY, minTxt).attr(txt2);
+    r.text(rWidth - Math.round(2.2 * maxTxt.length) - 7, txtY, maxTxt).attr(txt2);
+    // sigma text
+    if (sigma2low > 0) { r.text(leftgutter + sigma2low, 5, '2'+sigma).attr(txt2); }
+    if (sigma1low > 0) { r.text(leftgutter + sigma1low, 5, sigma).attr(txt2); }
+    if (sigma1high < barWidth) { r.text(leftgutter + sigma1high, 5, sigma).attr(txt2); }
+    if (sigma2high < barWidth) { r.text(leftgutter + sigma2high, 5, '2'+sigma).attr(txt2); }
+    // mean
+    r.text(leftgutter + avgX, 5, '\u03BC').attr(txt2);
+    r.text(leftgutter + avgX, txtY, avgTxt).attr(txt2);
+    r.path('M'+(leftgutter+avgX).toString()+' '+topgutter.toString()+'V'+(txtY-10).toString()).attr({stroke:color, "stroke-width":2, "stroke-dasharray":"-"});
+    // you
+    r.text(leftgutter + thisX, txtY, thisTxt).attr(txt2);
+    r.circle(leftgutter+thisX, 5, 3).attr({'fill-opacity': .8, fill: 'red', stroke:'red'});
+    r.path('M'+(leftgutter+thisX).toString()+' '+topgutter.toString()+'V'+(txtY-10).toString()).attr({stroke:'red', "stroke-width":2});
+}
+
 function getAnchors(p1x, p1y, p2x, p2y, p3x, p3y) {
     var l1 = (p2x - p1x) / 2,
         l2 = (p3x - p2x) / 2,
@@ -527,6 +648,10 @@ function check_download(type, obj, level, mgid) {
   }
 }
 
+function exp_format(x) {
+    
+}
+
 function comma_format(x) {
     x = x.toString();
     var pattern = /(-?\d+)(\d{3})/;
@@ -535,3 +660,11 @@ function comma_format(x) {
     return x;
 }
 
+function matrix_max(matrix, pos, get_log) {
+    var data = [];
+    for (i=0;i<matrix.length;i++) {
+	data[i] = matrix[i][pos];
+    }
+    var max = get_log ? Math.log(Math.max.apply(Math, data)) : Math.max.apply(Math, data);
+    return max;
+}

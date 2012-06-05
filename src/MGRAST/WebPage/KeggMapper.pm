@@ -10,7 +10,6 @@ use FIG_Config;
 
 use MGRAST::MetagenomeAnalysis2;
 use MGRAST::MGRAST qw( get_public_metagenomes );
-use MGRAST::Metadata;
 
 1;
 

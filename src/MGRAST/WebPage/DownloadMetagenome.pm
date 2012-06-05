@@ -11,6 +11,9 @@ use File::Basename;
 use Number::Format;
 use XML::Simple;
 
+use FIG_Config;
+use MGRAST::Metadata;
+
 1;
 
 
@@ -41,15 +44,17 @@ sub init {
 
   my $cgi = $self->application->cgi();
   my $id;
-  my $stages = { 100 => { name => "Preprocessing"} ,
-		 150 => { name => "Dereplication"} ,
-		 299 => { name => "Screening"} ,
-		 350 => { name => 'Prediction of protein coding sequences'} ,
-		 440 => { name => 'RNA Clustering'} ,
-		 450 => { name => 'RNA similarities'} ,
-		 550 => { name => 'Gene Clustering'} ,
-		 650 => { name => 'Protein similarities'} ,
-		 900 => { name => 'Abundance profiles'}
+  my $stages = {  50 => { name => 'Uploaded', link => "upload" } ,
+		 100 => { name => 'Preprocessing', link => "preproc" } ,
+		 150 => { name => 'Dereplication', link => "derep" } ,
+		 299 => { name => "Screening", link => "screen" } ,
+		 350 => { name => 'Gene Calling', link => "gene" } ,
+		 425 => { name => 'RNA Identification', link => "search" } ,
+		 440 => { name => 'RNA Clustering 97%', link => "rna_clust" } ,
+		 450 => { name => 'M5 RNA Search', link => "rna_sim" } ,
+		 550 => { name => 'Protein Clustering 90%', link => "aa_clust" } ,
+		 650 => { name => 'M5 Protein Search', link => "aa_sim" } ,
+		 900 => { name => 'Abundance Profiles', link => "abund" }
 	       };
   $self->data('stages', $stages);
 
@@ -82,10 +87,15 @@ sub init {
   my $sims = $cgi->param('sims') || 1;
   $self->data('get_sims', $sims);
 
+  # init the metadata database
+  my $mddb = MGRAST::Metadata->new();
+  $self->data('mddb', $mddb);
+
+  $self->application->register_action($self, 'download_md', 'download_md');
   $self->application->register_action($self, 'download', 'download');
   $self->application->register_component('Table', 'project_table');
   $self->application->register_component('Hover', 'download_project_info');
-
+  $self->application->register_component('Hover', 'download_info');
 }
 
 
@@ -162,28 +172,48 @@ my $css_tmp = qq~
   my $aa_clust  = exists($stats->{cluster_count_processed_aa}) ? $stats->{cluster_count_processed_aa} : 0;
 
   my $project = ''; 
-  if( $job->project){
-    $project = $job->project->id;
+  if ( $job->primary_project) {
+    $project = $job->primary_project;
   }
-  else{
-    my $pjs = $job->_master->ProjectJob->get_objects( {  job => $job }) ;
-    $project = $pjs->[0]->project if ($pjs and scalar @$pjs) ;
+  else {
+    my $pjs = $job->_master->ProjectJob->get_objects( {job => $job} );
+    $project = $pjs->[0]->project if ($pjs and scalar @$pjs);
   }
-  my $pid = $project ? $project->id : '' ;
+  my $pid = $project ? $project->id : '';
   my $mid = $job->metagenome_id;
-  
-  my $download = '';
+
+  ## downloads
+  my $download  = "";
+  my $down_info = $self->app->component('download_info');
+  my $metadata  = $self->data('mddb')->get_metadata_for_table($mid, 1, 1);
+  my $mfile = "mgm".$mid.".metadata.txt";
+  if (open(FH, ">".$FIG_Config::temp."/".$mfile)) {
+    foreach my $line (@$metadata) {
+      print FH join("\t", @$line)."\n";
+    }
+    close FH;
+  }
+  $down_info->add_tooltip('meta_down', 'Download metadata for this metagenome');
+  $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filename=$mfile'><img src='./Html/mg-download.png' style='height:15px;'/><small>metadata</small></a>";
   if ($pid) {
-    $download = qq~
-<a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$pid/$mid.raw.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download submitted metagenome' height='15'/><small>submitted</small></a>
-<a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$pid/$mid/metadata.xml'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download metadata for this metagenome' height='15'/><small>metadata</small></a>
-<a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$pid/$mid.processed.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download all derived data for this metagenome' height='15'/><small>analysis</small></a>~;
+    $down_info->add_tooltip('sub_down', 'Download submitted metagenome');
+    $down_info->add_tooltip('derv_down', 'Download all derived data for this metagenome');
+    $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"sub_down\",".$down_info->id.")' target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$pid/$mid/raw'><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted</small></a>";
+    $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"derv_down\",".$down_info->id.")' target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$pid/$mid/processed'><img src='./Html/mg-download.png' style='height:15px;'/><small>analysis</small></a>";
   }
   
   $self->title("Metagenome Download");
-  $content .= "<h2 style='display:inline'>".$job->name." ($mid)"."</h2>".$download;
+  $content .= $down_info->output()."<h1 style='display:inline;'>".$job->name." ($mid)</h1>".$download;
   $content .= "<p>On this page you can download all data related to metagenome ".$job->name."</p>";
-  $content .= "<p>Data are available from each step in the <a target=_blank hrep='http://blog.metagenomics.anl.gov/howto/quality-control'>MG-RAST pipeline</a>. Each section below corresponds to a step in the processing pipeline. Each of these sections includes a description of the input, output, and procedures implemented by the indicated step. They also include a brief description of the output format, buttons to download data processed by the step and detailed statistics (click on &ldquo;show stats&rdquo; to make collapsed tables visible).</p>";
+  $content .= "<p>Data are available from each step in the <a target=_blank href='http://blog.metagenomics.anl.gov/howto/quality-control'>MG-RAST pipeline</a>. Each section below corresponds to a step in the processing pipeline. Each of these sections includes a description of the input, output, and procedures implemented by the indicated step. They also include a brief description of the output format, buttons to download data processed by the step and detailed statistics (click on &ldquo;show stats&rdquo; to make collapsed tables visible).</p>";
+  
+  my $pipe1  = [50, 100, 150, 299, 350, 550, 650, 900];
+  my $pipe2  = [425, 440, 450];
+  my $label1 = '['.join(",", map {"'".$self->data('stages')->{$_}{name}."'"} @$pipe1).",'Done']";
+  my $label2 = '['.join(",", map {"'".$self->data('stages')->{$_}{name}."'"} @$pipe2).']';
+  my $link1  = '['.join(",", map {"'".$self->data('stages')->{$_}{link}."'"} @$pipe1).",'done']";
+  my $link2  = '['.join(",", map {"'".$self->data('stages')->{$_}{link}."'"} @$pipe2).']';
+  $content .= "<p><div id='pipeline_image'></div><img src='./Html/clear.gif' onload='draw_pipeline_image($label1,$label2,$link1,$link2,\"pipeline_image\");'></p>";
 
   my $stages = {};
   my $download_dir = $job->download_dir(1) || "/mcs/bio/mg-rast/jobsv3/" . $job->job_id . "/analysis";
@@ -202,6 +232,7 @@ my $css_tmp = qq~
       # populate data
       if ( $self->data('stages')->{$id} and ref $self->data('stages')->{$id} ) {
 	$stages->{$id}->{name}   = $self->data('stages')->{$id}->{name};
+	$stages->{$id}->{link}   = $self->data('stages')->{$id}->{link};
 	$stages->{$id}->{stage}  = $name;
 	$stages->{$id}->{prefix} = "$id.$name";
       }
@@ -211,8 +242,9 @@ my $css_tmp = qq~
     }
   }
   #raw data somewhere else
-  $stages->{'0'}->{name}   = 'Uploaded file(s)';
-  $stages->{'0'}->{prefix} = $job->job_id;
+  my $rawid = 50;
+  $stages->{$rawid} = $self->data('stages')->{$rawid};
+  $stages->{$rawid}->{prefix} = $job->job_id;
   
   # prep output for every stage
   foreach my $stage (sort {$a <=> $b} keys %$stages) {
@@ -280,6 +312,7 @@ sub stage_download_info {
   my ($self, $sid, $stages, $dir) = @_;
   
   my $name   = $stages->{$sid}->{name};
+  my $link   = $stages->{$sid}->{link};
   my $prefix = $stages->{$sid}->{prefix};
   my @fs     = glob "$dir/$prefix.*";
 
@@ -287,7 +320,7 @@ sub stage_download_info {
       push @fs, glob "$dir/*info";
   }
 
-  my $content = "<h3>$name</h3>\n";
+  my $content = "<a name='$link'><h3>$name</h3></a>\n";
 
   my $file_table = "<table>";
   my $info_text  = '';
@@ -388,6 +421,26 @@ sub stage_download_info {
   return $has_file ? $content : "";
 }
 
+sub download_md {
+  my ($self) = @_;
+
+  my $cgi  = $self->application->cgi;
+  my $file = $cgi->param('filename');
+  
+  if (open(FH, "<".$FIG_Config::temp."/".$file)) {
+    my $content = do { local $/; <FH> };
+    close FH;
+    print "Content-Type:text/plain\n";  
+    print "Content-Length: " . length($content) . "\n";
+    print "Content-Disposition:attachment;filename=".$file."\n\n";
+    print $content;
+    exit;
+  } else {
+    $self->application->add_message('warning', "Could not open download file");
+  }
+  return 1;
+}
+
 sub download {
   my ($self) = @_;
 
@@ -397,10 +450,8 @@ sub download {
   my $sid  = $cgi->param('stage');
 
   if (open(FH, $job->download_dir($sid) . "/" . $file)) {
-    my $content = "";
-    while (<FH>) {
-      $content .= $_;
-    }
+    my $content = do { local $/; <FH> };
+    close FH;
     print "Content-Type:application/x-download\n";  
     print "Content-Length: " . length($content) . "\n";
     print "Content-Disposition:attachment;filename=" . $job->metagenome_id . "." . $cgi->param('file') . "\n\n";
@@ -446,27 +497,14 @@ sub public_project_download_table {
   my $user = $application->session->user;
 
   my $jobdbm = $application->data_handle('MGRAST');
-  my $projects = [] ;# ($user) ? $user->has_right_to(undef, 'view', 'project') : [];
   my $public_projects = $jobdbm->Project->get_objects( { public => 1 } );
-
-  my $public_jobs = {} ;
-  my $list = $jobdbm->Job->get_objects( { public => 1 } );
-  map { $public_jobs->{ $_->metagenome_id } = { project => 0 , job => $_ } } @$list ;
-
+  my $projects = [] ;# ($user) ? $user->has_right_to(undef, 'view', 'project') : [];
+  my $content  = "" ; # "Public projects and metagenomes." ;
   
-
-  my $content = "" ; # "Public projects and metagenomes." ;
-  
-  if ( scalar(@$projects) || scalar(@$public_projects)  ) {
-    
+  if ( scalar(@$projects) || scalar(@$public_projects) ) {
     my $down_info = $application->component('download_project_info');
-    $down_info->add_tooltip('all_down', 'download all submitted metagenomes for this project');
+    $down_info->add_tooltip('all_down', 'download all submitted and derived metagenome data for this project');
     $down_info->add_tooltip('meta_down', 'download project metadata');
-    $down_info->add_tooltip('derv_down', 'download all derived data for metagenomes of this project');
-    #$download .= "&nbsp;&nbsp;&nbsp;<a  onmouseover='hover(event,\"all_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/projects/$id.raw.tar'><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted metagenomes</small></a>";
-    #$download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/project_$id.xml'><img src='./Html/mg-download.png' style='height:15px;'/><small>project metadata</small></a>";
-    #$download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"derv_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/projects/$id.processed.tar'><img src='./Html/mg-download.png' style='height:15px;'/><small>MG-RAST analysis</small></a>";
-
 
     my $table = $application->component('project_table');
     $table->items_per_page(25);
@@ -475,109 +513,57 @@ sub public_project_download_table {
     $table->show_top_browse(1);
     $table->show_bottom_browse(1);
     $table->show_clear_filter_button(1);
-
     $table->width(800);
-    $table->columns( [ { name => 'Project&nbsp;ID' , visible=> 0 , show_control=>0 , filter=>1  },
-		       { name => 'Metagenome&nbsp;ID' , visible=> 0 , show_control=>1 , filter=>1  },
-		       { name => 'Project' , filter => 1 , sortable => 1},
-		       { name => 'Contact' , filter => 1 , sortable => 1},
-		       { name => 'Biome'   , filter => 1 , sortable => 1},
-		       { name => 'Country'   , filter => 1 , sortable => 1 , visible=>0 },
-		       { name => 'PubMed ID'   , filter => 1 , sortable => 1 , visible=>0 },	      
-		       { name => 'Sequence&nbsp;type' , filter => 1 , sortable => 1 , operator => 'combobox' } ,
-		       { name => '#&nbsp;Metagenomes' , filter => 1  , operators => [ 'equal' , 'less' , 'more' ] , sortable =>  1} ,
-		       { name => 'Project&nbsp;size (Mbp)' , filter => 1  , operators => [ 'equal' , 'less' , 'more' ] , sortable =>  1} ,
-		       { name =>'Download' } ,
+    $table->columns( [ { name => 'Project&nbsp;ID', visible => 0, show_control => 0, filter =>1 },
+		       { name => 'Metagenome&nbsp;ID', visible => 0, show_control => 1, filter =>1 },
+		       { name => 'Project', filter => 1, sortable => 1 },
+		       { name => 'Contact', filter => 1, sortable => 1 },
+		       { name => 'Enviroment', filter => 1, sortable => 1 },
+		       { name => 'Country', filter => 1, sortable => 1, visible => 0 },
+		       { name => 'PubMed ID', filter => 1, sortable => 1, visible => 0 },
+		       { name => 'Sequence&nbsp;type', filter => 1, sortable => 1, operator => 'combobox' },
+		       { name => '#&nbsp;Metagenomes', filter => 1, operators => [ 'equal' , 'less' , 'more' ], sortable =>  1 },
+		       { name => 'Project&nbsp;size (Mbp)', filter => 1, operators => [ 'equal' , 'less' , 'more' ], sortable => 1},
+		       { name =>'Download' }
 		     ] );
-    my $data = [];
-    $projects = $jobdbm->Project->get_objects_for_ids($projects);
-    push @$projects, @$public_projects ;
+    my $data  = [];
     my $shown = {};
+    $projects = $jobdbm->Project->get_objects_for_ids($projects);
+    push @$projects, @$public_projects;
     foreach my $project (sort {$a->id <=> $b->id } @$projects) {
-      next if $shown->{$project->_id};
-      next unless $project->id ;
-      $shown->{$project->_id} = 1;
-      my $jobs = $jobdbm->ProjectJob->get_objects( { project => $project } );
       my $id = $project->id;
-      
-      
-      my $jdownload = "<table>";
-      foreach my $j (@$jobs) {
-	my $id = $project->id;
-	my $mid = $j->job->metagenome_id;
-	
-	# is in project
-	$public_jobs->{$mid}->{project} = 1;
-	
-	# 	$jdownload .= "<tr align='center'><td><a href='?page=MetagenomeOverview&metagenome=$mid'>$mid</a></td>
-	# <td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/$mid.raw.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download submitted metagenome' height='15'/><small>submitted</small></a></td>
-	# <td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/$mid/metadata.xml'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download metadata for this metagenome' height='15'/><small>metadata</small></a></td>
-	# <td><a href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/$mid.processed.tar.gz'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download all derived data for this metagenome' height='15'/><small>analysis</small></a></td>
-	# </tr>\n"  if ($j->job->public);
-      }
-	#       $jdownload .= "</table>\n";
-	
-	
-	
-	next unless (scalar(@$jobs));
+      next if $shown->{$id};
+      next unless ($id && $project->name);
 
-	
-	my @f = $project->data('PI_firstname') ? $project->data('PI_firstname') : $project->data('firstname') ;
-      my @l = $project->data('PI_lastname')  ? $project->data('PI_lastname')  : $project->data('lastname') ;
-      my $biomes = "-" ;
-      my $list =  $project->biomes;
-      $biomes = join " " ,  @$list  if ( @$list ) ;  
-      
-      my $publications = "-" ;
-      $list = $project->pubmed ;
-      $publications = join "," ,  @$list if (@$list) ;
-
-      my $countries = "-" ;
-      $list = $project->countries ;
-      $countries = join " " ,  @$list if (@$list) ;
-
-      # all metagenome and sample ids
-      my $mid = join " " , @{$project->all_metagenome_ids};
-      $mid = "-" unless ($mid);
-      
-      my $sequence_types = "unknown" ;
-      $list = $project->sequence_types ; #('unknown' , 'amplicon' , 'assembled' ,'wgs' , '16s' ) ;
-      $sequence_types = join " <br>" , @$list if (@$list) ;
-
-      my $project_size = $project->bp_count_raw || "-";
-      my $formater = new Number::Format(-thousands_sep   => ',');
-      $project_size =$formater->format_number(($project_size / 1000000), 0) unless ( $project_size eq "-" );
-      
-      
-      
-      my $download = "<table><tr align='center'>
-<td><a  onmouseover='hover(event,\"all_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/projects/$id.raw.tar'><img src='$FIG_Config::cgi_url/Html/mg-download.png' height='15'/><small>submitted metagenomes</small></a></td>
-<td><a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/metagenomes/$id/metadata.project-$id.xls'><img src='$FIG_Config::cgi_url/Html/mg-download.png' height='15'/><small>metadata</small></a></td>
-<td><a onmouseover='hover(event,\"derv_down\",".$down_info->id.")' href='ftp://ftp.metagenomics.anl.gov/projects/$id.processed.tar'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download all derived data for metagenomes of this project' height='15'/><small>analysis</small></a></td>
+      $shown->{$id}  = 1;
+      my $formater   = new Number::Format(-thousands_sep => ',');
+      my $all_mgids  = $project->all_metagenome_ids;
+      my $pubmed_ids = join(",", sort @{$project->pubmed});
+      my $download   = "<table><tr align='center'>
+<td><a  onmouseover='hover(event,\"all_down\",".$down_info->id.")' target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$id'><img src='$FIG_Config::cgi_url/Html/mg-download.png' height='15'/><small>metagenomes</small></a></td>
+<td><a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://".$FIG_Config::ftp_download."/projects/$id/metadata.project-$id.xlsx'><img src='$FIG_Config::cgi_url/Html/mg-download.png' height='15'/><small>metadata</small></a></td>
 </tr></table>";
-      
-      push(@$data, [  $id , $mid , "<a href='?page=MetagenomeProject&project=$id' title='View project'>".$project->name."</a>", ( join "," , @l , @f  ) , $biomes , $countries ,  "<a href='http://www.ncbi.nlm.nih.gov/pubmed/$publications' target=_blank >$publications</a>" , $sequence_types , "<a href='?page=MetagenomeProject&project=$id#jobs' title='Download single metagenome from project page' >". scalar(@$jobs) . "</a>" , "$project_size" , $download ]);
-    }
 
-    
-    my $all_ids_without_project = '';
-    my $id                      = "no_project" ; # no_project tag  for non existent projects
-    my $biomes                  = '';
-    my $countries               = '';
-    
-    my $jdata = $jobdbm->Job->without_project();
-    my $nr_without_project = scalar @$jdata ;
-    $all_ids_without_project = join " " , (map { $_->[0] } @$jdata ) ; 
-    
-  
-    
-      push(@$data, [  $id , $all_ids_without_project , "<a href='?page=MetagenomeProject&project=no_project' title='View project'>ungrouped metagenomes</a>", ( '-'  ) , $biomes , $countries ,  "-" , "-" , "<a href='?page=MetagenomeProject&project=$id#jobs' title='Download single metagenome from project page' >$nr_without_project</a>" , "-" , "-" ]);
-    
-    
+      push @$data, [ $id,
+		     join(" " , @$all_mgids) || '',
+		     "<a href='?page=MetagenomeProject&project=$id' title='View project'>".$project->name."</a>",
+		     $project->pi,
+		     join(" <br>", sort @{$project->enviroments}) || '',
+		     join(" <br>", sort @{$project->countries}) || '',
+		     $pubmed_ids ? "<a href='http://www.ncbi.nlm.nih.gov/pubmed/$pubmed_ids' target=_blank >$pubmed_ids</a>" : '',
+		     join(", ", sort @{$project->sequence_types}) || 'Unknown',
+		     "<a href='?page=MetagenomeProject&project=$id#jobs' title='Download single metagenome from project page' >".scalar(@$all_mgids)."</a>",
+		     $formater->format_number(($project->bp_count_raw / 1000000), 0),
+		     $download
+		   ];
+    }
     $table->data($data);
     $content .= $down_info->output;
     $content .= $table->output();
-    
   }
   return $content;
+}
+
+sub require_javascript {
+  return [ "$FIG_Config::cgi_url/Html/pipeline.js" ];
 }

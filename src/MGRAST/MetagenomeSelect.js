@@ -6,10 +6,10 @@ function update_counts (table_id) {
     }
   }
 
-	var table_layout = { 'metagenomes': 1, 'projects' : 2, 'biomes': 4, 'altitudes' : 7, 'depths' : 8, 'locations' : 9, 'ph' : 10, 'countries' : 11, 'temperatures' : 12, 'sequencing_methods' : 13, 'pi' : 14};
+	var table_layout = { 'metagenomes': 1, 'projects' : 2, 'biomes': 6, 'features': 7, 'materials': 8, 'altitudes' : 11, 'depths' : 12, 'locations' : 13, 'phs' : 14, 'countries' : 15, 'temperatures' : 16, 'pis' : 18};
 	var unique = {};
 	var public_only = 0; 
-	if (table_filtered_data[table_id][0].length != 18){
+	if (table_filtered_data[table_id][0].length != 25){
 		public_only = 1; 
 	} 
 	unique['mgcounts'] = {};
@@ -40,9 +40,9 @@ function update_counts (table_id) {
 		}
 		if (!public_only){
 			if ($("#ungrouping_link").is(":visible")){
-				unique['mgcounts'][table_filtered_data[table_id][row][15].replace(/(<([^>]+)>)/ig,"")] += parseInt(table_filtered_data[table_id][row][1]);
-			} else if (table_filtered_data[table_id][row][15] != undefined) {
-				unique['mgcounts'][table_filtered_data[table_id][row][15].replace(/(<([^>]+)>)/ig,"")] += 1;
+				unique['mgcounts'][table_filtered_data[table_id][row][22].replace(/(<([^>]+)>)/ig,"")] += parseInt(table_filtered_data[table_id][row][1]);
+			} else if (table_filtered_data[table_id][row][22] != undefined) {
+				unique['mgcounts'][table_filtered_data[table_id][row][22].replace(/(<([^>]+)>)/ig,"")] += 1;
 			}
 		}
 	}
@@ -100,8 +100,8 @@ $(document).ready( function() {
 	$("#clear_table").live('click', function () {
 		table_reset_filters(all_metagenomes_table_id);
 		if ($("#ungrouping_link").is(":visible")){
-			clear_pivot(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7");
-			pivot_plus(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7", "hash|num|hash|hash|hash|hash|hash", null, ", ");
+			clear_pivot(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7|8|10");
+			pivot_plus(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7|8|10", "hash|num|hash|sum|sum|hash|hash|hash|hash", null, ", ");
 		}
 		update_counts(all_metagenomes_table_id);
 	});
@@ -118,20 +118,20 @@ $(document).ready( function() {
 	});
 	function switch_project_grouping(){
 		if (grouped_by_project) {
-			clear_pivot(all_metagenomes_table_id, "2", "0|1|3|4|5|6");
+			clear_pivot(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7|8|10");
 			$("#colname_"+all_metagenomes_table_id+"_col_2").html("id");
 			$("#ungrouping_link").hide();
 			$("#grouping_link").show();
-			show_column(all_metagenomes_table_id, "15");
+			show_column(all_metagenomes_table_id, "22");
 			$("#metagenome_counts").show();
 			update_counts(all_metagenomes_table_id);
 			grouped_by_project = 0;
 		} else {
-			clear_pivot(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7");
-			pivot_plus(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7", "hash|num|hash|hash|hash|hash|hash", null, ", ");
+			clear_pivot(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7|8|10");
+			pivot_plus(all_metagenomes_table_id, "2", "0|1|3|4|5|6|7|8|10", "hash|num|hash|sum|sum|hash|hash|hash|hash", null, ", ");
 			$("#colname_"+all_metagenomes_table_id+"_col_2").html("# of jobs");
 			show_column(all_metagenomes_table_id, "1");
-			hide_column(all_metagenomes_table_id, "15");
+			hide_column(all_metagenomes_table_id, "22");
 			$("#grouping_link").hide();
 			$("#ungrouping_link").show();
 			$("#metagenome_counts").hide();
@@ -149,7 +149,7 @@ $(document).ready( function() {
 			update_link('');
 			switch_to('#all_metagenomes');
 		}
-		var sel = $("#table_"+all_metagenomes_table_id+"_operand_16")['0'];
+		var sel = $("#table_"+all_metagenomes_table_id+"_operand_23")['0'];
 		for (var opt in sel.options){
 			if (sel.options[opt].text = 'private'){
 				sel.selectedIndex = opt;
@@ -175,7 +175,7 @@ $(document).ready( function() {
 			update_link('');
 			switch_to('#all_metagenomes');
 		}
-		var sel = $("#table_"+all_metagenomes_table_id+"_operand_16")['0'];
+		var sel = $("#table_"+all_metagenomes_table_id+"_operand_23")['0'];
 		for (var opt in sel.options){
 			if (sel.options[opt].text = 'shared'){
 				sel.selectedIndex = opt;
@@ -196,7 +196,7 @@ $(document).ready( function() {
 			update_link('');
 			switch_to('#all_metagenomes');
 		}
-		var sel = $("#table_"+all_metagenomes_table_id+"_operand_16")['0'];
+		var sel = $("#table_"+all_metagenomes_table_id+"_operand_23")['0'];
 		for (var opt in sel.options){
 			if (sel.options[opt].text = 'public'){
 				sel.selectedIndex = opt;
@@ -250,7 +250,7 @@ function add_to_collection (id) {
   }
   for (i=0; i<table_filtered_data[data_index].length; i++) {
     var relrow = table_filtered_data[data_index][i][table_filtered_data[data_index][i].length - 1];
-    if (table_input_columns_data[data_index][relrow][16] == 1) {
+    if (table_input_columns_data[data_index][relrow][23] == 1) {
       var newids = table_filtered_data[data_index][i][0].split(", ");
       for (h=0; h<newids.length; h++) {
 	ids[ids.length] = newids[h];

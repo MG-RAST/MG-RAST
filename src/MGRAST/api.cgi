@@ -79,18 +79,16 @@ my $request_body;
 my $auth;
 if ($ENV{'REQUEST_METHOD'} eq "POST") {
     $request_body = $cgi->param('POSTDATA');
-    unless ($request_body) {
-	print $cgi->header(-type => 'text/plain',
-			   -status => 400,
-			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: POST without data";
-	exit 0;
-    }
-    $request_body = $json->decode($request_body);
-    if (exists($request_body->{auth})) {
-	$auth = $request_body->{auth};
+    if ($request_body) {
+	$request_body = $json->decode($request_body);
+    
+	if (exists($request_body->{auth})) {
+	    $auth = $request_body->{auth};
+	} else {
+	    $auth = $cgi->param('auth') || shift @rest_parameters;
+	}
     } else {
-	$auth = $cgi->param('auth');
+	$auth = $cgi->param('auth') || shift @rest_parameters;
     }
 } elsif ($ENV{'REQUEST_METHOD'} eq "GET") {
     $auth = $cgi->param('auth');
@@ -166,16 +164,30 @@ if ($resource) {
 }
 # we are called without a resource, return API information
 else {
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    my $content = { id => 'MG-RAST',
-		    documentation => 'http://dev.metagenomics.anl.gov/Html/api.html',
-		    contact => 'mg-rast@mcs.anl.gov',
-		    resources => $resources,
-		    url => $cgi->url."/" };
-    print $json->encode($content);
-    exit 0;
+    
+    # check if we are called from a Browser or a script
+    if ($ENV{HTTP_ACCEPT} eq '*/*') {
+	
+	my $resource_objects = [];
+	foreach my $resource (@$resources) {
+	    push(@$resource_objects, { 'name' => $resource, 'url' => $cgi->url.'/'.$resource});
+	}
+	my $content = { id => 'MG-RAST',
+			documentation => 'http://dev.metagenomics.anl.gov/Html/api.html',
+			contact => 'mg-rast@mcs.anl.gov',
+			resources => $resource_objects,
+			url => $cgi->url."/" };
+	
+	print $cgi->header(-type => 'application/json',
+			   -status => 200,
+			   -Access_Control_Allow_Origin => '*' );
+	
+	print $json->encode($content);
+	exit 0;
+    } else {
+	print $cgi->redirect('http://dev.metagenomics.anl.gov/Html/api.html');
+	exit 0;
+    }
 }
 
 sub TO_JSON { return { %{ shift() } }; }
