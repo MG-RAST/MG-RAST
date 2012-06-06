@@ -994,8 +994,11 @@ sub fetch_browsepage_viewable {
       my $userjobs = $user->has_right_to(undef, 'view', 'metagenome');
       if ($userjobs->[0] eq '*') {
 	$jobselopt = "viewable=1";
-      } else {
+      } elsif ( @$userjobs > 0 ) {
 	$jobselopt = "viewable=1 and (public=1 or metagenome_id in (".join(",", map {"'$_'"} @$userjobs)."))";
+      }
+      else{
+	$jobselopt = "viewable=1 and public=1";
       }
     }
   } else {
