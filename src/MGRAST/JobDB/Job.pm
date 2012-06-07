@@ -689,6 +689,7 @@ sub set_filter_options {
   my %tags = map { $_, 1 } map { ($_, @{$flags->{$_}}) } keys %$flags;
   my @opts = ();
   my $data = $self->data();
+  my $skip = 1;
 
   foreach my $t ( keys %tags ) {
     $tags{$t} = exists($data->{$t}) ? $data->{$t} : 0;
@@ -696,11 +697,12 @@ sub set_filter_options {
 
   foreach my $f ( keys %$flags ) {
     if ( $tags{$f} ) {
+      $skip = 0;
       push @opts, $f;
       foreach my $s ( @{$flags->{$f}} ) { push @opts, "$s=" . $tags{$s}; }
     }
   }
-  my $opts_string = join(":", @opts);
+  my $opts_string = $skip ? 'skip' : join(":", @opts);
   $self->data('filter_options', $opts_string);
 
   # reset job option string
