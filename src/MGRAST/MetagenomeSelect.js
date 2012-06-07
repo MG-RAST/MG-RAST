@@ -112,9 +112,11 @@ $(document).ready( function() {
 
 	$("#grouping_link").live('click', function () {
 		switch_project_grouping();
+		table_reset_filters(all_metagenomes_table_id);
 	});
 	$("#ungrouping_link").live('click', function () {
 		switch_project_grouping();
+		table_reset_filters(all_metagenomes_table_id);
 	});
 	function switch_project_grouping(){
 		if (grouped_by_project) {

@@ -7,6 +7,8 @@ package WebComponent::Login;
 use strict;
 use warnings;
 
+use WebConfig;
+
 use base qw( WebComponent );
 
 1;
@@ -112,6 +114,40 @@ sub perform_login {
   # try to initialize user
   my $user = $self->application->dbmaster->User->init( { login => $login } );
   if (ref $user and crypt($password, $user->password) eq $user->password) {
+
+    # check for login dependencies that were created after the user got the account
+    if (ref $WebConfig::LOGIN_DEPENDENCIES) {
+
+      foreach my $d (@{$WebConfig::LOGIN_DEPENDENCIES->{$self->application->backend->name}}) {
+	
+	# get the backend
+	my $d_backend = $self->application->dbmaster->Backend->init({ name => $d });
+	if (ref $d_backend) {
+	 
+	  # create and grant the login right
+	  my $back_app = WebApplication->new( $d_backend );
+	  {
+	    package WebApplication;
+	    sub new {
+	      my $self = { backend => $_[1] };
+	      bless $self, 'WebApplication';
+	    }
+	    sub backend {
+	      my ($self) = @_;
+	      return $self->{backend};
+	    }
+	  }
+	  if ($user->has_right($back_app, 'login')) {
+	    my $r = $user->add_login_right($self->application->backend);
+	    $r->granted(1);
+	    last;
+	  }
+	  else {
+	    die "Unable to find backend '$d'.";
+	  }
+	}
+      }
+    }
 
     if ($user->active and ($user->has_right($self->application, 'login') || $FIG_Config::open_gates)) {
 
