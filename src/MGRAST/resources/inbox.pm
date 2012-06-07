@@ -8,8 +8,9 @@ my $json = new JSON;
 $json = $json->utf8();
 
 sub about {
-  my $content = { 'description' => "receive user inbox data, requires authentication",
-		  'parameters' => [ 'filename', 'data' ] };
+  my $content = { 'description' => "receive user inbox data, requires authentication, see http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission for details",
+		  'parameters' => [ 'webkey' ],
+		  'method' => "POST" };
 
   print $cgi->header(-type => 'application/json',
 		     -status => 200,
@@ -24,6 +25,11 @@ sub request {
   my $user = $params->{user};
   my $rest = $params->{rest_parameters};
   if ($rest && scalar(@$rest) == 1 && $rest->[0] eq 'about') {
+    &about();
+    exit 0;
+  }
+
+  if (uc($ENV{'REQUEST_METHOD'}) eq "GET") {
     &about();
     exit 0;
   }
@@ -60,9 +66,6 @@ sub request {
 	print "ERROR: the file already exists";    
 	exit 0;
       }
-
-#      use Data::Dumper;
-#      print STDERR Dumper($cgi)."\n";
       
       my $fh = $cgi->upload('upload');
       if (defined $fh) {
