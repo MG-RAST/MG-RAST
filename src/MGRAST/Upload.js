@@ -72,8 +72,8 @@ function update_inbox (data, files, action) {
 	  var fn = DataStore['user_inbox'][user.login].fileinfo[i][h];
 	  if (fn.match(/(fasta|fna|fastq|fa|faa)$/)) {
 	    var inf = DataStore['user_inbox'][user.login].fileinfo[i+'/'+fn];
-	    if (inf) {
-	      var trow = [ 0, i, fn, inf['format'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method'], inf['md5'], tdata.length ];
+	    if (inf && inf['bp count']) {
+	      var trow = [ 0, i, fn, inf['format'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
 	  }
@@ -83,8 +83,10 @@ function update_inbox (data, files, action) {
       for (var i=0; i<sequence_files.length; i++) {
 	  var fn = sequence_files[i];
 	  var inf = DataStore['user_inbox'][user.login].fileinfo[fn];
-	  var trow = [ 0, "-", fn, "-", inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['md5'], tdata.length ];
-	  tdata[tdata.length] = trow;
+	  if (inf['bp count']) {
+	    var trow = [ 0, "-", fn, "-", inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
+	    tdata[tdata.length] = trow;
+	  }
       }
       initialize_table(0, tdata);
     }
