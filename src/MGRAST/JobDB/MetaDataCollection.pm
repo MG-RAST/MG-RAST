@@ -151,7 +151,10 @@ sub category_type {
   elsif ($type eq 'ep') {
     $ct = $self->data('env_package')->{'env_package'} || $self->parent->data('env_package')->{'env_package'};
   }
-  return $ct ? $ct : ($self->type ? $self->type : '');
+  else {
+    $ct = $self->type;
+  }
+  return $ct;
 }
 
 sub lib_type {

@@ -559,30 +559,39 @@ sub export_metadata {
 
   my $html  = '';
   my $json  = new JSON;
+  $json = $json->utf8();
   my $pid   = $self->application->cgi->param('project');
-  my $proj  = $self->application->data_handle('MGRAST')->Project->init({ id => $pid });
   my $base  = "mgp".$pid."_metadata";
   my $jfile = $FIG_Config::temp."/".$base.".json";
   my $mfile = $FIG_Config::temp."/".$base.".xlsx";
-  my $pdata = $self->data('mddb')->export_metadata_for_project($proj);
-  
-  $json = $json->utf8();
+  my $proj  = $self->application->data_handle('MGRAST')->Project->init({ id => $pid });
+  my $pdata = $self->data('mddb')->export_metadata_for_project($proj, 0);
+
   open(JFH, ">$jfile") || return "<p>ERROR: Could not write results to file: $!</p>";
   print JFH $json->encode($pdata);
   close JFH;
-
   my $cmd = $FIG_Config::export_metadata." -j $jfile -o $mfile";
   unless (system($cmd) == 0) {
     return "<p>ERROR: Could not transform metadata to excel format: $!</p>";
   }
+
   ## validate
   my ($is_valid, $mdata, $log) = $self->data('mddb')->validate_metadata($mfile);
-  unless ($log =~ /no entries found/) {
-    $html = "<p><b>click to download: </b><a href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filetype=xlsx&filename=$base.xlsx'>MG-RAST metadata file</a></p>";
+
+  unless ($is_valid) {
+    $pdata = $self->data('mddb')->export_metadata_for_project($proj, 1);
+    open(JFH, ">$jfile") || return "<p>ERROR: Could not write results to file: $!</p>";
+    print JFH $json->encode($pdata);
+    close JFH;
+    $cmd = $FIG_Config::export_metadata." -j $jfile -o $mfile";
+    unless (system($cmd) == 0) {
+      return "<p>ERROR: Could not transform metadata to excel format: $!</p>";
+    }
   }
+
+  $html .= "<p><b>click to download: </b><a href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filetype=xlsx&filename=$base.xlsx'>MG-RAST metadata file</a></p>";
   unless ($is_valid) {
     $html .= "<p><font color='red'>This metadata file is currently invalid:</font><br><pre>$log</pre></p>";
-    $html .= "<p>To make sure your metadata is complete, please fill out and upload a <a href='metagenomics.cgi?page=MetagenomeProject&action=download_template'>metadata spreadsheet template</a></p>";
   }
   return $html;
 }
