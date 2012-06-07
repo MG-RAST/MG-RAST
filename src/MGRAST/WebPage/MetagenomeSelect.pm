@@ -316,10 +316,10 @@ sub output {
 			       { name => 'depth', filter => 1, operator => 'combobox', visible => 0 },
 			       { name => 'location', filter => 1, operator => 'combobox', visible => 0 },
 			       { name => 'ph', filter => 1, operator => 'combobox', visible => 0 },
-			       { name => 'country', filter => 1, operator => 'combobox', visible => 0 },
+			       { name => 'country', filter => 1, visible => 0 },
 			       { name => 'temperature', filter => 1, operator => 'combobox', visible => 0 },
 			       { name => 'sequencing&nbsp;method', filter => 1, operator => 'combobox', visible => 0 },
-			       { name => 'pi', filter => 1, operator => 'combobox', visible => 0 },
+			       { name => 'pi', filter => 1, visible => 0 },
 			       { name => 'avg&nbsp;seq&nbsp;length', filter => 1, sortable => 1, operators => ['less','more'], visible => 0 },
 			       { name => 'drisee', filter => 1, sortable => 1, operators => ['less','more'], visible => 0 },
 			       { name => '&alpha;-diversity', filter => 1, sortable => 1, operators => ['less','more'], visible => 0 }

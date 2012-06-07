@@ -281,6 +281,9 @@ function table_submit (id, form_name, submit_all, no_submit, button_name) {
     for (h=0;h<row.length;h++) {
       if (column_types[h]) {
 	if (submit_all || row[h] != table_data[data_index][i][h]) {
+          if(typeof row[h] == "string") {
+            row[h] = row[h].replace(/\'/g, "&#39;");
+          }
 	  input_fields += "<input type='hidden' name='ic_" + id + "_" + h + "' value='" + row[h] + "'>";
 	}
       }
@@ -339,6 +342,16 @@ function initialize_table (id, data) {
     table_combo_columns[data_index] = combo_columns.split(/@~/);
     var column_types = document.getElementById("table_column_types_" + id).value;
     table_column_types[data_index] = column_types.split(/@~/);
+    for (var i=0;i<data.length;i++) {
+      for (var h=0;h<data[i].length-1;h++) {
+	if (table_column_types[data_index][h]) {
+	  if (! table_input_columns_data[data_index][i]) {
+	    table_input_columns_data[data_index][i] = [];
+	  }
+	  table_input_columns_data[data_index][i][h] = data[i][h];
+	}
+      }
+    }
 
     table_filter(id);
   } else if (document.getElementById("table_data_" + id)) {
@@ -1022,7 +1035,9 @@ function fill_table (id, start, stop, show_prev, show_next) {
 	  var this_data = table_input_columns_data[data_index][relative_rownum][colnum];
 	  cell_data = "<input type='hidden' id='" + cell_id + "' value='" + this_data + "'>" + this_data;
 	} else if (table_column_types[data_index][colnum] == 'textfield') {
-	  cell_data = "<input type='text' id='" + cell_id + "' value='" + table_input_columns_data[data_index][relative_rownum][colnum] +
+          var value = table_input_columns_data[data_index][relative_rownum][colnum];
+          value = value.replace(/\'/g, "&#39;");
+	  cell_data = "<input type='text' id='" + cell_id + "' value='" + value +
 		      "' style='width:100%;' onchange='update_input_data(this.id);'>";
 	} else if (table_column_types[data_index][colnum].match(re)) {
 	  var entries = table_column_types[data_index][colnum].split(/@#/);

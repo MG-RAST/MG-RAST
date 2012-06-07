@@ -186,8 +186,13 @@ sub output {
  	             </div>
                   </div>
                
-               <p>Alternative upload is available via the command line and ftp. Please refer to our <a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>blog</a> for a detailed description.</p>
-               <p>To generate a webkey needed for this procedure, please click the following <b>'generate webkey'</b> button. <div id='generate_key'><input type='button' class='btn' value='generate webkey' onclick='generate_webkey();'></div>
+                  <p>In addition to using your web browser for uploads to the system the following alternatives are available:</p>
+                  <table>
+                     <tr><td width="125px"><b>ftp</b></td><td>ftp://incoming.metagenomics.anl.gov/<span id="ftp_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
+                     <tr><td><b>http</b></td><td>http://api.metagenomics.anl.gov/inbox/<span id="http_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
+                     <tr><td colspan=2 style='padding-top: 10px; padding-bottom: 10px;'><div id='generate_key'><input type='button' class='btn' onclick='generate_webkey();' value='generate webkey'></div></td></tr>
+                  </table>
+                  <p><b>Note:</b> The <a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Blog</a> lists a number of examples for data transfer.</p>
 
                </div>
 
@@ -711,9 +716,9 @@ sub generate_webkey {
   my ($sec,$min,$hour,$mday,$mon,$year) = localtime($existing_date);  
   my $tdate_readable = ($year + 1900)." ".sprintf("%02d", $mon + 1)."-".sprintf("%02d", $mday)." ".sprintf("%02d", $hour).":".sprintf("%02d", $min).".".sprintf("%02d", $sec);
   $content .= " <b>valid until</b>: <input type='text' readOnly=1 size=20 value='" . $tdate_readable . "'>";
-  $content .= "<br><b>Your temporary ftp url is:</b> ftp://ftp.mcs.anl.gov/".$existing_key."<br><br>";
   $content .= " <input type='button' class='btn' value='generate new key' onclick='generate_webkey(1);'>";
-  
+  $content .= "<img src='./Html/clear.gif' onload='document.getElementById(\"ftp_webkey\").innerHTML=\"" . $existing_key . "\";document.getElementById(\"http_webkey\").innerHTML=\"" . $existing_key . "\";'>";
+
   print $cgi->header;
   print $content;
   exit 0;
