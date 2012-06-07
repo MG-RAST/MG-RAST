@@ -562,14 +562,14 @@ env_package: { name:<samp_name-env_package_type: str>, type:<env_package_type: s
 =cut
 
 sub export_metadata_for_project {
-  my ($self, $project) = @_;
+  my ($self, $project, $all_fields) = @_;
 
   my $pdata = $project->data;
   $pdata->{project_name} = $project->name;
   $pdata->{mgrast_id}    = 'mgp'.$project->id;
   my $mdata = { name => $project->name,
 		id   => 'mgp'.$project->id,
-		data => $self->add_template_to_data('project', $pdata),
+		data => $self->add_template_to_data('project', $pdata, $all_fields),
 		sampleNum => 0,
 		samples   => [] };
 
@@ -586,15 +586,19 @@ sub export_metadata_for_project {
       $e_obj = { name => $epack->[0]->name || 'mge'.$epack->[0]->ID,
 		 id   => 'mge'.$epack->[0]->ID,
 		 type => $epack->[0]->ep_type,
-		 data => $self->add_template_to_data($epack->[0]->ep_type, $edata) };
+		 data => $self->add_template_to_data($epack->[0]->ep_type, $edata, $all_fields) };
     }
     $sdata->{sample_name} = $sname;
     $sdata->{mgrast_id}   = 'mgs'.$samp->ID;
     my $s_obj = { name   => $sname,
 		  id     => 'mgs'.$samp->ID,
-		  data   => $self->add_template_to_data('sample', $sdata),
-		  libNum => 0, libraries => [],
-		  envPackage => $e_obj };
+		  data   => $self->add_template_to_data('sample', $sdata, $all_fields),
+		  libNum => 0,
+		  libraries => []
+		};
+    if (exists $e_obj->{id}) {
+      $s_obj->{envPackage} = $e_obj;
+    }
 
     foreach my $lib ( @{ $samp->children('library') } ) {
       next unless ($lib->lib_type);
@@ -611,7 +615,7 @@ sub export_metadata_for_project {
       push @{ $s_obj->{libraries} }, { name => $lib->name || 'mgl'.$lib->ID,
 				       id   => 'mgl'.$lib->ID,
 				       type => $lib->lib_type,
-				       data => $self->add_template_to_data($lib->lib_type, $ldata)};
+				       data => $self->add_template_to_data($lib->lib_type, $ldata, $all_fields)};
       $s_obj->{libNum} += 1;
     }
 
@@ -625,16 +629,20 @@ sub export_metadata_for_project {
 ## output: { tag => {qiime_tag=><str>, mgrast_tag=><str>, definition=><str>, required=><bool>, mixs=><bool>, type=><str>, value=><str>} }
 ## all required tags will be added
 sub add_template_to_data {
-  my ($self, $cat, $data) = @_;
+  my ($self, $cat, $data, $all) = @_;
   my $t_data   = {};
   my $template = $self->template;
   my @required = grep { ($_ ne 'category_type') && $template->{$cat}{$_}{required} } keys %{$template->{$cat}};
   map { $data->{$_} = '' } grep { ! exists($data->{$_}) } @required;
+  if ($all) {
+    my @all_fields = grep { $_ ne 'category_type' } keys %{$template->{$cat}};
+    map { $data->{$_} = '' } grep { ! exists($data->{$_}) } @all_fields;
+  }
 
   while ( my ($tag, $val) = each %$data ) {
     next unless (exists $template->{$cat}{$tag});
     $val = clean_value($val);
-    next unless ($template->{$cat}{$tag}{required} || (defined($val) && ($val =~ /\S/)));
+    next unless ($all || $template->{$cat}{$tag}{required} || (defined($val) && ($val =~ /\S/)));
     $t_data->{$tag}{value} = $val;
     $t_data->{$tag}{unit}  = $template->{$cat}{$tag}{unit};
     $t_data->{$tag}{type}  = $template->{$cat}{$tag}{type};
