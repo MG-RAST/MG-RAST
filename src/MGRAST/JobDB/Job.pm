@@ -175,8 +175,8 @@ sub initialize {
   
   foreach my $key (keys %$params) {
     next if (exists $used_keys->{$key});
-    $key =~ s/\s+/_/;
-    $params->{$key} =~ s/\s+/_/;
+    $key =~ s/\s+/_/g;
+    $params->{$key} =~ s/\s+/_/g;
     $master->JobAttributes->create({ job => $job, tag => $key, value => $params->{$key} });
   }
   $job->set_filter_options();
@@ -996,8 +996,7 @@ sub fetch_browsepage_viewable {
 	$jobselopt = "viewable=1";
       } elsif ( @$userjobs > 0 ) {
 	$jobselopt = "viewable=1 and (public=1 or metagenome_id in (".join(",", map {"'$_'"} @$userjobs)."))";
-      }
-      else{
+      } else {
 	$jobselopt = "viewable=1 and public=1";
       }
     }
