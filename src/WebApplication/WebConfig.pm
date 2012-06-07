@@ -5,7 +5,6 @@ use warnings;
 
 use base qw(Exporter);
 our @EXPORT = qw ( CSS_PATH TMPL_PATH JS_PATH IMAGES HMTL_PATH CGI_PATH TEMP_PATH TMPL_URL_PATH );
-use Tracer;
 use FIG_Config;
 
 1;
@@ -17,9 +16,9 @@ use FIG_Config;
 #
 # File system path configurations.
 #
-use constant TMPL_PATH  => "$FIG_Config::fig/CGI/Html/";
+use constant TMPL_PATH  => "$FIG_Config::html_base/";
 use constant TMPL_URL_PATH  => "./Html/";
-use constant CFG_PATH   => "$FIG_Config::fig_disk/config/WebApplication/";
+use constant CFG_PATH   => "$FIG_Config::ROOT/config/WebApplication/";
 use constant TEMP_PATH  => $FIG_Config::temp;
 #
 # URL path configurations.
@@ -69,14 +68,5 @@ sub import_local_config {
   no strict;
   {
     my $local = CFG_PATH.$application.'.cfg';
-    unless ($return = do $local) {
-      if ($@) {
-        Warn("Couldn't parse $local: $@") if T(0);
-      } elsif (! defined $return) {
-        Warn("Couldn't do $local.") if T(1);
-      } elsif (! $return) {
-        Warn("Couldn't run $local.") if T(1);
-      }
-    }
   }
 }
