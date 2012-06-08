@@ -124,7 +124,7 @@ function forward_to_search (e) {
   my $jobcount =  $formater->format_number($self->app->data_handle('MGRAST')->Job->count_all());
   my $publiccount = $formater->format_number($self->app->data_handle('MGRAST')->Job->count_public());
 
-  $content .= "<div style='height:235px; background:white; width:650px; padding:10px;-webkit-border-radius-topright: 5px;-webkit-border-radius-bottomleft: 5px;-webkit-border-radius-bottomright: 5px;-moz-border-radius-bottomleft:5px;-moz-border-radius-bottomright:5px;-moz-border-radius-topright:5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; color:#848484; font-size:14;'>";
+  $content .= "<div style='background:white; width:650px; padding:10px;-webkit-border-radius-topright: 5px;-webkit-border-radius-bottomleft: 5px;-webkit-border-radius-bottomright: 5px;-moz-border-radius-bottomleft:5px;-moz-border-radius-bottomright:5px;-moz-border-radius-topright:5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; color:#848484; font-size:14;'>";
 
   $content .= "<div style='margin: 5 0 0 10;'>MG-RAST (the Metagenomics RAST) server is an automated analysis platform for metagenomes providing quantitative insights into microbial populations based on sequence data.</div>";
   $content .= "<div class='clear'></div>";
