@@ -10,6 +10,8 @@ use WebApplicationDBHandle;
 use DBMaster;
 use FIG_Config;
 
+print STDERR "receive upload being called\n";
+
 my $cgi = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
@@ -388,8 +390,12 @@ sub fasta_report_and_stats {
     if ($file_format eq 'fastq') {
 	$filetype = " -t fastq"
     }
+
     my @stats = `$bin/seq_length_stats.py -i '$dir/$file'$filetype -s`;
     chomp @stats;
+
+    use Data::Dumper;
+    print STDERR Dumper(@stats)."\n";
 
     my $report = {};
     foreach my $stat (@stats) {
@@ -671,8 +677,9 @@ sub extract_fastq_from_sff {
     my($sff, $dir) = @_;
 
     my $bin = $FIG_Config::PROD."/bin";
+    my ($without_extension) = $sff =~ /^(.*)\.sff$/;
     eval {
-	`$bin/sff_extract_0_2_8 -s '$dir/$sff.fastq' -Q '$dir/$sff'`;
+	`$bin/sff_extract_0_2_8 -s '$dir/$without_extension.fastq' -Q '$dir/$sff'`;
     };
     
     if ($@)
