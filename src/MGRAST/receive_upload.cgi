@@ -10,8 +10,6 @@ use WebApplicationDBHandle;
 use DBMaster;
 use FIG_Config;
 
-print STDERR "receive upload being called\n";
-
 my $cgi = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
@@ -393,9 +391,6 @@ sub fasta_report_and_stats {
 
     my @stats = `$bin/seq_length_stats.py -i '$dir/$file'$filetype -s`;
     chomp @stats;
-
-    use Data::Dumper;
-    print STDERR Dumper(@stats)."\n";
 
     my $report = {};
     foreach my $stat (@stats) {
