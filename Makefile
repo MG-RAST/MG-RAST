@@ -64,7 +64,7 @@ lib:  Makefile $(ALL.LIB)
 clean: Makefile purge installdirs
 
 purge: 
-	rm -rf $(TARGET)/bin $(TARGET)/lib $(TARGET)/tmp $(TARGET)/CGI
+	rm -rf $(TARGET)/bin $(TARGET)/lib $(TARGET)/tmp $(TARGET)/CGI $(TARGET)/tool_hdr
 
 
 ##
