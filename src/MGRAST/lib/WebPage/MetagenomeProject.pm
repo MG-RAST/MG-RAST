@@ -13,7 +13,7 @@ use FIG_Config;
 use WebConfig;
 
 use MGRAST::Metadata;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
  
 1;
 
@@ -1552,7 +1552,7 @@ sub selectable_metagenomes {
   my $metagenomes = [];
   my $user  = $self->application->session->user;
   my $rast  = $self->application->data_handle('MGRAST'); 
-  my $mgdb  = MGRAST::MetagenomeAnalysis2->new( $rast->db_handle );
+  my $mgdb  = MGRAST::Analysis->new( $rast->db_handle );
   my $avail = $mgdb->get_all_job_ids();
   my $avail_hash = {};
   %$avail_hash = map { $_ => 1 } @$avail;

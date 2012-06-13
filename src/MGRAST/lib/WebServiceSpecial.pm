@@ -9,7 +9,7 @@ use Data::Dumper;
 use POSIX qw(strftime);
 
 use Babel::lib::Babel;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 
 sub cases {
   return { 'sequences' => 1,
@@ -207,7 +207,7 @@ sub subset {
     $job = $job->[0];
     if ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $id))) {
 
-      my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+      my $mgdb = MGRAST::Analysis->new( $master->db_handle );
       $mgdb->set_jobs([$id]);
       
       my $content = $mgdb->md5_abundance_for_annotations($id, $type, $source, $anns);
@@ -323,7 +323,7 @@ sub sequences {
     $job = $job->[0];
     if ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $id))) {
 
-      my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+      my $mgdb = MGRAST::Analysis->new( $master->db_handle );
       $mgdb->set_jobs([$id]);
       
       my $json = new JSON;
@@ -488,7 +488,7 @@ sub abundance_profile {
     $params->{type} = $cgi->param('type');
   }
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   $mgdb->set_jobs([$id]);
 
   my $ach = new Babel::lib::Babel;
@@ -741,7 +741,7 @@ sub matrix {
 
   shift @$rest;
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   $mgdb->set_jobs($ids);
 
   my $ach = new Babel::lib::Babel;
@@ -1032,7 +1032,7 @@ sub profile {
   my $rows = $dbh->selectall_arrayref("select name, ncbi_tax_id from organisms_ncbi");
   %$strain2tax = map { $_->[0] => $_->[1] } @$rows;
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   $mgdb->set_jobs([$id]);
   my ($md5_abund, $result) = $mgdb->get_organisms_for_sources(['RefSeq']);
   # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
@@ -1240,7 +1240,7 @@ sub query {
     exit 0;
   }
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   
   my $content = $mgdb->metagenome_search($type, $source, $ann, $exact);
 

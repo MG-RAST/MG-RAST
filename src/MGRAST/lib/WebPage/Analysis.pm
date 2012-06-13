@@ -12,7 +12,7 @@ use GD;
 use WebComponent::WebGD;
 
 use FIG_Config;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use MGRAST::Metadata;
 use Cache::Memcached;
 
@@ -70,7 +70,7 @@ sub init {
   $self->application->register_action($self, 'qiime_export_visual', 'qiime_export_visual');
   $self->application->register_action($self, 'phylogeny_visual', 'phylogeny_visual');
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $self->app->data_handle('MGRAST')->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $self->app->data_handle('MGRAST')->db_handle );
   unless ($mgdb) {
     $self->app->add_message('warning', "Unable to retrieve the metagenome analysis database.");
     return 1;

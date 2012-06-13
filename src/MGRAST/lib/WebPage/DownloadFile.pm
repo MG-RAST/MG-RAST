@@ -7,7 +7,6 @@ use base qw( WebPage );
 use WebConfig;
 
 use File::Basename;
-use MGRAST::MGRAST qw( is_public_metagenome );
 1;
 
 

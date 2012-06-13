@@ -15,9 +15,6 @@ use FreezeThaw qw( freeze thaw );
 use Job48;
 use FIG_Config;
 use WebConfig;
-use MGRAST::MGRAST;
-
-
 use base qw( WebPage );
 
 1;

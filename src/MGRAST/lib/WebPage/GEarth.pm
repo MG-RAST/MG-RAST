@@ -6,7 +6,7 @@ use warnings;
 use POSIX;
 use File::Basename;
 use MGRAST::Metadata;
-use MGRAST::MetagenomeAnalysis;
+use MGRAST::Analysis;
 
 use WebConfig;
 use base qw( WebPage );
@@ -135,7 +135,7 @@ sub display_content {
   my $cgi = $self->application->cgi();
   my $metagenome_id = $cgi->param('metagenome_id');
   my $job = $self->app->data_handle('MGRAST')->Job->init({ genome_id => $metagenome_id });
-  my $mgdb = MGRAST::MetagenomeAnalysis->new($job);
+  my $mgdb = MGRAST::Analysis->new($job);
   unless (ref $mgdb) {
 	print STDERR "no databases\n";
 	exit;

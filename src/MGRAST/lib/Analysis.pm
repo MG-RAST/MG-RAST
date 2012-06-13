@@ -1,4 +1,4 @@
-package MGRAST::MetagenomeAnalysis2;
+package MGRAST::Analysis;
 
 use strict;
 use warnings;

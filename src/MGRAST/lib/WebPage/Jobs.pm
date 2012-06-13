@@ -6,7 +6,6 @@ use warnings;
 use base qw( WebPage );
 
 use WebComponent::WebGD;
-use MGRAST::MGRAST qw( get_public_metagenomes );
 use WebConfig;
 
 1;

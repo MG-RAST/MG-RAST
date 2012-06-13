@@ -1,7 +1,7 @@
 package resources::subset;
 
 use WebServiceObject;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use Babel::lib::Babel;
 
 use CGI;
@@ -88,7 +88,7 @@ sub request {
   if ($job && ref($job)) {
     if ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $id))) {
 
-      my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+      my $mgdb = MGRAST::Analysis->new( $master->db_handle );
       unless (ref($mgdb)) {
 	print $cgi->header(-type => 'text/plain',
 			   -status => 500,

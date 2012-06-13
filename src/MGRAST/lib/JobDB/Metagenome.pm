@@ -463,8 +463,8 @@ sub types {
     return [];
   }
   
-  use MGRAST::MetagenomeAnalysis2;
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $self->_master->db_handle );
+  use MGRAST::Analysis;
+  my $mgdb = MGRAST::Analysis->new( $self->_master->db_handle );
   $mgdb->set_jobs([$id]);
   
   return $mgdb->get_sources;

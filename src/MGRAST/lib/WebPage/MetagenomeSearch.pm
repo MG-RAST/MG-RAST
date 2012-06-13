@@ -9,7 +9,7 @@ use URI::Escape;
 use Data::Dumper;
 
 use FIG_Config;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use MGRAST::Metadata;
 
 1;
@@ -55,7 +55,7 @@ sub init {
     }
   }
   my $mddb = MGRAST::Metadata->new();
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $self->app->data_handle('MGRAST')->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $self->app->data_handle('MGRAST')->db_handle );
   
   unless ($jobs && (scalar(keys %$jobs) > 0)) {
     $self->app->add_message('warning', "Unable to retrieve any metagenomes.");
