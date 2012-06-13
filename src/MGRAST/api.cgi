@@ -60,6 +60,7 @@ if (! $resource_path) {
     print "ERROR: resource directory not found";
     exit 0;
 }
+
 if (opendir(my $dh, $resource_path)) {
     my @res = grep { -f "$resource_path/$_" } readdir($dh);
     closedir $dh;
@@ -169,11 +170,11 @@ else {
     if ($ENV{HTTP_ACCEPT} eq '*/*') {
 	
 	my $resource_objects = [];
-	foreach my $resource (@$resources) {
+	foreach my $resource (sort @$resources) {
 	    push(@$resource_objects, { 'name' => $resource, 'url' => $cgi->url.'/'.$resource});
 	}
 	my $content = { id => 'MG-RAST',
-			documentation => 'http://dev.metagenomics.anl.gov/Html/api.html',
+			documentation => $FIG_Config::html_url.'/api.html',
 			contact => 'mg-rast@mcs.anl.gov',
 			resources => $resource_objects,
 			url => $cgi->url."/" };
@@ -185,7 +186,7 @@ else {
 	print $json->encode($content);
 	exit 0;
     } else {
-	print $cgi->redirect('http://dev.metagenomics.anl.gov/Html/api.html');
+	print $cgi->redirect($FIG_Config::html_url.'/api.html');
 	exit 0;
     }
 }
