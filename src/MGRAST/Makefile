@@ -28,18 +28,18 @@ PERL_LIB = $(wildcard *.pm) \
 	$(wildcard WebPage/*.pm) \
 	$(wildcard OntologyOnDemand/*.pm) \
 	$(wildcard JobDB/*.pm) \
-	$(wildcard MGRASTMetadata/*.pm) \
-	$(wildcard MGRASTMetadata2/*.pm) \
-	$(wildcard JobDB/*.pm)
+	$(wildcard JobDB/*.pm) \
+	$(wildcard resources/*.pm)
 
 WEBPAGES := $(wildcard *.tmpl) \
-	$(wildcard images/*.png) \
-	$(wildcard images/*.gif) \
-	$(wildcard images/*.jpg) \
-        $(wildcard *.js) \
-	$(wildcard *.css) \
-	$(wildcard *.jar) \
-	$(wildcard images/*.ico)
+	$(wildcard html/images/*.png) \
+	$(wildcard html/images/*.gif) \
+	$(wildcard html/images/*.jpg) \
+	$(wildcard html/images/*.ico) \
+	$(wildcard html/*.html) \
+        $(wildcard js/*.js) \
+	$(wildcard css/*.css) \
+	$(wildcard jar/*.jar)
 
 INST_PERL_LIB = $(foreach var, $(PERL_LIB), $(libdir)/$(PKGNAME)/$(var))
 
