@@ -1,6 +1,6 @@
 package resources::dominant_species;
 
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use WebServiceObject;
 
 use CGI;
@@ -102,7 +102,7 @@ sub request {
   my $limit  = ($params->{limit})  ? $params->{limit}  : 10;
   my $source = ($params->{source}) ? $params->{source} : 'M5NR';
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
