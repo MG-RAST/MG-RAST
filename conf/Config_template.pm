@@ -1,6 +1,6 @@
 package Config;
 
-$ROOT = "";
+$ROOT = ""; # set to path
 
 $html_base       = $ROOT."/site/CGI/Html";
 $bin             = $ROOT."/bin";
@@ -35,7 +35,7 @@ $mgrast_metadata_user     = '';
 $mgrast_metadata_password = '';
 
 # FormWiz
-$mgrast_formWizard_templates = "$ROOT/src/MGRAST/Templates";
+$mgrast_formWizard_templates = $ROOT."/src/MGRAST/Templates";
 
 # Analysis DB 
 $mgrast_db     = '';
