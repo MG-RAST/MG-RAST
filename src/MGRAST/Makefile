@@ -30,7 +30,7 @@ PERL_LIB = $(wildcard lib/*.pm) \
 	$(wildcard lib/JobDB/*.pm) \
 	$(wildcard lib/resources/*.pm)
 
-WEBPAGES := $(wildcard *.tmpl) \
+WEBPAGES := $(wildcard html/*.tmpl) \
 	$(wildcard html/images/*.png) \
 	$(wildcard html/images/*.gif) \
 	$(wildcard html/images/*.jpg) \
