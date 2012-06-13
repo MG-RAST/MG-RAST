@@ -1015,6 +1015,52 @@ sub get_abundance_for_set {
   # mgid => annotation => abundance
 }
 
+sub get_rank_abundance {
+  my ($self, $limit, $type, $sources) = @_;
+
+  unless ($sources && (@$sources > 0)) { $sources = []; }
+
+  my $data   = {};
+  my $m5_map = {};
+  my $get_m5nr  = first {$_ =~ /^m5nr$/i} @$sources;
+  my $get_m5rna = first {$_ =~ /^m5rna$/i} @$sources;
+
+  if ($get_m5nr) {
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("protein") };
+  }
+  if ($get_m5rna) {
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("rna") };
+  }
+  if ($get_m5nr || $get_m5rna) {
+    @$sources = grep { (! exists $m5_map->{$_}) && ($_ !~ /(m5nr|m5rna)/i) } @$sources;
+    push @$sources, keys %$m5_map;
+  }
+  my $w_srcs = (@$sources > 0) ? " where source in (" . join(",", map {"'$_'"} @$sources) . ")" : "";
+
+  while ( my ($mg, $j) = each %{$self->jobs} ) {
+    my $table = '';
+    if ($type eq 'organism') {
+      $table = $self->org_tbl($j) || '';
+    } elsif ($type eq 'function') {
+      $table = $self->func_tbl($j) || '';
+    }
+    unless ($table && ($limit > 0)) { next; }
+    my $sql = "select distinct $type, abundance from $table";
+    if ($w_srcs) {
+      $sql .= $w_srcs;
+    }
+    $sql .= " order by abundance desc limit $limit";
+    my $tmp = $self->dbh->selectall_arrayref($sql);
+    if ($tmp && (@$tmp > 0)) {
+      $data->{$mg} = $tmp;
+    }
+    $self->dbh->commit();
+  }
+  
+  return $data;
+  # mgid => [ annotation, abundance ]
+}
+
 sub search_organisms {
   my ($self, $text) = @_;
 

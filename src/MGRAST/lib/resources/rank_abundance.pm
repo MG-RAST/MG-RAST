@@ -103,7 +103,7 @@ sub request {
   my $limit  = ($params->{limit})  ? $params->{limit}  : 10;
   my $type   = ($params->{type})   ? $params->{type}   : 'organism';
   my $source = ($params->{source}) ? $params->{source} : 'M5NR';
-  my @term   = $cgi->param('term') || ();  
+  my @terms  = $cgi->param('term') || ();  
 
   my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
   unless (ref($mgdb)) {
@@ -123,78 +123,38 @@ sub request {
     exit 0;
   }
 
-  my $data;
-  if ($type eq 'organism') {
-    if 
-    
-    my $data = $mgdb->get_abundance_for_set($set, $type, $sources);
-    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-    
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-    
-    my $values = [];
-    my $tax = [];
-    foreach my $row (@$result) {
-      if (! $strain2tax->{$row->[9]}) {
-	next;
-      }
-      my $tax_str = [ "k__".$row->[2], "p__".$row->[3], "c__".$row->[4], "o__".$row->[5], "f__".$row->[6], "g__".$row->[7], "s__".$row->[9] ];
-      push(@$tax, { "id" => $strain2tax->{$row->[9]}, "metadata" => { "taxonomy" => $tax_str }  });
-      push(@$values, [ int($row->[10]) ]);
-    }
-    
-    $data = { "id"                  => "mgm".$id,
-	      "format"              => "Biological Observation Matrix 0.9.1",
-	      "format_url"          => "http://biom-format.org",
-	      "type"                => "Taxon table",
-	      "generated_by"        => "MG-RAST revision ".$FIG_Config::server_version,
-	      "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-	      "matrix_type"         => "dense",
-	      "matrix_element_type" => "int",
-	      "shape"               => [ scalar(@$values), 1 ],
-	      "rows"                => $tax,
-	      "columns"             => [ { "id" => $id, "metadata" => undef } ],
-	      "data"                => $values };
-
-  } elsif ($type eq 'function') {
-
-    my $function2ont = $ach->get_all_ontology4source_hash($source);
-    my ($md5_abund, $result) = $mgdb->get_ontology_for_source($source);
-    # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-    
-    my $values = [];
-    my $numrows = scalar(@$result);
-    my $ont = [];
-    foreach my $row (@$result) {
-      next unless ($function2ont->{$row->[1]});
-      my $ont_str = [ map { defined($_) ? $_ : '-' } @{$function2ont->{$row->[1]}} ];
-      push(@$ont, { "id" => $row->[1], "metadata" =>  { "ontology" => $ont_str }  });
-      push(@$values, [ int($row->[3]) ]);
-    }
-    
-    $data = { "id"                  => "mgm".$id,
-	      "format"              => "Biological Observation Matrix 0.9.1",
-	      "format_url"          => "http://biom-format.org",
-	      "type"                => "Function table",
-	      "generated_by"        => "MG-RAST revision ".$FIG_Config::server_version,
-	      "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-	      "matrix_type"         => "dense",
-	      "matrix_element_type" => "int",
-	      "shape"               => [ scalar(@$values), 1 ],
-	      "rows"                => $ont,
-	      "columns"             => [ { "id" => $id, "metadata" => undef } ],
-	      "data"                => $values };
-
-  } else {
+  unless (($type eq 'organism') || ($type eq 'function')) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid type for profile call: ".$type." - valid types are [ 'organism', 'function' ]";
+    print "ERROR: Invalid type for abundance call: ".$type." - valid types are [ 'organism', 'function' ]";
     exit 0;
   }
 
+  my $data;
+  if (@terms > 0) {
+    my $abunds = $mgdb->get_abundance_for_set(\@terms, $type, [$source]);
+    # mgid => annotation => abundance
+    if (exists $abunds->{$id}) {
+      @$data = map {[$_, $abunds->{$id}{$_}]} keys %{$abunds->{$id}};
+    }
+  }
+  elsif ($limit > 0) {
+    my $abunds = $mgdb->get_rank_abundance($limit, $type, [$source]);
+    # mgid => [annotation, abundance]
+    if (exists $abunds->{$id}) {
+      $data = $abunds->{$id};
+    }
+  }
+  else {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 400,
+		       -Access_Control_Allow_Origin => '*' );
+    print "ERROR: missing paramaters, must have limit or term.";
+    exit 0;
+  }
+  @$data = sort { ($b->[1] <=> $a->[1]) || ($a->[0] cmp $b->[0]) } @$data;
+  
   print $cgi->header(-type => 'application/json',
 		     -status => 200,
 		     -Access_Control_Allow_Origin => '*' );
