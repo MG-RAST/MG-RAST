@@ -1,4 +1,4 @@
-package resources::rank_abundance;
+package resources::dominant_species;
 
 use MGRAST::MetagenomeAnalysis2;
 use WebServiceObject;
@@ -13,18 +13,14 @@ $json = $json->utf8();
 
 sub about {
   my $ach = new Babel::lib::Babel;
-  my $content = { 'description' => "metagenomic rank abundance",
+  my $content = { 'description' => "dominant species for metagenome or set of metagenomes",
 		  'parameters'  => { "id" => "string",
 				     "limit" => "int",
-				     "term" => "string",
-				     "type" => [ "organism", "function" ],
 				     "source" => { "protein" => [ 'M5NR', map {$_->[0]} @{$ach->get_protein_sources} ],
 						   "rna"     => [ 'M5RNA', map {$_->[0]} @{$ach->get_rna_sources} ]
 						 }
 				   },
 		  'defaults' => { "limit" => 10,
-				  "term" => [],
-				  "type" => 'organism',
 				  "source" => 'M5NR'
 				}
 		  'return_type' => "application/json" };
@@ -55,39 +51,44 @@ sub request {
     exit 0;
   }
 
-  unless (scalar(@$rest) >= 1) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 400,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: rank abundance call requires at least an id parameter";
-    exit 0;
+  my $public   = $master->Job->get_public_jobs(1);
+  my %p_rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'project')} : ();
+  my %m_rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
+  my @ids  = $cgi->param('id') || ();
+  my @mgs  = ();
+
+  map { $m_rights{$_} = 1 } @$public;
+
+  if ((scalar(@ids) == 1) && ($ids[0] eq 'public')) {
+    @mgs = @$public;
   }
-  
-  my $id = shift @$rest;  
-  (undef, $id) = $id =~ /^(mgm)?(\d+\.\d+)$/;
-  unless ($id) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 400,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid id format for profile call";
-    exit 0;
+  elsif ((scalar(@ids) == 1) && ($ids[0] eq 'all')) {
+    if (exists $m_rights{'*'}) {
+      map { push @mgs, $_->{metagenome_id} } @{ $master->Job->get_objects({viewable => 1}) };
+    }
+    else {
+      @mgs = keys %m_rights;
+    }
   }
-  
-  my $job = $master->Job->init( {metagenome_id => $id} );
-  unless ($job && ref($job)) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 400,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Unknown id in profile call: ".$rest->[0];
-    exit 0;
-  }
-  
-  unless ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $id))) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 400,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Insufficient permissions for profile call for id: ".$rest->[0];
-    exit 0;
+  elsif (scalar(@ids) >= 1) {
+    my %seen = {};
+    foreach my $id (@ids) {
+      next if (exists $seen{$id});
+      if ($id =~ /^mgm(\d+\.\d+)$/) {
+	if (exists($m_rights{'*'}) || exists($m_rights{$1})) {
+	  push @mgs, $1;
+	}
+      } elsif ($id =~ /^mgp(\d+)$/) {
+	if (exists($p_rights{'*'}) || exists($p_rights{$1})) {
+	  my $proj = $master->Project->init( {id => $1} );
+	  foreach my $mgid (@{ $proj->metagenomes(1) }) {
+	    next unless (exists($m_rights{'*'}) || exists($m_rights{$mgid}));
+	    push @mgs, $mgid;
+	  }
+	}
+      }
+      $seen{$id} = 1;
+    }
   }
 
   my $params = {};
@@ -97,13 +98,9 @@ sub request {
     $params->{$key} = $value;
   }
   if ($cgi->param('limit'))  { $params->{limit}  = $cgi->param('limit'); }
-  if ($cgi->param('type'))   { $params->{type}   = $cgi->param('type'); }
   if ($cgi->param('source')) { $params->{source} = $cgi->param('source'); }
-
   my $limit  = ($params->{limit})  ? $params->{limit}  : 10;
-  my $type   = ($params->{type})   ? $params->{type}   : 'organism';
   my $source = ($params->{source}) ? $params->{source} : 'M5NR';
-  my @terms  = $cgi->param('term') || ();  
 
   my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
   unless (ref($mgdb)) {
@@ -113,40 +110,30 @@ sub request {
     print "ERROR: Could not access analysis database";
     exit 0;
   }
-  $mgdb->set_jobs([$id]);
-
-  unless (($type eq 'organism') || ($type eq 'function')) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 400,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid type for abundance call: ".$type." - valid types are [ 'organism', 'function' ]";
-    exit 0;
-  }
 
   my $data;
-  if (@terms > 0) {
-    my $abunds = $mgdb->get_abundance_for_set(\@terms, $type, [$source]);
+  my %mg_set = map { $_, 1 } @mgs;
+  $mgdb->set_jobs([keys %mg_set]);
+
+  if (scalar(keys %mg_set) > 1) {
+    $data = $mgdb->get_global_rank_abundance($limit, 'organism', $source);
+  }
+  elsif (scalar(keys %mg_set) == 1) {
+    my $abunds = $mgdb->get_rank_abundance($limit, 'organism', [$source]);
     # mgid => annotation => abundance
     if (exists $abunds->{$id}) {
       @$data = map {[$_, $abunds->{$id}{$_}]} keys %{$abunds->{$id}};
-    }
-  }
-  elsif ($limit > 0) {
-    my $abunds = $mgdb->get_rank_abundance($limit, $type, [$source]);
-    # mgid => [annotation, abundance]
-    if (exists $abunds->{$id}) {
-      $data = $abunds->{$id};
     }
   }
   else {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: missing paramaters, must have limit or term.";
+    print "ERROR: dominant species call requires at least one valid id parameter";
     exit 0;
   }
   @$data = sort { ($b->[1] <=> $a->[1]) || ($a->[0] cmp $b->[0]) } @$data;
-  
+
   print $cgi->header(-type => 'application/json',
 		     -status => 200,
 		     -Access_Control_Allow_Origin => '*' );

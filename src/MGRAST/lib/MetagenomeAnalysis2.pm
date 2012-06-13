@@ -1061,6 +1061,33 @@ sub get_rank_abundance {
   # mgid => [ annotation, abundance ]
 }
 
+sub get_global_rank_abundance {
+  my ($self, $limit, $type, $source) = @_;
+
+  my $data = {};
+  if ((! $source) || ($source =~ /^m5nr$/i)) {
+    $source = 'M5NR';
+  }
+  my $w_src = "source = '$source'";
+  if ($source =~ /^m5rna$/i) {
+    $w_src = "source in (".join(", ", map {"'$_'"} keys %{$self->ach->sources4type("rna")}).")";
+  }
+
+  my %jobs = map {$_, 1 } values %{$self->jobs};
+  my $sql  = "select name, jobs from data_summary where type = '$type' and $w_src";
+  my $tmp  = $self->dbh->selectall_arrayref($sql);
+  if ($tmp && (@$tmp > 0)) {
+    foreach my $row ( @$tmp ) {
+      my $jnum = 0;
+      map { $jnum += 1 } grep { exists $jobs{$_} } @{$row->[1]};
+      $data->{$row->[0]} += $jnum;
+    }
+  }
+
+  return $data;
+  # annotation => job_count
+}
+
 sub search_organisms {
   my ($self, $text) = @_;
 

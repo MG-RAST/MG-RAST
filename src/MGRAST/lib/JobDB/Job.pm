@@ -463,6 +463,20 @@ sub get_jobs_for_user_fast {
     return @out;
 }
 
+sub get_public_jobs {
+  my ($self, $id_only) = @_;
+
+  my $db = $self->_master();
+  if ($id_only) {
+    my $query  = "select metagenome_id from Job where viewable=1 and public=1";
+    my $result = $db->db_handle->selectcol_arrayref($query);
+    return ($result && @$result) ? $result : [];
+  }
+  else {
+    return $db->Job->get_objects( {public => 1, viewable => 1} );
+  }
+}
+
 # new method section
 
 =pod

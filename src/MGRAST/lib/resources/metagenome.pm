@@ -49,8 +49,8 @@ sub request {
       map { $ids->{"mgm".$_->{metagenome_id}} = 1 } @{ $master->Job->get_objects({viewable => 1}) };
     }
     else {
-      my $public = $master->Job->get_objects( {public => 1, viewable => 1} );
-      map { $ids->{"mgm".$_->{metagenome_id}} = 1 } @$public;
+      my $public = $master->Job->get_public_jobs(1);
+      map { $ids->{"mgm".$_} = 1 } @$public;
       map { $ids->{"mgm".$_} = 1 } keys %rights;
     }
 
