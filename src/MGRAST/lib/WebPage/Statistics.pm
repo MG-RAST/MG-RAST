@@ -9,9 +9,7 @@ use WebConfig;
 use WebComponent::WebGD;
 use GD;
 use Data::Dumper;
-
-use MGRAST::MGRAST qw( :DEFAULT );
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use MGRAST::Metadata;
 
 1;

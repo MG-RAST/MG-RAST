@@ -8,10 +8,7 @@ use strict;
 use warnings;
 
 use Mail::Mailer;
-
 use WebConfig;
-#use MGRAST::MGRAST qw( get_menu_job );
-
 =pod
 
 =head1 NAME

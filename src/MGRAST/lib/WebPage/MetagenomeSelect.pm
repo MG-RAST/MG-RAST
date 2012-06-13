@@ -9,31 +9,12 @@ use WebConfig;
 use WebComponent::WebGD;
 use GD;
 use Data::Dumper;
-
-use MGRAST::MGRAST qw( :DEFAULT );
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use MGRAST::Metadata;
 
 1;
 
 =pod
-
-=head1 NAME
-
-MetagenomeSelect - an instance of WebPage which lets the user select a metagenome
-
-=head1 DESCRIPTION
-
-Display an metagenome select box
-
-=head1 METHODS
-
-=over 4
-
-=item * B<init> ()
-
-Called when the web page is instanciated.
-
 =cut
 
 sub init {

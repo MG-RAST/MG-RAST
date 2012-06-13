@@ -7,16 +7,11 @@ use warnings;
 no warnings qw(uninitialized);
 
 use WebComponent::WebGD;
-use MGRAST::MGRAST qw( get_public_metagenomes );
-
 use WebConfig;
 use Data::Dumper;
 use FIG_Config;
-
-use MGRAST::MGRAST qw( :DEFAULT );
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use MGRAST::Metadata;
-
 use MGRAST::MGRASTStatistics;
 
 1;

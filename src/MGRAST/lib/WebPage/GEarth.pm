@@ -6,7 +6,7 @@ use warnings;
 use POSIX;
 use File::Basename;
 use MGRAST::Metadata;
-use MGRAST::MetagenomeAnalysis;
+use MGRAST::Analysis;
 
 use WebConfig;
 use base qw( WebPage );

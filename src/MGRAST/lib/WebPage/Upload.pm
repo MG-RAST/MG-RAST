@@ -11,7 +11,6 @@ use Encode;
 
 use FIG_Config;
 use WebConfig;
-use MGRAST::MGRAST;
 use MGRAST::Metadata;
 
 use base qw( WebPage );

@@ -9,7 +9,7 @@ use Data::Dumper;
 use POSIX qw(strftime);
 
 use Babel::lib::Babel;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 
 sub cases {
   return { 'sequences' => 1,

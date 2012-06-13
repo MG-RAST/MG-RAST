@@ -12,7 +12,7 @@ use GD;
 use WebComponent::WebGD;
 
 use FIG_Config;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use MGRAST::Metadata;
 use Cache::Memcached;
 
