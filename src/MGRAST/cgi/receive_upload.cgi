@@ -435,12 +435,15 @@ sub file_unique_id_count {
     my($file_name, $file_path, $file_format) = @_;
 
     my $unique_ids = 0;
+    if (! -d $file_path.'/.sort') {
+       mkdir $file_path.'/.sort', 775;
+    }
     if ($file_format eq 'fasta') {
-       	$unique_ids = `grep '>' $file_path/$file_name | cut -f1 -d' ' | sort -T $file_path -u | wc -l`;
+       	$unique_ids = `grep '>' $file_path/$file_name | cut -f1 -d' ' | sort -T $file_path/.sort -u | wc -l`;
         chomp $unique_ids;
     }
     elsif ($file_format eq 'fastq') {
-        $unique_ids = `awk '0 == (NR + 3) % 4' $file_path/$file_name | cut -f1 -d' ' | sort -T $file_path -u | wc -l`;
+        $unique_ids = `awk '0 == (NR + 3) % 4' $file_path/$file_name | cut -f1 -d' ' | sort -T $file_path/.sort -u | wc -l`;
 	chomp $unique_ids;
     }
     return $unique_ids;
