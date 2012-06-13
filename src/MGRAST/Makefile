@@ -22,14 +22,13 @@
 #
 SEED_RUNNING_PERL = seed_running_perl.fragment 
 PKGNAME=MGRAST
-PERLCGISCRIPTS := $(subst .pl,,$(wildcard *.cgi))
+PERLCGISCRIPTS := $(subst .pl,,$(wildcard cgi/*.cgi))
 
-PERL_LIB = $(wildcard *.pm) \
-	$(wildcard WebPage/*.pm) \
-	$(wildcard OntologyOnDemand/*.pm) \
-	$(wildcard JobDB/*.pm) \
-	$(wildcard JobDB/*.pm) \
-	$(wildcard resources/*.pm)
+PERL_LIB = $(wildcard lib/*.pm) \
+	$(wildcard lib/WebPage/*.pm) \
+	$(wildcard lib/OntologyOnDemand/*.pm) \
+	$(wildcard lib/JobDB/*.pm) \
+	$(wildcard lib/resources/*.pm)
 
 WEBPAGES := $(wildcard *.tmpl) \
 	$(wildcard html/images/*.png) \
@@ -37,9 +36,8 @@ WEBPAGES := $(wildcard *.tmpl) \
 	$(wildcard html/images/*.jpg) \
 	$(wildcard html/images/*.ico) \
 	$(wildcard html/*.html) \
-        $(wildcard js/*.js) \
-	$(wildcard css/*.css) \
-	$(wildcard jar/*.jar)
+        $(wildcard html/js/*.js) \
+	$(wildcard html/css/*.css)
 
 INST_PERL_LIB = $(foreach var, $(PERL_LIB), $(libdir)/$(PKGNAME)/$(var))
 
