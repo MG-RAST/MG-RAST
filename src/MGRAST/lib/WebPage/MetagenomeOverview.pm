@@ -18,7 +18,7 @@ use GD;
 
 use FIG_Config;
 use MGRAST::Metadata;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 
 1;
 
@@ -75,7 +75,7 @@ sub init {
   $self->data('mddb', $mddb);
 
   # init the metagenome database
-  my $mgdb = new MGRAST::MetagenomeAnalysis2( $self->app->data_handle('MGRAST')->db_handle );
+  my $mgdb = new MGRAST::Analysis( $self->app->data_handle('MGRAST')->db_handle );
   unless ($mgdb) {
     $self->app->error("Unable to retrieve the analysis database for metagenome '$id'.");
     return 1;

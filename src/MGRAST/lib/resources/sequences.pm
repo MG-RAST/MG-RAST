@@ -88,8 +88,8 @@ sub request {
   if ($job && ref($job)) {
     if ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $id))) {
 
-      use MGRAST::MetagenomeAnalysis2;
-      my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+      use MGRAST::Analysis;
+      my $mgdb = MGRAST::Analysis->new( $master->db_handle );
       unless (ref($mgdb)) {
 	print $cgi->header(-type => 'text/plain',
 			   -status => 500,

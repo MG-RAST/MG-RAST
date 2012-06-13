@@ -8,7 +8,7 @@ use warnings;
 use Data::Dumper;
 use FIG_Config;
 
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use MGRAST::MGRAST qw( get_public_metagenomes );
 
 1;
@@ -42,7 +42,7 @@ sub init {
   $self->application->register_component('Ajax', 'ajax');
   $self->application->register_component('KEGGMap', 'kmap');
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $self->app->data_handle('MGRAST')->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $self->app->data_handle('MGRAST')->db_handle );
   unless ($mgdb) {
     $self->app->add_message('warning', "Unable to retrieve the metagenome analysis database.");
     return 1;

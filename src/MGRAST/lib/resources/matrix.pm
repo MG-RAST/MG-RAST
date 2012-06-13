@@ -1,6 +1,6 @@
 package resources::matrix;
 
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use WebServiceObject;
 use Babel::lib::Babel;
 
@@ -118,7 +118,7 @@ sub request {
 
   shift @$rest;
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   $mgdb->set_jobs($ids);
 
   my $ach = new Babel::lib::Babel;

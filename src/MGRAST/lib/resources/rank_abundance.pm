@@ -1,6 +1,6 @@
 package resources::rank_abundance;
 
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use WebServiceObject;
 
 use CGI;
@@ -105,7 +105,7 @@ sub request {
   my $source = ($params->{source}) ? $params->{source} : 'M5NR';
   my @term   = $cgi->param('term') || ();  
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,

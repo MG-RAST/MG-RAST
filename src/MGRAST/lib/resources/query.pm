@@ -4,7 +4,7 @@ use CGI;
 use JSON;
 
 use WebServiceObject;
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use Babel::lib::Babel;
 
 my $cgi = new CGI;
@@ -78,7 +78,7 @@ sub request {
     exit 0;
   }
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,

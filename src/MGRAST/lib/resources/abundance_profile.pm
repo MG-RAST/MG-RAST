@@ -1,6 +1,6 @@
 package resources::abundance_profile;
 
-use MGRAST::MetagenomeAnalysis2;
+use MGRAST::Analysis;
 use WebServiceObject;
 use Babel::lib::Babel;
 
@@ -103,7 +103,7 @@ sub request {
     $params->{type} = $cgi->param('type');
   }
 
-  my $mgdb = MGRAST::MetagenomeAnalysis2->new( $master->db_handle );
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
