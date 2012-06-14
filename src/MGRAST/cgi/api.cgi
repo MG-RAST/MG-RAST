@@ -144,7 +144,20 @@ if ($auth && $authentication_available) {
 
 # if a resource is passed, call the resources module
 if ($resource) {
-    if ($resources_hash->{$resource}) {
+    if ($resource eq 'about') {
+        my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
+	my $content = { id => 'MG-RAST',
+			documentation => $FIG_Config::html_url.'/api.html',
+			contact => 'mg-rast@mcs.anl.gov',
+			resources => \@resource_objects,
+			url => $cgi->url."/" };
+	print $cgi->header(-type => 'application/json',
+			   -status => 200,
+			   -Access_Control_Allow_Origin => '*' );
+	print $json->encode($content);
+	exit 0;
+    }
+    elsif ($resources_hash->{$resource}) {
 	my $query = "use resources::$resource; resources::".$resource."::request( { 'rest_parameters' => \\\@rest_parameters, 'cgi_parameters' => \$cgi_parameters, 'request_method' => \$request_method, 'request_body' => \$request_body, 'user' => \$user } );";
 	eval $query;
 	if ($@) {
@@ -165,24 +178,17 @@ if ($resource) {
 }
 # we are called without a resource, return API information
 else {
-    
     # check if we are called from a Browser or a script
     if ($ENV{HTTP_ACCEPT} eq '*/*') {
-	
-	my $resource_objects = [];
-	foreach my $resource (sort @$resources) {
-	    push(@$resource_objects, { 'name' => $resource, 'url' => $cgi->url.'/'.$resource});
-	}
+	my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
 	my $content = { id => 'MG-RAST',
 			documentation => $FIG_Config::html_url.'/api.html',
 			contact => 'mg-rast@mcs.anl.gov',
-			resources => $resource_objects,
+			resources => \@resource_objects,
 			url => $cgi->url."/" };
-	
 	print $cgi->header(-type => 'application/json',
 			   -status => 200,
 			   -Access_Control_Allow_Origin => '*' );
-	
 	print $json->encode($content);
 	exit 0;
     } else {
