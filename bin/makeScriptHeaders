@@ -10,6 +10,7 @@ BEGIN {
               ${TARGETDIR}/lib/WebApplication
               ${TARGETDIR}/lib/PPO
               ${TARGETDIR}/lib/MGRAST
+              ${TARGETDIR}/lib/Babel
               ${TOPDIR}/conf
 	);
 }
