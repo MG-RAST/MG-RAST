@@ -1,8 +1,8 @@
 #!/bin/sh
 
 TOOL_HDR=$1
-
-echo "#!/usr/bin/env perl
+PERL=`which perl`
+echo "#!${PERL}
 
 BEGIN {
     unshift @INC, qw(
@@ -10,6 +10,7 @@ BEGIN {
               ${TARGETDIR}/lib/WebApplication
               ${TARGETDIR}/lib/PPO
               ${TARGETDIR}/lib/MGRAST
+              ${TARGETDIR}/lib/Babel
               ${TOPDIR}/conf
 	);
 }
