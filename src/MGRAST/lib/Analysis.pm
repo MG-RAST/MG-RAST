@@ -1004,14 +1004,21 @@ sub get_abundance_for_set {
     my $sql = "select distinct $type, abundance from $table where $type in ($term_list)".$w_srcs;
     my $tmp = $self->dbh->selectall_arrayref($sql);
 
-    map { $data->{$mg}{$_} = 0 } @$set;
+    map { $data->{$mg}{$_} = [ 0 ] } @$set;
     if ($tmp && (@$tmp > 0)) {
-      map { $data->{$mg}{$_->[0]} = $_->[1] } @$tmp;
+      map { push @{ $data->{$mg}{$_->[0]} }, $_->[1] } @$tmp;
     }
     $self->dbh->commit();
   }
+
+  my $results = {};
+  foreach my $mg (keys %$data) {
+    foreach my $name (keys %{$data->{$mg}}) {
+      $results->{$mg}{$name} = max @{ $data->{$mg}{$name} };
+    }
+  }
   
-  return $data;
+  return $results;
   # mgid => annotation => abundance
 }
 
@@ -1049,15 +1056,24 @@ sub get_rank_abundance {
     if ($w_srcs) {
       $sql .= $w_srcs;
     }
-    $sql .= " order by abundance desc limit $limit";
+    $sql .= " order by abundance desc limit ".($limit * scalar(@$sources));
     my $tmp = $self->dbh->selectall_arrayref($sql);
     if ($tmp && (@$tmp > 0)) {
-      $data->{$mg} = $tmp;
+      map { push @{ $data->{$mg}{$_->[0]} }, $_->[1] } @$tmp;
     }
     $self->dbh->commit();
   }
   
-  return $data;
+  my $results = {};
+  foreach my $mg (keys %$data) {
+    foreach my $name (keys %{$data->{$mg}}) {
+      push @{ $results->{$mg} }, [ $name, max @{$data->{$mg}{$name}} ];
+    }
+    @{$results->{$mg}} = sort { ($b->[1] <=> $a->[1]) || ($a->[0] cmp $b->[0]) } @{$results->{$mg}};
+    @{$results->{$mg}} = @{$results->{$mg}}[0..($limit-1)];
+  }
+  
+  return $results;
   # mgid => [ annotation, abundance ]
 }
 

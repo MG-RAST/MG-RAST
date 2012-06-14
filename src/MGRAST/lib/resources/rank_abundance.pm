@@ -26,7 +26,7 @@ sub about {
 				  "term" => [],
 				  "type" => 'organism',
 				  "source" => 'M5NR'
-				}
+				},
 		  'return_type' => "application/json" };
 
   print $cgi->header(-type => 'application/json',
@@ -55,15 +55,22 @@ sub request {
     exit 0;
   }
 
-  unless (scalar(@$rest) >= 1) {
+  unless ((scalar(@$rest) >= 1) || $cgi->param('id')) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
     print "ERROR: rank abundance call requires at least an id parameter";
     exit 0;
   }
-  
-  my $id = shift @$rest;  
+
+  my $id = '';
+  if (@$rest) {
+    $id = shift @$rest;
+  }
+  else {
+    $id = $cgi->param('id');
+  }
+
   (undef, $id) = $id =~ /^(mgm)?(\d+\.\d+)$/;
   unless ($id) {
     print $cgi->header(-type => 'text/plain',
@@ -133,7 +140,7 @@ sub request {
   }
   elsif ($limit > 0) {
     my $abunds = $mgdb->get_rank_abundance($limit, $type, [$source]);
-    # mgid => [annotation, abundance]
+    # mgid => [ annotation, abundance ]
     if (exists $abunds->{$id}) {
       $data = $abunds->{$id};
     }

@@ -96,6 +96,19 @@ sub count_public {
     return ( $result->[0] ) ;
 }
 
+sub get_public_projects {
+  my ($self, $id_only) = @_;
+
+  my $db = $self->_master();
+  if ($id_only) {
+    my $query  = "select id from Project where public=1";
+    my $result = $db->db_handle->selectcol_arrayref($query);
+    return ($result && @$result) ? $result : [];
+  }
+  else {
+    return $db->Project->get_objects( {public => 1} );
+  }
+}
 
 =pod
 

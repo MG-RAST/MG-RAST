@@ -22,7 +22,7 @@ sub about {
 				   },
 		  'defaults' => { "limit" => 10,
 				  "source" => 'M5NR'
-				}
+				},
 		  'return_type' => "application/json" };
 
   print $cgi->header(-type => 'application/json',
@@ -51,16 +51,18 @@ sub request {
     exit 0;
   }
 
-  my $public   = $master->Job->get_public_jobs(1);
+  my $p_public = $master->Project->get_public_projects(1);
+  my $m_public = $master->Job->get_public_jobs(1);
   my %p_rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'project')} : ();
   my %m_rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
   my @ids  = $cgi->param('id') || ();
   my @mgs  = ();
 
-  map { $m_rights{$_} = 1 } @$public;
+  map { $p_rights{$_} = 1 } @$p_public;
+  map { $m_rights{$_} = 1 } @$m_public;
 
   if ((scalar(@ids) == 1) && ($ids[0] eq 'public')) {
-    @mgs = @$public;
+    @mgs = @$m_public;
   }
   elsif ((scalar(@ids) == 1) && ($ids[0] eq 'all')) {
     if (exists $m_rights{'*'}) {
@@ -120,9 +122,9 @@ sub request {
   }
   elsif (scalar(keys %mg_set) == 1) {
     my $abunds = $mgdb->get_rank_abundance($limit, 'organism', [$source]);
-    # mgid => annotation => abundance
-    if (exists $abunds->{$id}) {
-      @$data = map {[$_, $abunds->{$id}{$_}]} keys %{$abunds->{$id}};
+    # mgid => [ annotation, abundance ]
+    if (exists $abunds->{$mgs[0]}) {
+      $data = $abunds->{$mgs[0]};
     }
   }
   else {
