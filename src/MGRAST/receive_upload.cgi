@@ -50,6 +50,13 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
     # prepare return data structure
     my $data = [ { type => 'user_inbox', id => $user->login, files => [], fileinfo => {}, messages => [], directories => [] }];
 
+    # check if the user has stats calculations in the queue
+    my $uname = $user->{login};
+    my $count = `/usr/local/bin/qstat | grep $uname | wc -l`;
+    if ($count && $count > 0) {
+	push(@{$data->[0]->{messages}}, "You have $count sequence files with ongoing statistics computation. The information on these files will be incomplete and you will not be able to select these for submisson until the computation is complete. You can reload this page or click the 'update inbox' button to update the status.");
+    }
+
     # check if we are supposed to do anything else than return the content of the inbox
     if ($cgi->param('faction')) {
 	my $action = $cgi->param('faction');
@@ -220,6 +227,11 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    }
 	    # check files
 	    else {
+		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size, $atime,$mtime,$ctime,$blksize,$blocks) = stat("$udir/$ufile");
+		if ($size == 0) {
+		    `rm -f "$udir/$ufile"`;
+		    next;
+		}
 		if ($ufile =~ /\.($seq_ext)$/) {
 		    push(@$sequence_files, $ufile);
 		}
@@ -255,7 +267,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    my ($file_suffix) = $sequence_file =~ /^.*\.(.+)$/;
 	    my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
 	    my $file_seq_type = &file_seq_type($sequence_file, $udir, $file_eol);
-	    my $unique_ids    = &file_unique_id_count($sequence_file, $udir, $file_format);
 	    my ($file_md5)    = (`md5sum '$udir/$sequence_file'` =~ /^(\S+)/);
 	    my $file_size     = -s $udir."/".$sequence_file;
 	    
@@ -263,7 +274,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			 "suffix" => $file_suffix,
 			 "file_type" => $file_format,
 			 "sequence type" => $file_seq_type,
-			 "unique_id_count" => $unique_ids,
 			 "file_checksum" => $file_md5,
 			 "file_size" => $file_size };
 	    
@@ -272,7 +282,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    print FH "suffix\t$file_suffix\n";
 	    print FH "file_type\t$file_format\n";
 	    print FH "sequence type\t$file_seq_type\n";
-	    print FH "unique_id_count\t$unique_ids\n";
 	    print FH "file_checksum\t$file_md5\n";
 	    print FH "file_size\t$file_size\n";
 	    close(FH);
@@ -280,21 +289,20 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
 	    
 	    # call the extended information
-	    &fasta_report_and_stats($sequence_file, $udir, $file_format);
-	    open(FH, "<$udir/$sequence_file.stats_info");
-	    while (<FH>) {
-		chomp;
-		my ($key, $val) = split /\t/;
-		$key =~ s/_/ /g;
-		$info->{$key} = $val;
-	    }
+	    my $compute_script = $FIG_Config::ROOT."/bin/compute_sequence_statistics.pl";
+	    my $jobid = $user->{login};
+	    my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
+	    my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+	    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+	    open(FH, ">>$udir/.tmp/jobs");
+	    print FH "$jnum";
 	    close FH;
 	}
     }
 
     # add basic file information to all files
     foreach my $file (@ufiles) {
-	next if (-d "$udir/$file");
+	next unless (-f "$udir/$file");
 	my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size, $atime,$mtime,$ctime,$blksize,$blocks) = stat("$udir/$file");
 	unless (exists($data->[0]->{fileinfo}->{$file})) {
 	    $data->[0]->{fileinfo}->{$file} = {};
@@ -358,6 +366,10 @@ sub initialize_user_dir {
     mkdir $udir or die "could not create directory '$udir'";
     chmod 0777, $udir;
   }
+  unless ( -d "$udir/.temp") {
+    mkdir "$udir/.tmp" or die "could not create directory '$udir/.tmp'";
+    chmod 0777, "$udir/.temp";
+  }
   my $user_file = "$udir/USER";
   if ( ! -e $user_file ) {	
     if (open(USER, ">$user_file")) {
@@ -368,82 +380,6 @@ sub initialize_user_dir {
       die "could not open file '$user_file': $!";
     }
   }
-}
-
-#############################
-# extended file information #
-#############################
-
-sub fasta_report_and_stats {
-    my($file, $dir, $file_format) = @_;
-
-    ### report keys:
-    # bp_count, sequence_count, length_max, id_length_max, length_min, id_length_min, file_size,
-    # average_length, standard_deviation_length, average_gc_content, standard_deviation_gc_content,
-    # average_gc_ratio, standard_deviation_gc_ratio, ambig_char_count, ambig_sequence_count, average_ambig_chars
-
-    my $bin = $FIG_Config::PROD."/bin";
-
-    my $filetype = "";
-    if ($file_format eq 'fastq') {
-	$filetype = " -t fastq"
-    }
-
-    my @stats = `$bin/seq_length_stats.py -i '$dir/$file'$filetype -s`;
-    chomp @stats;
-
-    my $report = {};
-    foreach my $stat (@stats) {
-	my ($key, $value) = split(/\t/, $stat);
-	$report->{$key} = $value;
-    }
-    my $header = `head -1 '$dir/$file'`;
-    my $options = '-s '.$report->{sequence_count}.' -a '.$report->{average_length}.' -d '.$report->{standard_deviation_length}.' -m '.$report->{length_max};
-    my $method = `$bin/tech_guess -f '$header' $options`;
-
-    my $success = 1;
-    my $message = "";
-    if ( $stats[0] =~ /^ERROR/i ) {
-	$success = 0;
-	my @parts = split(/\t/, $stats[0]);
-	if ( @parts == 3 ) {
-	    $message = $parts[1] . ": " . $parts[2];
-	} else {
-	    $message = join(" ", @stats);
-	}
-    }
-
-    open(FH, ">>$dir/$file.stats_info") or die "could not open stats file for $dir/$file.stats_info: $!";
-    if ($success) {
-	if ($report->{sequence_count} eq "0") {
-	    print FH "Error\tFile contains no sequences\n";
-	    return 0;
-	}
-	foreach my $line (@stats) {
-	    print FH $line."\n";		
-	}
-	print FH "sequencing_method_guess\t$method";
-    } else {
-	print FH "Error\t$message\n";
-    }
-    close FH;
-
-    return 0;
-}
-
-sub file_unique_id_count {
-    my($file_name, $file_path, $file_format) = @_;
-
-    my $unique_ids = 0;
-    if ($file_format eq 'fasta') {
-       	$unique_ids = `grep '>' $file_path/$file_name | cut -f1 -d' ' | sort -T $file_path -u | wc -l`;
-        chomp $unique_ids;
-    }
-    elsif ($file_format eq 'fastq') {
-        $unique_ids = `awk '0 == (NR + 3) % 4' $file_path/$file_name | cut -f1 -d' ' | sort -T $file_path -u | wc -l`;
-	chomp $unique_ids;
-    }
-    return $unique_ids;
 }
 
 ####################################
@@ -671,7 +607,7 @@ sub file_format {
 sub extract_fastq_from_sff {
     my($sff, $dir) = @_;
 
-    my $bin = $FIG_Config::PROD."/bin";
+    my $bin = $FIG_Config::ROOT."/bin";
     my ($without_extension) = $sff =~ /^(.*)\.sff$/;
     eval {
 	`$bin/sff_extract_0_2_8 -s '$dir/$without_extension.fastq' -Q '$dir/$sff'`;
