@@ -14,7 +14,4 @@ BEGIN {
               ${TOPDIR}/conf
 	);
 }
-use Data::Dumper;
-use FIG_Config;
-# end of tool_hdr
 ########################################################################" > ${TOOL_HDR}
