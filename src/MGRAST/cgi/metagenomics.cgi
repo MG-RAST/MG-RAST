@@ -31,9 +31,9 @@ sub main {
     my $range = 2;
     my $random_number = int(rand($range));
 
-    my $layout = WebLayout->new($Conf::html_base.'MGRAST.tmpl');
-    $layout->add_template($Conf::html_base.'EmptyLayout.tmpl', ["Home2"]);
-    $layout->add_template($Conf::html_base.'MGRAST-frontpage.tmpl', ["Home"]);
+    my $layout = WebLayout->new($Conf::html_base.'/MGRAST.tmpl');
+    $layout->add_template($Conf::html_base.'/EmptyLayout.tmpl', ["Home2"]);
+    $layout->add_template($Conf::html_base.'/MGRAST-frontpage.tmpl', ["Home"]);
     $layout->add_css($Conf::cgi_url."/Html/mgrast.css");
     $layout->add_css($Conf::cgi_url."/Html/formalize.css");
     $layout->add_javascript($Conf::cgi_url."/Html/jquery-1.4.2.min.js");
