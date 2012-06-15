@@ -11,7 +11,7 @@ use base qw( DataHandler );
 
 use DBMaster;
 use DBI;
-use FIG_Config;
+use Conf;
 
 
 =pod
@@ -23,7 +23,7 @@ DataHandler::ACH - data handler to the Babel database
 =head1 DESCRIPTION
 
 This module returns the DBMaster object to the Babel database stored in the root
-job directory of a ACH server. It requires the FIG_Config.pm to specify the  
+job directory of a ACH server. It requires the Conf.pm to specify the  
 $rast_jobs directory.
 
 Refer to WebApplication/DataHandler.pm for the full documentation.
@@ -48,8 +48,8 @@ sub handle {
     my $dbhost  = "";
     my $backend = "";
     my $type    = "SQL"; # default is not PPO
-    my $dbsock  = $FIG_Config::dbsock || "";
-    my $dbport  = $FIG_Config::dbsock || "";
+    my $dbsock  = $Conf::dbsock || "";
+    my $dbport  = $Conf::dbsock || "";
     
     if ($WebConfig::BABELDB) {
       $user    = $WebConfig::BABELUSER      || "ach"; 
@@ -61,19 +61,19 @@ sub handle {
       $dbsock  = $WebConfig::BABELDBSOCK    if ($WebConfig::BABELDBSOCK);
       $dbport  = $WebConfig::BABELDBPORT    if ($WebConfig::BABELDBPORT);
     }
-    elsif ($FIG_Config::babel_db) {
-      $user    = $FIG_Config::babel_dbuser    || "ach";
-      $dbpass  = $FIG_Config::babel_dbpass    || "";
-      $db      = $FIG_Config::babel_db;
-      $dbhost  = $FIG_Config::babel_dbhost;
-      $backend = $FIG_Config::babel_dbbackend || "MySQL"; # for PPO only
-      $type    = $FIG_Config::babel_dbtype    if ($FIG_Config::babel_dbtype);
-      $dbsock  = $FIG_Config::babel_dbsock    if ($FIG_Config::babel_dbsock);
-      $dbport  = $FIG_Config::babel_dbport    if ($FIG_Config::babel_dbport);
+    elsif ($Conf::babel_db) {
+      $user    = $Conf::babel_dbuser    || "ach";
+      $dbpass  = $Conf::babel_dbpass    || "";
+      $db      = $Conf::babel_db;
+      $dbhost  = $Conf::babel_dbhost;
+      $backend = $Conf::babel_dbbackend || "MySQL"; # for PPO only
+      $type    = $Conf::babel_dbtype    if ($Conf::babel_dbtype);
+      $dbsock  = $Conf::babel_dbsock    if ($Conf::babel_dbsock);
+      $dbport  = $Conf::babel_dbport    if ($Conf::babel_dbport);
 
     }
     else {
-      	warn "Unable to read DataHandler::Babel database: can't find FIG_Config.pm or Babel.pm\n";
+      	warn "Unable to read DataHandler::Babel database: can't find Conf.pm or Babel.pm\n";
 	return undef;
     }
 

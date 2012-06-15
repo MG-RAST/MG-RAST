@@ -11,9 +11,9 @@ my $usage  = "load_source_data.pl [--verbose] [--dbname NAME] [--dbuser USER] [-
 my $dfile  = '';
 my $sfile  = '';
 my $verb   = '';
-my $dbname = $FIG_Config::babel_db;
-my $dbuser = $FIG_Config::babel_dbuser;
-my $dbhost = $FIG_Config::babel_dbhost;
+my $dbname = $Conf::babel_db;
+my $dbuser = $Conf::babel_dbuser;
+my $dbhost = $Conf::babel_dbhost;
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit; }
 if ( ! GetOptions('dbname:s'   => \$dbname,

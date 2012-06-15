@@ -1,7 +1,7 @@
 use CGI;
 use JSON;
 
-use FIG_Config;
+use Conf;
 
 use WebApplicationDBHandle;
 use DBMaster;

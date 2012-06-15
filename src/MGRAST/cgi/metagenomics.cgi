@@ -7,7 +7,7 @@ use WebMenu;
 use WebLayout;
 use WebConfig;
 
-use FIG_Config;
+use Conf;
 
 eval {
     &main;
@@ -34,13 +34,13 @@ sub main {
     my $layout = WebLayout->new(TMPL_PATH.'MGRAST.tmpl');
     $layout->add_template(TMPL_PATH.'EmptyLayout.tmpl', ["Home2"]);
     $layout->add_template(TMPL_PATH.'MGRAST-frontpage.tmpl', ["Home"]);
-    $layout->add_css("$FIG_Config::cgi_url/Html/mgrast.css");
-    $layout->add_css("$FIG_Config::cgi_url/Html/formalize.css");
-    $layout->add_javascript("$FIG_Config::cgi_url/Html/jquery-1.4.2.min.js");
-    $layout->add_javascript("$FIG_Config::cgi_url/Html/jquery.formalize.min.js");
-    $layout->add_javascript("$FIG_Config::cgi_url/Html/raphael-min.js");
+    $layout->add_css("$Conf::cgi_url/Html/mgrast.css");
+    $layout->add_css("$Conf::cgi_url/Html/formalize.css");
+    $layout->add_javascript("$Conf::cgi_url/Html/jquery-1.4.2.min.js");
+    $layout->add_javascript("$Conf::cgi_url/Html/jquery.formalize.min.js");
+    $layout->add_javascript("$Conf::cgi_url/Html/raphael-min.js");
     $layout->show_icon(1);
-    $layout->icon_path("$FIG_Config::cgi_url/Html/favicon.ico");
+    $layout->icon_path("$Conf::cgi_url/Html/favicon.ico");
 
     # build menu
     my $menu = WebMenu->new();

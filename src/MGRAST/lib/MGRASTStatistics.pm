@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 
-use FIG_Config;
+use Conf;
 use DBI;
 
 1;
@@ -20,10 +20,10 @@ sub new {
   unless ( $job_dbh && ref($job_dbh) )
   {
       eval {
-	  $job_dbh = DBMaster->new( -database => $FIG_Config::mgrast_jobcache_db || 'JobDB',
-				    -host     => $FIG_Config::mgrast_jobcache_host,
-				    -user     => $FIG_Config::mgrast_jobcache_user,
-				    -password => $FIG_Config::mgrast_jobcache_password || "");
+	  $job_dbh = DBMaster->new( -database => $Conf::mgrast_jobcache_db || 'JobDB',
+				    -host     => $Conf::mgrast_jobcache_host,
+				    -user     => $Conf::mgrast_jobcache_user,
+				    -password => $Conf::mgrast_jobcache_password || "");
       };
       
       if ($@) {
@@ -35,10 +35,10 @@ sub new {
   unless ( $user_dbh && ref($user_dbh) )
   {
       eval {
-	  $user_dbh = DBMaster->new( -database => $FIG_Config::webapplication_db || 'WebAppBackend',
-				     -host     => $FIG_Config::webapplication_host,
-				     -user     => $FIG_Config::webapplication_user,
-				     -password => $FIG_Config::webapplication_password || "");
+	  $user_dbh = DBMaster->new( -database => $Conf::webapplication_db || 'WebAppBackend',
+				     -host     => $Conf::webapplication_host,
+				     -user     => $Conf::webapplication_user,
+				     -password => $Conf::webapplication_password || "");
       };
       
       if ($@) {
@@ -603,7 +603,7 @@ sub job_directory_size {
 
     # note that job_id is used here, not _id from JobDB.Job table
 
-    my $du = `du -sb $FIG_Config::mgrast_jobs/$job_id/`;
+    my $du = `du -sb $Conf::mgrast_jobs/$job_id/`;
 
     if ( $du =~ /^(\d+)/ )
     {

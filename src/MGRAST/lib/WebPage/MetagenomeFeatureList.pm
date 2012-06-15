@@ -2,7 +2,7 @@ package MGRAST::WebPage::MetagenomeFeatureList;
 
 use base qw( WebPage );
 
-use FIG_Config;
+use Conf;
 
 use URI::Escape;
 

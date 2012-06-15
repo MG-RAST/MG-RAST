@@ -16,7 +16,7 @@ use WebConfig;
 use WebComponent::WebGD;
 use GD;
 
-use FIG_Config;
+use Conf;
 use MGRAST::Metadata;
 use MGRAST::Analysis;
 
@@ -1612,7 +1612,7 @@ sub chart_export {
   my $cgi   = $self->application->cgi;
   my $mgid  = $cgi->param('metagenome');
   my $name  = $cgi->param('name');
-  my $file = $FIG_Config::temp."/".$cgi->param('file');
+  my $file = $Conf::temp."/".$cgi->param('file');
 
   if (open(FH, "<$file")) {
     my $content = "";
@@ -1642,7 +1642,7 @@ sub chart_export_link {
   my $mgid = $self->data('job')->metagenome_id;
   my $file = "download.$mgid.$name";
 
-  if (open(FH, ">".$FIG_Config::temp."/".$file)) {
+  if (open(FH, ">".$Conf::temp."/".$file)) {
     foreach my $d (@$data) {
       print FH join("\t", @$d)."\n";
     }
@@ -1652,9 +1652,9 @@ sub chart_export_link {
 }
 
 sub require_javascript {
-  return [ "$FIG_Config::cgi_url/Html/MetagenomeOverview.js",
-	   "$FIG_Config::cgi_url/Html/krona.js",
-	   "$FIG_Config::cgi_url/Html/canvg.js",
-	   "$FIG_Config::cgi_url/Html/rgbcolor.js",
+  return [ "$Conf::cgi_url/Html/MetagenomeOverview.js",
+	   "$Conf::cgi_url/Html/krona.js",
+	   "$Conf::cgi_url/Html/canvg.js",
+	   "$Conf::cgi_url/Html/rgbcolor.js",
 	   "https://www.google.com/jsapi" ];
 }

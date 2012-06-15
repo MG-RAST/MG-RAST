@@ -145,7 +145,7 @@ sub set_content {
   $_[0]->template->param( WARNINGS  => \@warn );
   $_[0]->template->param( INFO      => \@info );
 
-  while (my($var, $val) = each %FIG_Config::web_template_settings)
+  while (my($var, $val) = each %Conf::web_template_settings)
   {
       $_[0]->template->param($var => $val);
   }
