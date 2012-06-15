@@ -5,7 +5,7 @@ use base qw( WebPage );
 use strict;
 use warnings;
 
-use FIG_Config;
+use Conf;
 use Number::Format;
 
 1;
@@ -134,7 +134,7 @@ function forward_to_search (e) {
   $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of sequences<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$seqcount." billion</span></div>";
   $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of public metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$publiccount."</span></div>";
   $content .= "</div>";
-  $content .= "<div style='float: left; width: 410px; line-height: 17px; margin: 10 0 0 10;'>The server primarily provides upload, quality control, automated annotation and analysis for prokaryotic metagenomic shotgun samples. MG-RAST was launched in 2007 and has over 8000 registered users and ".$jobcount." data sets. The current server version is ".$FIG_Config::server_version.". We suggest users take a look at <a href='http://blog.metagenomics.anl.gov/mg-rast-for-the-impatient'>MG-RAST for the impatient</a>.</div>"; 
+  $content .= "<div style='float: left; width: 410px; line-height: 17px; margin: 10 0 0 10;'>The server primarily provides upload, quality control, automated annotation and analysis for prokaryotic metagenomic shotgun samples. MG-RAST was launched in 2007 and has over 8000 registered users and ".$jobcount." data sets. The current server version is ".$Conf::server_version.". We suggest users take a look at <a href='http://blog.metagenomics.anl.gov/mg-rast-for-the-impatient'>MG-RAST for the impatient</a>.</div>"; 
 
   $content .= "<div class='clear'></div>";
   $content .= <<'END';
@@ -172,7 +172,7 @@ sub speedometer {
 
   my $content = "";
 
-  if (open(FH, $FIG_Config::mgrast_jobs."/statistics_short")) {
+  if (open(FH, $Conf::mgrast_jobs."/statistics_short")) {
     my $line = <FH>;
     close FH;
     my ($speed, $mileage, $trip, $togo) = split(/\t/, $line);

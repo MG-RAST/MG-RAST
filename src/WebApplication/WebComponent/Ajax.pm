@@ -10,7 +10,7 @@ use base qw( WebComponent );
 use CGI;
 
 use WebApplication;
-use FIG_Config;
+use Conf;
 
 1;
 
@@ -63,10 +63,10 @@ sub output {
   my $application = $self->application();
   my $cgi = $application->cgi();
 
-  #my $cgi_url = "$FIG_Config::cgi_url/ajax.cgi";
+  #my $cgi_url = "$Conf::cgi_url/ajax.cgi";
   my $cgi_url;
-  if ($FIG_Config::nmpdr_site_url or $FIG_Config::force_ajax_to_cgi_url) {
-    $cgi_url = "$FIG_Config::cgi_url/ajax.cgi";
+  if ($Conf::nmpdr_site_url or $Conf::force_ajax_to_cgi_url) {
+    $cgi_url = "$Conf::cgi_url/ajax.cgi";
   } else {
     $cgi_url = $cgi->url( -rewrite => 0 );
     $cgi_url =~ /(.+)\//;
@@ -124,5 +124,5 @@ sub cookie_call {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/Ajax.js"];
+  return ["$Conf::cgi_url/Html/Ajax.js"];
 }

@@ -118,9 +118,9 @@ sub footer {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/RollerBlind.js"];
+  return ["$Conf::cgi_url/Html/RollerBlind.js"];
 }
 
 sub require_css {
-  return "$FIG_Config::cgi_url/Html/RollerBlind.css";
+  return "$Conf::cgi_url/Html/RollerBlind.css";
 }

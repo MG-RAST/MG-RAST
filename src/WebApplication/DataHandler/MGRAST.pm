@@ -10,7 +10,7 @@ use warnings;
 use base qw( DataHandler );
 
 use DBMaster;
-use FIG_Config;
+use Conf;
 
 =pod
 
@@ -21,7 +21,7 @@ DataHandler::MGRAST - data handler to the PPO MGRAST database
 =head1 DESCRIPTION
 
 This module returns the DBMaster object to the MGRAST database stored in the root
-job directory of a MGRAST server. It requires the FIG_Config.pm to specify the  
+job directory of a MGRAST server. It requires the Conf.pm to specify the  
 $mgrast_jobs directory.
 
 Refer to WebApplication/DataHandler.pm for the full documentation.
@@ -41,10 +41,10 @@ sub handle {
 
   unless (exists $self->{_handle}) {
     eval {
-      $self->{_handle} = DBMaster->new( -database => $FIG_Config::mgrast_jobcache_db || 'JobCacheMGRast',
-					-host     => $FIG_Config::mgrast_jobcache_host,
-					-user     => $FIG_Config::mgrast_jobcache_user,
-					-password => $FIG_Config::mgrast_jobcache_password );
+      $self->{_handle} = DBMaster->new( -database => $Conf::mgrast_jobcache_db || 'JobCacheMGRast',
+					-host     => $Conf::mgrast_jobcache_host,
+					-user     => $Conf::mgrast_jobcache_user,
+					-password => $Conf::mgrast_jobcache_password );
     };
     if ($@) {
       warn "Unable to connect to MGRAST database: $@\n";

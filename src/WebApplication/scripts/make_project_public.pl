@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use DBMaster;
-use FIG_Config;
+use Conf;
 
 use Getopt::Long;
 
@@ -49,10 +49,10 @@ $project->public(1);
 print "The project ".$project->name." ($project_id) and all its jobs are now public\nHave a nice day :)\n";
 
 sub db_connect {
-    my $jobdb = DBMaster->new( -database => $FIG_Config::mgrast_jobcache_db || 'JobDB',
-			       -host     => $FIG_Config::mgrast_jobcache_host,
-			       -user     => $FIG_Config::mgrast_jobcache_user,
-			       -password => $FIG_Config::mgrast_jobcache_password );
+    my $jobdb = DBMaster->new( -database => $Conf::mgrast_jobcache_db || 'JobDB',
+			       -host     => $Conf::mgrast_jobcache_host,
+			       -user     => $Conf::mgrast_jobcache_user,
+			       -password => $Conf::mgrast_jobcache_password );
     
     return $jobdb;
 }

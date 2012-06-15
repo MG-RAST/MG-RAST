@@ -11,7 +11,7 @@ use Data::Dumper;
 use GD;
 use WebComponent::WebGD;
 
-use FIG_Config;
+use Conf;
 use MGRAST::Analysis;
 use MGRAST::Metadata;
 use Cache::Memcached;
@@ -987,16 +987,16 @@ sub recruitment_plot_graph {
 
   my $unique_str     = join('_', ( join("_", values %{$mgdb->jobs}), $orgid, $eval, $log ));
   my $circos_file    = "circos_$unique_str";
-  my $config_file    = "$FIG_Config::temp/circos_$unique_str.conf";
-  my $karyotype_file = "$FIG_Config::temp/karyotype_$unique_str.txt";
-  my $fwd_gene_file  = "$FIG_Config::temp/genes_fwd_$unique_str.txt";
-  my $rev_gene_file  = "$FIG_Config::temp/genes_rev_$unique_str.txt";
-  my $evals_file     = "$FIG_Config::temp/evals_$unique_str.txt";
+  my $config_file    = "$Conf::temp/circos_$unique_str.conf";
+  my $karyotype_file = "$Conf::temp/karyotype_$unique_str.txt";
+  my $fwd_gene_file  = "$Conf::temp/genes_fwd_$unique_str.txt";
+  my $rev_gene_file  = "$Conf::temp/genes_rev_$unique_str.txt";
+  my $evals_file     = "$Conf::temp/evals_$unique_str.txt";
 
   if ((-s $config_file) && (-s $karyotype_file) && (-s $fwd_gene_file) && (-s $rev_gene_file) && (-s $evals_file)) {
     my ($prev_evals, $prev_stats) = $self->get_data_from_config($config_file);
     for (my $j=0; $j<@$prev_evals; $j++) { push @$eval_set, [ $evals->[$j], $prev_evals->[$j], $colors->[$j] ]; }
-    if (-s "$FIG_Config::temp/$circos_file.png") {
+    if (-s "$Conf::temp/$circos_file.png") {
       return [$circos_file, $eval_set, $prev_stats];
     } else {
       my $r = system("circos -conf $config_file -silent");
@@ -1087,13 +1087,13 @@ sub recruitment_plot_graph {
 <fonts>
 <<include etc/fonts.conf>>
 </fonts>
-<<include $FIG_Config::mgrast_config_dir/ideogram.conf>>
-<<include $FIG_Config::mgrast_config_dir/ticks.conf>>
+<<include $Conf::mgrast_config_dir/ideogram.conf>>
+<<include $Conf::mgrast_config_dir/ticks.conf>>
 
 karyotype = $karyotype_file
 
 <image>
-dir  = $FIG_Config::temp
+dir  = $Conf::temp
 file = $circos_file.png
 image_map_use  = yes
 image_map_name = $mapname
@@ -1279,13 +1279,13 @@ sub workbench_blat_output {
     push @fastas, ">".$s->{id}."\n".$s->{sequence};
   }
   my $fgs_infile_content = join("\n", @fastas);
-  my ($fgs_infile, $fgs_infile_name) = tempfile( "fgs_in_XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.faa');
+  my ($fgs_infile, $fgs_infile_name) = tempfile( "fgs_in_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.faa');
   print $fgs_infile $fgs_infile_content;
   close $fgs_infile;
-  my ($nr_file, $nr_file_name) = tempfile( "nr_XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.faa');
+  my ($nr_file, $nr_file_name) = tempfile( "nr_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.faa');
   print $nr_file $nr_seq_data;
   close $nr_file;
-  my $fgs_cmd = $FIG_Config::fraggenescan_executable." -s $fgs_infile_name -o " . $fgs_infile_name . ".fgs -w 0 -t 454_30";
+  my $fgs_cmd = $Conf::fraggenescan_executable." -s $fgs_infile_name -o " . $fgs_infile_name . ".fgs -w 0 -t 454_30";
   `$fgs_cmd`;
   my $blat_cmd = "blat -prot -out=blast ".$nr_file_name." ".$fgs_infile_name.".fgs.faa ".$fgs_infile_name.".blat.out";
   `$blat_cmd`;
@@ -1522,7 +1522,7 @@ sub get_read_align {
   my @md5_seq  = split(/\n/, $self->{mgdb}->ach->md5s2sequences([$md5]));
 
   if ((@md5_seq == 2) && ($md5_seq[0] =~ /$md5/)) {
-    my $md5_fasta = $FIG_Config::temp."/".$md5."_".time.".faa";
+    my $md5_fasta = $Conf::temp."/".$md5."_".time.".faa";
     open(MD5F, ">$md5_fasta") || return $html;
     print MD5F join("\n", @md5_seq) . "\n";
     close MD5F;
@@ -1532,7 +1532,7 @@ sub get_read_align {
     
     foreach my $s (@$seq_data) {
       my (undef, $id) = split(/\|/, $s->{id});
-      my $read_fasta  = $FIG_Config::temp."/".$mgid."_".$id."_".time.".fna";
+      my $read_fasta  = $Conf::temp."/".$mgid."_".$id."_".time.".fna";
       open(READF, ">$read_fasta") || return $html;
       print READF ">" . $s->{id} . "\n" . $s->{sequence} . "\n";
       close READF;
@@ -1695,7 +1695,7 @@ sub qiime_export_data {
 	       "format"              => "Biological Observation Matrix 0.9.1",
 	       "format_url"          => "http://biom-format.org",
 	       "type"                => $tbl_type,
-	       "generated_by"        => "MG-RAST revision ".$FIG_Config::server_version,
+	       "generated_by"        => "MG-RAST revision ".$Conf::server_version,
 	       "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
 	       "matrix_type"         => "sparse",
 	       "matrix_element_type" => "int",
@@ -1847,10 +1847,10 @@ sub phylogeny_visual {
       my $mg2group = {};
       map { my ($g, $m) = split /\^/; $mg2group->{$m} = $g; } split /\|/, $cgi->param('pval');
       @comp_mgs = $cgi->param('comparison_metagenomes');
-      my ($pvalgroupf, $pvalgroupn) = tempfile( "rpvalgXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvalgroupf, $pvalgroupn) = tempfile( "rpvalgXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       print $pvalgroupf join("\t", map { $mg2group->{$_} } @comp_mgs)."\n";
       close $pvalgroupf;
-      my ($pvaldataf, $pvaldatan) = tempfile( "rpvaldXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvaldataf, $pvaldatan) = tempfile( "rpvaldXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       print $pvaldataf "\t".join("\t", map { "ID".$_ } @comp_mgs)."\n";
       my $cats = $dom_v->datasets();
       my $pd = $dom_v->data();
@@ -1860,16 +1860,16 @@ sub phylogeny_visual {
 	$i++;
       }
       close $pvaldataf;
-      my ($pvalsuggestf, $pvalsuggestn) = tempfile( "rpvalsXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvalsuggestf, $pvalsuggestn) = tempfile( "rpvalsXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       close $pvalsuggestf;
-      my ($pvalresultf, $pvalresultn) = tempfile( "rpvalrXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvalresultf, $pvalresultn) = tempfile( "rpvalrXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       close $pvalresultf;
-      my ($pvalexecf, $pvalexecn) = tempfile( "rpvaleXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvalexecf, $pvalexecn) = tempfile( "rpvaleXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       my $rn = "normalized";
       if ($cgi->param('raw')) {
 	$rn = "raw";
       }
-      print $pvalexecf "source(\"".$FIG_Config::r_scripts."/suggest_stat_test.r\")\n";
+      print $pvalexecf "source(\"".$Conf::r_scripts."/suggest_stat_test.r\")\n";
       print $pvalexecf "MGRAST_suggest_test(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", paired = FALSE, file_out = \"".$pvalsuggestn."\")\n";
       close $pvalexecf;
       `R --vanilla --slave < $pvalexecn`;
@@ -1883,8 +1883,8 @@ sub phylogeny_visual {
 	$settings .= "<tr><td>$cmg</td><td>".$mg2group->{$cmg}."</td></tr>";
       }
       $settings .= "</table><br>";
-      my ($pvalexec2f, $pvalexec2n) = tempfile( "rpvale2XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
-      print $pvalexec2f "source(\"".$FIG_Config::r_scripts."/do_stats.r\")\n";
+      my ($pvalexec2f, $pvalexec2n) = tempfile( "rpvale2XXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $pvalexec2f "source(\"".$Conf::r_scripts."/do_stats.r\")\n";
       print $pvalexec2f "MGRAST_do_stats(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", sig_test = \"".$res."\", file_out = \"".$pvalresultn."\")\n";
       close $pvalexec2f;
       `R --vanilla --slave < $pvalexec2n`;
@@ -2379,7 +2379,7 @@ sub phylogeny_visual {
       }
       
       # write data to a tempfile
-      my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       foreach my $row (@$heatmap_data) {
 	print $fh join("\t", @$row)."\n";
       }
@@ -2389,16 +2389,16 @@ sub phylogeny_visual {
       # preprocess data
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
-      my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
-      print $prefh "source(\"".$FIG_Config::r_scripts."/preprocessing.r\")\n";
-      print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$FIG_Config::temp."/rdata.preprocessed.$time\", image_out =\"".$FIG_Config::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
+      my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $prefh "source(\"".$Conf::r_scripts."/preprocessing.r\")\n";
+      print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
       `R --vanilla --slave < $prefn`;
       unlink($prefn);
       
       unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
 	unlink $infile;
-	$infile = $FIG_Config::temp."/rdata.preprocessed.$time";
+	$infile = $Conf::temp."/rdata.preprocessed.$time";
       }
 
       if ($cgi->param('vis_type') eq 'heatmap') {
@@ -2443,10 +2443,10 @@ sub phylogeny_visual {
 
 	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"heatmap_canvas_$tabnum\");document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"\";'></div>";
 
-	my ($col_f, $row_f) = ($FIG_Config::temp."/rdata.col.$time", $FIG_Config::temp."/rdata.row.$time");
+	my ($col_f, $row_f) = ($Conf::temp."/rdata.col.$time", $Conf::temp."/rdata.row.$time");
 
-	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
-	print $heath "source(\"".$FIG_Config::r_scripts."/dendrogram.r\")\n";
+	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+	print $heath "source(\"".$Conf::r_scripts."/dendrogram.r\")\n";
 	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
 	close $heath;
 	`R --vanilla --slave < $heatn`; 
@@ -2525,15 +2525,15 @@ sub phylogeny_visual {
 
 	my $max_val = max @values;
 	$max_val  = ($max_val < 1) ? 1 : $max_val;
-	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div><img src='".$FIG_Config::temp_url."/$boxfile' width=600>";
+	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div><img src='".$Conf::temp_url."/$boxfile' width=600>";
 	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
 	$tabnum++;
       }
       if ($cgi->param('vis_type') eq 'pca') {
 	my $time = time;
-	my ($pca_data) = ($FIG_Config::temp."/rdata.pca.$time");
-	my ($pcah, $pcan) =  tempfile( "rpcaXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
-	print $pcah "source(\"".$FIG_Config::r_scripts."/plot_pco.r\")\n";
+	my ($pca_data) = ($Conf::temp."/rdata.pca.$time");
+	my ($pcah, $pcan) =  tempfile( "rpcaXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+	print $pcah "source(\"".$Conf::r_scripts."/plot_pco.r\")\n";
 	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
 	close $pcah;
 	`R --vanilla --slave < $pcan`; 
@@ -2638,7 +2638,7 @@ sub phylogeny_visual {
 	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
 	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
 	$content .= $img_control;
-	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table><img src='".$FIG_Config::temp_url."/$boxfile' width=600>";
+	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table><img src='".$Conf::temp_url."/$boxfile' width=600>";
 	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
 	$tabnum++;
       }
@@ -2829,10 +2829,10 @@ sub metabolism_visual {
       my $mg2group = {};
       map { my ($g, $m) = split /\^/; $mg2group->{$m} = $g; } split /\|/, $cgi->param('pval');
       @comp_mgs = $cgi->param('comparison_metagenomes');
-      my ($pvalgroupf, $pvalgroupn) = tempfile( "rpvalgXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvalgroupf, $pvalgroupn) = tempfile( "rpvalgXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       print $pvalgroupf join("\t", map { $mg2group->{$_} } @comp_mgs)."\n";
       close $pvalgroupf;
-      my ($pvaldataf, $pvaldatan) = tempfile( "rpvaldXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvaldataf, $pvaldatan) = tempfile( "rpvaldXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       print $pvaldataf "\t".join("\t", map { "ID".$_ } @comp_mgs)."\n";
       my $cats = $sup_v->datasets();
       my $pd = $sup_v->data();
@@ -2842,16 +2842,16 @@ sub metabolism_visual {
 	$i++;
       }
       close $pvaldataf;
-      my ($pvalsuggestf, $pvalsuggestn) = tempfile( "rpvalsXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvalsuggestf, $pvalsuggestn) = tempfile( "rpvalsXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       close $pvalsuggestf;
-      my ($pvalresultf, $pvalresultn) = tempfile( "rpvalrXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvalresultf, $pvalresultn) = tempfile( "rpvalrXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       close $pvalresultf;
-      my ($pvalexecf, $pvalexecn) = tempfile( "rpvaleXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($pvalexecf, $pvalexecn) = tempfile( "rpvaleXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       my $rn = "normalized";
       if ($cgi->param('raw')) {
 	$rn = "raw";
       }
-      print $pvalexecf "source(\"".$FIG_Config::r_scripts."/suggest_stat_test.r\")\n";
+      print $pvalexecf "source(\"".$Conf::r_scripts."/suggest_stat_test.r\")\n";
       print $pvalexecf "MGRAST_suggest_test(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", paired = FALSE, file_out = \"".$pvalsuggestn."\")\n";
       close $pvalexecf;
       `R --vanilla --slave < $pvalexecn`;
@@ -2865,8 +2865,8 @@ sub metabolism_visual {
 	$settings .= "<tr><td>$cmg</td><td>".$mg2group->{$cmg}."</td></tr>";
       }
       $settings .= "</table><br>";
-      my ($pvalexec2f, $pvalexec2n) = tempfile( "rpvale2XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
-      print $pvalexec2f "source(\"".$FIG_Config::r_scripts."/do_stats.r\")\n";
+      my ($pvalexec2f, $pvalexec2n) = tempfile( "rpvale2XXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $pvalexec2f "source(\"".$Conf::r_scripts."/do_stats.r\")\n";
       print $pvalexec2f "MGRAST_do_stats(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", sig_test = \"".$res."\", file_out = \"".$pvalresultn."\")\n";
       close $pvalexec2f;
       `R --vanilla --slave < $pvalexec2n`;
@@ -3307,7 +3307,7 @@ sub metabolism_visual {
       }
       
       # write data to a tempfile
-      my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
+      my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       foreach my $row (@$heatmap_data) {
 	print $fh join("\t", @$row)."\n";
       }
@@ -3318,16 +3318,16 @@ sub metabolism_visual {
       # preprocess data
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
-      my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
-      print $prefh "source(\"".$FIG_Config::r_scripts."/preprocessing.r\")\n";
-      print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$FIG_Config::temp."/rdata.preprocessed.$time\", image_out =\"".$FIG_Config::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
+      my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $prefh "source(\"".$Conf::r_scripts."/preprocessing.r\")\n";
+      print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
       `R --vanilla --slave < $prefn`;      
       unlink($prefn);
 
       unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
 	unlink $infile;
-	$infile = $FIG_Config::temp."/rdata.preprocessed.$time";
+	$infile = $Conf::temp."/rdata.preprocessed.$time";
       }
 
       if ($cgi->param('vis_type') eq 'heatmap') {
@@ -3371,10 +3371,10 @@ sub metabolism_visual {
 
 	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"heatmap_canvas_$tabnum\");document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";;document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"\";'></div>";
 
-	my ($col_f, $row_f) = ($FIG_Config::temp."/rdata.col.$time", $FIG_Config::temp."/rdata.row.$time");
+	my ($col_f, $row_f) = ($Conf::temp."/rdata.col.$time", $Conf::temp."/rdata.row.$time");
 
-	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
-	print $heath "source(\"".$FIG_Config::r_scripts."/dendrogram.r\")\n";
+	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+	print $heath "source(\"".$Conf::r_scripts."/dendrogram.r\")\n";
 	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
 	close $heath;
 	`R --vanilla --slave < $heatn`; 
@@ -3452,15 +3452,15 @@ sub metabolism_visual {
 
 	my $max_val = max @values;
 	$max_val  = ($max_val < 1) ? 1 : $max_val;
-	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div><img src='".$FIG_Config::temp_url."/$boxfile' width=600>";
+	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div><img src='".$Conf::temp_url."/$boxfile' width=600>";
 	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
 	$tabnum++;
       }
       if ($cgi->param('vis_type') eq 'pca') {
 	my $time = time;
-	my ($pca_data) = ($FIG_Config::temp."/rdata.pca.$time");
-	my ($pcah, $pcan) =  tempfile( "rpcaXXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.txt');
-	print $pcah "source(\"".$FIG_Config::r_scripts."/plot_pco.r\")\n";
+	my ($pca_data) = ($Conf::temp."/rdata.pca.$time");
+	my ($pcah, $pcan) =  tempfile( "rpcaXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+	print $pcah "source(\"".$Conf::r_scripts."/plot_pco.r\")\n";
 	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
 	close $pcah;
 	`R --vanilla --slave < $pcan`; 
@@ -3564,7 +3564,7 @@ sub metabolism_visual {
 	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
 	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
 	$content .= $img_control;
-	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table><img src='".$FIG_Config::temp_url."/$boxfile' width=600>";
+	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table><img src='".$Conf::temp_url."/$boxfile' width=600>";
 	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
 	$tabnum++;
       }
@@ -4078,7 +4078,7 @@ sub recruitment_plot_visual {
     my $allctg    = $self->{mgdb}->ach->org2contignum($orgid);
     my $plotctg   = $self->{mgdb}->ach->org2contignum($orgid, $self->data('min_ctg_len'));
 
-    $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><p><a href="$FIG_Config::temp_url/$file.png">download image here</a></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p><img width="960" src="$FIG_Config::temp_url/$file.png" onmouseover="TJPzoom(this);" /></p></div></div></div>~;
+    $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><p><a href="$Conf::temp_url/$file.png">download image here</a></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p><img width="960" src="$Conf::temp_url/$file.png" onmouseover="TJPzoom(this);" /></p></div></div></div>~;
     $tabnum++;
   }
   elsif ($cgi->param('vis_type') eq 'table') {
@@ -4150,7 +4150,7 @@ sub qiime_export_visual {
   $fn =~ s/\//_/g;
   $fn =~ s/\+/\./g;
 
-  unless (-f $FIG_Config::temp."/download.$fn") {
+  unless (-f $Conf::temp."/download.$fn") {
     my $data = $self->qiime_export_data(\@mgs, $type);
     my $jobs = [];
     my $rast = $self->application->data_handle('MGRAST');
@@ -4166,7 +4166,7 @@ sub qiime_export_visual {
       use JSON;
       my $json = new JSON;
       $json = $json->utf8();
-      if (open(FH, ">".$FIG_Config::temp."/download.$fn")) {
+      if (open(FH, ">".$Conf::temp."/download.$fn")) {
 	print FH $json->encode($data);
 	close FH;
       } else {
@@ -4740,7 +4740,7 @@ sub group_select {
   my ($self) = @_;
   
   my $user = $self->application->session->user;
-  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "analysis_groups_".($user ? $user->_id : "anonymous");
   my $cdata = $memd->get($cache_key);
 
@@ -4804,7 +4804,7 @@ sub selectable_metagenomes {
   my ($self, $no_groups) = @_;
 
   my $user = $self->application->session->user;
-  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "analysis_metagenomes_".($no_groups ? "nogroups" : "hasgroups")."_".($user ? $user->_id : "anonymous");
   my $cdata = $memd->get($cache_key);
   
@@ -4952,7 +4952,7 @@ sub download {
   my ($self) = @_;
 
   my $cgi = $self->application->cgi;
-  my $file = $FIG_Config::temp."/download.".$cgi->param('file');
+  my $file = $Conf::temp."/download.".$cgi->param('file');
   my $fn = $cgi->param('filename') || $cgi->param('file');
   if (open(FH, $file)) {
     my $content = "";
@@ -5040,11 +5040,11 @@ sub google_colors {
 # css / js
 ##################
 sub require_css {
-  return [ "$FIG_Config::cgi_url/Html/Analysis.css" ];
+  return [ "$Conf::cgi_url/Html/Analysis.css" ];
 }
 
 sub require_javascript {
-  return [ "$FIG_Config::cgi_url/Html/Analysis.js", "$FIG_Config::cgi_url/Html/heatmap.js", "$FIG_Config::cgi_url/Html/pca.js", "$FIG_Config::cgi_url/Html/canvg.js", "$FIG_Config::cgi_url/Html/rgbcolor.js", "$FIG_Config::cgi_url/Html/rarefaction.js", "$FIG_Config::cgi_url/Html/zoom.js", "$FIG_Config::cgi_url/Html/krona.js" ];
+  return [ "$Conf::cgi_url/Html/Analysis.js", "$Conf::cgi_url/Html/heatmap.js", "$Conf::cgi_url/Html/pca.js", "$Conf::cgi_url/Html/canvg.js", "$Conf::cgi_url/Html/rgbcolor.js", "$Conf::cgi_url/Html/rarefaction.js", "$Conf::cgi_url/Html/zoom.js", "$Conf::cgi_url/Html/krona.js" ];
 }
 
 sub TO_JSON { return { %{ shift() } }; }

@@ -240,5 +240,5 @@ sub get_piechart {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/rgbcolor.js", "https://www.google.com/jsapi"];
+  return ["$Conf::cgi_url/Html/rgbcolor.js", "https://www.google.com/jsapi"];
 }
