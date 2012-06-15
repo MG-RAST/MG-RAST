@@ -53,17 +53,17 @@ function list_select_change_current_data_set (id) {
   for (i=0;i<select_left.options.length;i++) {
     list_select_all_data[id][oldset][i] = [ select_left.options[i].value, select_left.options[i].text ];
   }
-  while (select_left.options.length) {
-    select_left.remove(0);
-  }
   set_select.SaveValue = set;
+
+  var opts_left = "";
   var active = active_types(id);
   for (i=0;i<list_select_all_data[id][set].length;i++) {
     if (list_select_types[id][list_select_all_data[id][set][i][1]] != null && active[list_select_types[id][list_select_all_data[id][set][i][1]]] == false) {
       continue;
     }
-    select_left[select_left.length] = new Option(list_select_all_data[id][set][i][1], list_select_all_data[id][set][i][0]);
+    opts_left += "<option value='"+list_select_all_data[id][set][i][0]+"'>"+list_select_all_data[id][set][i][1]+"</option>";
   }
+  select_left.innerHTML = opts_left;
   list_select_data[id] = list_select_all_data[id][set];
   list_select_filtered_data[id] = list_select_all_data[id][set];
 }
@@ -212,31 +212,31 @@ function list_select_reset (id) {
   for (i=0;i<preselect.length;i++) {
     preselect_hash[preselect[i]] = 1;
   }
-  var left = document.getElementById('list_select_list_a_'+id).options;
-  var right = document.getElementById('list_select_list_b_'+id).options;
+  var left = document.getElementById('list_select_list_a_'+id);
+  var right = document.getElementById('list_select_list_b_'+id);
   var active = active_types(id);
-  while (left.length) {
-    left[left.length - 1] = null;
-  }
-  while (right.length) {
-    right[right.length - 1] = null;
-  }
+
+  var opts_left = "";
+  var opts_right = "";
   for (i=0;i<data.length;i++) {
     if (list_select_types[id][data[i][1]] != null && active[list_select_types[id][data[i][1]]] == false) {
       continue;
     }
     if (preselect_hash[data[i][0]]) {
       preselect_selected[data[i][0]] = 1;
-      right[right.length] = new Option(data[i][1], data[i][0]);
+      opts_right += "<option value='"+data[i][0]+"'>"+data[i][1]+"</option>";
     } else {
-      left[left.length] = new Option(data[i][1], data[i][0]);
+      opts_left += "<option value='"+data[i][0]+"'>"+data[i][1]+"</option>";
     }
   }
   for (i=0;i<preselect.length;i++) {
     if (! preselect_selected[preselect[i]] && preselect[i]) {
-      right[right.length] = new Option(preselect[i], preselect[i]);
+      opts_right += "<option value='"+preselect[i]+"'>"+preselect[i]+"</option>";
     }
   }
+  
+  left.innerHTML = opts_left;
+  right.innerHTML = opts_right;
 
   var filter = document.getElementById("list_select_filter_" + id);
   if (filter) {
@@ -271,7 +271,6 @@ function update_list_select (e, id) {
   var text = document.getElementById("list_select_filter_" + id).value;
 
   var select = document.getElementById("list_select_list_a_" + id);
-  select.options.length = 0;
   
   var selected = document.getElementById("list_select_list_b_" + id);
   var selected_texts = new Array();
@@ -288,6 +287,7 @@ function update_list_select (e, id) {
 
   var active = active_types(id);
 
+  var opts_select = "";
   // iterate through the items to find out which match the filter
   for (i=0; i<list_select_filtered_data[id].length; i++) {
     if (list_select_filtered_data[id][i][1].match(re)) {
@@ -295,11 +295,12 @@ function update_list_select (e, id) {
 	if (list_select_types[id][list_select_filtered_data[id][i][1]] != null && active[list_select_types[id][list_select_filtered_data[id][i][1]]] == false) {
 	  continue;
 	}
-	select.options[select.options.length] = new Option(list_select_filtered_data[id][i][1], list_select_filtered_data[id][i][0]);
+	opts_select += "<option value='"+ list_select_filtered_data[id][i][0]+"'>"+ list_select_filtered_data[id][i][1]+"</option>";
 	new_filtered[new_filtered.length] = list_select_filtered_data[id][i];
       }
     }
   }
+  select.innerHTML = opts_select;
 
   // update preserved filter
   list_select_filtered_data[id] = new_filtered;

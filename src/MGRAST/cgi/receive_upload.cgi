@@ -50,6 +50,13 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
     # prepare return data structure
     my $data = [ { type => 'user_inbox', id => $user->login, files => [], fileinfo => {}, messages => [], directories => [] }];
 
+    # check if the user has stats calculations in the queue
+    my $uname = $user->{login};
+    my $count = `/usr/local/bin/qstat | grep $uname | wc -l`;
+    if ($count && $count > 0) {
+	push(@{$data->[0]->{messages}}, "You have $count sequence files with ongoing statistics computation. The information on these files will be incomplete and you will not be able to select these for submisson until the computation is complete. You can reload this page or click the 'update inbox' button to update the status.");
+    }
+
     # check if we are supposed to do anything else than return the content of the inbox
     if ($cgi->param('faction')) {
 	my $action = $cgi->param('faction');
@@ -220,6 +227,11 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    }
 	    # check files
 	    else {
+		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size, $atime,$mtime,$ctime,$blksize,$blocks) = stat("$udir/$ufile");
+		if ($size == 0) {
+		    `rm -f "$udir/$ufile"`;
+		    next;
+		}
 		if ($ufile =~ /\.($seq_ext)$/) {
 		    push(@$sequence_files, $ufile);
 		}
@@ -255,7 +267,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    my ($file_suffix) = $sequence_file =~ /^.*\.(.+)$/;
 	    my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
 	    my $file_seq_type = &file_seq_type($sequence_file, $udir, $file_eol);
-	    my $unique_ids    = &file_unique_id_count($sequence_file, $udir, $file_format);
 	    my ($file_md5)    = (`md5sum '$udir/$sequence_file'` =~ /^(\S+)/);
 	    my $file_size     = -s $udir."/".$sequence_file;
 	    
@@ -263,7 +274,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			 "suffix" => $file_suffix,
 			 "file_type" => $file_format,
 			 "sequence type" => $file_seq_type,
-			 "unique_id_count" => $unique_ids,
 			 "file_checksum" => $file_md5,
 			 "file_size" => $file_size };
 	    
@@ -272,7 +282,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    print FH "suffix\t$file_suffix\n";
 	    print FH "file_type\t$file_format\n";
 	    print FH "sequence type\t$file_seq_type\n";
-	    print FH "unique_id_count\t$unique_ids\n";
 	    print FH "file_checksum\t$file_md5\n";
 	    print FH "file_size\t$file_size\n";
 	    close(FH);
@@ -280,21 +289,20 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
 	    
 	    # call the extended information
-	    &fasta_report_and_stats($sequence_file, $udir, $file_format);
-	    open(FH, "<$udir/$sequence_file.stats_info");
-	    while (<FH>) {
-		chomp;
-		my ($key, $val) = split /\t/;
-		$key =~ s/_/ /g;
-		$info->{$key} = $val;
-	    }
+	    my $compute_script = $FIG_Config::ROOT."/bin/compute_sequence_statistics.pl";
+	    my $jobid = $user->{login};
+	    my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
+	    my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+	    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+	    open(FH, ">>$udir/.tmp/jobs");
+	    print FH "$jnum";
 	    close FH;
 	}
     }
 
     # add basic file information to all files
     foreach my $file (@ufiles) {
-	next if (-d "$udir/$file");
+	next unless (-f "$udir/$file");
 	my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size, $atime,$mtime,$ctime,$blksize,$blocks) = stat("$udir/$file");
 	unless (exists($data->[0]->{fileinfo}->{$file})) {
 	    $data->[0]->{fileinfo}->{$file} = {};
@@ -357,6 +365,10 @@ sub initialize_user_dir {
   unless ( -d $udir ) {
     mkdir $udir or die "could not create directory '$udir'";
     chmod 0777, $udir;
+  }
+  unless ( -d "$udir/.temp") {
+    mkdir "$udir/.tmp" or die "could not create directory '$udir/.tmp'";
+    chmod 0777, "$udir/.temp";
   }
   my $user_file = "$udir/USER";
   if ( ! -e $user_file ) {	
@@ -674,7 +686,7 @@ sub file_format {
 sub extract_fastq_from_sff {
     my($sff, $dir) = @_;
 
-    my $bin = $FIG_Config::PROD."/bin";
+    my $bin = $FIG_Config::ROOT."/bin";
     my ($without_extension) = $sff =~ /^(.*)\.sff$/;
     eval {
 	`$bin/sff_extract_0_2_8 -s '$dir/$without_extension.fastq' -Q '$dir/$sff'`;

@@ -187,7 +187,7 @@ sub output {
                
                   <p>In addition to using your web browser for uploads to the system the following alternatives are available:</p>
                   <table>
-                     <tr><td width="125px"><b>ftp</b></td><td>ftp://incoming.metagenomics.anl.gov/<span id="ftp_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
+                     <tr style='display: none;'><td width="125px"><b>ftp</b></td><td>ftp://incoming.metagenomics.anl.gov/<span id="ftp_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
                      <tr><td><b>http</b></td><td>http://api.metagenomics.anl.gov/inbox/<span id="http_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
                      <tr><td colspan=2 style='padding-top: 10px; padding-bottom: 10px;'><div id='generate_key'><input type='button' class='btn' onclick='generate_webkey();' value='generate webkey'></div></td></tr>
                   </table>
