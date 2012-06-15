@@ -184,5 +184,5 @@ sub name {
 }
 
 sub require_javascript {
-    return ["$Config::cgi_url/Html/CustomAlert.js","$Config::cgi_url/Html/fade.js"];
+    return ["$FIG_Config::cgi_url/Html/CustomAlert.js","$FIG_Config::cgi_url/Html/fade.js"];
 }

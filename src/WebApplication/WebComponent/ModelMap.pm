@@ -10,7 +10,7 @@ use base qw( WebComponent );
 use File::Temp;
 use URI::Escape;
 
-use Config;
+use FIG_Config;
 use WebComponent::WebGD;
 use Time::HiRes qw( gettimeofday  tv_interval);
 use WebColors;
@@ -656,7 +656,7 @@ sub ajax {
 
 sub require_javascript
 {
-    return [ "$Config::cgi_url/Html/PopUp.js" ];
+    return [ "$FIG_Config::cgi_url/Html/PopUp.js" ];
 }
 
 sub elapsed_time {

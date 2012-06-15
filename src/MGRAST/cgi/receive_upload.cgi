@@ -8,7 +8,7 @@ use URI::Escape;
 
 use WebApplicationDBHandle;
 use DBMaster;
-use Config;
+use FIG_Config;
 
 my $cgi = new CGI;
 my $json = new JSON;
@@ -38,7 +38,7 @@ my @rest = split m#/#, $rest;
 map {$rest[$_] =~ s#forwardslash#/#gi} (0 .. $#rest);
 
 # set the directory
-my $base_dir = "$Config::incoming";
+my $base_dir = "$FIG_Config::incoming";
 my $udir = $base_dir."/".md5_hex($user->login);
 
 # check if the user directory exists
@@ -289,7 +289,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
 	    
 	    # call the extended information
-	    my $compute_script = $Config::ROOT."/bin/compute_sequence_statistics.pl";
+	    my $compute_script = $FIG_Config::ROOT."/bin/compute_sequence_statistics.pl";
 	    my $jobid = $user->{login};
 	    my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
 	    my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
@@ -394,7 +394,7 @@ sub fasta_report_and_stats {
     # average_length, standard_deviation_length, average_gc_content, standard_deviation_gc_content,
     # average_gc_ratio, standard_deviation_gc_ratio, ambig_char_count, ambig_sequence_count, average_ambig_chars
 
-    my $bin = $Config::PROD."/bin";
+    my $bin = $FIG_Config::PROD."/bin";
 
     my $filetype = "";
     if ($file_format eq 'fastq') {
@@ -686,7 +686,7 @@ sub file_format {
 sub extract_fastq_from_sff {
     my($sff, $dir) = @_;
 
-    my $bin = $Config::ROOT."/bin";
+    my $bin = $FIG_Config::ROOT."/bin";
     my ($without_extension) = $sff =~ /^(.*)\.sff$/;
     eval {
 	`$bin/sff_extract_0_2_8 -s '$dir/$without_extension.fastq' -Q '$dir/$sff'`;

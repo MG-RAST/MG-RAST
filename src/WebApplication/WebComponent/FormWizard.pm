@@ -8,7 +8,7 @@ use warnings;
 use Data::Dumper;
 use XML::Simple;
 use WebComponent::FormWizard::DataStructures;
-use Config;
+use FIG_Config;
 
 use base qw( WebComponent );
 
@@ -287,7 +287,7 @@ sub layout_questions {
       if (defined($question->{help})) {
 	my $qid = "wizard_" . $self->id . "_q_" . $category_nr . "_" . $step_nr . "_" . $i;
 	$hover->add_tooltip($qid, $question->{help});
-	$help .= "&nbsp;&nbsp;<img src='$Config::cgi_url/Html/wac_infobulb.png' onmouseover='hover(event, \"" . $qid . "\", \"" . $hover->id() . "\");'>";
+	$help .= "&nbsp;&nbsp;<img src='$FIG_Config::cgi_url/Html/wac_infobulb.png' onmouseover='hover(event, \"" . $qid . "\", \"" . $hover->id() . "\");'>";
       }
       if (defined($question->{info})) {
 	my $info = $question->{info};
@@ -329,7 +329,7 @@ sub layout_questions {
       if (defined($question->{help})) {	
 	my $qid = "wizard_" . $self->id . "_q_" . $category_nr . "_" . $step_nr . "_" . $i;
 	$hover->add_tooltip($qid, $question->{help});
-	$help .= "&nbsp;&nbsp;<img src='$Config::cgi_url/Html/wac_infobulb.png' onmouseover='hover(event, \"" . $qid . "\", \"" . $hover->id() . "\");'>";
+	$help .= "&nbsp;&nbsp;<img src='$FIG_Config::cgi_url/Html/wac_infobulb.png' onmouseover='hover(event, \"" . $qid . "\", \"" . $hover->id() . "\");'>";
       }
       if (defined($question->{info})) {	
 	my $info = $question->{info};
@@ -661,11 +661,11 @@ sub enable_ajax {
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/datepickercontrol.js","$Config::cgi_url/Html/FormWizard.js"];
+  return ["$FIG_Config::cgi_url/Html/datepickercontrol.js","$FIG_Config::cgi_url/Html/FormWizard.js"];
 }
 
 sub require_css {
-  return "$Config::cgi_url/Html/datepickercontrol.css";
+  return "$FIG_Config::cgi_url/Html/datepickercontrol.css";
 }
 
 sub allow_random_navigation {

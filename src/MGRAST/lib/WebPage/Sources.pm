@@ -307,5 +307,5 @@ sub commify {
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/rgbcolor.js", "https://www.google.com/jsapi"];
+  return ["$FIG_Config::cgi_url/Html/rgbcolor.js", "https://www.google.com/jsapi"];
 }

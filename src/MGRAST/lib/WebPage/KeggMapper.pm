@@ -6,7 +6,7 @@ use strict;
 use warnings;
 
 use Data::Dumper;
-use Config;
+use FIG_Config;
 
 use MGRAST::Analysis;
 use MGRAST::MGRAST qw( get_public_metagenomes );
@@ -72,13 +72,13 @@ sub output {
 
   my $html = "";
 
-  open(FH, $Config::mgrast_data . "/kegg/keggdata.poly") or die "oh noes! $@ $!";
+  open(FH, $FIG_Config::mgrast_data . "/kegg/keggdata.poly") or die "oh noes! $@ $!";
   my $polys = <FH>;
   chomp $polys;
   close FH;
 
   my $names = [];
-  open(FH, $Config::mgrast_data . "/kegg/keggdata.names") or die "oh noes! $@ $!";
+  open(FH, $FIG_Config::mgrast_data . "/kegg/keggdata.names") or die "oh noes! $@ $!";
   while (<FH>) {
     chomp;
     push(@$names, $_);
@@ -122,7 +122,7 @@ sub output {
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/Kegg.js", "$Config::cgi_url/Html/raphael-min.js", "$Config::cgi_url/Html/canvg.js"];
+  return ["$FIG_Config::cgi_url/Html/Kegg.js", "$FIG_Config::cgi_url/Html/raphael-min.js", "$FIG_Config::cgi_url/Html/canvg.js"];
 }
 
 sub highlight_select {

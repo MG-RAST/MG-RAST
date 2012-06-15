@@ -2,7 +2,7 @@ package WebComponent::ObjectTable;
 use strict;
 use warnings;
 use base qw( WebComponent );
-use Config;
+use FIG_Config;
 
 1;
 
@@ -265,7 +265,7 @@ sub output {
 }
 
 sub require_javascript {
-	return ["$Config::cgi_url/Html/ModelTable.js"];
+	return ["$FIG_Config::cgi_url/Html/ModelTable.js"];
 }
 
 =head3 load_object_data_into_table_row

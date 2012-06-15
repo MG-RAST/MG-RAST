@@ -40,7 +40,7 @@ sub init {
 
 sub require_javascript {
 
-  return [ "$Config::cgi_url/Html/showfunctionalroles.js" ];
+  return [ "$FIG_Config::cgi_url/Html/showfunctionalroles.js" ];
 
 }
 

@@ -6,7 +6,7 @@ use strict;
 use warnings;
 
 use WebConfig;
-use Config;
+use FIG_Config;
 
 1;
 

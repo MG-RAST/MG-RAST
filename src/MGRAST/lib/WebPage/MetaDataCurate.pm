@@ -6,7 +6,7 @@ use Data::Dumper;
 
 use DBMaster;
 use MGRAST::Metadata;
-use Config;
+use FIG_Config;
 
 use base qw( WebPage );
 
@@ -29,7 +29,7 @@ sub init {
   # set config file
   my $template = "MetaData";
   if ( $self->app->cgi->param('template') ) { $template = $self->app->cgi->param('template'); }
-  my $config = $Config::mgrast_formWizard_templates . "/FormWizard_$template.xml";
+  my $config = $FIG_Config::mgrast_formWizard_templates . "/FormWizard_$template.xml";
   unless (-f $config) { $self->app->add_message('warning', "No template file $config"); }
 
   my $struct = $md_db->get_template_data($config);

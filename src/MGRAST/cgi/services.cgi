@@ -13,7 +13,7 @@ use MGRAST::Metadata;
 use DBMaster;
 use WebApplicationDBHandle;
 #use MGRAST::CreateV2Job;
-use Config;
+use FIG_Config;
 
 my $t ="services.cgi";
 
@@ -1276,7 +1276,7 @@ sub create_job {
 	    }
 
 	    my $seq_stats  = {} ;
-	    my $stats = `$Config::seq_length_stats -fasta_file $filename` if (-f $filename) ;
+	    my $stats = `$FIG_Config::seq_length_stats -fasta_file $filename` if (-f $filename) ;
 	    foreach my $line (split "\n" , $stats) {
 		my ($tag , $value) = split "\t" , $line ;
 		# print "$tag :: $value\n";
@@ -1381,7 +1381,7 @@ sub upload_path{
     my $user_md5    =  md5_hex( $user->login );
     my $timestamp   =  &timestamp;
     
-    my $base_dir    = "$Config::incoming";
+    my $base_dir    = "$FIG_Config::incoming";
     my $user_dir    = "$base_dir/$user_md5";
     my $upload_dir  = "$base_dir/$user_md5/" . ($prj ? $prj : $timestamp);
 

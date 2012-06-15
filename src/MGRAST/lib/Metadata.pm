@@ -11,7 +11,7 @@ use File::Temp qw/ tempfile tempdir /;
 use JSON;
 
 use DBMaster;
-use Config;
+use FIG_Config;
 
 sub new {
   my ($class, $app, $debug) = @_;
@@ -25,10 +25,10 @@ sub new {
 	       ontology_key => '56a9721b-0d62-4185-933d-81447db2457a'
 	     };
   eval {
-      $self->{_handle} = DBMaster->new( -database => $Config::mgrast_metadata_db || 'MGRASTMetadata',
-					-host     => $Config::mgrast_metadata_host,
-					-user     => $Config::mgrast_metadata_user,
-					-password => $Config::mgrast_metadata_password || "");
+      $self->{_handle} = DBMaster->new( -database => $FIG_Config::mgrast_metadata_db || 'MGRASTMetadata',
+					-host     => $FIG_Config::mgrast_metadata_host,
+					-user     => $FIG_Config::mgrast_metadata_user,
+					-password => $FIG_Config::mgrast_metadata_password || "");
     };
   if ($@) {
     warn "Unable to connect to MGRAST metadata db: $@\n";
@@ -499,7 +499,7 @@ sub export_metadata_for_jobs {
 
   unless ($orient) { $orient = "tag"; }
 
-  my $fpath = "$Config::temp/$file";
+  my $fpath = "$FIG_Config::temp/$file";
   my $keys  = {};
   my $jset  = [];
 
@@ -851,12 +851,12 @@ sub update_curator {
 sub validate_metadata {
   my ($self, $filename, $skip_required) = @_;
 
-  my ($out_hdl, $out_name) = tempfile("metadata_XXXXXXX", DIR => $Config::temp, SUFFIX => '.json');
+  my ($out_hdl, $out_name) = tempfile("metadata_XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.json');
   close $out_hdl;
 
   my $data = {};
   my $json = new JSON;
-  my $cmd  = $Config::validate_metadata.($skip_required ? " -s" : "")." -j $out_name $filename 2>&1";
+  my $cmd  = $FIG_Config::validate_metadata.($skip_required ? " -s" : "")." -j $out_name $filename 2>&1";
   my $log  = `$cmd`;
   chomp $log;
   

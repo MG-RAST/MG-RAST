@@ -9,7 +9,7 @@ use IO::Handle;
 use File::Temp qw/ tempfile tempdir /;
 use JSON;
 
-use Config;
+use FIG_Config;
 use WebConfig;
 
 use MGRAST::Metadata;
@@ -134,8 +134,8 @@ sub output {
     if ($project->public) {
       $down_info->add_tooltip('all_down', 'download all submitted and derived metagenome data for this project');
       $down_info->add_tooltip('meta_down', 'download project metadata');
-      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"all_down\",".$down_info->id.")' target=_blank href='ftp://".$Config::ftp_download."/projects/$id'><img src='./Html/mg-download.png' style='height:15px;'/><small>metagenomes</small></a>";
-      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://".$Config::ftp_download."/projects/$id/metadata.project-$id.xlsx'><img src='./Html/mg-download.png' style='height:15px;'/><small>project metadata</small></a>";
+      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"all_down\",".$down_info->id.")' target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$id'><img src='./Html/mg-download.png' style='height:15px;'/><small>metagenomes</small></a>";
+      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://".$FIG_Config::ftp_download."/projects/$id/metadata.project-$id.xlsx'><img src='./Html/mg-download.png' style='height:15px;'/><small>project metadata</small></a>";
     }
     $html .= $down_info->output()."<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " (ID ".$project->id.")": "")."</h1>".$download;
     $html .= "<p><table>";
@@ -512,16 +512,16 @@ sub job_list {
     foreach my $row (@complete) {
       my $mid = $row->[0];
       my $mfile = "mgm".$mid.".metadata.txt";
-      if (exists($metadata->{$mid}) && open(FH, ">".$Config::temp."/".$mfile)) {
+      if (exists($metadata->{$mid}) && open(FH, ">".$FIG_Config::temp."/".$mfile)) {
 	foreach my $line (@{$metadata->{$mid}}) {
 	  print FH join("\t", @$line)."\n";
 	}
 	close FH;
       }
       my $download = "<table><tr align='center'>
-<td><a href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filetype=text&filename=$mfile'><img src='$Config::cgi_url/Html/mg-download.png' alt='Download metadata for this metagenome' height='15'/><small>metadata</small></a></td>
-<td><a target=_blank href='ftp://".$Config::ftp_download."/projects/$proj_id/$mid/raw'><img src='$Config::cgi_url/Html/mg-download.png' alt='Download submitted metagenome' height='15'/><small>submitted</small></a></td>
-<td><a target=_blank href='ftp://".$Config::ftp_download."/projects/$proj_id/$mid/processed'><img src='$Config::cgi_url/Html/mg-download.png' alt='Download all derived data for this metagenome' height='15'/><small>analysis</small></a></td>
+<td><a href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filetype=text&filename=$mfile'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download metadata for this metagenome' height='15'/><small>metadata</small></a></td>
+<td><a target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$proj_id/$mid/raw'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download submitted metagenome' height='15'/><small>submitted</small></a></td>
+<td><a target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$proj_id/$mid/processed'><img src='$FIG_Config::cgi_url/Html/mg-download.png' alt='Download all derived data for this metagenome' height='15'/><small>analysis</small></a></td>
 </tr></table>";
       $row->[0] = "<a target=_blank href='?page=MetagenomeOverview&metagenome=$mid'>$mid</a>";
       push @$row, $download if ($project->public);
@@ -562,15 +562,15 @@ sub export_metadata {
   $json = $json->utf8();
   my $pid   = $self->application->cgi->param('project');
   my $base  = "mgp".$pid."_metadata";
-  my $jfile = $Config::temp."/".$base.".json";
-  my $mfile = $Config::temp."/".$base.".xlsx";
+  my $jfile = $FIG_Config::temp."/".$base.".json";
+  my $mfile = $FIG_Config::temp."/".$base.".xlsx";
   my $proj  = $self->application->data_handle('MGRAST')->Project->init({ id => $pid });
   my $pdata = $self->data('mddb')->export_metadata_for_project($proj, 0);
 
   open(JFH, ">$jfile") || return "<p>ERROR: Could not write results to file: $!</p>";
   print JFH $json->encode($pdata);
   close JFH;
-  my $cmd = $Config::export_metadata." -j $jfile -o $mfile";
+  my $cmd = $FIG_Config::export_metadata." -j $jfile -o $mfile";
   unless (system($cmd) == 0) {
     return "<p>ERROR: Could not transform metadata to excel format: $!</p>";
   }
@@ -583,7 +583,7 @@ sub export_metadata {
     open(JFH, ">$jfile") || return "<p>ERROR: Could not write results to file: $!</p>";
     print JFH $json->encode($pdata);
     close JFH;
-    $cmd = $Config::export_metadata." -j $jfile -o $mfile";
+    $cmd = $FIG_Config::export_metadata." -j $jfile -o $mfile";
     unless (system($cmd) == 0) {
       return "<p>ERROR: Could not transform metadata to excel format: $!</p>";
     }
@@ -604,7 +604,7 @@ sub download_md {
   my $ftype = $cgi->param('filetype') || 'text';
   my $ctype = ($ftype eq 'xlsx') ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/plain';
   
-  if (open(FH, "<".$Config::temp."/".$file)) {
+  if (open(FH, "<".$FIG_Config::temp."/".$file)) {
     my $content = do { local $/; <FH> };
     close FH;
     print "Content-Type:$ctype\n";  
@@ -619,12 +619,12 @@ sub download_md {
 }
 
 sub download_template {
-  my $fn = $Config::html_base.'/'.$Config::mgrast_metadata_template;
+  my $fn = $FIG_Config::html_base.'/'.$FIG_Config::mgrast_metadata_template;
 
   if (open(FH, $fn)) {
     print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
     print "Content-Length: " . (stat($fn))[7] . "\n";
-    print "Content-Disposition:attachment;filename=".$Config::mgrast_metadata_template."\n\n";
+    print "Content-Disposition:attachment;filename=".$FIG_Config::mgrast_metadata_template."\n\n";
     while (<FH>) {
       print $_;
     }
@@ -701,7 +701,7 @@ sub additional_info {
 
   my $project = $self->{project};
   my $project_id = $project->id;
-  my $project_basedir = $Config::mgrast_projects."/";
+  my $project_basedir = $FIG_Config::mgrast_projects."/";
 
   # tables
   my $project_table_dir = "/tables";
@@ -713,7 +713,7 @@ sub additional_info {
     closedir $dh;
   }
 
-  my $pdir = $Config::mgrast_projects;
+  my $pdir = $FIG_Config::mgrast_projects;
   unless (-d "$pdir/$project_id") {
     mkdir("$pdir/$project_id");
   }
@@ -786,7 +786,7 @@ sub upload_md {
   my $map_by_id = ($cgi->param('map_type') && ($cgi->param('map_type') eq 'id')) ? 1 : 0;
 
   if ($user->has_right(undef, 'edit', 'project', $pid)) {
-    my ($tmp_hdl, $tmp_name) = tempfile("metadata_XXXXXXX", DIR => $Config::temp, SUFFIX => '.xlsx');
+    my ($tmp_hdl, $tmp_name) = tempfile("metadata_XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.xlsx');
     my $fname = $cgi->param('upload_md') || "<broken upload>";
     my $fhdl  = $cgi->upload('upload_md');
     if (defined $fhdl) {
@@ -863,7 +863,7 @@ sub upload_file {
   if ($user->has_right(undef, 'edit', 'project', $project_id)) {
     my $jobdbm = $application->data_handle('MGRAST');
     my $project = $jobdbm->Project->init({ id => $project_id });
-    my $savedir = $Config::mgrast_projects."/".$project->{id}."/".$cgi->param('upload_type')."s/";
+    my $savedir = $FIG_Config::mgrast_projects."/".$project->{id}."/".$cgi->param('upload_type')."s/";
     my $filename = $cgi->param('upload_file') || "<broken upload>";
     my $fh = $cgi->upload('upload_file');
     if (defined $fh) {

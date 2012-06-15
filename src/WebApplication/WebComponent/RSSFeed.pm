@@ -7,7 +7,7 @@ use XML::Simple;
 
 use base qw( WebComponent );
 
-use Config;
+use FIG_Config;
 
 1;
 
@@ -98,8 +98,8 @@ sub output_editor {
 
   my $feed_select = "<select name='feed' id='feed_select'>";
   $feed_select .= "<option value='new'>- create new feed -</option>";
-  opendir(my $dh, $Config::temp) || die "can't open feed directory: $!";
-  my @feeds = grep { /\.rss$/ && -f "$Config::temp/$_" } readdir($dh);
+  opendir(my $dh, $FIG_Config::temp) || die "can't open feed directory: $!";
+  my @feeds = grep { /\.rss$/ && -f "$FIG_Config::temp/$_" } readdir($dh);
   closedir $dh;
   foreach my $feed (@feeds) {
     $feed =~ s/\.rss$//;
@@ -378,7 +378,7 @@ sub file_name {
 sub file_path {
   my ($self) = @_;
 
-  my $path = $Config::temp . "/" . $self->file_name . ".rss";
+  my $path = $FIG_Config::temp . "/" . $self->file_name . ".rss";
 
   return $path;
 }
@@ -386,7 +386,7 @@ sub file_path {
 sub url {
   my ($self) = @_;
 
-  my $url = $Config::temp_url . "/" . $self->file_name . ".rss";
+  my $url = $FIG_Config::temp_url . "/" . $self->file_name . ".rss";
   
   return $url;
 }
@@ -530,11 +530,11 @@ sub current_date {
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/datepickercontrol.js"];
+  return ["$FIG_Config::cgi_url/Html/datepickercontrol.js"];
 }
 
 sub require_css {
-  return "$Config::cgi_url/Html/RSSFeed.css";
+  return "$FIG_Config::cgi_url/Html/RSSFeed.css";
 }
 
 sub show_RSS_link {

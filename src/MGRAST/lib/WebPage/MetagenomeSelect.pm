@@ -515,11 +515,11 @@ sub format_number {
 }
 
 sub require_css {
-  return [ "$Config::cgi_url/Html/MetagenomeSelect.css" ];
+  return [ "$FIG_Config::cgi_url/Html/MetagenomeSelect.css" ];
 }
 
 sub require_javascript {
-  return [ "$Config::cgi_url/Html/MetagenomeSelect.js" ];
+  return [ "$FIG_Config::cgi_url/Html/MetagenomeSelect.js" ];
 }
 
 sub processing_info {

@@ -469,7 +469,7 @@ sub _timestamp {
 
 sub require_javascript {
 	return [
-		"$Config::cgi_url/Html/jquery-1.3.2.min.js",
-		"$Config::cgi_url/Html/MFAController.js"
+		"$FIG_Config::cgi_url/Html/jquery-1.3.2.min.js",
+		"$FIG_Config::cgi_url/Html/MFAController.js"
 	];
 }

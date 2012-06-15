@@ -11,7 +11,7 @@ use File::Basename;
 use Number::Format;
 use XML::Simple;
 
-use Config;
+use FIG_Config;
 use MGRAST::Metadata;
 
 1;
@@ -60,8 +60,8 @@ sub init {
 
   # get default pipeline info
   my $default = {};
-  if ( -s $Config::mgrast_formWizard_templates."/pipeline.xml" ) {
-    $default = XMLin($Config::mgrast_formWizard_templates."/pipeline.xml", forcearray => ['stage', 'output', 'column']);
+  if ( -s $FIG_Config::mgrast_formWizard_templates."/pipeline.xml" ) {
+    $default = XMLin($FIG_Config::mgrast_formWizard_templates."/pipeline.xml", forcearray => ['stage', 'output', 'column']);
     if ($default && exists($default->{stage})) {
       %$default = map { $_->{num}, $_ } @{ $default->{stage} };
     }
@@ -109,9 +109,9 @@ sub output {
   my ($self) = @_;
 
   # Parameters for highslide
-  my $graphicsDir = $Config::temp_url . "/" ;
-  my $jsDir       = $Config::cgi_url . "/Html/" ;
-  my $cssDir      =  $Config::cgi_url . "/Html/" ;
+  my $graphicsDir = $FIG_Config::temp_url . "/" ;
+  my $jsDir       = $FIG_Config::cgi_url . "/Html/" ;
+  my $cssDir      =  $FIG_Config::cgi_url . "/Html/" ;
   my $css         = "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssDir/highslide.css\">";
   
   my $scripts .= qq~
@@ -187,7 +187,7 @@ my $css_tmp = qq~
   my $down_info = $self->app->component('download_info');
   my $metadata  = $self->data('mddb')->get_metadata_for_table($mid, 1, 1);
   my $mfile = "mgm".$mid.".metadata.txt";
-  if (open(FH, ">".$Config::temp."/".$mfile)) {
+  if (open(FH, ">".$FIG_Config::temp."/".$mfile)) {
     foreach my $line (@$metadata) {
       print FH join("\t", @$line)."\n";
     }
@@ -198,8 +198,8 @@ my $css_tmp = qq~
   if ($pid) {
     $down_info->add_tooltip('sub_down', 'Download submitted metagenome');
     $down_info->add_tooltip('derv_down', 'Download all derived data for this metagenome');
-    $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"sub_down\",".$down_info->id.")' target=_blank href='ftp://".$Config::ftp_download."/projects/$pid/$mid/raw'><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted</small></a>";
-    $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"derv_down\",".$down_info->id.")' target=_blank href='ftp://".$Config::ftp_download."/projects/$pid/$mid/processed'><img src='./Html/mg-download.png' style='height:15px;'/><small>analysis</small></a>";
+    $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"sub_down\",".$down_info->id.")' target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$pid/$mid/raw'><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted</small></a>";
+    $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"derv_down\",".$down_info->id.")' target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$pid/$mid/processed'><img src='./Html/mg-download.png' style='height:15px;'/><small>analysis</small></a>";
   }
   
   $self->title("Metagenome Download");
@@ -266,7 +266,7 @@ sub read_stats {
   }
   if ((! -s $stats_file) && ($type =~ /^(protein|dna)$/i)) {
     if ($gz) { system("gunzip $source_file"); }
-    system("$Config::seq_length_stats --fasta_file $fname --stat_file $stats_file $option");
+    system("$FIG_Config::seq_length_stats --fasta_file $fname --stat_file $stats_file $option");
     if ($gz) { system("gzip $fname"); }
   }
   
@@ -427,7 +427,7 @@ sub download_md {
   my $cgi  = $self->application->cgi;
   my $file = $cgi->param('filename');
   
-  if (open(FH, "<".$Config::temp."/".$file)) {
+  if (open(FH, "<".$FIG_Config::temp."/".$file)) {
     my $content = do { local $/; <FH> };
     close FH;
     print "Content-Type:text/plain\n";  
@@ -540,8 +540,8 @@ sub public_project_download_table {
       my $all_mgids  = $project->all_metagenome_ids;
       my $pubmed_ids = join(",", sort @{$project->pubmed});
       my $download   = "<table><tr align='center'>
-<td><a  onmouseover='hover(event,\"all_down\",".$down_info->id.")' target=_blank href='ftp://".$Config::ftp_download."/projects/$id'><img src='$Config::cgi_url/Html/mg-download.png' height='15'/><small>metagenomes</small></a></td>
-<td><a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://".$Config::ftp_download."/projects/$id/metadata.project-$id.xlsx'><img src='$Config::cgi_url/Html/mg-download.png' height='15'/><small>metadata</small></a></td>
+<td><a  onmouseover='hover(event,\"all_down\",".$down_info->id.")' target=_blank href='ftp://".$FIG_Config::ftp_download."/projects/$id'><img src='$FIG_Config::cgi_url/Html/mg-download.png' height='15'/><small>metagenomes</small></a></td>
+<td><a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://".$FIG_Config::ftp_download."/projects/$id/metadata.project-$id.xlsx'><img src='$FIG_Config::cgi_url/Html/mg-download.png' height='15'/><small>metadata</small></a></td>
 </tr></table>";
 
       push @$data, [ $id,
@@ -565,5 +565,5 @@ sub public_project_download_table {
 }
 
 sub require_javascript {
-  return [ "$Config::cgi_url/Html/pipeline.js" ];
+  return [ "$FIG_Config::cgi_url/Html/pipeline.js" ];
 }

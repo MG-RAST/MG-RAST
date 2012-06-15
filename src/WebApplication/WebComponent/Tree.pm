@@ -288,12 +288,12 @@ sub generate_display_explorer {
 
     if (scalar(@{$node->{children}})) {
       if ($node->{expanded}) {
-	$html .= "<img id='tree_img_" . $self->id() . "_" . $i . "' src=\"$Config::cgi_url/Html/minus.gif\" style='cursor: pointer;' onclick='expand(\"" . $self->id() . "\", \"" . $i . "\");'>&nbsp;";
+	$html .= "<img id='tree_img_" . $self->id() . "_" . $i . "' src=\"$FIG_Config::cgi_url/Html/minus.gif\" style='cursor: pointer;' onclick='expand(\"" . $self->id() . "\", \"" . $i . "\");'>&nbsp;";
       } else {
-	$html .= "<img id='tree_img_" . $self->id() . "_" . $i . "' src=\"$Config::cgi_url/Html/plus.gif\" style='cursor: pointer;' onclick='expand(\"" . $self->id() . "\", \"" . $i . "\");'>&nbsp;";
+	$html .= "<img id='tree_img_" . $self->id() . "_" . $i . "' src=\"$FIG_Config::cgi_url/Html/plus.gif\" style='cursor: pointer;' onclick='expand(\"" . $self->id() . "\", \"" . $i . "\");'>&nbsp;";
       }
     } else {
-      $html .= "<img src=\"$Config::cgi_url/Html/none.gif\">&nbsp;";
+      $html .= "<img src=\"$FIG_Config::cgi_url/Html/none.gif\">&nbsp;";
     }
     
     if ($self->selectable && (!(scalar(@{$node->{children}})) || !$self->select_leaves_only)) {
@@ -349,9 +349,9 @@ sub display_explorer_child {
 
   if (scalar(@{$node->{children}})) {
     if ($node->{expanded}) {
-      $html .= "<img id='tree_img_" . $self->id() . "_" . $i . "' src=\"$Config::cgi_url/Html/minus.gif\" style='cursor: pointer;' onclick='expand(\"" . $self->id() . "\", \"" . $i . "\");'>&nbsp;";
+      $html .= "<img id='tree_img_" . $self->id() . "_" . $i . "' src=\"$FIG_Config::cgi_url/Html/minus.gif\" style='cursor: pointer;' onclick='expand(\"" . $self->id() . "\", \"" . $i . "\");'>&nbsp;";
     } else {
-      $html .= "<img id='tree_img_" . $self->id() . "_" . $i . "' src=\"$Config::cgi_url/Html/plus.gif\" style='cursor: pointer;' onclick='expand(\"" . $self->id() . "\", \"" . $i . "\");'>&nbsp;";
+      $html .= "<img id='tree_img_" . $self->id() . "_" . $i . "' src=\"$FIG_Config::cgi_url/Html/plus.gif\" style='cursor: pointer;' onclick='expand(\"" . $self->id() . "\", \"" . $i . "\");'>&nbsp;";
     }
   } else {
     $html .= "<span style='cursor: pointer;'>&nbsp;";
@@ -423,7 +423,7 @@ sub display_method {
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/Tree.js"];
+  return ["$FIG_Config::cgi_url/Html/Tree.js"];
 }
 
 package Node;

@@ -116,5 +116,5 @@ sub call_function_data {
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/json.js", "$Config::cgi_url/Html/JSCaller.js"];
+  return ["$FIG_Config::cgi_url/Html/json.js", "$FIG_Config::cgi_url/Html/JSCaller.js"];
 }

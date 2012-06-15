@@ -8,7 +8,7 @@ use warnings;
 use base qw( WebPage );
 
 use AnnotationClearingHouse::ACH;
-use Config;
+use FIG_Config;
 use FIG;
 
 1;

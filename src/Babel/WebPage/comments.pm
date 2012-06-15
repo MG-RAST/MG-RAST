@@ -14,8 +14,8 @@ sub init{
 
     my $fig = new FIG;
     $self->data('fig' , $fig);
-    my $anno = new AnnoClearinghouse($Config::clearinghouse_data,
-				     $Config::clearinghouse_contrib,
+    my $anno = new AnnoClearinghouse($FIG_Config::clearinghouse_data,
+				     $FIG_Config::clearinghouse_contrib,
 				     0,
 				     my $dbf = $fig->db_handle);
 

@@ -5,7 +5,7 @@ use warnings;
 
 use base qw( WebComponent );
 
-use Config;
+use FIG_Config;
 
 1;
 
@@ -165,7 +165,7 @@ sub output {
   $content .= "</table>";
 
   # initialize the list select
-  $content .= "<img src='$Config::cgi_url/Html/clear.gif' onload='initialize_list_select(\"".$self->id."\");'>";
+  $content .= "<img src='$FIG_Config::cgi_url/Html/clear.gif' onload='initialize_list_select(\"".$self->id."\");'>";
   
   # return the content
   return $content;
@@ -302,7 +302,7 @@ sub multiple {
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/ListSelect.js"];
+  return ["$FIG_Config::cgi_url/Html/ListSelect.js"];
 }
 
 sub max_selections {

@@ -127,7 +127,7 @@ sub output {
     push(@$map, "<area shape='poly' coords='".$coords."' id='".$self->id."_slice_".$deg."' title='$pos' onclick='navigate_plot(\"".$self->id."\", \"$pos\", \"$deg\");'>");
   }
 
-  $image .= "<map name=\"circplot_map_" . $self->id . "\">".join("\n", @$map)."</map>".qq~<img id="plot_img_~ . $self->id . qq~" style="border: none;" usemap="#circplot_map_~ . $self->id . qq~" src="~ . $self->image->image_src() ."\"><img src=\"$Config::cgi_url/Html/dot.gif\" id='plot_dot_".$self->id."' onload='navigate_plot(\"".$self->id."\", \"1\", \"1\");' style='position: relative;'>";
+  $image .= "<map name=\"circplot_map_" . $self->id . "\">".join("\n", @$map)."</map>".qq~<img id="plot_img_~ . $self->id . qq~" style="border: none;" usemap="#circplot_map_~ . $self->id . qq~" src="~ . $self->image->image_src() ."\"><img src=\"$FIG_Config::cgi_url/Html/dot.gif\" id='plot_dot_".$self->id."' onload='navigate_plot(\"".$self->id."\", \"1\", \"1\");' style='position: relative;'>";
 
   return $image;
 }
@@ -223,5 +223,5 @@ sub total {
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/CircularPlot.js"];
+  return ["$FIG_Config::cgi_url/Html/CircularPlot.js"];
 }

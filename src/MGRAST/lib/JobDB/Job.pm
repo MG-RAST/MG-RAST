@@ -3,7 +3,7 @@ package JobDB::Job;
 use strict;
 use Data::Dumper;
 
-use Config;
+use FIG_Config;
 use DirHandle;
 use File::Basename;
 use IO::File;
@@ -125,10 +125,10 @@ sub initialize {
   }
 
   # Connect to User/Rights DB
-  my $dbm = DBMaster->new(-database => $Config::webapplication_db,
-			  -backend  => $Config::webapplication_backend,
-			  -host     => $Config::webapplication_host,
-			  -user     => $Config::webapplication_user,
+  my $dbm = DBMaster->new(-database => $FIG_Config::webapplication_db,
+			  -backend  => $FIG_Config::webapplication_backend,
+			  -host     => $FIG_Config::webapplication_host,
+			  -user     => $FIG_Config::webapplication_user,
 			 );
   # check rights
   my $rights = ['view', 'edit', 'delete'];
@@ -211,7 +211,7 @@ sub finish_upload {
   # set options 
   my $opts   = $self->set_job_options;
   my $format = ($file_format =~ /fastq/) ? "--fastq" : '' ;
-  my $cmd    = $Config::create_job;
+  my $cmd    = $FIG_Config::create_job;
   my $params = " -j " . $self->job_id . " -f $file -o '$opts' $format";
 
   print STDERR "Calling $cmd $params\n";
@@ -237,7 +237,7 @@ Returns the full path the job directory (without a trailing slash).
 
 sub directory {
   my ($self) = @_;
-  return $Config::mgrast_jobs.'/'.$self->job_id;
+  return $FIG_Config::mgrast_jobs.'/'.$self->job_id;
 }
 
 sub dir {
@@ -1222,10 +1222,10 @@ sub delete {
   my ($self) = @_;
 
   # get a web app master
-  my $webapp_dbm = DBMaster->new(-database => $Config::webapplication_db,
-                                 -backend => $Config::webapplication_backend,
-                                 -host => $Config::webapplication_host,
-                                 -user => $Config::webapplication_user,
+  my $webapp_dbm = DBMaster->new(-database => $FIG_Config::webapplication_db,
+                                 -backend => $FIG_Config::webapplication_backend,
+                                 -host => $FIG_Config::webapplication_host,
+                                 -user => $FIG_Config::webapplication_user,
                                 );
 
   # get the job master

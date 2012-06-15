@@ -28,8 +28,8 @@ sub get_corresponding_ids {
 
 	my $fig = new FIG;
 
-	my $ach = new AnnoClearinghouse( $Config::clearinghouse_data ,
-					 $Config::clearinghouse_contrib , 
+	my $ach = new AnnoClearinghouse( $FIG_Config::clearinghouse_data ,
+					 $FIG_Config::clearinghouse_contrib , 
 					 0,
 					 my $dbf = $fig->db_handle);
 	
@@ -49,8 +49,8 @@ sub get_organism_name{
 
     my $fig = new FIG;
 
-    my $ach = new AnnoClearinghouse( $Config::clearinghouse_data ,
-				     $Config::clearinghouse_contrib , 
+    my $ach = new AnnoClearinghouse( $FIG_Config::clearinghouse_data ,
+				     $FIG_Config::clearinghouse_contrib , 
 				     0,
 				     my $dbf = $fig->db_handle);
 	

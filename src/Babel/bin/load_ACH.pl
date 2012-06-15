@@ -1,13 +1,13 @@
 use Data::Dumper;
 use Carp;
-use Config;
+use FIG_Config;
 
 use strict;
 
 use FIG;
 my $fig = new FIG;
 
-my $file = "$Config::data/ACHresolution/ACH_id_table";
+my $file = "$FIG_Config::data/ACHresolution/ACH_id_table";
 
 my $dbf = $fig->db_handle;
 
@@ -113,9 +113,9 @@ $dbf->create_table( tbl  => "ACH_Sequence2MD5",
                             "
 		  );
 
-if (-s "$Config::data/ACHresolution/ACH_Sequence2MD5")
+if (-s "$FIG_Config::data/ACHresolution/ACH_Sequence2MD5")
   {
-    $dbf->load_table( tbl => "ACH_Sequence2MD5",file => "$Config::data/ACHresolution/ACH_Sequence2MD5") ;
+    $dbf->load_table( tbl => "ACH_Sequence2MD5",file => "$FIG_Config::data/ACHresolution/ACH_Sequence2MD5") ;
   }
 
 $dbf->create_index( idx  => "ACH_Sequence2MD5_f1_ix",

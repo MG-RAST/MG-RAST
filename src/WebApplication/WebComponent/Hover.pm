@@ -168,9 +168,9 @@ sub add_menu {
 }
 
 sub require_css {
-  return "$Config::cgi_url/Html/Hover.css";
+  return "$FIG_Config::cgi_url/Html/Hover.css";
 }
 
 sub require_javascript {
-  return ["$Config::cgi_url/Html/Hover.js"];
+  return ["$FIG_Config::cgi_url/Html/Hover.js"];
 }

@@ -1,7 +1,7 @@
 
 use Data::Dumper;
 use Carp;
-use Config;
+use FIG_Config;
 use CGI;
 
 my $cgi = new CGI;
@@ -11,9 +11,9 @@ my $fig = new FIG;
 
 my $rdbH = $fig->db_handle;
 
-&FIG::verify_dir("$Config::data/ACHresolution");
+&FIG::verify_dir("$FIG_Config::data/ACHresolution");
 
-if (open(ASSERTION,">$Config::data/ACHresolution/Assertion"))
+if (open(ASSERTION,">$FIG_Config::data/ACHresolution/Assertion"))
 {
     my $relational_db_response = $rdbH->SQL("SELECT * FROM ACH_Assertion");
     foreach my $tuple (@$relational_db_response)
@@ -23,7 +23,7 @@ if (open(ASSERTION,">$Config::data/ACHresolution/Assertion"))
     close(ASSERTION);
 }
 
-if (open(CORR,">$Config::data/ACHresolution/Correspondence"))
+if (open(CORR,">$FIG_Config::data/ACHresolution/Correspondence"))
 {
     my $relational_db_response = $rdbH->SQL("SELECT * FROM ACH_Correspondence");
     foreach my $tuple (@$relational_db_response)
@@ -33,7 +33,7 @@ if (open(CORR,">$Config::data/ACHresolution/Correspondence"))
     close(CORR);
 }
 
-if (open(COMMENTS,">$Config::data/ACHresolution/Comment_on_sequence_function"))
+if (open(COMMENTS,">$FIG_Config::data/ACHresolution/Comment_on_sequence_function"))
 {
     my $relational_db_response = $rdbH->SQL("SELECT * FROM ACH_Comment_on_sequence_function");
     foreach my $tuple (@$relational_db_response)
@@ -49,7 +49,7 @@ if (open(COMMENTS,">$Config::data/ACHresolution/Comment_on_sequence_function"))
     close(COMMENTS);
 }
 
-if (open(COMMENT,">$Config::data/ACHresolution/Comment_on_status_change"))
+if (open(COMMENT,">$FIG_Config::data/ACHresolution/Comment_on_status_change"))
 {
     my $relational_db_response = $rdbH->SQL("SELECT * FROM ACH_Comment_on_status_change");
     foreach my $tuple (@$relational_db_response)

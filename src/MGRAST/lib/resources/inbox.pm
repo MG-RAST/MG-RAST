@@ -36,8 +36,8 @@ sub request {
 
   if ($user) {
     use Digest::MD5 qw(md5_hex);
-    use Config;
-    my $base_dir = "$Config::incoming";
+    use FIG_Config;
+    my $base_dir = "$FIG_Config::incoming";
     my $udir = $base_dir."/".md5_hex($user->login);
     my $fn = $params->{cgi_parameters}->{upload};
    

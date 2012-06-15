@@ -1,6 +1,6 @@
 use Data::Dumper;
 use Carp;
-use Config;
+use FIG_Config;
 
 use strict;
 
@@ -8,7 +8,7 @@ use FIG;
 my $fig = new FIG;
 
 my $arg = shift @ARGV;
-my $dir = (-d $arg) ? $arg : "$Config::data/ACHresolution"; 
+my $dir = (-d $arg) ? $arg : "$FIG_Config::data/ACHresolution"; 
 
 
 my $file = "$dir/Assertion";

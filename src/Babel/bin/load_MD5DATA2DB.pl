@@ -8,15 +8,15 @@ use Carp;
 use DBI;
 use Getopt::Long;
 
-use Config;
+use FIG_Config;
 
 my $verbose   = 0;
 my @datafile  = ();
 my @aliasfile = ();
-my $dbtype    = $Config::babel_dbtype;
-my $dbname    = $Config::babel_db;
-my $dbhost    = $Config::babel_dbhost;
-my $dbuser    = $Config::babel_dbuser;
+my $dbtype    = $FIG_Config::babel_dbtype;
+my $dbname    = $FIG_Config::babel_db;
+my $dbhost    = $FIG_Config::babel_dbhost;
+my $dbuser    = $FIG_Config::babel_dbuser;
 my $usage     = qq(
 DESCRIPTION: (load_MD5DATA2DB)
 load the ACH database tables with the inputted file data.

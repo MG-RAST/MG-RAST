@@ -5,7 +5,7 @@ use warnings;
 no warnings('once');
 
 use List::Util qw(max min sum first);
-use Config;
+use FIG_Config;
 use DBI;
 use Data::Dumper;
 use Babel::lib::Babel;
@@ -24,11 +24,11 @@ sub new {
   # connect to database
   my $dbh;
   eval {
-    my $dbms     = $Config::mgrast_dbms;
-    my $host     = $Config::mgrast_dbhost;
-    my $database = $Config::mgrast_db;
-    my $user     = $Config::mgrast_dbuser;
-    my $password = $Config::mgrast_dbpass;
+    my $dbms     = $FIG_Config::mgrast_dbms;
+    my $host     = $FIG_Config::mgrast_dbhost;
+    my $database = $FIG_Config::mgrast_db;
+    my $user     = $FIG_Config::mgrast_dbuser;
+    my $password = $FIG_Config::mgrast_dbpass;
 
     $dbh = DBI->connect("DBI:$dbms:dbname=$database;host=$host", $user, $password, 
 			{ RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
@@ -51,7 +51,7 @@ sub new {
 	       jobs   => {},       # hash: mg_id => job_id
 	       tables => {},       # hash: job_id => table_type => table_name
 	       search => 'data_summary',  # nameof search table in dbh
-	       expire => $Config::web_memcache_expire || 172800 # use config or 48 hours
+	       expire => $FIG_Config::web_memcache_expire || 172800 # use config or 48 hours
 	     };
   bless $self, $class;
   return $self;
@@ -192,7 +192,7 @@ sub get_seq_count {
 
 sub job_dir {
   my ($self, $job) = @_;
-  return $job ? $Config::mgrast_jobs . "/" . $job : '';
+  return $job ? $FIG_Config::mgrast_jobs . "/" . $job : '';
 }
 
 sub analysis_dir {
@@ -343,11 +343,11 @@ sub get_where_str {
 sub run_fraggenescan {
   my ($self, $fasta) = @_;
 
-  my ($infile_hdl, $infile_name) = tempfile("fgs_in_XXXXXXX", DIR => $Config::temp, SUFFIX => '.fna');
+  my ($infile_hdl, $infile_name) = tempfile("fgs_in_XXXXXXX", DIR => $FIG_Config::temp, SUFFIX => '.fna');
   print $infile_hdl $fasta;
   close $infile_hdl;
 
-  my $fgs_cmd = $Config::run_fraggenescan." -genome=$infile_name -out=$infile_name.fgs -complete=0 -train=454_30";
+  my $fgs_cmd = $FIG_Config::run_fraggenescan." -genome=$infile_name -out=$infile_name.fgs -complete=0 -train=454_30";
   `$fgs_cmd`;
   my $output = "";
   if (open(FH, "<".$infile_name.".fgs.faa")) {
@@ -823,7 +823,7 @@ sub get_rarefaction_curve {
 
   map { $raw_data->{$_->[0]}->{$_->[1]} = $_->[2] } @$mg_abund;
   
-  my $memd = new Cache::Memcached {'servers' => [ $Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = 'rarefaction'.join(':', @$sources);
 
   # calculate alpha diversity
@@ -910,7 +910,7 @@ sub get_abundance_for_hierarchy {
   my $w_srcs = (@$sources > 0) ? "source in (" . join(",", map {"'$_'"} @$sources) . ")" : "";
   my $where  = $self->get_where_str([$w_type, $w_srcs]);
 
-  my $memd = new Cache::Memcached {'servers' => [ $Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = $value.$type.$key;
 
   # get for jobs
@@ -1108,7 +1108,7 @@ sub search_organisms {
   my ($self, $text) = @_;
 
   my %data = ();
-  my $memd = new Cache::Memcached {'servers' => [ $Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "org_search".quotemeta($text);
   
   while ( my ($mg, $j) = each %{$self->jobs} ) {
@@ -1163,7 +1163,7 @@ sub get_organisms_for_md5s {
     push @$sources, keys %$m5_map;
   }
   #return (undef, $sources);
-  my $memd = new Cache::Memcached {'servers' => [ $Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "org";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1297,7 +1297,7 @@ sub search_ontology {
   my ($self, $text) = @_;
 
   my %data = ();
-  my $memd = new Cache::Memcached {'servers' => [ $Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "ontol_search".quotemeta($text);
   
   while ( my ($mg, $j) = each %{$self->jobs} ) {
@@ -1333,7 +1333,7 @@ sub get_ontology_for_source {
 sub get_ontology_for_md5s {
   my ($self, $md5s, $source, $eval, $ident, $alen) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "ontol";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1409,7 +1409,7 @@ sub get_functions_for_md5s {
   my $mg_md5_abund = ($md5s && (@$md5s > 0)) ? $self->get_md5_abundance($eval, $ident, $alen, $md5s) : {};
   my %md5_set = map {$_, 1} @$md5s;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "func";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1463,7 +1463,7 @@ sub get_functions_for_md5s {
 sub get_lca_data {
   my ($self, $eval, $ident, $alen) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "lca";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1536,7 +1536,7 @@ sub get_md5_data {
 sub get_md5_abundance {
   my ($self, $eval, $ident, $alen, $md5s) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "md5";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1595,7 +1595,7 @@ sub get_org_md5 {
     push @$sources, keys %$m5_map;
   }
 
-  my $memd = new Cache::Memcached {'servers' => [ $Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "orgmd5";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1639,7 +1639,7 @@ sub get_org_md5 {
 sub get_ontol_md5 {
   my ($self, $eval, $ident, $alen, $source) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => [ $FIG_Config::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "ontolmd5";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";

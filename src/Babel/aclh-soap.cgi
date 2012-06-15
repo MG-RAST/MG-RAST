@@ -17,8 +17,8 @@ aclh-soap.cgi - SOAP service cgi script to access the annotation clearinghouse
 This script provides a basic SOAP interface to the search and query capabilities
 of the Annotation Clearinghouse. It has to run inside a FIG environment and depends
 on FigKernelPackages/AnnoClearinghouse.pm and the two configuration variables
-$Config::clearinghouse_data, $Config::clearinghouse_contrib set in the 
-Config.pm.
+$FIG_Config::clearinghouse_data, $FIG_Config::clearinghouse_contrib set in the 
+FIG_Config.pm.
 
 =head2 USAGE
 
@@ -60,7 +60,7 @@ SOAP::Transport::HTTP::CGI
 
 package AnnoClearinghouse_SOAP;
 
-use Config;
+use FIG_Config;
 use AnnoClearinghouse;
 
 =pod
@@ -76,8 +76,8 @@ main data. If this fails it will return the path instead.
 =cut
 
 sub version {
-    $Config::clearinghouse_data =~ /.+\/(.+)$/;
-    return ($1) ? $1 : $Config::clearinghouse_data;
+    $FIG_Config::clearinghouse_data =~ /.+\/(.+)$/;
+    return ($1) ? $1 : $FIG_Config::clearinghouse_data;
 }
 
 
@@ -97,8 +97,8 @@ values.
 sub get_annotations {
     my ($class, $ids) = @_;
 
-    my $anno = new AnnoClearinghouse($Config::clearinghouse_data,
-				     $Config::clearinghouse_contrib);
+    my $anno = new AnnoClearinghouse($FIG_Config::clearinghouse_data,
+				     $FIG_Config::clearinghouse_contrib);
     
     if (ref $ids) {
 	
@@ -137,8 +137,8 @@ values.
 sub get_all_annotations {
     my ($class, $ids) = @_;
 
-    my $anno = new AnnoClearinghouse($Config::clearinghouse_data,
-				     $Config::clearinghouse_contrib);
+    my $anno = new AnnoClearinghouse($FIG_Config::clearinghouse_data,
+				     $FIG_Config::clearinghouse_contrib);
 
     # check query $ids
     my $single = (ref $ids) ? 0 : $ids;
@@ -203,8 +203,8 @@ the query identifier as key and a reference to an array of such tuples as value.
 sub get_user_annotations {
     my ($class, $ids) = @_;
 
-    my $anno = new AnnoClearinghouse($Config::clearinghouse_data,
-				     $Config::clearinghouse_contrib);
+    my $anno = new AnnoClearinghouse($FIG_Config::clearinghouse_data,
+				     $FIG_Config::clearinghouse_contrib);
     if (ref $ids) {
 	
 	my $result = {};
@@ -235,8 +235,8 @@ the returned value. Instead it merely has counts of annotations.
 sub has_user_annotations {
     my ($class, $ids) = @_;
 
-    my $anno = new AnnoClearinghouse($Config::clearinghouse_data,
-				     $Config::clearinghouse_contrib);
+    my $anno = new AnnoClearinghouse($FIG_Config::clearinghouse_data,
+				     $FIG_Config::clearinghouse_contrib);
     if (ref $ids) {
 	
 	my $result = {};
@@ -273,8 +273,8 @@ sub find_seed_equivalent {
     
     return $id if ($id =~ /^fig\|/);
 
-    my $anno = new AnnoClearinghouse($Config::clearinghouse_data,
-				     $Config::clearinghouse_contrib);
+    my $anno = new AnnoClearinghouse($FIG_Config::clearinghouse_data,
+				     $FIG_Config::clearinghouse_contrib);
     
     my $organism = $anno->get_org($id);
     my $pid = $anno->lookup_principal_id($id);

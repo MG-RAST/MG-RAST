@@ -9,7 +9,7 @@ use Digest::MD5 qw(md5 md5_hex md5_base64);
 use JSON;
 use Encode;
 
-use Config;
+use FIG_Config;
 use WebConfig;
 use MGRAST::Metadata;
 
@@ -356,17 +356,17 @@ sub output {
 }
 
 sub require_javascript {
-  return [ "$Config::cgi_url/Html/jquery.js",
-	   "$Config::cgi_url/Html/FileUploader.js",
-	   "$Config::cgi_url/Html/bootstrap.min.js",
-	   "$Config::cgi_url/Html/Upload.js",
-	   "$Config::cgi_url/Html/DataHandler.js" ];
+  return [ "$FIG_Config::cgi_url/Html/jquery.js",
+	   "$FIG_Config::cgi_url/Html/FileUploader.js",
+	   "$FIG_Config::cgi_url/Html/bootstrap.min.js",
+	   "$FIG_Config::cgi_url/Html/Upload.js",
+	   "$FIG_Config::cgi_url/Html/DataHandler.js" ];
 }
 
 sub require_css {
-  return [ "$Config::cgi_url/Html/bootstrap-responsive.min.css",
-	   "$Config::cgi_url/Html/bootstrap.min.css",
-	   "$Config::cgi_url/Html/Upload.css" ];
+  return [ "$FIG_Config::cgi_url/Html/bootstrap-responsive.min.css",
+	   "$FIG_Config::cgi_url/Html/bootstrap.min.css",
+	   "$FIG_Config::cgi_url/Html/Upload.css" ];
 }
 
 sub submit_to_mgrast {
@@ -380,7 +380,7 @@ sub submit_to_mgrast {
   my $project_name = $cgi->param('new_project') || '';
   my $project_id   = $cgi->param('project') || '';
   
-  my $base_dir = "$Config::incoming";
+  my $base_dir = "$FIG_Config::incoming";
   my $udir = $base_dir."/".md5_hex($user->login);
 
   my $libraries = {};
@@ -527,7 +527,7 @@ sub submit_to_mgrast {
 
   my $mgids = [];
   foreach my $job (@$successfully_created_jobs) {
-    my $create_job_script = $Config::create_job;
+    my $create_job_script = $FIG_Config::create_job;
     my $seqfile = $job2seq->{$job->{job_id}};
     my $jid = $job->{job_id};
     my $is_fastq = ($job2type->{$job->{job_id}} eq 'fastq') ? " --fastq" : "";
@@ -541,12 +541,12 @@ sub submit_to_mgrast {
 }
 
 sub download_template {
-  my $fn = $Config::html_base.'/'.$Config::mgrast_metadata_template;
+  my $fn = $FIG_Config::html_base.'/'.$FIG_Config::mgrast_metadata_template;
 
   if (open(FH, $fn)) {
     print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
     print "Content-Length: " . (stat($fn))[7] . "\n";
-    print "Content-Disposition:attachment;filename=".$Config::mgrast_metadata_template."\n\n";
+    print "Content-Disposition:attachment;filename=".$FIG_Config::mgrast_metadata_template."\n\n";
     while (<FH>) {
       print $_;
     }
@@ -588,7 +588,7 @@ sub validate_metadata {
   my $cgi = $self->application->cgi;
   my $fn = $cgi->param('mdfn');
   
-  my $base_dir = "$Config::incoming";
+  my $base_dir = "$FIG_Config::incoming";
   my $udir = $base_dir."/".md5_hex($user->login);
   my $md_file = $udir."/".$fn;
 

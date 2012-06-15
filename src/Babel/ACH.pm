@@ -8,7 +8,7 @@
 
 package AnnotationClearingHouse::ACH;
 
-use Config;
+use FIG_Config;
 use Data::Dumper;
 use strict;
 use DB_File;

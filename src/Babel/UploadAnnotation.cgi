@@ -8,7 +8,7 @@ use warnings;
 use base qw( WebPage );
 
 use AnnoClearinghouse;
-use Config;
+use FIG_Config;
 
 1;
 
@@ -20,8 +20,8 @@ sub init {
   $self->application->register_action($self, 'upload_annotation', 'upload_annotation');
 
   my $dbh  = $self->application->data_handle('ACH');
-  my $anno = new AnnoClearinghouse($Config::clearinghouse_data,
-				   $Config::clearinghouse_contrib,
+  my $anno = new AnnoClearinghouse($FIG_Config::clearinghouse_data,
+				   $FIG_Config::clearinghouse_contrib,
 				   0,
 				   $dbh);
   $self->data('aclh', $anno);

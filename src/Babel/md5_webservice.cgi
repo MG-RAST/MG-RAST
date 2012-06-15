@@ -7,7 +7,7 @@ use JSON;
 use Data::Dumper;
 
 use Babel::lib::Babel;
-use Config;
+use FIG_Config;
 
 # create objects
 my $cgi  = new CGI;

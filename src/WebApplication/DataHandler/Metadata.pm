@@ -10,7 +10,7 @@ use warnings;
 use base qw( DataHandler );
 
 use DBMaster;
-use Config;
+use FIG_Config;
 
 =pod
 
@@ -21,7 +21,7 @@ DataHandler::Metadata - data handler to the PPO MGRAST metadata database
 =head1 DESCRIPTION
 
 This module returns the DBMaster object to the Metadata database stored in the root
-job directory of a MGRAST server. It requires the Config.pm to specify the  
+job directory of a MGRAST server. It requires the FIG_Config.pm to specify the  
 $mgrast_jobs directory.
 
 Refer to WebApplication/DataHandler.pm for the full documentation.
@@ -41,10 +41,10 @@ sub handle {
 
   unless (exists $self->{_handle}) {
     eval {
-      $self->{_handle} = DBMaster->new( -database => $Config::mgrast_metadata_db || 'MGRASTMetadata',
-					-host     => $Config::mgrast_metadata_host,
-					-user     => $Config::mgrast_metadata_user,
-					-password => $Config::mgrast_metadata_password || "");
+      $self->{_handle} = DBMaster->new( -database => $FIG_Config::mgrast_metadata_db || 'MGRASTMetadata',
+					-host     => $FIG_Config::mgrast_metadata_host,
+					-user     => $FIG_Config::mgrast_metadata_user,
+					-password => $FIG_Config::mgrast_metadata_password || "");
     };
     if ($@) {
       warn "Unable to connect to MGRAST metadata database: $@\n";

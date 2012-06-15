@@ -5,7 +5,7 @@ use warnings;
 
 use base qw( WebPage );
 
-use Config;
+use FIG_Config;
 use Data::Dumper;
 use MGRAST::Metadata;
 
@@ -81,8 +81,8 @@ sub output {
     $self->{use_buffer} = 0;
   }
 
-  if ($self->{use_buffer} && -f $Config::temp."/mgs_temp_data") {
-    if (open(FH, $Config::temp."/mgs_temp_data")) {
+  if ($self->{use_buffer} && -f $FIG_Config::temp."/mgs_temp_data") {
+    if (open(FH, $FIG_Config::temp."/mgs_temp_data")) {
       $self->{data} = <FH>;
       close FH;
     } else {
@@ -156,7 +156,7 @@ sub output {
 }
 
 sub require_javascript {
-  return [ "$Config::cgi_url/Html/MetagenomeCollections.js" ];
+  return [ "$FIG_Config::cgi_url/Html/MetagenomeCollections.js" ];
 }
 
 sub fetch_data {
@@ -205,7 +205,7 @@ sub fetch_data {
 
   $self->{data} = $string_data;
 
-  if (open(FH, ">".$Config::temp."/mgs_temp_data")) {
+  if (open(FH, ">".$FIG_Config::temp."/mgs_temp_data")) {
     print FH $string_data;
     close FH;
   }

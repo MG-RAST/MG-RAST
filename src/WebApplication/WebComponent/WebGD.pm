@@ -11,7 +11,7 @@ use CGI;
 use MIME::Base64;
 use File::Temp qw( tempfile );
 
-use Config;
+use FIG_Config;
 
 1;
 
@@ -69,12 +69,12 @@ sub image_src {
   if ($user_agent =~ /MSIE/) {
     $user_agent = 'IE';
   }
-  if ($user_agent eq 'IE' || $Config::file_images_only) {
-    my ($fh, $filename) = tempfile( TEMPLATE => 'webimageXXXXX', DIR => $Config::temp, SUFFIX => '.png' );
+  if ($user_agent eq 'IE' || $FIG_Config::file_images_only) {
+    my ($fh, $filename) = tempfile( TEMPLATE => 'webimageXXXXX', DIR => $FIG_Config::temp, SUFFIX => '.png' );
     print $fh $self->png();
     close $fh;
     $filename =~ s/.*\/(\w+\.png)$/$1/;
-    $image_link = $Config::temp_url."/".$filename;
+    $image_link = $FIG_Config::temp_url."/".$filename;
   } else {
     my $mime = MIME::Base64::encode($self->png(), "");
     $image_link = "data:image/gif;base64,$mime";

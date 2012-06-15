@@ -8,7 +8,7 @@ use warnings;
 use base qw( WebPage );
 
 use Babel::lib::Babel;
-use Config;
+use FIG_Config;
 use Data::Dumper;
 
 1;

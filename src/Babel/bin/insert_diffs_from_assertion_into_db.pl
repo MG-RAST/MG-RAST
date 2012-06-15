@@ -2,7 +2,7 @@
 
 use Data::Dumper;
 use Carp;
-use Config;
+use FIG_Config;
 use FIG;
 use strict;
 use warnings;

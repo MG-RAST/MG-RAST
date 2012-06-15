@@ -1,7 +1,7 @@
 use CGI;
 use JSON;
 
-use Config;
+use FIG_Config;
 
 use WebApplicationDBHandle;
 use DBMaster;
@@ -18,7 +18,7 @@ my $authentication_available = 1;
 if ($error) {
     $authentication_available = 0;
     
-    if ($Config::api_fatal_on_no_auth_db) {
+    if ($FIG_Config::api_fatal_on_no_auth_db) {
 	print $cgi->header(-type => 'text/plain',
 			   -status => 500,
 			   -Access_Control_Allow_Origin => '*' );
@@ -52,7 +52,7 @@ my $cgi_parameters = {};
 # get resource list
 my $resources = [];
 my $resources_hash = {};
-my $resource_path = $Config::api_resource_path;
+my $resource_path = $FIG_Config::api_resource_path;
 if (! $resource_path) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
@@ -147,7 +147,7 @@ if ($resource) {
     if ($resource eq 'about') {
         my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
 	my $content = { id => 'MG-RAST',
-			documentation => $Config::html_url.'/api.html',
+			documentation => $FIG_Config::html_url.'/api.html',
 			contact => 'mg-rast@mcs.anl.gov',
 			resources => \@resource_objects,
 			url => $cgi->url."/" };
@@ -182,7 +182,7 @@ else {
     if ($ENV{HTTP_ACCEPT} eq '*/*') {
 	my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
 	my $content = { id => 'MG-RAST',
-			documentation => $Config::html_url.'/api.html',
+			documentation => $FIG_Config::html_url.'/api.html',
 			contact => 'mg-rast@mcs.anl.gov',
 			resources => \@resource_objects,
 			url => $cgi->url."/" };
@@ -192,7 +192,7 @@ else {
 	print $json->encode($content);
 	exit 0;
     } else {
-	print $cgi->redirect($Config::html_url.'/api.html');
+	print $cgi->redirect($FIG_Config::html_url.'/api.html');
 	exit 0;
     }
 }

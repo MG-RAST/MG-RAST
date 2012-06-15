@@ -213,7 +213,7 @@ sub output {
 }
 
 sub require_javascript {
-	return ["$Config::cgi_url/Html/ModelTable.js"];
+	return ["$FIG_Config::cgi_url/Html/ModelTable.js"];
 }
 
 sub get_interval_genes_list {

@@ -5,7 +5,7 @@ package WebApplicationDBHandle;
 use strict;
 use warnings;
 
-use Config;
+use FIG_Config;
 use DBMaster;
 
 =pod
@@ -32,14 +32,14 @@ Creates a new instance of the WebApplicationDBHandle object.
 
 sub new {
 
-    # get the connection data from Config.pm
+    # get the connection data from FIG_Config.pm
     my $dbmaster;
     eval {
-      $dbmaster = DBMaster->new(-database => $Config::webapplication_db || "WebAppBackend",
-				-host     => $Config::webapplication_host || "localhost",
-				-user     => $Config::webapplication_user || "root",
-				-password => $Config::webapplication_password || "",
-				-socket   => $Config::webapplication_socket || "");
+      $dbmaster = DBMaster->new(-database => $FIG_Config::webapplication_db || "WebAppBackend",
+				-host     => $FIG_Config::webapplication_host || "localhost",
+				-user     => $FIG_Config::webapplication_user || "root",
+				-password => $FIG_Config::webapplication_password || "",
+				-socket   => $FIG_Config::webapplication_socket || "");
     };
 
     if ($@) {
