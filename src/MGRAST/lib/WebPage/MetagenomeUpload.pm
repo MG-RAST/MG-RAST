@@ -13,7 +13,7 @@ use Archive::Tar;
 use FreezeThaw qw( freeze thaw );
 
 use Job48;
-use FIG_Config;
+use Config;
 use WebConfig;
 use base qw( WebPage );
 
@@ -569,7 +569,7 @@ sub finish_submission {
 sub create_new_job_local {
     my ($self, $job) = @_;
     
-    my $jobs_dir = $FIG_Config::mgrast_jobs;
+    my $jobs_dir = $Config::mgrast_jobs;
     my $job_dir  = $jobs_dir . '/' . $job->{jobnumber};
     
     unless (-d $job_dir) {
@@ -655,7 +655,7 @@ sub save_upload_to_incoming {
   
   my $file = File::Temp->new( TEMPLATE => $self->app->session->user->login.'_'.
 			      $self->app->session->session_id.'_XXXXXXX',
-			      DIR => $FIG_Config::mgrast_jobs . '/incoming/',
+			      DIR => $Config::mgrast_jobs . '/incoming/',
 			      SUFFIX => $ext,
 			      UNLINK => 0,
 			    );

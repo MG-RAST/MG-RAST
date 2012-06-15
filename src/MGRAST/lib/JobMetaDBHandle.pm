@@ -5,7 +5,7 @@ package JobMetaDBHandle;
 use strict;
 use warnings;
 
-use FIG_Config;
+use Config;
 use DBMaster;
 
 =pod
@@ -32,13 +32,13 @@ Creates a new instance of the JobMetaDBHandle object.
 
 sub new {
 
-    # get the connection data from FIG_Config.pm
+    # get the connection data from Config.pm
     my $dbmaster;
     eval {
-      $dbmaster = DBMaster->new(-database => $FIG_Config::mgrast_metadata_db || "MGRASTMetadata",
-				-host     => $FIG_Config::mgrast_metadata_host || "localhost",
-				-user     => $FIG_Config::mgrast_metadata_user || "root",
-				-password => $FIG_Config::mgrast_metadata_password || "");
+      $dbmaster = DBMaster->new(-database => $Config::mgrast_metadata_db || "MGRASTMetadata",
+				-host     => $Config::mgrast_metadata_host || "localhost",
+				-user     => $Config::mgrast_metadata_user || "root",
+				-password => $Config::mgrast_metadata_password || "");
     };
 
     if ($@) {

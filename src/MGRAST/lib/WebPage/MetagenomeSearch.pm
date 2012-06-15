@@ -8,7 +8,7 @@ use warnings;
 use URI::Escape;
 use Data::Dumper;
 
-use FIG_Config;
+use Config;
 use MGRAST::Analysis;
 use MGRAST::Metadata;
 
@@ -1397,5 +1397,5 @@ sub get_search_list {
 }
 
 sub require_javascript {
-  return [ "$FIG_Config::cgi_url/Html/MetagenomeSearch.js" ];
+  return [ "$Config::cgi_url/Html/MetagenomeSearch.js" ];
 }

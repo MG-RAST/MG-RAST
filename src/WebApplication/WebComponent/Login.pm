@@ -70,7 +70,7 @@ sub output {
       $content .= "<br>";
       $content .= "<span style='font-size: 8pt;'>Password</span><br>";
       $content .= "<input type=password name=password style='width: 80px;'><input type='submit' style='display: none;'>";
-      $content .="&nbsp;<img src=\"$FIG_Config::cgi_url/Html/login.png\" onclick='document.getElementById(\"login_form\").submit();' title='Login' style='width: 24px; height: 24px; cursor: pointer;'>";
+      $content .="&nbsp;<img src=\"$Config::cgi_url/Html/login.png\" onclick='document.getElementById(\"login_form\").submit();' title='Login' style='width: 24px; height: 24px; cursor: pointer;'>";
       $content .= "<input type='hidden' name='action' value='perform_login'>";
     }
   }
@@ -149,7 +149,7 @@ sub perform_login {
       }
     }
 
-    if ($user->active and ($user->has_right($self->application, 'login') || $FIG_Config::open_gates)) {
+    if ($user->active and ($user->has_right($self->application, 'login') || $Config::open_gates)) {
 
       $self->application->session->user($user);
       
@@ -205,5 +205,5 @@ sub small_login {
 
 
 sub require_css {
-  return "$FIG_Config::cgi_url/Html/Login.css";
+  return "$Config::cgi_url/Html/Login.css";
 }

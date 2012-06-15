@@ -148,24 +148,24 @@ ____END
     # The two templates enable us to create a layout object.
     my $layout = WebLayout->new({ frame => $html, body => $bodyTemplateText });
     # Tell the layout object we need to fix up links.
-    $layout->set_relocation("$FIG_Config::cgi_url/");
+    $layout->set_relocation("$Config::cgi_url/");
     # Create the web-application object.
     # We pass the CGI object so that the correct parameters are
     # available.
     my $retVal = WebApplication::new($class,
                                       { id       => $applicationID,
                                         cgi      => $cgi,
-                                        dbmaster => DBMaster->new(-database => $FIG_Config::webapplication_db,
-                                                                  -host     => $FIG_Config::webapplication_host,
-                                                                  -user     => $FIG_Config::webapplication_user,
-                                                                  -password => $FIG_Config::webapplication_password),
+                                        dbmaster => DBMaster->new(-database => $Config::webapplication_db,
+                                                                  -host     => $Config::webapplication_host,
+                                                                  -user     => $Config::webapplication_user,
+                                                                  -password => $Config::webapplication_password),
                                         menu     =>  $menu,
                                         layout   =>  $layout,
                                         default  => $defaultPage,
                                       } );
     # Denote we're the NMPDR.
     $retVal->page_title_prefix("$appName ");
-    $retVal->url("$FIG_Config::cgi_url/wiki/rest.cgi/NmpdrPlugin/$applicationID");
+    $retVal->url("$Config::cgi_url/wiki/rest.cgi/NmpdrPlugin/$applicationID");
     # Return the object.
     return $retVal;
 }

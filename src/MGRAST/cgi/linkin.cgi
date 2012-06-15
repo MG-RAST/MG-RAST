@@ -7,7 +7,7 @@ use WebMenu;
 use WebLayout;
 use WebConfig;
 
-use FIG_Config;
+use Config;
 
 eval {
     &main;

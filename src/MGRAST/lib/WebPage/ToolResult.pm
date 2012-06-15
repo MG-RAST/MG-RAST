@@ -37,9 +37,9 @@ sub output {
         my $peg1 = $cgi->param('peg1');
 	my $peg2 = $cgi->param('peg2');
         my $job_id1 = time() - 1;
-        my $temp_file1 = "$FIG_Config::temp/$job_id1.seq1.fasta";
-	my $temp_file2 = "$FIG_Config::temp/$job_id1.seq2.fasta";
-	my $temp_out = "$FIG_Config::temp/$job_id1.out";
+        my $temp_file1 = "$Config::temp/$job_id1.seq1.fasta";
+	my $temp_file2 = "$Config::temp/$job_id1.seq2.fasta";
+	my $temp_out = "$Config::temp/$job_id1.out";
         open(OUT,">$temp_file1");
 	my $seq = $fig->get_translation($peg1);
 	print OUT ">$peg1\n$seq\n";
@@ -50,7 +50,7 @@ sub output {
 	print OUT ">$peg2\n$seq\n";
         close OUT;
 
-	system("$FIG_Config::ext_bin/bl2seq -p blastp -i $temp_file1 -j $temp_file2 > $temp_out");
+	system("$Config::ext_bin/bl2seq -p blastp -i $temp_file1 -j $temp_file2 > $temp_out");
 	open (FH, $temp_out);
 	while (my $line = <FH>){
 	    if ($line =~ /Expect =/){
@@ -68,9 +68,9 @@ sub output {
 	my $seq_id = $cgi->param('seq_id');
 	my $seq = $cgi->param('seq');
         my $job_id1 = time() - 1;
-        my $temp_file1 = "$FIG_Config::temp/$job_id1.seq1.fasta";
-	my $temp_file2 = "$FIG_Config::temp/$job_id1.seq2.fasta";
-	my $temp_out = "$FIG_Config::temp/$job_id1.out";
+        my $temp_file1 = "$Config::temp/$job_id1.seq1.fasta";
+	my $temp_file2 = "$Config::temp/$job_id1.seq2.fasta";
+	my $temp_out = "$Config::temp/$job_id1.out";
 
 	open(OUT,">$temp_file1");
 	print OUT ">$seq_id\n$seq\n";
@@ -81,7 +81,7 @@ sub output {
 	print OUT ">$peg\n$pegseq\n";
 	close OUT;
 
-	system("$FIG_Config::ext_bin/bl2seq -p blastx -i $temp_file1 -j $temp_file2 > $temp_out");
+	system("$Config::ext_bin/bl2seq -p blastx -i $temp_file1 -j $temp_file2 > $temp_out");
 	open (FH, $temp_out);
 	while (my $line = <FH>){
 	    if ($line =~ /Expect =/){

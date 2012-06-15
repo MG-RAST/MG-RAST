@@ -8,7 +8,7 @@ use warnings;
 use FIG;
 use FIGV;
 use PinnedRegions;
-use FIG_Config;
+use Config;
 use BasicLocation;
 use SeedViewer::SeedViewer;
 
@@ -63,8 +63,8 @@ sub new {
     $self->{show_genomes}           = [];
     $self->{number_of_sims}         = 2;
     $self->{number_of_pch_pins}     = 2;
-    $self->{collapse_close_genomes} = (defined($FIG_Config::collapse_close_genomes) ?
-				       $FIG_Config::collapse_close_genomes :
+    $self->{collapse_close_genomes} = (defined($Config::collapse_close_genomes) ?
+				       $Config::collapse_close_genomes :
 				       1);
     $self->{sims_from}              = 'blast';
     $self->{sim_cutoff}             = 1e-20;
@@ -341,7 +341,7 @@ sub output {
 
 sub require_javascript {
     
-    return ["$FIG_Config::cgi_url/Html/RegionDisplay.js"];
+    return ["$Config::cgi_url/Html/RegionDisplay.js"];
 }
 
 sub pinned_regions_form {
@@ -459,7 +459,7 @@ sub pinned_regions_form {
     # create a button for the chromosomal clusters page if this is an annotator
     my $clusters_button = "";
     my $org = $fig->genome_of($pegs->[0]);
-    if ($FIG_Config::anno3_mode || (ref($fig) eq 'FIGV') || ((ref($fig) eq 'FIGM') && exists($fig->{_figv_cache}->{$org}))) {
+    if ($Config::anno3_mode || (ref($fig) eq 'FIGV') || ((ref($fig) eq 'FIGM') && exists($fig->{_figv_cache}->{$org}))) {
 	# print STDERR ref($self->application->session->user) . " " . $self->application->session->user->has_right(undef, 'annotate', 'genome', $org) . "\n";
       if ($self->application->session->user && user_can_annotate_genome($self->application, $org)) {
 	$clusters_button = "<td><input type='button' class='button' value='annotate clusters' onclick='document.getElementById(\"cc_data\").value=table_extract_data(\"".$self->application->component('pinned_region_table')->id."\", \"9~0~more\", 1);document.forms.cc_form.submit();'>".$self->application->page->start_form('cc_form', { page => 'ChromosomalClusters' }, '_blank')."<input type='hidden' name='cc_data' value='' id='cc_data'>".$self->application->page->end_form."</td>";

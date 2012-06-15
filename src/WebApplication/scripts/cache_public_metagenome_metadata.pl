@@ -3,14 +3,14 @@ use strict;
 use warnings;
 
 use MGRAST::Metadata;
-use FIG_Config;
+use Config;
 use DBMaster;
 
 # get the data connections
-my $mgrast = DBMaster->new( -database => $FIG_Config::mgrast_jobcache_db || 'JobCacheMGRast',
-			    -host     => $FIG_Config::mgrast_jobcache_host,
-			    -user     => $FIG_Config::mgrast_jobcache_user,
-			    -password => $FIG_Config::mgrast_jobcache_password );
+my $mgrast = DBMaster->new( -database => $Config::mgrast_jobcache_db || 'JobCacheMGRast',
+			    -host     => $Config::mgrast_jobcache_host,
+			    -user     => $Config::mgrast_jobcache_user,
+			    -password => $Config::mgrast_jobcache_password );
 
 my $metadata = MGRAST::Metadata->new()->{_handle};
 
@@ -63,7 +63,7 @@ $string_data = join('##', @$rows);
 
 $self->{data} = $string_data;
 
-if (open(FH, ">".$FIG_Config::temp."/mgs_temp_data")) {
+if (open(FH, ">".$Config::temp."/mgs_temp_data")) {
   print FH $string_data;
   close FH;
 }

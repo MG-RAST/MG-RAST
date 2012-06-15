@@ -5,7 +5,7 @@ package JobDBHandle;
 use strict;
 use warnings;
 
-use FIG_Config;
+use Config;
 use DBMaster;
 
 =pod
@@ -32,13 +32,13 @@ Creates a new instance of the JobDBHandle object.
 
 sub new {
 
-    # get the connection data from FIG_Config.pm
+    # get the connection data from Config.pm
     my $dbmaster;
     eval {
-      $dbmaster = DBMaster->new(-database => $FIG_Config::mgrast_jobcache_db || "jobcache_MG_prod",
-				-host     => $FIG_Config::mgrast_host || "localhost",
-				-user     => $FIG_Config::mgrast_user || "root",
-				-password => $FIG_Config::mgrast_password || "");
+      $dbmaster = DBMaster->new(-database => $Config::mgrast_jobcache_db || "jobcache_MG_prod",
+				-host     => $Config::mgrast_host || "localhost",
+				-user     => $Config::mgrast_user || "root",
+				-password => $Config::mgrast_password || "");
     };
 
     if ($@) {

@@ -670,11 +670,11 @@ sub GetYCoord {
 }
 
 sub require_javascript {
-    return ["$FIG_Config::cgi_url/Html/VennDiagram.js"];
+    return ["$Config::cgi_url/Html/VennDiagram.js"];
 }
 
 #sub require_css {
-#    return "$FIG_Config::cgi_url/Html/VennDiagram.css";
+#    return "$Config::cgi_url/Html/VennDiagram.css";
 #}
 
 sub width {

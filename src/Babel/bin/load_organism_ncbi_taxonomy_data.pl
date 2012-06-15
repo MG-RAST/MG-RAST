@@ -7,15 +7,15 @@ use Data::Dumper;
 use Getopt::Long;
 use List::Util qw(max min sum first);
 
-use FIG_Config;
+use Config;
 use Babel::lib::Babel;
 
 my $usage       = "$0 [--verbose] [--dbname NAME] [--dbuser USER] [--dbhost HOST] --taxonomy TAXPONOMY_FILE\n";
 my $source_file = '';
 my $verbose     = '';
-my $dbname      = $FIG_Config::babel_db;
-my $dbuser      = $FIG_Config::babel_dbuser;
-my $dbhost      = $FIG_Config::babel_dbhost;
+my $dbname      = $Config::babel_db;
+my $dbuser      = $Config::babel_dbuser;
+my $dbhost      = $Config::babel_dbhost;
 
 my $order = [ "superkingdom", "kingdom", "phylum", "class", "order", "family", "genus", "species" ];
 

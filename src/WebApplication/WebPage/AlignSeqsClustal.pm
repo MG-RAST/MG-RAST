@@ -2,7 +2,7 @@ package WebPage::AlignSeqsClustal;
 
 use base qw( WebPage );
 
-use FIG_Config;
+use Config;
 
 use URI::Escape;
 
@@ -59,7 +59,7 @@ sub init {
 
 #sub require_javascript {
 
-#  return [ "$FIG_Config::cgi_url/Html/showfunctionalroles.js" ];
+#  return [ "$Config::cgi_url/Html/showfunctionalroles.js" ];
 
 #}
 

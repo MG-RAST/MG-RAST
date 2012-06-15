@@ -192,7 +192,7 @@ sub output {
     }
     $select .= "</tr></table>";
   }
-  $select .= "<img src='$FIG_Config::cgi_url/Html/clear.gif' onload='initialize_filter_select(\"" . $self->html_id() . "\");' />";
+  $select .= "<img src='$Config::cgi_url/Html/clear.gif' onload='initialize_filter_select(\"" . $self->html_id() . "\");' />";
   
   return $select;
 }
@@ -411,5 +411,5 @@ sub html_id {
     
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/FilterSelect.js"];
+  return ["$Config::cgi_url/Html/FilterSelect.js"];
 }

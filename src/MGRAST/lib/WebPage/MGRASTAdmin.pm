@@ -9,7 +9,7 @@ no warnings qw(uninitialized);
 use WebComponent::WebGD;
 use WebConfig;
 use Data::Dumper;
-use FIG_Config;
+use Config;
 use MGRAST::Analysis;
 use MGRAST::Metadata;
 use MGRAST::MGRASTStatistics;
@@ -1058,7 +1058,7 @@ sub require_css {
 }
 
 sub require_javascript {
-  return [ "$FIG_Config::cgi_url/Html/MGRASTAdmin.js", "$FIG_Config::cgi_url/Html/rgbcolor.js", "https://www.google.com/jsapi" ];
+  return [ "$Config::cgi_url/Html/MGRASTAdmin.js", "$Config::cgi_url/Html/rgbcolor.js", "https://www.google.com/jsapi" ];
 }
 
 sub required_rights {

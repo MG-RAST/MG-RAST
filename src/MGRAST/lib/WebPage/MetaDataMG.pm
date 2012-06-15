@@ -5,7 +5,7 @@ use warnings;
 use Data::Dumper;
 
 use MGRAST::Metadata;
-use FIG_Config;
+use Config;
 use base qw( WebPage );
 
 sub init {
@@ -48,7 +48,7 @@ sub init {
   # set config file
   my $template = "MetaData";
   if ( $self->app->cgi->param('template') ) { $template = $self->app->cgi->param('template'); }
-  my $config = $FIG_Config::mgrast_formWizard_templates . "/FormWizard_$template.xml";
+  my $config = $Config::mgrast_formWizard_templates . "/FormWizard_$template.xml";
   unless (-f $config) { $self->app->add_message('warning', "No template file $config"); }
 
   # prefill form
@@ -155,7 +155,7 @@ comparative analyses, interpretation of results, and integration of metagenomic 
 <table><tr>
   <td valign="center">
     <a onclick="switch_display('description');" style="cursor:pointer;color:blue">
-    <img id="expand_img" src="$FIG_Config::cgi_url/Html/MGRAST-upload.png" width="50%"></a>
+    <img id="expand_img" src="$Config::cgi_url/Html/MGRAST-upload.png" width="50%"></a>
   </td><td style="vertical-align:middle;" id="expand_text">
     Please fill out the form below for your metagenome. You can
     <a onclick="switch_display('description');" style="cursor:pointer;color:blue">upload</a>

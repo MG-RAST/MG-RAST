@@ -381,9 +381,9 @@ sub initial_columns {
 }
 
 sub require_javascript {
-    return ["$FIG_Config::cgi_url/Html/DisplayListSelect.js", "$FIG_Config::cgi_url/Html/PopupTooltip.js"];
+    return ["$Config::cgi_url/Html/DisplayListSelect.js", "$Config::cgi_url/Html/PopupTooltip.js"];
 }
 
 sub require_css {
-    return "$FIG_Config::cgi_url/Html/DisplayListSelect.css";
+    return "$Config::cgi_url/Html/DisplayListSelect.css";
 }

@@ -8,17 +8,17 @@ use Data::Dumper;
 use XML::Simple;
 use Getopt::Long;
 
-use FIG_Config;
+use Config;
 use Babel::lib::Babel;
 
 my $usage       = "$0 [--verbose] [--dbtype TYPE] [--dbname NAME] [--dbuser USER] [--dbhost HOST] --subsystem SUBSYSTEM_FILE\n";
 my $source_file = '';
 my $verbose     = '';
 my $source      = "SEED";
-my $dbname      = $FIG_Config::babel_db;
-my $dbuser      = $FIG_Config::babel_dbuser;
-my $dbhost      = $FIG_Config::babel_dbhost;
-my $dbtype      = $FIG_Config::babel_dbtype;
+my $dbname      = $Config::babel_db;
+my $dbuser      = $Config::babel_dbuser;
+my $dbhost      = $Config::babel_dbhost;
+my $dbtype      = $Config::babel_dbtype;
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit; }
 if ( ! GetOptions("verbose!"    => \$verbose,

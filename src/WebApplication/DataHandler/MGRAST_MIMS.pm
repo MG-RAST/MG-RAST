@@ -10,7 +10,7 @@ use warnings;
 use base qw( DataHandler );
 
 use DBMaster;
-use FIG_Config;
+use Config;
 
 
 =pod
@@ -22,7 +22,7 @@ DataHandler::RAST - data handler to the PPO RAST database
 =head1 DESCRIPTION
 
 This module returns the DBMaster object to the RAST database stored in the root
-job directory of a RAST server. It requires the FIG_Config.pm to specify the  
+job directory of a RAST server. It requires the Config.pm to specify the  
 $rast_jobs directory.
 
 Refer to WebApplication/DataHandler.pm for the full documentation.
@@ -44,11 +44,11 @@ sub handle {
   
     eval {
        $_[0]->{_handle} = DBMaster->new( -database => "MG_RAST_MIMS",
- 					# -host     => $FIG_Config::mgrast_ontology_dbhost,
- 					# -user     => $FIG_Config::mgrast_dbuser,
+ 					# -host     => $Config::mgrast_ontology_dbhost,
+ 					# -user     => $Config::mgrast_dbuser,
  					-backend  => 'MySQL',
 				      );
-   #    $_[0]->{_handle} = DBMaster->new( -database => $FIG_Config::mgrast_ontology,
+   #    $_[0]->{_handle} = DBMaster->new( -database => $Config::mgrast_ontology,
 					
 # 				      );
     };

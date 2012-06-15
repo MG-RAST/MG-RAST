@@ -137,7 +137,7 @@ sub output {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/ModelTable.js"];
+  return ["$Config::cgi_url/Html/ModelTable.js"];
 }
 
 

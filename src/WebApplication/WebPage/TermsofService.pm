@@ -5,7 +5,7 @@ use base qw( WebPage );
 use strict;
 use warnings;
 
-use FIG_Config;
+use Config;
 
 1;
 
@@ -26,7 +26,7 @@ sub output {
   my $cgi = $application->cgi();
   my $user = $application->session->user();
     
-  my $version = $FIG_Config::require_terms_of_service;
+  my $version = $Config::require_terms_of_service;
   
   my $html = "";
 
@@ -96,15 +96,15 @@ sub check_terms {
   if ($user && $master && $cgi->param('iagree')) {
     my $pref = $master->Preferences->get_objects( { user => $user,
 						    name => 'AgreeTermsOfService' } );
-    if (scalar(@$pref) && $pref->[0]->value >= $FIG_Config::require_terms_of_service) {
+    if (scalar(@$pref) && $pref->[0]->value >= $Config::require_terms_of_service) {
       $application->add_message('info', "You had already agreed to the terms of service.");
     } else {
       if (scalar(@$pref)) {
-	$pref->[0]->value($FIG_Config::require_terms_of_service);
+	$pref->[0]->value($Config::require_terms_of_service);
       } else {
 	$pref = $master->Preferences->create( { user => $user,
 						name => 'AgreeTermsOfService',
-						value => $FIG_Config::require_terms_of_service } );
+						value => $Config::require_terms_of_service } );
 	if ($pref) {
 	  if ($cgi->param('nih')) {
 	    $master->Preferences->create( { user => $user,

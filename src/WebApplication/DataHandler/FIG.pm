@@ -12,7 +12,7 @@ use base qw( DataHandler );
 use FIG;
 use FIGV;
 use FIGM;
-use FIG_Config;
+use Config;
 use SFXlate;
 use FIGRules;
 
@@ -39,8 +39,8 @@ be a SFXlate FIGV or a FIG FIGV.
 Return the object to be used by the application to access FIG data. The object will
 implement most or all of the methods in [[FigPm]].
 
-In most cases, the FIG_Config will determine whether your get an SFXlate object
-or a FIG object. If C<$FIG_Config::nmpdr_mode> is TRUE, you get SFXlate. If it's
+In most cases, the Config will determine whether your get an SFXlate object
+or a FIG object. If C<$Config::nmpdr_mode> is TRUE, you get SFXlate. If it's
 FALSE, you get FIG.
 
 If you're using RAST or MG-RAST, the FIG or SFXlate object will be converted into
@@ -96,7 +96,7 @@ sub handle {
     } elsif ($mode eq 'Sprout') {
       $self->{_fig} = SFXlate->new();
     } elsif ($mode eq 'SproutRewind') {
-      $self->{_fig} = SFXlate->new(undef, $FIG_Config::oldSproutDB, undef, $FIG_Config::oldSproutDBD);
+      $self->{_fig} = SFXlate->new(undef, $Config::oldSproutDB, undef, $Config::oldSproutDBD);
     } else {
       $self->{_fig} = FIGV->new($dir, $mode);
     }
@@ -106,7 +106,7 @@ sub handle {
   if (exists($self->{_figm})) {
     return $self->{_figm};
   }
-  if ($FIG_Config::rast_jobs && $self->application->session->user) {
+  if ($Config::rast_jobs && $self->application->session->user) {
     my $application = $self->application;
     my $user = $application->session->user;
     my $master = $application->dbmaster;
@@ -160,7 +160,7 @@ sub handle {
 	    push(@$not_found, $pref->value);
 	  }
 	}
-	push(@fig_m_dirs, map { $FIG_Config::rast_jobs . "/" . $_ } @$fig_m_orgs);
+	push(@fig_m_dirs, map { $Config::rast_jobs . "/" . $_ } @$fig_m_orgs);
 	
       }
       if (scalar(@fig_m_dirs)) {
@@ -193,10 +193,10 @@ sub handle {
   }
 
   # if this has a mgrast_jobs directory it might be in there
-  if ($FIG_Config::mgrast_jobs) {
+  if ($Config::mgrast_jobs) {
 
     # no rast on anno3, even if config variable exists
-    unless ($FIG_Config::anno3_mode) {
+    unless ($Config::anno3_mode) {
       
       # nope, check if we have a RAST job directory
       my $jobs_dbm = $self->application->data_handle('MGRAST');

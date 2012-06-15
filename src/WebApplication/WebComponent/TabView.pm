@@ -220,7 +220,7 @@ sub output {
 		$onload .= "'";
 	}
 
-    $tabview .= "\n<img src='$FIG_Config::cgi_url/Html/clear.gif' $onload>\n";
+    $tabview .= "\n<img src='$Config::cgi_url/Html/clear.gif' $onload>\n";
 
     return $tabview;
 }
@@ -375,9 +375,9 @@ sub dynamic {
 }
 
 sub require_css {
-  return "$FIG_Config::cgi_url/Html/TabView.css";
+  return "$Config::cgi_url/Html/TabView.css";
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/TabView.js"];
+  return ["$Config::cgi_url/Html/TabView.js"];
 }

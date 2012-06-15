@@ -183,9 +183,9 @@ sub toggle_type {
 }
 
 sub require_css {
-  return "$FIG_Config::cgi_url/Html/ToggleButton.css";
+  return "$Config::cgi_url/Html/ToggleButton.css";
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/ToggleButton.js"];
+  return ["$Config::cgi_url/Html/ToggleButton.js"];
 }

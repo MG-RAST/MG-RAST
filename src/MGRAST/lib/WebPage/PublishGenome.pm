@@ -200,12 +200,12 @@ sub publish {
 }
 
 sub download_template {
-  my $fn = $FIG_Config::html_base.'/'.$FIG_Config::mgrast_metadata_template;
+  my $fn = $Config::html_base.'/'.$Config::mgrast_metadata_template;
 
   if (open(FH, $fn)) {
     print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
     print "Content-Length: " . (stat($fn))[7] . "\n";
-    print "Content-Disposition:attachment;filename=".$FIG_Config::mgrast_metadata_template."\n\n";
+    print "Content-Disposition:attachment;filename=".$Config::mgrast_metadata_template."\n\n";
     while (<FH>) {
       print $_;
     }

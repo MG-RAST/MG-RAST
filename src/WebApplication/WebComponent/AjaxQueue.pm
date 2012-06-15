@@ -75,5 +75,5 @@ sub add_ajax {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/AjaxQueue.js"];
+  return ["$Config::cgi_url/Html/AjaxQueue.js"];
 }

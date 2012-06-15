@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 
-use FIG_Config;
+use Config;
 
 1;
 
@@ -22,7 +22,7 @@ sub create_project {
 
   # create project
   my $nid  = $master->Project->last_id + 1;
-  my $pdir = $FIG_Config::mgrast_projects;
+  my $pdir = $Config::mgrast_projects;
   while (-d "$pdir/$nid") {
     $nid++;
   }
@@ -41,10 +41,10 @@ sub create_project {
 
   # create rights
   # Connect to User/Rights DB
-  my $webappdb = DBMaster->new(-database => $FIG_Config::webapplication_db,
-			       -backend  => $FIG_Config::webapplication_backend,
-			       -host     => $FIG_Config::webapplication_host,
-			       -user     => $FIG_Config::webapplication_user,
+  my $webappdb = DBMaster->new(-database => $Config::webapplication_db,
+			       -backend  => $Config::webapplication_backend,
+			       -host     => $Config::webapplication_host,
+			       -user     => $Config::webapplication_user,
 			      );
   foreach my $right (('view', 'edit', 'delete')) {
     $webappdb->Rights->create( { application => undef,
@@ -249,10 +249,10 @@ sub add_job {
 
   unless ($noscope) {
     # Connect to User/Rights DB
-    my $webappdb = DBMaster->new(-database => $FIG_Config::webapplication_db,
-				 -backend  => $FIG_Config::webapplication_backend,
-				 -host     => $FIG_Config::webapplication_host,
-				 -user     => $FIG_Config::webapplication_user,
+    my $webappdb = DBMaster->new(-database => $Config::webapplication_db,
+				 -backend  => $Config::webapplication_backend,
+				 -host     => $Config::webapplication_host,
+				 -user     => $Config::webapplication_user,
 				);
     my $pscope = $webappdb->Scope->init( { application => undef,
 					   name => 'MGRAST_project_'.$self->id } );
@@ -308,10 +308,10 @@ sub remove_job {
 
   unless ($noscope) {
     # Connect to User/Rights DB
-    my $webappdb = DBMaster->new(-database => $FIG_Config::webapplication_db,
-				 -backend  => $FIG_Config::webapplication_backend,
-				 -host     => $FIG_Config::webapplication_host,
-				 -user     => $FIG_Config::webapplication_user,
+    my $webappdb = DBMaster->new(-database => $Config::webapplication_db,
+				 -backend  => $Config::webapplication_backend,
+				 -host     => $Config::webapplication_host,
+				 -user     => $Config::webapplication_user,
 				);
     my $pscope = $webappdb->Scope->init( { application => undef,
 					   name => 'MGRAST_project_'.$self->id } );

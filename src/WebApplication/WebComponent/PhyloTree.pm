@@ -9,7 +9,7 @@ use base qw( WebComponent );
 
 1;
 
-use FIG_Config;
+use Config;
 use GD;
 use GD::Polyline;
 use WebComponent::WebGD;
@@ -750,7 +750,7 @@ sub output {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/PhyloTree.js"];
+  return ["$Config::cgi_url/Html/PhyloTree.js"];
 }
 
 =item * B<colors> ()

@@ -51,7 +51,7 @@ sub new {
   $connect .= ";host=$host" if ($host);
   $connect .= ";port=$port" if ($port);
   $connect .= ";mysql_socket=$socket" if ($socket);
-  my $dbsock = $FIG_Config::dbsock;
+  my $dbsock = $Config::dbsock;
   $connect .= ";mysql_socket=$dbsock" if ($dbsock);
   $user = (defined $user) ? $user : '';
   $password = (defined $password) ? $password : '';

@@ -9,7 +9,7 @@ use base qw( WebComponent );
 
 use File::Temp;
 
-use FIG_Config;
+use Config;
 use WebComponent::WebGD;
 
 use WebColors;
