@@ -15,14 +15,12 @@ GetOptions( 'file=s' => \$file,
 # average_length, standard_deviation_length, average_gc_content, standard_deviation_gc_content,
 # average_gc_ratio, standard_deviation_gc_ratio, ambig_char_count, ambig_sequence_count, average_ambig_chars
 
-my $bin = "/mcs/bio/mg-rast/prod/bin";
-
 my $filetype = "";
 if ($file_format eq 'fastq') {
   $filetype = " -t fastq"
 }
 
-my @stats = `$bin/seq_length_stats.py -i '$dir/$file'$filetype -s`;
+my @stats = `seq_length_stats.py -i '$dir/$file'$filetype -s`;
 chomp @stats;
 
 my $report = {};
@@ -32,7 +30,7 @@ foreach my $stat (@stats) {
 }
 my $header = `head -1 '$dir/$file'`;
 my $options = '-s '.$report->{sequence_count}.' -a '.$report->{average_length}.' -d '.$report->{standard_deviation_length}.' -m '.$report->{length_max};
-my $method = `$bin/tech_guess -f '$header' $options`;
+my $method = `tech_guess -f '$header' $options`;
 
 my $success = 1;
 my $message = "";
