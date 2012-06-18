@@ -639,17 +639,31 @@ sub add_template_to_data {
     map { $data->{$_} = '' } grep { ! exists($data->{$_}) } @all_fields;
   }
 
+  my $misc = 0;
   while ( my ($tag, $val) = each %$data ) {
-    next unless (exists $template->{$cat}{$tag});
+    my $ttag = '';
     $val = clean_value($val);
-    next unless ($all || $template->{$cat}{$tag}{required} || (defined($val) && ($val =~ /\S/)));
+    if (! exists $template->{$cat}{$tag}) {
+      next unless (defined($val) && ($val =~ /\S/));
+      if ($tag =~ /^misc_param_/) {
+	$ttag = 'misc_param';
+      } else {
+	$misc += 1;
+	$val  = $tag.': '.$val;
+	$tag  = 'misc_param_'.$misc;
+	$ttag = 'misc_param';
+      }
+    } else {
+      $ttag = $tag;
+    }
+    next unless ($all || $template->{$cat}{$ttag}{required} || (defined($val) && ($val =~ /\S/)));
     $t_data->{$tag}{value} = $val;
-    $t_data->{$tag}{unit}  = $template->{$cat}{$tag}{unit};
-    $t_data->{$tag}{type}  = $template->{$cat}{$tag}{type};
-    $t_data->{$tag}{mixs}  = $template->{$cat}{$tag}{mixs};
-    $t_data->{$tag}{required}   = $template->{$cat}{$tag}{required};
-    $t_data->{$tag}{definition} = $template->{$cat}{$tag}{definition};
-    foreach my $alias (($template->{$cat}{$tag}{mgrast_tag}, $template->{$cat}{$tag}{qiime_tag})) {
+    $t_data->{$tag}{unit}  = $template->{$cat}{$ttag}{unit};
+    $t_data->{$tag}{type}  = $template->{$cat}{$ttag}{type};
+    $t_data->{$tag}{mixs}  = $template->{$cat}{$ttag}{mixs};
+    $t_data->{$tag}{required}   = $template->{$cat}{$ttag}{required};
+    $t_data->{$tag}{definition} = $template->{$cat}{$ttag}{definition};
+    foreach my $alias (($template->{$cat}{$ttag}{mgrast_tag}, $template->{$cat}{$ttag}{qiime_tag})) {
       if ($alias && ($alias ne $tag)) {
 	push @{ $t_data->{$tag}{aliases} }, $alias;
       }
