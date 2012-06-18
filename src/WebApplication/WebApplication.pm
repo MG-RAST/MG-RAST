@@ -17,7 +17,7 @@ use WebConfig;
 use WebPage::Error;
 use WebApplicationDBHandle;
 
-use FIG_Config;
+use Conf;
 
 1;
 
@@ -143,9 +143,9 @@ sub new {
 	       no_bot      => 0,
 	       bot_no_follow => 0,
 	       strict_browser => 0,
-	       anonymous_mode => $FIG_Config::anonymous_mode || 0,
+	       anonymous_mode => $Conf::anonymous_mode || 0,
                transmitted  => 0,
-	       require_terms_of_service => $FIG_Config::require_terms_of_service || 0,
+	       require_terms_of_service => $Conf::require_terms_of_service || 0,
 	       in_request => 0,
 	       js_init_functions => [],
 	     };
@@ -742,7 +742,7 @@ sub add_message {
     } else {
       $div_id = 'info';
     }
-    $msg .= "<img src=\"$FIG_Config::cgi_url/Html/clear.gif\" onload='fade(\"" . $div_id . "\", ". $fadetimer . ");'>";
+    $msg .= "<img src=\"$Conf::cgi_url/Html/clear.gif\" onload='fade(\"" . $div_id . "\", ". $fadetimer . ");'>";
   }
   
   push @{$self->{'messages'}->{$type}}, $msg;
@@ -1136,12 +1136,12 @@ sub check_requirements {
   # include IE compatibility script and style
   my $user_agent = $ENV{HTTP_USER_AGENT};
   if ($user_agent && $user_agent =~ /MSIE/) {
-    $self->layout->add_css_reverse("$FIG_Config::cgi_url/Html/ie7-css.css");
-    $js->{"$FIG_Config::cgi_url/Html/ie7-standard-p.js"} = 1;
+    $self->layout->add_css_reverse("$Conf::cgi_url/Html/ie7-css.css");
+    $js->{"$Conf::cgi_url/Html/ie7-standard-p.js"} = 1;
   }
 
   # include message fade script
-  $js->{"$FIG_Config::cgi_url/Html/fade.js"} = 1;
+  $js->{"$Conf::cgi_url/Html/fade.js"} = 1;
 
   # Depth-first addition of ordered JS and CSS files 
   my $obj = $self->page();
@@ -1434,7 +1434,7 @@ sub run {
 	print STDERR "Fallback to default failed: $@ \n";
 	print STDERR "Last errors: $! \n";
 	print STDERR "$last_error \n";
-	if ($FIG_Config::developer_mode)
+	if ($Conf::developer_mode)
 	{
 	    $self->error("<h2>Error loading page module for $page.</h2>\n$@");
 	}

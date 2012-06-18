@@ -11,7 +11,7 @@ use base qw( DataHandler );
 
 use DBMaster;
 use DBrtns;
-use FIG_Config;
+use Conf;
 
 
 =pod
@@ -23,7 +23,7 @@ DataHandler::ACH - data handler to the PPO ACH database
 =head1 DESCRIPTION
 
 This module returns the DBMaster object to the ACH database stored in the root
-job directory of a ACH server. It requires the FIG_Config.pm to specify the  
+job directory of a ACH server. It requires the Conf.pm to specify the  
 $rast_jobs directory.
 
 Refer to WebApplication/DataHandler.pm for the full documentation.
@@ -50,8 +50,8 @@ sub handle {
     my $dbsock  = "";
     my $dbpass  = "";
     
-    defined($dbhost) ? $dbhost : $FIG_Config::dbhost;
-    $dbsock = defined($dbsock) ? $dbsock : $FIG_Config::dbsock;
+    defined($dbhost) ? $dbhost : $Conf::dbhost;
+    $dbsock = defined($dbsock) ? $dbsock : $Conf::dbsock;
     my $type    = "SQL";  # use type to select the access methods
     
     if ($WebConfig::ACHDB){
@@ -64,19 +64,19 @@ sub handle {
       $dbsock  = $WebConfig::ACHDBSOCK    if ($WebConfig::ACHDBSOCK);
       $dbport  = $WebConfig::ACHDBPORT    if ($WebConfig::ACHDBPORT);
     }
-    elsif ($FIG_Config::ACHDB) {
-      $user    = $FIG_Config::ACHUSER      || "seed" ;
-      $dbpass  = $FIG_Config::ACHDBPASS    || "" ;
-      $db      = $FIG_Config::ACHDB;
-      $dbhost  = $FIG_Config::ACHDBHOST;
-      $backend = $FIG_Config::ACHDBBACKEND || "MySQL";
-      $type    = $FIG_Config::ACHDBPTYPE   if  ($FIG_Config::ACHDBTYPE);
-      $dbsock  = $FIG_Config::ACHDBSOCK    if ($FIG_Config::ACHDBSOCK);
-      $dbport  = $FIG_Config::ACHDBPORT    if ($FIG_Config::ACHDBPORT);
+    elsif ($Conf::ACHDB) {
+      $user    = $Conf::ACHUSER      || "seed" ;
+      $dbpass  = $Conf::ACHDBPASS    || "" ;
+      $db      = $Conf::ACHDB;
+      $dbhost  = $Conf::ACHDBHOST;
+      $backend = $Conf::ACHDBBACKEND || "MySQL";
+      $type    = $Conf::ACHDBPTYPE   if  ($Conf::ACHDBTYPE);
+      $dbsock  = $Conf::ACHDBSOCK    if ($Conf::ACHDBSOCK);
+      $dbport  = $Conf::ACHDBPORT    if ($Conf::ACHDBPORT);
 
     }
     else{
-      	warn "Unable to read DataHandler::ACH database: can't find FIG_Config.pm or ACH.pm\n";
+      	warn "Unable to read DataHandler::ACH database: can't find Conf.pm or ACH.pm\n";
 	return undef;
     }
 

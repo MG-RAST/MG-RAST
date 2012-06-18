@@ -8,7 +8,7 @@ use warnings;
 use base qw( WebComponent );
 
 use DBI;
-use FIG_Config;
+use Conf;
 
 1;
 
@@ -257,9 +257,9 @@ sub dbh {
   my ($self) = @_;
 
   my $db = $self->job_db;
-  my $host = $FIG_Config::mgrast_metadata_host || "";
-  my $user = $FIG_Config::mgrast_metadata_user || "root";
-  my $password = $FIG_Config::mgrast_metadata_password || "";
+  my $host = $Conf::mgrast_metadata_host || "";
+  my $user = $Conf::mgrast_metadata_user || "root";
+  my $password = $Conf::mgrast_metadata_password || "";
 
   my $connect = "DBI:mysql:database=$db";
   $connect .= ";host=$host" if ($host);
@@ -277,10 +277,10 @@ sub dbh {
 sub dbh_data {
   my ($self) = @_;
 
-  my $db = $self->data_db || $FIG_Config::mgrast_db ;
-  my $host = $FIG_Config::mgrast_dbhost || "";
-  my $user = $FIG_Config::mgrast_dbuser || "root";
-  my $password = $FIG_Config::mgrast_password || "";
+  my $db = $self->data_db || $Conf::mgrast_db ;
+  my $host = $Conf::mgrast_dbhost || "";
+  my $user = $Conf::mgrast_dbuser || "root";
+  my $password = $Conf::mgrast_password || "";
 
 
   my $connect = "DBI:Pg:dbname=$db";

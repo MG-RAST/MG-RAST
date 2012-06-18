@@ -5,7 +5,7 @@ use warnings;
 
 use base qw( WebPage );
 
-use FIG_Config;
+use Conf;
 use Data::Dumper;
 
 1;
@@ -162,7 +162,7 @@ sub request_similarities {
     $jobs->{$job2} = 1;
   }
   my $joblist = join(" ", keys(%$jobs));
-  my $command = $FIG_Config::bin."/rp_request_peer_sims $joblist";
+  my $command = $Conf::bin."/rp_request_peer_sims $joblist";
 
   if (open(P, "$command 2>&1 |"))
   {
@@ -279,7 +279,7 @@ sub required_rights {
 sub sim_status {
   my ($self, $job1, $job2) = @_;
 
-  my $command = $FIG_Config::bin."/rp_peer_sim_status ".$job1." ".$job2;
+  my $command = $Conf::bin."/rp_peer_sim_status ".$job1." ".$job2;
   my $status = `$command`;
   chomp $status;
 

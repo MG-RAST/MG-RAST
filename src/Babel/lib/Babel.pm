@@ -11,7 +11,7 @@ package Babel::lib::Babel;
 use strict;
 use warnings;
 
-use FIG_Config;
+use Conf;
 use Data::Dumper;
 
 use Digest::MD5;
@@ -25,7 +25,7 @@ sub new {
 
     # check 
     if (! $dbh) {
-      $dbh = DBI->connect("DBI:$FIG_Config::babel_dbtype:dbname=$FIG_Config::babel_db;host=$FIG_Config::babel_dbhost", $FIG_Config::babel_dbuser, '');
+      $dbh = DBI->connect("DBI:$Conf::babel_dbtype:dbname=$Conf::babel_db;host=$Conf::babel_dbhost", $Conf::babel_dbuser, '');
 #      if (! $dbh) { print STDERR "Error: " . DBI->error . "\n"; }
     }
     $contrib_dir = 0 unless ($contrib_dir and -d $contrib_dir);

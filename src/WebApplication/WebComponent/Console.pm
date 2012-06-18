@@ -52,9 +52,9 @@ sub print_html {
 }
 
 sub require_css {
-    return "$FIG_Config::cgi_url/Html/Console.css";
+    return "$Conf::cgi_url/Html/Console.css";
 }
 
 sub require_javascript {
-    return ["$FIG_Config::cgi_url/Html/dragresize.js", "$FIG_Config::cgi_url/Html/Console.js"];
+    return ["$Conf::cgi_url/Html/dragresize.js", "$Conf::cgi_url/Html/Console.js"];
 }

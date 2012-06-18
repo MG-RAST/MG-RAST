@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 
-use FIG_Config;
+use Conf;
 use DBI;
 
 1;
@@ -23,10 +23,10 @@ sub new {
 	     };
 
 #   eval {
-#       $self->{_handle} = DBMaster->new( -database => $FIG_Config::mgrast_metadata_db || 'MGRASTMetadata',
-# 					-host     => $FIG_Config::mgrast_metadata_host,
-# 					-user     => $FIG_Config::mgrast_metadata_user,
-# 					-password => $FIG_Config::mgrast_metadata_password || "");
+#       $self->{_handle} = DBMaster->new( -database => $Conf::mgrast_metadata_db || 'MGRASTMetadata',
+# 					-host     => $Conf::mgrast_metadata_host,
+# 					-user     => $Conf::mgrast_metadata_user,
+# 					-password => $Conf::mgrast_metadata_password || "");
 #     };
 #   if ($@) {
 #     warn "Unable to connect to MGRAST metadata db: $@\n";

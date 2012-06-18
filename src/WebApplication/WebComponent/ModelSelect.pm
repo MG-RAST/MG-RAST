@@ -8,7 +8,7 @@ use base qw( WebComponent );
 
 use File::Temp;
 use URI::Escape;
-use FIG_Config;
+use Conf;
 use WebComponent::WebGD;
 use WebColors;
 use MGRAST::MetagenomeAnalysis;

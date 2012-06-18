@@ -6,7 +6,7 @@ package WebComponent;
 
 use strict;
 use warnings;
-use FIG_Config;
+use Conf;
 
 =pod
 
@@ -46,7 +46,7 @@ sub new {
     }
     
     $id = '' unless (defined $id);
-    my $sv_url = "$FIG_Config::cgi_url/seedviewer.cgi";
+    my $sv_url = "$Conf::cgi_url/seedviewer.cgi";
 
     my $self = { 'application' => $application, 
                  'id'          => $id,
