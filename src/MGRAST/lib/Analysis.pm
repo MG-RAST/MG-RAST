@@ -1077,31 +1077,80 @@ sub get_rank_abundance {
   # mgid => [ annotation, abundance ]
 }
 
+sub get_set_rank_abundance {
+  my ($self, $limit, $type, $sources) = @_;
+
+  unless ($sources && (@$sources > 0)) { $sources = []; }
+
+  my $data   = {};
+  my $m5_map = {};
+  my $get_m5nr  = first {$_ =~ /^m5nr$/i} @$sources;
+  my $get_m5rna = first {$_ =~ /^m5rna$/i} @$sources;
+
+  if ($get_m5nr) {
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("protein") };
+  }
+  if ($get_m5rna) {
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("rna") };
+  }
+  if ($get_m5nr || $get_m5rna) {
+    @$sources = grep { (! exists $m5_map->{$_}) && ($_ !~ /(m5nr|m5rna)/i) } @$sources;
+    push @$sources, keys %$m5_map;
+  }
+  my $w_srcs = (@$sources > 0) ? " where source in (" . join(",", map {"'$_'"} @$sources) . ")" : "";
+
+  while ( my ($mg, $j) = each %{$self->jobs} ) {
+    my $table = '';
+    if ($type eq 'organism') {
+      $table = $self->org_tbl($j) || '';
+    } elsif ($type eq 'function') {
+      $table = $self->func_tbl($j) || '';
+    }
+    unless ($table && ($limit > 0)) { next; }
+    my $sql = "select distinct $type from $table".$w_srcs;
+    my $tmp = $self->dbh->selectcol_arrayref($sql);
+    if ($tmp && (@$tmp > 0)) {
+      map { $data->{$_} += 1 } @$tmp;
+    }
+    $self->dbh->commit();
+  }
+
+  my @results = map { [$_, $data->{$_}] } keys %$data;
+  @results = sort { ($b->[1] <=> $a->[1]) || ($a->[0] cmp $b->[0]) } @results;
+  @results = @results[0..($limit-1)];
+  
+  return \@results;
+  # [ annotation, job_count ]
+}
+
 sub get_global_rank_abundance {
   my ($self, $limit, $type, $source) = @_;
 
   my $data = {};
+  my $snum = 1;
   if ((! $source) || ($source =~ /^m5nr$/i)) {
     $source = 'M5NR';
   }
   my $w_src = "source = '$source'";
   if ($source =~ /^m5rna$/i) {
     $w_src = "source in (".join(", ", map {"'$_'"} keys %{$self->ach->sources4type("rna")}).")";
+    $snum  = scalar( keys %{$self->ach->sources4type("rna")} );
   }
 
-  my %jobs = map {$_, 1 } values %{$self->jobs};
-  my $sql  = "select name, jobs from data_summary where type = '$type' and $w_src";
-  my $tmp  = $self->dbh->selectall_arrayref($sql);
+  my $sql = "select name, abundance from data_summary where type='$type' and $w_src order by abundance desc limit ".($limit * $snum);
+  my $tmp = $self->dbh->selectall_arrayref($sql);
   if ($tmp && (@$tmp > 0)) {
     foreach my $row ( @$tmp ) {
-      my $jnum = 0;
-      map { $jnum += 1 } grep { exists $jobs{$_} } @{$row->[1]};
-      $data->{$row->[0]} += $jnum;
+      $data->{$row->[0]} += $row->[1];
     }
   }
 
-  return $data;
-  # annotation => job_count
+  my @results = map { [$_, $data->{$_}] } keys %$data;
+  @results = sort { ($b->[1] <=> $a->[1]) || ($a->[0] cmp $b->[0]) } @results;
+  @results = @results[0..($limit-1)];
+  
+  return \@results;
+  # [ annotation, job_count ]
 }
 
 sub search_organisms {

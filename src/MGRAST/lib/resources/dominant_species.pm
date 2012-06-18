@@ -13,7 +13,7 @@ $json = $json->utf8();
 
 sub about {
   my $ach = new Babel::lib::Babel;
-  my $content = { 'description' => "dominant species for metagenome or set of metagenomes",
+  my $content = { 'description' => "dominant species for metagenome or set of metagenomes. id may be one or more metagenome or project ids, or the keyword 'all'",
 		  'parameters'  => { "id" => "string",
 				     "limit" => "int",
 				     "source" => { "protein" => [ 'M5NR', map {$_->[0]} @{$ach->get_protein_sources} ],
@@ -57,6 +57,7 @@ sub request {
   my %m_rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
   my @ids  = $cgi->param('id') || ();
   my @mgs  = ();
+  my $all  = 0;
 
   map { $p_rights{$_} = 1 } @$p_public;
   map { $m_rights{$_} = 1 } @$m_public;
@@ -65,12 +66,7 @@ sub request {
     @mgs = @$m_public;
   }
   elsif ((scalar(@ids) == 1) && ($ids[0] eq 'all')) {
-    if (exists $m_rights{'*'}) {
-      map { push @mgs, $_->{metagenome_id} } @{ $master->Job->get_objects({viewable => 1}) };
-    }
-    else {
-      @mgs = keys %m_rights;
-    }
+    $all = 1;
   }
   elsif (scalar(@ids) >= 1) {
     my %seen = {};
@@ -104,7 +100,10 @@ sub request {
   my $limit  = ($params->{limit})  ? $params->{limit}  : 10;
   my $source = ($params->{source}) ? $params->{source} : 'M5NR';
 
-  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
+  my $data;
+  my %mg_set = map { $_, 1 } @mgs;
+  my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
+
   unless (ref($mgdb)) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
@@ -113,14 +112,15 @@ sub request {
     exit 0;
   }
 
-  my $data;
-  my %mg_set = map { $_, 1 } @mgs;
-  $mgdb->set_jobs([keys %mg_set]);
-
-  if (scalar(keys %mg_set) > 1) {
+  if ((scalar(@mgs) == 0) && $all) {
     $data = $mgdb->get_global_rank_abundance($limit, 'organism', $source);
   }
+  elsif (scalar(keys %mg_set) > 1) {
+    $mgdb->set_jobs([keys %mg_set]);
+    $data = $mgdb->get_set_rank_abundance($limit, 'organism', [$source]);
+  }
   elsif (scalar(keys %mg_set) == 1) {
+    $mgdb->set_jobs([keys %mg_set]);
     my $abunds = $mgdb->get_rank_abundance($limit, 'organism', [$source]);
     # mgid => [ annotation, abundance ]
     if (exists $abunds->{$mgs[0]}) {
