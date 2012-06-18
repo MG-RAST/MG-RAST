@@ -212,18 +212,22 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    
 	    # check directories
 	    if (-d "$udir/$ufile") {
-		push(@{$data->[0]->{directories}}, $ufile);
 		opendir(my $dh2, $udir."/".$ufile);
 		my @numfiles = grep { /^[^\.]/ && -f $udir."/".$ufile."/".$_ } readdir($dh2);
-		my $dirseqs = [];
-		foreach my $nf (@numfiles) {
-		    unless ($nf =~ /\.stats_info$/) {
-			push(@$dirseqs, $nf);
-		    }
-		    push(@ufiles, "$ufile/$nf");		
-		}
 		closedir $dh2;
-		$data->[0]->{fileinfo}->{$ufile} = $dirseqs;
+		if (scalar(@numfiles)) {
+		    push(@{$data->[0]->{directories}}, $ufile);
+		    my $dirseqs = [];
+		    foreach my $nf (@numfiles) {
+			unless ($nf =~ /\.stats_info$/) {
+			    push(@$dirseqs, $nf);
+			}
+			push(@ufiles, "$ufile/$nf");		
+		    }
+		    $data->[0]->{fileinfo}->{$ufile} = $dirseqs;
+		} else {
+		    `rmdir $udir/$ufile`;
+		}
 	    }
 	    # check files
 	    else {
@@ -239,14 +243,15 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    my $fn = $1;
 		    $info_files->{$fn} = 1;
 		    my $info = {};
-		    open(FH, "<$udir/$ufile");
-		    while (<FH>) {
-			chomp;
-			my ($key, $val) = split /\t/;
-			$key =~ s/_/ /g;
-			$info->{$key} = $val;
+		    if (open(FH, "<$udir/$ufile")) {
+			while (<FH>) {
+			    chomp;
+			    my ($key, $val) = split /\t/;
+			    $key =~ s/_/ /g;
+			    $info->{$key} = $val;
+			}
+			close FH;
 		    }
-		    close FH;
 		    $data->[0]->{fileinfo}->{$fn} = $info;
 		} else {
 		    unless ($ufile =~ /\//) {
@@ -366,7 +371,7 @@ sub initialize_user_dir {
     mkdir $udir or die "could not create directory '$udir'";
     chmod 0777, $udir;
   }
-  unless ( -d "$udir/.temp") {
+  unless ( -d "$udir/.tmp") {
     mkdir "$udir/.tmp" or die "could not create directory '$udir/.tmp'";
     chmod 0777, "$udir/.temp";
   }
