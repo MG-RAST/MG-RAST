@@ -6,6 +6,7 @@ site/**/*
 conf/Conf.pm
 conf/Config.pm
 conf/FIG_Config.pm
+bin/*.r
 
 # ignore files with # and ~
 *\#*
