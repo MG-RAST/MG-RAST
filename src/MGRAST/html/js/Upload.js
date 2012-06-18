@@ -9,7 +9,7 @@ var last_directory = "";
 // initialization
 function init_all () {
   if (document.getElementById('user')) {
-    var repo = { "url": "http://dev.metagenomics.anl.gov/receive_upload.cgi/",
+    var repo = { "url": "receive_upload.cgi/",
 		 "type": "WebApp",
 		 "id": "mobedac" };
     initialize_data_storage( [ repo ] );
