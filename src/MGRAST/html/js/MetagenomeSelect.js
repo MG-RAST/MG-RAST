@@ -260,7 +260,7 @@ function add_to_collection (id) {
     }
   }
   if (ids.length) {
-    var collname = prompt("Enter a name for this collection", "Collection 1");
+    var collname = prompt("Enter a name for this collection.\nIf you enter the name of an existing\ncollection, the selected metagenomes\nwill be added to it.", "Collection 1");
     execute_ajax("change_collection", "collection_target", "newcollection="+collname+"&ids="+ids.join("|"));
   } else {
     alert('you did not select any metagenomes');
