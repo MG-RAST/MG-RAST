@@ -17,6 +17,8 @@ CREATE INDEX md5_rna_organism ON md5_rna (organism);
 CREATE INDEX md5_rna_tax_rank ON md5_rna (tax_rank);
 CREATE INDEX md5_rna_source ON md5_rna (source);
 
+CREATE INDEX md5_organism_unique_key ON md5_organism_unique (md5, source);
+
 CREATE INDEX aliases_protein_id on aliases_protein (id);
 
 CREATE INDEX functions_name ON functions (name);
