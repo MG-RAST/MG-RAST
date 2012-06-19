@@ -1420,7 +1420,7 @@ sub workbench_hits_table {
   my @ach_srcs = grep {$_ !~ /^M5NR$/i} @srcs;
 
   $self->{mgdb}->set_jobs(\@metas);
-  my $analysis_data = $self->{mgdb}->get_md5_data(\@md5s, []);
+  my $analysis_data = $self->{mgdb}->get_md5_data(\@md5s);
   my $source_info   = $self->{mgdb}->ach->sources();
   my $source_data   = (@ach_srcs > 0) ? $self->{mgdb}->ach->md5s2idfunc4sources(\@md5s, \@ach_srcs) : {};
   my $ss_map        = $has_ss ? $self->{mgdb}->ach->subsystem_hash : {};
