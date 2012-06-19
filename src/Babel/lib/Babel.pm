@@ -208,6 +208,20 @@ sub md5s2organisms {
   return ($rows && ref($rows)) ? $rows : [];
 }
 
+sub md5s2organisms_unique {
+  my ($self, $md5s, $source) = @_;
+
+  my $data = {};
+  my $list = join(",", map {$self->dbh->quote($_)} @$md5s);
+  my $statement = "select md5, organism from md5_organism_unique where md5 in ($list) and source = ".$self->dbh->quote($source);
+  my $rows = $self->dbh->selectall_arrayref($statement);
+  if ($rows && (@$rows > 0)) {
+    %$data = map { $_->[0], $_->[1] } @$rows;
+  }
+  return $data;
+  # md5 => organism
+}
+
 sub md52taxonomy {
   my ($self, $md5s , $source) = @_;
 
