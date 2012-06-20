@@ -126,7 +126,7 @@ sub output {
   my $metagenome  = $application->cgi->param('metagenome') || '';
   my $tools = "<div class='tool_header' title='Select which MG-RAST output data type to view (either an organism or functional classification)'><img src='./Html/one_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Type</div>";
   $tools .= "<div class='category_tool'>Organism Abundance</div>";
-  $tools .= "<div class='active_tool' style='padding-left:20px' onclick='choose_tool(\"single\");' name='tool_entry' id='single_tool' title='Report taxonomic classification of single similarity hits'>&raquo;Single Hit Classification</div>";
+  $tools .= "<div class='active_tool' style='padding-left:20px' onclick='choose_tool(\"single\");' name='tool_entry' id='single_tool' title='Report taxonomic classification of single similarity hits'>&raquo;Representative Hit Classification</div>";
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"phylogeny\");' name='tool_entry' id='phylogeny_tool' title='Report taxonomic classification of best similarity hits'>Best Hit Classification</div>";
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"lca\");' name='tool_entry' id='lca_tool' title='Report lowest common ancestor of the best similarity hits'>Lowest Common Ancestor</div>";
   $tools .= "<div class='category_tool'>Functional Abundance</div>";
@@ -1998,7 +1998,8 @@ sub single_visual {
 		  { name => 'avg align len', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average alignment length of the hits' },
 		  { name => 'align len std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the alignment length of the hits' },
 		  { name => 'md5s', visible => 0 },
-		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"17\", \"16\", \"0\", \"-\", \"9\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
+		  { name => '# hits', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of unique hits in protein or rna database' },
+		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"18\", \"16\", \"0\", \"-\", \"9\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
     
     #### do the pivoting
     unless (defined $cgi->param('group_by')) {
@@ -2014,7 +2015,7 @@ sub single_visual {
     foreach my $d (@$data) {
       my $range = 2 + $cgi->param('group_by');
       my $key = join(";", @$d[0..$range]);
-      if (exists($dhash->{$key})) { # sum|avg|avg|avg|avg|avg|avg|hash|num_hash
+      if (exists($dhash->{$key})) { # sum|avg|avg|avg|avg|avg|avg|hash|num_hash|sum
 	$newdata->[$dhash->{$key}]->[9] = $newdata->[$dhash->{$key}]->[9] + $d->[9];
 	$newdata->[$dhash->{$key}]->[10] = (($newdata->[$dhash->{$key}]->[10] * $colhashcount->{$key}) + $d->[10]) / ($colhashcount->{$key} + 1);
 	$newdata->[$dhash->{$key}]->[11] = (($newdata->[$dhash->{$key}]->[11] * $colhashcount->{$key}) + $d->[11]) / ($colhashcount->{$key} + 1);
@@ -2041,6 +2042,7 @@ sub single_visual {
       $d->[14] = sprintf("%.2f", $d->[14]);
       $d->[15] = sprintf("%.2f", $d->[15]);
       $d->[16] = join(";", keys(%hasher));
+      $d->[17] = scalar(keys(%hasher));
     }
 
     @$newdata = sort { $a->[1] cmp $b->[1] || $a->[2] cmp $b->[2] || $a->[3] cmp $b->[3] || $a->[4] cmp $b->[4] || $a->[5] cmp $b->[5] || $a->[6] cmp $b->[6] || $a->[7] cmp $b->[7] || $a->[8] cmp $b->[8] } @$newdata;
@@ -2067,13 +2069,13 @@ sub single_visual {
       $cstr = " selected='selected'";
     }
 
-    my $krona_button = "<input type='button' value='krona graph' onclick='generate_krona_data(\"".$cgi->param('group_by')."\", \"".$t->id."\", \"org\");'>";
+    #my $krona_button = "<input type='button' value='krona graph' onclick='generate_krona_data(\"".$cgi->param('group_by')."\", \"".$t->id."\", \"org\");'>";
     
-    my $qiime_button =  ( $cgi->param('mg_grp_sel') ne 'groups' ) ? "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>" : 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.';
-
-    my $plugin_container = '<table style="border: 2px solid rgb(143, 188, 63); text-align: center; float: right; border-spacing: 0px;"><tbody><tr><td colspan="2" style="cursor: pointer; text-align: left;" title="click to show available plugins" onclick="if(this.parentNode.nextSibling.style.display==\'none\'){this.parentNode.nextSibling.style.display=\'\';this.parentNode.nextSibling.nextSibling.style.display=\'\';}else{this.parentNode.nextSibling.style.display=\'none\';this.parentNode.nextSibling.nextSibling.style.display=\'none\';}"><img src="./Html/plugin.png" style="width: 20px; vertical-align: middle;"> available plugins</td></tr><tr><td style="border-top: 1px solid rgb(143, 188, 63); border-right: 1px solid rgb(143, 188, 63); padding: 2px;"><img src="./Html/krona.png" style="height: 50px; cursor: pointer;" onclick="window.open(&quot;http://sourceforge.net/p/krona/home/krona/&quot;);"></td><td style="border-top: 1px solid rgb(143, 188, 63);"><img onclick="window.open(&quot;http://www.qiime.org&quot;);" style="height: 50px; cursor: pointer;" src="./Html/qiime.png"></td></tr><tr><td style="vertical-align: middle; border-right: 1px solid rgb(143, 188, 63); padding: 2px;">'.$krona_button.'</td><td style="vertical-align: middle;">'.$qiime_button.'</td></tr></tbody></table>';
-
-    my $qiime_div = "<div style='padding-left:15px; float: right;' id='qiime_div_$tabnum'></div>";
+    #my $qiime_button =  ( $cgi->param('mg_grp_sel') ne 'groups' ) ? "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>" : 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.';
+    my $plugin_container = '';
+    #my $plugin_container = '<table style="border: 2px solid rgb(143, 188, 63); text-align: center; float: right; border-spacing: 0px;"><tbody><tr><td colspan="2" style="cursor: pointer; text-align: left;" title="click to show available plugins" onclick="if(this.parentNode.nextSibling.style.display==\'none\'){this.parentNode.nextSibling.style.display=\'\';this.parentNode.nextSibling.nextSibling.style.display=\'\';}else{this.parentNode.nextSibling.style.display=\'none\';this.parentNode.nextSibling.nextSibling.style.display=\'none\';}"><img src="./Html/plugin.png" style="width: 20px; vertical-align: middle;"> available plugins</td></tr><tr><td style="border-top: 1px solid rgb(143, 188, 63); border-right: 1px solid rgb(143, 188, 63); padding: 2px;"><img src="./Html/krona.png" style="height: 50px; cursor: pointer;" onclick="window.open(&quot;http://sourceforge.net/p/krona/home/krona/&quot;);"></td><td style="border-top: 1px solid rgb(143, 188, 63);"><img onclick="window.open(&quot;http://www.qiime.org&quot;);" style="height: 50px; cursor: pointer;" src="./Html/qiime.png"></td></tr><tr><td style="vertical-align: middle; border-right: 1px solid rgb(143, 188, 63); padding: 2px;">'.$krona_button.'</td><td style="vertical-align: middle;">'.$qiime_button.'</td></tr></tbody></table>';
+    my $qiime_div = '';
+    #my $qiime_div = "<div style='padding-left:15px; float: right;' id='qiime_div_$tabnum'></div>";
 
     my $pivot = "<form id='table_group_form_$tabnum'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='table'><input type='hidden' name='data_type' value='organism'><input type='hidden' name='ret_type' value='direct'>".$settings_preserve."<br><b>group table by</b> <select name='group_by'><option value='0'$cd>domain</option><option value='1'$cp>phylum</option><option value='2'$cc>class</option><option value='3'$co>order</option><option value='4'$cf>family</option><option value='5'$cg>genus</option><option value='6'$cs>species</option><option value='7'$cstr>strain</option></select><input type='button' value='change' onclick='execute_ajax(\"single_visual\", \"tab_div_".($tabnum+1)."\", \"table_group_form_$tabnum\");'></form><br><br>";
 
@@ -2081,7 +2083,7 @@ sub single_visual {
       return "$settings$plugin_container$qiime_div$pivot".$t->output;
     }
 
-    $content .= "<div><div>Organism table $tabnum</div><div>".clear_progress_image()."$settings$plugin_container$qiime_div$pivot".$t->output."</div></div>";
+    $content .= "<div><div>Representative Organism table $tabnum</div><div>".clear_progress_image()."$settings$plugin_container$qiime_div$pivot".$t->output."</div></div>";
     $tabnum++;
   }
 
