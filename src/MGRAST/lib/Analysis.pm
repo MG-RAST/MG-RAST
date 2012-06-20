@@ -1185,6 +1185,59 @@ sub search_organisms {
   # mgid => [ source, organism, abundance ]
 }
 
+sub get_organisms_unique_for_source {
+  my ($self, $source, $eval, $ident, $alen) = @_;
+
+  my $md5_set = {};
+  my $mg_org_data = {};
+  my $mg_md5_data = $self->get_md5_data(undef, $eval, $ident, $alen, 1);
+  # [ mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv ]
+
+  map { $md5_set->{$_->[1]} = 1 } @$mg_md5_data;
+  my $all_orgs = {};
+  my $md5_org  = $self->ach->md5s2organisms_unique([keys %$md5_set], $source);
+  # md5 => organism
+
+  foreach my $row (@$mg_md5_data) {
+    my $org = $md5_org->{$row->[1]};
+    $all_orgs->{$org} = 1;
+    if (exists $mg_org_data->{$row->[0]}{$org}) {
+      $mg_org_data->{$row->[0]}{$org}[0] += 1;
+      $mg_org_data->{$row->[0]}{$org}[1] += $row->[2];
+      $mg_org_data->{$row->[0]}{$org}[2] += $row->[3];
+      $mg_org_data->{$row->[0]}{$org}[3] += $row->[4];
+      $mg_org_data->{$row->[0]}{$org}[4] += $row->[5];
+      $mg_org_data->{$row->[0]}{$org}[5] += $row->[6];
+      $mg_org_data->{$row->[0]}{$org}[6] += $row->[7];
+      $mg_org_data->{$row->[0]}{$org}[7] += $row->[8];
+      push @{ $mg_org_data->{$row->[0]}{$org}[8] }, $row->[1];
+    } else {
+      $mg_org_data->{$row->[0]}{$org} = [ 1, @$row[2..8], [$row->[1]] ];
+    }
+  }
+
+  my $taxons = $self->ach->get_taxonomy4orgs([keys %$all_orgs]);
+  my $result = [];
+  my @no_tax = ('unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned');
+
+  foreach my $mgid (keys %$mg_org_data) {
+    foreach my $org (keys %{$mg_org_data->{$mgid}}) {
+      my $stats = $mg_org_data->{$mgid}{$org};
+      my $total = $stats->[0];
+      my $abund = $stats->[1];
+      my $md5s  = $stats->[8];
+      my ($ea, $es, $ia, $is, $la, $ls) = (($stats->[2] / $total),($stats->[3] / $total),($stats->[4] / $total),($stats->[5] / $total),($stats->[6] / $total),($stats->[7] / $total));
+      if (exists $taxons->{$org}) {
+	push @$result, [ $mgid, @{$taxons->{$org}}, $org, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+      } else {
+	push @$result, [ $mgid, @no_tax, $org, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+      }
+    }
+  }
+  return $result;
+  # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+}
+
 sub get_organisms_for_sources {
   my ($self, $sources, $eval, $ident, $alen) = @_;
   return $self->get_organisms_for_md5s([], $sources, $eval, $ident, $alen);
@@ -1556,28 +1609,51 @@ sub get_lca_data {
 }
 
 sub get_md5_data {
-  my ($self, $md5s, $sources, $eval, $ident, $alen) = @_;
+  my ($self, $md5s, $eval, $ident, $alen, $ignore_sk) = @_;
+
+  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $cache_key = "md5data";
+  $cache_key .= defined($eval) ? $eval : ":";
+  $cache_key .= defined($ident) ? $ident : ":";
+  $cache_key .= defined($alen) ? $alen : ":";
 
   $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
   $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
   $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
   
-  my $w_srcs = (@$sources > 0) ? "source in (" . join(",", map {"'$_'"} @$sources) . ")" : "";
-  my $w_md5s = ($md5s && (@$md5s > 0)) ? "md5 IN (" . join(",", map {"'$_'"} @$md5s) . ")" : "";
-  my $where  = $self->get_where_str([$w_srcs, $w_md5s, $eval, $ident, $alen, "seek IS NOT NULL", "length IS NOT NULL"]);
+  my $w_md5s = ($md5s && (@$md5s > 0)) ? "md5 IN (" . join(",", map {"'$_'"} @$md5s) . ")" : "";  
+  my $where  = $self->get_where_str([$w_md5s, $eval, $ident, $alen, ($ignore_sk ? "" : "seek IS NOT NULL"), ($ignore_sk ? "" : "length IS NOT NULL")]);
   my @data   = ();
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    unless ($self->md5_tbl($j)) { next; }
-    my $sql = "select distinct md5,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv,seek,length from " . $self->md5_tbl($j) . $where . " ORDER BY seek";
-    my $tmp = $self->dbh->selectall_arrayref($sql);
-    if ($tmp && (@$tmp > 0)) {
-      foreach my $row ( @$tmp ) {
-	push @data, [ $mg, @$row ];
+    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $memd->get($mg.$cache_key);
+    unless ($cdata) {
+      unless ($self->md5_tbl($j)) { next; }
+      $cdata  = [];
+      my $sql = "select distinct md5,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv,seek,length from " . $self->md5_tbl($j) . $where . " ORDER BY seek";
+      my $tmp = $self->dbh->selectall_arrayref($sql);
+      if ($tmp && (@$tmp > 0)) {
+	foreach my $row ( @$tmp ) {
+	  if ($ignore_sk) {
+	    push @data, [$mg, @$row[0..7]];
+	    push @$cdata, [$mg, @$row[0..7]];
+	  } else {
+	    push @data, [$mg, @$row];
+	    push @$cdata, [$mg, @$row];
+	  }
+	}
       }
+      $self->dbh->commit();
+
+      unless ($md5s && (@$md5s > 0)) {
+	$memd->set($mg.$cache_key, $cdata, $self->expire);
+      }
+    } else {
+      push @data, @$cdata;
     }
-    $self->dbh->commit();
   }
+  $memd->disconnect_all;
+  
   return \@data;
   # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
 }
