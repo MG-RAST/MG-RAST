@@ -1196,9 +1196,9 @@ sub get_organisms_unique_for_source {
   map { $md5_set->{$_->[1]} = 1 } @$mg_md5_data;
   my $all_orgs = {};
   my $md5_org  = $self->ach->md5s2organisms_unique([keys %$md5_set], $source);
-  # md5 => organism
 
   foreach my $row (@$mg_md5_data) {
+    next unless (exists $md5_org->{$row->[1]});
     my $org = $md5_org->{$row->[1]};
     $all_orgs->{$org} = 1;
     if (exists $mg_org_data->{$row->[0]}{$org}) {
