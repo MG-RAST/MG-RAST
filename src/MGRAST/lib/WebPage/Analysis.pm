@@ -126,7 +126,8 @@ sub output {
   my $metagenome  = $application->cgi->param('metagenome') || '';
   my $tools = "<div class='tool_header' title='Select which MG-RAST output data type to view (either an organism or functional classification)'><img src='./Html/one_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Type</div>";
   $tools .= "<div class='category_tool'>Organism Abundance</div>";
-  $tools .= "<div class='active_tool' style='padding-left:20px' onclick='choose_tool(\"phylogeny\");' name='tool_entry' id='phylogeny_tool' title='Report taxonomic classification of best similarity hits'>&raquo;Best Hit Classification</div>";
+  $tools .= "<div class='active_tool' style='padding-left:20px' onclick='choose_tool(\"single\");' name='tool_entry' id='single_tool' title='Report taxonomic classification of single similarity hits'>&raquo;Representative Hit Classification</div>";
+  $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"phylogeny\");' name='tool_entry' id='phylogeny_tool' title='Report taxonomic classification of best similarity hits'>Best Hit Classification</div>";
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"lca\");' name='tool_entry' id='lca_tool' title='Report lowest common ancestor of the best similarity hits'>Lowest Common Ancestor</div>";
   $tools .= "<div class='category_tool'>Functional Abundance</div>";
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"metabolism\");' name='tool_entry' id='metabolism_tool' title='Report abundances using protein databases that support hierarchical
@@ -139,7 +140,7 @@ labels
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"recruitment_plot\");' name='tool_entry' id='recruitment_plot_tool' title='Recruits sequences to proteins in a reference genome 
 '>Recruitment Plot</div>";
 
-  my $html = "<input type='hidden' id='metagenome' value='$metagenome'>".$application->component('ajax')->output."<table class='analysis'><tr><td class='tool'><div id='tool' class='tool'>".$tools."<div id='progress_div'></div></div></td><td class='select'><div id='select' class='select'>".$self->phylogeny_select."</div></td><td class='buff'></td></tr><tr><td colspan=3 class='display'><div id='display' class='display'>";
+  my $html = "<input type='hidden' id='metagenome' value='$metagenome'>".$application->component('ajax')->output."<table class='analysis'><tr><td class='tool'><div id='tool' class='tool'>".$tools."<div id='progress_div'></div></div></td><td class='select'><div id='select' class='select'>".$self->single_select."</div></td><td class='buff'></td></tr><tr><td colspan=3 class='display'><div id='display' class='display'>";
 
   $html .= "<table class='tabs'><tr id='tabs_table'>";
   
@@ -223,6 +224,57 @@ labels
 ##################
 # data selection
 ##################
+sub single_select {
+  my ($self) = @_;
+
+  my $cgi = $self->application->cgi;
+
+  my $metagenome = '';
+  if ($cgi->param('metagenome')) {
+    $metagenome = $cgi->param('metagenome');
+    my $mgname = '';
+    if ($metagenome) {
+      my $job = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $metagenome });
+      if (ref($job)) {
+	$mgname = $job->name()." ($metagenome)";
+      }
+    }
+    $metagenome = "<a target=_blank href='metagenomics.cgi?page=MetagenomeOverview&metagenome=$metagenome' title='$mgname'>$metagenome</a>";
+  }
+
+  if ($cgi->param('comparison_metagenomes')) {
+    $metagenome = '';
+    my @all = $cgi->param('comparison_metagenomes');
+    foreach my $mg (@all) {
+      my $mgname = '';
+      if ($mg) {
+	my $job = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $mg });
+	if (ref($job)) {
+	  $mgname = $job->name()." ($mg)";
+	}
+      }
+      $metagenome .= "<a target=_blank href='metagenomics.cgi?page=MetagenomeOverview&metagenome=$mg' title='$mgname'>$mg</a>, ";
+    }
+    $metagenome = substr($metagenome, 0, length($metagenome) - 2);
+  }
+
+  my $mg_sel = $self->metagenome_select();
+  my $grp_sel = $self->group_select();
+  my $select = "<div class='select_header' title='select data set, database and parameters'><img src='./Html/two_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Selection</div>";
+  $select .= "<form name='single_form' id='single_form' onkeypress='return event.keyCode!=13'>";
+  $select .= "<input type='hidden' name='metagenome' value='".($self->application->cgi->param('metagenome')||"")."'><table id='non_wb_sel'>";
+  $select .= "<tr><td style='font-weight: bold; width: 200px;' title='Select metagenomes for comparison from the drop-down menu'>Metagenomes</td><td id='mg_sel_td'>".$metagenome."</td><td>".$self->more_button('document.getElementById("sel_mg").style.display="";', 'ok_button("'.$mg_sel->id.'");')."</td></tr>";
+  $select .= "<tr><td colspan=3 style='display: none;' id='sel_mg'><input type=radio name='mg_grp_sel' value='individual' checked=checked onclick='document.getElementById(\"mg_sel_div\").style.display=\"\";document.getElementById(\"grp_sel_div\").style.display=\"none\";'> compare individually <input type=radio name='mg_grp_sel' value='groups' onclick='document.getElementById(\"mg_sel_div\").style.display=\"none\";document.getElementById(\"grp_sel_div\").style.display=\"\";'> compare as groups <div id='mg_sel_div'><table><tr><td>".$mg_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$mg_sel->id."\");'></td></tr></table></div><div id='grp_sel_div' style='display: none;'><table><tr><td>".$grp_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$grp_sel->id."\", 1);'></td></tr></table></div></td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Select database for annotation sequence comparison from the drop-down menu'><a target=_blank href='metagenomics.cgi?page=Sources'>Annotation Sources</a></td><td id='src_sel_td'>M5NR</td><td>".$self->more_button('document.getElementById("single_sel_source").style.display="";')."</td><td style='display: none;' id='single_sel_source'>".$self->source_select('phylogeny', {'M5NR' => 1}, 1, 1)."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("single_sel_eval").style.display="";')."</td><td style='display: none;' id='single_sel_eval'>".$self->evalue_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("single_sel_ident").style.display="";')."</td><td style='display: none;' id='single_sel_ident'>".$self->identity_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("single_sel_alen").style.display="";')."</td><td style='display: none;' id='single_sel_alen'>".$self->alength_select()."</td></tr></table>";
+#  $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
+  $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about the known members within each metagenome.'></td></tr><tr><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td><td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"single_visual\",\"buffer_space\",\"single_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
+
+  return $select;
+}
+
 sub phylogeny_select {
   my ($self) = @_;
 
@@ -472,6 +524,94 @@ sub recruitment_plot_select {
 ##################
 # data retrieval
 ##################
+sub single_data {
+  my ($self) = @_;
+
+  my $result = [];
+  my $cgi        = $self->application->cgi;
+  my $source     = $cgi->param('source');
+  my @metas     = $cgi->param('comparison_metagenomes');
+  my $evalue     = $cgi->param('evalue')   || undef;
+  my $identity   = $cgi->param('identity') || undef;
+  my $alength    = $cgi->param('alength')  || undef;
+  my $mg_grp_sel = $cgi->param('mg_grp_sel') || '';
+  my $mgrast     = $self->application->data_handle('MGRAST');
+  
+  my $collections = {};
+  my @comparison_collections = $cgi->param('comparison_collections');
+  if ($mg_grp_sel eq 'groups') {
+    $cgi->param('comparison_metagenomes', @comparison_collections);
+    my $collections_ary = [];
+    my $projects = [];
+    foreach my $entry (@comparison_collections) {
+      if ($entry =~ /^project\:/) {
+	push(@$projects, $entry);
+      } else {
+	push(@$collections_ary, $entry);
+      }
+    }
+    if ($self->application->session->user) {
+      my $comp_cols = {};
+      %$comp_cols = map { $_ => 1 } @$collections_ary;
+      my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
+										 user => $self->application->session->user,
+										 name => 'mgrast_collection' } );
+      if (scalar(@$coll_prefs)) {
+	foreach my $collection_pref (@$coll_prefs) {
+	  my ($name, $val) = split(/\|/, $collection_pref->{value});
+	  if ($comp_cols->{$name}) {
+	    $collections->{$val} = $name;
+	    push(@metas, $val);
+	  }
+	}
+      }
+    }
+    foreach my $project (@$projects) {
+      my ($pid) = $project =~ /^project\:(\d+)$/;
+      my $p = $mgrast->Project->init( { id => $pid } );
+      my $pjs = $mgrast->ProjectJob->get_objects( { project => $p } );
+      foreach my $pj (@$pjs) {
+	push(@metas, $pj->job->job_id);
+	$collections->{$pj->job->job_id} = $project;
+      }
+    }
+
+    $self->{mgdb}->set_jobs(\@metas, 1);
+    my $rev = {};
+    %$rev = reverse %{$self->{mgdb}->jobs};
+    foreach my $key (keys(%$collections)) {
+      $collections->{$rev->{$key}} = $collections->{$key};
+    }
+  } else {
+    $self->{mgdb}->set_jobs(\@metas);
+  }
+
+  $result = $self->{mgdb}->get_organisms_unique_for_source($source, $evalue, $identity, $alength);
+  #  0        1           2         3           4            5         6            7        8        9         10      11          12         13        14       15      16
+  # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+  if ($mg_grp_sel eq 'groups') {
+    my $joined_data = {};
+    foreach my $row (@$result) {
+      my $id_string = join("|", @$row[1..8]);
+      $row->[0] = $collections->{$row->[0]};
+      if (exists($joined_data->{$id_string})) {
+	$row->[10] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[10]) + ($row->[9] * $row->[10])) / ($joined_data->{$id_string}->[9] + $row->[9]));
+	$row->[11] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[11]) + ($row->[9] * $row->[11])) / ($joined_data->{$id_string}->[9] + $row->[9]));
+	$row->[12] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[12]) + ($row->[9] * $row->[12])) / ($joined_data->{$id_string}->[9] + $row->[9]));
+	$row->[13] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[13]) + ($row->[9] * $row->[13])) / ($joined_data->{$id_string}->[9] + $row->[9]));
+	$row->[14] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[14]) + ($row->[9] * $row->[14])) / ($joined_data->{$id_string}->[9] + $row->[9]));
+	$row->[15] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[15]) + ($row->[9] * $row->[15])) / ($joined_data->{$id_string}->[9] + $row->[9]));
+	$row->[16] = $joined_data->{$id_string}->[16].";".$row->[16];
+	$row->[9] += $joined_data->{$id_string}->[9];
+      }
+      $joined_data->{$id_string} = $row;
+    }
+    @$result = map { $joined_data->{$_} } keys(%$joined_data);
+  }
+  
+  return $result;
+}
+
 sub phylogenetic_data {
   my ($self) = @_;
 
@@ -1710,6 +1850,246 @@ sub qiime_export_data {
 #####################
 # data visualization
 #####################
+sub single_visual {
+  my ($self) = @_;
+
+  my $content = "";
+  my $cgi = $self->application->cgi;
+  my $data = $self->single_data();
+  #return "<div><div>test</div><div><pre>".clear_progress_image().Dumper($data)."</pre></div></div>";
+  # mgid => md5 => abundance
+  # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+
+  my $tabnum = $cgi->param('tabnum') || 2;
+  $tabnum--;
+
+  unless (scalar(@$data)) {
+    return "<div><div>no data</div><div>".clear_progress_image()."The visualizations you requested cannot be drawn, as no data met your selection criteria.</div></div>";
+  }
+
+  my %buffer_md5s = $cgi->param('use_buffer') ? map {$_, 1} split(/;/, $cgi->param('use_buffer')) : ();
+  my $settings_preserve = "<input type='hidden' name='metagenome' value='".$cgi->param('metagenome')."'>";
+  my @comp_mgs = $cgi->param('comparison_metagenomes');
+  if ($cgi->param('mg_grp_sel') && $cgi->param('mg_grp_sel') eq 'groups') {
+    $settings_preserve .= "<input type='hidden' name='mg_grp_sel' value='groups'>";
+    foreach my $mg (@comp_mgs) {
+      $settings_preserve .= "<input type='hidden' name='comparison_collections' value='".$mg."'>";
+    }
+  } else {
+    foreach my $mg (@comp_mgs) {
+      $settings_preserve .= "<input type='hidden' name='comparison_metagenomes' value='".$mg."'>";
+    }
+  }
+  my $mgs = "";
+  my $mgnames = [];
+  @$mgnames = @comp_mgs;
+  foreach my $metagenome (@$mgnames) {
+    my $mgname = '';
+    unless ($cgi->param('comparison_collections')) {
+      my $job = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $metagenome });
+      if (ref($job)) {
+	$mgname = $job->name()." ($metagenome)";
+      }
+      $metagenome = "<a target=_blank href='metagenomics.cgi?page=MetagenomeOverview&metagenome=$metagenome' title='$mgname'>$metagenome</a>";
+    }
+  }
+  if (scalar(@$mgnames) > 1) {
+    my $last = pop(@$mgnames);
+    $mgs .= "metagenomes ".join(", ", @$mgnames)." and $last";
+  } else {
+    $mgs .= "metagenome ".$mgnames->[0];
+  }
+  my $sorcs = "";
+  my @sources = $cgi->param('source');
+  foreach my $source (@sources) {
+    $settings_preserve .= "<input type='hidden' name='source' value='".$source."'>";
+  }
+  if (scalar(@sources) > 1) {
+    my $last = pop(@sources);
+    $sorcs = join(", ", @sources)." and $last";
+  } else {
+    $sorcs = $sources[0];
+  }
+  my $cutoffs = "a maximum e-value of 1e-" . ($cgi->param('evalue') || '0') . ", ";
+  $cutoffs   .= "a minimum identity of " . ($cgi->param('identity') || '0') . " %, ";
+  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1');
+
+  my $psettings = " The data has been normalized to values between 0 and 1. If you would like to view raw values, redraw using the form below.";
+  if ($cgi->param('raw')) {
+    $psettings = " The data is showing raw values. If you would like to view normalized values, redraw using the form below.";
+  }
+  my $pset = "";
+  if (defined($cgi->param('pval'))) {
+    $pset = "<br><br>You have chosen to calculate p-values. They will appear in brackets after the category name.";
+  }
+
+  if ($cgi->param('use_buffer')) {
+    $settings_preserve .= "<input type='hidden' name='use_buffer' value='".$cgi->param('use_buffer')."'>";
+  }
+  $settings_preserve .= "<input type='hidden' name='evalue' value='"   . ($cgi->param('evalue') || '0')   . "'>";
+  $settings_preserve .= "<input type='hidden' name='identity' value='" . ($cgi->param('identity') || '0') . "'>";
+  $settings_preserve .= "<input type='hidden' name='alength' value='"  . ($cgi->param('alength') || '1')  . "'>";
+  my $fid = $cgi->param('fid') || int(rand(1000000));
+    
+  my $settings = "<i>This data was calculated for $mgs. The data was compared to $sorcs using $cutoffs.$pset</i><br/>";
+
+  ## determine if any metagenomes missing from results
+  my $missing_txt = "";
+  my @missing_mgs = ();
+  my %data_mgs    = map { $_->[0], 1 } @$data;
+
+  foreach my $mg (@comp_mgs) {
+    if (! exists $data_mgs{$mg} && ! $cgi->param('comparison_collections')) {
+      push @missing_mgs, $mg;
+    }
+  }  
+
+  if (@missing_mgs > 0) {
+    $missing_txt = "<br>";
+    foreach my $mg (@missing_mgs) {
+      my $mgname = '';
+      my $job = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $mg });
+      if (ref($job)) {
+	$mgname = $job->name()." ($mg)";
+      }
+      $mg = "<a target=_blank href='metagenomics.cgi?page=MetagenomeOverview&metagenome=$mg' title='$mgname'>$mg</a>";
+    }
+    if (@missing_mgs > 1) {
+      my $last = pop @missing_mgs;
+      $missing_txt .= "Metagenomes " . join(", ", @missing_mgs) . " and $last contain";
+    } else {
+      $missing_txt .= "Metagenome " . $missing_mgs[0] . " contains";
+    }
+    $missing_txt .= " no organism data for the above selected sources and cutoffs. They are being excluded from the analysis.<br>";
+  }
+  $settings .= $missing_txt;
+
+  if ($cgi->param('vis_type') eq 'table') {
+    my $t = $self->application->component('t1');
+    ## nasty id manipulation to allow for multiple tables
+    my $newid = int(rand(100000));
+    $self->application->component('TableHoverComponent'.$t->id)->id($newid);
+    $self->application->{component_index}->{'TableHoverComponent'.$newid} = $self->application->component('TableHoverComponent'.$t->id);
+    $self->application->component('TableAjaxComponent'.$t->id)->id($newid);
+    $self->application->{component_index}->{'TableAjaxComponent'.$newid} = $self->application->component('TableAjaxComponent'.$t->id);
+    $t->id($newid);
+    ##
+    $t->show_select_items_per_page(1);
+    $t->show_top_browse(1);
+    $t->show_bottom_browse(1);
+    $t->items_per_page(15);
+    $t->show_column_select(1);
+    $t->show_export_button({ title => 'download this table', strip_html => 1, hide_invisible_columns => 1});
+
+    my $tcols = [ { name => 'metagenome', filter => 1, operator => 'combobox', sortable => 1, tooltip => 'id of metagenomic sample' },
+		  { name => 'domain', sortable => 1, filter => 1, operator => 'combobox' }, 
+		  { name => 'phylum', sortable => 1, filter => 1 }, 
+		  { name => 'class', sortable => 1, filter => 1 },
+		  { name => 'order', sortable => 1, filter => 1 }, 
+		  { name => 'family', sortable => 1, filter => 1 },
+		  { name => 'genus', sortable => 1, filter => 1 },
+		  { name => 'species', sortable => 1, filter => 1 },
+		  { name => 'strain', sortable => 1, filter => 1 }, 
+		  { name => 'abundance', sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of sequence features with a hit' },
+		  { name => 'avg eValue', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average exponent of<br>the evalue of the hits' },
+		  { name => 'eValue std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of the evalue,<br>showing exponent only' }, 
+		  { name => 'avg % ident', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average percent identity of the hits' },
+		  { name => '% ident std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the percent identity of the hits' },
+		  { name => 'avg align len', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average alignment length of the hits' },
+		  { name => 'align len std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the alignment length of the hits' },
+		  { name => 'md5s', visible => 0 },
+		  { name => '# hits', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of unique hits in protein or rna database' },
+		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"18\", \"16\", \"0\", \"-\", \"9\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
+    
+    #### do the pivoting
+    unless (defined $cgi->param('group_by')) {
+      $cgi->param('group_by', '2');
+    }
+    for (my $i=($cgi->param('group_by')+2);$i<9;$i++) {
+      $tcols->[$i]->{visible} = 0;
+      $tcols->[$i]->{unaddable} = 1;
+    }
+    my $dhash = {};
+    my $colhashcount = {};
+    my $newdata = [];
+    foreach my $d (@$data) {
+      my $range = 2 + $cgi->param('group_by');
+      my $key = join(";", @$d[0..$range]);
+      if (exists($dhash->{$key})) { # sum|avg|avg|avg|avg|avg|avg|hash|num_hash|sum
+	$newdata->[$dhash->{$key}]->[9] = $newdata->[$dhash->{$key}]->[9] + $d->[9];
+	$newdata->[$dhash->{$key}]->[10] = (($newdata->[$dhash->{$key}]->[10] * $colhashcount->{$key}) + $d->[10]) / ($colhashcount->{$key} + 1);
+	$newdata->[$dhash->{$key}]->[11] = (($newdata->[$dhash->{$key}]->[11] * $colhashcount->{$key}) + $d->[11]) / ($colhashcount->{$key} + 1);
+	$newdata->[$dhash->{$key}]->[12] = (($newdata->[$dhash->{$key}]->[12] * $colhashcount->{$key}) + $d->[12]) / ($colhashcount->{$key} + 1);
+	$newdata->[$dhash->{$key}]->[13] = (($newdata->[$dhash->{$key}]->[13] * $colhashcount->{$key}) + $d->[13]) / ($colhashcount->{$key} + 1);
+	$newdata->[$dhash->{$key}]->[14] = (($newdata->[$dhash->{$key}]->[14] * $colhashcount->{$key}) + $d->[14]) / ($colhashcount->{$key} + 1);
+	$newdata->[$dhash->{$key}]->[15] = (($newdata->[$dhash->{$key}]->[15] * $colhashcount->{$key}) + $d->[15]) / ($colhashcount->{$key} + 1);
+	$newdata->[$dhash->{$key}]->[16] = $newdata->[$dhash->{$key}]->[16] . ";" . join(";", @{$d->[16]});
+	$colhashcount->{$key}++;
+      } else {
+	$dhash->{$key} = scalar(@$newdata);
+	$colhashcount->{$key} = 1;
+	$d->[16] = join(";", @{$d->[16]});
+	push(@$newdata, $d);
+      }
+    }
+    foreach my $d (@$newdata) {
+      my %hasher = map { $_ => 1 } split(/;/, $d->[16]);
+      $d->[9] = "<a onclick='abu(this, $tabnum, 16);' style='cursor:pointer'>".$d->[9]."</a>";
+      $d->[10] = sprintf("%.2f", $d->[10]);
+      $d->[11] = sprintf("%.2f", $d->[11]);
+      $d->[12] = sprintf("%.2f", $d->[12]);
+      $d->[13] = sprintf("%.2f", $d->[13]);
+      $d->[14] = sprintf("%.2f", $d->[14]);
+      $d->[15] = sprintf("%.2f", $d->[15]);
+      $d->[16] = join(";", keys(%hasher));
+      $d->[17] = scalar(keys(%hasher));
+    }
+
+    @$newdata = sort { $a->[1] cmp $b->[1] || $a->[2] cmp $b->[2] || $a->[3] cmp $b->[3] || $a->[4] cmp $b->[4] || $a->[5] cmp $b->[5] || $a->[6] cmp $b->[6] || $a->[7] cmp $b->[7] || $a->[8] cmp $b->[8] } @$newdata;
+    
+    $t->columns($tcols);
+    $t->data($newdata);
+
+    my ($cd, $cp, $cc, $co, $cf, $cg, $cs, $cstr) = ('', '', '', '', '', '', '', '');
+    if ($cgi->param('group_by') eq '0') {
+      $cd = " selected='selected'";
+    } elsif ($cgi->param('group_by') eq '1') {
+      $cp = " selected='selected'";
+    } elsif ($cgi->param('group_by') eq '2') {
+      $cc = " selected='selected'";
+    } elsif ($cgi->param('group_by') eq '3') {
+      $co = " selected='selected'";
+    } elsif ($cgi->param('group_by') eq '4') {
+      $cf = " selected='selected'";
+    } elsif ($cgi->param('group_by') eq '5') {
+      $cg = " selected='selected'";
+    } elsif ($cgi->param('group_by') eq '6') {
+      $cs = " selected='selected'";
+    } elsif ($cgi->param('group_by') eq '7') {
+      $cstr = " selected='selected'";
+    }
+
+    #my $krona_button = "<input type='button' value='krona graph' onclick='generate_krona_data(\"".$cgi->param('group_by')."\", \"".$t->id."\", \"org\");'>";
+    
+    #my $qiime_button =  ( $cgi->param('mg_grp_sel') ne 'groups' ) ? "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>" : 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.';
+    my $plugin_container = '';
+    #my $plugin_container = '<table style="border: 2px solid rgb(143, 188, 63); text-align: center; float: right; border-spacing: 0px;"><tbody><tr><td colspan="2" style="cursor: pointer; text-align: left;" title="click to show available plugins" onclick="if(this.parentNode.nextSibling.style.display==\'none\'){this.parentNode.nextSibling.style.display=\'\';this.parentNode.nextSibling.nextSibling.style.display=\'\';}else{this.parentNode.nextSibling.style.display=\'none\';this.parentNode.nextSibling.nextSibling.style.display=\'none\';}"><img src="./Html/plugin.png" style="width: 20px; vertical-align: middle;"> available plugins</td></tr><tr><td style="border-top: 1px solid rgb(143, 188, 63); border-right: 1px solid rgb(143, 188, 63); padding: 2px;"><img src="./Html/krona.png" style="height: 50px; cursor: pointer;" onclick="window.open(&quot;http://sourceforge.net/p/krona/home/krona/&quot;);"></td><td style="border-top: 1px solid rgb(143, 188, 63);"><img onclick="window.open(&quot;http://www.qiime.org&quot;);" style="height: 50px; cursor: pointer;" src="./Html/qiime.png"></td></tr><tr><td style="vertical-align: middle; border-right: 1px solid rgb(143, 188, 63); padding: 2px;">'.$krona_button.'</td><td style="vertical-align: middle;">'.$qiime_button.'</td></tr></tbody></table>';
+    my $qiime_div = '';
+    #my $qiime_div = "<div style='padding-left:15px; float: right;' id='qiime_div_$tabnum'></div>";
+
+    my $pivot = "<form id='table_group_form_$tabnum'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='table'><input type='hidden' name='data_type' value='organism'><input type='hidden' name='ret_type' value='direct'>".$settings_preserve."<br><b>group table by</b> <select name='group_by'><option value='0'$cd>domain</option><option value='1'$cp>phylum</option><option value='2'$cc>class</option><option value='3'$co>order</option><option value='4'$cf>family</option><option value='5'$cg>genus</option><option value='6'$cs>species</option><option value='7'$cstr>strain</option></select><input type='button' value='change' onclick='execute_ajax(\"single_visual\", \"tab_div_".($tabnum+1)."\", \"table_group_form_$tabnum\");'></form><br><br>";
+
+    if ($cgi->param('ret_type') && $cgi->param('ret_type') eq 'direct') {
+      return "$settings$plugin_container$qiime_div$pivot".$t->output;
+    }
+
+    $content .= "<div><div>Representative Organism table $tabnum</div><div>".clear_progress_image()."$settings$plugin_container$qiime_div$pivot".$t->output."</div></div>";
+    $tabnum++;
+  }
+
+  return $content;
+}
+
 sub phylogeny_visual {
   my ($self) = @_;
 
