@@ -19,7 +19,7 @@ export TARGETDIR = $(TOPDIR)/$(TARGET)
 libdir    = $(TARGETDIR)/lib
 bindir    = $(PWD)/bin
 cgidir    = $(TARGETDIR)/CGI
-tmpdir    = $(TARGETDIR)/Tmp
+tmpdir    = $(cgidir)/Tmp
 srcdir    = $(PWD)/src
 
 TOOL_HDR := $(TOPDIR)/$(TARGET)/tool_hdr
@@ -64,7 +64,7 @@ lib:  Makefile $(ALL.LIB)
 clean: Makefile purge
 
 purge: 
-	rm -rf $(TARGET)
+	rm -rf $(TARGET) bin/*.r 
 
 
 ##

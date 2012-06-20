@@ -46,16 +46,21 @@ INST_CGI = $(foreach var, $(PERLCGISCRIPTS), $(cgidir)/$(var))
 PERL_BIN_SRC := $(wildcard *.pl)
 PERL_BIN = $(subst .pl,, $(PERL_BIN_SRC))
 
-all: lib bin
+R_SCRIPTS_SRC := $(wildcard r/*.r)
+R_SCRIPTS = $(subst r/,, $(R_SCRIPTS_SRC))
+
+all: bin
 
 show:
 	@echo cgis $(foreach var, $(PERLCGISCRIPTS), $(cgidir)/$(var))
 	@echo top $(TOPDIR)
 	@echo pkg $(PKGNAME)
 	@echo toolhdr $(TOOL_HDR)
-bin: $(foreach var, $(PERL_BIN), $(bindir)/$(var))
-
-lib: $(INST_CGI) $(INST_PERL_LIB) copy_htaccess  $(foreach var, $(WEBPAGES), $(cgidir)/Html/$(var))
+	
+bin: $(foreach var, $(R_SCRIPTS), $(bindir)/$(var)) $(foreach var, $(PERL_BIN), $(bindir)/$(var)) 
+	@echo R $(foreach var, $(R_SCRIPTS), $(bindir)/$(var))
+	
+lib: $(INST_CGI) $(INST_PERL_LIB) bin $(foreach var, $(WEBPAGES), $(cgidir)/Html/$(var))
 
 htaccess_src = $(RTROOT)/config/all.htaccess
 htaccess_dst = $(cgidir)/.htaccess
@@ -82,6 +87,8 @@ $(cgidir)/Html/%: $(TOPDIR)/src/$(PKGNAME)/%
 $(bindir)/%: $(TOPDIR)/src/$(PKGNAME)/%.pl $(TOOL_HDR)
 	( cat $(TOOL_HDR) $< > $(subt $@); chmod +x $@ )
 
+$(bindir)/%.r: $(TOPDIR)/src/$(PKGNAME)/r/%.r
+	cp $< $@
 
 $(libdir)/$(PKGNAME)/%.pm: %.pm
 	tgt_dir=`dirname $(subst MGRAST/lib/,MGRAST/, $@)`;  \
