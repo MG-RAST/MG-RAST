@@ -1420,7 +1420,7 @@ sub workbench_hits_table {
   my @ach_srcs = grep {$_ !~ /^M5NR$/i} @srcs;
 
   $self->{mgdb}->set_jobs(\@metas);
-  my $analysis_data = $self->{mgdb}->get_md5_data(\@md5s, []);
+  my $analysis_data = $self->{mgdb}->get_md5_data(\@md5s);
   my $source_info   = $self->{mgdb}->ach->sources();
   my $source_data   = (@ach_srcs > 0) ? $self->{mgdb}->ach->md5s2idfunc4sources(\@md5s, \@ach_srcs) : {};
   my $ss_map        = $has_ss ? $self->{mgdb}->ach->subsystem_hash : {};
@@ -1869,10 +1869,11 @@ sub phylogeny_visual {
       if ($cgi->param('raw')) {
 	$rn = "raw";
       }
-      print $pvalexecf "source(\"".$Conf::r_scripts."/suggest_stat_test.r\")\n";
+      print $pvalexecf "source(\"".$Conf::bin."/suggest_stat_test.r\")\n";
       print $pvalexecf "MGRAST_suggest_test(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", paired = FALSE, file_out = \"".$pvalsuggestn."\")\n";
       close $pvalexecf;
-      `R --vanilla --slave < $pvalexecn`;
+      my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+      `$R --vanilla --slave < $pvalexecn`;
       open(FH, $pvalsuggestn);
       my $res = <FH>;
       chomp $res;
@@ -1884,10 +1885,10 @@ sub phylogeny_visual {
       }
       $settings .= "</table><br>";
       my ($pvalexec2f, $pvalexec2n) = tempfile( "rpvale2XXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-      print $pvalexec2f "source(\"".$Conf::r_scripts."/do_stats.r\")\n";
+      print $pvalexec2f "source(\"".$Conf::bin."/do_stats.r\")\n";
       print $pvalexec2f "MGRAST_do_stats(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", sig_test = \"".$res."\", file_out = \"".$pvalresultn."\")\n";
       close $pvalexec2f;
-      `R --vanilla --slave < $pvalexec2n`;
+      `$R --vanilla --slave < $pvalexec2n`;
       open(FH, $pvalresultn);
       my $header = <FH>;
       my $pval_data = {};
@@ -2390,10 +2391,11 @@ sub phylogeny_visual {
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
       my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-      print $prefh "source(\"".$Conf::r_scripts."/preprocessing.r\")\n";
+      print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
-      `R --vanilla --slave < $prefn`;
+      my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+      `$R --vanilla --slave < $prefn`;
       unlink($prefn);
       
       unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
@@ -2446,10 +2448,11 @@ sub phylogeny_visual {
 	my ($col_f, $row_f) = ($Conf::temp."/rdata.col.$time", $Conf::temp."/rdata.row.$time");
 
 	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-	print $heath "source(\"".$Conf::r_scripts."/dendrogram.r\")\n";
+	print $heath "source(\"".$Conf::bin."/dendrogram.r\")\n";
 	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
 	close $heath;
-	`R --vanilla --slave < $heatn`; 
+	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+	`$R --vanilla --slave < $heatn`; 
 	unlink($heatn);
 
 	open(COL, "<$col_f");
@@ -2533,10 +2536,11 @@ sub phylogeny_visual {
 	my $time = time;
 	my ($pca_data) = ($Conf::temp."/rdata.pca.$time");
 	my ($pcah, $pcan) =  tempfile( "rpcaXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-	print $pcah "source(\"".$Conf::r_scripts."/plot_pco.r\")\n";
+	print $pcah "source(\"".$Conf::bin."/plot_pco.r\")\n";
 	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
 	close $pcah;
-	`R --vanilla --slave < $pcan`; 
+	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+	`$R --vanilla --slave < $pcan`; 
 	unlink($pcan);
 
 	$content .= "<div><div>Organism PCoA $tabnum</div><div>$settings<i>$psettings</i><br><br>";
@@ -2851,10 +2855,11 @@ sub metabolism_visual {
       if ($cgi->param('raw')) {
 	$rn = "raw";
       }
-      print $pvalexecf "source(\"".$Conf::r_scripts."/suggest_stat_test.r\")\n";
+      print $pvalexecf "source(\"".$Conf::bin."/suggest_stat_test.r\")\n";
       print $pvalexecf "MGRAST_suggest_test(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", paired = FALSE, file_out = \"".$pvalsuggestn."\")\n";
       close $pvalexecf;
-      `R --vanilla --slave < $pvalexecn`;
+      my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+      `$R --vanilla --slave < $pvalexecn`;
       open(FH, $pvalsuggestn);
       my $res = <FH>;
       chomp $res;
@@ -2866,10 +2871,10 @@ sub metabolism_visual {
       }
       $settings .= "</table><br>";
       my ($pvalexec2f, $pvalexec2n) = tempfile( "rpvale2XXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-      print $pvalexec2f "source(\"".$Conf::r_scripts."/do_stats.r\")\n";
+      print $pvalexec2f "source(\"".$Conf::bin."/do_stats.r\")\n";
       print $pvalexec2f "MGRAST_do_stats(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", sig_test = \"".$res."\", file_out = \"".$pvalresultn."\")\n";
       close $pvalexec2f;
-      `R --vanilla --slave < $pvalexec2n`;
+      `$R --vanilla --slave < $pvalexec2n`;
       open(FH, $pvalresultn);
       my $header = <FH>;
       my $pval_data = {};
@@ -3319,10 +3324,11 @@ sub metabolism_visual {
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
       my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-      print $prefh "source(\"".$Conf::r_scripts."/preprocessing.r\")\n";
+      print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
-      `R --vanilla --slave < $prefn`;      
+      my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+      `$R --vanilla --slave < $prefn`;      
       unlink($prefn);
 
       unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
@@ -3374,10 +3380,11 @@ sub metabolism_visual {
 	my ($col_f, $row_f) = ($Conf::temp."/rdata.col.$time", $Conf::temp."/rdata.row.$time");
 
 	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-	print $heath "source(\"".$Conf::r_scripts."/dendrogram.r\")\n";
+	print $heath "source(\"".$Conf::bin."/dendrogram.r\")\n";
 	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
 	close $heath;
-	`R --vanilla --slave < $heatn`; 
+	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+	`$R --vanilla --slave < $heatn`; 
 	unlink($heatn);
 
 	open(COL, "<$col_f");
@@ -3460,10 +3467,11 @@ sub metabolism_visual {
 	my $time = time;
 	my ($pca_data) = ($Conf::temp."/rdata.pca.$time");
 	my ($pcah, $pcan) =  tempfile( "rpcaXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-	print $pcah "source(\"".$Conf::r_scripts."/plot_pco.r\")\n";
+	print $pcah "source(\"".$Conf::bin."/plot_pco.r\")\n";
 	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
 	close $pcah;
-	`R --vanilla --slave < $pcan`; 
+	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+	`$R --vanilla --slave < $pcan`; 
 	unlink($pcan);
 
 	$content .= "<div><div>Functional PCoA $tabnum</div><div>$settings<i>$psettings</i><br><br>";
