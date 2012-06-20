@@ -2015,7 +2015,7 @@ sub single_visual {
       my $range = 2 + $cgi->param('group_by');
       my $key = join(";", @$d[0..$range]);
       if (exists($dhash->{$key})) { # sum|avg|avg|avg|avg|avg|avg|hash|num_hash
-	$newdata->[$dhash->{$key}]->[9] = $newdata->[$dhash->{$key}]->[10] + $d->[9];
+	$newdata->[$dhash->{$key}]->[9] = $newdata->[$dhash->{$key}]->[9] + $d->[9];
 	$newdata->[$dhash->{$key}]->[10] = (($newdata->[$dhash->{$key}]->[10] * $colhashcount->{$key}) + $d->[10]) / ($colhashcount->{$key} + 1);
 	$newdata->[$dhash->{$key}]->[11] = (($newdata->[$dhash->{$key}]->[11] * $colhashcount->{$key}) + $d->[11]) / ($colhashcount->{$key} + 1);
 	$newdata->[$dhash->{$key}]->[12] = (($newdata->[$dhash->{$key}]->[12] * $colhashcount->{$key}) + $d->[12]) / ($colhashcount->{$key} + 1);
