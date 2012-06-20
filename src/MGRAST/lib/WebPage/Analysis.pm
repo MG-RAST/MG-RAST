@@ -1998,7 +1998,7 @@ sub single_visual {
 		  { name => 'avg align len', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average alignment length of the hits' },
 		  { name => 'align len std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the alignment length of the hits' },
 		  { name => 'md5s', visible => 0 },
-		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"21\", \"18\", \"0\", \"1\", \"10\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
+		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"17\", \"16\", \"0\", \"-\", \"9\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
     
     #### do the pivoting
     unless (defined $cgi->param('group_by')) {
