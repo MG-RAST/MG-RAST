@@ -25,10 +25,10 @@ sub new {
 	       ontology_key => '56a9721b-0d62-4185-933d-81447db2457a'
 	     };
   eval {
-      $self->{_handle} = DBMaster->new( -database => $Conf::mgrast_metadata_db || 'MGRASTMetadata',
-					-host     => $Conf::mgrast_metadata_host,
-					-user     => $Conf::mgrast_metadata_user,
-					-password => $Conf::mgrast_metadata_password || "");
+      $self->{_handle} = DBMaster->new( -database => $Conf::mgrast_jobcache_db || 'MGRASTMetadata',
+					-host     => $Conf::mgrast_jobcache_host,
+					-user     => $Conf::mgrast_jobcache_user,
+					-password => $Conf::mgrast_jobcache_password || "");
     };
   if ($@) {
     warn "Unable to connect to MGRAST metadata db: $@\n";

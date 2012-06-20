@@ -1087,8 +1087,8 @@ sub recruitment_plot_graph {
 <fonts>
 <<include etc/fonts.conf>>
 </fonts>
-<<include $Conf::mgrast_config_dir/ideogram.conf>>
-<<include $Conf::mgrast_config_dir/ticks.conf>>
+<<include $Conf::config/ideogram.conf>>
+<<include $Conf::config/ticks.conf>>
 
 karyotype = $karyotype_file
 
