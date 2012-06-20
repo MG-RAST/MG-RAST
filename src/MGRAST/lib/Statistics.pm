@@ -22,17 +22,6 @@ sub new {
 	       user_dbh   => $user_dbh,
 	     };
 
-#   eval {
-#       $self->{_handle} = DBMaster->new( -database => $Conf::mgrast_metadata_db || 'MGRASTMetadata',
-# 					-host     => $Conf::mgrast_metadata_host,
-# 					-user     => $Conf::mgrast_metadata_user,
-# 					-password => $Conf::mgrast_metadata_password || "");
-#     };
-#   if ($@) {
-#     warn "Unable to connect to MGRAST metadata db: $@\n";
-#     $self->{_handle} = undef;
-#   }
-
   bless ($self, $class);
   return $self;
 }

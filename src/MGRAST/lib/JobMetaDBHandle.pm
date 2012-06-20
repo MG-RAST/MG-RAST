@@ -35,10 +35,10 @@ sub new {
     # get the connection data from Conf.pm
     my $dbmaster;
     eval {
-      $dbmaster = DBMaster->new(-database => $Conf::mgrast_metadata_db || "MGRASTMetadata",
-				-host     => $Conf::mgrast_metadata_host || "localhost",
-				-user     => $Conf::mgrast_metadata_user || "root",
-				-password => $Conf::mgrast_metadata_password || "");
+      $dbmaster = DBMaster->new(-database => $Conf::mgrast_jobcache_db || "MGRASTMetadata",
+				-host     => $Conf::mgrast_jobcache_host || "localhost",
+				-user     => $Conf::mgrast_jobcache || "root",
+				-password => $Conf::mgrast_jobcache_password || "");
     };
 
     if ($@) {

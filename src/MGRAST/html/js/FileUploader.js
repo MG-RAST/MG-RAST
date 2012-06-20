@@ -89,7 +89,7 @@ function start_upload () {
 
 function upload(blobOrFile, fn) {
   var xhr = new XMLHttpRequest();
-  xhr.open('POST', "receive_upload.cgi", true);
+  xhr.open('POST', "upload.cgi", true);
   xhr.onload = function(e) {
     if (this.status == 200) {
       console.log(this.response);
