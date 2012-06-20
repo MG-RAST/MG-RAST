@@ -41,10 +41,10 @@ sub handle {
 
   unless (exists $self->{_handle}) {
     eval {
-      $self->{_handle} = DBMaster->new( -database => $Conf::mgrast_metadata_db || 'MGRASTMetadata',
-					-host     => $Conf::mgrast_metadata_host,
-					-user     => $Conf::mgrast_metadata_user,
-					-password => $Conf::mgrast_metadata_password || "");
+      $self->{_handle} = DBMaster->new( -database => $Conf::mgrast_jobcache_db || 'MGRASTMetadata',
+					-host     => $Conf::mgrast_jobcache_host,
+					-user     => $Conf::mgrast_jobcache_user,
+					-password => $Conf::mgrast_jobcache_password || "");
     };
     if ($@) {
       warn "Unable to connect to MGRAST metadata database: $@\n";
