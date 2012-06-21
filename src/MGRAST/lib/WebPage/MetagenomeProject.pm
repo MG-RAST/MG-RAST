@@ -957,12 +957,20 @@ sub delete_info {
   my ($self) = @_;
 
   my $project = $self->{project};
+  my $jobdbm  = $application->data_handle('MGRAST');  
+  my $jobnum1 = $jobdbm->ProjectJob->get_objects({project => $project});
+  my $jobnum2 = $jobdbm->Job->get_objects({primary_project => $project});
   my $content = "<h3>Delete</h3>";
-  $content .= $self->start_form('delete_project', { project => $project->id,
+
+  if ( (scalar(@$jobnum1) > 0) || (scalar(@$jobnum2) > 0) ) {
+    $content .= "<p>This project contains jobs and can thus not be deleted.</p>";
+  } else {
+    $content .= $self->start_form('delete_project', { project => $project->id,
 						    action  => 'delete_project' });
-  $content .= "<p><strong>To really delete this project, type 'DELETE' into the textbox and click 'delete project'. This will delete the project and all associated metadata. The datasets (jobs) belonging to this project will <i>not</i> be touched.</strong> <input name='confirmation' type='textbox'>";
-  $content .= "&nbsp;&nbsp;&nbsp;<input type='submit' name='delete_project' value='delete project'></p>";
-  $content .= $self->end_form;
+    $content .= "<p><strong>To really delete this project, type 'DELETE' into the textbox and click 'delete project'. This will delete the project and all associated metadata.</strong> <input name='confirmation' type='textbox'>";
+    $content .= "&nbsp;&nbsp;&nbsp;<input type='submit' name='delete_project' value='delete project'></p>";
+    $content .= $self->end_form;
+  }
 
   return $content;
 }
@@ -1177,6 +1185,10 @@ sub delete_project {
   if ($conf && $conf eq 'delete' && $user && $user->has_right(undef, 'edit', 'project', $project_id)) {
     my $project_jobs = $jobdbm->ProjectJob->get_objects( { project => $project } );
     foreach my $p (@$project_jobs) {
+      $p->delete;
+    }
+    my $jobs_with_project = $jobdbm->Job->get_objects( { primary_project => $project } );
+    foreach my $p (@$jobs_with_project) {
       $p->delete;
     }
     my $project_rights = $application->dbmaster->Rights->get_objects( { data_type => 'project', data_id => $project_id  } );
