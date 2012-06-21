@@ -209,6 +209,25 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	
 	# iterate over all entries in the user inbox directory
 	foreach my $ufile (@ufiles) {
+
+	    # check for sane filenames
+	    if ($ufile !~ /^[\/\w\.\-]+$/) {
+		my $newfilename = $ufile;
+		$newfilename =~ s/[^\/\w\.\-]+/_/g;
+		my $count = 1;
+		while (-f "$udir/$newfilename") {
+		    if ($count == 1) {
+			$newfilename =~ s/^(.*)(\..*)$/$1$count$2/;
+		    } else {
+			my $oldcount = $count - 1;
+			$newfilename =~ s/^(.*)$oldcount(\..*)$/$1$count$2/;
+		    }
+		    $count++;
+		}
+		`mv '$udir/$ufile' '$udir/$newfilename'`;
+		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.");
+		$ufile = $newfilename;
+	    }
 	    
 	    # check directories
 	    if (-d "$udir/$ufile") {
@@ -252,6 +271,9 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			}
 			close FH;
 		    }
+		    if ($info->{'file type'} && $info->{'file type'} eq 'malformed') {
+			push(@{$data->[0]->{messages}}, "WARNING: The sequnce file $fn seems to be malformed. You will not be able to submit this file.");
+		    }
 		    $data->[0]->{fileinfo}->{$fn} = $info;
 		} else {
 		    unless ($ufile =~ /\//) {
@@ -271,7 +293,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    my $file_eol      = &file_eol($file_type);
 	    my ($file_suffix) = $sequence_file =~ /^.*\.(.+)$/;
 	    my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
-	    my $file_seq_type = &file_seq_type($sequence_file, $udir, $file_eol);
+	    my $file_seq_type = ($file_format eq 'fastq') ? 'DNA' : &file_seq_type($sequence_file, $udir, $file_eol);
 	    my ($file_md5)    = (`md5sum '$udir/$sequence_file'` =~ /^(\S+)/);
 	    my $file_size     = -s $udir."/".$sequence_file;
 	    
@@ -385,83 +407,6 @@ sub initialize_user_dir {
       die "could not open file '$user_file': $!";
     }
   }
-}
-
-#############################
-# extended file information #
-#############################
-
-sub fasta_report_and_stats {
-    my($file, $dir, $file_format) = @_;
-
-    ### report keys:
-    # bp_count, sequence_count, length_max, id_length_max, length_min, id_length_min, file_size,
-    # average_length, standard_deviation_length, average_gc_content, standard_deviation_gc_content,
-    # average_gc_ratio, standard_deviation_gc_ratio, ambig_char_count, ambig_sequence_count, average_ambig_chars
-
-    my $filetype = "";
-    if ($file_format eq 'fastq') {
-	$filetype = " -t fastq"
-    }
-
-    my @stats = `$Conf::seq_length_stats -i '$dir/$file'$filetype -s`;
-    chomp @stats;
-
-    my $report = {};
-    foreach my $stat (@stats) {
-	my ($key, $value) = split(/\t/, $stat);
-	$report->{$key} = $value;
-    }
-    my $header = `head -1 '$dir/$file'`;
-    my $options = '-s '.$report->{sequence_count}.' -a '.$report->{average_length}.' -d '.$report->{standard_deviation_length}.' -m '.$report->{length_max};
-    my $method = `$Conf::tech_guess -f '$header' $options`;
-
-    my $success = 1;
-    my $message = "";
-    if ( $stats[0] =~ /^ERROR/i ) {
-	$success = 0;
-	my @parts = split(/\t/, $stats[0]);
-	if ( @parts == 3 ) {
-	    $message = $parts[1] . ": " . $parts[2];
-	} else {
-	    $message = join(" ", @stats);
-	}
-    }
-
-    open(FH, ">>$dir/$file.stats_info") or die "could not open stats file for $dir/$file.stats_info: $!";
-    if ($success) {
-	if ($report->{sequence_count} eq "0") {
-	    print FH "Error\tFile contains no sequences\n";
-	    return 0;
-	}
-	foreach my $line (@stats) {
-	    print FH $line."\n";		
-	}
-	print FH "sequencing_method_guess\t$method";
-    } else {
-	print FH "Error\t$message\n";
-    }
-    close FH;
-
-    return 0;
-}
-
-sub file_unique_id_count {
-    my($file_name, $file_path, $file_format) = @_;
-
-    my $unique_ids = 0;
-    if (! -d $file_path.'/.sort') {
-       mkdir $file_path.'/.sort', 775;
-    }
-    if ($file_format eq 'fasta') {
-       	$unique_ids = `grep '>' $file_path/$file_name | cut -f1 -d' ' | sort -T $file_path/.sort -u | wc -l`;
-        chomp $unique_ids;
-    }
-    elsif ($file_format eq 'fastq') {
-        $unique_ids = `awk '0 == (NR + 3) % 4' $file_path/$file_name | cut -f1 -d' ' | sort -T $file_path/.sort -u | wc -l`;
-	chomp $unique_ids;
-    }
-    return $unique_ids;
 }
 
 ####################################

@@ -16,11 +16,12 @@ use base qw( WebPage );
 
 =head1 NAME
 
-MetaData - collects meta information for uploaded genome or metagenome
+Publish Genome - make a metagenome public
 
 =head1 DESCRIPTION
 
-Page for collecting meta data for genomes or metagenomes
+Publish Genome - checks if all neccessary metadata and rights
+are available and then makes a metagenome public
 
 =head1 METHODS
 
@@ -107,7 +108,9 @@ sub meta_info {
   my $user    = $self->application->session->user;
   my $content = "<p><strong>Please confirm that the following metadata is correct:</strong><br>";
   $content .= "Labels in <font color='red'>red</font> are manditory MIxS fields, they are required to be filled out in order to publish your metagenome.</p>";
-  $content .= "<p>If you wish to change any metadata in this metagenome, use the 'Upload MetaData' button within project <a href='metagenomics.cgi?page=MetagenomeProject&project=".$project->id."'>".$project->name."</a> to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='metagenomics.cgi?page=PublishGenome&metagenome=$mg_id&action=download_template'>metadata spreadsheet template</a>.</p>";
+  if ($project) {
+    $content .= "<p>If you wish to change any metadata in this metagenome, use the 'Upload MetaData' button within project <a href='metagenomics.cgi?page=MetagenomeProject&project=".$project->id."'>".$project->name."</a> to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='metagenomics.cgi?page=PublishGenome&metagenome=$mg_id&action=download_template'>metadata spreadsheet template</a>.</p>";
+  }
 
   my $mdata = $self->data('meta')->get_metadata_for_table($job);
   my $mixs  = $self->data('meta')->mixs();
