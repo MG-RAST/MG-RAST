@@ -56,7 +56,6 @@ sub init {
   $self->application->register_action($self, 'create_project', 'create');
   $self->application->register_action($self, 'upload_file', 'upload_file');
   $self->application->register_action($self, 'download_md', 'download_md');
-  $self->application->register_action($self, 'download_template', 'download_template');
   $self->application->register_action($self, 'upload_md', 'upload_md');
   $self->application->register_action($self, 'add_job_to_project', 'add_job_to_project');
   $self->application->register_action($self, 'share_project', 'share_project');
@@ -616,20 +615,6 @@ sub download_md {
     $self->application->add_message('warning', "Could not open download file");
   }
   return 1;
-}
-
-sub download_template {
-  my $fn = $Conf::html_base.'/'.$Conf::mgrast_metadata_template;
-
-  if (open(FH, $fn)) {
-    print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
-    print "Content-Length: " . (stat($fn))[7] . "\n";
-    print "Content-Disposition:attachment;filename=".$Conf::mgrast_metadata_template."\n\n";
-    while (<FH>) {
-      print $_;
-    }
-    close FH;
-  }
 }
 
 sub add_job_info {
@@ -1251,7 +1236,7 @@ sub make_public_info {
   my $html = "<h3>Make Project Public</h3>";
 
   if (@$missing_mixs > 0) {
-    $html .= "<p style='font-variant: normal;'>MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank >Minimum Information about any (X) Sequence</a> (MIxS) developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC). Metagenomes that are missing MIxS metadata cannot be made public. The below list shows which metagenomes associated with this project are missing MIxS metadata. Use the above 'Upload MetaData' button to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='metagenomics.cgi?page=MetagenomeProject&action=download_template'>metadata spreadsheet template</a>.</p>";
+    $html .= "<p style='font-variant: normal;'>MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank >Minimum Information about any (X) Sequence</a> (MIxS) developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC). Metagenomes that are missing MIxS metadata cannot be made public. The below list shows which metagenomes associated with this project are missing MIxS metadata. Use the above 'Upload MetaData' button to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='ftp://".$Conf::ftp_download."/data/misc/metadata/".$Conf::mgrast_metadata_template."'>metadata spreadsheet template</a>.</p>";
     $html .= "<blockquote>".join("<br>", map { $_->{name}." (".$_->{metagenome_id} .")"} @$missing_mixs)."</blockquote>";
   }
   

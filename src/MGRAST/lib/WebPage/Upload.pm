@@ -43,7 +43,6 @@ sub init {
   $self->title("Data Submission");
   $self->{icon} = "<img src='./Html/mg-upload.png' style='width: 20px; height: 20px; padding-right: 5px; position: relative; top: -3px;'>";
 
-  $self->application->register_action($self, 'download_template', 'download_template');
   $self->application->register_action($self, 'check_project_name', 'check_project_name');
   $self->application->register_action($self, 'validate_metadata', 'validate_metadata');
   $self->application->register_action($self, 'submit_to_mgrast', 'submit_to_mgrast');
@@ -96,7 +95,7 @@ sub output {
       push(@$projects, $p->[0]);
     }
   }
-
+  my $template_link = "ftp://".$Conf::ftp_download."/data/misc/metadata/".$Conf::mgrast_metadata_template;
   $html .= qq~
 <div class="well" style='width: 630px; float: left;'><h3>using the new mg-rast uploader:</h3>
 <p>The new data uploader and submission site provides a more convenient way to upload and process your data! You can upload all of your sequence files and metadata at once and have the files modified and validated before submitting.</p>
@@ -137,7 +136,7 @@ sub output {
 <p>The best form to capture metadata is via a simple spreadsheet with 12 mandatory terms. You can download the spreadsheet file here, fill in the required data fields later upload it to your inbox.</p>
 <p>While the MIxS required data fields capture only the most minimal metadata, many areas of study have chosen to require more elaborate questionnaires ("environmental packages") to help with analysis and comparison. These are marked as optional in the spreadsheet. If the "environmental package" for your area of study has not been created yet, please <a href="mailto:mg-rast\@mcs.anl.gov">contact MG-RAST staff</a> and we will forward your inquiry to the appropriate GSC working group.</p>
 <p>Once you have filled out the template, you can upload it below and it will be validated and appear in the metadata selection section.</p>
-                 <p><a href="?page=Upload&action=download_template"><img title="download metadata spreadsheet template" style="width: 20px; height: 20px;" src="./Html/mg-download.png"> download metadata spreadsheet template</a></p>
+                 <p><a href="$template_link"><img title="download metadata spreadsheet template" style="width: 20px; height: 20px;" src="./Html/mg-download.png"> download metadata spreadsheet template</a></p>
               </div>
 
              <li><a onclick="toggle('sel_upload_div');" class="pill_incomplete" id="sel_upload_pill" style="font-size: 17px; font-weight: bold;">2. upload files</a></li>
@@ -541,20 +540,6 @@ sub submit_to_mgrast {
   }
   
   return $mgids;
-}
-
-sub download_template {
-  my $fn = $Conf::html_base.'/'.$Conf::mgrast_metadata_template;
-
-  if (open(FH, $fn)) {
-    print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
-    print "Content-Length: " . (stat($fn))[7] . "\n";
-    print "Content-Disposition:attachment;filename=".$Conf::mgrast_metadata_template."\n\n";
-    while (<FH>) {
-      print $_;
-    }
-    close FH;
-  }
 }
 
 sub check_project_name {
