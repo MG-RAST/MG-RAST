@@ -32,6 +32,8 @@ sub request {
     exit 0;
   }
 
+  my $user = $params->{user};
+
   if ($error) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
@@ -43,9 +45,11 @@ sub request {
   my %rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
   my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
 
+  my $staruser = ($user && $user->has_right(undef, 'view', 'metagenome', '*')) ? 1 : 0;
+
   unless ($id) {
     my $ids = {};
-    if (exists $rights{'*'}) {
+    if ($staruser) {
       map { $ids->{"mgm".$_->{metagenome_id}} = 1 } @{ $master->Job->get_objects({viewable => 1}) };
     }
     else {
@@ -64,7 +68,7 @@ sub request {
   my $job = $master->Job->get_objects( {metagenome_id => $id} );
   if (@$job) {
     $job = $job->[0];
-    if ($job->public || exists($rights{'*'}) || exists($rights{$job->metagenome_id})) {
+    if ($job->public || $staruser || exists($rights{$job->metagenome_id})) {
       my $obj  = {};
       my $mddb = MGRAST::Metadata->new();
       my $temp = ($cgi->param('template')) ? 1 : 0;
