@@ -238,12 +238,14 @@ sub get_jobs_metadata_fast {
   my %mmap = map { $_->[0], $_->[1] } @$meth;
 
   if (scalar(keys %pids) > 0) {
-    my $ptmp = $dbh->selectall_arrayref("SELECT p._id, p.id, p.name, p.public, md.tag, md.value FROM Project p, ProjectMD md WHERE p._id = md.project AND p._id IN (".join(',', keys %pids).")");
+    my $ptmp = $dbh->selectall_arrayref("SELECT p._id, p.id, p.name, p.public, md.tag, md.value FROM Project p LEFT OUTER JOIN ProjectMD md ON p._id = md.project WHERE p._id IN (".join(',', keys %pids).")");
     foreach my $p (@$ptmp) {
       $projs->{$p->[0]}{id} = 'mgp'.$p->[1];
       $projs->{$p->[0]}{name} = $p->[2];
       $projs->{$p->[0]}{public} = $p->[2];
-      $projs->{$p->[0]}{data}{$p->[4]} = $p->[5];
+      if ($p->[4]) {
+	$projs->{$p->[0]}{data}{$p->[4]} = $p->[5];
+      }
     }
   }
   if (scalar(keys %sids) > 0) {
