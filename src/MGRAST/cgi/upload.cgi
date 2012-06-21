@@ -252,6 +252,9 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			}
 			close FH;
 		    }
+		    if ($info->{'file type'} && $info->{'file type'} eq 'malformed') {
+			push(@{$data->[0]->{messages}}, "WARNING: The sequnce file $fn seems to be malformed. You will not be able to submit this file.");
+		    }
 		    $data->[0]->{fileinfo}->{$fn} = $info;
 		} else {
 		    unless ($ufile =~ /\//) {
