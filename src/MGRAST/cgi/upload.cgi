@@ -209,6 +209,25 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	
 	# iterate over all entries in the user inbox directory
 	foreach my $ufile (@ufiles) {
+
+	    # check for sane filenames
+	    if ($ufile !~ /^[\/\w\.\-]+$/) {
+		my $newfilename = $ufile;
+		$newfilename =~ s/[^\/\w\.\-]+/_/g;
+		my $count = 1;
+		while (-f "$udir/$newfilename") {
+		    if ($count == 1) {
+			$newfilename =~ s/^(.*)(\..*)$/$1$count$2/;
+		    } else {
+			my $oldcount = $count - 1;
+			$newfilename =~ s/^(.*)$oldcount(\..*)$/$1$count$2/;
+		    }
+		    $count++;
+		}
+		`mv '$udir/$ufile' '$udir/$newfilename'`;
+		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.");
+		$ufile = $newfilename;
+	    }
 	    
 	    # check directories
 	    if (-d "$udir/$ufile") {
