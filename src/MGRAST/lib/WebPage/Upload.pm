@@ -440,6 +440,9 @@ sub submit_to_mgrast {
   foreach my $seqfile (@$seqfiles) {
     if (open(FH, "<$udir/$seqfile.stats_info")) {
       my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|faa|fa|ffn|frn|fna|fastq|fq)$/;
+      if ($filename_base =~ /\//) {
+	$filename_base =~ s/^.*\/(.*)/$1/;
+      }
       if ($filename_ending ne 'fastq') {
 	$filename_ending = 'fna';
 	`mv '$udir/$seqfile' '$udir/$filename_base.$filename_ending'`;
