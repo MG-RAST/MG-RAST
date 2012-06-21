@@ -5,6 +5,7 @@ var selected_metadata_file;
 var selected_project;
 var selected_libraries = [];
 var last_directory = "";
+var is_a_sequence_file_ending = /(fasta|fna|fastq|fa|faa|fq)$/;
 
 // initialization
 function init_all () {
@@ -37,7 +38,7 @@ function update_inbox (data, files, action) {
       html += "<optgroup title='this is a directory\nclick to toggle open / close' open=0 label='[ "+dlist[i]+" ] - "+DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length+" files' onclick='if(event.originalTarget.nodeName==\"OPTGROUP\"){if(this.open){this.open=0;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"none\";}}else{this.open=1;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"\";}}}'>";
       for (var h=0; h<DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length; h++) {
 	var fn = DataStore['user_inbox'][user.login].fileinfo[dlist[i]][h];
-	if (fn.match(/(fasta|fna|fastq|fa|faa)$/)) {
+	if (fn.match(is_a_sequence_file_ending)) {
 	  seq_dlist[dlist[i]] = 1;
 	  seqs_in_dir = true;
 	}
@@ -47,7 +48,7 @@ function update_inbox (data, files, action) {
     }
     for (var i=0; i<flist.length; i++) {
       html += "<option>"+flist[i]+"</option>";
-      var isSeq = flist[i].match(/(fasta|fna|fastq|fa|faa)$/);
+      var isSeq = flist[i].match(is_a_sequence_file_ending);
       if (isSeq) {
 	sequence_files[sequence_files.length] = flist[i];
       }
@@ -70,9 +71,9 @@ function update_inbox (data, files, action) {
 	for (var h=0; h<DataStore['user_inbox'][user.login].fileinfo[i].length; h++) {
 	  // 'select', 'directory', 'filename', 'format', 'size', 'upload date', 'bp count', 'sequencing method', 'sequence type', 'md5'
 	  var fn = DataStore['user_inbox'][user.login].fileinfo[i][h];
-	  if (fn.match(/(fasta|fna|fastq|fa|faa)$/)) {
+	  if (fn.match(is_a_sequence_file_ending)) {
 	    var inf = DataStore['user_inbox'][user.login].fileinfo[i+'/'+fn];
-	    if (inf && inf['bp count'] && inf['file type'] != 'malformed') {
+	    if (inf && inf['bp count'] && inf['file type'] != 'malformed' && inf['unique id count'] && inf['sequence count'] && inf['unique id count'] == inf['sequence count']) {
 	      var trow = [ 0, i, fn, inf['format'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
@@ -83,7 +84,7 @@ function update_inbox (data, files, action) {
       for (var i=0; i<sequence_files.length; i++) {
 	  var fn = sequence_files[i];
 	  var inf = DataStore['user_inbox'][user.login].fileinfo[fn];
-	  if (inf && inf['bp count'] && inf['file type'] != 'malformed') {
+	  if (inf && inf['bp count'] && inf['file type'] != 'malformed' && inf['unique id count'] && inf['sequence count'] && inf['unique id count'] == inf['sequence count']) {
 	    var trow = [ 0, "-", fn, "-", inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
 	  }
@@ -201,12 +202,12 @@ function demultiplex_files () {
   
   if (files.length == 2) {
     var seqfile;
-    if (files[0].match(/(fasta|fna|fastq|fa|faa)$/) || files[1].match(/(fasta|fna|fastq|fa|faa)$/)) {
+    if (files[0].match(is_a_sequence_file_ending) || files[1].match(is_a_sequence_file_ending)) {
       alert("This might take some minutes, depending on filesize.\nWhen the demultiplexing has finished, your inbox\nwill update automatically.\n\n");
       
       update_inbox(null, files, "demultiplex");
     } else {
-      alert("Your selection must include a sequence file (.fasta, .fastq, .fa, .faa or .fna)");
+      alert("Your selection must include a sequence file (.fasta, .fastq, .fa, .faa, .fq or .fna)");
       return false;
     }
   } else {
@@ -226,7 +227,7 @@ function select_sequence_file () {
       if (fn.match(/(fasta|fa|faa)$/)) {
 	has_fasta = 1;
       }
-      if (fn.match(/fastq$/)) {
+      if (fn.match(/(fastq|fq)$/)) {
 	has_fastq = 1;
       }
       if (table_data[0][i][1] != "-") {
