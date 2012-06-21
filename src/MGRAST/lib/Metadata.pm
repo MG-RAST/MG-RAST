@@ -865,12 +865,18 @@ sub update_curator {
 sub validate_metadata {
   my ($self, $filename, $skip_required) = @_;
 
+  my $extn = '';
+  if ($filename =~ /\.(xls(x)?)$/) {
+    $extn = $1;
+  } else {
+    return (0, {is_valid => 0, data => []}, "Invalid filetype. Needs to be one of .xls or .xlsx");
+  }
   my ($out_hdl, $out_name) = tempfile("metadata_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.json');
   close $out_hdl;
 
   my $data = {};
   my $json = new JSON;
-  my $cmd  = $Conf::validate_metadata.($skip_required ? " -s" : "")." -j $out_name $filename 2>&1";
+  my $cmd  = $Conf::validate_metadata.($skip_required ? " -s" : "")." -f $extn -j $out_name $filename 2>&1";
   my $log  = `$cmd`;
   chomp $log;
   
@@ -879,7 +885,7 @@ sub validate_metadata {
   close JSONF;
 
   if (! $text) {
-    $data = { is_valid => 0, data => ["Non validation error","","","","$log"] };
+    $data = { is_valid => 0, data => [] };
   } else {
     $json = $json->utf8();
     $data = $json->decode($text);

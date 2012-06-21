@@ -611,48 +611,51 @@ sub validate_metadata {
 	$formatted_data .= "<img src='./Html/clear.gif' onload='selected_project=".$project_name."'>";
       }
     }
-    if ($is_valid) {
-      my $barcodes = {};
-      my $libraries = [];
-      foreach my $sample ( @{$data->{samples}} ) {
-	if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
-	  foreach my $library (@{$sample->{libraries}}) {
-	    push(@$libraries, $library->{name});
-	    if ($library->{name} &&$library->{data} && $library->{data}->{forward_barcodes} && $library->{data}->{forward_barcodes}->{value}) {
-	      $barcodes->{$library->{name}} = $library->{data}->{forward_barcodes}->{value};
-	    }
+    my $barcodes = {};
+    my $libraries = [];
+    foreach my $sample ( @{$data->{samples}} ) {
+      if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
+	foreach my $library (@{$sample->{libraries}}) {
+	  push(@$libraries, $library->{name});
+	  if ($library->{name} &&$library->{data} && $library->{data}->{forward_barcodes} && $library->{data}->{forward_barcodes}->{value}) {
+	    $barcodes->{$library->{name}} = $library->{data}->{forward_barcodes}->{value};
 	  }
 	}
       }
-      if (scalar(keys(%$barcodes))) {
-	$fn =~ s/^(.*)\.xlsx$/$1/;
-	my $barname = $fn.".barcodes";
-	if (! -f $udir."/".$barname) {	  
-	  open(FH, ">$udir/$barname") or die "could not open barcode file for writing ($udir/$barname): ".$!."\n";
-	  foreach my $key (keys(%$barcodes)) {
-	    print FH $barcodes->{$key}."\t".$key."\n";
-	  }
-	  close FH;
-	  $formatted_data .= "<p>Barcodes were detected in your metadata file. A barcode file with the provided codes has been placed in your inbox. You can use this to demultiplex your sequence file below. Select the sequence file and the barcode file ($barname) and click 'demultiplex'.</p>";
+    }
+    if (scalar(keys(%$barcodes))) {
+      $fn =~ s/^(.*)\.xls(x)?$/$1/;
+      my $barname = $fn.".barcodes";
+      if (! -f $udir."/".$barname) {	  
+	open(FH, ">$udir/$barname") or die "could not open barcode file for writing ($udir/$barname): ".$!."\n";
+	foreach my $key (keys(%$barcodes)) {
+	  print FH $barcodes->{$key}."\t".$key."\n";
 	}
+	close FH;
+	$formatted_data .= "<p>Barcodes were detected in your metadata file. A barcode file with the provided codes has been placed in your inbox. You can use this to demultiplex your sequence file below. Select the sequence file and the barcode file ($barname) and click 'demultiplex'.</p>";
       }
-      $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). The project contains ".scalar(@{$data->{samples}})." samples with ".scalar(@$libraries)." libraries:</p><table>";
-      foreach my $lib (@$libraries) {
-	$formatted_data .= "<tr><td>".$lib."</td></tr>";
-      }
-      $formatted_data .= "</table>";
-      if (scalar(@$libraries) > 1) {
-	$formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library names, i.e. the filename for your library ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna (<i>Note: All FASTA files will automatically be renamed .fna</i>)</p>";
-	$formatted_data .= "||".join("@@", @$libraries);
-      }
+    }
+    $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). The project contains ".scalar(@{$data->{samples}})." samples with ".scalar(@$libraries)." libraries:</p><table>";
+    foreach my $lib (@$libraries) {
+      $formatted_data .= "<tr><td>".$lib."</td></tr>";
+    }
+    $formatted_data .= "</table>";
+    if (scalar(@$libraries) > 1) {
+      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library names, i.e. the filename for your library ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna (<i>Note: All FASTA files will automatically be renamed .fna</i>)</p>";
+      $formatted_data .= "||".join("@@", @$libraries);
     }
   } else {
     $data = $data->{data};
-    $formatted_data .= "<table><tr><th>tab</th><th>column</th><th>row</th><th>value</th><th>error</th></tr>";
-    foreach my $row (@$data) {
-      $formatted_data .= "<tr><td>".$row->[0]."</td><td>".$row->[1]."</td><td>".$row->[2]."</td><td>".$row->[3]."</td><td>".$row->[4]."</td></tr>";
+    if ($data && (@$data > 0)) {
+      $formatted_data .= "<table><tr><th>tab</th><th>column</th><th>row</th><th>value</th><th>error</th></tr>";
+      foreach my $row (@$data) {
+	$formatted_data .= "<tr><td>".$row->[0]."</td><td>".$row->[1]."</td><td>".$row->[2]."</td><td>".$row->[3]."</td><td>".$row->[4]."</td></tr>";
+      }
+       $formatted_data .= "</table>";
+    } else {
+      $formatted_data .= "<p><pre>$log</pre><p>";
     }
-    $formatted_data .= "</table><input type='button' class='btn' value='select new metadata file' onclick='selected_metadata_file=null;update_inbox();'>";
+    $formatted_data .= "<input type='button' class='btn' value='select new metadata file' onclick='selected_metadata_file=null;update_inbox();'>";
   }
   print $cgi->header;
   print $is_valid."||".$formatted_data;
