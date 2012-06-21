@@ -12,10 +12,10 @@ CREATE TABLE md5s (
   ident_stdv real,
   seek bigint,
   length integer,
-  protein boolean
+  is_protein boolean
 );
 CREATE INDEX md5s_key ON md5s (version, job, md5);
-CREATE INDEX md5s_job_protein ON md5s (job, protein);
+CREATE INDEX md5s_job_protein ON md5s (job, is_protein);
 CREATE INDEX md5s_seek_length ON md5s (seek, length);
 
 CREATE TABLE functions (
