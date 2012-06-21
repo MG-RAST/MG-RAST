@@ -51,7 +51,7 @@ function update_inbox (data, files, action) {
       if (isSeq) {
 	sequence_files[sequence_files.length] = flist[i];
       }
-      var isMet = flist[i].match(/\.xls(x)?$/);
+      var isMet = flist[i].match(/\.xlsx$/);
       if (isMet) {
 	metadata_files[metadata_files.length] = flist[i];
       }
