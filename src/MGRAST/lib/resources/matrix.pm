@@ -15,10 +15,10 @@ $json = $json->utf8();
 sub about {
   my $ach = new Babel::lib::Babel;
   my $content = { 'description' => "metagenomic matrix",
-		  'parameters' => { "id" => "string",
-				    "source" => { "protein"  => [ 'm5nr', map {$_->[0]} @{$ach->get_protein_sources} ],
-						  "ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
-						  "rna"      => [ 'm5rna', map {$_->[0]} @{$ach->get_rna_sources} ]
+		  'parameters' => { "id" => "one or more metagenome ids joined by ';'",
+				    "source" => { "organism protein"  => [ 'M5NR', map {$_->[0]} @{$ach->get_protein_sources} ],
+						  "function ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
+						  "organism rna"      => [ 'M5RNA', map {$_->[0]} @{$ach->get_rna_sources} ]
 						},
 				    "type" => [ "function", "organism" ],
 				    "format" => [ "plain", "biome" ],
@@ -26,6 +26,13 @@ sub about {
 				    "group_level" => { "function" => ['level1','level2','level3','function'],
 						       "organism" => ['domain','phylum','class','order','family','genus','species','strain'] },
 				    "show_hierarchy" => "boolean" },
+		  'defaults' => { "source" => "M5NR (organism) or Subsystems (function)",
+				  "type"   => "organism",
+				  "format" => "biom",
+				  "result_column"  => "abundance",
+				  "group_level"    => "strain (organism) or function (function)",
+				  "show_hierarchy" => "false"
+				},
 		  'return_type' => "application/json" };
 
   print $cgi->header(-type => 'application/json',
