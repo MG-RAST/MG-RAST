@@ -43,7 +43,6 @@ sub init {
   $self->title("Data Submission");
   $self->{icon} = "<img src='./Html/mg-upload.png' style='width: 20px; height: 20px; padding-right: 5px; position: relative; top: -3px;'>";
 
-  $self->application->register_action($self, 'download_template', 'download_template');
   $self->application->register_action($self, 'check_project_name', 'check_project_name');
   $self->application->register_action($self, 'validate_metadata', 'validate_metadata');
   $self->application->register_action($self, 'submit_to_mgrast', 'submit_to_mgrast');
@@ -96,7 +95,7 @@ sub output {
       push(@$projects, $p->[0]);
     }
   }
-
+  my $template_link = "ftp://".$Conf::ftp_download."/data/misc/metadata/".$Conf::mgrast_metadata_template;
   $html .= qq~
 <div class="well" style='width: 630px; float: left;'><h3>using the new mg-rast uploader:</h3>
 <p>The new data uploader and submission site provides a more convenient way to upload and process your data! You can upload all of your sequence files and metadata at once and have the files modified and validated before submitting.</p>
@@ -137,7 +136,7 @@ sub output {
 <p>The best form to capture metadata is via a simple spreadsheet with 12 mandatory terms. You can download the spreadsheet file here, fill in the required data fields later upload it to your inbox.</p>
 <p>While the MIxS required data fields capture only the most minimal metadata, many areas of study have chosen to require more elaborate questionnaires ("environmental packages") to help with analysis and comparison. These are marked as optional in the spreadsheet. If the "environmental package" for your area of study has not been created yet, please <a href="mailto:mg-rast\@mcs.anl.gov">contact MG-RAST staff</a> and we will forward your inquiry to the appropriate GSC working group.</p>
 <p>Once you have filled out the template, you can upload it below and it will be validated and appear in the metadata selection section.</p>
-                 <p><a href="?page=Upload&action=download_template"><img title="download metadata spreadsheet template" style="width: 20px; height: 20px;" src="./Html/mg-download.png"> download metadata spreadsheet template</a></p>
+                 <p><a href="$template_link"><img title="download metadata spreadsheet template" style="width: 20px; height: 20px;" src="./Html/mg-download.png"> download metadata spreadsheet template</a></p>
               </div>
 
              <li><a onclick="toggle('sel_upload_div');" class="pill_incomplete" id="sel_upload_pill" style="font-size: 17px; font-weight: bold;">2. upload files</a></li>
@@ -547,20 +546,6 @@ sub submit_to_mgrast {
   return $mgids;
 }
 
-sub download_template {
-  my $fn = $Conf::html_base.'/'.$Conf::mgrast_metadata_template;
-
-  if (open(FH, $fn)) {
-    print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
-    print "Content-Length: " . (stat($fn))[7] . "\n";
-    print "Content-Disposition:attachment;filename=".$Conf::mgrast_metadata_template."\n\n";
-    while (<FH>) {
-      print $_;
-    }
-    close FH;
-  }
-}
-
 sub check_project_name {
   my ($self) = @_;
 
@@ -615,48 +600,51 @@ sub validate_metadata {
 	$formatted_data .= "<img src='./Html/clear.gif' onload='selected_project=".$project_name."'>";
       }
     }
-    if ($is_valid) {
-      my $barcodes = {};
-      my $libraries = [];
-      foreach my $sample ( @{$data->{samples}} ) {
-	if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
-	  foreach my $library (@{$sample->{libraries}}) {
-	    push(@$libraries, $library->{name});
-	    if ($library->{name} &&$library->{data} && $library->{data}->{forward_barcodes} && $library->{data}->{forward_barcodes}->{value}) {
-	      $barcodes->{$library->{name}} = $library->{data}->{forward_barcodes}->{value};
-	    }
+    my $barcodes = {};
+    my $libraries = [];
+    foreach my $sample ( @{$data->{samples}} ) {
+      if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
+	foreach my $library (@{$sample->{libraries}}) {
+	  push(@$libraries, $library->{name});
+	  if ($library->{name} &&$library->{data} && $library->{data}->{forward_barcodes} && $library->{data}->{forward_barcodes}->{value}) {
+	    $barcodes->{$library->{name}} = $library->{data}->{forward_barcodes}->{value};
 	  }
 	}
       }
-      if (scalar(keys(%$barcodes))) {
-	$fn =~ s/^(.*)\.xlsx$/$1/;
-	my $barname = $fn.".barcodes";
-	if (! -f $udir."/".$barname) {	  
-	  open(FH, ">$udir/$barname") or die "could not open barcode file for writing ($udir/$barname): ".$!."\n";
-	  foreach my $key (keys(%$barcodes)) {
-	    print FH $barcodes->{$key}."\t".$key."\n";
-	  }
-	  close FH;
-	  $formatted_data .= "<p>Barcodes were detected in your metadata file. A barcode file with the provided codes has been placed in your inbox. You can use this to demultiplex your sequence file below. Select the sequence file and the barcode file ($barname) and click 'demultiplex'.</p>";
+    }
+    if (scalar(keys(%$barcodes))) {
+      $fn =~ s/^(.*)\.xls(x)?$/$1/;
+      my $barname = $fn.".barcodes";
+      if (! -f $udir."/".$barname) {	  
+	open(FH, ">$udir/$barname") or die "could not open barcode file for writing ($udir/$barname): ".$!."\n";
+	foreach my $key (keys(%$barcodes)) {
+	  print FH $barcodes->{$key}."\t".$key."\n";
 	}
+	close FH;
+	$formatted_data .= "<p>Barcodes were detected in your metadata file. A barcode file with the provided codes has been placed in your inbox. You can use this to demultiplex your sequence file below. Select the sequence file and the barcode file ($barname) and click 'demultiplex'.</p>";
       }
-      $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). The project contains ".scalar(@{$data->{samples}})." samples with ".scalar(@$libraries)." libraries:</p><table>";
-      foreach my $lib (@$libraries) {
-	$formatted_data .= "<tr><td>".$lib."</td></tr>";
-      }
-      $formatted_data .= "</table>";
-      if (scalar(@$libraries) > 1) {
-	$formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library names, i.e. the filename for your library ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna (<i>Note: All FASTA files will automatically be renamed .fna</i>)</p>";
-	$formatted_data .= "||".join("@@", @$libraries);
-      }
+    }
+    $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). The project contains ".scalar(@{$data->{samples}})." samples with ".scalar(@$libraries)." libraries:</p><table>";
+    foreach my $lib (@$libraries) {
+      $formatted_data .= "<tr><td>".$lib."</td></tr>";
+    }
+    $formatted_data .= "</table>";
+    if (scalar(@$libraries) > 1) {
+      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library names, i.e. the filename for your library ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna (<i>Note: All FASTA files will automatically be renamed .fna</i>)</p>";
+      $formatted_data .= "||".join("@@", @$libraries);
     }
   } else {
     $data = $data->{data};
-    $formatted_data .= "<table><tr><th>tab</th><th>column</th><th>row</th><th>value</th><th>error</th></tr>";
-    foreach my $row (@$data) {
-      $formatted_data .= "<tr><td>".$row->[0]."</td><td>".$row->[1]."</td><td>".$row->[2]."</td><td>".$row->[3]."</td><td>".$row->[4]."</td></tr>";
+    if ($data && (@$data > 0)) {
+      $formatted_data .= "<table><tr><th>tab</th><th>column</th><th>row</th><th>value</th><th>error</th></tr>";
+      foreach my $row (@$data) {
+	$formatted_data .= "<tr><td>".$row->[0]."</td><td>".$row->[1]."</td><td>".$row->[2]."</td><td>".$row->[3]."</td><td>".$row->[4]."</td></tr>";
+      }
+       $formatted_data .= "</table>";
+    } else {
+      $formatted_data .= "<p><pre>$log</pre><p>";
     }
-    $formatted_data .= "</table><input type='button' class='btn' value='select new metadata file' onclick='selected_metadata_file=null;update_inbox();'>";
+    $formatted_data .= "<input type='button' class='btn' value='select new metadata file' onclick='selected_metadata_file=null;update_inbox();'>";
   }
   print $cgi->header;
   print $is_valid."||".$formatted_data;
