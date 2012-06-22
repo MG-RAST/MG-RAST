@@ -290,6 +290,20 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	# create basic and extended file information if we do not yet have it
 	if (! $info_files->{$sequence_file}) {
 	    my $file_type     = &file_type($sequence_file, $udir);
+
+	    if ($file_type eq 'ASCII text, with CR line terminators') {
+		`sed -i 's/\r/\n/g' '$udir/$sequence_file'`;
+		$file_type = 'ASCII text';
+	    } elsif ($file_type eq 'ASCII text, with CRLF line terminators') {
+		`tr -d '\r' < '$udir/$sequence_file' > '$udir/$sequence_file.tmp'`;
+		`mv '$udir/$sequence_file.tmp' '$udir/$sequence_file'`;
+		$file_type = 'ASCII text';
+	    }
+
+	    unless ($file_type eq 'ASCII text') {
+		$file_type = "binary or invalid end of line characters<br><b>WARNING</b> You will not be able to use this file as a sequence file!";
+	    }
+
 	    my $file_eol      = &file_eol($file_type);
 	    my ($file_suffix) = $sequence_file =~ /^.*\.(.+)$/;
 	    my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
@@ -316,14 +330,16 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
 	    
 	    # call the extended information
-	    my $compute_script = $Conf::sequence_statistics;
-	    my $jobid = $user->{login};
-	    my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
-	    my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
-	    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
-	    open(FH, ">>$udir/.tmp/jobs");
-	    print FH "$jnum";
-	    close FH;
+	    if ($file_type eq 'ASCII text') {
+		my $compute_script = $Conf::sequence_statistics;
+		my $jobid = $user->{login};
+		my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
+		my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+		open(FH, ">>$udir/.tmp/jobs");
+		print FH "$jnum";
+		close FH;
+	    }
 	}
     }
 
@@ -376,7 +392,7 @@ print "Content-Type: text/plain\n\n";
 # if this is the last chunk, remove the partial file
 if ($cgi->param('last_chunk')) {
     print "file received";
-    `rm $udir/$filename.part`
+    `rm $udir/$filename.part`;
 } else {
     print "chunk received";
 }
