@@ -440,13 +440,17 @@ sub submit_to_mgrast {
   foreach my $seqfile (@$seqfiles) {
     if (open(FH, "<$udir/$seqfile.stats_info")) {
       my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|faa|fa|ffn|frn|fna|fastq|fq)$/;
+      my $subdir = "";
       if ($filename_base =~ /\//) {
-	$filename_base =~ s/^.*\/(.*)/$1/;
+	($subdir) = $filename_base =~ s/^(.*\/)(.*)/$2/;
       }
       if ($filename_ending ne 'fastq') {
+	if ($filename_ending eq 'fq') {
+	  $filename_ending = 'fastq';	  
+	}
 	$filename_ending = 'fna';
-	`mv '$udir/$seqfile' '$udir/$filename_base.$filename_ending'`;
-	$seqfile = "$filename_base.$filename_ending";
+	`mv '$udir/$seqfile' '$udir/$subdir$filename_base.$filename_ending'`;
+	$seqfile = "$subdir$filename_base.$filename_ending";
       }
       my $name = $filename_base;
       # die if using metadata and no filename-library match
@@ -464,7 +468,7 @@ sub submit_to_mgrast {
 		   'filter_ln' => $filter_ln ? 1 : 0,
 		   'filter_ambig' => $filter_ambig ? 1 : 0,
 		   'max_ambig' => $max_ambig,
-		   'file' => $seqfile, 
+		   'file' => $seqfile,
 		   'name' => $name,
 		   'priority' => $priority
 		 };
