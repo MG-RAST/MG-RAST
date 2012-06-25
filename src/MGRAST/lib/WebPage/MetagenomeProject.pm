@@ -957,7 +957,7 @@ sub delete_info {
   my ($self) = @_;
 
   my $project = $self->{project};
-  my $jobdbm  = $application->data_handle('MGRAST');  
+  my $jobdbm  = $self->application->data_handle('MGRAST');  
   my $jobnum1 = $jobdbm->ProjectJob->get_objects({project => $project});
   my $jobnum2 = $jobdbm->Job->get_objects({primary_project => $project});
   my $content = "<h3>Delete</h3>";
@@ -980,7 +980,7 @@ sub share_info {
 
   my $email   = $self->app->cgi->param('email') || '';
   my $project = $self->{project};
-  my $jobdbm = $self->application->data_handle('MGRAST');
+  my $jobdbm  = $self->application->data_handle('MGRAST');
   my $content = "<h3>Share Project</h3>";
   $content .= $self->start_form('share_project', { project => $project->id,
 						   action  => 'share_project' });

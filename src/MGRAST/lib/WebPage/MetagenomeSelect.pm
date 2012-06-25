@@ -120,6 +120,7 @@ sub output {
     my $cddata = [];
     my $ind = 0;
     foreach my $v (@{$cdata_hash->{$k}}) {
+      next unless ($v);
       my $name_link = "<a href='?page=MetagenomeOverview&metagenome=".$data->{$v}{jobname}[0]."' target='_blank'>".$genome_id2jobname->{$data->{$v}{jobname}[0]}." (".$data->{$v}{jobname}[0].")</a>";
       my $pid = $genome_id2project->{$data->{$v}{jobname}[0]} ? $project_hash->{$genome_id2project->{$data->{$v}{jobname}[0]}}->{id} : "";
       my $project_link = $genome_id2project->{$data->{$v}{jobname}[0]} ? "<a href='?page=MetagenomeProject&project=$pid' target=_blank>".$genome_id2project->{$data->{$v}{jobname}[0]}."</a>" : "-";

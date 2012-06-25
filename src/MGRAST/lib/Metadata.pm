@@ -722,7 +722,7 @@ sub add_entries {
   unless ($collection && ref($collection)) { return undef; }
   my $template = $self->template();
   my $mddb  = $self->{_handle};
-  my $ctype = $collection->category_type( $collection->type );
+  my $ctype = $collection->category_type( $collection->type ) || '';
 
   foreach my $set (@$data) {
     my ($tag, $val) = @$set;
