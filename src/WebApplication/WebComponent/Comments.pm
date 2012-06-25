@@ -23,7 +23,7 @@ use DBMaster;
 use base qw( WebComponent );
 
 use FIGMODEL;
-use FIG_Config;
+use Conf;
 1;
 $DEBUG = 1;
 =pod
@@ -39,8 +39,8 @@ Called when the object is initialized. Expands SUPER::new.
 sub new {
 	my $self = shift->SUPER::new(@_);
 	my $dbMaster = DBMaster->new(-database => 'WebComments',
-		-host => $FIG_Config::webapplication_host,
-		-user => $FIG_Config::webapplication_user, -backend => 'MySQL');
+		-host => $Conf::webapplication_host,
+		-user => $Conf::webapplication_user, -backend => 'MySQL');
 	$self->{'db'} = $dbMaster; 
 	return $self;
 }

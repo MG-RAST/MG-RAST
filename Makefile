@@ -19,7 +19,7 @@ export TARGETDIR = $(TOPDIR)/$(TARGET)
 libdir    = $(TARGETDIR)/lib
 bindir    = $(PWD)/bin
 cgidir    = $(TARGETDIR)/CGI
-workdir   = $(TARGETDIR)/tmp
+tmpdir    = $(cgidir)/Tmp
 srcdir    = $(PWD)/src
 
 TOOL_HDR := $(TOPDIR)/$(TARGET)/tool_hdr
@@ -61,10 +61,10 @@ all: installdirs $(TOOL_HDR) lib
 ALL.LIB = $(foreach var,$(PACKAGES),$(srcdir)/$(var).lib)
 lib:  Makefile $(ALL.LIB)
 
-clean: Makefile purge installdirs
+clean: Makefile purge
 
 purge: 
-	rm -rf $(TARGET)/bin $(TARGET)/lib $(TARGET)/tmp $(TARGET)/CGI
+	rm -rf $(TARGET) bin/*.r 
 
 
 ##
@@ -77,9 +77,9 @@ purge:
 # then lib and tmp are not made.  So we add two rules here
 # to handle that case.
 
-installdirs: $(libdir) $(bindir) $(cgidir) $(cgidir)/Html $(cgidir)/Html/css $(workdir) 
+installdirs: $(libdir) $(bindir) $(cgidir) $(cgidir)/Html $(cgidir)/Html/css $(tmpdir) 
 	- mkdir -p $(libdir)
-	- mkdir -p $(workdir)
+	- mkdir -p $(tmpdir)
 	- mkdir -p $(bindir)
 	- mkdir -p $(cgidir)
 
@@ -89,8 +89,11 @@ $(libdir): $(foreach var,$(PACKAGES),$(libdir)/$(var).installdirs)
 
 $(libdir)/%.installdirs:
 	- mkdir -p $(@:.installdirs=)
-	- mkdir -p $(@:.installdirs=)Gen
 
+$(tmpdir): 
+	- mkdir -p $(tmpdir)
+	- chmod a+w $(tmpdir)
+	
 $(bindir): 
 	- mkdir -p $(bindir)
 
@@ -102,8 +105,6 @@ $(cgidir)/Html:
 
 $(cgidir)/Html/css:
 	mkdir -p $(cgidir)/Html/css
-
-$(workdir): $(foreach var,$(PACKAGES),$(workdir)/$(var).installdirs)
 
 $(workdir)/%.installdirs:
 	- mkdir -p $(@:.installdirs=)

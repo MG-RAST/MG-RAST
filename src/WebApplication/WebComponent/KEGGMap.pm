@@ -9,7 +9,7 @@ use base qw( WebComponent );
 
 use File::Temp;
 
-use FIG_Config;
+use Conf;
 use WebComponent::WebGD;
 use WebColors;
 
@@ -47,7 +47,7 @@ sub new {
   $self->{compound_coordinates} = {};
   $self->{ec_coordinates} = {};
   $self->{kegg_link} = "http://www.genome.jp/dbget-bin/show_pathway?";
-  $self->{kegg_base_path} = $FIG_Config::kegg || "$FIG_Config::mgrast_data/kegg";
+  $self->{kegg_base_path} = $Conf::kegg || "$Conf::mgrast_data/kegg";
   $self->{kegg_base_path} .= "/pathway/map/";
   $self->{error} = '';
   $self->{highlights} = [];
@@ -92,10 +92,10 @@ sub output {
   } else {
     $image_base .= ".gif";
     my $tmp = File::Temp->new( TEMPLATE => 'keggXXXXX',
-			       DIR => $FIG_Config::temp,
+			       DIR => $Conf::temp,
 			       SUFFIX => '.png');
     $image_file = $tmp->filename;
-    my $convert = $FIG_Config::ext_bin."/convert";
+    my $convert = $Conf::ext_bin."/convert";
     `$convert -transparent white $image_base $image_file`;
     if (-f $image_file) {
       $image = WebGD->newFromPng($image_file, 1);

@@ -5,7 +5,7 @@ package WebComponent::FeatureToolSelect;
 use strict;
 use warnings;
 
-use FIG_Config;
+use Conf;
 use URI::Escape;
 
 use base qw( WebComponent );
@@ -54,7 +54,7 @@ sub output {
   my $id = $cgi->param('feature') || "";
 
   my $tool_select_box = "";
-  if (open(TMP,"<$FIG_Config::global/LinksToTools")) {
+  if (open(TMP,"<$Conf::global/LinksToTools")) {
     $tool_select_box = "<select name='tool'>";
     
     $/ = "\n//\n";

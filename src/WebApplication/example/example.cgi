@@ -7,7 +7,7 @@ use WebMenu;
 use WebLayout;
 use WebConfig;
 
-my $layout = WebLayout->new("$FIG_Config::cgi_url/Html/MyAppLayout.tmpl");
+my $layout = WebLayout->new("$Conf::cgi_url/Html/MyAppLayout.tmpl");
 $layout->add_css(TMPL_PATH.'/default.css');
 
 my $menu = WebMenu->new();

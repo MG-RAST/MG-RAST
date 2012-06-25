@@ -317,5 +317,5 @@ sub legend_width {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/PopupTooltip.js"];
+  return ["$Conf::cgi_url/Html/PopupTooltip.js"];
 }

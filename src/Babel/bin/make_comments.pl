@@ -1,6 +1,6 @@
 use Data::Dumper;
 use Carp;
-use FIG_Config;
+use Conf;
 
 use FIG;
 my $fig = new FIG;

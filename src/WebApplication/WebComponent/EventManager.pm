@@ -215,5 +215,5 @@ sub _registerListener {
 }
         
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/EventManager.js"];
+  return ["$Conf::cgi_url/Html/EventManager.js"];
 }

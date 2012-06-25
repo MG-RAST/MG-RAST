@@ -5,7 +5,7 @@ use warnings;
 
 use base qw(Exporter);
 our @EXPORT = qw ( CSS_PATH TMPL_PATH JS_PATH IMAGES HMTL_PATH CGI_PATH TEMP_PATH TMPL_URL_PATH );
-use FIG_Config;
+use Conf;
 
 1;
 
@@ -16,18 +16,18 @@ use FIG_Config;
 #
 # File system path configurations.
 #
-use constant TMPL_PATH  => "$FIG_Config::html_base/";
+use constant TMPL_PATH  => "$Conf::html_base/";
 use constant TMPL_URL_PATH  => "./Html/";
-use constant CFG_PATH   => "$FIG_Config::ROOT/config/WebApplication/";
-use constant TEMP_PATH  => $FIG_Config::temp;
+use constant CFG_PATH   => ""; #$Conf::ROOT/config/WebApplication/
+use constant TEMP_PATH  => $Conf::temp;
 #
 # URL path configurations.
 #
-use constant CGI_PATH   => "$FIG_Config::cgi_url/";
-use constant CSS_PATH   => "$FIG_Config::cgi_url/Html/";
-use constant JS_PATH    => "$FIG_Config::cgi_url/Html/";
-use constant IMAGES     => "$FIG_Config::cgi_url/Html/";
-use constant HTML_PATH  => "$FIG_Config::cgi_url/Html/";
+use constant CGI_PATH   => "$Conf::cgi_url/";
+use constant CSS_PATH   => "$Conf::cgi_url/Html/";
+use constant JS_PATH    => "$Conf::cgi_url/Html/";
+use constant IMAGES     => "$Conf::cgi_url/Html/";
+use constant HTML_PATH  => "$Conf::cgi_url/Html/";
 
 #
 # Database settings
