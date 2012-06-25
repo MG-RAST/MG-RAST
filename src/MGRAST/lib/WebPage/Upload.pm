@@ -390,13 +390,18 @@ sub submit_to_mgrast {
   # get project name from metadata
   if ($mdata) {
     ($is_valid, $data, $log) = $mddb->validate_metadata($udir."/".$mdata);
-    $project_name = $data->{data}->{project_name}->{value};
-    foreach my $sample ( @{$data->{samples}} ) {
-      if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
-	foreach my $library (@{$sample->{libraries}}) {
-	  $libraries->{$library->{name}} = 1;
+    if ($is_valid) {
+      $project_name = $data->{data}->{project_name}->{value};
+      foreach my $sample ( @{$data->{samples}} ) {
+	if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
+	  foreach my $library (@{$sample->{libraries}}) {
+	    $libraries->{$library->{name}} = 1;
+	  }
 	}
       }
+    } else {
+      $self->application->add_message('warning', "Metadata file $mdata is invalid, aborting submission. Please re-run validation in Step 1.");
+      return undef;
     }
   }
   # get project if exists from name or id
