@@ -13,7 +13,7 @@ use warnings;
 
 use Conf;
 use Data::Dumper;
-
+use List::MoreUtils qw(natatime);
 use Digest::MD5;
 use DBI;
 
@@ -212,11 +212,16 @@ sub md5s2organisms_unique {
   my ($self, $md5s, $source) = @_;
 
   my $data = {};
-  my $list = join(",", map {$self->dbh->quote($_)} @$md5s);
-  my $statement = "select md5, organism from md5_organism_unique where md5 in ($list) and source = ".$self->dbh->quote($source);
-  my $rows = $self->dbh->selectall_arrayref($statement);
-  if ($rows && (@$rows > 0)) {
-    %$data = map { $_->[0], $_->[1] } @$rows;
+  my $size = 35000;
+  my $iter = natatime $size, @$md5s;
+
+  while (my @curr = $iter->()) {
+    my $list = join(",", map {$self->dbh->quote($_)} @curr);
+    my $statement = "select md5, organism from md5_organism_unique where md5 in ($list) and source = ".$self->dbh->quote($source);
+    my $rows = $self->dbh->selectall_arrayref($statement);
+    if ($rows && (@$rows > 0)) {
+      map { $data->{$_->[0]} = $_->[1] } @$rows;
+    }
   }
   return $data;
   # md5 => organism
