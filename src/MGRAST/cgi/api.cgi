@@ -192,7 +192,7 @@ else {
 	print $json->encode($content);
 	exit 0;
     } else {
-	print $cgi->redirect($Conf::html_url.'/api.html');
+	print $cgi->redirect($Conf::cgi_url.'Html/api.html');
 	exit 0;
     }
 }
