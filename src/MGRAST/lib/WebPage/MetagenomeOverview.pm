@@ -385,7 +385,7 @@ sub output {
     $html .= "&raquo; find metagenomes within this country";
   }
   $html .= "</li><li style='margin-top:0.25em;margin-bottom:0.25em;list-style-type:none;'>";
-  if (scalar @$md_coordinate) {
+  if (scalar(@$md_coordinate) && ($md_coordinate[0] =~ /^-?\d+\.?\d*$/) && ($md_coordinate[1] =~ /^-?\d+\.?\d*$/)) {
     my ($lat, $lng) = @$md_coordinate;
     my $lat_10  = "input_q1=" . join("_", sort {$a <=> $b} ($lat - 0.1, $lat + 0.1));
     my $lng_10  = "input_q2=" . join("_", sort {$a <=> $b} ($lng - 0.1, $lng + 0.1));
