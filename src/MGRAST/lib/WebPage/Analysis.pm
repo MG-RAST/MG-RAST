@@ -2686,7 +2686,7 @@ sub phylogeny_visual {
 
     my $krona_button = "<input type='button' value='krona graph' onclick='generate_krona_data(\"".$cgi->param('group_by')."\", \"".$t->id."\", \"org\");'>";
     
-    my $qiime_button =  ( $cgi->param('mg_grp_sel') ne 'groups' ) ? "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>" : 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.';
+    my $qiime_button = ($cgi->param('mg_grp_sel') && ($cgi->param('mg_grp_sel') eq 'groups')) ? 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.' : "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>";
 
     my $plugin_container = '<table style="border: 2px solid rgb(143, 188, 63); text-align: center; float: right; border-spacing: 0px;"><tbody><tr><td colspan="2" style="cursor: pointer; text-align: left;" title="click to show available plugins" onclick="if(this.parentNode.nextSibling.style.display==\'none\'){this.parentNode.nextSibling.style.display=\'\';this.parentNode.nextSibling.nextSibling.style.display=\'\';}else{this.parentNode.nextSibling.style.display=\'none\';this.parentNode.nextSibling.nextSibling.style.display=\'none\';}"><img src="./Html/plugin.png" style="width: 20px; vertical-align: middle;"> available plugins</td></tr><tr><td style="border-top: 1px solid rgb(143, 188, 63); border-right: 1px solid rgb(143, 188, 63); padding: 2px;"><img src="./Html/krona.png" style="height: 50px; cursor: pointer;" onclick="window.open(&quot;http://sourceforge.net/p/krona/home/krona/&quot;);"></td><td style="border-top: 1px solid rgb(143, 188, 63);"><img onclick="window.open(&quot;http://www.qiime.org&quot;);" style="height: 50px; cursor: pointer;" src="./Html/qiime.png"></td></tr><tr><td style="vertical-align: middle; border-right: 1px solid rgb(143, 188, 63); padding: 2px;">'.$krona_button.'</td><td style="vertical-align: middle;">'.$qiime_button.'</td></tr></tbody></table>';
 
@@ -3004,7 +3004,7 @@ sub phylogeny_visual {
 	$img_control .= "<table><tr><th>Metagenome</th><th>group</th><th>$md_type_select</th></tr>";
 	my $opts = "<option value='0'>- no group -</option><option value='group1'>group 1</option><option value='group2'>group 2</option><option value='group3'>group 3</option><option value='group4'>group 4</option><option value='group5'>group 5</option><option value='group6'>group 6</option><option value='group7'>group 7</option><option value='group8'>group 8</option><option value='group9'>group 9</option><option value='group10'>group 10</option>";
 	for (my $i=0; $i<scalar(@comp_mgs); $i++) {
-	  $img_control .= "<tr><td>".$comp_mgs[$i]."</td><td><select id='group_list".$tabnum."_$i' onchange='change_pca_color(this, \"$tabnum\", \"$i\");'>$opts</select></td><td><span id='group_list_md_".$tabnum."_$i'>".$mgmd->[$i]->[0]."</span></td></tr>";
+	  $img_control .= "<tr><td>".($comp_mgs[$i] || '')."</td><td><select id='group_list".$tabnum."_$i' onchange='change_pca_color(this, \"$tabnum\", \"$i\");'>$opts</select></td><td><span id='group_list_md_".$tabnum."_$i'>".($mgmd->[$i]->[0] || '')."</span></td></tr>";
 	}
 	$img_control .= "</table>";
 	$img_control .= "<input type='button' value='store grouping' onclick='store_grouping(\"$tabnum\", \"".join("^", @comp_mgs)."\");'>";
@@ -3626,8 +3626,7 @@ sub metabolism_visual {
 
     my $krona_button = "<input type='button' value='krona graph' onclick='generate_krona_data(\"".$cgi->param('group_by')."\", \"".$t->id."\", \"func\");'>";
     
-#    my $qiime_button = "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>";
-    my $qiime_button =  ( $cgi->param('mg_grp_sel') ne 'groups' ) ? "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>" : 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.';
+    my $qiime_button = ($cgi->param('mg_grp_sel') && ($cgi->param('mg_grp_sel') eq 'groups')) ? 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.' : "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>";
     
     my $plugin_container = '<table style="border: 2px solid rgb(143, 188, 63); text-align: center; float: right; border-spacing: 0px;"><tbody><tr><td colspan="2" style="cursor: pointer; text-align: left;" title="click to show available plugins" onclick="if(this.parentNode.nextSibling.style.display==\'none\'){this.parentNode.nextSibling.style.display=\'\';this.parentNode.nextSibling.nextSibling.style.display=\'\';}else{this.parentNode.nextSibling.style.display=\'none\';this.parentNode.nextSibling.nextSibling.style.display=\'none\';}"><img src="./Html/plugin.png" style="width: 20px; vertical-align: middle;"> available plugins</td></tr><tr><td style="border-top: 1px solid rgb(143, 188, 63); border-right: 1px solid rgb(143, 188, 63); padding: 2px;"><img src="./Html/krona.png" style="height: 50px; cursor: pointer;" onclick="window.open(&quot;http://sourceforge.net/p/krona/home/krona/&quot;);"></td><td style="border-top: 1px solid rgb(143, 188, 63);"><img onclick="window.open(&quot;http://www.qiime.org&quot;);" style="height: 50px; cursor: pointer;" src="./Html/qiime.png"></td></tr><tr><td style="vertical-align: middle; border-right: 1px solid rgb(143, 188, 63); padding: 2px;">'.$krona_button.'</td><td style="vertical-align: middle;">'.$qiime_button.'</td></tr></tbody></table>';
     
@@ -3934,7 +3933,7 @@ sub metabolism_visual {
 	$img_control .= "<table><tr><th>Metagenome</th><th>group</th><th>$md_type_select</th></tr>";
 	my $opts = "<option value='0'>- no group -</option><option value='group1'>group 1</option><option value='group2'>group 2</option><option value='group3'>group 3</option><option value='group4'>group 4</option><option value='group5'>group 5</option>";
 	for (my $i=0; $i<scalar(@comp_mgs); $i++) {
-	  $img_control .= "<tr><td>".$comp_mgs[$i]."</td><td><select id='group_list".$tabnum."_$i' onchange='change_pca_color(this, \"$tabnum\", \"$i\");'>$opts</select></td><td><span id='group_list_md_".$tabnum."_$i'>".$mgmd->[$i]->[0]."</span></td></tr>";
+	  $img_control .= "<tr><td>".($comp_mgs[$i] || '')."</td><td><select id='group_list".$tabnum."_$i' onchange='change_pca_color(this, \"$tabnum\", \"$i\");'>$opts</select></td><td><span id='group_list_md_".$tabnum."_$i'>".($mgmd->[$i]->[0] || '')."</span></td></tr>";
 	}
 	$img_control .= "</table>";
 	$img_control .= "<input type='button' value='store grouping' onclick='store_grouping(\"$tabnum\", \"".join("^", @comp_mgs)."\");'>";

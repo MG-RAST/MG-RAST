@@ -569,7 +569,10 @@ sub verbose {
 
 sub format_number {
   my ($val) = @_;
-
+  
+  if (! $val) {
+    return $val;
+  }
   if ($val =~ /(\d+)\.\d/) {
     $val = $1;
   }
