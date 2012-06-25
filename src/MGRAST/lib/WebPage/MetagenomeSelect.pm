@@ -181,12 +181,9 @@ sub output {
     }
     
     # projects
-    my $projects_mgs = "none" ;
-    my $data_ids = $user->has_right_to(undef, 'view', 'project') ;
-    my $num_projects = scalar @$data_ids || 0 ;
-    foreach my $d (@$data_ids) {
-      push(@$private_projects, $mgrast->Project->init( { id => $d } ));
-    }
+    my $projects_mgs  = "none";
+    $private_projects = $mgrast->Project->get_private_projects($user);
+    my $num_projects  = scalar(@$private_projects);
     
     my $help = $application->component('help');
     $help->add_tooltip( 'available_help', 'Datasets that you have processed by the MG-RAST pipeline and are now available for use with online analysis tools.' );

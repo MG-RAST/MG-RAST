@@ -16,11 +16,12 @@ use base qw( WebPage );
 
 =head1 NAME
 
-MetaData - collects meta information for uploaded genome or metagenome
+Publish Genome - make a metagenome public
 
 =head1 DESCRIPTION
 
-Page for collecting meta data for genomes or metagenomes
+Publish Genome - checks if all neccessary metadata and rights
+are available and then makes a metagenome public
 
 =head1 METHODS
 
@@ -40,7 +41,6 @@ sub init {
   # register components
   $self->application->register_component('Table', 'DisplayMetaData');
   $self->application->register_component('Ajax', 'Display_Ajax');
-  $self->application->register_action($self, 'download_template', 'download_template');
 
   # init data
   my $meta = MGRAST::Metadata->new();
@@ -107,7 +107,9 @@ sub meta_info {
   my $user    = $self->application->session->user;
   my $content = "<p><strong>Please confirm that the following metadata is correct:</strong><br>";
   $content .= "Labels in <font color='red'>red</font> are manditory MIxS fields, they are required to be filled out in order to publish your metagenome.</p>";
-  $content .= "<p>If you wish to change any metadata in this metagenome, use the 'Upload MetaData' button within project <a href='metagenomics.cgi?page=MetagenomeProject&project=".$project->id."'>".$project->name."</a> to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='metagenomics.cgi?page=PublishGenome&metagenome=$mg_id&action=download_template'>metadata spreadsheet template</a>.</p>";
+  if ($project) {
+    $content .= "<p>If you wish to change any metadata in this metagenome, use the 'Upload MetaData' button within project <a href='metagenomics.cgi?page=MetagenomeProject&project=".$project->id."'>".$project->name."</a> to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='ftp://".$Conf::ftp_download."/data/misc/metadata/".$Conf::mgrast_metadata_template."'>metadata spreadsheet template</a>.</p>";
+  }
 
   my $mdata = $self->data('meta')->get_metadata_for_table($job);
   my $mixs  = $self->data('meta')->mixs();
@@ -197,18 +199,4 @@ sub publish {
   $content   .= "<p>Dear $uname, thank you for making your metagenome publicly available. You can link to your public metagenome using this link: ";
   $content   .= "<a href='".$self->data('linkin')."'>".$self->data('linkin')."</a>. If you believe this is a mistake please contact mg-rast\@mcs.anl.gov.</p>";
   return $content;
-}
-
-sub download_template {
-  my $fn = $Conf::html_base.'/'.$Conf::mgrast_metadata_template;
-
-  if (open(FH, $fn)) {
-    print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
-    print "Content-Length: " . (stat($fn))[7] . "\n";
-    print "Content-Disposition:attachment;filename=".$Conf::mgrast_metadata_template."\n\n";
-    while (<FH>) {
-      print $_;
-    }
-    close FH;
-  }
 }
