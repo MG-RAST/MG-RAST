@@ -18,7 +18,7 @@ use Conf;
 #
 use constant TMPL_PATH  => "$Conf::html_base/";
 use constant TMPL_URL_PATH  => "./Html/";
-use constant CFG_PATH   => "$Conf::ROOT/config/WebApplication/";
+use constant CFG_PATH   => ""; #$Conf::ROOT/config/WebApplication/
 use constant TEMP_PATH  => $Conf::temp;
 #
 # URL path configurations.
