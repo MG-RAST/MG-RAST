@@ -1185,6 +1185,7 @@ sub parse_data {
 	}
 	if ($parent) {
 	  $root = $self->{nodes}->{$parent}->{name};
+	  $lineage = $lineage || '';
 	  $lineage = $root ? $root."; ".$lineage : $lineage;
 	  my $curr = $parent;
 	  while ($self->{nodes}->{$curr}->{parent}) {
