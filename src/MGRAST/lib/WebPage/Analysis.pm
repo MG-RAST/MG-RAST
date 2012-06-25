@@ -3004,7 +3004,7 @@ sub phylogeny_visual {
 	$img_control .= "<table><tr><th>Metagenome</th><th>group</th><th>$md_type_select</th></tr>";
 	my $opts = "<option value='0'>- no group -</option><option value='group1'>group 1</option><option value='group2'>group 2</option><option value='group3'>group 3</option><option value='group4'>group 4</option><option value='group5'>group 5</option><option value='group6'>group 6</option><option value='group7'>group 7</option><option value='group8'>group 8</option><option value='group9'>group 9</option><option value='group10'>group 10</option>";
 	for (my $i=0; $i<scalar(@comp_mgs); $i++) {
-	  $img_control .= "<tr><td>".$comp_mgs[$i]."</td><td><select id='group_list".$tabnum."_$i' onchange='change_pca_color(this, \"$tabnum\", \"$i\");'>$opts</select></td><td><span id='group_list_md_".$tabnum."_$i'>".$mgmd->[$i]->[0]."</span></td></tr>";
+	  $img_control .= "<tr><td>".($comp_mgs[$i] || '')."</td><td><select id='group_list".$tabnum."_$i' onchange='change_pca_color(this, \"$tabnum\", \"$i\");'>$opts</select></td><td><span id='group_list_md_".$tabnum."_$i'>".($mgmd->[$i]->[0] || '')."</span></td></tr>";
 	}
 	$img_control .= "</table>";
 	$img_control .= "<input type='button' value='store grouping' onclick='store_grouping(\"$tabnum\", \"".join("^", @comp_mgs)."\");'>";
