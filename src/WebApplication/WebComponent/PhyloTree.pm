@@ -917,6 +917,8 @@ sub myrim {
   }
 
   my $poly = new GD::Polygon;
+  unless (defined($a1) && defined($a1)) { return $poly; }
+
   for(my $a=$a1;$a<=$a2;$a+=$astep) {
     my ($x, $y) = getxypos($a,$radius_1);
     $x += $x_off;
