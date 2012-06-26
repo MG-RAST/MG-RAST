@@ -1464,6 +1464,7 @@ sub get_alpha {
   my $mgid  = $self->application->cgi->param('metagenome');
   my $jid   = $self->application->cgi->param('job');
   my $alpha = $self->application->cgi->param('alpha') || 0;
+  my $job   = $jobdb->Job->init({ job_id => $jid });
 
   if ($alpha == 0) {
     my $tmp = $mgdb->get_rarefaction_curve([], 1);
@@ -1471,11 +1472,14 @@ sub get_alpha {
       $alpha = $tmp->{$mgid};
     }
   }
-  my ($min, $max, $avg, $stdv) = @{ $jobdb->JobStatistics->stats_for_tag('alpha_diversity_shannon') };
 
   $html .= "<p><b>&alpha;-Diversity = ".sprintf("%.3f", $alpha)." species</b></p>";
-  $html .= "<img src='./Html/clear.gif' onload='draw_position_on_range(\"alpha_range_div\", $alpha, $min, $max, $avg, $stdv);'>";
-  $html .= "<div id='alpha_range_div'></div>";
+  if ($job->primary_project && ref($job->primary_project)) {
+    my $proj_jobs = $job->primary_project->metagenomes(1);
+    my ($min, $max, $avg, $stdv) = @{ $jobdb->JobStatistics->stats_for_tag('alpha_diversity_shannon', $proj_jobs, 1) };
+    $html .= "<img src='./Html/clear.gif' onload='draw_position_on_range(\"alpha_range_div\", $alpha, $min, $max, $avg, $stdv);'>";
+    $html .= "<div id='alpha_range_div'></div>";
+  }
   $html .= "<p>Alpha diversity summarizes the diversity of organisms in a sample with a single number. The alpha diversity of annotated samples can be estimated from the distribution of the species-level annotations.</p>";
   $html .= "<p>Annotated species richness is the number of distinct species annotations in the combined MG-RAST dataset. Shannon diversity is an abundance-weighted average of the logarithm of the relative abundances of annotated species. The species-level annotations are from all the annotation source databases used by MG-RAST.</p>";
 
