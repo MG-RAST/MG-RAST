@@ -249,7 +249,7 @@ x.style.display = 'none';
 	my $user_select = "<select name='login'><option></option>";
 	my $users_to_impersonate = $master->User->get_objects();
 	foreach $user (sort{lc($a->lastname()) cmp lc($b->lastname())}@$users_to_impersonate){
-		$user_select .= "<option value='".$user->login()."'>".$user->lastname().", ".$user->firstname()."</option>";
+		$user_select .= "<option value='".$user->login()."'>".$user->lastname().", ".$user->firstname()." (".$user->login().")</option>";
 	}
 	$user_select .= "</select> <input type='submit' value='switch user'>";
     $html .= $user_select . $self->end_form();
