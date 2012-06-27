@@ -181,6 +181,9 @@ sub initialize {
   }
   $job->set_filter_options();
 
+  # mark as 'upload'
+  $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
+
   return $job;
 }
 
