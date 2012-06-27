@@ -46,13 +46,13 @@ MGRAST_preprocessing <<- function(file_in,     # name of the input file (tab del
 
 
 ###### norm values from 0 to 1  
-  min_value = min(log2_cent_data)
+  min_value = min(log2_cent_data, na.rm=TRUE)
   for (i in 1:number_samples){ 
     for (j in 1:number_entries){
       log2_cent_data[j,i] <<- (log2_cent_data[j,i] + abs(min_value))
     } 
   }
-  max_value= max(log2_cent_data)
+  max_value= max(log2_cent_data, na.rm=TRUE)
   for (i in 1:number_samples){ 
     for (j in 1:number_entries){
       if (log2_cent_data[j,i] == 0){
