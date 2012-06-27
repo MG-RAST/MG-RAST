@@ -14,7 +14,8 @@ CREATE TABLE md5s (
   length integer,
   is_protein boolean
 );
-CREATE INDEX md5s_key ON md5s (version, job, md5);
+COPY md5s (version,job,md5,abundance,evals,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,seek,length,is_protein) FROM 'FILE' WITH NULL AS '';
+CREATE UNIQUE INDEX md5s_key ON md5s (version, job, md5);
 CREATE INDEX md5s_job_protein ON md5s (job, is_protein);
 CREATE INDEX md5s_seek_length ON md5s (seek, length);
 
@@ -32,7 +33,8 @@ CREATE TABLE functions (
   md5s char(32)[],
   source text NOT NULL
 );
-CREATE INDEX functions_key ON functions (version, job, function, source);
+COPY functions (version,job,function,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
+CREATE UNIQUE INDEX functions_key ON functions (version, job, function, source);
 CREATE INDEX functions_md5s ON functions USING gin(md5s);
 
 CREATE TABLE organisms (
@@ -50,7 +52,8 @@ CREATE TABLE organisms (
   source text NOT NULL,
   ncbi_tax_id integer
 );
-CREATE INDEX organisms_key ON organisms (version, job, organism, source);
+COPY organisms (version,job,organism,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source,ncbi_tax_id) FROM 'FILE' WITH NULL AS '';
+CREATE UNIQUE INDEX organisms_key ON organisms (version, job, organism, source);
 CREATE INDEX organisms_md5s ON organisms USING gin(md5s);
 
 CREATE TABLE ontologies (
@@ -68,7 +71,8 @@ CREATE TABLE ontologies (
   source text NOT NULL,
   annotation text
 );
-CREATE INDEX ontologies_key ON ontologies (version, job, id, source);
+COPY ontologies (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source,annotation) FROM 'FILE' WITH NULL AS '';
+CREATE UNIQUE INDEX ontologies_key ON ontologies (version, job, id, source);
 CREATE INDEX ontologies_md5s ON ontologies USING gin(md5s);
 
 CREATE TABLE lcas (
@@ -85,5 +89,6 @@ CREATE TABLE lcas (
   md5s integer,
   level integer
 );
-CREATE INDEX lcas_key ON lcas (version, job, lca);
+COPY lcas (version,job,lca,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,level) FROM 'FILE' WITH NULL AS '';
+CREATE UNIQUE INDEX lcas_key ON lcas (version, job, lca);
 CREATE INDEX lcas_level ON lcas (level);
