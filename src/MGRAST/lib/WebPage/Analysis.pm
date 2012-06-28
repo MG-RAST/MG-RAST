@@ -1480,7 +1480,7 @@ sub workbench_blat_output {
 	    $mainfunc .= "<div style='$sel' name='align' id='align_func_".$counter."_".$r->[0]."'>".$r->[2]."</div>";
 	    $main_source .= "<div style='$sel' name='align' id='align_source_".$counter."_".$r->[0]."'>".$r->[0]."</div>";
 
-	    my $id_link = $sorc->{$r->[0]}{link} ? "<a target=_blank href='".$sorc->{$r->[0]}{link}.$links_hash->{$id}->{$r->[0]}."'>".$links_hash->{$id}->{$r->[0]}."</a>" : $links->[$counter]->[0];
+	    my $id_link = ($sorc->{$r->[0]}{link} && $links_hash->{$id}{$r->[0]}) ? "<a target=_blank href='".$sorc->{$r->[0]}{link}.$links_hash->{$id}{$r->[0]}."'>".$links_hash->{$id}{$r->[0]}."</a>" : $links->[$counter]->[0];
 
 	    $main_id .= "<div style='$sel' name='align' id='align_id_".$counter."_".$r->[0]."'>".$id_link."</div>";
 
