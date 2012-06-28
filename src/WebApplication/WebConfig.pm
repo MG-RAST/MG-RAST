@@ -18,7 +18,7 @@ use Conf;
 #
 use constant TMPL_PATH  => "$Conf::html_base/";
 use constant TMPL_URL_PATH  => "./Html/";
-use constant CFG_PATH   => ""; #$Conf::ROOT/config/WebApplication/
+use constant CFG_PATH   => "";
 use constant TEMP_PATH  => $Conf::temp;
 #
 # URL path configurations.
@@ -41,9 +41,9 @@ our $NODB   = undef;
 #
 # Default values for the web application
 #
-our $APPLICATION_NAME = 'WebApplication';
-our $APPLICATION_URL  = 'http://bioseed.mcs.anl.gov/';
-our $ADMIN_EMAIL = 'paczian@mcs.anl.gov';
+our $APPLICATION_NAME = 'MG-RAST';
+our $APPLICATION_URL  = 'http://metagenomics.anl.gov/';
+our $ADMIN_EMAIL = 'mg-rast@mcs.anl.gov';
 
 #
 # Login dependencies are used to grant login rights
