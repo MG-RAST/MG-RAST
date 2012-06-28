@@ -9,7 +9,6 @@ use Data::Dumper;
 use Conf;
 
 use MGRAST::Analysis;
-use MGRAST::MGRAST qw( get_public_metagenomes );
 
 1;
 
