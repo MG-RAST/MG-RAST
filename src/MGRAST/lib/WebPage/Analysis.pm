@@ -1139,7 +1139,7 @@ sub recruitment_plot_graph {
     if (-s "$Conf::temp/$circos_file.png") {
       return [$circos_file, $eval_set, $prev_stats];
     } else {
-      my $r = system("circos -conf $config_file -silent");
+      my $r = system($Conf::circos_path." -conf $config_file -silent");
       return ($r == 0) ? [$circos_file, $eval_set, $prev_stats] : ["Circos failed: $?",  []];
     }
   }
@@ -1315,7 +1315,7 @@ units_nounit  = n
 ~;
   close CFG;
 
-  my $c = system("circos -conf $config_file -silent");
+  my $c = system($Conf::circos_path." -conf $config_file -silent");
   for (my $j=0; $j<@eval_sums; $j++) { push @$eval_set, [ $evals->[$j], $eval_sums[$j], $colors->[$j] ]; }
   return ($c == 0) ? [$circos_file, $eval_set, [$num_frag, $num_hit, $num_feat]] : ["Circos failed: $?",  []];
 }
