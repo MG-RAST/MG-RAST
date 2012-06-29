@@ -406,27 +406,27 @@ sub output {
   if ($is_rna) {
     $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of the ".format_number($qc_rna_seqs)." sequences (totaling ".format_number($qc_rna_bps)." bps) that passed quality control, ".format_number($ann_rna_reads)." (".percent($ann_rna_reads,$qc_rna_seqs).") produced a total of ".format_number($rna_sims)." identified ribosomal RNAs.</p>";
   } else {
-    $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of those, dereplication identified ".format_number($derep_seqs)." sequences (".percent($derep_seqs,$raw_seqs)." of total) as technical duplicates. Of the ".format_number($qc_seqs)." sequences (totaling ".format_number($qc_bps)." bps) that passed quality control, ".format_number($aa_reads)." (".percent($aa_reads,$qc_seqs).") produced a total of ".format_number($aa_feats)." predicted protein coding regions. Of these ".format_number($aa_feats)." predicted protein features, ".format_number($aa_sims)." (".percent($aa_sims,$aa_feats)." of features) have been assigned an annotation using at least one of our protein databases (M5NR) and ".format_number($aa_feats-$aa_sims)." (".percent($aa_feats-$aa_sims,$aa_feats)." of features) have no significant similarities to the protein database (orfans). ".format_number($aa_ontol)." features (".percent($aa_ontol,$aa_sims)." of annotated features) were assigned to functional categories.</p>";
+    $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of those, dereplication identified ".format_number($derep_seqs)." sequences (".percent($derep_seqs,$raw_seqs)." of total) as artificial duplicate reads (ADRs). Of the ".format_number($qc_seqs)." sequences (totaling ".format_number($qc_bps)." bps) that passed quality control, ".format_number($aa_reads)." (".percent($aa_reads,$qc_seqs).") produced a total of ".format_number($aa_feats)." predicted protein coding regions. Of these ".format_number($aa_feats)." predicted protein features, ".format_number($aa_sims)." (".percent($aa_sims,$aa_feats)." of features) have been assigned an annotation using at least one of our protein databases (M5NR) and ".format_number($aa_feats-$aa_sims)." (".percent($aa_feats-$aa_sims,$aa_feats)." of features) have no significant similarities to the protein database (orfans). ".format_number($aa_ontol)." features (".percent($aa_ontol,$aa_sims)." of annotated features) were assigned to functional categories.</p>";
   }
   $html .= "</td><td rowspan='3' style='padding-left:25px;'></td>";
 
   # technical stats
   $html .= "<td rowspan='3'><h3>Analysis Statistics</h3>";
   $html .= "<div class='metagenome_info' style='width: 320px;'><ul style='margin: 0; padding: 0;'>";
-  $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Upload: Size</label><span style='width: 200px'>".format_number($raw_bps)." bp</span></li>";
+  $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Upload: bp Count</label><span style='width: 200px'>".format_number($raw_bps)." bp</span></li>";
   $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Upload: Sequences Count</label><span style='width: 200px'>".format_number($raw_seqs)."</span></li>";
   $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Upload: Mean Sequence Length</label><span style='width: 200px'>".format_number($raw_len_avg)." &plusmn; ".format_number($raw_len_std)." bp</span></li>";
   $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Upload: Mean GC percent</label><span style='width: 200px'>".format_number($raw_gc_avg)." &plusmn; ".format_number($raw_gc_std)." %</span></li>";
   if ($is_rna) {
-    $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: Size</label><span style='width: 200px'>".format_number($qc_rna_bps)." bp</span></li>";
+    $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: bp Count</label><span style='width: 200px'>".format_number($qc_rna_bps)." bp</span></li>";
     $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: Sequences Count</label><span style='width: 200px'>".format_number($qc_rna_seqs)."</span></li>";
     $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: Mean Sequence Length</label><span style='width: 200px'>".format_number($qc_rna_len_avg)." &plusmn; ".format_number($qc_len_std)." bp</span></li>";
     $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: Mean GC percent</label><span style='width: 200px'>".format_number($qc_rna_gc_avg)." &plusmn; ".format_number($qc_gc_std)." %</span></li>";
     $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Processed: Predicted rRNA Features</label><span style='width: 200px'>".format_number($rna_feats)."</span></li>";
     $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Alignment: Identified rRNA Features</label><span style='width: 200px'>".format_number($rna_sims)."</span></li>";
   } else {
-    $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Technical Duplicates: Sequence Count</label><span style='width: 200px'>".format_number($derep_seqs)."</span></li>";
-    $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: Size</label><span style='width: 200px'>".format_number($qc_bps)." bp</span></li>";
+    $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Artificial Duplicate Reads: Sequence Count</label><span style='width: 200px'>".format_number($derep_seqs)."</span></li>";
+    $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: bp Count</label><span style='width: 200px'>".format_number($qc_bps)." bp</span></li>";
     $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: Sequences Count</label><span style='width: 200px'>".format_number($qc_seqs)."</span></li>";
     $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: Mean Sequence Length</label><span style='width: 200px'>".format_number($qc_len_avg)." &plusmn; ".format_number($qc_len_std)." bp</span></li>";
     $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: Mean GC percent</label><span style='width: 200px'>".format_number($qc_gc_avg)." &plusmn; ".format_number($qc_gc_std)." %</span></li>";
@@ -459,7 +459,7 @@ sub output {
     my $drisee_score = sprintf("%.3f", $drisee_num);
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
-<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee_score' style='font-size:14px;padding-left:5px;'>[?]</a>
+<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a>
 <a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='
   if (this.innerHTML=="show") {
     this.innerHTML = "hide";
@@ -469,11 +469,12 @@ sub output {
     this.innerHTML = "show";
   }'>hide</a></h3>
 <div id='drisee_show'>
-  <p><b>DRISEE score = $drisee_score</b></p>
+  <p><b>Total DRISEE Error = $drisee_score %</b></p>
   <img src='./Html/clear.gif' onload='draw_position_on_range("drisee_bar_div", $drisee_num, $min, $max, $avg, $stdv);'>
   <div id='drisee_bar_div'></div>
-  <p>DRISEE: Duplicate Read Inferred Sequencing Error Estimation (Keegan et al., PLoS Computational Biology, 2012, In Press)</p>
-  <p>DRISEE is a tool that utilizes artifactual duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
+  <p>The above image shows the range of total DRISEE percent errors in all of MG-RAST. The min, max, and mean values are shown, with the standard deviation ranges (&sigma; and 2&sigma;) in different shades. The total DRISEE percent error of this metagenome is shown in red.</p>
+  <p>DRISEE: Duplicate Read Inferred Sequencing Error Estimation (<a target=_blank href='http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1002541'>Keegan et al., PLoS Computational Biology, 2012</a>)</p>
+  <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
   $drisee_plot
 </div>~;
   }
@@ -1209,9 +1210,13 @@ sub get_drisee_chart {
     my @per = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) } @$row;
     push @$data, [ $x, @per[6..11], sum(@per[6..11]) ];
   }
-  my $drisee_link = $self->chart_export_link($data, 'drisee_plot');
+  my @down_data = @$data;
+  unshift @down_data, ['Position','A','T','C','G','N','InDel','Total'];
+  my $values_link = $self->chart_export_link($drisee, 'drisee_values', 'Download DRISEE values');
+  my $drisee_link = $self->chart_export_link(\@down_data, 'drisee_plot', 'Download DRISEE plot');
   my $drisee_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
   my $html = qq~
+<p>$values_link</p>
 <p>$drisee_link</p>
 <script type="text/javascript">
   google.load("visualization", "1", {packages:["corechart"]});
@@ -1219,7 +1224,7 @@ sub get_drisee_chart {
   function drawChart() {
     var color = bpColors();
     var data = new google.visualization.arrayToDataTable([
-      ['Position','A','T','C','G','N','X','Total'],
+      ['Position','A','T','C','G','N','InDel','Total'],
       $drisee_rows
     ]);
     var chart = new google.visualization.LineChart(document.getElementById("drisee_plot"));
@@ -1479,6 +1484,7 @@ sub get_alpha {
     my ($min, $max, $avg, $stdv) = @{ $jobdb->JobStatistics->stats_for_tag('alpha_diversity_shannon', $proj_jobs, 1) };
     $html .= "<img src='./Html/clear.gif' onload='draw_position_on_range(\"alpha_range_div\", $alpha, $min, $max, $avg, $stdv);'>";
     $html .= "<div id='alpha_range_div'></div>";
+    $html .= "<p>The above image shows the range of &alpha;-diversity values in project ".$job->primary_project->name.". The min, max, and mean values are shown, with the standard deviation ranges (&sigma; and 2&sigma;) in different shades. The &alpha;-diversity of this metagenome is shown in red.</p>";
   }
   $html .= "<p>Alpha diversity summarizes the diversity of organisms in a sample with a single number. The alpha diversity of annotated samples can be estimated from the distribution of the species-level annotations.</p>";
   $html .= "<p>Annotated species richness is the number of distinct species annotations in the combined MG-RAST dataset. Shannon diversity is an abundance-weighted average of the logarithm of the relative abundances of annotated species. The species-level annotations are from all the annotation source databases used by MG-RAST.</p>";

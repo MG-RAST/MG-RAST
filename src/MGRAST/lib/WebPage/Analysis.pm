@@ -1139,7 +1139,7 @@ sub recruitment_plot_graph {
     if (-s "$Conf::temp/$circos_file.png") {
       return [$circos_file, $eval_set, $prev_stats];
     } else {
-      my $r = system("circos -conf $config_file -silent");
+      my $r = system($Conf::circos_path." -conf $config_file -silent");
       return ($r == 0) ? [$circos_file, $eval_set, $prev_stats] : ["Circos failed: $?",  []];
     }
   }
@@ -1315,7 +1315,7 @@ units_nounit  = n
 ~;
   close CFG;
 
-  my $c = system("circos -conf $config_file -silent");
+  my $c = system($Conf::circos_path." -conf $config_file -silent");
   for (my $j=0; $j<@eval_sums; $j++) { push @$eval_set, [ $evals->[$j], $eval_sums[$j], $colors->[$j] ]; }
   return ($c == 0) ? [$circos_file, $eval_set, [$num_frag, $num_hit, $num_feat]] : ["Circos failed: $?",  []];
 }
@@ -1480,7 +1480,7 @@ sub workbench_blat_output {
 	    $mainfunc .= "<div style='$sel' name='align' id='align_func_".$counter."_".$r->[0]."'>".$r->[2]."</div>";
 	    $main_source .= "<div style='$sel' name='align' id='align_source_".$counter."_".$r->[0]."'>".$r->[0]."</div>";
 
-	    my $id_link = $sorc->{$r->[0]}{link} ? "<a target=_blank href='".$sorc->{$r->[0]}{link}.$links_hash->{$id}->{$r->[0]}."'>".$links_hash->{$id}->{$r->[0]}."</a>" : $links->[$counter]->[0];
+	    my $id_link = ($sorc->{$r->[0]}{link} && $links_hash->{$id}{$r->[0]}) ? "<a target=_blank href='".$sorc->{$r->[0]}{link}.$links_hash->{$id}{$r->[0]}."'>".$links_hash->{$id}{$r->[0]}."</a>" : $links->[$counter]->[0];
 
 	    $main_id .= "<div style='$sel' name='align' id='align_id_".$counter."_".$r->[0]."'>".$id_link."</div>";
 
