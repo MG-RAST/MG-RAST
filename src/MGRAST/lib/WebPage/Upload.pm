@@ -71,6 +71,18 @@ sub output {
     return "<p>You must be logged in to upload metagenome files and create jobs.</p><p>Please use the login box in the top right corner or return to the <a href='?page=Home'>start page</a>.</p>";
   }
   
+  my $lock_file = $Conf::locks.'/upload.lock';
+  if (-e $lock_file) {
+    my $message = "We have temporarily suspended uploads for maintenance purposes, please try again later";
+    if (-s $lock_file) {
+      my @lines = `cat $lock_file`;
+      $message  = join('', @lines);
+    }
+    $application->add_message('warning', $message);
+    $self->title("Upload suspended");
+    return '';
+  }
+
   my $json = new JSON;
   $json = $json->utf8();
   my $ufo = { "login" => $user->login,
