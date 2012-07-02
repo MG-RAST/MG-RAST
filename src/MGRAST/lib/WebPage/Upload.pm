@@ -239,7 +239,7 @@ sub output {
     next unless ($project->{name});
     $html .= "<option value='".$project->{id}."'>".$project->{name}."</option>";
   }
-  $html .= qq~</select> <input type='text' name='new_project' id='new_project' style='margin-bottom: 20px;'> <input style='margin-bottom: 20px;' type='button' class='btn' value='select' onclick="check_project();">
+  $html .= qq~</select> <input type='text' name='new_project' id='new_project' style='margin-bottom: 20px;'><br><input style='margin-bottom: 20px;' type='button' class='btn' value='select' onclick="check_project();">
 <p>The projects shown in the list above are the ones you have write access to. Note that the owners of the projects can provide you with write access</p>
               </div>
 	      <li><a onclick="toggle('sel_seq_div');" class="pill_incomplete" id="sel_seq_pill" style="font-size: 17px; font-weight: bold;">3. select sequence file(s) <i id="icon_step_3" class="icon-ok icon-white" style="display: none;"></i></a></li>
@@ -333,7 +333,7 @@ sub output {
 		    </div>
 		  </div>
 
-		  <input type="button" class="btn" value="accept" onclick="accept_pipeline_options();" id="accept_pipeline_options_button"><span style='margin-left: 20px;'><b>Warning: Comparison of datasets processed with different pipeline options may not be valid.</b></span>
+		  <input type="button" class="btn" value="select" onclick="accept_pipeline_options();" id="accept_pipeline_options_button"><span style='margin-left: 20px;'><b>Warning: Comparison of datasets processed with different pipeline options may not be valid.</b></span>
 	      </div>
 
 	      <li><a onclick="toggle('sub_job_div');" class="pill_incomplete" id="sub_job_pill" style="font-size: 17px; font-weight: bold;">5. submit <i id="icon_step_4" class="icon-ok icon-white" style="display: none;"></i></a></li>
