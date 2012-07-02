@@ -430,7 +430,7 @@ sub submit_to_mgrast {
     }
   }
   else {
-    $self->application->add_message('warning', "Unable to find project information, aborting submission.");
+    $self->application->add_message('warning', "Unable to find project information, aborting submission. Please re-do Step 1 or 2.");
     return undef;
   }
   # make project if no metadata
@@ -458,7 +458,7 @@ sub submit_to_mgrast {
       my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|faa|fa|ffn|frn|fna|fastq|fq)$/;
       my $subdir = "";
       if ($filename_base =~ /\//) {
-	($subdir) = $filename_base =~ s/^(.*\/)(.*)/$2/;
+	($subdir, $filename_base) = $filename_base =~ /^(.*\/)(.*)/;
       }
       if ($filename_ending ne 'fastq') {
 	if ($filename_ending eq 'fq') {
@@ -470,9 +470,9 @@ sub submit_to_mgrast {
       }
       my $name = $filename_base;
       # die if using metadata and no filename-library match
-      if ($mdata && (! exists($libraries->{$filename_base}))) {
+      if ($mdata && (! exists($libraries->{$name}))) {
 	close FH;
-	$self->application->add_message('warning', "Mismatch in library name and sequence filename, aborting submission.");
+	$self->application->add_message('warning', "Sequence file $seqfile has no matching library metagenome_name ($name) in metadata $mdata, aborting submission.");
 	return undef;
       }
       my $info = { 'dereplicate' => $dereplicate ? 1 : 0,
@@ -510,13 +510,23 @@ sub submit_to_mgrast {
   my $jobs = [];
   my $job2seq = {};
   my $job2type = {};
+  my $has_dupes = 0;
   # check if sequence file already has a job
   foreach my $seqfile (@$seqfiles) {
-    if ($jobdbm->Job->has_checksum($infos->{$seqfile}{file_checksum}, $user)) {
-      $self->application->add_message('warning', "A job already exists in MG-RAST for file $seqfile, aborting submission.");
-      return undef;
+    my $dupe = $jobdbm->Job->has_checksum($infos->{$seqfile}{file_checksum}, $user);
+    if ($dupe) {
+      push @$jobs, [$dupe, $infos->{$seqfile}{file_checksum}, $seqfile];
+      $has_dupes = 1;
     }
   }
+  if ($has_dupes) {
+    my $dupe_tbl = "<blockquote><table><tr><th>MG-RAST ID</th><th>md5sum</th><th>Your File</th></tr>";
+    map { $dupe_tbl .= "<tr><td>".$_->[0]."</td><td>".$_->[1]."</td><td>".$_->[2]."</td><td></tr>" } @$jobs;
+    $dupe_tbl .= "</table></blockquote>";
+    $self->application->add_message('warning', "The following metagenome(s) already exists in MG-RAST, aborting submission:$dupe_tbl");
+    return undef;
+  }
+
   # create jobs with providence data
   foreach my $seqfile (@$seqfiles) {
     my $job = $jobdbm->Job->initialize($user, $infos->{$seqfile});
@@ -600,19 +610,21 @@ sub validate_metadata {
   my $base_dir = "$Conf::incoming";
   my $udir = $base_dir."/".md5_hex($user->login);
   my $md_file = $udir."/".$fn;
+  my $project_name = 'none';
 
   my ($is_valid, $data, $log) = MGRAST::Metadata->validate_metadata($md_file);
 
   my $formatted_data = "<p>Your uploaded metadata did not pass validation. Please correct the file and upload again. The following errors were detected:</p>";
   if ($is_valid) {
     $formatted_data = "<p>Your metadata file successfully passed validation.</p>";
-    my $project_name = $data->{data}->{project_name}->{value};
+    $project_name = $data->{data}->{project_name}->{value};
     if ($project_name) {
       my $jobdbm  = $application->data_handle('MGRAST');
       my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
-      if (scalar(@$projects) &&  ! $user->has_right(undef, 'view', 'project', $projects->[0]->id)) {	
+      if (scalar(@$projects) && (! $user->has_right(undef, 'view', 'project', $projects->[0]->id))) {
 	$is_valid = 0;
 	$formatted_data = "<p>The project name you have chosen is already taken and you do not have edit rights to this project. Please choose a different project name or ask the owner of the project for edit rights.</p>";
+	$project_name = 'taken';
       } else {
 	$formatted_data .= "<img src='./Html/clear.gif' onload='selected_project=".$project_name."'>";
       }
@@ -623,7 +635,7 @@ sub validate_metadata {
       if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
 	foreach my $library (@{$sample->{libraries}}) {
 	  push(@$libraries, $library->{name});
-	  if ($library->{name} &&$library->{data} && $library->{data}->{forward_barcodes} && $library->{data}->{forward_barcodes}->{value}) {
+	  if ($library->{name} && $library->{data} && $library->{data}->{forward_barcodes} && $library->{data}->{forward_barcodes}->{value}) {
 	    $barcodes->{$library->{name}} = $library->{data}->{forward_barcodes}->{value};
 	  }
 	}
@@ -641,13 +653,13 @@ sub validate_metadata {
 	$formatted_data .= "<p>Barcodes were detected in your metadata file. A barcode file with the provided codes has been placed in your inbox. You can use this to demultiplex your sequence file below. Select the sequence file and the barcode file ($barname) and click 'demultiplex'.</p>";
       }
     }
-    $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). The project contains ".scalar(@{$data->{samples}})." samples with ".scalar(@$libraries)." libraries:</p><table>";
+    $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). This project contains ".scalar(@{$data->{samples}})." samples with ".scalar(@$libraries)." libraries having the following metagenome names:</p><p><table>";
     foreach my $lib (@$libraries) {
       $formatted_data .= "<tr><td>".$lib."</td></tr>";
     }
-    $formatted_data .= "</table>";
+    $formatted_data .= "</table></p>";
     if (scalar(@$libraries) > 1) {
-      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library names, i.e. the filename for your library ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna (<i>Note: All FASTA files will automatically be renamed .fna</i>)</p>";
+      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library metagenome_name fields, i.e. the filename for library metagenome_name ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna<br><i><b>Note:</b> All FASTA files will automatically be renamed .fna</i></p>";
       $formatted_data .= "||".join("@@", @$libraries);
     }
   } else {
@@ -664,7 +676,7 @@ sub validate_metadata {
     $formatted_data .= "<input type='button' class='btn' value='select new metadata file' onclick='selected_metadata_file=null;update_inbox();'>";
   }
   print $cgi->header;
-  print $is_valid."||".$formatted_data;
+  print $is_valid."||".$project_name."||".$formatted_data;
   exit 0;
 }
 
