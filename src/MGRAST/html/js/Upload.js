@@ -217,6 +217,11 @@ function demultiplex_files () {
 
 // upload workflow
 function select_sequence_file () {
+  if ((document.getElementById("sel_md_pill").className == "pill_incomplete") && (document.getElementById("sel_project_pill").className = "pill_incomplete")) {
+    alert("You must either select a metadata file in Step 1\nor choose a project in Step 2 before selecting sequence file(s).");
+    return false;
+  }
+
   var sel = document.getElementById('sequence_file_select');
   selected_sequence_files = [];
   var has_fasta = 0;
@@ -271,7 +276,7 @@ function select_sequence_file () {
 	  }
 	}
 	if (! valid) {
-	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library.\nEither correct your metadata file or change your sequence file selection.");
+	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library ("+fn+").\nThe metagenome_name field in library should match your sequence file name (minus extension).\nEither correct your metadata file or change your sequence file selection.");
 	  return 0;
 	}
       } else if (selected_sequence_files.length < selected_libraries.length) {
@@ -353,6 +358,8 @@ function unselect_sequence_file () {
   document.getElementById("available_sequences").style.display = '';
   document.getElementById("sel_seq_pill").className = "pill_incomplete";
   document.getElementById("icon_step_3").style.display = "none";
+  document.getElementById("sel_pip_pill").className = "pill_incomplete";
+  document.getElementById("icon_step_4").style.display = "none";
   update_inbox();
   check_submitable();
 }
@@ -372,9 +379,10 @@ function select_metadata_file () {
     $.get("?page=Upload&action=validate_metadata&mdfn="+selected_metadata_file, function (data) {
 	var result = data.split(/\|\|/);
 	if (result[0] != "0") {
-	  var html = "<div class='well'><h4>selected metadata file</h4><br>"+result[1]+"<br><p><i>"+selected_metadata_file+"</i><br><br><input type='button' class='btn' value='unselect' onclick='unselect_metadata_file();'><input type='hidden' name='mdfile' value='"+selected_metadata_file+"'></div>";
-	  if (result.length == 3) {
-	    selected_libraries = result[2].split(/@@/);
+	  var html = "<div class='well'><h4>selected metadata file</h4><br>"+result[2]+"<br><p><i>"+selected_metadata_file+"</i><br><br><input type='button' class='btn' value='unselect' onclick='unselect_metadata_file();'><input type='hidden' name='mdfile' value='"+selected_metadata_file+"'></div>";
+	  selected_project = result[1]
+	  if (result.length == 4) {
+	    selected_libraries = result[3].split(/@@/);
 	  }
 	  update_inbox();
 	  document.getElementById("sel_mdfile_div").innerHTML = html;
@@ -383,7 +391,9 @@ function select_metadata_file () {
 	  
 	  var found_selected_project = 0;
 	  var projsel = document.getElementById('project');
+	  console.log(projsel);
 	  for (i=0;i<projsel.options.length;i++) {
+	    console.log(projsel.options[i].text+' -> '+selected_project)
 	    if (projsel.options[i].text == selected_project) {
 	      projsel.selectedIndex = i;
 	      found_selected_project = 1;
@@ -399,7 +409,6 @@ function select_metadata_file () {
 	  }
 	  document.getElementById("sel_project_pill").className = "pill_complete";
 	  document.getElementById("icon_step_2").style.display = "";
-
 	  check_submitable();
 	} else {
 	  document.getElementById("sel_mdfile_div").innerHTML = result[1];
@@ -409,10 +418,13 @@ function select_metadata_file () {
   }
 }
 function unselect_metadata_file () {
+  unselect_sequence_file()
   selected_metadata_file = "";
   selected_libraries = [];
   document.getElementById("sel_md_pill").className = "pill_incomplete";
   document.getElementById("icon_step_1").style.display = "none";
+  document.getElementById("sel_project_pill").className = "pill_incomplete";
+  document.getElementById("icon_step_2").style.display = "none";
   update_inbox();
   check_submittable();
 }
