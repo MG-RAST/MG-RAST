@@ -301,8 +301,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		$file_type = 'ASCII text';
 	    }
 
-	    unless ($file_type eq 'ASCII text') {
-		print STDERR "invalid EOL: $file_type\n";
+	    unless ($file_type eq 'ASCII text' || $file_type eq "ASCII text, with very long lines") {
 		$file_type = "binary or invalid end of line characters<br><b>WARNING</b> You will not be able to use this file as a sequence file!";
 	    }
 
