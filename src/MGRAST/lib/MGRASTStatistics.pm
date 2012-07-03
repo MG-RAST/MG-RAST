@@ -645,6 +645,7 @@ sub pipeline_stages_ordered {
     my($self) = @_;
 
     return [
+	    'qc',
 	    'upload',
 	    'preprocess',
 	    'dereplication',
@@ -658,6 +659,7 @@ sub pipeline_stages_ordered {
 	    'sims',
 	    'loadDB',
 	    'done',
+	    'unknown',
 	    ];
 }
 
@@ -1224,6 +1226,10 @@ sub get_funding_user_jobs {
 		}
 	    }
 	}
+
+	$fuj->{$fs}{users}        ||= 0;
+	$fuj->{$fs}{jobs}         ||= 0;
+	$fuj->{$fs}{bp_count_raw} ||= 0;
     }
 
     my @res = map { [ $_, $fuj->{$_}{users}, 

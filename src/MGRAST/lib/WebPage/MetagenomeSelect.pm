@@ -120,6 +120,7 @@ sub output {
     my $cddata = [];
     my $ind = 0;
     foreach my $v (@{$cdata_hash->{$k}}) {
+      next unless ($v);
       my $name_link = "<a href='?page=MetagenomeOverview&metagenome=".$data->{$v}{jobname}[0]."' target='_blank'>".$genome_id2jobname->{$data->{$v}{jobname}[0]}." (".$data->{$v}{jobname}[0].")</a>";
       my $pid = $genome_id2project->{$data->{$v}{jobname}[0]} ? $project_hash->{$genome_id2project->{$data->{$v}{jobname}[0]}}->{id} : "";
       my $project_link = $genome_id2project->{$data->{$v}{jobname}[0]} ? "<a href='?page=MetagenomeProject&project=$pid' target=_blank>".$genome_id2project->{$data->{$v}{jobname}[0]}."</a>" : "-";
@@ -181,12 +182,9 @@ sub output {
     }
     
     # projects
-    my $projects_mgs = "none" ;
-    my $data_ids = $user->has_right_to(undef, 'view', 'project') ;
-    my $num_projects = scalar @$data_ids || 0 ;
-    foreach my $d (@$data_ids) {
-      push(@$private_projects, $mgrast->Project->init( { id => $d } ));
-    }
+    my $projects_mgs  = "none";
+    $private_projects = $mgrast->Project->get_private_projects($user);
+    my $num_projects  = scalar(@$private_projects);
     
     my $help = $application->component('help');
     $help->add_tooltip( 'available_help', 'Datasets that you have processed by the MG-RAST pipeline and are now available for use with online analysis tools.' );

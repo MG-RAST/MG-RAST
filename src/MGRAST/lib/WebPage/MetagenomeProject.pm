@@ -56,7 +56,6 @@ sub init {
   $self->application->register_action($self, 'create_project', 'create');
   $self->application->register_action($self, 'upload_file', 'upload_file');
   $self->application->register_action($self, 'download_md', 'download_md');
-  $self->application->register_action($self, 'download_template', 'download_template');
   $self->application->register_action($self, 'upload_md', 'upload_md');
   $self->application->register_action($self, 'add_job_to_project', 'add_job_to_project');
   $self->application->register_action($self, 'share_project', 'share_project');
@@ -618,20 +617,6 @@ sub download_md {
   return 1;
 }
 
-sub download_template {
-  my $fn = $Conf::html_base.'/'.$Conf::mgrast_metadata_template;
-
-  if (open(FH, $fn)) {
-    print "Content-Type:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n";  
-    print "Content-Length: " . (stat($fn))[7] . "\n";
-    print "Content-Disposition:attachment;filename=".$Conf::mgrast_metadata_template."\n\n";
-    while (<FH>) {
-      print $_;
-    }
-    close FH;
-  }
-}
-
 sub add_job_info {
   my ($self) = @_;
 
@@ -972,12 +957,20 @@ sub delete_info {
   my ($self) = @_;
 
   my $project = $self->{project};
+  my $jobdbm  = $self->application->data_handle('MGRAST');  
+  my $jobnum1 = $jobdbm->ProjectJob->get_objects({project => $project});
+  my $jobnum2 = $jobdbm->Job->get_objects({primary_project => $project});
   my $content = "<h3>Delete</h3>";
-  $content .= $self->start_form('delete_project', { project => $project->id,
+
+  if ( (scalar(@$jobnum1) > 0) || (scalar(@$jobnum2) > 0) ) {
+    $content .= "<p>This project contains jobs and can thus not be deleted.</p>";
+  } else {
+    $content .= $self->start_form('delete_project', { project => $project->id,
 						    action  => 'delete_project' });
-  $content .= "<p><strong>To really delete this project, type 'DELETE' into the textbox and click 'delete project'. This will delete the project and all associated metadata. The datasets (jobs) belonging to this project will <i>not</i> be touched.</strong> <input name='confirmation' type='textbox'>";
-  $content .= "&nbsp;&nbsp;&nbsp;<input type='submit' name='delete_project' value='delete project'></p>";
-  $content .= $self->end_form;
+    $content .= "<p><strong>To really delete this project, type 'DELETE' into the textbox and click 'delete project'. This will delete the project and all associated metadata.</strong> <input name='confirmation' type='textbox'>";
+    $content .= "&nbsp;&nbsp;&nbsp;<input type='submit' name='delete_project' value='delete project'></p>";
+    $content .= $self->end_form;
+  }
 
   return $content;
 }
@@ -987,7 +980,7 @@ sub share_info {
 
   my $email   = $self->app->cgi->param('email') || '';
   my $project = $self->{project};
-  my $jobdbm = $self->application->data_handle('MGRAST');
+  my $jobdbm  = $self->application->data_handle('MGRAST');
   my $content = "<h3>Share Project</h3>";
   $content .= $self->start_form('share_project', { project => $project->id,
 						   action  => 'share_project' });
@@ -1194,6 +1187,10 @@ sub delete_project {
     foreach my $p (@$project_jobs) {
       $p->delete;
     }
+    my $jobs_with_project = $jobdbm->Job->get_objects( { primary_project => $project } );
+    foreach my $p (@$jobs_with_project) {
+      $p->delete;
+    }
     my $project_rights = $application->dbmaster->Rights->get_objects( { data_type => 'project', data_id => $project_id  } );
     foreach my $r (@$project_rights) {
       $r->delete;
@@ -1251,7 +1248,7 @@ sub make_public_info {
   my $html = "<h3>Make Project Public</h3>";
 
   if (@$missing_mixs > 0) {
-    $html .= "<p style='font-variant: normal;'>MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank >Minimum Information about any (X) Sequence</a> (MIxS) developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC). Metagenomes that are missing MIxS metadata cannot be made public. The below list shows which metagenomes associated with this project are missing MIxS metadata. Use the above 'Upload MetaData' button to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='metagenomics.cgi?page=MetagenomeProject&action=download_template'>metadata spreadsheet template</a>.</p>";
+    $html .= "<p style='font-variant: normal;'>MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank >Minimum Information about any (X) Sequence</a> (MIxS) developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC). Metagenomes that are missing MIxS metadata cannot be made public. The below list shows which metagenomes associated with this project are missing MIxS metadata. Use the above 'Upload MetaData' button to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='ftp://".$Conf::ftp_download."/data/misc/metadata/".$Conf::mgrast_metadata_template."'>metadata spreadsheet template</a>.</p>";
     $html .= "<blockquote>".join("<br>", map { $_->{name}." (".$_->{metagenome_id} .")"} @$missing_mixs)."</blockquote>";
   }
   

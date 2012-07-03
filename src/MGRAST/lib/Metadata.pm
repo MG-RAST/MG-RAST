@@ -238,12 +238,14 @@ sub get_jobs_metadata_fast {
   my %mmap = map { $_->[0], $_->[1] } @$meth;
 
   if (scalar(keys %pids) > 0) {
-    my $ptmp = $dbh->selectall_arrayref("SELECT p._id, p.id, p.name, p.public, md.tag, md.value FROM Project p, ProjectMD md WHERE p._id = md.project AND p._id IN (".join(',', keys %pids).")");
+    my $ptmp = $dbh->selectall_arrayref("SELECT p._id, p.id, p.name, p.public, md.tag, md.value FROM Project p LEFT OUTER JOIN ProjectMD md ON p._id = md.project WHERE p._id IN (".join(',', keys %pids).")");
     foreach my $p (@$ptmp) {
       $projs->{$p->[0]}{id} = 'mgp'.$p->[1];
       $projs->{$p->[0]}{name} = $p->[2];
       $projs->{$p->[0]}{public} = $p->[2];
-      $projs->{$p->[0]}{data}{$p->[4]} = $p->[5];
+      if ($p->[4]) {
+	$projs->{$p->[0]}{data}{$p->[4]} = $p->[5];
+      }
     }
   }
   if (scalar(keys %sids) > 0) {
@@ -720,7 +722,7 @@ sub add_entries {
   unless ($collection && ref($collection)) { return undef; }
   my $template = $self->template();
   my $mddb  = $self->{_handle};
-  my $ctype = $collection->category_type( $collection->type );
+  my $ctype = $collection->category_type( $collection->type ) || '';
 
   foreach my $set (@$data) {
     my ($tag, $val) = @$set;
@@ -865,12 +867,18 @@ sub update_curator {
 sub validate_metadata {
   my ($self, $filename, $skip_required) = @_;
 
+  my $extn = '';
+  if ($filename =~ /\.(xls(x)?)$/) {
+    $extn = $1;
+  } else {
+    return (0, {is_valid => 0, data => []}, "Invalid filetype. Needs to be one of .xls or .xlsx");
+  }
   my ($out_hdl, $out_name) = tempfile("metadata_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.json');
   close $out_hdl;
 
   my $data = {};
   my $json = new JSON;
-  my $cmd  = $Conf::validate_metadata.($skip_required ? " -s" : "")." -j $out_name $filename 2>&1";
+  my $cmd  = $Conf::validate_metadata.($skip_required ? " -s" : "")." -f $extn -j $out_name $filename 2>&1";
   my $log  = `$cmd`;
   chomp $log;
   
@@ -879,7 +887,7 @@ sub validate_metadata {
   close JSONF;
 
   if (! $text) {
-    $data = { is_valid => 0, data => ["Non validation error","","","","$log"] };
+    $data = { is_valid => 0, data => [] };
   } else {
     $json = $json->utf8();
     $data = $json->decode($text);

@@ -4,12 +4,13 @@ use base qw( WebPage );
 
 use strict;
 use warnings;
-no warnings qw(uninitialized);
 
-use WebComponent::WebGD;
-use WebConfig;
 use Data::Dumper;
+use WebComponent::WebGD;
+
+use WebConfig;
 use Conf;
+
 use MGRAST::Analysis;
 use MGRAST::Metadata;
 use MGRAST::MGRASTStatistics;
@@ -39,11 +40,19 @@ Called when the web page is instanciated.
 sub init {
   my ($self) = @_;
 
-  $self->title("Admin");
+  $self->title("System Statistics");
 
   $self->application->register_component('Table', 'user_table');
   $self->application->register_component('Table', 'ujobs_table');
   $self->application->register_component('Table', 'alljobs_table');
+  $self->application->register_component('Table', 'month_jobs_table');
+  $self->application->register_component('Table', 'today_jobs_table');
+  $self->application->register_component('Table', 'today_jobs_table_2');
+  $self->application->register_component('Table', 'incomplete_jobs_table');
+  $self->application->register_component('Table', 'incomplete_jobs_table_2');
+  $self->application->register_component('Table', 'pipeline_jobs_table');
+  $self->application->register_component('Table', 'pipeline_jobs_table_2');
+  $self->application->register_component('Table', 'today_users_table');
   $self->application->register_component('Table', 'organization_table');
   $self->application->register_component('Table', 'average_size_table');
   $self->application->register_component('Ajax', 'ajax');
@@ -105,7 +114,8 @@ sub output {
   my $user_dbh    = $user->_master->db_handle;
 
   # check for MGRAST
-  my $html = "";
+  my $html = '<i>' . &formatted_date . '</i>';
+
   my $mgrast = $self->application->data_handle('MGRAST');
   unless ($mgrast) {
       $html .= "<h2>The MG-RAST is currently offline. You are the admin, fix it!</h2>";
@@ -115,7 +125,7 @@ sub output {
 
   $html .= $application->component('ajax')->output();
 
-  # thirtyone days
+  # create array with strings for last thirtyone days
   my $thirtyone_days = [];
   for (my $i=30; $i>-1; $i--) {
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time-($i * 86400));
@@ -160,77 +170,20 @@ sub output {
     $average_size_table->export_excel();
   }
 
-# users section
-#  my $dbh = $dbmaster->db_handle;
-#  my $sth = $dbh->prepare("SELECT User._id, User.firstname, User.lastname, User.login, User.email, User.entry_date, Organization.country FROM User LEFT OUTER JOIN (Organization, OrganizationUsers) ON Organization._id=OrganizationUsers.organization AND User._id=OrganizationUsers.user");
-#  $sth->execute;
-#  my $users = $sth->fetchall_arrayref();
-
   my $mgusers = $self->{mgstat}->user();
   my $mgorgs  = $self->{mgstat}->organization();
   my $mgjobs  = $self->{mgstat}->job();
 
-  my $jobs_created_today_count     = $self->{mgstat}->jobs_created_today_count();
-  my $jobs_created_today_24h_count = $self->{mgstat}->jobs_created_today_24h_count();
-  my $jobs_created_today_bp        = $self->{mgstat}->jobs_created_today_bp();
-  my $jobs_created_today_24h_bp    = $self->{mgstat}->jobs_created_today_24h_bp();
-
-  my $jobs_completed_today_count     = $self->{mgstat}->jobs_completed_today_count();
-  my $jobs_completed_today_24h_count = $self->{mgstat}->jobs_completed_today_24h_count();
-  my $jobs_completed_today_bp        = $self->{mgstat}->jobs_completed_today_bp();
-  my $jobs_completed_today_24h_bp    = $self->{mgstat}->jobs_completed_today_24h_bp();
-  
-  my $js_jobs_today_1 = $self->googleviz('div_jobs_today_1', "# jobs created today: $jobs_created_today_count", 'hour', '# jobs', 0, '', $jobs_created_today_24h_count);
-  my $js_jobs_today_2 = $self->googleviz('div_jobs_today_2', 'bp for jobs created today: ' . $self->add_commas($jobs_created_today_bp), 'hour', 'bp', 0, 'green', $jobs_created_today_24h_bp);
-
-  my $js_jobs_today_3 = $self->googleviz('div_jobs_today_3', "# jobs completed today: $jobs_completed_today_count", 'hour', '# jobs', 0, '', $jobs_completed_today_24h_count);
-  my $js_jobs_today_4 = $self->googleviz('div_jobs_today_4', 'bp for jobs completed today: ' . $self->add_commas($jobs_completed_today_bp), 'hour', 'bp', 0, 'green', $jobs_completed_today_24h_bp);
-
-  my $qwe = "<table><tr>\n";
-  $qwe .= "<td>$js_jobs_today_1\n<div id='div_jobs_today_1'></div></td>\n";
-  $qwe .= "<td>$js_jobs_today_2\n<div id='div_jobs_today_3'></div></td>\n";
-  $qwe .= "</tr>\n";
-
-  $qwe .= "<tr>\n";
-  $qwe .= "<td>$js_jobs_today_3\n<div id='div_jobs_today_2'></div></td>\n";
-  $qwe .= "<td>$js_jobs_today_4\n<div id='div_jobs_today_4'></div></td>\n";
-  $qwe .= "</tr>\n";
-  $qwe .= "</table>\n";
-
-
+  my $pipeline_job_ids = {};
   my $pipeline_jobs = $self->{mgstat}->pipeline_jobs_count();
 
-  $qwe .= "<table><tr><th rowspan=2 valign='middle'>Pipeline Stage</th><th colspan=2 align='center'>Status 'error'</th><th colspan=2 align='center'>Status 'running'</th><th colspan=2 align='center'>Status 'completed'</th></tr>\n";
-  $qwe .= "<tr><th># jobs</th><th align='center'>bp</th><th># jobs</th><th align='center'>bp</th><th># jobs</th><th align='center'>bp</th>\n";
-  foreach my $stage ( @{ $self->{mgstat}->pipeline_stages_ordered() } )
-  {
-      $qwe .= "<tr><th>$stage</th>\n";
-
-      foreach my $status ( 'error', 'running', 'completed' )
-      {
-	  $qwe .= "<td align='right'>$pipeline_jobs->{$stage}{$status}{count}</td><td align='right'>" . $self->add_commas($pipeline_jobs->{$stage}{$status}{bp}) . "</td>\n";
-      }
-      
-      $qwe .= "</tr>";
-  }
-
-  $qwe .= "</table><p>\n";
-  
-  my $uhash = {};
-#  %$uhash = map { $_->[0] => $_ } @$users;
   my $data = [];
   my $countries = {};
   my $current_countries = {};
 
-#  my $recent_users = $self->{mgstat}->recent_user_page($thirtyone_days->[30]. ' 00:00:00');
-
   # current users
-#  my $today_users_registered = $user_dbh->selectall_arrayref("select user, current_page from UserSession where timestamp > '".$thirtyone_days->[30]." 00:00:00' and user is not null");
   my $today_users_registered = $self->{mgstat}->active_users($thirtyone_days->[30]. ' 00:00:00');
   
-#  my $today_users = $user_dbh->selectall_arrayref("select count(*) from UserSession where timestamp > '".$thirtyone_days->[30]." 00:00:00'");
-  my $n_today_users = "blah"; #$self->{mgstat}->number_of_recent_users($thirtyone_days->[30]. ' 00:00:00');
-
   my %page_count;
   foreach my $_id_user ( @$today_users_registered )
   {
@@ -239,31 +192,13 @@ sub output {
   }
 
   my $data_page_count = [];
-  @$data_page_count = map {[$_, $page_count{$_}]} sort {$page_count{$b} <=> $page_count{$a}} keys %page_count;
+  @$data_page_count = map {[$_, $page_count{$_}]} keys %page_count;
   
-  my ($pie_pc, $div_pc) = &get_piechart("pie_pc", "Page Counts:", ['Page', 'Count'], $data_page_count, 20);
-
-  my $user_html .= "<b>Registered users online today: " . scalar(@$today_users_registered) . "</b>";
-  $user_html .= $div_pc;
-#  $user_html .= "<br>".join("<br>", map { $mgusers->{$_}->{firstname}." ".$mgusers->{$_}->{lastname}." last on page ".($mgusers->{$_}->{last_page} || "Home") } sort { lc $mgusers->{$a}->{lastname} cmp lc $mgusers->{$b}->{lastname} ||lc  $mgusers->{$a}->{firstname} cmp lc $mgusers->{$b}->{firstname} } @$today_users_registered);
-
-  $user_html .= "<table border='0' cellspacing='0' cellpadding='0'>\n";
-  foreach my $_id_user ( sort { lc $mgusers->{$a}->{lastname} cmp lc $mgusers->{$b}->{lastname} ||lc  $mgusers->{$a}->{firstname} cmp lc $mgusers->{$b}->{firstname} } @$today_users_registered )
-  {
-      my $page = $mgusers->{$_id_user}{last_page} || 'Home';
-      $user_html .= "<tr><td>$mgusers->{$_id_user}->{firstname}</td><td>$mgusers->{$_id_user}->{lastname}</td><td>last on page</td><td>&nbsp;&nbsp;&nbsp;$page</td></tr>\n";
-  }
-  $user_html .= "</table>";
-
-#  $user_html .= "<br>".join("<br>", map { $mgusers->{$_}->{firstname}." ".$mgusers->{$_}->{lastname}." last on page ".($mgusers->{$_}->{last_page} || "Home") } sort { lc $mgusers->{$a}->{lastname} cmp lc $mgusers->{$b}->{lastname} ||lc  $mgusers->{$a}->{firstname} cmp lc $mgusers->{$b}->{firstname} } @$today_users_registered);
-
-#  $user_html .= "<br>".join("<br>", map { $uhash->{$_->[0]}->[1]." ".$uhash->{$_->[0]}->[2]." last on page ".($_->[1] || "Home") } sort { $uhash->{$a->[0]}->[2] cmp $uhash->{$b->[0]}->[2] || $uhash->{$a->[0]}->[1] cmp $uhash->{$b->[0]}->[1] } @$today_users_registered);
-
   # count new users
   foreach my $_id_user (@$today_users_registered) {
-      my $_id_org  = $mgusers->{$_id_user}{organization}[-1];   # choose a single organization
-      my $org      = $mgorgs->{$_id_org}{name};
-      my $country  = $mgorgs->{$_id_org}{country};
+      my $_id_org  = $mgusers->{$_id_user}{organization}[-1] || '';   # choose a single organization
+      my $org      = $mgorgs->{$_id_org}{name} || '';
+      my $country  = $mgorgs->{$_id_org}{country} || '';
 
       if ( $country eq 'UK' ) 
       {
@@ -280,11 +215,15 @@ sub output {
       }
   }
 
-  my $user_stats = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+  my $new_users = {};
+  foreach my $date ( @$thirtyone_days )
+  {
+      $new_users->{$date} = 0;
+  }
 
   foreach my $_id_user ( sort {$a <=> $b} keys %$mgusers ) 
   {
-      my $_id_org  = $mgusers->{$_id_user}{organization}[-1];   # choose a single organization
+      my $_id_org  = $mgusers->{$_id_user}{organization}[-1] || '';   # choose a single organization
 
       my $n_jobs = scalar @{ $mgusers->{$_id_user}{job} };
 
@@ -309,8 +248,8 @@ sub output {
 		     "<input type='button' onclick='execute_ajax(\"user_details\", \"user_details\", \"user=".$mgusers->{$_id_user}{login}."\");' value='details'>" 
 		   ];
       
-      my $org      = $mgorgs->{$_id_org}{name};
-      my $country  = $mgorgs->{$_id_org}{country};
+      my $org      = $mgorgs->{$_id_org}{name} || '';
+      my $country  = $mgorgs->{$_id_org}{country} || '';
       
       if ( $country eq 'UK' ) 
       {
@@ -329,7 +268,7 @@ sub output {
       for (my $i=0; $i<31; $i++) {
 	  my $curr = $thirtyone_days->[$i];
 	  if ($mgusers->{$_id_user}{entry_date} =~ /^$curr/) {
-	      $user_stats->[$i]++;
+	      $new_users->{$curr}++;
 	      last;
 	  }
       }
@@ -372,6 +311,37 @@ sub output {
   my $jdata = [];
   my $upload_stats = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
+  my $incomplete_job_id     = {};
+  my $incomplete_jobs_bp    = {};
+  my $incomplete_jobs_count = {};
+
+  my $pipeline_job_id     = {};
+  my $pipeline_jobs_bp    = {};
+  my $pipeline_jobs_count = {};
+
+  my $last_month_jobs_bp    = {};
+  my $last_month_jobs_count = {};
+  foreach my $date ( @$thirtyone_days )
+  {
+      foreach my $status ( 'error', 'done', 'deleted', 'running' )
+      {
+	  $last_month_jobs_bp->{$date}{$status}    = 0;
+	  $last_month_jobs_count->{$date}{$status} = 0;
+      }
+  }
+  
+  my $today_job_id     = {};
+  my $today_jobs_bp    = {};
+  my $today_jobs_count = {};
+  foreach my $hour ( 0..23 )
+  {
+      foreach my $status ( 'error', 'done', 'deleted', 'running' )
+      {
+	  $today_jobs_bp->{$hour}{$status}    = 0;
+	  $today_jobs_count->{$hour}{$status} = 0;
+      }
+  }
+  
   my $upload_stats_new = [];
   for (my $i=0; $i<31; $i++) 
   {
@@ -379,7 +349,6 @@ sub output {
       push @$upload_stats_new, [$curr, 0];
   }
 
-#  my $upload_stats = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
   my $broken_stats = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
   my $finished_stats = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
   my $processing_stats = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
@@ -393,22 +362,38 @@ sub output {
   my $bp_week  = 0;
   my $bp_month = 0;
 
-#  my $total_in_queue = 0;
+  my %job_date;
+
   foreach my $_id_job ( keys %$mgjobs ) 
   {
       next if ($mgjobs->{$_id_job}{dead} || $mgjobs->{$_id_job}{deleted});
 
       my $_id_user = $mgjobs->{$_id_job}{owner};
-      my $_id_org  = $mgjobs->{$_id_job}{organization}[-1];
+      my $_id_org  = $mgjobs->{$_id_job}{organization}[-1] || '';
 
       my $last_stage = $self->{mgstat}->job2lastpipelinestage($_id_job);
       my($last_stage_name, $last_stage_timestamp, $last_stage_status) = @$last_stage;
 
+      $last_stage_name      ||= '';
+      $last_stage_timestamp ||= '';
+      $last_stage_status    ||= '';
+      
+      my $name_text = '';
+      if ( $last_stage_name eq 'done' and $last_stage_status eq 'completed' )
+      {
+          # link dataset name to overview page if job is completed
+	  $name_text = qq(<a href='?page=MetagenomeOverview&metagenome=$mgjobs->{$_id_job}{metagenome_id}' target='_blank'>$mgjobs->{$_id_job}{name}</a>);
+      }
+      else
+      {
+	  $name_text = $mgjobs->{$_id_job}{name};
+      }
+
       push @$jdata, [ 
 		      $mgjobs->{$_id_job}{created_on}, 
 		      $mgjobs->{$_id_job}{metagenome_id}, 
-		      $mgjobs->{$_id_job}{job_id}, 
-		      $mgjobs->{$_id_job}{name}, 
+		      $mgjobs->{$_id_job}{job_id},
+		      $name_text,
 		      $mgjobs->{$_id_job}{bp}, 
 		      $mgjobs->{$_id_job}{sequence_type}, 
 		      $mgjobs->{$_id_job}{viewable},
@@ -445,19 +430,6 @@ sub output {
       }
     }
 
-      # count total in queue
-#      if ( $last_stage_status ne 'error'    &&
-#	   ! ($last_stage_name eq 'done' && $last_stage_status eq 'completed') &&
-#	   ! $mgjobs->{$_id_job}{deleted} &&
-#	   ! $mgjobs->{$_id_job}{dead}    &&
-#	   (($last_stage_timestamp cmp $thirtyone_days->[0]) < 0) )
-#      {
-#    if (scalar(@{$job->{timed_stati}}) && $job->{timed_stati}->[scalar(@{$job->{timed_stati}})-1]->[2]) {
-#      if (!($job->{timed_stati}->[scalar(@{$job->{timed_stati}})-1]->[2] eq 'error') && !($job->{timed_stati}->[scalar(@{$job->{timed_stati}})-1]->[1] eq 'done' && $job->{timed_stati}->[scalar(@{$job->{timed_stati}})-1]->[2] eq 'completed') && ! exists($deletedjobshash->{$job->{_id}}) && ! exists($deadjobshash->{$job->{_id}})) {
-#	if (($job->{timed_stati}->[scalar(@{$job->{timed_stati}})-1]->[0] cmp $thirtyone_days->[0]) < 0) {
-#	  $total_in_queue += $mgjobs->{$_id_job}{bp};
-#      }
-
       my $t1 = $mgjobs->{$_id_job}{created_on};
       my $t2 = $mgjobs->{$_id_job}{done_timestamp} || $mgjobs->{$_id_job}{error_timestamp} || $mgjobs->{$_id_job}{dead_timestamp} || $mgjobs->{$_id_job}{deleted_timestamp} || $thirtyone_days->[30]. ' 23:59:59';
 
@@ -474,34 +446,111 @@ sub output {
 	  }
       }
 
-      # count processing bp
-#      for (my $i=0; $i<31; $i++) {
-#	  my $curr = $thirtyone_days->[$i];
-
-	  
-#	  if ($upload_stage_timestamp =~ /^$curr/) {
-	  #    $upload_stats->[$i] += $mgjobs->{$_id_job}{bp};
-#	      last;
-#	  }
-#      }
-
       # count uploaded bp
       my $upload_stage = $self->{mgstat}->jobstage($_id_job, 'upload');
       my($upload_stage_name, $upload_stage_timestamp, $upload_stage_status) = @$upload_stage;
 
+      $upload_stage_status ||= '';
+
       if ( ($upload_stage_status eq 'completed') and ($self->{mgstat}->compare_dates($upload_stage_timestamp, $thirtyone_days->[0]) eq 'after') )
-#      if ($job->{timed_stati}->[0]->[1] eq 'upload' && $job->{timed_stati}->[0]->[2] eq 'completed') {
       {
 	for (my $i=0; $i<31; $i++) {
 	  my $curr = $thirtyone_days->[$i];
 	  if ($upload_stage_timestamp =~ /^$curr/) {
 	    $upload_stats->[$i] += $mgjobs->{$_id_job}{bp};
 	    $upload_stats_new->[$i][1] += $mgjobs->{$_id_job}{bp};
+	    push @{ $job_date{$curr} }, $_id_job;
 	    last;
 	  }
 	}
       }
+
       
+      my($creation_date) = split(/\s+/, $mgjobs->{$_id_job}{created_on});
+      
+      if ( exists $last_month_jobs_bp->{$creation_date} )
+      {
+	  if ( $mgjobs->{$_id_job}{done} )
+	  {
+	      $last_month_jobs_bp->{$creation_date}{done} += $mgjobs->{$_id_job}{bp};
+	      $last_month_jobs_count->{$creation_date}{done} += 1;
+	  }
+	  elsif ( $mgjobs->{$_id_job}{deleted} or $mgjobs->{$_id_job}{dead} )
+	  {
+	      $last_month_jobs_bp->{$creation_date}{deleted} += $mgjobs->{$_id_job}{bp};
+	      $last_month_jobs_count->{$creation_date}{deleted} += 1;
+	  }
+	  elsif ( $mgjobs->{$_id_job}{error} )
+	  {
+	      $last_month_jobs_bp->{$creation_date}{error} += $mgjobs->{$_id_job}{bp};
+	      $last_month_jobs_count->{$creation_date}{error} += 1;
+	  }
+	  else
+	  {
+	      # this should get jobs which are either running or stalled with last stage status completed or running
+
+	      my $ls_status = '';
+	      if ( $last_stage_status eq 'completed' )
+	      {
+		  $ls_status = 'running';
+	      }
+	      else
+	      {
+		  $ls_status = $last_stage_status;
+	      }
+
+	      $last_month_jobs_bp->{$creation_date}{$ls_status} += $mgjobs->{$_id_job}{bp};
+	      $last_month_jobs_count->{$creation_date}{$ls_status} += 1;
+	  }
+      }
+
+      my $todays_date = $self->{mgstat}->todays_date();
+
+      if ( $mgjobs->{$_id_job}{done} )
+      {
+	  # don't count
+      }
+      elsif ( $mgjobs->{$_id_job}{deleted} or $mgjobs->{$_id_job}{dead} )
+      {
+	  # don't count
+      }
+      else
+      {
+	  my $job_id = $mgjobs->{$_id_job}{job_id};
+
+	  $pipeline_job_id->{$job_id} = 1;
+	  $pipeline_jobs_count->{$last_stage_name}{$last_stage_status}++;
+	  $pipeline_jobs_bp->{$last_stage_name}{$last_stage_status} += $mgjobs->{$_id_job}{bp};
+	  
+	  if ( $creation_date ne $todays_date )
+	  {
+	      $incomplete_job_id->{$job_id} = 1;
+
+	      if ( $mgjobs->{$_id_job}{error} )
+	      {
+		  $incomplete_jobs_bp->{$creation_date}{error} += $mgjobs->{$_id_job}{bp};
+		  $incomplete_jobs_count->{$creation_date}{error} += 1;
+	      }
+	      else
+	      {
+		  # this should get jobs which are either running or stalled with last stage status completed or running
+		  
+		  my $ls_status = '';
+		  if ( $last_stage_status eq 'completed' )
+		  {
+		      $ls_status = 'running';
+		  }
+		  else
+		  {
+		      $ls_status = $last_stage_status;
+		  }
+		  
+		  $incomplete_jobs_bp->{$creation_date}{$ls_status} += $mgjobs->{$_id_job}{bp};
+		  $incomplete_jobs_count->{$creation_date}{$ls_status} += 1;
+	      }
+	  }
+      }
+
       # count broken jobs
       if ( ($last_stage_status eq 'error') and ($self->{mgstat}->compare_dates($last_stage_timestamp, $thirtyone_days->[0]) eq 'after') )
 #      if ($job->{timed_stati}->[scalar(@{$job->{timed_stati}})-1]->[2] eq 'error') {
@@ -546,9 +595,61 @@ sub output {
       }
   }
 
+
+  foreach my $_id_job ( @{ $self->{mgstat}->jobs_created_today() } )
+  {
+      my $job_id = $mgjobs->{$_id_job}{job_id};
+      $today_job_id->{$job_id} = 1;
+
+      my($hour) = int( substr($mgjobs->{$_id_job}{created_on}, 11, 2) );
+
+      if ( $mgjobs->{$_id_job}{done} )
+      {
+	  $today_jobs_bp->{$hour}{done} += $mgjobs->{$_id_job}{bp};
+	  $today_jobs_count->{$hour}{done} += 1;
+      }
+      elsif ( $mgjobs->{$_id_job}{deleted} or $mgjobs->{$_id_job}{dead} )
+      {
+	  $today_jobs_bp->{$hour}{deleted} += $mgjobs->{$_id_job}{bp};
+	  $today_jobs_count->{$hour}{deleted} += 1;
+      }
+      elsif ( $mgjobs->{$_id_job}{error} )
+      {
+	  $today_jobs_bp->{$hour}{error} += $mgjobs->{$_id_job}{bp};
+	  $today_jobs_count->{$hour}{error} += 1;
+      }
+      else
+      {
+	  # this should get jobs which are either running or stalled with last stage status completed or running
+	  
+	  my $last_stage = $self->{mgstat}->job2lastpipelinestage($_id_job);
+
+	  my $ls_status = '';
+	  if ( @$last_stage )
+	  {
+	      my($last_stage_name, $last_stage_timestamp, $last_stage_status) = @$last_stage;
+	      
+	      if ( $last_stage_status eq 'completed' )
+	      {
+		  $ls_status = 'running';
+	      }
+	      else
+	      {
+		  $ls_status = $last_stage_status;
+	      }
+	  }
+	  else
+	  {
+	      $ls_status = 'unknown';
+	  }
+	  
+	  $today_jobs_bp->{$hour}{$ls_status} += $mgjobs->{$_id_job}{bp};
+	  $today_jobs_count->{$hour}{$ls_status} += 1;
+      }
+  }      
+
   # format to gbp
   for (my $i=0; $i<31; $i++) {
-    #$processing_stats->[$i] += $total_in_queue;
     $upload_stats->[$i] ? $upload_stats->[$i] = sprintf("%.2f", $upload_stats->[$i] / 1000000000) : 1;
     $upload_stats_new->[$i][1] ? $upload_stats_new->[$i][1] = sprintf("%.2f", $upload_stats_new->[$i][1] / 1000000000) : 1;
     $finished_stats->[$i] ? $finished_stats->[$i] = sprintf("%.2f", $finished_stats->[$i] / 1000000000) : 1;
@@ -579,7 +680,12 @@ sub output {
     }
   }
 
-  @$jdata = sort { $b->[0] cmp $a->[0] } @$jdata;
+
+
+  @$jdata = sort {$b->[0] cmp $a->[0]} @$jdata;
+
+
+
   my $jt = $application->component('alljobs_table');
   $jt->show_top_browse(1);
   $jt->show_bottom_browse(1);
@@ -636,7 +742,6 @@ sub output {
   $ot->show_select_items_per_page(1);
   $ot->items_per_page(15);
   $ot->data($odata);
-  $ot->show_column_select(1);
   $ot->columns( [ { name => 'name', filter => 1, sortable => 1 },
 		  { name => 'country', filter => 1, sortable => 1 },
 		  { name => '# users', filter => 1, sortable => 1 },
@@ -650,163 +755,533 @@ sub output {
   my $gbp_week_daily  = sprintf("%.0f", $gbp_week/7);
   my $gbp_month_daily = sprintf("%.0f", $gbp_month/30);
 
-  my $gmeter_val_today = sprintf("%.0f", ($gbp_today*2/3));
-  my $gmeter_val_week  = sprintf("%.0f", ($gbp_week_daily*2/3));
-  my $gmeter_val_month = sprintf("%.0f", ($gbp_month_daily*2/3));
-
   $gbp_week  = $self->add_commas($gbp_week);
   $gbp_month = $self->add_commas($gbp_month);
 
-  my $gmeter_today = qq(<img alt="Processing Speed: $gbp_today Gbp today" src="https://chart.googleapis.com/chart?chtt=Today&chs=300x200&cht=gom&chls=2|10&chd=t:$gmeter_val_today&chl=$gbp_today+Gbp&chxt=x,y&chxr=1,0,150,25">);
+# use below to hide the div
+#   $html .= "<h2><a style='cursor: pointer; color: blue;' onclick='if(document.getElementById(\"pspeed\").style.display==\"none\"){document.getElementById(\"pspeed\").style.display=\"\";}else{document.getElementById(\"pspeed\").style.display=\"none\";}'>&raquo; Processing Speed</h2><div id='pspeed' style='display: ;'>".$gmeter_table."</div>";
+  $html .= $self->google_gauge('gauge_1', $gbp_today);
+  $html .= $self->google_gauge('gauge_2', $gbp_week_daily);
+  $html .= $self->google_gauge('gauge_3', $gbp_month_daily);
 
-my $gmeter_week = qq(<img alt="Processing Speed: $gbp_week Gbp/day in last 7 days" src="https://chart.googleapis.com/chart?chtt=Last+7+days+($gbp_week Gbp)&chs=300x200&cht=gom&chls=2|10&chd=t:$gmeter_val_week&chl=$gbp_week_daily+Gbp/day&chxt=x,y&chxr=1,0,150,25">);
+  $html .= "
+<h2>&raquo; Jobs completed</h2>
+<table width='100%'>
+  <tr>
+    <td align='center' width='33%'><b>Today</b></td>
+    <td align='center' width='34%'><b>Last 7 days<br>($gbp_week Gbp)</b></td>
+    <td align='center' width='33%'><b>Last 30 days<br>($gbp_month Gbp)</b></td>
+  </tr>
+  <tr>
+    <td align='center'><div id='gauge_1'></div></td>
+    <td align='center'><div id='gauge_2'></div></td>
+    <td align='center'><div id='gauge_3'></div></td>
+  </tr>
+  <tr>
+    <td align='center'>Gbp today</td>
+    <td align='center'>Gbp/day</td>
+    <td align='center'>Gbp/day</td>
+  </tr>
+</table>
+";
 
-my $gmeter_month = qq(<img alt="Processing Speed: $gbp_month Gbp/day in last 7 days" src="https://chart.googleapis.com/chart?chtt=Last+30+days+($gbp_month Gbp)&chs=300x200&cht=gom&chls=2|10&chd=t:$gmeter_val_month&chl=$gbp_month_daily+Gbp/day&chxt=x,y&chxr=1,0,150,25">);
 
-  my $bpup = $self->googleviz('dash_0_new', 'Basepairs uploaded in Gbp', 'day', 'uploaded', 0, 'green', $upload_stats_new);
+  my $month_jobs_count = 0;
+  my $month_jobs_bp    = 0;
+  my $month_jobs       = [];
 
-  # organization list output
-  my $gmeter_table = "
+  foreach my $date ( @$thirtyone_days )
+  {
+      $month_jobs_count += $last_month_jobs_count->{$date}{error} + $last_month_jobs_count->{$date}{running} + $last_month_jobs_count->{$date}{done};
+      $month_jobs_bp    += $last_month_jobs_bp->{$date}{error} + $last_month_jobs_bp->{$date}{running} + $last_month_jobs_bp->{$date}{done};
+      push @$month_jobs, [
+			  $date,
+			  $last_month_jobs_count->{$date}{error},
+			  $last_month_jobs_count->{$date}{running},
+			  $last_month_jobs_count->{$date}{done},
+			  $self->bp2gbp( $last_month_jobs_bp->{$date}{error} ),
+			  $self->bp2gbp( $last_month_jobs_bp->{$date}{running} ),
+			  $self->bp2gbp( $last_month_jobs_bp->{$date}{done} ),
+			  ];
+  }
+
+  my $month_jobs_gbp = $self->bp2gbp($month_jobs_bp);
+  $month_jobs_count  = $self->add_commas($month_jobs_count);
+
+  my $month_jobs_table = $application->component('month_jobs_table');
+  $month_jobs_table->items_per_page(31);
+  $month_jobs_table->data($month_jobs);
+
+  $month_jobs_table->columns( 
+			      [ 
+				{ name => 'creation date' },
+				{ name => '# jobs, error' },
+				{ name => '# jobs, running' },
+				{ name => '# jobs, done' },
+				{ name => 'gbp, error' },
+				{ name => 'gbp, running' },
+				{ name => 'gbp, done' },
+			      ] 
+			    );
+
+  $html .= $self->google_columnchart_month_jobs('columnchart_month_jobs', $last_month_jobs_bp, $last_month_jobs_count);
+
+  my $month_jobs_chart .= "
 <table>
 <tr>
-<td>
-  $gmeter_today
+<td align='left'>
+<form><input id='columnchart_month_jobs_button' type='button' value='switch to job count chart'></input></form>
 </td>
+</tr>
+<tr>
 <td>
-    $gmeter_week
+<div id='columnchart_month_jobs'></div>
 </td>
+</tr>
+</table>
+";
+  $html .= "<h2>&raquo; Jobs created in the last month, $month_jobs_gbp Gbp in $month_jobs_count jobs</h2>\n";
+  $html .= $self->input_button('month_jobs_chart_button', 'month_jobs_chart', 'show chart', 'hide chart');
+  $html .= $self->input_button('month_jobs_table_button', 'month_jobs_table', 'show daily jobs table', 'hide daily jobs table');
+  $html .= "<div id='month_jobs_chart' style='display:none'>".$month_jobs_chart."</div>\n";
+  $html .= "<div id='month_jobs_table' style='display:none'>".$month_jobs_table->output()."</div>\n";
+
+
+  my $t_jobs_count = 0;
+  my $t_jobs_bp    = 0;
+  my $t_jobs       = [];
+
+  my $curr_hour = (localtime(time))[2];
+
+  foreach my $hour ( 0..$curr_hour )
+  {
+      $t_jobs_count += $today_jobs_count->{$hour}{error} + $today_jobs_count->{$hour}{running} + $today_jobs_count->{$hour}{done};
+      $t_jobs_bp    += $today_jobs_bp->{$hour}{error} + $today_jobs_bp->{$hour}{running} + $today_jobs_bp->{$hour}{done};
+      push @$t_jobs, [
+			  $hour . '-' . ($hour+1),
+			  $today_jobs_count->{$hour}{error},
+			  $today_jobs_count->{$hour}{running},
+			  $today_jobs_count->{$hour}{done},
+			  $self->bp2gbp( $today_jobs_bp->{$hour}{error} ),
+			  $self->bp2gbp( $today_jobs_bp->{$hour}{running} ),
+			  $self->bp2gbp( $today_jobs_bp->{$hour}{done} ),
+			  ];
+  }
+
+  my $t_jobs_gbp = $self->bp2gbp($t_jobs_bp);
+  $t_jobs_count  = $self->add_commas($t_jobs_count);
+
+  my $today_jobs_table = $application->component('today_jobs_table');
+  $today_jobs_table->items_per_page(24);
+  $today_jobs_table->data($t_jobs);
+
+  $today_jobs_table->columns( 
+			      [ 
+				{ name => 'creation time' },
+				{ name => '# jobs, error' },
+				{ name => '# jobs, running' },
+				{ name => '# jobs, done' },
+				{ name => 'gbp, error' },
+				{ name => 'gbp, running' },
+				{ name => 'gbp, done' },
+			      ] 
+			    );
+
+  my $t2_data = [];
+  foreach my $row ( @$jdata )
+  {
+      my $job_id = $row->[2];
+      if ( exists $today_job_id->{$job_id} )
+      {
+ 	  push @$t2_data, $row;
+      }
+  }
+
+  my $today_jobs_table_2 = $application->component('today_jobs_table_2');
+  $today_jobs_table_2->show_top_browse(1);
+  $today_jobs_table_2->show_bottom_browse(1);
+  $today_jobs_table_2->show_clear_filter_button(1);
+  $today_jobs_table_2->show_select_items_per_page(1);
+  $today_jobs_table_2->items_per_page(15);
+  $today_jobs_table_2->data($t2_data);
+  $today_jobs_table_2->show_column_select(1);
+  $today_jobs_table_2->columns( [ { name => 'created', filter => 1, sortable => 1 },
+				  { name => 'mgid', filter => 1, sortable => 1 },
+				  { name => 'jid', filter => 1, sortable => 1 },
+				  { name => 'name', filter => 1, sortable => 1 },
+				  { name => 'size', filter => 1, sortable => 1 },
+				  { name => 'sequence type', filter => 1, operator => 'combobox', visible => 0 },
+				  { name => 'viewable', filter => 1, operator => 'combobox' },
+				  { name => 'public', filter => 1, operator => 'combobox' },
+				  { name => 'version', filter => 1, sortable => 1, operator => 'combobox', visible => 0 },
+				  { name => 'project', filter => 1, sortable => 1, visible => 0 },
+				  { name => 'firstname', filter => 1, sortable => 1 },
+				  { name => 'lastname', filter => 1, sortable => 1 },
+				  { name => 'login', filter => 1, sortable => 1, visible => 0 },
+				  { name => 'email', filter => 1, sortable => 1, visible => 0 },
+				  { name => 'funding source', filter => 1, sortable => 1 },
+				  { name => 'organization', filter => 1, sortable => 1, visible => 0 },
+				  { name => 'country', filter => 1, operator => 'combobox', visible => 0 },
+				  { name => 'last stage', filter => 1, sortable => 1, operator => 'combobox' },
+				  { name => 'last stage status', filter => 1, sortable => 1, operator => 'combobox' },
+				  { name => 'last stage time', filter => 1, sortable => 1 },
+				  { name => 'status file' } ] );
+
+  $html .= $self->google_columnchart_today_jobs('columnchart_today_jobs', $today_jobs_bp, $today_jobs_count);
+  my $today_jobs_chart .= "
+<table>
+<tr>
+<td align='left'>
+<form><input id='columnchart_today_jobs_today_button' type='button' value='switch to job count chart'></input></form>
+</td>
+</tr>
+<tr>
 <td>
-  $gmeter_month
+<div id='columnchart_today_jobs'></div>
 </td>
 </tr>
 </table>
 ";
 
-  $html .= "<h2><a style='cursor: pointer; color: blue;' onclick='if(document.getElementById(\"pspeed\").style.display==\"none\"){document.getElementById(\"pspeed\").style.display=\"\";}else{document.getElementById(\"pspeed\").style.display=\"none\";}'>&raquo; Processing Speed</h2><div id='pspeed' style='display: none;'>".$gmeter_table."<br><br><div id='organization_details'></div></div>";
+  $html .= "<h2>&raquo; Jobs created today, $t_jobs_gbp Gbp in $t_jobs_count jobs</h2>\n";
 
-  $html .= "<table><tr><td>" . $bpup . "<div id='dash_0_new'></div></td></tr></table>\n";
+  $html .= $self->input_button('today_jobs_chart_button', 'today_jobs_chart', 'show chart', 'hide chart');
+  $html .= $self->input_button('today_hourly_jobs_table_button', 'today_hourly_jobs_table', 'show hourly jobs table', 'hide hourly jobs table');
+  $html .= $self->input_button('today_jobs_table_button', 'today_jobs_table', 'show jobs table', 'hide jobs table');
+  $html .= "<div id='today_jobs_chart' style='display:none'>".$today_jobs_chart."</div>\n";
+  $html .= "<div id='today_jobs_table' style='display:none'>".$today_jobs_table_2->output()."</div>\n";
+  $html .= "<div id='today_hourly_jobs_table' style='display:none'>".$today_jobs_table->output()."</div>\n";
 
-  # dashboard output
-  $html .= "<div id='jobs'>$qwe</div><div id='dashboard'><input type='button' id='dash_0_button' value='show 30 days' onclick='switch_days(\"0\");'><table><tr><td><div id='dash_0'></div><div id='dash_0_b'></div></td><td><div id='dash_1'></div><div id='dash_1_b'></div></td><td id='dash_5' rowspan=7>$user_html</td></tr><tr><td><div id='dash_2'></div><div id='dash_2_b'></div></td><td><div id='dash_3'></div><div id='dash_3_b'></div></td></tr><tr><td><div id='dash_4'></div><div id='dash_4_b'></div></td></tr><tr><td id='dash_6' colspan=2></td></tr><tr><td id='dash_7' colspan=2></td></tr><tr><td id='dash_8' colspan=2></td></tr><tr><td id='dash_11' colspan=2></td></tr><tr><td colspan=2><h3>All Users with Organizations</h3></td><td><h3>Current Users with Organizations</h3></td></tr><tr><td id='dash_9' colspan=2></td><td id='dash_10' colspan=2></td></tr></table><input type='button' value='export to excel' onclick='window.top.location=\"?page=MGS&exp=".join("|", @$average_size_stats_filtered2)."\";'></div>";
+   if ( keys %$incomplete_jobs_bp )
+   {
+       my $i_jobs_count = 0;
+       my $i_jobs_bp    = 0;
+       my $i_jobs       = [];
 
-  foreach my $day (@$thirtyone_days) {
-    $day =~ s/^\d+-(.+)/$1/;
+       foreach my $date ( sort keys %$incomplete_jobs_bp )
+       {
+	   $incomplete_jobs_count->{$date}{error}   ||= 0;
+	   $incomplete_jobs_count->{$date}{running} ||= 0;
+
+	   $incomplete_jobs_bp->{$date}{error}      ||= 0;
+	   $incomplete_jobs_bp->{$date}{running}    ||= 0;
+       }
+
+       foreach my $date ( sort keys %$incomplete_jobs_bp )
+       {
+	   $i_jobs_count += $incomplete_jobs_count->{$date}{error} + $incomplete_jobs_count->{$date}{running};
+	   $i_jobs_bp    += $incomplete_jobs_bp->{$date}{error} + $incomplete_jobs_bp->{$date}{running};
+	   push @$i_jobs, [
+			   $date,
+			   $incomplete_jobs_count->{$date}{error},
+			   $incomplete_jobs_count->{$date}{running},
+			   $self->bp2gbp( $incomplete_jobs_bp->{$date}{error} ),
+			   $self->bp2gbp( $incomplete_jobs_bp->{$date}{running} ),
+			   ];
+      }
+
+       my $i_jobs_gbp = $self->bp2gbp($i_jobs_bp);
+       $i_jobs_count  = $self->add_commas($i_jobs_count);
+       
+       my $incomplete_jobs_table = $application->component('incomplete_jobs_table');
+       my $n_rows = scalar keys %$incomplete_jobs_bp;
+       $incomplete_jobs_table->items_per_page($n_rows);
+       $incomplete_jobs_table->data($i_jobs);
+       
+       $incomplete_jobs_table->columns( 
+					[ 
+					  { name => 'creation date' },
+					  { name => '# jobs, error' },
+					  { name => '# jobs, running' },
+					  { name => 'gbp, error' },
+					  { name => 'gbp, running' },
+					  ] 
+					);
+
+       my $i2_data = [];
+       foreach my $row ( @$jdata )
+       {
+	   my $job_id = $row->[2];
+	   if ( exists $incomplete_job_id->{$job_id} )
+	   {
+	       push @$i2_data, $row;
+	   }
+       }
+       
+       my $incomplete_jobs_table_2 = $application->component('incomplete_jobs_table_2');
+       $incomplete_jobs_table_2->show_top_browse(1);
+       $incomplete_jobs_table_2->show_bottom_browse(1);
+       $incomplete_jobs_table_2->show_clear_filter_button(1);
+       $incomplete_jobs_table_2->show_select_items_per_page(1);
+       $incomplete_jobs_table_2->items_per_page(15);
+       $incomplete_jobs_table_2->data($i2_data);
+       $incomplete_jobs_table_2->show_column_select(1);
+       $incomplete_jobs_table_2->columns( [ { name => 'created', filter => 1, sortable => 1 },
+					    { name => 'mgid', filter => 1, sortable => 1 },
+					    { name => 'jid', filter => 1, sortable => 1 },
+					    { name => 'name', filter => 1, sortable => 1 },
+					    { name => 'size', filter => 1, sortable => 1 },
+					    { name => 'sequence type', filter => 1, operator => 'combobox', visible => 0 },
+					    { name => 'viewable', filter => 1, operator => 'combobox' },
+					    { name => 'public', filter => 1, operator => 'combobox' },
+					    { name => 'version', filter => 1, sortable => 1, operator => 'combobox', visible => 0 },
+					    { name => 'project', filter => 1, sortable => 1, visible => 0 },
+					    { name => 'firstname', filter => 1, sortable => 1 },
+					    { name => 'lastname', filter => 1, sortable => 1 },
+					    { name => 'login', filter => 1, sortable => 1, visible => 0 },
+					    { name => 'email', filter => 1, sortable => 1, visible => 0 },
+					    { name => 'funding source', filter => 1, sortable => 1 },
+					    { name => 'organization', filter => 1, sortable => 1, visible => 0 },
+					    { name => 'country', filter => 1, operator => 'combobox', visible => 0 },
+					    { name => 'last stage', filter => 1, sortable => 1, operator => 'combobox' },
+					    { name => 'last stage status', filter => 1, sortable => 1, operator => 'combobox' },
+					    { name => 'last stage time', filter => 1, sortable => 1 },
+					    { name => 'status file' } ] );
+       
+       
+       my $div_id = 'columnchart_incomplete_jobs';
+       $html .= $self->google_columnchart_incomplete_jobs($div_id, $incomplete_jobs_bp, $incomplete_jobs_count);
+       
+       my $incomplete_jobs_chart = "
+<table>
+<tr>
+<td align='left'>
+<form><input id='columnchart_incomplete_jobs_button' type='button' value='switch to job count chart'></input></form>
+</td>
+</tr>
+<tr>
+<td>
+<div id='$div_id'></div>
+</td>
+</tr>
+</table>
+";
+
+       $html .= "<h2>&raquo; Incomplete jobs by creation date (excluding today), $i_jobs_gbp Gbp in $i_jobs_count jobs</h2>\n";
+
+       $html .= $self->input_button('incomplete_jobs_chart_button', 'incomplete_jobs_chart', 'show chart', 'hide chart');
+       $html .= $self->input_button('incomplete_daily_jobs_table_button', 'incomplete_daily_jobs_table', 'show daily jobs table', 'hide daily jobs table');
+       $html .= $self->input_button('incomplete_jobs_table_button', 'incomplete_jobs_table', 'show jobs table', 'hide jobs table');
+       $html .= "<div id='incomplete_jobs_chart' style='display:none'>".$incomplete_jobs_chart."</div>\n";
+       $html .= "<div id='incomplete_jobs_table' style='display:none'>".$incomplete_jobs_table_2->output()."</div>\n";
+       $html .= "<div id='incomplete_daily_jobs_table' style='display:none'>".$incomplete_jobs_table->output()."</div>\n";
+  }
+  else
+  {
+      $html = "<h2>&raquo; Incomplete jobs by creation date, excluding today</h2>\n";
+      $html .= "<h3>No incomplete jobs</h3>\n";
   }
 
-  $html .= "<input type='hidden' id='thirty_days_dates' value='".join(";", @$thirtyone_days[1..30])."'>";
+  my $p_jobs_count = 0;
+  my $p_jobs_bp    = 0;
+  my $p_jobs       = [];
+  
+  foreach my $stage ( @{ $self->{mgstat}->pipeline_stages_ordered() } )
+  {
+      $pipeline_jobs_count->{$stage}{error}     ||= 0;
+      $pipeline_jobs_count->{$stage}{running}   ||= 0;
+      $pipeline_jobs_count->{$stage}{completed} ||= 0;
 
-  # upload stats output
-  #$html .= "<h2>Gbp uploaded</h2><div id='upload_stats'></div>";
-
-  $html .= "<input type='hidden' id='upload_stats_data' value='".join(";", @$upload_stats[1..30])."'>";
-  #$html .= "<img src='./Html/clear.gif' onload='stat_graph(\"upload\", \"Gbp\");'>";
-
-  # jobs broken output
-  #$html .= "<h2>jobs /w error status</h2><div id='broken_stats'></div>";
-  $html .= "<input type='hidden' id='broken_stats_data' value='".join(";", @$broken_stats[1..31])."'>";
-  #$html .= "<img src='./Html/clear.gif' onload='stat_graph(\"broken\", \"Job\");'>";
-
-  # gbp finished output
-  #$html .= "<h2>Gbp finished</h2><div id='finished_stats'></div>";
-  $html .= "<input type='hidden' id='finished_stats_data' value='".join(";", @$finished_stats[1..31])."'>";
-  #$html .= "<img src='./Html/clear.gif' onload='stat_graph(\"finished\", \"Gbp\");'>";
-
-  # gbp processing output
-  #$html .= "<h2>Gbp processing</h2><div id='processing_stats'></div>";
-  $html .= "<input type='hidden' id='processing_stats_data' value='".join(";", @$processing_stats[1..31])."'>";
-  #$html .= "<img src='./Html/clear.gif' onload='stat_graph(\"processing\", \"Gbp\");'>";
-
-  # new users output
-  #$html .= "<h2>new users</h2><div id='user_stats'></div>";
-  $html .= "<input type='hidden' id='user_stats_data' value='".join(";", @$user_stats[1..31])."'>";
-  #$html .= "<img src='./Html/clear.gif' onload='stat_graph(\"user\", \"user\");'>";
-
-  # upload average size
-  $html .= "<input type='hidden' id='average_size_data' value='".join(";", @$average_size_stats)."'>";
-  $html .= "<input type='hidden' id='average_size_filtered_data' value='".join(";", @$average_size_stats_filtered)."'>";
-  $html .= "<input type='hidden' id='average_size_filtered2_data' value='".join(";", @$average_size_stats_filtered2)."'>";
-  $html .= "<input type='hidden' id='average_size_cols' value='".join(";", @$fourtyeightcols)."'>";
-
-  # upload size contribution
-  $html .= "<input type='hidden' id='size_distribution' value='".join(";", map { $_->[0]."|".$_->[1]."|".$_->[2] } @$size_distribution)."'>";
-
-  # country distribution
-  my $auc = [];
-  @$auc = keys(%$countries);
-  my $aun = [];
-  foreach my $co (@$auc) {
-    push(@$aun, $countries->{$co});
+      $pipeline_jobs_bp->{$stage}{error}        ||= 0;
+      $pipeline_jobs_bp->{$stage}{running}      ||= 0;
+      $pipeline_jobs_bp->{$stage}{completed}    ||= 0;
   }
-  $html .= "<input type='hidden' id='all_users_countries' value='".join(";", @$auc)."'>";
-  $html .= "<input type='hidden' id='all_users_nums' value='".join(";", @$aun)."'>";
 
-  my $nuc = [];
-  @$nuc = keys(%$current_countries);
-  my $nun = [];
-  foreach my $co (@$nuc) {
-    push(@$nun, $current_countries->{$co});
+  foreach my $stage ( @{ $self->{mgstat}->pipeline_stages_ordered() } )
+  {
+      $p_jobs_count += $pipeline_jobs_count->{$stage}{error} + $pipeline_jobs_count->{$stage}{running} + $pipeline_jobs_count->{$stage}{completed};
+      $p_jobs_bp    += $pipeline_jobs_bp->{$stage}{error} + $pipeline_jobs_bp->{$stage}{running} + $pipeline_jobs_bp->{$stage}{completed};
+      push @$p_jobs, [
+		      $stage,
+		      $pipeline_jobs_count->{$stage}{error},
+		      $pipeline_jobs_count->{$stage}{running},
+		      $pipeline_jobs_count->{$stage}{completed},
+		      $self->bp2gbp( $pipeline_jobs_bp->{$stage}{error} ),
+		      $self->bp2gbp( $pipeline_jobs_bp->{$stage}{running} ),
+		      $self->bp2gbp( $pipeline_jobs_bp->{$stage}{completed} ),
+		      ];
   }
-  $html .= "<input type='hidden' id='curr_users_countries' value='".join(";", @$nuc)."'>";
-  $html .= "<input type='hidden' id='curr_users_nums' value='".join(";", @$nun)."'>";
 
-  # load dashboard
-  $html .= '<script type="text/javascript">
-      google.load("visualization", "1", {packages:["corechart"]});
-      google.setOnLoadCallback(load_dashboard);
-</script>';
+  my $p_jobs_gbp = $self->bp2gbp($p_jobs_bp);
+  $p_jobs_count  = $self->add_commas($p_jobs_count);
+  
+  my $pipeline_jobs_table = $application->component('pipeline_jobs_table');
+  my $n_rows = scalar @$p_jobs;
+  $pipeline_jobs_table->items_per_page($n_rows);
+  $pipeline_jobs_table->data($p_jobs);
+  
+  $pipeline_jobs_table->columns( 
+				 [ 
+				   { name => 'pipeline stage' },
+				   { name => '# jobs, error' },
+				   { name => '# jobs, running' },
+				   { name => '# jobs, completed' },
+				   { name => 'gbp, error' },
+				   { name => 'gbp, running' },
+				   { name => 'gbp, completed' },
+				   ] 
+				 );
+
+  my $p2_data = [];
+  foreach my $row ( @$jdata )
+  {
+      my $job_id = $row->[2];
+      if ( exists $pipeline_job_id->{$job_id} )
+      {
+ 	  push @$p2_data, $row;
+      }
+  }
+
+  my $pipeline_jobs_table_2 = $application->component('pipeline_jobs_table_2');
+  $pipeline_jobs_table_2->show_top_browse(1);
+  $pipeline_jobs_table_2->show_bottom_browse(1);
+  $pipeline_jobs_table_2->show_clear_filter_button(1);
+  $pipeline_jobs_table_2->show_select_items_per_page(1);
+  $pipeline_jobs_table_2->items_per_page(15);
+  $pipeline_jobs_table_2->data($p2_data);
+  $pipeline_jobs_table_2->show_column_select(1);
+  $pipeline_jobs_table_2->columns( [ { name => 'created', filter => 1, sortable => 1 },
+				     { name => 'mgid', filter => 1, sortable => 1 },
+				     { name => 'jid', filter => 1, sortable => 1 },
+				     { name => 'name', filter => 1, sortable => 1 },
+				     { name => 'size', filter => 1, sortable => 1 },
+				     { name => 'sequence type', filter => 1, operator => 'combobox', visible => 0 },
+				     { name => 'viewable', filter => 1, operator => 'combobox' },
+				     { name => 'public', filter => 1, operator => 'combobox' },
+				     { name => 'version', filter => 1, sortable => 1, operator => 'combobox', visible => 0 },
+				     { name => 'project', filter => 1, sortable => 1, visible => 0 },
+				     { name => 'firstname', filter => 1, sortable => 1 },
+				     { name => 'lastname', filter => 1, sortable => 1 },
+				     { name => 'login', filter => 1, sortable => 1, visible => 0 },
+				     { name => 'email', filter => 1, sortable => 1, visible => 0 },
+				     { name => 'funding source', filter => 1, sortable => 1 },
+				     { name => 'organization', filter => 1, sortable => 1, visible => 0 },
+				     { name => 'country', filter => 1, operator => 'combobox', visible => 0 },
+				     { name => 'last stage', filter => 1, sortable => 1, operator => 'combobox' },
+				     { name => 'last stage status', filter => 1, sortable => 1, operator => 'combobox' },
+				     { name => 'last stage time', filter => 1, sortable => 1 },
+				     { name => 'status file' } ] );
+
+  $html .= $self->google_columnchart_pipeline_jobs('columnchart_pipeline_jobs', $pipeline_jobs);
+  my $pipeline_jobs_chart = "
+<table>
+<tr>
+<td align='left'>
+<form><input id='columnchart_pipeline_jobs_button' type='button' value='switch to job count chart'></input></form>
+</td>
+</tr>
+<tr>
+<td>
+<div id='columnchart_pipeline_jobs'></div>
+</td>
+</tr>
+</table>
+";
+
+  $pipeline_jobs_table_2->show_export_button({title => 'export', strip_html => 1});
+
+  $html .= "<h2>&raquo; Incomplete jobs by pipeline stage (including today), $p_jobs_gbp Gbp in $p_jobs_count jobs</h2>\n";
+  $html .= $self->input_button('pipeline_jobs_chart_button', 'pipeline_jobs_chart', 'show chart', 'hide chart');
+  $html .= $self->input_button('pipeline_jobs_stage_table_button', 'pipeline_jobs_stage_table', 'show job stage table', 'hide job stage table');
+  $html .= $self->input_button('pipeline_jobs_table_button', 'pipeline_jobs_table', 'show job table', 'hide job table');
+  $html .= "<div id='pipeline_jobs_chart' style='display:none'>".$pipeline_jobs_chart."</div>\n";
+  $html .= "<div id='pipeline_jobs_table' style='display:none'>".$pipeline_jobs_table_2->output()."</div>\n";
+  $html .= "<div id='pipeline_jobs_stage_table' style='display:none'>".$pipeline_jobs_table->output()."</div>\n";
+
+
+  my $total_new_users;
+  foreach my $curr_date ( keys %$new_users )
+  {
+      $total_new_users += $new_users->{$curr_date};
+  }
+
+  my $new_users_chart = "<div id='columnchart_new_users'></div>\n";
+  $html .= $self->google_columnchart_new_users('columnchart_new_users', $new_users);
+
+  $html .= "<h2>&raquo; New users in last month ($total_new_users)</h2>\n";
+  $html .= $self->input_button('new_users_chart_button', 'new_users_chart', 'show chart', 'hide chart');
+  $html .= "<div id='new_users_chart' style='display:none'>".$new_users_chart."</div>\n";
+
+
+  $html .= $self->google_piechart('today_users_chart', "Registered users\\' last page today", ['Page', 'Count'], $data_page_count, 20);
+
+  my $tu_data = [];
+  foreach my $_id_user ( sort { lc $mgusers->{$a}->{lastname} cmp lc $mgusers->{$b}->{lastname} ||lc  $mgusers->{$a}->{firstname} cmp lc $mgusers->{$b}->{firstname} } @$today_users_registered )
+  {
+      my $page = $mgusers->{$_id_user}{last_page} || 'Home';
+      push @$tu_data, [$mgusers->{$_id_user}->{firstname}, $mgusers->{$_id_user}->{lastname}, $page];
+  }
+
+  my $today_users_table = $application->component('today_users_table');
+  $today_users_table->show_top_browse(1);
+  $today_users_table->show_bottom_browse(1);
+  $today_users_table->show_clear_filter_button(1);
+  $today_users_table->show_select_items_per_page(1);
+  $today_users_table->items_per_page(15);
+  $today_users_table->data($tu_data);
+  $today_users_table->columns( [ 
+				 { name => 'first name', filter => 1, sortable => 1 },
+				 { name => 'last name', filter => 1, sortable => 1 },
+				 { name => 'last page accessed today', filter => 1, sortable => 1, operator => 'combobox' }, 
+				 ] );
+
+  $html .= "<h2>&raquo; Registered users online today (" . scalar(@$today_users_registered) . ")</h2>\n";
+  $html .= $self->input_button('today_users_chart_button', 'today_users_chart', 'show chart', 'hide chart');
+  $html .= $self->input_button('today_users_table_button', 'today_users_table', 'show table', 'hide table');
+  $html .= "<div id='today_users_chart' style='display:none'></div>\n";
+  $html .= "<div id='today_users_table' style='display:none'>".$today_users_table->output()."</div>\n";
+
+  $html .= $self->google_geochart_users('geochart_users', $countries, $current_countries);
+  my $users_map = "
+<table>
+<tr>
+<td align='left'>
+<form><input id='geochart_users_button' type='button' value='switch to todays users'></input></form>
+</td>
+</tr>
+<tr>
+<td>
+<div id='geochart_users'></div>
+</td>
+</tr>
+</table>
+";
+
+  $html .= "<h2>&raquo; Registered users map (only users registered with organization)</h2>\n";
+  $html .= $self->input_button('users_map_button', 'users_map', 'show map', 'hide map');
+  $html .= "<div id='users_map' style='display:none'>".$users_map."</div>\n";
 
   # job list output
-  $html .= "<h2><a style='cursor: pointer; color: blue;' onclick='if(document.getElementById(\"jlist\").style.display==\"none\"){document.getElementById(\"jlist\").style.display=\"\";}else{document.getElementById(\"jlist\").style.display=\"none\";}'>&raquo; Job List</h2><div id='jlist' style='display: none;'>".$jt->output()."<br><br><div id='job_details'></div></div>";
+  $jt->show_export_button({title => 'export', strip_html => 1});
+
+  $html .= "<h2>&raquo; All jobs (" . $self->add_commas( scalar @$jdata ) . ")</h2>\n";
+  $html .= $self->input_button('all_jobs_table_button', 'all_jobs_table', 'show table', 'hide table');
+  $html .= "<div id='all_jobs_table' style='display:none'>".$jt->output()."</div>\n";
 
   # user list output
-  $html .= "<h2><a style='cursor: pointer; color: blue;' onclick='if(document.getElementById(\"ulist\").style.display==\"none\"){document.getElementById(\"ulist\").style.display=\"\";}else{document.getElementById(\"ulist\").style.display=\"none\";}'>&raquo; User List</a></h2><div id='ulist' style='display: none;'><table><tr><td>".$ut->output()."</td><td><div id='user_details'></div></td></tr></table></div>";
+  $html .= "<h2>&raquo; All users (" . $self->add_commas( scalar @$data ) . ")</h2>\n";
+  $html .= $self->input_button('all_users_table_button', 'all_users_table', 'show table', 'hide table');
+  $html .= "<div id='all_users_table' style='display:none'>".$ut->output()."</div>\n";
 
   # organization list output
-  $html .= "<h2><a style='cursor: pointer; color: blue;' onclick='if(document.getElementById(\"olist\").style.display==\"none\"){document.getElementById(\"olist\").style.display=\"\";}else{document.getElementById(\"olist\").style.display=\"none\";}'>&raquo; Organization List</h2><div id='olist' style='display: none;'>".$ot->output()."<br><br><div id='processing_speed'></div></div>";
-
-  ### funding sources counts
-  my $table_a = $self->application->component('FundingSources');
-#  my $data_a  = $user_dbh->selectall_arrayref("select value, count(*) from Preferences where name = 'funding_source' group by value");
-  
-  my $fs2user_count = $self->{mgstat}->funding_source2user_count();
-  my $data_a = [];
-
-  foreach my $fs ( keys %$fs2user_count ) 
-  {
-      push @$data_a, [$fs, $fs2user_count->{$fs}];
-  }
-
-  @$data_a = sort { $a->[0] cmp $b->[0] } @$data_a;
-  my ($pie_a, $div_a) = &get_piechart("pie_a", "Funding Sources", ['Organization', 'Count'], $data_a, 20);
-  
-  $table_a->width(850);
-  if ( scalar(@$data_a) > 25 ) {
-    $table_a->show_top_browse(1);
-    $table_a->show_bottom_browse(1);
-    $table_a->show_clear_filter_button(1);
-    $table_a->items_per_page(25);
-    $table_a->show_select_items_per_page(1); 
-  }
-  $table_a->columns([ { name => 'Funding Source', sortable => 1, filter => 1 },
-		      { name => 'Count', sortable => 1 }
-		    ]);
-  $table_a->data($data_a);
-  $table_a->show_export_button({title => 'export', strip_html => 1});
-
+  $html .= "<h2>&raquo; All organizations (" . $self->add_commas( scalar @$odata ) . ")</h2>\n";
+  $html .= $self->input_button('all_organizations_table_button', 'all_organizations_table', 'show table', 'hide table');
+  $html .= "<div id='all_organizations_table' style='display:none'>".$ot->output()."</div>\n";
 
   ### funding sources user and job
   my $table_b = $self->application->component('FundingSourcesClean');
-  my $data_b  = $self->{mgstat}->get_funding_user_jobs(); # fund, user, job, bp
+  my $data_b  = $self->{mgstat}->get_funding_user_jobs(); # fund, number of users, number of jobs, sum of job bp
 
   my @fund_usr = map { [$_->[0], $_->[1]] } @$data_b;
   my @fund_job = map { [$_->[0], $_->[2]] } @$data_b;
-  my @fund_bps = map { [$_->[0], sprintf("%.3f", ($_->[3] * 1.0)/1000000000)] } @$data_b;
+  my @fund_bps = map { [$_->[0], sprintf("%.1f", ($_->[3] * 1.0)/1000000000)] } @$data_b;
   
-  my ($pie_usr, $div_usr) = &get_piechart("pie_usr", "Users per funding source", ['Organization', 'Users'], \@fund_usr, 0);
-  my ($pie_job, $div_job) = &get_piechart("pie_job", "Jobs per funding source", ['Organization', 'Jobs'], \@fund_job, 20);
-  my ($pie_bps, $div_bps) = &get_piechart("pie_bps", "Gbps per funding source", ['Organization', 'Gbps'], \@fund_bps, 20);
-  my $div_b = "<table><tr><td>$div_usr</td><td>$div_job</td><td>$div_bps</td></tr></table>";
-  
+  my($pie_usr, $div_usr) = &get_piechart('funding_source_user_chart', 'Users per funding source', ['Organization', 'Users'], \@fund_usr, 0, 800);
+  my($pie_job, $div_job) = &get_piechart('funding_source_job_chart',  'Jobs per funding source',  ['Organization', 'Jobs'],  \@fund_job, 20, 800);
+  my($pie_gbp, $div_gbp) = &get_piechart('funding_source_gbp_chart',  'Gbp per funding source',   ['Organization', 'Gbp'],  \@fund_bps, 20, 800);
+  #my $div_b = "<table><tr><td>$div_usr</td><td>$div_job</td><td>$div_bps</td></tr></table>";
+  #my $div_b = "$div_usr\n$div_job\n$div_bps\n";
+
   $table_b->width(850);
   if ( scalar(@$data_b) > 25 ) {
     $table_b->show_top_browse(1);
@@ -821,12 +1296,46 @@ my $gmeter_month = qq(<img alt="Processing Speed: $gbp_month Gbp/day in last 7 d
 		      { name => 'Basepairs', sortable => 1 }
 		    ]);
   $table_b->data($data_b);
-  $table_b->show_export_button({title => 'export', strip_html => 1});
+#  $table_b->show_export_button({title => 'export', strip_html => 1});
   
   ### job counts
-  my $data_c  = $mgrast_dbh->selectall_arrayref("select substring(created_on,1,7) as Date, count(job_id) as Jobs from Job where job_id is not NULL group by Date");
+
+  my %month_counts;
+  foreach my $rec ( @$jdata )
+  {
+      my($creation_date, $bp, $seq_type, $viewable, $public, $last_stage_name, $last_stage_status, $last_stage_timestamp) = @$rec[0,4,5,6,7,17,18,19];
+
+      if ( $last_stage_name eq 'done' and $last_stage_status eq 'completed' and $viewable == 1 )
+      {
+	  if ( $creation_date =~ /^20(\d\d-\d\d)/ )
+	  {
+	      my $month = $1;
+
+	      $month_counts{$month}{all}{bp}   += $bp;
+	      $month_counts{$month}{all}{jobs} += 1;
+	      if ( $public )
+	      {
+		  $month_counts{$month}{public}{bp} += $bp;
+		  $month_counts{$month}{public}{jobs} += 1;
+	      }
+	  }
+      }
+  }
+
+  # leaving out public job counts for now
+  my $data_c = [];
+
+  foreach my $month ( sort keys %month_counts )
+  {
+      my $all_gbp = sprintf("%.2f", $month_counts{$month}{all}{bp}/1000000000);
+      #my $pub_gbp = sprintf("%.2f", $month_counts{$month}{public}{bp});
+      
+      push @$data_c, [$month, $month_counts{$month}{all}{jobs}, $all_gbp];
+  }
+
+#  my $data_c  = $mgrast_dbh->selectall_arrayref("select substring(created_on,1,7) as Date, count(job_id) as Jobs from Job where job_id is not NULL group by Date");
   my $table_c = $self->application->component('JobsMonth');
-  my ($pie_c, $div_c) = &get_piechart("pie_c", "Jobs per Month", ['Month', 'Jobs'], $data_c, 20);
+#  my ($pie_c, $div_c) = &get_piechart("pie_c", "Jobs per Month", ['Month', 'Jobs'], $data_c, 20);
   
   $table_c->width(850);
   if ( scalar(@$data_c) > 25 ) {
@@ -836,19 +1345,61 @@ my $gmeter_month = qq(<img alt="Processing Speed: $gbp_month Gbp/day in last 7 d
     $table_c->items_per_page(25);
     $table_c->show_select_items_per_page(1); 
   }
-  $table_c->columns([ { name => 'Period', sortable => 1 },
-		      { name => 'Jobs', sortable => 1 }
+  $table_c->columns([ { name => 'Month', sortable => 1 },
+		      { name => 'Jobs', sortable => 1 },
+		      { name => 'Size (Gbp)', sortable => 1 },
 		    ]);    
   $table_c->data($data_c);
   $table_c->show_export_button({title => 'export', strip_html => 1});
-  
-  $html .= $pie_pc . $pie_a . $pie_usr . $pie_job . $pie_bps . $pie_c;
-  $html .= "<h3><a onclick='if(document.getElementById(\"fund\").style.display==\"none\"){document.getElementById(\"fund\").style.display=\"\"}else{document.getElementById(\"fund\").style.display=\"none\"}' style='color: blue; cursor: pointer;'>&raquo; Funding Sources</a></h3><div id='fund' style='display: none;'>" . $table_a->output . $div_a . "</div>";
-  $html .= "<h3><a onclick='if(document.getElementById(\"fstat\").style.display==\"none\"){document.getElementById(\"fstat\").style.display=\"\"}else{document.getElementById(\"fstat\").style.display=\"none\"}' style='color: blue; cursor: pointer;'>&raquo; Funding Stats</a></h3><div id='fstat' style='display: none;'>" . $table_b->output . $div_b . "</div>";
-  $html .= "<h3><a onclick='if(document.getElementById(\"muse\").style.display==\"none\"){document.getElementById(\"muse\").style.display=\"\"}else{document.getElementById(\"muse\").style.display=\"none\"}' style='color: blue; cursor: pointer;'>&raquo; Monthly Job Usage</a></h3><div id='muse' style='display: none;'>" . $table_c->output . $div_c . "</div>";
+
+  $html .= $pie_usr . $pie_job . $pie_gbp;
+
+  $html .= "<h2>&raquo; Funding sources (" . scalar(@$data_b) . ")</h2>\n";
+  $html .= $self->input_button('funding_source_user_chart_button', 'funding_source_user_chart', 'show user chart', 'hide user chart');
+  $html .= $self->input_button('funding_source_job_chart_button', 'funding_source_job_chart', 'show job chart', 'hide job chart');
+  $html .= $self->input_button('funding_source_gbp_chart_button', 'funding_source_gbp_chart', 'show gbp chart', 'hide gbp chart');
+  $html .= $self->input_button('funding_source_table_button', 'funding_source_table', 'show table', 'hide table');
+  $html .= "<div id='funding_source_table' style='display:none'>" . $table_b->output . "</div>\n";
+  $html .= $div_usr;
+  $html .= $div_job;
+  $html .= $div_gbp;
+
+  my $div_id = 'columnchart_all_jobs';
+  $html .= $self->google_columnchart_all_jobs($div_id, $data_c);
+
+  my $all_jobs_chart = "
+<table>
+<tr>
+<td align='left'>
+<form><input id='columnchart_all_jobs_button' type='button' value='switch to job count chart'></input></form>
+</td>
+</tr>
+<tr>
+<td>
+<div id='$div_id'></div>
+</td>
+</tr>
+</table>
+";
+
+  $html .= "<h2>&raquo; Monthly Jobs History (based on creation date)</h2>\n";
+  $html .= $self->input_button('all_jobs_chart_button', 'all_jobs_chart', 'show chart', 'hide chart');
+  $html .= $self->input_button('monthly_jobs_table_button', 'monthly_jobs_table', 'show table', 'hide table');
+  $html .= "<div id='all_jobs_chart' style='display:none'>".$all_jobs_chart."</div>\n";
+  $html .= "<div id='monthly_jobs_table' style='display:none'>" . $table_c->output . "</div>\n";
+
   $html .= "<br><br><br>";
   
   return $html;
+}
+
+sub input_button {
+    my($self, $id, $div_id, $text_1, $text_2) = @_;
+
+    my $color_1 = '#000000';
+    my $color_2 = '#045A8D';
+    
+    return qq(<input type='button' value='$text_1' id='$id' onclick='if(document.getElementById("$div_id").style.display=="none"){document.getElementById("$div_id").style.display=""; document.getElementById("$id").value="$text_2"; document.getElementById("$id").style.color="$color_2";}else{document.getElementById("$div_id").style.display="none"; document.getElementById("$id").value="$text_1"; document.getElementById("$id").style.color="$color_1";}'>\n);
 }
 
 sub googleviz {
@@ -912,6 +1463,753 @@ END
                       title: '$chart_title',
                       hAxis: {showTextEvery: 2},
                      });
+  }
+</script>
+END
+
+    return $js;
+}
+
+sub google_columnchart_bp {
+    my($self, $div_name, $data) = @_;
+
+    my $js = <<END;
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  google.setOnLoadCallback(drawChart);
+  function drawChart() {
+    var data = new google.visualization.DataTable();
+    data.addColumn('string', 'Date');
+    data.addColumn('number', 'done');
+    data.addColumn('number', 'running');
+    data.addColumn('number', 'deleted');
+    data.addColumn('number', 'error');
+    data.addRows([
+END
+    
+    foreach my $date ( sort keys %$data )
+    {		
+	my $d = substr($date, 5, 5);
+	$d =~ s/^0*//;
+	
+	my $gbp_done    = $self->bp2gbp($data->{$date}{done});
+	my $gbp_running = $self->bp2gbp($data->{$date}{running});
+	my $gbp_deleted = $self->bp2gbp($data->{$date}{deleted});
+	my $gbp_error   = $self->bp2gbp($data->{$date}{error});
+
+	$js .= "['$d', $gbp_done, $gbp_running, $gbp_deleted,  $gbp_error],\n";
+    }
+
+    $js .= <<END;
+		  ]);
+
+    var options = {
+title: 'Basepairs uploaded',
+width: 800,
+height: 400,
+hAxis: {title: 'Date', showTextEvery: 2},
+vaxis: {title: 'bp'},
+isStacked: 1,
+};		  
+
+    var chart = new google.visualization.ColumnChart(document.getElementById('$div_name'));
+    chart.draw(data, options);
+  }
+</script>
+END
+
+    return $js;
+}
+
+sub google_columnchart_month_jobs {
+    my($self, $div_name, $jobs_bp, $jobs_count) = @_;
+    
+    my $jobs_bp_total    = 0;
+    my $jobs_count_total = 0;
+
+    my $js = <<END;
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  google.setOnLoadCallback(drawChartfunc);
+
+    function drawChartfunc() {
+  var data1 = [['date', 'done', 'running', 'deleted', 'error'],
+END
+
+  foreach my $date ( sort keys %$jobs_bp )
+    {		
+	my $d = substr($date, 5, 5);
+	$d =~ s/^0*//;
+	
+	my $gbp_done    = $self->bp2gbp($jobs_bp->{$date}{done});
+	my $gbp_running = $self->bp2gbp($jobs_bp->{$date}{running});
+	my $gbp_deleted = $self->bp2gbp($jobs_bp->{$date}{deleted});
+	my $gbp_error   = $self->bp2gbp($jobs_bp->{$date}{error});
+
+	$js .= "['$d', $gbp_done, $gbp_running, $gbp_deleted,  $gbp_error],\n";
+	$jobs_bp_total += $jobs_bp->{$date}{done} + $jobs_bp->{$date}{running} + $jobs_bp->{$date}{deleted} + $jobs_bp->{$date}{error};
+    }
+
+    $js .= <<END;
+  ];
+
+  var data2 = [['date', 'done', 'running', 'deleted', 'error'],
+END
+
+    foreach my $date ( sort keys %$jobs_count )
+    {		
+	my $d = substr($date, 5, 5);
+	$d =~ s/^0*//;
+	
+	$js .= "['$d', $jobs_count->{$date}{done}, $jobs_count->{$date}{running}, $jobs_count->{$date}{deleted}, $jobs_count->{$date}{error}],\n";
+	$jobs_count_total += $jobs_count->{$date}{done} + $jobs_count->{$date}{running} + $jobs_count->{$date}{deleted} + $jobs_count->{$date}{error};
+    }
+
+    $jobs_bp_total    = $self->bp2gbp($jobs_bp_total);	       
+    $jobs_count_total = $self->add_commas($jobs_count_total);
+	       
+    $js .= <<END;
+  ];
+
+  var data = [];
+  data[0] = google.visualization.arrayToDataTable(data1);		   
+  data[1] = google.visualization.arrayToDataTable(data2);		   
+
+  var options = {
+height: 700,
+width: 1200,
+colors: ['#1A9641', '#A6D96A', '#FDAE61', '#D7191C'],
+hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}},
+vAxis: {viewWindow: {min: 0, max: 10}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
+isStacked: 1,
+animation:{
+  duration: 1000,
+  easing: 'out'
+  },
+};		  
+
+  var current = 0;
+  var chart = new google.visualization.ColumnChart(document.getElementById('$div_name'));
+  var button = document.getElementById('columnchart_month_jobs_button');
+
+  function drawChart() {
+    // Disabling the button while the chart is drawing.
+    button.disabled = true;
+    google.visualization.events.addListener(chart, 'ready',
+      function() {
+        button.disabled = false;
+        button.value = 'switch to ' + (current ? 'job size' : 'job count') + ' chart';
+      });
+
+      options['title'] = (current ? 'Number of jobs created ($jobs_count_total)' : 'Size of jobs created in Gbp ($jobs_bp_total)');
+
+      chart.draw(data[current], options);
+  }
+
+  drawChart();
+
+  button.onclick = function() {
+  current = 1 - current;
+  drawChart();
+  }
+}
+</script>
+END
+
+    return $js;
+}
+
+sub google_columnchart_today_jobs {
+    my($self, $div_name, $jobs_bp, $jobs_count) = @_;
+
+    my $jobs_bp_total    = 0;
+    my $jobs_count_total = 0;
+
+    my $js = <<END;
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  google.setOnLoadCallback(drawChartfunc);
+
+    function drawChartfunc() {
+  var data1 = [['hour', 'done', 'running', 'deleted', 'error'],
+END
+
+    foreach my $hour ( sort {$a <=> $b} keys %$jobs_bp )
+    {		
+	my $gbp_done    = $self->bp2gbp($jobs_bp->{$hour}{done});
+	my $gbp_running = $self->bp2gbp($jobs_bp->{$hour}{running});
+	my $gbp_deleted = $self->bp2gbp($jobs_bp->{$hour}{deleted});
+	my $gbp_error   = $self->bp2gbp($jobs_bp->{$hour}{error});
+
+	my $txt = join('-', $hour, $hour+1);
+	$js .= "['$txt', $gbp_done, $gbp_running, $gbp_deleted,  $gbp_error],\n";
+
+	$jobs_bp_total += $jobs_bp->{$hour}{done} + $jobs_bp->{$hour}{running} + $jobs_bp->{$hour}{deleted} + $jobs_bp->{$hour}{error};
+    }
+
+    $js .= <<END;
+  ];
+
+  var data2 = [['hour', 'done', 'running', 'deleted', 'error'],
+END
+
+    foreach my $hour ( sort {$a <=> $b} keys %$jobs_count )
+    {		
+	my $txt = join('-', $hour, $hour+1);
+	$js .= "['$txt', $jobs_count->{$hour}{done}, $jobs_count->{$hour}{running}, $jobs_count->{$hour}{deleted}, $jobs_count->{$hour}{error}],\n";
+	$jobs_count_total += $jobs_count->{$hour}{done} + $jobs_count->{$hour}{running} + $jobs_count->{$hour}{deleted} + $jobs_count->{$hour}{error};
+    }
+
+    $jobs_bp_total    = $self->bp2gbp($jobs_bp_total);	       
+    $jobs_count_total = $self->add_commas($jobs_count_total);
+	       
+    $js .= <<END;
+  ];
+
+  var data = [];
+  data[0] = google.visualization.arrayToDataTable(data1);		   
+  data[1] = google.visualization.arrayToDataTable(data2);		   
+
+  var options = {
+height: 700,
+width: 1200,
+colors: ['#1A9641', '#A6D96A', '#FDAE61', '#D7191C'],
+hAxis: {title: 'Job Creation Time (today)', textStyle: {fontSize:11}},
+vAxis: {viewWindow: {min: 0, max: 10}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
+isStacked: 1,
+animation:{
+  duration: 1000,
+  easing: 'out'
+  },
+};		  
+
+  var current = 0;
+  var chart = new google.visualization.ColumnChart(document.getElementById('$div_name'));
+  var button = document.getElementById('columnchart_today_jobs_today_button');
+
+  function drawChart() {
+    // Disabling the button while the chart is drawing.
+    button.disabled = true;
+    google.visualization.events.addListener(chart, 'ready',
+      function() {
+        button.disabled = false;
+        button.value = 'switch to ' + (current ? 'job size' : 'job count') + ' chart';
+      });
+
+      options['title'] = (current ? 'Number of jobs created ($jobs_count_total)' : 'Size of jobs created in Gbp ($jobs_bp_total)');
+      chart.draw(data[current], options);
+  }
+
+  drawChart();
+
+  button.onclick = function() {
+  current = 1 - current;
+  drawChart();
+  }
+}
+</script>
+END
+
+    return $js;
+}
+
+sub google_columnchart_incomplete_jobs {
+    my($self, $div_name, $jobs_bp, $jobs_count) = @_;
+    
+    my $jobs_bp_total    = 0;
+    my $jobs_count_total = 0;
+
+    my $js = <<END;
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  google.setOnLoadCallback(drawChartfunc);
+
+    function drawChartfunc() {
+  var data1 = [['date', 'running', 'error'],
+END
+
+  foreach my $date ( sort keys %$jobs_bp )
+    {		
+	my $d = substr($date, 5, 5);
+	$d =~ s/^0*//;
+
+	$jobs_bp->{$date}{running} ||= 0;
+	$jobs_bp->{$date}{error}   ||= 0;
+
+	my $gbp_running = $self->bp2gbp($jobs_bp->{$date}{running});
+	my $gbp_error   = $self->bp2gbp($jobs_bp->{$date}{error});
+
+	$js .= "['$d', $gbp_running, $gbp_error],\n";
+	$jobs_bp_total += $jobs_bp->{$date}{running} + $jobs_bp->{$date}{error};
+    }
+
+    $js .= <<END;
+  ];
+
+  var data2 = [['date', 'running', 'error'],
+END
+
+    foreach my $date ( sort keys %$jobs_count )
+    {		
+	my $d = substr($date, 5, 5);
+	$d =~ s/^0*//;
+
+	$jobs_count->{$date}{running} ||= 0;
+	$jobs_count->{$date}{error}   ||= 0;
+	
+	$js .= "['$d', $jobs_count->{$date}{running}, $jobs_count->{$date}{error}],\n";
+	$jobs_count_total += $jobs_count->{$date}{running} + $jobs_count->{$date}{error};
+    }
+
+    $jobs_bp_total    = $self->bp2gbp($jobs_bp_total);	       
+    $jobs_count_total = $self->add_commas($jobs_count_total);
+	       
+    $js .= <<END;
+  ];
+
+  var data = [];
+  data[0] = google.visualization.arrayToDataTable(data1);		   
+  data[1] = google.visualization.arrayToDataTable(data2);		   
+
+  var options = {
+height: 700,
+width: 1200,
+colors: ['#A6D96A', '#D7191C'],
+hAxis: {title: 'Job Creation Date (non-contiguous)', textStyle: {fontSize:11}},
+vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
+isStacked: 1,
+animation:{
+  duration: 1000,
+  easing: 'out'
+  },
+};		  
+
+  var current = 0;
+  var chart = new google.visualization.ColumnChart(document.getElementById('$div_name'));
+  var button = document.getElementById('columnchart_incomplete_jobs_button');
+
+  function drawChart() {
+    // Disabling the button while the chart is drawing.
+    button.disabled = true;
+    google.visualization.events.addListener(chart, 'ready',
+      function() {
+        button.disabled = false;
+        button.value = 'switch to ' + (current ? 'job size' : 'job count') + ' chart';
+      });
+
+      options['title'] = (current ? 'Number of incomplete jobs ($jobs_count_total) excluding today' : 'Size of incomplete jobs in Gbp ($jobs_bp_total) excluding today');
+
+      chart.draw(data[current], options);
+  }
+
+  drawChart();
+
+  button.onclick = function() {
+  current = 1 - current;
+  drawChart();
+  }
+}
+</script>
+END
+
+    return $js;
+}
+
+sub google_columnchart_pipeline_jobs {
+    my($self, $div_name, $pipeline_jobs) = @_;
+
+    my $complete_jobs_bp      = $pipeline_jobs->{done}{completed}{bp};
+    my $complete_jobs_count   = $pipeline_jobs->{done}{completed}{count};
+    my $incomplete_jobs_bp    = 0;
+    my $incomplete_jobs_count = 0;
+
+    my $js = <<END;
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  google.setOnLoadCallback(drawChartfunc);
+
+    function drawChartfunc() {
+  var data1 = [['stage', 'error', 'running', 'completed'],
+END
+
+    foreach my $stage ( @{ $self->{mgstat}->pipeline_stages_ordered() } )
+    {
+	my @val = ();
+	foreach my $status ( 'error', 'running', 'completed' )
+	{
+	    my $bp = $pipeline_jobs->{$stage}{$status}{bp} || 0;
+	    $incomplete_jobs_bp += $bp;
+
+	    if ( $stage eq 'done' and $status eq 'completed' )
+	    {
+		push @val, 0;
+	    }
+	    else
+	    {
+		push @val, $bp;
+	    }
+	}
+	
+	$js .= "['$stage', " . join(', ', @val) . "],\n";
+    }
+
+    $incomplete_jobs_bp -= $complete_jobs_bp;
+
+    $js .= <<END;
+  ];
+
+  var data2 = [['stage', 'error', 'running', 'completed'],
+END
+
+    foreach my $stage ( @{ $self->{mgstat}->pipeline_stages_ordered() } )
+    {
+	my @val = ();
+	foreach my $status ( 'error', 'running', 'completed' )
+	{
+	    my $job_count = $pipeline_jobs->{$stage}{$status}{count} || 0;
+	    $incomplete_jobs_count += $job_count;
+
+	    if ( $stage eq 'done' and $status eq 'completed' )
+	    {
+		push @val, 0;
+	    }
+	    else
+	    {
+		push @val, $job_count;
+	    }
+	}
+	
+	$js .= "['$stage', " . join(', ', @val) . "],\n";
+    }
+
+    $incomplete_jobs_count -= $complete_jobs_count;
+
+    my $complete_jobs_gbp   = $self->bp2gbp($complete_jobs_bp);	       
+    my $incomplete_jobs_gbp = $self->bp2gbp($incomplete_jobs_bp);	       
+
+    $complete_jobs_count   = $self->add_commas($complete_jobs_count);
+    $incomplete_jobs_count = $self->add_commas($incomplete_jobs_count);
+	       
+    $js .= <<END;
+  ];
+
+  var data = [];
+  data[0] = google.visualization.arrayToDataTable(data1);		   
+  data[1] = google.visualization.arrayToDataTable(data2);		   
+
+  var options = {
+height: 700,
+width: 1200,
+colors: ['#D7191C', '#A6D96A', '#1A9641'],
+hAxis: {title: 'Pipeline Stage', textStyle: {fontSize:11}},
+vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}, logScale: true},
+animation:{
+  duration: 1000,
+  easing: 'out'
+  },
+};		  
+
+  var current = 0;
+  var chart = new google.visualization.ColumnChart(document.getElementById('$div_name'));
+  var button = document.getElementById('columnchart_pipeline_jobs_button');
+
+  function drawChart() {
+    // Disabling the button while the chart is drawing.
+    button.disabled = true;
+    google.visualization.events.addListener(chart, 'ready',
+      function() {
+        button.disabled = false;
+        button.value = 'switch to ' + (current ? 'job size' : 'job count') + ' chart';
+      });
+
+      options['title'] = (current ? 'Number of jobs in the pipeline ($incomplete_jobs_count)' : 'Size of jobs in the pipeline in basepairs ($incomplete_jobs_gbp Gbp)');
+
+      chart.draw(data[current], options);
+  }
+
+  drawChart();
+
+  button.onclick = function() {
+  current = 1 - current;
+
+  if (current) {
+      options.vAxis.logScale = false;
+  } else {
+      options.vAxis.logScale = true;
+  }
+
+  drawChart();
+  }
+}
+</script>
+END
+
+    return $js;
+}
+
+sub google_columnchart_new_users {
+    my($self, $div_id, $new_users) = @_;
+
+    my $new_users_total = 0;
+ 
+    my $js = <<END;
+    <script type="text/javascript">
+    google.load("visualization", "1", {packages:["corechart"]});
+    google.setOnLoadCallback(drawChart);
+    function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'date');
+        data.addColumn('number', 'new users');
+        data.addRows([
+END
+
+    foreach my $date ( sort keys %$new_users )
+    {		
+	my $d = substr($date, 5, 5);
+	$d =~ s/^0*//;
+	
+	$js .= "['$d', $new_users->{$date}],\n";
+	$new_users_total += $new_users->{$date};
+    }
+
+    $js .= <<END;		      
+        ]);
+
+  var options = {
+title: 'New users registered',
+height: 700,
+width: 1200,
+colors: ['#2B83BA'],
+hAxis: {title: 'Date', textStyle: {fontSize:11}},
+vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized'},
+};		  
+
+        var chart = new google.visualization.ColumnChart(document.getElementById('$div_id'));
+        chart.draw(data, options);
+    }
+    </script>
+END
+
+    return $js;
+}
+
+sub google_columnchart_all_jobs {
+    my($self, $div_name, $data) = @_;
+    
+    #  @$data_c = [ [$month, $n_jobs, $n_gbp], [...], ...]
+
+    my $jobs_gbp_total   = 0;
+    my $jobs_count_total = 0;
+
+    my $js = <<END;
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  google.setOnLoadCallback(drawChartfunc);
+
+    function drawChartfunc() {
+  var data1 = [['month', 'size (Gbp)'],
+END
+
+  foreach my $rec ( @$data )
+  {
+      my($month, $n_jobs, $n_gbp) = @$rec;
+      
+      $js .= "['$month', $n_gbp],\n";
+      $jobs_gbp_total   += $n_gbp;
+      $jobs_count_total += $n_jobs;
+  }
+	       
+  $js .= <<END;
+  ];
+
+  var data2 = [['month', '# jobs'],
+END
+
+    foreach my $rec ( @$data )
+    {		
+	my($month, $n_jobs, $n_gbp) = @$rec;
+	
+	$js .= "['$month', $n_jobs],\n";
+    }
+	       
+#colors: ['#1A9641', '#A6D96A', '#FDAE61', '#D7191C'],
+
+
+    $js .= <<END;
+  ];
+
+  var data = [];
+  data[0] = google.visualization.arrayToDataTable(data1);		   
+  data[1] = google.visualization.arrayToDataTable(data2);		   
+
+  var options = {
+height: 700,
+width: 1200,
+colors: ['#1A9641', '#D7191C', '#A6D96A'],
+hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}, showTextEvery: 3},
+vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}, logScale: 'true'},
+isStacked: 1,
+animation:{
+  duration: 1000,
+  easing: 'out'
+  },
+};		  
+
+  var current = 0;
+  var chart = new google.visualization.ColumnChart(document.getElementById('$div_name'));
+  var button = document.getElementById('columnchart_all_jobs_button');
+
+  function drawChart() {
+    // Disabling the button while the chart is drawing.
+    button.disabled = true;
+    google.visualization.events.addListener(chart, 'ready',
+      function() {
+        button.disabled = false;
+        button.value = 'switch to ' + (current ? 'job size' : 'job count') + ' chart';
+      });
+
+      options['title'] = (current ? 'Number of jobs ($jobs_count_total)' : 'Size of jobs in Gbp ($jobs_gbp_total)');
+
+      chart.draw(data[current], options);
+  }
+
+  drawChart();
+
+  button.onclick = function() {
+  current = 1 - current;
+  drawChart();
+  }
+}
+</script>
+END
+
+    return $js;
+}
+
+sub google_geochart_users {
+    my($self, $div_name, $countries, $current_countries) = @_;
+    
+    my $js = <<END;
+<script type="text/javascript">
+  google.load("visualization", "1", {packages:["geochart"]});
+  google.setOnLoadCallback(drawGeoMap);
+
+    function drawGeoMap() {
+  var data1 = [['country', 'users'],
+END
+
+  foreach my $country ( keys %$countries )
+    {		
+	$js .= "['$country', $countries->{$country}],\n";
+    }
+
+    $js .= <<END;
+  ];
+
+  var data2 = [['country', 'users'],
+END
+
+  foreach my $country ( keys %$current_countries )
+    {		
+	$js .= "['$country', $current_countries->{$country}],\n";
+    }
+
+    $js .= <<END;
+  ];
+
+  var data = [];
+  data[0] = google.visualization.arrayToDataTable(data1);		   
+  data[1] = google.visualization.arrayToDataTable(data2);		   
+
+  var options = {
+width: 1000,
+keepAspectRatio: true,
+animation:{
+  duration: 1000,
+  easing: 'out'
+  },
+};		  
+
+  var current = 0;
+  var chart = new google.visualization.GeoChart(document.getElementById('$div_name'));
+  var button = document.getElementById('geochart_users_button');
+
+  function drawChart() {
+    // Disabling the button while the chart is drawing.
+    button.disabled = true;
+    google.visualization.events.addListener(chart, 'ready',
+      function() {
+        button.disabled = false;
+        button.value = 'switch to ' + (current ? 'all users' : 'todays users');
+      });
+
+      options['title'] = (current ? 'Number of users' : 'Number of users');
+
+      chart.draw(data[current], options);
+  }
+
+  drawChart();
+
+  button.onclick = function() {
+  current = 1 - current;
+  drawChart();
+  }
+}
+</script>
+END
+
+    return $js;
+}
+
+sub bp2gbp {
+    my($self, $bp) = @_;
+
+    if ( defined $bp )
+    {
+	my $gbp = $bp/1000000000;
+	$gbp =~ s/\.0*$//;
+	
+	if ( $gbp =~ /^\d+$/ || $gbp == 0 )
+	{
+	    return $gbp;
+	}
+	elsif ( $gbp >= 1 ) 
+	{
+	    return sprintf("%.2f", $gbp);
+	} 
+	else 
+	{
+	    return sprintf("%.2e", $gbp);
+	}
+    }
+    else
+    {
+	return undef;
+    }
+}
+
+sub google_gauge {
+    my($self, $div_name, $value) = @_;
+
+    my $js = <<END;
+<script type='text/javascript'>
+  google.load('visualization', '1', {packages:['gauge']});
+  google.setOnLoadCallback(drawChart);
+  function drawChart() {
+    var data = new google.visualization.DataTable();
+    data.addColumn('number');
+    data.addRows([
+                   [$value],
+		 ]);
+
+    var options = {
+	            width: 300, height: 175,
+	            minorTicks: 1,
+	            majorTicks: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+	          };
+
+    var chart = new google.visualization.Gauge(document.getElementById('$div_name'));
+    chart.draw(data, options);
   }
 </script>
 END
@@ -1031,10 +2329,42 @@ sub add_commas {
 }
 
 sub get_piechart {
-  my ($id, $title, $cols, $data, $left) = @_;
+  my($id, $title, $cols, $data, $left, $width) = @_;
 
-  my $num  = scalar @$data;
-  my $rows = join("\n", map { qq(data.addRow(["$_->[0]", $_->[1]]);) } sort { $b->[1] <=> $a->[1] } @$data);
+  my $display = [];
+
+# pie slices less than half a degree get lumped into the 'Other' category in the chart by google, we are going to bypass that
+  my $total = 0;
+  foreach my $rec ( @$data )
+  {
+      $total += $rec->[1];
+  }
+  my $cutoff = $total/720;  
+
+  my $other = 0;
+  foreach my $rec ( sort {$b->[1] <=> $a->[1]} @$data )
+  {
+      my $value = $rec->[1] || 0;
+
+      if ( $value > $cutoff )
+      {
+	  push @$display, $rec;
+      }
+      else
+      {
+	  $other += $value;
+      }
+  }
+
+  push @$display, ['other', sprintf("%.1f", $other)];
+  
+  $width ||= 500;
+  my $rows = "";
+  foreach my $rec ( @$display )
+  {
+      $rows .= 'data.addRow(["' . $rec->[0] . '", ' . $rec->[1] . "]);\n";
+  }
+
   my $pie  = qq~
     <script type="text/javascript">
       google.load("visualization", "1", {packages:["corechart","geochart"]});
@@ -1045,12 +2375,67 @@ sub get_piechart {
         data.addColumn('number', '$cols->[1]');
         $rows
         var chart = new google.visualization.PieChart(document.getElementById('$id'));
-        chart.draw(data, {width: 300, height: 300, chartArea: {left:$left, width:"90%"}, title: '$title'});
+        chart.draw(data, {width: $width, height: $width, chartArea: {left:$left, width:"90%"}, title: '$title'});
       }
     </script>
 ~;
 
-  return ($pie, "<div id='$id'></div>");
+  return ($pie, "<div id='$id' style='display:none'></div>");
+}
+
+sub google_piechart {
+  my ($self, $div_id, $title, $cols, $data, $left) = @_;
+
+  my $num  = scalar @$data;
+  my $rows = join("\n", map { qq(data.addRow(["$_->[0]", $_->[1]]);) } sort { $b->[1] <=> $a->[1] } @$data);
+  my $js   = qq~
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["corechart","geochart"]});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data  = new google.visualization.DataTable();
+        data.addColumn('string', '$cols->[0]');
+        data.addColumn('number', '$cols->[1]');
+        $rows
+        var chart = new google.visualization.PieChart(document.getElementById('$div_id'));
+        chart.draw(data, {width: 800, height: 800, chartArea: {left:$left, width:"100%"}, title: '$title'});
+      }
+    </script>
+~;
+
+  return $js;
+}
+
+sub formatted_date {
+    
+    my %long = (
+		'Mon' => 'Monday',
+		'Tue' => 'Tuesday',
+		'Wed' => 'Wednesday',
+		'Thu' => 'Thursday',
+		'Fri' => 'Friday',
+		'Sat' => 'Saturday',
+		'Sun' => 'Sunday',
+ 		'Jan' => 'January',
+ 		'Feb' => 'February',
+ 		'Mar' => 'March',
+ 		'Apr' => 'April',
+ 		'May' => 'May',
+ 		'Jun' => 'June',
+ 		'Jul' => 'July',
+ 		'Aug' => 'August',
+ 		'Sep' => 'September',
+ 		'Oct' => 'October',
+ 		'Nov' => 'November',
+ 		'Dec' => 'December',
+		);
+
+    my($day, $month, $date, $time, $year) = split(/\s+/, scalar localtime);
+    
+    $day   = exists $long{$day}? $long{$day} : $day;
+    $month = exists $long{$month}? $long{$month} : $month;
+    
+    return "$time $day, $date $month $year, CST";
 }
 
 sub require_css {

@@ -67,33 +67,52 @@ sub create_project {
 }
 
 sub last_id {
-    my ($self) = @_;
+  my ($self) = @_;
 
-    my $dbh = $self->_master()->db_handle();
-    my $sth = $dbh->prepare("SELECT max(id) FROM Project");
-    $sth->execute;
-    my $result = $sth->fetchrow_arrayref();
-    return $result->[0] || "0" ;
+  my $dbh = $self->_master()->db_handle();
+  my $sth = $dbh->prepare("SELECT max(id) FROM Project");
+  $sth->execute;
+  my $result = $sth->fetchrow_arrayref();
+  return $result->[0] || "0" ;
 }
 
 sub count_all {
- my ($self) = @_;
-
-    my $dbh = $self->_master()->db_handle();
-    my $sth = $dbh->prepare("SELECT count(*) FROM Project");
-    $sth->execute;
-    my $result = $sth->fetchrow_arrayref();
-    return ( $result->[0] ) ;
+  my ($self) = @_;
+ 
+  my $dbh = $self->_master()->db_handle();
+  my $sth = $dbh->prepare("SELECT count(*) FROM Project");
+  $sth->execute;
+  my $result = $sth->fetchrow_arrayref();
+  return ( $result->[0] ) ;
 }
 
 sub count_public {
- my ($self) = @_;
+  my ($self) = @_;
+  
+  my $dbh = $self->_master()->db_handle();
+  my $sth = $dbh->prepare("SELECT count(*) FROM Project WHERE public=1");
+  $sth->execute;
+  my $result = $sth->fetchrow_arrayref();
+  return ( $result->[0] ) ;
+}
 
-    my $dbh = $self->_master()->db_handle();
-    my $sth = $dbh->prepare("SELECT count(*) FROM Project where public=1");
-    $sth->execute;
-    my $result = $sth->fetchrow_arrayref();
-    return ( $result->[0] ) ;
+sub get_private_projects {
+  my ($self, $user) = @_;
+
+  unless ($user && ref($user)) { return []; }
+  my $ids = $user->has_right_to(undef, 'view', 'project');
+  unless ($ids && (@$ids > 0)) { return []; }
+
+  my $private = [];
+  my $master  = $self->_master();
+  foreach my $id (@$ids) {
+    my $p = $master->Project->init( {id => $id} );
+    if ($p && ref($p)) {
+      push @$private, $p;
+    }
+  }
+
+  return $private;
 }
 
 sub get_public_projects {
@@ -550,7 +569,10 @@ sub verbose {
 
 sub format_number {
   my ($val) = @_;
-
+  
+  if (! $val) {
+    return $val;
+  }
   if ($val =~ /(\d+)\.\d/) {
     $val = $1;
   }

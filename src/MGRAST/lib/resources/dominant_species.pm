@@ -13,7 +13,7 @@ $json = $json->utf8();
 
 sub about {
   my $ach = new Babel::lib::Babel;
-  my $content = { 'description' => "dominant species for metagenome or set of metagenomes. id may be one or more metagenome or project ids, or the keyword 'all'",
+  my $content = { 'description' => "dominant species for metagenome or set of metagenomes. id may be one or more metagenome or project ids, or the keywords 'public' or 'all'",
 		  'parameters'  => { "id" => "string",
 				     "limit" => "int",
 				     "source" => { "protein" => [ 'M5NR', map {$_->[0]} @{$ach->get_protein_sources} ],

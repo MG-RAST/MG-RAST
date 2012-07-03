@@ -917,6 +917,8 @@ sub myrim {
   }
 
   my $poly = new GD::Polygon;
+  unless (defined($a1) && defined($a1)) { return $poly; }
+
   for(my $a=$a1;$a<=$a2;$a+=$astep) {
     my ($x, $y) = getxypos($a,$radius_1);
     $x += $x_off;
@@ -1137,7 +1139,7 @@ sub parse_data {
       my $name;
       my $level;
       $level = $i;
-      $name = $l;
+      $name  = $l || '';
       if (exists($self->{name_level_map}->{$level."_".$name})) {
 	$parent = $self->{name_level_map}->{$level."_".$name};
       } else {
@@ -1185,11 +1187,12 @@ sub parse_data {
 	}
 	if ($parent) {
 	  $root = $self->{nodes}->{$parent}->{name};
-	  $lineage = $root . "; " . $lineage;
+	  $lineage = $lineage || '';
+	  $lineage = $root ? $root."; ".$lineage : $lineage;
 	  my $curr = $parent;
 	  while ($self->{nodes}->{$curr}->{parent}) {
 	    $root = $self->{nodes}->{$self->{nodes}->{$curr}->{parent}}->{name};
-	    $lineage = $root . "; " . $lineage;
+	    $lineage = $root ? $root."; ".$lineage : $lineage;
 	    $curr = $self->{nodes}->{$curr}->{parent};
 	  }
 	} else {
