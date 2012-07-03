@@ -43,6 +43,7 @@ sub init {
   $self->title("Data Submission");
   $self->{icon} = "<img src='./Html/mg-upload.png' style='width: 20px; height: 20px; padding-right: 5px; position: relative; top: -3px;'>";
 
+  $self->application->register_action($self, 'check_for_duplicates', 'check_for_duplicates');
   $self->application->register_action($self, 'check_project_name', 'check_project_name');
   $self->application->register_action($self, 'validate_metadata', 'validate_metadata');
   $self->application->register_action($self, 'submit_to_mgrast', 'submit_to_mgrast');
@@ -92,9 +93,17 @@ sub output {
       <div>~;
 
   if ($cgi->param('create_job')) {
-    my $success = $self->submit_to_mgrast();
-    if ($success && @$success) {
-      $html .= "<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: ".join(", ", @$success)."</p></div>";
+    my $dupes = $self->check_for_duplicates();
+    if ($dupes && @$dupes) {
+      $html .= "<div class='alert alert-info'><h4>Job submission failure</h4><p>Your data was not submitted to the pipeline. The following metagenome(s) already exists in MG-RAST with the same upload file(s) as you have submitted:</p><blockquote><table><tr><th>MG-RAST ID</th><th>md5sum</th><th>Your File</th></tr>";
+      map { $html .= "<tr><td>".$_->[0]."</td><td>".$_->[1]."</td><td>".$_->[2]."</td><td></tr>" } @$dupes;
+      $html .= "</table></blockquote>";
+      $html .= "<p>Click here to still submit: <input type='button' class='btn' value='submit duplicate job' onclick='submit_job();'></p></div>";
+    } else {
+      my $success = $self->submit_to_mgrast();
+      if ($success && @$success) {
+	$html .= "<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: ".join(", ", @$success)."</p></div>";
+      }
     }
   }
 
@@ -526,22 +535,6 @@ sub submit_to_mgrast {
   my $jobs = [];
   my $job2seq = {};
   my $job2type = {};
-  my $has_dupes = 0;
-  # check if sequence file already has a job
-  foreach my $seqfile (@$seqfiles) {
-    my $dupe = $jobdbm->Job->has_checksum($infos->{$seqfile}{file_checksum}, $user);
-    if ($dupe) {
-      push @$jobs, [$dupe, $infos->{$seqfile}{file_checksum}, $seqfile];
-      $has_dupes = 1;
-    }
-  }
-  if ($has_dupes) {
-    my $dupe_tbl = "<blockquote><table><tr><th>MG-RAST ID</th><th>md5sum</th><th>Your File</th></tr>";
-    map { $dupe_tbl .= "<tr><td>".$_->[0]."</td><td>".$_->[1]."</td><td>".$_->[2]."</td><td></tr>" } @$jobs;
-    $dupe_tbl .= "</table></blockquote>";
-    $self->application->add_message('warning', "The following metagenome(s) already exists in MG-RAST, aborting submission:$dupe_tbl");
-    return undef;
-  }
 
   # create jobs with providence data
   foreach my $seqfile (@$seqfiles) {
@@ -600,6 +593,38 @@ sub submit_to_mgrast {
   return $mgids;
 }
 
+sub check_for_duplicates {
+  my ($self) = @_;
+
+  my $application = $self->application;
+  my $user     = $self->application->session->user;
+  my $cgi      = $self->application->cgi;
+  my $jobdbm   = $self->application->data_handle('MGRAST');
+  my $seqfiles = [];
+  my $base_dir = "$Conf::incoming";
+  my $udir     = $base_dir."/".md5_hex($user->login);
+
+  @$seqfiles = split /\|/, $cgi->param('seqfiles');
+
+  my $dupes = [];
+  foreach my $seqfile (@$seqfiles) {
+    if (open(FH, "<$udir/$seqfile.stats_info")) {
+      my $info = {};
+      while (<FH>) {
+	chomp;
+	my ($key, $val) = split /\t/;
+	$info->{$key} = $val;
+      }
+      next unless (exists $info->{file_checksum});
+      my $dupe = $jobdbm->Job->has_checksum($info->{file_checksum}, $user);
+      if ($dupe) {
+	push @$dupes, [$dupe, $info->{file_checksum}, $seqfile];
+      }
+    }
+  }
+  return $dupes;
+}
+
 sub check_project_name {
   my ($self) = @_;
 
@@ -649,9 +674,8 @@ sub validate_metadata {
       my $jobdbm  = $application->data_handle('MGRAST');
       my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
       if (scalar(@$projects) && (! $user->has_right(undef, 'view', 'project', $projects->[0]->id))) {
-	$formatted_data = "<p>The project name you have chosen is already taken and you do not have edit rights to this project. Please choose a different project name or ask the owner of the project for edit rights.</p>";
 	print $cgi->header;
-	print "0||taken||".$formatted_data;
+	print "0||taken||The project name you have chosen is already taken and you do not have edit rights to this project.\nPlease choose a different project name or ask the owner of the project for edit rights.";
 	exit 0;
       } else {
 	$formatted_data .= "<img src='./Html/clear.gif' onload='selected_project=".$project_name."'>";
