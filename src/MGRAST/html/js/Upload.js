@@ -112,7 +112,7 @@ function update_inbox (data, files, action) {
 	if (DataStore.user_inbox[user.login].fileinfo && DataStore.user_inbox[user.login].fileinfo[fn]) {
 	  var ptext = "<h4>File Information</h4><br>";
 	    if (DataStore.user_inbox[user.login].fileinfo[fn]['unique id count'] && DataStore.user_inbox[user.login].fileinfo[fn]['sequence count'] && DataStore.user_inbox[user.login].fileinfo[fn]['unique id count'] != DataStore.user_inbox[user.login].fileinfo[fn]['sequence count']) {
-		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">×</button><strong>Warning</strong>The unique id count does not match the sequence count. You will not be able to use this file for submission.</div>';
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>The unique id count does not match the sequence count. You will not be able to use this file for submission.</div>';
 
 	    }
 	    ptext += "<table>";
