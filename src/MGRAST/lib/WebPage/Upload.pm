@@ -208,7 +208,7 @@ sub output {
 
                <li><a onclick="toggle('sel_inbox_div');" class="pill_incomplete" id="sel_inbox_pill" style="font-size: 17px; font-weight: bold;">3. manage inbox</a></li>
 	       <div id="sel_inbox_div" style="display: none;" class="well">
-<p>You can unpack, delete, convert and demultiplex files from your inbox below. Sequence files will automatically appear in the <i>'select sequence file(s)'</i> section below. Metadata files will automatically appear in the <i>'select metadata file'</i> section below.</p>
+<p>You can unpack, delete, convert and demultiplex files from your inbox below. Metadata files will automatically appear in the <i>'select metadata file'</i> section below. Sequence files will automatically appear in the <i>'select sequence file(s)'</i> section below after sequence statistics are calculated (may take anywhere from seconds to hours depending on file size).</p>
                   <input type="button" class="btn" value="delete selected" onclick="check_delete_files();">
                   <input type="button" class="btn" value="unpack selected" onclick="unpack_files();">
                   <input type="button" class="btn" value="convert sff to fastq" onclick="convert_files();">
@@ -243,7 +243,8 @@ sub output {
 <p>The projects shown in the list above are the ones you have write access to. Note that the owners of the projects can provide you with write access</p>
               </div>
 	      <li><a onclick="toggle('sel_seq_div');" class="pill_incomplete" id="sel_seq_pill" style="font-size: 17px; font-weight: bold;">3. select sequence file(s) <i id="icon_step_3" class="icon-ok icon-white" style="display: none;"></i></a></li>
-	      <div id="sel_seq_div" style="display: none;"><div class='well'><div id='available_sequences'><h3>available sequence files</h3>~;
+	      <div id="sel_seq_div" style="display: none;"><div class='well'><div id='available_sequences'>
+              <h3>available sequence files</h3><p>Sequence files from your inbox will appear here. Please note, there is a delay between upload completion and appearing in the below table due to sequence statistics calculations. This may be on the order of seconds to hours depending on file size.</p>~;
   my $seqtable = $self->application->component('sequence_table');
   $seqtable->columns([ { name => "select<br><input type=\"checkbox\" onclick=\"table_select_all_checkboxes(0,0,this.checked,1);\"> all ", input_type => 'checkbox' },
 		       { name => 'directory', sortable => 1, filter => 1 },
@@ -394,7 +395,7 @@ sub submit_to_mgrast {
   my $base_dir = "$Conf::incoming";
   my $udir = $base_dir."/".md5_hex($user->login);
 
-  my $libraries = {};
+  my $lib_file_mgname = {};
   my $project_obj = undef;
   my $mddb = MGRAST::Metadata->new();
   my ($is_valid, $data, $log);
@@ -403,11 +404,17 @@ sub submit_to_mgrast {
   if ($mdata) {
     ($is_valid, $data, $log) = $mddb->validate_metadata($udir."/".$mdata);
     if ($is_valid) {
-      $project_name = $data->{data}->{project_name}->{value};
+      $project_name = $data->{data}{project_name}{value};
       foreach my $sample ( @{$data->{samples}} ) {
 	if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
 	  foreach my $library (@{$sample->{libraries}}) {
-	    $libraries->{$library->{name}} = 1;
+	    next unless (exists($library->{data}) && exists($library->{data}{metagenome_name}));
+	    if (exists $library->{data}{file_name}) {
+	      my ($basename) = $library->{data}{file_name}{value} =~ /^(.*)\.(fasta|fa|ffn|frn|fna|fastq|fq)$/;
+	      $lib_file_mgname->{$basename} = $library->{data}{metagenome_name}{value};
+	    } else {
+	      $lib_file_mgname->{$library->{data}{metagenome_name}{value}} = $library->{data}{metagenome_name}{value};
+	    }
 	  }
 	}
       }
@@ -470,10 +477,15 @@ sub submit_to_mgrast {
       }
       my $name = $filename_base;
       # die if using metadata and no filename-library match
-      if ($mdata && (! exists($libraries->{$name}))) {
-	close FH;
-	$self->application->add_message('warning', "Sequence file $seqfile has no matching library metagenome_name ($name) in metadata $mdata, aborting submission.");
-	return undef;
+      if ($mdata) {
+	if (exists $lib_file_mgname->{$filename_base}) {
+	  $name = $lib_file_mgname->{$filename_base};
+	}
+	else {
+	  close FH;
+	  $self->application->add_message('warning', "$seqfile has no matching library metagenome_name or file_name in metadata $mdata, aborting submission.");
+	  return undef;
+	}
       }
       my $info = { 'dereplicate' => $dereplicate ? 1 : 0,
 		   'bowtie' => $bowtie,
@@ -641,13 +653,19 @@ sub validate_metadata {
       }
     }
     my $barcodes = {};
-    my $libraries = [];
+    my $lib_name_file = {};
     foreach my $sample ( @{$data->{samples}} ) {
       if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
 	foreach my $library (@{$sample->{libraries}}) {
-	  push(@$libraries, $library->{name});
-	  if ($library->{name} && $library->{data} && $library->{data}->{forward_barcodes} && $library->{data}->{forward_barcodes}->{value}) {
-	    $barcodes->{$library->{name}} = $library->{data}->{forward_barcodes}->{value};
+	  next unless (exists($library->{data}) && exists($library->{data}{metagenome_name}));
+	  if (exists $library->{data}{file_name}) {
+	    my ($basename) = $library->{data}{file_name}{value} =~ /^(.*)\.(fasta|fa|ffn|frn|fna|fastq|fq)$/;
+	    $lib_name_file->{$library->{data}{metagenome_name}{value}} = $basename;
+	  } else {
+	    $lib_name_file->{$library->{data}{metagenome_name}{value}} = $library->{data}{metagenome_name}{value};
+	  }
+	  if (exists $library->{data}{forward_barcodes}) {
+	    $barcodes->{ $lib_name_file->{$library->{data}{metagenome_name}{value}} } = $library->{data}{forward_barcodes}{value};
 	  }
 	}
       }
@@ -664,14 +682,14 @@ sub validate_metadata {
 	$formatted_data .= "<p>Barcodes were detected in your metadata file. A barcode file with the provided codes has been placed in your inbox. You can use this to demultiplex your sequence file below. Select the sequence file and the barcode file ($barname) and click 'demultiplex'.</p>";
       }
     }
-    $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). This project contains ".scalar(@{$data->{samples}})." samples with ".scalar(@$libraries)." libraries having the following metagenome names:</p><p><table>";
-    foreach my $lib (@$libraries) {
-      $formatted_data .= "<tr><td>".$lib."</td></tr>";
+    $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). This project contains ".scalar(@{$data->{samples}})." samples with ".scalar(keys %$lib_name_file)." libraries having the following metagenome names:</p><p><table>";
+    foreach my $name (sort keys %$lib_name_file) {
+      $formatted_data .= "<tr><td>".$name."</td></tr>";
     }
     $formatted_data .= "</table></p>";
     if (scalar(@$libraries) > 1) {
-      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library metagenome_name fields, i.e. the filename for library metagenome_name ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna<br><i><b>Note:</b> All FASTA files will automatically be renamed .fna</i></p>";
-      $formatted_data .= "||".join("@@", @$libraries);
+      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library metagenome_name fields minus extension (i.e. the filename for library metagenome_name ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna) or exactly match the library file_name fields.<br><i><b>Note:</b> All FASTA files will automatically be renamed .fna</i></p>";
+      $formatted_data .= "||".join("@@", values %$lib_name_file);
     }
   } else {
     $data = $data->{data};
