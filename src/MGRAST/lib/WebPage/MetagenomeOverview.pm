@@ -455,7 +455,7 @@ sub output {
 
   # drisee score
   if (($drisee_num > 0) && (! $is_rna)) {
-    my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw') };
+    my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
     my $drisee_score = sprintf("%.3f", $drisee_num);
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE

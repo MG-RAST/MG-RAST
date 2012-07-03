@@ -43,6 +43,7 @@ sub init {
   $self->title("Data Submission");
   $self->{icon} = "<img src='./Html/mg-upload.png' style='width: 20px; height: 20px; padding-right: 5px; position: relative; top: -3px;'>";
 
+  $self->application->register_action($self, 'check_for_duplicates', 'check_for_duplicates');
   $self->application->register_action($self, 'check_project_name', 'check_project_name');
   $self->application->register_action($self, 'validate_metadata', 'validate_metadata');
   $self->application->register_action($self, 'submit_to_mgrast', 'submit_to_mgrast');
@@ -92,9 +93,17 @@ sub output {
       <div>~;
 
   if ($cgi->param('create_job')) {
-    my $success = $self->submit_to_mgrast();
-    if ($success && @$success) {
-      $html .= "<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: ".join(", ", @$success)."</p></div>";
+    my $dupes = $self->check_for_duplicates();
+    if ($dupes && @$dupes) {
+      $html .= "<div class='alert alert-info'><h4>Job submission failure</h4><p>Your data was not submitted to the pipeline. The following metagenome(s) already exists in MG-RAST with the same upload file(s) as you have submitted:</p><blockquote><table><tr><th>MG-RAST ID</th><th>md5sum</th><th>Your File</th></tr>";
+      map { $html .= "<tr><td>".$_->[0]."</td><td>".$_->[1]."</td><td>".$_->[2]."</td><td></tr>" } @$dupes;
+      $html .= "</table></blockquote>";
+      $html .= "<p>Click here to still submit: <input type='button' class='btn' value='submit duplicate job' onclick='submit_job();'></p></div>";
+    } else {
+      my $success = $self->submit_to_mgrast();
+      if ($success && @$success) {
+	$html .= "<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: ".join(", ", @$success)."</p></div>";
+      }
     }
   }
 
@@ -164,7 +173,7 @@ sub output {
                        <td style="padding-left: 240px;">
                           <p>Select one or more files to upload to your private inbox folder.</p>
                           <p>Sequence files must be fasta, fastq, or sff format.
-                             Use vaild file extensions for the appropriate format: .fasta, .faa, .fa, .ffn, .frn, .fna, .fastq, .fq, .sff</p>
+                             Use vaild file extensions for the appropriate format: .fasta, .fa, .ffn, .frn, .fna, .fq, .fastq, .sff</p>
                        </td>
                     </tr>
                  </table>
@@ -208,7 +217,7 @@ sub output {
 
                <li><a onclick="toggle('sel_inbox_div');" class="pill_incomplete" id="sel_inbox_pill" style="font-size: 17px; font-weight: bold;">3. manage inbox</a></li>
 	       <div id="sel_inbox_div" style="display: none;" class="well">
-<p>You can unpack, delete, convert and demultiplex files from your inbox below. Sequence files will automatically appear in the <i>'select sequence file(s)'</i> section below. Metadata files will automatically appear in the <i>'select metadata file'</i> section below.</p>
+<p>You can unpack, delete, convert and demultiplex files from your inbox below. Metadata files will automatically appear in the <i>'select metadata file'</i> section below. Sequence files will automatically appear in the <i>'select sequence file(s)'</i> section below after sequence statistics are calculated (may take anywhere from seconds to hours depending on file size).</p>
                   <input type="button" class="btn" value="delete selected" onclick="check_delete_files();">
                   <input type="button" class="btn" value="unpack selected" onclick="unpack_files();">
                   <input type="button" class="btn" value="convert sff to fastq" onclick="convert_files();">
@@ -231,7 +240,11 @@ sub output {
 	    <ul class="nav nav-pills nav-stacked">
 	      <li><a onclick="toggle('sel_md_div');" class="pill_incomplete" id="sel_md_pill" style="font-size: 17px; font-weight: bold;">1. select metadata file <i id="icon_step_1" class="icon-ok icon-white" style="display: none;"></i></a></li>
 	      <div id="sel_md_div" style="display: none;" class="well">
-                 <div id="sel_mdfile_div" style='float:left;'></div><div style='float:left; margin-top: 25px; width: 350px;'><p>Select a spreadsheet with metadata for the project you want to submit. Uploaded spreedsheets will appear here after successful validation.</p><p><b>Note: While metadata is not required at submission, the priority for processing data without metadata is lower.</b></p></div><div class='clear'></div>
+                 <div id="sel_mdfile_div" style='float:left;'></div><div style='float:left; margin-top: 25px; width: 350px;'>
+                   <p>Select a spreadsheet with metadata for the project you want to submit. Uploaded spreedsheets will appear here after successful validation.</p>
+                   <p>In order to map sequence files to metadata libraries, the names of the sequence files must exactly match the library <i>file_name</i> fields or match the library <i>metagenome_name</i> fields minus extension.</p>
+                   <p><b>Note: While metadata is not required at submission, the priority for processing data without metadata is lower.</b></p>
+                 </div><div class='clear'></div>
               </div>
 	      <li><a onclick="toggle('sel_project_div');" class="pill_incomplete" id="sel_project_pill" style="font-size: 17px; font-weight: bold;">2. select project <i id="icon_step_2" class="icon-ok icon-white" style="display: none;"></i></a></li>
               <div id="sel_project_div" class="well" style="display: none;"><h3>select a project</h3><p>You have to specify a project to upload a job to MG-RAST. If you have a metadata file, the project must be specified in that file. If you choose to not use a metadata file, you can select a project here. You can either select an existing project or you can choose a new project.</p><select name="project" style="width: 420px; margin-bottom: 20px;" onchange="if(this.selectedIndex>0){document.getElementById('new_project').value='';document.getElementById('new_project').disabled=true;}else{document.getElementById('new_project').disabled=false;}" id='project'><option value=''>- new -</option>~;
@@ -243,7 +256,8 @@ sub output {
 <p>The projects shown in the list above are the ones you have write access to. Note that the owners of the projects can provide you with write access</p>
               </div>
 	      <li><a onclick="toggle('sel_seq_div');" class="pill_incomplete" id="sel_seq_pill" style="font-size: 17px; font-weight: bold;">3. select sequence file(s) <i id="icon_step_3" class="icon-ok icon-white" style="display: none;"></i></a></li>
-	      <div id="sel_seq_div" style="display: none;"><div class='well'><div id='available_sequences'><h3>available sequence files</h3>~;
+	      <div id="sel_seq_div" style="display: none;"><div class='well'><div id='available_sequences'>
+              <h3>available sequence files</h3><p>Sequence files from your inbox will appear here. Please note, there is a delay between upload completion and appearing in the below table due to sequence statistics calculations. This may be on the order of seconds to hours depending on file size.</p>~;
   my $seqtable = $self->application->component('sequence_table');
   $seqtable->columns([ { name => "select<br><input type=\"checkbox\" onclick=\"table_select_all_checkboxes(0,0,this.checked,1);\"> all ", input_type => 'checkbox' },
 		       { name => 'directory', sortable => 1, filter => 1 },
@@ -394,7 +408,7 @@ sub submit_to_mgrast {
   my $base_dir = "$Conf::incoming";
   my $udir = $base_dir."/".md5_hex($user->login);
 
-  my $libraries = {};
+  my $lib_file_mgname = {};
   my $project_obj = undef;
   my $mddb = MGRAST::Metadata->new();
   my ($is_valid, $data, $log);
@@ -403,11 +417,17 @@ sub submit_to_mgrast {
   if ($mdata) {
     ($is_valid, $data, $log) = $mddb->validate_metadata($udir."/".$mdata);
     if ($is_valid) {
-      $project_name = $data->{data}->{project_name}->{value};
+      $project_name = $data->{data}{project_name}{value};
       foreach my $sample ( @{$data->{samples}} ) {
 	if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
 	  foreach my $library (@{$sample->{libraries}}) {
-	    $libraries->{$library->{name}} = 1;
+	    next unless (exists($library->{data}) && exists($library->{data}{metagenome_name}));
+	    if (exists $library->{data}{file_name}) {
+	      my ($basename) = $library->{data}{file_name}{value} =~ /^(.*)\.(fasta|fa|ffn|frn|fna|fastq|fq)$/;
+	      $lib_file_mgname->{$basename} = $library->{data}{metagenome_name}{value};
+	    } else {
+	      $lib_file_mgname->{$library->{data}{metagenome_name}{value}} = $library->{data}{metagenome_name}{value};
+	    }
 	  }
 	}
       }
@@ -455,7 +475,7 @@ sub submit_to_mgrast {
   my $infos = {};
   foreach my $seqfile (@$seqfiles) {
     if (open(FH, "<$udir/$seqfile.stats_info")) {
-      my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|faa|fa|ffn|frn|fna|fastq|fq)$/;
+      my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|fa|ffn|frn|fna|fastq|fq)$/;
       my $subdir = "";
       if ($filename_base =~ /\//) {
 	($subdir, $filename_base) = $filename_base =~ /^(.*\/)(.*)/;
@@ -470,10 +490,15 @@ sub submit_to_mgrast {
       }
       my $name = $filename_base;
       # die if using metadata and no filename-library match
-      if ($mdata && (! exists($libraries->{$name}))) {
-	close FH;
-	$self->application->add_message('warning', "Sequence file $seqfile has no matching library metagenome_name ($name) in metadata $mdata, aborting submission.");
-	return undef;
+      if ($mdata) {
+	if (exists $lib_file_mgname->{$filename_base}) {
+	  $name = $lib_file_mgname->{$filename_base};
+	}
+	else {
+	  close FH;
+	  $self->application->add_message('warning', "$seqfile has no matching library metagenome_name or file_name in metadata $mdata, aborting submission.");
+	  return undef;
+	}
       }
       my $info = { 'dereplicate' => $dereplicate ? 1 : 0,
 		   'bowtie' => $bowtie,
@@ -510,22 +535,6 @@ sub submit_to_mgrast {
   my $jobs = [];
   my $job2seq = {};
   my $job2type = {};
-  my $has_dupes = 0;
-  # check if sequence file already has a job
-  foreach my $seqfile (@$seqfiles) {
-    my $dupe = $jobdbm->Job->has_checksum($infos->{$seqfile}{file_checksum}, $user);
-    if ($dupe) {
-      push @$jobs, [$dupe, $infos->{$seqfile}{file_checksum}, $seqfile];
-      $has_dupes = 1;
-    }
-  }
-  if ($has_dupes) {
-    my $dupe_tbl = "<blockquote><table><tr><th>MG-RAST ID</th><th>md5sum</th><th>Your File</th></tr>";
-    map { $dupe_tbl .= "<tr><td>".$_->[0]."</td><td>".$_->[1]."</td><td>".$_->[2]."</td><td></tr>" } @$jobs;
-    $dupe_tbl .= "</table></blockquote>";
-    $self->application->add_message('warning', "The following metagenome(s) already exists in MG-RAST, aborting submission:$dupe_tbl");
-    return undef;
-  }
 
   # create jobs with providence data
   foreach my $seqfile (@$seqfiles) {
@@ -584,6 +593,38 @@ sub submit_to_mgrast {
   return $mgids;
 }
 
+sub check_for_duplicates {
+  my ($self) = @_;
+
+  my $application = $self->application;
+  my $user     = $self->application->session->user;
+  my $cgi      = $self->application->cgi;
+  my $jobdbm   = $self->application->data_handle('MGRAST');
+  my $seqfiles = [];
+  my $base_dir = "$Conf::incoming";
+  my $udir     = $base_dir."/".md5_hex($user->login);
+
+  @$seqfiles = split /\|/, $cgi->param('seqfiles');
+
+  my $dupes = [];
+  foreach my $seqfile (@$seqfiles) {
+    if (open(FH, "<$udir/$seqfile.stats_info")) {
+      my $info = {};
+      while (<FH>) {
+	chomp;
+	my ($key, $val) = split /\t/;
+	$info->{$key} = $val;
+      }
+      next unless (exists $info->{file_checksum});
+      my $dupe = $jobdbm->Job->has_checksum($info->{file_checksum}, $user);
+      if ($dupe) {
+	push @$dupes, [$dupe, $info->{file_checksum}, $seqfile];
+      }
+    }
+  }
+  return $dupes;
+}
+
 sub check_project_name {
   my ($self) = @_;
 
@@ -633,21 +674,27 @@ sub validate_metadata {
       my $jobdbm  = $application->data_handle('MGRAST');
       my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
       if (scalar(@$projects) && (! $user->has_right(undef, 'view', 'project', $projects->[0]->id))) {
-	$is_valid = 0;
-	$formatted_data = "<p>The project name you have chosen is already taken and you do not have edit rights to this project. Please choose a different project name or ask the owner of the project for edit rights.</p>";
-	$project_name = 'taken';
+	print $cgi->header;
+	print "0||taken||The project name you have chosen is already taken and you do not have edit rights to this project.\nPlease choose a different project name or ask the owner of the project for edit rights.";
+	exit 0;
       } else {
 	$formatted_data .= "<img src='./Html/clear.gif' onload='selected_project=".$project_name."'>";
       }
     }
     my $barcodes = {};
-    my $libraries = [];
+    my $lib_name_file = {};
     foreach my $sample ( @{$data->{samples}} ) {
       if ($sample->{libraries} && scalar(@{$sample->{libraries}})) {
 	foreach my $library (@{$sample->{libraries}}) {
-	  push(@$libraries, $library->{name});
-	  if ($library->{name} && $library->{data} && $library->{data}->{forward_barcodes} && $library->{data}->{forward_barcodes}->{value}) {
-	    $barcodes->{$library->{name}} = $library->{data}->{forward_barcodes}->{value};
+	  next unless (exists($library->{data}) && exists($library->{data}{metagenome_name}));
+	  if (exists $library->{data}{file_name}) {
+	    my ($basename) = $library->{data}{file_name}{value} =~ /^(.*)\.(fasta|fa|ffn|frn|fna|fastq|fq)$/;
+	    $lib_name_file->{$library->{data}{metagenome_name}{value}} = $basename;
+	  } else {
+	    $lib_name_file->{$library->{data}{metagenome_name}{value}} = $library->{data}{metagenome_name}{value};
+	  }
+	  if (exists $library->{data}{forward_barcodes}) {
+	    $barcodes->{ $lib_name_file->{$library->{data}{metagenome_name}{value}} } = $library->{data}{forward_barcodes}{value};
 	  }
 	}
       }
@@ -664,14 +711,16 @@ sub validate_metadata {
 	$formatted_data .= "<p>Barcodes were detected in your metadata file. A barcode file with the provided codes has been placed in your inbox. You can use this to demultiplex your sequence file below. Select the sequence file and the barcode file ($barname) and click 'demultiplex'.</p>";
       }
     }
-    $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). This project contains ".scalar(@{$data->{samples}})." samples with ".scalar(@$libraries)." libraries having the following metagenome names:</p><p><table>";
-    foreach my $lib (@$libraries) {
-      $formatted_data .= "<tr><td>".$lib."</td></tr>";
+    $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). This project contains ".scalar(@{$data->{samples}})." samples with ".scalar(keys %$lib_name_file)." libraries having the following metagenome names:</p><p><table>";
+    my $example = '';
+    foreach my $name (sort keys %$lib_name_file) {
+      $example = $name;
+      $formatted_data .= "<tr><td>".$name."</td></tr>";
     }
     $formatted_data .= "</table></p>";
-    if (scalar(@$libraries) > 1) {
-      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library metagenome_name fields, i.e. the filename for library metagenome_name ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna<br><i><b>Note:</b> All FASTA files will automatically be renamed .fna</i></p>";
-      $formatted_data .= "||".join("@@", @$libraries);
+    if (scalar(keys %$lib_name_file) > 1) {
+      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library <i>metagenome_name</i> fields minus extension (i.e. the filename for library metagenome_name $example must be $example.fastq or $example.fna) or exactly match the library <i>file_name</i> fields.<br><i><b>Note:</b> All FASTA files will automatically be renamed .fna</i></p>";
+      $formatted_data .= "||".join("@@", values %$lib_name_file);
     }
   } else {
     $data = $data->{data};

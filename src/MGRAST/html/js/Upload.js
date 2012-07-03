@@ -6,7 +6,7 @@ var selected_project;
 var selected_libraries = [];
 var selected_no_metadata = 0;
 var last_directory = "";
-var is_a_sequence_file_ending = /(fasta|fna|fastq|fa|faa|fq)$/;
+var is_a_sequence_file_ending = /(fasta|fa|ffn|frn|fna|fastq|fq)$/;
 
 // initialization
 function init_all () {
@@ -222,7 +222,7 @@ function demultiplex_files () {
       
       update_inbox(null, files, "demultiplex");
     } else {
-      alert("Your selection must include a sequence file (.fasta, .fastq, .fa, .faa, .fq or .fna)");
+      alert("Your selection must include a sequence file (.fasta, .fa, .ffn, .frn, .fna, .fq, or .fastq)");
       return false;
     }
   } else {
@@ -243,7 +243,7 @@ function select_sequence_file () {
   for (i=0; i<table_input_columns_data[0].length; i++) {
     if (table_input_columns_data[0][i][0] == 1) {
       var fn = table_data[0][i][2];
-      if (fn.match(/(fasta|fa|faa)$/)) {
+      if (fn.match(/(fasta|fa|ffn|frn|fna)$/)) {
 	has_fasta = 1;
       }
       if (fn.match(/(fastq|fq)$/)) {
@@ -292,7 +292,7 @@ function select_sequence_file () {
 	  }
 	}
 	if (! valid) {
-	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library ("+fn+").\nThe metagenome_name field in library should match your sequence file name (minus extension).\nEither correct your metadata file or change your sequence file selection.");
+	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library ("+fn+").\nThe file_name or metagenome_name field in library should match your sequence file name (minus extension if using metagenome_name).\nEither correct your metadata file or change your sequence file selection.");
 	  return 0;
 	}
       } else if (selected_sequence_files.length < selected_libraries.length) {
@@ -424,8 +424,8 @@ function select_metadata_file () {
 	  document.getElementById("icon_step_2").style.display = "";
 	  check_submitable();
 	} else {
-	  document.getElementById("sel_mdfile_div").innerHTML = result[1];
-	  update_inbox();
+	  alert(result[2]);
+	  unselect_metadata_file();
 	}
       });
   }
