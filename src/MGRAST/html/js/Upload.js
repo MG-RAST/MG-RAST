@@ -292,7 +292,7 @@ function select_sequence_file () {
 	  }
 	}
 	if (! valid) {
-	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library ("+fn+").\nThe metagenome_name field in library should match your sequence file name (minus extension).\nEither correct your metadata file or change your sequence file selection.");
+	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library ("+fn+").\nThe file_name or metagenome_name field in library should match your sequence file name (minus extension if using metagenome_name).\nEither correct your metadata file or change your sequence file selection.");
 	  return 0;
 	}
       } else if (selected_sequence_files.length < selected_libraries.length) {
@@ -424,7 +424,7 @@ function select_metadata_file () {
 	  document.getElementById("icon_step_2").style.display = "";
 	  check_submitable();
 	} else {
-	  document.getElementById("sel_mdfile_div").innerHTML = result[1];
+	  document.getElementById("sel_mdfile_div").innerHTML = result[2];
 	  update_inbox();
 	}
       });
