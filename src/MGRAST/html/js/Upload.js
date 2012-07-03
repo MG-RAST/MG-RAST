@@ -222,7 +222,6 @@ function select_sequence_file () {
     alert("You must either select a metadata file in Step 1\nor choose a project in Step 2 before selecting sequence file(s).");
     return false;
   }
-  console.log([document.getElementById("sel_md_pill").className, document.getElementById("sel_project_pill").className, selected_no_metadata, selected_project]);
   var sel = document.getElementById('sequence_file_select');
   selected_sequence_files = [];
   var has_fasta = 0;
