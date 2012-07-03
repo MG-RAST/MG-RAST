@@ -170,6 +170,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		my $tagname;
 		while ( defined($tag = <MID>) ) {
 		    chomp $tag;
+		    $tag =~ s/\r//g;
 		    if ($tag =~ /\t/) {
 			($tag, $tagname) = split(/\t/, $tag);
 			$tagnames->{$tag} = $tagname;

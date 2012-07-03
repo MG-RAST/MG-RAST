@@ -543,8 +543,19 @@ sub submit_to_mgrast {
     my $jid = $job->{job_id};
     my $is_fastq = ($job2type->{$job->{job_id}} eq 'fastq') ? " --fastq" : "";
     my $options  = $job->{options} ? ' -o "'.$job->{options}.'"' : "";
-    print STDERR qq~create command: $create_job_script -j $jid -f "$udir/$seqfile"$options$is_fastq\n~;
     my $result = `$create_job_script -j $jid -f "$udir/$seqfile"$options$is_fastq`;
+
+    # check if the sequence file made it over to the jobdirectory, then delete it in the inbox
+    my $rawfile = $job->download_dir.$job->{job_id}.".";
+    if ($is_fastq) {
+      $rawfile .= "fastq";
+    } else {
+      $rawfile .= "fna";
+    }
+    if (-f $rawfile && (stat($rawfile))[7] == (stat("$udir/$seqfile"))[7]) {
+      `rm "$udir/$seqfile"`; 
+    }
+
     push @$mgids, $job->{metagenome_id};
   }
   
