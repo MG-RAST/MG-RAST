@@ -42,12 +42,15 @@ function update_inbox (data, files, action) {
 	  seq_dlist[dlist[i]] = 1;
 	  seqs_in_dir = true;
 	}
-	html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  if (seq_dlist[dlist[i]] == 1 && ! DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn]['bp count']) {
+	      html += "<option style='display: none; padding-left: 35px;' disabled title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  } else {
+	      html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  }
       }
       html += "</optgroup>";
     }
     for (var i=0; i<flist.length; i++) {
-      html += "<option>"+flist[i]+"</option>";
       var isSeq = flist[i].match(is_a_sequence_file_ending);
       if (isSeq) {
 	sequence_files[sequence_files.length] = flist[i];
@@ -56,6 +59,12 @@ function update_inbox (data, files, action) {
       if (isMet) {
 	metadata_files[metadata_files.length] = flist[i];
       }
+	if (isSeq && ! DataStore['user_inbox'][user.login].fileinfo[flist[i]]['bp count']) {
+	    html += "<option disabled title='the sequence stats computation for this file is still running'>"+flist[i]+"</option>";
+	} else {
+	    html += "<option>"+flist[i]+"</option>";
+	}
+
     }
     html += '</select>';
     html += '</form></td><td id="inbox_feedback"></td></tr><tr><td id="inbox_file_info"></td></tr></table>';
