@@ -203,11 +203,12 @@ sub reserve_job {
 sub has_checksum {
   my ($self, $checksum, $user) = @_;
   my $dbh = $self->_master->db_handle;
-  my $md5 = $dbh->selectcol_arrayref("SELECT metagenome_id FROM Job WHERE file_checksum_raw='$checksum'".(($user && ref($user)) ? " AND owner=".$user->_id : ""));
+  my $who = ($user && ref($user)) ? "(owner=".$user->_id." OR public=1)" : "public=1";
+  my $md5 = $dbh->selectcol_arrayref("SELECT metagenome_id FROM Job WHERE file_checksum_raw='$checksum' AND ".$who);
   return ($md5 && @$md5) ? $md5->[0] : 0;
 }
 
-sub finish_upload {
+sub finish_upload {\
   my ($self, $file, $file_format) = @_ ;
   
   # create_and_submit_job -j <job_number> -f <sequence_file> [ -p <pipeline_name> -o <pipeline_options> --fastq --rna_only ]
