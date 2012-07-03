@@ -164,7 +164,7 @@ sub output {
                        <td style="padding-left: 240px;">
                           <p>Select one or more files to upload to your private inbox folder.</p>
                           <p>Sequence files must be fasta, fastq, or sff format.
-                             Use vaild file extensions for the appropriate format: .fasta, .faa, .fa, .ffn, .frn, .fna, .fastq, .fq, .sff</p>
+                             Use vaild file extensions for the appropriate format: .fasta, .fa, .ffn, .frn, .fna, .fq, .fastq, .sff</p>
                        </td>
                     </tr>
                  </table>
@@ -455,7 +455,7 @@ sub submit_to_mgrast {
   my $infos = {};
   foreach my $seqfile (@$seqfiles) {
     if (open(FH, "<$udir/$seqfile.stats_info")) {
-      my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|faa|fa|ffn|frn|fna|fastq|fq)$/;
+      my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|fa|ffn|frn|fna|fastq|fq)$/;
       my $subdir = "";
       if ($filename_base =~ /\//) {
 	($subdir, $filename_base) = $filename_base =~ /^(.*\/)(.*)/;

@@ -6,7 +6,7 @@ var selected_project;
 var selected_libraries = [];
 var selected_no_metadata = 0;
 var last_directory = "";
-var is_a_sequence_file_ending = /(fasta|fna|fastq|fa|faa|fq)$/;
+var is_a_sequence_file_ending = /(fasta|fa|ffn|frn|fna|fastq|fq)$/;
 
 // initialization
 function init_all () {
@@ -222,7 +222,7 @@ function demultiplex_files () {
       
       update_inbox(null, files, "demultiplex");
     } else {
-      alert("Your selection must include a sequence file (.fasta, .fastq, .fa, .faa, .fq or .fna)");
+      alert("Your selection must include a sequence file (.fasta, .fa, .ffn, .frn, .fna, .fq, or .fastq)");
       return false;
     }
   } else {
@@ -243,7 +243,7 @@ function select_sequence_file () {
   for (i=0; i<table_input_columns_data[0].length; i++) {
     if (table_input_columns_data[0][i][0] == 1) {
       var fn = table_data[0][i][2];
-      if (fn.match(/(fasta|fa|faa)$/)) {
+      if (fn.match(/(fasta|fa|ffn|frn|fna)$/)) {
 	has_fasta = 1;
       }
       if (fn.match(/(fastq|fq)$/)) {

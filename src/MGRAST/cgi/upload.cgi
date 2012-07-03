@@ -21,7 +21,7 @@ if (scalar(@$session)) {
     $user = $session->[0]->user;
 }
 
-my $seq_ext = "fasta|faa|fa|ffn|frn|fna|fastq|fq";
+my $seq_ext = "fasta|fa|ffn|frn|fna|fastq|fq";
 
 # if there is no user, abort the request
 unless ($user) {
