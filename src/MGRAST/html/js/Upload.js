@@ -43,7 +43,7 @@ function update_inbox (data, files, action) {
 	  seqs_in_dir = true;
 	}
 	  if (seq_dlist[dlist[i]] == 1 && ! DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn]['bp count']) {
-	      html += "<option style='display: none; padding-left: 35px;' disabled title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	      html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	  } else {
 	      html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	  }
@@ -60,7 +60,7 @@ function update_inbox (data, files, action) {
 	metadata_files[metadata_files.length] = flist[i];
       }
 	if (isSeq && ! DataStore['user_inbox'][user.login].fileinfo[flist[i]]['bp count']) {
-	    html += "<option disabled title='the sequence stats computation for this file is still running'>"+flist[i]+"</option>";
+	    html += "<option title='the sequence stats computation for this file is still running' style='color: gray;'>"+flist[i]+"</option>";
 	} else {
 	    html += "<option>"+flist[i]+"</option>";
 	}
