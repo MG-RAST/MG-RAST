@@ -424,8 +424,8 @@ function select_metadata_file () {
 	  document.getElementById("icon_step_2").style.display = "";
 	  check_submitable();
 	} else {
-	  document.getElementById("sel_mdfile_div").innerHTML = result[2];
-	  update_inbox();
+	  alert(result[2]);
+	  unselect_metadata_file();
 	}
       });
   }
