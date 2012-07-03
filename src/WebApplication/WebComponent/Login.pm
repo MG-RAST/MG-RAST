@@ -127,6 +127,7 @@ sub perform_login {
 	  # create and grant the login right
 	  my $back_app = WebApplication->new( $d_backend );
 	  {
+	    no warnings 'redefine';
 	    package WebApplication;
 	    sub new {
 	      my $self = { backend => $_[1] };
