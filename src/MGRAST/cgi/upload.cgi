@@ -226,7 +226,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    $count++;
 		}
 		`mv '$udir/$ufile' '$udir/$newfilename'`;
-		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.<br><b>WARNING</b> If this is a sequence file associated with a library in your metadata, you will have to adjust the library name in the metadata file!");
+		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.<br><b>WARNING</b> If this is a sequence file associated with a library in your metadata, you will have to adjust the library file_name or metagenome_name in the metadata file!");
 		$ufile = $newfilename;
 	    }
 	    
