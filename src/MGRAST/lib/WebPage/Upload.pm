@@ -231,7 +231,11 @@ sub output {
 	    <ul class="nav nav-pills nav-stacked">
 	      <li><a onclick="toggle('sel_md_div');" class="pill_incomplete" id="sel_md_pill" style="font-size: 17px; font-weight: bold;">1. select metadata file <i id="icon_step_1" class="icon-ok icon-white" style="display: none;"></i></a></li>
 	      <div id="sel_md_div" style="display: none;" class="well">
-                 <div id="sel_mdfile_div" style='float:left;'></div><div style='float:left; margin-top: 25px; width: 350px;'><p>Select a spreadsheet with metadata for the project you want to submit. Uploaded spreedsheets will appear here after successful validation.</p><p><b>Note: While metadata is not required at submission, the priority for processing data without metadata is lower.</b></p></div><div class='clear'></div>
+                 <div id="sel_mdfile_div" style='float:left;'></div><div style='float:left; margin-top: 25px; width: 350px;'>
+                   <p>Select a spreadsheet with metadata for the project you want to submit. Uploaded spreedsheets will appear here after successful validation.</p>
+                   <p>In order to map sequence files to metadata libraries, the names of the sequence files must exactly match the library <i>file_name</i> fields or match the library <i>metagenome_name</i> fields minus extension.</p>
+                   <p><b>Note: While metadata is not required at submission, the priority for processing data without metadata is lower.</b></p>
+                 </div><div class='clear'></div>
               </div>
 	      <li><a onclick="toggle('sel_project_div');" class="pill_incomplete" id="sel_project_pill" style="font-size: 17px; font-weight: bold;">2. select project <i id="icon_step_2" class="icon-ok icon-white" style="display: none;"></i></a></li>
               <div id="sel_project_div" class="well" style="display: none;"><h3>select a project</h3><p>You have to specify a project to upload a job to MG-RAST. If you have a metadata file, the project must be specified in that file. If you choose to not use a metadata file, you can select a project here. You can either select an existing project or you can choose a new project.</p><select name="project" style="width: 420px; margin-bottom: 20px;" onchange="if(this.selectedIndex>0){document.getElementById('new_project').value='';document.getElementById('new_project').disabled=true;}else{document.getElementById('new_project').disabled=false;}" id='project'><option value=''>- new -</option>~;
@@ -645,9 +649,10 @@ sub validate_metadata {
       my $jobdbm  = $application->data_handle('MGRAST');
       my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
       if (scalar(@$projects) && (! $user->has_right(undef, 'view', 'project', $projects->[0]->id))) {
-	$is_valid = 0;
 	$formatted_data = "<p>The project name you have chosen is already taken and you do not have edit rights to this project. Please choose a different project name or ask the owner of the project for edit rights.</p>";
-	$project_name = 'taken';
+	print $cgi->header;
+	print "0||taken||".$formatted_data;
+	exit 0;
       } else {
 	$formatted_data .= "<img src='./Html/clear.gif' onload='selected_project=".$project_name."'>";
       }
@@ -683,12 +688,14 @@ sub validate_metadata {
       }
     }
     $formatted_data .= "<p>You designated the administrative contact for the project <b>'".$project_name."'</b> to be ".$data->{data}->{PI_firstname}->{value}." ".$data->{data}->{PI_lastname}->{value}." (".$data->{data}->{PI_email}->{value}."). This project contains ".scalar(@{$data->{samples}})." samples with ".scalar(keys %$lib_name_file)." libraries having the following metagenome names:</p><p><table>";
+    my $example = '';
     foreach my $name (sort keys %$lib_name_file) {
+      $example = $name;
       $formatted_data .= "<tr><td>".$name."</td></tr>";
     }
     $formatted_data .= "</table></p>";
-    if (scalar(@$libraries) > 1) {
-      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library metagenome_name fields minus extension (i.e. the filename for library metagenome_name ".$libraries->[0]." must be ".$libraries->[0].".fastq or ".$libraries->[0].".fna) or exactly match the library file_name fields.<br><i><b>Note:</b> All FASTA files will automatically be renamed .fna</i></p>";
+    if (scalar(keys %$lib_name_file) > 1) {
+      $formatted_data .= "<p><b>Caution:</b> Since you have more than one library, the names of the sequence files must match the library <i>metagenome_name</i> fields minus extension (i.e. the filename for library metagenome_name $example must be $example.fastq or $example.fna) or exactly match the library <i>file_name</i> fields.<br><i><b>Note:</b> All FASTA files will automatically be renamed .fna</i></p>";
       $formatted_data .= "||".join("@@", values %$lib_name_file);
     }
   } else {
