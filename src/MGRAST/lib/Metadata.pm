@@ -610,9 +610,7 @@ sub export_metadata_for_project {
       my $lib_jobs = $lib->jobs;
       if (@$lib_jobs > 0) {
 	$ldata->{metagenome_id} = $lib_jobs->[0]->{metagenome_id};
-	unless (exists $ldata->{metagenome_name}) {
-	   $ldata->{metagenome_name} = $lib_jobs->[0]->{name};
-	}
+	$ldata->{metagenome_name} = $lib_jobs->[0]->{name};
       }
       push @{ $s_obj->{libraries} }, { name => $lib->name || 'mgl'.$lib->ID,
 				       id   => 'mgl'.$lib->ID,

@@ -203,8 +203,8 @@ sub reserve_job {
 sub has_checksum {
   my ($self, $checksum, $user) = @_;
   my $dbh = $self->_master->db_handle;
-  my $md5 = $dbh->selectcol_arrayref("SELECT count(*) FROM Job WHERE file_checksum_raw='$checksum'".(($user && ref($user)) ? " AND owner=".$user->_id : ""));
-  return ($md5 && @$md5 && ($md5->[0] > 0)) ? 1 : 0;  
+  my $md5 = $dbh->selectcol_arrayref("SELECT metagenome_id FROM Job WHERE file_checksum_raw='$checksum'".(($user && ref($user)) ? " AND owner=".$user->_id : ""));
+  return ($md5 && @$md5) ? $md5->[0] : 0;
 }
 
 sub finish_upload {

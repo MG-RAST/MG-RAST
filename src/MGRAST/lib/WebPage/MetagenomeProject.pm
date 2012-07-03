@@ -785,7 +785,7 @@ sub upload_md {
     ## validate
     my ($is_valid, $mdata, $log) = $meta->validate_metadata($tmp_name, $skip);
     unless ($is_valid) {
-      $application->add_message('warning', "uploaded metadata is invalid:<br><pre>".$log."</pre>");
+      $application->add_message('warning', "uploaded metadata is invalid, no metadata has been updated:<br><pre>".$log."</pre>");
       return 0;
     }
     my $skip_jobs = [];
