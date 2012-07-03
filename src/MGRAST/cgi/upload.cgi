@@ -170,6 +170,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		my $tagname;
 		while ( defined($tag = <MID>) ) {
 		    chomp $tag;
+		    $tag =~ s/\r//g;
 		    if ($tag =~ /\t/) {
 			($tag, $tagname) = split(/\t/, $tag);
 			$tagnames->{$tag} = $tagname;
@@ -302,6 +303,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	    unless ($file_type eq 'ASCII text') {
 		$file_type = "binary or invalid end of line characters<br><b>WARNING</b> You will not be able to use this file as a sequence file!";
+		print STDERR "invalid EOL: $file_type\n";
 	    }
 
 	    my $file_eol      = &file_eol($file_type);
