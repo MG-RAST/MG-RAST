@@ -4,8 +4,9 @@ var selected_sequence_file;
 var selected_metadata_file;
 var selected_project;
 var selected_libraries = [];
+var selected_no_metadata = 0;
 var last_directory = "";
-var is_a_sequence_file_ending = /(fasta|fna|fastq|fa|faa|fq)$/;
+var is_a_sequence_file_ending = /(fasta|fa|ffn|frn|fna|fastq|fq)$/;
 
 // initialization
 function init_all () {
@@ -221,7 +222,7 @@ function demultiplex_files () {
       
       update_inbox(null, files, "demultiplex");
     } else {
-      alert("Your selection must include a sequence file (.fasta, .fastq, .fa, .faa, .fq or .fna)");
+      alert("Your selection must include a sequence file (.fasta, .fa, .ffn, .frn, .fna, .fq, or .fastq)");
       return false;
     }
   } else {
@@ -231,6 +232,10 @@ function demultiplex_files () {
 
 // upload workflow
 function select_sequence_file () {
+  if ((document.getElementById("sel_md_pill").className == "pill_incomplete") && (document.getElementById("sel_project_pill").className = "pill_incomplete")) {
+    alert("You must either select a metadata file in Step 1\nor choose a project in Step 2 before selecting sequence file(s).");
+    return false;
+  }
   var sel = document.getElementById('sequence_file_select');
   selected_sequence_files = [];
   var has_fasta = 0;
@@ -238,7 +243,7 @@ function select_sequence_file () {
   for (i=0; i<table_input_columns_data[0].length; i++) {
     if (table_input_columns_data[0][i][0] == 1) {
       var fn = table_data[0][i][2];
-      if (fn.match(/(fasta|fa|faa)$/)) {
+      if (fn.match(/(fasta|fa|ffn|frn|fna)$/)) {
 	has_fasta = 1;
       }
       if (fn.match(/(fastq|fq)$/)) {
@@ -255,11 +260,13 @@ function select_sequence_file () {
     alert("You did not select a sequence file");
   } else if (selected_sequence_files.length > 1) {
     if (selected_libraries.length == 0) {
-      if (document.getElementById("sel_md_pill").className == "pill_complete") {
+      if (selected_no_metadata && (! selected_project)) {
+	alert('WARNING: You have selected not to supply metadata but have not selected a project.\n Please select a project in Step 2.');
+	return 0;
+      }
+      if ((document.getElementById("sel_md_pill").className == "pill_complete") && (! selected_no_metadata)) {
 	alert('WARNING: You have selected more than one sequence file,\nbut you metadata file does not include any library information.\nEither select a single sequence file, or correct your metadata file.');
 	return 0;
-      } else {
-	alert("WARNING: You have selected more than one sequence file.\nWhen you choose a metadata file, it must contain libraries\nwith matching names for each sequence file.");
       }
     } else {
       if (selected_sequence_files.length == selected_libraries.length) {
@@ -285,7 +292,7 @@ function select_sequence_file () {
 	  }
 	}
 	if (! valid) {
-	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library.\nEither correct your metadata file or change your sequence file selection.");
+	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library ("+fn+").\nThe file_name or metagenome_name field in library should match your sequence file name (minus extension if using metagenome_name).\nEither correct your metadata file or change your sequence file selection.");
 	  return 0;
 	}
       } else if (selected_sequence_files.length < selected_libraries.length) {
@@ -344,12 +351,11 @@ function select_sequence_file () {
     document.getElementById('min_qual').disabled = true;
     document.getElementById('max_lqb').disabled = true;
   }
-  var html = "<h4>selected sequence files</h4><br><p><i>"+selected_sequence_files.join("</i><br><i>")+"</i><br><br><input type='button' class='btn' value='unselect' onclick='unselect_sequence_file();'><input type='hidden' name='seqfiles' value='"+selected_sequence_files.join("|")+"'>";
+  var html = "<h4>selected sequence files</h4><br><p>The following "+selected_sequence_files.length+" sequence files have queued for submission:</p><p><i>"+selected_sequence_files.join("</i><br><i>")+"</i><br><br><input type='button' class='btn' value='unselect' onclick='unselect_sequence_file();'><input type='hidden' name='seqfiles' value='"+selected_sequence_files.join("|")+"'>";
   document.getElementById("selected_sequences").innerHTML = html;
   document.getElementById("available_sequences").style.display = 'none';
   document.getElementById("sel_seq_pill").className = "pill_complete";
   document.getElementById("icon_step_3").style.display = "";
-  toggle("sel_seq_div");
   check_submitable();
 }
 
@@ -367,28 +373,31 @@ function unselect_sequence_file () {
   document.getElementById("available_sequences").style.display = '';
   document.getElementById("sel_seq_pill").className = "pill_incomplete";
   document.getElementById("icon_step_3").style.display = "none";
+  document.getElementById("sel_pip_pill").className = "pill_incomplete";
+  document.getElementById("icon_step_4").style.display = "none";
   update_inbox();
   check_submitable();
 }
 
 function select_metadata_file () {
   if (document.getElementById('no_metadata').checked) {
+    selected_no_metadata = 1;
     document.getElementById("sel_md_pill").className = "pill_complete";
     document.getElementById("icon_step_1").style.display = "";
     check_submitable();
   } else {
-
+    selected_no_metadata = 0;
     var sel = document.getElementById('metadata_file_select');
     selected_metadata_file = sel.options[sel.selectedIndex].value;
-    
     document.getElementById("sel_mdfile_div").innerHTML = "<p><img src='./Html/ajax-loader.gif'> please wait while your metadata file is being validated...</p>";
     
     $.get("?page=Upload&action=validate_metadata&mdfn="+selected_metadata_file, function (data) {
 	var result = data.split(/\|\|/);
 	if (result[0] != "0") {
-	  var html = "<div class='well'><h4>selected metadata file</h4><br>"+result[1]+"<br><p><i>"+selected_metadata_file+"</i><br><br><input type='button' class='btn' value='unselect' onclick='unselect_metadata_file();'><input type='hidden' name='mdfile' value='"+selected_metadata_file+"'></div>";
-	  if (result.length == 3) {
-	    selected_libraries = result[2].split(/@@/);
+	  var html = "<div class='well'><h4>selected metadata file</h4><br>"+result[2]+"<br><p><i>"+selected_metadata_file+"</i><br><br><input type='button' class='btn' value='unselect' onclick='unselect_metadata_file();'><input type='hidden' name='mdfile' value='"+selected_metadata_file+"'></div>";
+	  selected_project = result[1]
+	  if (result.length == 4) {
+	    selected_libraries = result[3].split(/@@/);
 	  }
 	  update_inbox();
 	  document.getElementById("sel_mdfile_div").innerHTML = html;
@@ -413,22 +422,24 @@ function select_metadata_file () {
 	  }
 	  document.getElementById("sel_project_pill").className = "pill_complete";
 	  document.getElementById("icon_step_2").style.display = "";
-
 	  check_submitable();
 	} else {
-	  document.getElementById("sel_mdfile_div").innerHTML = result[1];
-	  update_inbox();
+	  alert(result[2]);
+	  unselect_metadata_file();
 	}
       });
   }
 }
 function unselect_metadata_file () {
+  unselect_sequence_file()
   selected_metadata_file = "";
   selected_libraries = [];
   document.getElementById("sel_md_pill").className = "pill_incomplete";
   document.getElementById("icon_step_1").style.display = "none";
+  document.getElementById("sel_project_pill").className = "pill_incomplete";
+  document.getElementById("icon_step_2").style.display = "none";
   update_inbox();
-  check_submittable();
+  check_submitable();
 }
 
 function accept_pipeline_options () {
