@@ -98,7 +98,6 @@ sub output {
       $html .= "<div class='alert alert-info'><h4>Job submission failure</h4><p>Your data was not submitted to the pipeline. The following metagenome(s) already exists in MG-RAST with the same upload file(s) as you have submitted:</p><blockquote><table><tr><th>MG-RAST ID</th><th>md5sum</th><th>Your File</th></tr>";
       map { $html .= "<tr><td>".$_->[0]."</td><td>".$_->[1]."</td><td>".$_->[2]."</td><td></tr>" } @$dupes;
       $html .= "</table></blockquote>";
-      $html .= "<p>Click here to still submit: <input type='button' class='btn' value='submit duplicate job' onclick='submit_job();'></p></div>";
     } else {
       my $success = $self->submit_to_mgrast();
       if ($success && @$success) {
