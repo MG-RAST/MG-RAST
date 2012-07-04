@@ -597,7 +597,7 @@ function draw_position_on_range(display_id, thisVal, minVal, maxVal, avgVal, std
     r.text(leftgutter + avgX, txtY, avgTxt).attr(txt2);
     r.path('M'+(leftgutter+avgX).toString()+' '+topgutter.toString()+'V'+(txtY-10).toString()).attr({stroke:color, "stroke-width":2, "stroke-dasharray":"-"});
     // you
-    r.text(leftgutter + thisX, txtY, thisTxt).attr(txt2);
+    //r.text(leftgutter + thisX, txtY, thisTxt).attr(txt2);
     r.circle(leftgutter+thisX, 5, 3).attr({'fill-opacity': .8, fill: 'red', stroke:'red'});
     r.path('M'+(leftgutter+thisX).toString()+' '+topgutter.toString()+'V'+(txtY-10).toString()).attr({stroke:'red', "stroke-width":2});
 }

@@ -21,7 +21,7 @@ if (scalar(@$session)) {
     $user = $session->[0]->user;
 }
 
-my $seq_ext = "fasta|faa|fa|ffn|frn|fna|fastq|fq";
+my $seq_ext = "fasta|fa|ffn|frn|fna|fastq|fq";
 
 # if there is no user, abort the request
 unless ($user) {
@@ -170,6 +170,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		my $tagname;
 		while ( defined($tag = <MID>) ) {
 		    chomp $tag;
+		    $tag =~ s/\r//g;
 		    if ($tag =~ /\t/) {
 			($tag, $tagname) = split(/\t/, $tag);
 			$tagnames->{$tag} = $tagname;
@@ -225,7 +226,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    $count++;
 		}
 		`mv '$udir/$ufile' '$udir/$newfilename'`;
-		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.<br><b>WARNING</b> If this is a sequence file associated with a library in your metadata, you will have to adjust the library name in the metadata file!");
+		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.<br><b>WARNING</b> If this is a sequence file associated with a library in your metadata, you will have to adjust the library file_name or metagenome_name in the metadata file!");
 		$ufile = $newfilename;
 	    }
 	    
@@ -300,7 +301,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		$file_type = 'ASCII text';
 	    }
 
-	    unless ($file_type eq 'ASCII text') {
+	    unless ($file_type eq 'ASCII text' || $file_type eq "ASCII text, with very long lines") {
 		$file_type = "binary or invalid end of line characters<br><b>WARNING</b> You will not be able to use this file as a sequence file!";
 	    }
 
