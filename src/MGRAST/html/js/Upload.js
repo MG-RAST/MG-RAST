@@ -97,7 +97,7 @@ function update_inbox (data, files, action) {
 	  if (fn.match(is_a_sequence_file_ending)) {
 	    var inf = DataStore['user_inbox'][user.login].fileinfo[i+'/'+fn];
 	      if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error'])) {
-	      var trow = [ 0, i, fn, inf['format'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
+	      var trow = [ 0, i, fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
 	  }
@@ -108,7 +108,7 @@ function update_inbox (data, files, action) {
 	  var fn = sequence_files[i];
 	  var inf = DataStore['user_inbox'][user.login].fileinfo[fn];
 	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error'])) {
-	    var trow = [ 0, "-", fn, "-", inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
+	    var trow = [ 0, "-", fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
 	  }
       }
