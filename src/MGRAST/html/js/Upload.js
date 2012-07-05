@@ -44,7 +44,9 @@ function update_inbox (data, files, action) {
 	  seqs_in_dir = true;
 	}
 	var inf = DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn];
-	if ((seq_dlist[dlist[i]] == 1) && inf['Error']) {
+	if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
+	  html += "<option style='display: none; padding-left: 35px; color: red;' title='this is a malformed / unidentifiable sequence file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && inf['Error']) {
 	  html += "<option style='display: none; padding-left: 35px; color: red;' title='there was an error in the sequence stats computation for this file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 	  html += "<option style='display: none; padding-left: 35px; color: red;' title='the unique id count does not match the sequence count' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
@@ -66,7 +68,9 @@ function update_inbox (data, files, action) {
 	metadata_files[metadata_files.length] = flist[i];
       }
       var inf = DataStore['user_inbox'][user.login].fileinfo[flist[i]];
-      if (isSeq && inf['Error']) {
+      if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
+	html += "<option title='this is a malformed / unidentifiable sequence file' style='color: red;'>"+flist[i]+"</option>";
+      } else if (isSeq && inf['Error']) {
 	html += "<option title='there was an error in the sequence stats computation for this file' style='color: red;'>"+flist[i]+"</option>";
       } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 	html += "<option title='the unique id count does not match the sequence count' style='color: red;'>"+flist[i]+"</option>";
@@ -120,13 +124,17 @@ function update_inbox (data, files, action) {
       document.getElementById('inbox_select').onchange = function () {
 	var fn = this.options[this.selectedIndex].value;
 	if (DataStore.user_inbox[user.login].fileinfo && DataStore.user_inbox[user.login].fileinfo[fn]) {
-	  var ptext = "<h4>File Information</h4><br>";
-	    if (DataStore.user_inbox[user.login].fileinfo[fn]['unique id count'] && DataStore.user_inbox[user.login].fileinfo[fn]['sequence count'] && DataStore.user_inbox[user.login].fileinfo[fn]['unique id count'] != DataStore.user_inbox[user.login].fileinfo[fn]['sequence count']) {
+	    var ptext = "<h4>File Information</h4><br>";
+	    var inf = DataStore.user_inbox[user.login].fileinfo[fn]
+	    if (inf['file type'] && (inf['file type'] == 'malformed')) {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This is a malformed / unidentifiable sequence file. You will not be able to use this file for submission.</div>';
+	    }
+	    else if (inf['Error']) {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>There was an error in the sequence stats computation:<br><span style="padding-left: 10px;"><pre>'+inf['Error']+'</pre></span><br>You will not be able to use this file for submission.</div>';
+	    }
+	    else if (inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>The unique id count does not match the sequence count. You will not be able to use this file for submission.</div>';
 
-	    }
-	    if (DataStore.user_inbox[user.login].fileinfo[fn]['Error']) {
-		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>There was an error in the sequence stats computation:<br><span style="padding-left: 10px;"><pre>'+DataStore.user_inbox[user.login].fileinfo[fn]['Error']+'</pre></span><br>You will not be able to use this file for submission.</div>';
 	    }
 	    ptext += "<table>";
 	  for (i in DataStore.user_inbox[user.login].fileinfo[fn]) {
