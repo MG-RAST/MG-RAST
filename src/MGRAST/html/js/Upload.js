@@ -43,10 +43,13 @@ function update_inbox (data, files, action) {
 	  seq_dlist[dlist[i]] = 1;
 	  seqs_in_dir = true;
 	}
-	if (seq_dlist[dlist[i]] == 1 && ! DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn]['bp count']) {
+	var inf = DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn];
+	if ((seq_dlist[dlist[i]] == 1) && inf['Error']) {
+	  html += "<option style='display: none; padding-left: 35px; color: red;' title='there was an error in the sequence stats computation for this file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
+	  html += "<option style='display: none; padding-left: 35px; color: red;' title='the unique id count does not match the sequence count' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && (! inf['bp count'])) {
 	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
-	} else if (seq_dlist[dlist[i]] == 1 && DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn]['Error']) {
-	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='there was an error in the sequence stats computation for this file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else {
 	  html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	}
@@ -62,10 +65,13 @@ function update_inbox (data, files, action) {
       if (isMet) {
 	metadata_files[metadata_files.length] = flist[i];
       }
-      if (isSeq && ! DataStore['user_inbox'][user.login].fileinfo[flist[i]]['bp count']) {
+      var inf = DataStore['user_inbox'][user.login].fileinfo[flist[i]];
+      if (isSeq && inf['Error']) {
+	html += "<option title='there was an error in the sequence stats computation for this file' style='color: red;'>"+flist[i]+"</option>";
+      } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
+	html += "<option title='the unique id count does not match the sequence count' style='color: red;'>"+flist[i]+"</option>";
+      } else if (isSeq && (! inf['bp count'])) {
 	html += "<option title='the sequence stats computation for this file is still running' style='color: gray;'>"+flist[i]+"</option>";
-      } else if (isSeq && DataStore['user_inbox'][user.login].fileinfo[flist[i]]['Error']) {
-	html += "<option title='there was an error in the sequence stats computation for this file' style='color: gray;'>"+flist[i]+"</option>";
       } else {
 	html += "<option>"+flist[i]+"</option>";
       }
@@ -118,6 +124,9 @@ function update_inbox (data, files, action) {
 	    if (DataStore.user_inbox[user.login].fileinfo[fn]['unique id count'] && DataStore.user_inbox[user.login].fileinfo[fn]['sequence count'] && DataStore.user_inbox[user.login].fileinfo[fn]['unique id count'] != DataStore.user_inbox[user.login].fileinfo[fn]['sequence count']) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>The unique id count does not match the sequence count. You will not be able to use this file for submission.</div>';
 
+	    }
+	    if (DataStore.user_inbox[user.login].fileinfo[fn]['Error']) {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>There was an error in the sequence stats computation:<br><span style="padding-left: 10px;"><pre>'+DataStore.user_inbox[user.login].fileinfo[fn]['Error']+'</pre></span><br>You will not be able to use this file for submission.</div>';
 	    }
 	    ptext += "<table>";
 	  for (i in DataStore.user_inbox[user.login].fileinfo[fn]) {
