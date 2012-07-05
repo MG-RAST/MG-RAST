@@ -290,19 +290,22 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	# create basic and extended file information if we do not yet have it
 	if (! $info_files->{$sequence_file}) {
-	    my $file_type     = &file_type($sequence_file, $udir);
+	    my $file_type = &file_type($sequence_file, $udir);
+	    my @msg;
 
 	    if ($file_type eq 'ASCII text, with CR line terminators') {
-		`sed -i 's/\r/\n/g' '$udir/$sequence_file'`;
+		@msg = `sed -i 's/\r/\n/g' '$udir/$sequence_file'`;
 		$file_type = 'ASCII text';
 	    } elsif ($file_type eq 'ASCII text, with CRLF line terminators') {
-		`tr -d '\r' < '$udir/$sequence_file' > '$udir/$sequence_file.tmp'`;
+		@msg = `tr -d '\r' < '$udir/$sequence_file' > '$udir/$sequence_file.tmp'`;
 		`mv '$udir/$sequence_file.tmp' '$udir/$sequence_file'`;
 		$file_type = 'ASCII text';
 	    }
+	    push(@{$data->[0]->{messages}}, join("<br>",@msg));
 
-	    unless ($file_type eq 'ASCII text' || $file_type eq "ASCII text, with very long lines") {
-		$file_type = "binary or invalid end of line characters<br><b>WARNING</b> You will not be able to use this file as a sequence file!";
+	    unless (($file_type eq 'ASCII text') || ($file_type eq 'ASCII text, with very long lines')) {
+	        $file_type = "binary or invalid end of line characters";
+	        push(@{$data->[0]->{messages}}, "WARNING: The sequnce file $sequence_file seems to be binary or contain invalid end of line characters. You will not be able to use this file as a sequence file.");
 	    }
 
 	    my $file_eol      = &file_eol($file_type);
@@ -331,7 +334,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
 	    
 	    # call the extended information
-	    if ($file_type eq 'ASCII text') {
+	    if (($file_type eq 'ASCII text') || ($file_type eq 'ASCII text, with very long lines')) {
 		my $compute_script = $Conf::sequence_statistics;
 		my $jobid = $user->{login};
 		my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
@@ -545,7 +548,7 @@ sub file_eol {
 	$file_type =~ s/Java program //;
 	$file_type =~ s/English //;
 
-	if ( $file_type eq 'ASCII text' )
+	if ( ($file_type eq 'ASCII text') || ($file_type eq 'ASCII text, with very long lines') )
 	{
 	    $file_eol = $/;
 	}
