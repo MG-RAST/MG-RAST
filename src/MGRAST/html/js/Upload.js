@@ -43,11 +43,13 @@ function update_inbox (data, files, action) {
 	  seq_dlist[dlist[i]] = 1;
 	  seqs_in_dir = true;
 	}
-	  if (seq_dlist[dlist[i]] == 1 && ! DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn]['bp count']) {
-	      html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
-	  } else {
-	      html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
-	  }
+	if (seq_dlist[dlist[i]] == 1 && ! DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn]['bp count']) {
+	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if (seq_dlist[dlist[i]] == 1 && DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn]['Error']) {
+	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='there was an error in the sequence stats computation for this file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else {
+	  html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	}
       }
       html += "</optgroup>";
     }
@@ -60,12 +62,13 @@ function update_inbox (data, files, action) {
       if (isMet) {
 	metadata_files[metadata_files.length] = flist[i];
       }
-	if (isSeq && ! DataStore['user_inbox'][user.login].fileinfo[flist[i]]['bp count']) {
-	    html += "<option title='the sequence stats computation for this file is still running' style='color: gray;'>"+flist[i]+"</option>";
-	} else {
-	    html += "<option>"+flist[i]+"</option>";
-	}
-
+      if (isSeq && ! DataStore['user_inbox'][user.login].fileinfo[flist[i]]['bp count']) {
+	html += "<option title='the sequence stats computation for this file is still running' style='color: gray;'>"+flist[i]+"</option>";
+      } else if (isSeq && DataStore['user_inbox'][user.login].fileinfo[flist[i]]['Error']) {
+	html += "<option title='there was an error in the sequence stats computation for this file' style='color: gray;'>"+flist[i]+"</option>";
+      } else {
+	html += "<option>"+flist[i]+"</option>";
+      }
     }
     html += '</select>';
     html += '</form></td><td id="inbox_feedback"></td></tr><tr><td id="inbox_file_info"></td></tr></table>';
@@ -83,7 +86,7 @@ function update_inbox (data, files, action) {
 	  var fn = DataStore['user_inbox'][user.login].fileinfo[i][h];
 	  if (fn.match(is_a_sequence_file_ending)) {
 	    var inf = DataStore['user_inbox'][user.login].fileinfo[i+'/'+fn];
-	    if (inf && inf['bp count'] && inf['file type'] != 'malformed' && inf['unique id count'] && inf['sequence count'] && inf['unique id count'] == inf['sequence count']) {
+	      if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error'])) {
 	      var trow = [ 0, i, fn, inf['format'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
@@ -94,7 +97,7 @@ function update_inbox (data, files, action) {
       for (var i=0; i<sequence_files.length; i++) {
 	  var fn = sequence_files[i];
 	  var inf = DataStore['user_inbox'][user.login].fileinfo[fn];
-	  if (inf && inf['bp count'] && inf['file type'] != 'malformed' && inf['unique id count'] && inf['sequence count'] && inf['unique id count'] == inf['sequence count']) {
+	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error'])) {
 	    var trow = [ 0, "-", fn, "-", inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
 	  }
