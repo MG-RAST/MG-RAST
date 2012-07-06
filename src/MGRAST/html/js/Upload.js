@@ -444,8 +444,13 @@ function select_metadata_file () {
 	  document.getElementById("icon_step_2").style.display = "";
 	  check_submitable();
 	} else {
-	  alert(result[2]);
-	  unselect_metadata_file();
+	    if (result[1] eq 'taken') {
+		alert(result[2]);
+		unselect_metadata_file();
+	    } else {
+		document.getElementById("sel_mdfile_div").innerHTML = result[2];
+		update_inbox();
+	    }
 	}
       });
   }
