@@ -93,17 +93,9 @@ sub output {
       <div>~;
 
   if ($cgi->param('create_job')) {
-    my $dupes = $self->check_for_duplicates();
-    if ($dupes && @$dupes) {
-      $html .= "<div class='alert alert-info'><h4>Job submission failure</h4><p>Your data was not submitted to the pipeline. The following metagenome(s) already exists in MG-RAST with the same upload file(s) as you have submitted:</p><blockquote><table><tr><th>MG-RAST ID</th><th>md5sum</th><th>Your File</th></tr>";
-      map { $html .= "<tr><td>".$_->[0]."</td><td>".$_->[1]."</td><td>".$_->[2]."</td><td></tr>" } @$dupes;
-      $html .= "</table></blockquote>";
-      $html .= "<p>Click here to still submit: <input type='button' class='btn' value='submit duplicate job' onclick='submit_job();'></p></div>";
-    } else {
-      my $success = $self->submit_to_mgrast();
-      if ($success && @$success) {
-	$html .= "<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: ".join(", ", @$success)."</p></div>";
-      }
+    my $success = $self->submit_to_mgrast();
+    if ($success && @$success) {
+      $html .= "<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: ".join(", ", @$success)."</p></div>";
     }
   }
 
@@ -603,8 +595,9 @@ sub check_for_duplicates {
   my $seqfiles = [];
   my $base_dir = "$Conf::incoming";
   my $udir     = $base_dir."/".md5_hex($user->login);
+  my $output   = '';
 
-  @$seqfiles = split /\|/, $cgi->param('seqfiles');
+  @$seqfiles = split(/\|/, $cgi->param('seqfiles'));
 
   my $dupes = [];
   foreach my $seqfile (@$seqfiles) {
@@ -618,11 +611,21 @@ sub check_for_duplicates {
       next unless (exists $info->{file_checksum});
       my $dupe = $jobdbm->Job->has_checksum($info->{file_checksum}, $user);
       if ($dupe) {
-	push @$dupes, [$dupe, $info->{file_checksum}, $seqfile];
+	push @$dupes, [$dupe, $seqfile];
       }
     }
   }
-  return $dupes;
+  if (@$dupes > 0) {
+    $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tYour File\n---------------\t---------------\n";
+    map { $output .= join("\t", @$_)."\n" } @$dupes;
+    $output .= "\nDo you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
+    print $cgi->header;
+    print $output;
+  } else {
+    print $cgi->header;
+    print "unique";
+  }
+  exit 0;
 }
 
 sub check_project_name {

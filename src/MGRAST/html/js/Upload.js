@@ -43,11 +43,18 @@ function update_inbox (data, files, action) {
 	  seq_dlist[dlist[i]] = 1;
 	  seqs_in_dir = true;
 	}
-	  if (seq_dlist[dlist[i]] == 1 && ! DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn]['bp count']) {
-	      html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
-	  } else {
-	      html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
-	  }
+	var inf = DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn];
+	if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
+	  html += "<option style='display: none; padding-left: 35px; color: red;' title='this is a malformed / unidentifiable sequence file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && inf['Error']) {
+	  html += "<option style='display: none; padding-left: 35px; color: red;' title='there was an error in the sequence stats computation for this file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
+	  html += "<option style='display: none; padding-left: 35px; color: red;' title='the unique id count does not match the sequence count' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && (! inf['bp count'])) {
+	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else {
+	  html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	}
       }
       html += "</optgroup>";
     }
@@ -60,12 +67,18 @@ function update_inbox (data, files, action) {
       if (isMet) {
 	metadata_files[metadata_files.length] = flist[i];
       }
-	if (isSeq && ! DataStore['user_inbox'][user.login].fileinfo[flist[i]]['bp count']) {
-	    html += "<option title='the sequence stats computation for this file is still running' style='color: gray;'>"+flist[i]+"</option>";
-	} else {
-	    html += "<option>"+flist[i]+"</option>";
-	}
-
+      var inf = DataStore['user_inbox'][user.login].fileinfo[flist[i]];
+      if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
+	html += "<option title='this is a malformed / unidentifiable sequence file' style='color: red;'>"+flist[i]+"</option>";
+      } else if (isSeq && inf['Error']) {
+	html += "<option title='there was an error in the sequence stats computation for this file' style='color: red;'>"+flist[i]+"</option>";
+      } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
+	html += "<option title='the unique id count does not match the sequence count' style='color: red;'>"+flist[i]+"</option>";
+      } else if (isSeq && (! inf['bp count'])) {
+	html += "<option title='the sequence stats computation for this file is still running' style='color: gray;'>"+flist[i]+"</option>";
+      } else {
+	html += "<option>"+flist[i]+"</option>";
+      }
     }
     html += '</select>';
     html += '</form></td><td id="inbox_feedback"></td></tr><tr><td id="inbox_file_info"></td></tr></table>';
@@ -83,8 +96,8 @@ function update_inbox (data, files, action) {
 	  var fn = DataStore['user_inbox'][user.login].fileinfo[i][h];
 	  if (fn.match(is_a_sequence_file_ending)) {
 	    var inf = DataStore['user_inbox'][user.login].fileinfo[i+'/'+fn];
-	    if (inf && inf['bp count'] && inf['file type'] != 'malformed' && inf['unique id count'] && inf['sequence count'] && inf['unique id count'] == inf['sequence count']) {
-	      var trow = [ 0, i, fn, inf['format'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
+	      if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error'])) {
+	      var trow = [ 0, i, fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
 	  }
@@ -94,8 +107,8 @@ function update_inbox (data, files, action) {
       for (var i=0; i<sequence_files.length; i++) {
 	  var fn = sequence_files[i];
 	  var inf = DataStore['user_inbox'][user.login].fileinfo[fn];
-	  if (inf && inf['bp count'] && inf['file type'] != 'malformed' && inf['unique id count'] && inf['sequence count'] && inf['unique id count'] == inf['sequence count']) {
-	    var trow = [ 0, "-", fn, "-", inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
+	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error'])) {
+	    var trow = [ 0, "-", fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
 	  }
       }
@@ -111,8 +124,15 @@ function update_inbox (data, files, action) {
       document.getElementById('inbox_select').onchange = function () {
 	var fn = this.options[this.selectedIndex].value;
 	if (DataStore.user_inbox[user.login].fileinfo && DataStore.user_inbox[user.login].fileinfo[fn]) {
-	  var ptext = "<h4>File Information</h4><br>";
-	    if (DataStore.user_inbox[user.login].fileinfo[fn]['unique id count'] && DataStore.user_inbox[user.login].fileinfo[fn]['sequence count'] && DataStore.user_inbox[user.login].fileinfo[fn]['unique id count'] != DataStore.user_inbox[user.login].fileinfo[fn]['sequence count']) {
+	    var ptext = "<h4>File Information</h4><br>";
+	    var inf = DataStore.user_inbox[user.login].fileinfo[fn]
+	    if (inf['file type'] && (inf['file type'] == 'malformed')) {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This is a malformed / unidentifiable sequence file. You will not be able to use this file for submission.</div>';
+	    }
+	    else if (inf['Error']) {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>There was an error in the sequence stats computation:<br><span style="padding-left: 10px;"><pre>'+inf['Error']+'</pre></span><br>You will not be able to use this file for submission.</div>';
+	    }
+	    else if (inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>The unique id count does not match the sequence count. You will not be able to use this file for submission.</div>';
 
 	    }
@@ -424,8 +444,13 @@ function select_metadata_file () {
 	  document.getElementById("icon_step_2").style.display = "";
 	  check_submitable();
 	} else {
-	  alert(result[2]);
-	  unselect_metadata_file();
+	    if (result[1] == 'taken') {
+		alert(result[2]);
+		unselect_metadata_file();
+	    } else {
+		document.getElementById("sel_mdfile_div").innerHTML = result[2];
+		update_inbox();
+	    }
 	}
       });
   }
@@ -465,7 +490,18 @@ function check_submitable () {
 }
 
 function submit_job () {
-  document.forms.submission_form.submit();
+  var seq_files = selected_sequence_files.join('|');
+  $.get("?page=Upload&action=check_for_duplicates&seqfiles="+seq_files, function (data) {
+      if (data == "unique") {
+	  document.forms.submission_form.submit();
+      } else {
+	  if ( confirm(data) ) {
+	      document.forms.submission_form.submit();
+	  } else {
+	      return false;
+	  }
+      }
+  });
 }
 
 function toggle (id) {

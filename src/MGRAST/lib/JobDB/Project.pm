@@ -97,10 +97,10 @@ sub count_public {
 }
 
 sub get_private_projects {
-  my ($self, $user) = @_;
+  my ($self, $user, $edit) = @_;
 
   unless ($user && ref($user)) { return []; }
-  my $ids = $user->has_right_to(undef, 'view', 'project');
+  my $ids = $edit ? $user->has_right_to(undef,'edit','project') : $user->has_right_to(undef,'view','project');
   unless ($ids && (@$ids > 0)) { return []; }
 
   my $private = [];
