@@ -444,7 +444,7 @@ function select_metadata_file () {
 	  document.getElementById("icon_step_2").style.display = "";
 	  check_submitable();
 	} else {
-	    if (result[1] eq 'taken') {
+	    if (result[1] == 'taken') {
 		alert(result[2]);
 		unselect_metadata_file();
 	    } else {
@@ -490,7 +490,18 @@ function check_submitable () {
 }
 
 function submit_job () {
-  document.forms.submission_form.submit();
+  var seq_files = selected_sequence_files.join('|');
+  $.get("?page=Upload&action=check_for_duplicates&seqfiles="+seq_files, function (data) {
+      if (data == "unique") {
+	  document.forms.submission_form.submit();
+      } else {
+	  if ( confirm(data) ) {
+	      document.forms.submission_form.submit();
+	  } else {
+	      return false;
+	  }
+      }
+  });
 }
 
 function toggle (id) {
