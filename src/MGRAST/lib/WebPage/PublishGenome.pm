@@ -39,6 +39,7 @@ sub init {
   $self->title("Make metagenome publicly accessible");
 
   # register components
+  $self->application->register_component('Table', 'private_projects_table');
   $self->application->register_component('Table', 'DisplayMetaData');
   $self->application->register_component('Ajax', 'Display_Ajax');
 
@@ -148,9 +149,22 @@ sub meta_info {
     unshift @tdata, [ "<font color='red'>Project</font>", "<font color='red'>project_name</font>", $project->name ];
   } elsif ($no_proj_md) {
     my $error = "<p><font color='red'>We are unable to publish your metagenome due to the following errors:</font></p>";
-    $error .= "<p>Your metagenome does not exist in a project. Please create a new project or add it to an existing project before you can publish.<br>";
-    $error .= "This can be done through the Browse Page: <a title='Browse Metagenomes' href='?page=MetagenomeSelect'>";
-    $error .= "<img style='padding-left:15px; height:25px;' src='./Html/mgrast_globe.png'></a></p>";
+    $error .= "<p>Your metagenome does not exist in a project. Please create a new project or add it to an existing project before you can publish.</p>";
+
+    my $projects = $self->app->data_handle('MGRAST')->Project->get_private_projects($user, 1);
+    if (@$project > 0) {
+      my $pp_table = $self->app->component('private_projects_table');
+      $pp_table->columns( [ { name => 'id' }, { name => 'name' }, { name => 'type' } ] );
+      $pp_table->data([ map { [ $_->{id}, "<a href='?page=MetagenomeProject&project=".$_->{id}."' target=_blank>".($_->{name} ? $_->{name} : "-")."</a>", $_->{type} ] } grep { $_->{id} } @$projects ]);
+      $pp_table->items_per_page(20);
+      $pp_table->show_select_items_per_page(1);
+      $pp_table->show_top_browse(1);
+      $error .= "<p>Projects you can add metagenomes to:<br>".$pp_table->output()."<br>";
+    }
+    else {
+      $error .= "<p>You have no existing projects, please create one: ";
+    }
+    $error .= "<a onclick='pname=prompt(\"Enter new project name\",\"\");if(pname.length){window.top.location=\"?page=MetagenomeProject&action=create&pname=\"+pname;}' style='cursor:pointer;font-size:11px;font-weight:bold;'>create new project</a></p>";
     return $error;
   }
   
