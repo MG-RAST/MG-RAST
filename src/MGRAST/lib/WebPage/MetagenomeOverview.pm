@@ -1314,6 +1314,7 @@ sub get_consensus_chart {
   # data = [ pos, N, G, C, T, A ]
   foreach my $row (@$consensus) {
     next if (($row->[0] eq '#') || (! $row->[6]));
+    next if (($row->[0] > 100) && ($row->[6] < 1000));
     my $sum = $row->[6];
     my @per = map {  floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
     push @$data, [ $row->[0] + 1, $per[5], $per[3], $per[2], $per[4], $per[1] ];
