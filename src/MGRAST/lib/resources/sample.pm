@@ -80,6 +80,17 @@ sub request {
     if ($cgi->param('template')) {
       $mdata = $mddb->add_template_to_data('sample', $mdata);
     }
+    my $env_package = undef;
+    if (@$epack) {
+      my $edata = $epack->[0]->data;
+      $edata->{sample_name} = $name;
+      $edata = $cgi->param('template') ? $mddb->add_template_to_data($epack->[0]->ep_type, $edata) : $edata;
+      $env_package = { id       => "mge".$epack->[0]->ID,
+		       name     => $epack->[0]->name || "mge".$epack->[0]->ID,
+		       type     => $epack->[0]->ep_type,
+		       created  => $epack->[0]->entry_date,
+		       metadata => $edata };
+    }
 
     $obj->{id}       = "mgs".$sample->ID;
     $obj->{about}    = "sample";
@@ -89,7 +100,7 @@ sub request {
     $obj->{created}  = $sample->entry_date;
     $obj->{metadata} = $mdata;
     $obj->{project}  = $proj ? "mgp".$proj->{id} : undef;
-    $obj->{env_package} = @$epack ? "mge".$epack->[0]->{ID} : undef;
+    $obj->{env_package} = $env_package;
     @{ $obj->{libraries} } = map { "mgl".$_->{ID} } @{ $sample->children('library') };
     @{ $obj->{metagenomes} } = map { "mgm".$_->{metagenome_id} } @jobs;
 
