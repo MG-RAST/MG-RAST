@@ -21,7 +21,7 @@ if (scalar(@$session)) {
     $user = $session->[0]->user;
 }
 
-my $seq_ext = "fasta|faa|fa|ffn|frn|fna|fastq|fq";
+my $seq_ext = "fasta|fa|ffn|frn|fna|fastq|fq";
 
 # if there is no user, abort the request
 unless ($user) {
@@ -226,7 +226,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    $count++;
 		}
 		`mv '$udir/$ufile' '$udir/$newfilename'`;
-		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.<br><b>WARNING</b> If this is a sequence file associated with a library in your metadata, you will have to adjust the library name in the metadata file!");
+		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.<br><b>WARNING</b> If this is a sequence file associated with a library in your metadata, you will have to adjust the library file_name or metagenome_name in the metadata file!");
 		$ufile = $newfilename;
 	    }
 	    
@@ -272,9 +272,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			}
 			close FH;
 		    }
-		    if ($info->{'file type'} && $info->{'file type'} eq 'malformed') {
-			push(@{$data->[0]->{messages}}, "WARNING: The sequnce file $fn seems to be malformed. You will not be able to submit this file.");
-		    }
 		    $data->[0]->{fileinfo}->{$fn} = $info;
 		} else {
 		    unless ($ufile =~ /\//) {
@@ -290,19 +287,22 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	# create basic and extended file information if we do not yet have it
 	if (! $info_files->{$sequence_file}) {
-	    my $file_type     = &file_type($sequence_file, $udir);
+	    my $file_type = &file_type($sequence_file, $udir);
+	    my @msg;
 
 	    if ($file_type eq 'ASCII text, with CR line terminators') {
-		`sed -i 's/\r/\n/g' '$udir/$sequence_file'`;
-		$file_type = 'ASCII text';
+	      @msg = `sed -i 's/\r/\n/g' '$udir/$sequence_file'`;
+	      $file_type = 'ASCII text';
 	    } elsif ($file_type eq 'ASCII text, with CRLF line terminators') {
-		`tr -d '\r' < '$udir/$sequence_file' > '$udir/$sequence_file.tmp'`;
-		`mv '$udir/$sequence_file.tmp' '$udir/$sequence_file'`;
-		$file_type = 'ASCII text';
+	      @msg = `tr -d '\r' < '$udir/$sequence_file' > '$udir/$sequence_file.tmp'`;
+	      `mv '$udir/$sequence_file.tmp' '$udir/$sequence_file'`;
+	      $file_type = 'ASCII text';
 	    }
+	    push(@{$data->[0]->{messages}}, join("<br>",@msg));
 
-	    unless ($file_type eq 'ASCII text' || $file_type eq "ASCII text, with very long lines") {
-		$file_type = "binary or invalid end of line characters<br><b>WARNING</b> You will not be able to use this file as a sequence file!";
+	    unless ($file_type eq 'ASCII text') {
+	      $file_type = "binary or non-ASCII or invalid end of line characters";
+	      push(@{$data->[0]->{messages}}, "WARNING: The sequnce file $sequence_file seems to be binary or non-ASCII or contain invalid end of line characters. You will not be able to use this file as a sequence file.");
 	    }
 
 	    my $file_eol      = &file_eol($file_type);
@@ -332,14 +332,14 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    
 	    # call the extended information
 	    if ($file_type eq 'ASCII text') {
-		my $compute_script = $Conf::sequence_statistics;
-		my $jobid = $user->{login};
-		my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
-		my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
-		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
-		open(FH, ">>$udir/.tmp/jobs");
-		print FH "$jnum";
-		close FH;
+	      my $compute_script = $Conf::sequence_statistics;
+	      my $jobid = $user->{login};
+	      my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
+	      my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+	      $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+	      open(FH, ">>$udir/.tmp/jobs");
+	      print FH "$jnum";
+	      close FH;
 	    }
 	}
     }
@@ -441,31 +441,31 @@ sub file_type {
 
     chomp $file_type;
 
-    if ( $file_type =~ m/\S/ ) 
-    {
-	$file_type =~ s/^\s+//;   #...trim leading whitespace
-	$file_type =~ s/\s+$//;   #...trim trailing whitespace
+    if ( $file_type =~ m/\S/ ) {
+      $file_type =~ s/^\s+//;   #...trim leading whitespace
+      $file_type =~ s/\s+$//;   #...trim trailing whitespace
+    } else {
+      # file does not work for fastq -- craps out for lines beginning with '@' on mg-rast machine!
+      # check first 4 lines for fastq like format
+      my @lines = `cat -A '$dir/$file' 2>/dev/null | head -n4`;
+      chomp @lines;
+
+      if ( ($lines[0] =~ /^\@/) && ($lines[0] =~ /\$$/) && ($lines[1] =~ /\$$/) &&
+	   ($lines[2] =~ /^\+/) && ($lines[2] =~ /\$$/) && ($lines[3] =~ /\$$/) ) {
+	$file_type = 'ASCII text';
+      } else {
+	$file_type = 'unknown file type, check end-of-line characters and (if fastq) fastq formatting';
+      }
     }
-    else
-    {
-	# file does not work for fastq -- craps out for lines beginning with '@' on mg-rast machine!
-	# check first 4 lines for fastq like format
 
-	my @lines = `cat -A '$dir/$file' 2>/dev/null | head -n4`;
-
-	chomp @lines;
-
-	if ( $lines[0] =~ /^\@/  and $lines[0] =~ /\$$/ and
-	     $lines[1] =~ /\$$/ and
-	     $lines[2] =~ /^\+/  and $lines[2] =~ /\$$/ and
-	     $lines[3] =~ /\$$/ )
-	{
-	    $file_type = 'ASCII text';
-	}
-	else
-	{
-	    $file_type = 'unknown file type, check end-of-line characters and (if fastq) fastq formatting';
-	}
+    if ($file_type =~ /^ASCII/) {
+      # ignore some useless information and stuff that gets in when the file command guesses wrong
+      $file_type =~ s/, with very long lines//;
+      $file_type =~ s/C\+\+ program //;
+      $file_type =~ s/Java program //;
+      $file_type =~ s/English //;
+    } else {
+      $file_type = "binary or non-ASCII file";
     }
 
     return $file_type;
@@ -537,54 +537,20 @@ sub file_eol {
 
     my $file_eol;
 
-    if ( $file_type =~ /ASCII/ )
-    {
-	# ignore some useless informationa and stuff that gets in when the file command guesses wrong
-	$file_type =~ s/, with very long lines//;
-	$file_type =~ s/C\+\+ program //;
-	$file_type =~ s/Java program //;
-	$file_type =~ s/English //;
+    if ($file_type eq 'ASCII text') {
+      $file_eol = $/;
+    } elsif ($file_type eq 'ASCII text, with CR line terminators') {
+      $file_eol = "\cM";
+    } elsif ($file_type eq 'ASCII text, with CRLF line terminators') {
+      $file_eol = "\cM\cJ";
+    } elsif ($file_type =~ /^ASCII/) {
+      # ASCII but unuseable
+      $file_eol = "ASCII file has mixed or no line terminators";
+    } else {
+      # none of the above? its binary or unicode
+      $file_eol = "binary or non-ASCII file";
+    }
 
-	if ( $file_type eq 'ASCII text' )
-	{
-	    $file_eol = $/;
-	}
-	elsif ( $file_type eq 'ASCII text, with CR line terminators' )
-	{
-	    $file_eol = "\cM";
-	}
-	elsif ( $file_type eq 'ASCII text, with CRLF line terminators' )
-	{
-	    $file_eol = "\cM\cJ";
-	}
-	elsif ( $file_type eq 'ASCII text, with CR, LF line terminators' )
-	{
-	    $file_eol = "ASCII file has mixed (CR, LF) line terminators";
-	}
-	elsif ( $file_type eq 'ASCII text, with CRLF, LF line terminators' ) 
-	{
-	    $file_eol = "ASCII file has mixed (CRLF, LF) line terminators";
-	}
-	elsif ( $file_type eq 'ASCII.*text, with CRLF, CR line terminators' ) 
-	{
-	    $file_eol = "ASCII file has mixed (CRLF, CR) line terminators";
-	}
-	elsif ( $file_type eq 'ASCII text, with no line terminators' ) 
-	{
-	    $file_eol = "ASCII file has no line terminators";
-	}
-	else 
-	{
-	    # none of the above? use default and see what happens
-	    $file_eol = $/;
-	}
-    }
-    else
-    {
-	# non-ASCII?
-	$file_eol = $/;
-    }
-	
     return $file_eol;
 }
 

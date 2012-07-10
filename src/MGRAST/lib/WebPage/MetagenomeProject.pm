@@ -779,13 +779,13 @@ sub upload_md {
       close $tmp_hdl;
       close $fhdl;
     } else {
-      $application->add_message('warning', "could not save $fname: $!");
+      $application->add_message('warning', "could not save / find file: $fname");
       return 0;
     }
     ## validate
     my ($is_valid, $mdata, $log) = $meta->validate_metadata($tmp_name, $skip);
     unless ($is_valid) {
-      $application->add_message('warning', "uploaded metadata is invalid:<br><pre>".$log."</pre>");
+      $application->add_message('warning', "uploaded metadata is invalid, no metadata has been updated:<br><pre>".$log."</pre>");
       return 0;
     }
     my $skip_jobs = [];
@@ -859,11 +859,11 @@ sub upload_file {
 	chmod 0777, $savedir.$filename;
 	$application->add_message('info', "$filename uploaded successfully");
       } else {
-	$application->add_message('warning', "could not save $filename: $!");
+	$application->add_message('warning', "could not save / find file: $filename");
 	return 0;
       }
     } else {
-      $application->add_message('warning', "could not save $filename: $!");
+      $application->add_message('warning', "could not save / find file: $filename");
       return 0;
     }
   } else {
