@@ -319,7 +319,11 @@ function select_sequence_file () {
 	var valid = 1;
 	var broken = "";
 	for (i=0;i<selected_sequence_files.length; i++) {
-	  var fn = selected_sequence_files[i].substr(0, selected_sequence_files[i].lastIndexOf('.'));
+	  var start = 0;
+	  if (selected_sequence_files[i].indexOf('/') > -1) {
+	    start = selected_sequence_files[i].lastIndexOf('/') + 1;
+	  }
+	  var fn = selected_sequence_files[i].substr(start, selected_sequence_files[i].lastIndexOf('.'));
 	  var found = 0;
 	  for (h=0; h<selected_libraries.length; h++) {
 	    if (selected_libraries[h] == fn) {

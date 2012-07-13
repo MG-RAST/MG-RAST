@@ -230,7 +230,7 @@ sub get_jobs_metadata_fast {
   my $dbh   = $self->{_handle}->db_handle;
   my $key   = $is_mgid ? 'metagenome_id' : 'job_id';
   my $where = $is_mgid ? 'metagenome_id IN ('.join(',', map {"'$_'"} @$job_ids).')' : 'job_id IN ('.join(',', @$job_ids).')';
-  my $jobs = $dbh->selectall_arrayref("SELECT ".$key.", primary_project, sample, library, sequence_type, name FROM Job WHERE ".$where);
+  my $jobs = $dbh->selectall_arrayref("SELECT ".$key.",primary_project,sample,library,sequence_type,name,metagenome_id,file,file_checksum_raw FROM Job WHERE ".$where);
   my $meth = $dbh->selectall_arrayref("SELECT j.".$key.", a.value FROM Job j, JobAttributes a WHERE j._id=a.job AND a.tag='sequencing_method_guess'");
   my %pids = map { $_->[1], 1 } grep {$_->[1] && ($_->[1] =~ /\d+/)} @$jobs;
   my %sids = map { $_->[2], 1 } grep {$_->[2] && ($_->[2] =~ /\d+/)} @$jobs;
@@ -272,8 +272,9 @@ sub get_jobs_metadata_fast {
   }
 
   foreach my $row (@$jobs) {
-    my ($j, $p, $s, $l, $t, $n) = @$row;
-    $n = $n || '';
+    # $key,primary_project,sample,library,sequence_type,name,metagenome_id,file,file_checksum_raw
+    my ($j, $p, $s, $l, $t, $n, $m, $f, $c) = @$row;
+    $n = $n || '';    
     if ($p && exists($projs->{$p})) {
       map { $projs->{$p}{data}{$_} =~ s/^(gaz|country):\s?//i } grep {$projs->{$p}{data}{$_}} keys %{$projs->{$p}{data}};
       $data->{$j}{project} = $projs->{$p};
@@ -290,16 +291,21 @@ sub get_jobs_metadata_fast {
       unless ($data->{$j}{library}{name}) {
 	$data->{$j}{library}{name} = $n;
       }
-      ## type: calculated takes precidence over inputed
+      ## type: calculated takes precidence over inputed      
       if ($t) {
 	$data->{$j}{library}{type} = $t;
       } else {
 	$data->{$j}{library}{type} = $libs->{$l}{data}{investigation_type} || '';
 	$data->{$j}{library}{type} = ($data->{$j}{library}{type} =~ /metagenome/i) ? 'WGS' : (($data->{$j}{library}{type} =~ /mimarks/i) ? 'Amplicon' : '');
       }
-      unless ($data->{$j}{data}{seq_meth}) {
-	$data->{$j}{data}{seq_meth} = exists($mmap{$j}) ? $mmap{$j} : '';
+      unless ($data->{$j}{library}{data}{seq_meth}) {
+	$data->{$j}{data}{library}{seq_meth} = exists($mmap{$j}) ? $mmap{$j} : '';
       }
+      # make sure these are same as job table
+      $data->{$j}{library}{data}{metagenome_id}   = $m;
+      $data->{$j}{library}{data}{metagenome_name} = $n;
+      if ($f) { $data->{$j}{library}{data}{file_name} = $f; }
+      if ($c) { $data->{$j}{library}{data}{file_checksum} = $c; }
     }
     if ($s && exists($epks->{$s})) {
       $data->{$j}{env_package} = $epks->{$s};
@@ -354,6 +360,12 @@ sub get_jobs_metadata {
       unless ($data->{$key}{library}{data}{seq_meth}) {
 	$data->{$key}{library}{data}{seq_meth} = $job->data('sequencing_method_guess')->{sequencing_method_guess} || '';
       }
+      # make sure these are same as job table
+      $data->{$key}{library}{data}{metagenome_id}   = $job->{metagenome_id};
+      $data->{$key}{library}{data}{metagenome_name} = $job->{name} ? $job->{name} : '';
+      if ($job->{file}) { $data->{$key}{library}{data}{file_name} = $job->{file}; }
+      if ($job->{file_checksum_raw}) { $data->{$key}{library}{data}{file_checksum} = $job->{file_checksum_raw}; }
+      # add template if requested
       if ($full_data) {
 	$data->{$key}{library}{data} = $self->add_template_to_data($job->library->lib_type, $data->{$key}{library}{data});
       }
@@ -610,7 +622,9 @@ sub export_metadata_for_project {
       my $lib_jobs = $lib->jobs;
       if (@$lib_jobs > 0) {
 	$ldata->{metagenome_id} = $lib_jobs->[0]->{metagenome_id};
-	$ldata->{metagenome_name} = $lib_jobs->[0]->{name};
+	$ldata->{metagenome_name} = $lib_jobs->[0]->{name} || '';
+	if ($lib_jobs->[0]->{file}) { $ldata->{file_name} = $lib_jobs->[0]->{file}; }
+	if ($lib_jobs->[0]->{file_checksum_raw}) { $ldata->{file_checksum} = $lib_jobs->[0]->{file_checksum_raw}; }
       }
       push @{ $s_obj->{libraries} }, { name => $lib->name || 'mgl'.$lib->ID,
 				       id   => 'mgl'.$lib->ID,
