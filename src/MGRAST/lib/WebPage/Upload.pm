@@ -192,8 +192,12 @@ sub output {
 		                 <progress id="prog2" min="0" max="100" value="0" style="width: 400px;">0% complete</progress>
     		              </td>
 		           </tr>
+                           <tr>
+                              <td style="height: 50px;">
+	                         <a class="btn btn-danger" href="#" onclick="cancel_upload();" style="position: relative; top: 5px; left: 435px;"><i class="icon-ban-circle"></i> cancel upload</a>
+                              </td>
+                           </tr>
 	                </table>
-	                <a class="btn btn-danger" href="#" onclick="cancel_upload();" style="position: relative; top: 9px; left: 435px;"><i class="icon-ban-circle"></i> cancel upload</a>
  	             </div>
                   </div>
                
