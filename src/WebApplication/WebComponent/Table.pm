@@ -402,9 +402,9 @@ sub output {
 	$vis = '<div id="tcsel'.$self->id.'_'.$cind.'" style="border: 1px inset black; width: 10px; height: 12px; margin-top: 1px; padding-left: 2px;">&nbsp;</div>';
       }
       if ($self->column_select_toggle) {
-	$table .= "<tr style='cursor: pointer;' onclick='if (document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML.length > 1) { document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML = \"x\"; show_column(\"" . $self->id . "\", \"" . $cind . "\"); } else { document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML = \"&nbsp;\"; hide_column(\"" . $self->id . "\", \"" . $cind . "\"); }; document.getElementById(\"tscs" . $self->id . "\").style.display = \"none\";'><td style='font-weight: bold;'>$vis</td><td>".$col->{name_only}."</td></tr>";
+	$table .= "<tr style='cursor: pointer;' onclick='if (document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML.length > 1) { document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML = \"&times;\"; show_column(\"" . $self->id . "\", \"" . $cind . "\"); } else { document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML = \"&nbsp;\"; hide_column(\"" . $self->id . "\", \"" . $cind . "\"); }; document.getElementById(\"tscs" . $self->id . "\").style.display = \"none\";'><td style='font-weight: bold;'>$vis</td><td>".$col->{name_only}."</td></tr>";
       } else {
-	$table .= "<tr style='cursor: pointer;' onclick='if (document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML.length > 1) { document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML = \"x\"; } else { document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML = \"&nbsp;\"; };'><td style='font-weight: bold;'>$vis</td><td>".$col->{name_only}."</td></tr>";
+	$table .= "<tr style='cursor: pointer;' onclick='if (document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML.length > 1) { document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML = \"&times;\"; } else { document.getElementById(\"tcsel".$self->id."_".$cind."\").innerHTML = \"&nbsp;\"; };'><td style='font-weight: bold;'>$vis</td><td>".$col->{name_only}."</td></tr>";
       }
       $cind++;
     }

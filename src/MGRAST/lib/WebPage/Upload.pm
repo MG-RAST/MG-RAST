@@ -165,7 +165,7 @@ sub output {
                        <td style="padding-left: 240px;">
                           <p>Select one or more files to upload to your private inbox folder.</p>
                           <p>Sequence files must be fasta, fastq, or sff format.
-                             Use vaild file extensions for the appropriate format: .fasta, .fa, .ffn, .frn, .fna, .fq, .fastq, .sff</p>
+                             Use vaild file extensions for the appropriate format: .fasta, .fa, .ffn, .frn, .fna, .fq, .fastq, .sff </p>
                        </td>
                     </tr>
                  </table>
