@@ -923,9 +923,12 @@ sub add_valid_metadata {
   my $curator = $self->add_curator($user);
   my $job_map = {};
   if ($map_by_id) {
-    %$job_map = map { $_->metagenome_id, $_ } grep { $user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) } @$jobs;
+    %$job_map = map {$_->metagenome_id, $_} grep {$user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) || $user->has_star_right('edit', 'metagenome')} @$jobs;
   } else {
-    %$job_map = map { $_->name, $_ } grep { $user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) } @$jobs;
+    %$job_map = map {$_->name, $_} grep {$user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) || $user->has_star_right('edit', 'metagenome')} @$jobs;
+  }
+  if (scalar(keys %$job_map) < scalar(@$jobs)) {
+    print STDERR "user lacks permission to edit ".(scalar(@$jobs) - scalar(keys %$job_map))." metagenome(s)";
   }
   
   ### create project / add jobs and metadata
@@ -933,7 +936,7 @@ sub add_valid_metadata {
     my @pmd  = map { [$_, $data->{data}{$_}{value}] } keys %{$data->{data}};
     $project = $mddb->Project->create_project($user, $data->{name}, \@pmd, $curator, 0);
   }
-  unless ( $user->has_right(undef, 'edit', 'project', $project->id) ) {
+  unless ( $user->has_right(undef, 'edit', 'project', $project->id) || $user->has_star_right('edit', 'project') ) {
     print STDERR "user lacks permission to edit project ".$project->id;
     return [];
   }
@@ -951,6 +954,7 @@ sub add_valid_metadata {
 	$samp_proj = $mddb->ProjectCollection->get_objects({project => $project, collection => $samp_coll});
       }
       if (@$samp_proj == 0) {
+	print STDERR "sample ".$samp->{id}." does not exist";
 	next SAMP;
       } else {
 	# valid sample for this project
@@ -1070,6 +1074,7 @@ sub add_valid_metadata {
       }
     }
     unless ($has_lib) {
+      print STDERR "sample ".$samp_coll->name." has no library, deleting sample";
       $samp_coll->delete_all;
       $samp_coll->delete;
     }
