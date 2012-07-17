@@ -123,8 +123,11 @@ sub output {
     my $meta_hash = {};
     %$meta_hash   = map { $_->{tag} => $_->{value} } @$all_meta;
     $self->{meta_info} = $meta_hash;
-    $self->{project}   = $project;
-    $self->{is_editor} = $user ? $user->has_right(undef, 'edit', 'project', $project->id) : 0;
+    $self->{project}   = $project;    
+    $self->{is_editor} = 0;
+    if ($user && ($user->has_right(undef, 'edit', 'project', $project->id) || $user->has_star_right('edit', 'project'))) {
+      $self->{is_editor} = 1;
+    }
 
     my $download  = "";
     my $down_info = $self->app->component('download_info');
@@ -142,11 +145,18 @@ sub output {
     $html .= "<tr><td><b>Static Link</b></td><td style='padding-left:15px;'><a href='$proj_link'>$proj_link</a></td></tr></table>";
 
     if ($self->{is_editor}) {
+      my $editable_jobs = 0;
+      my %mg_rights = map { $_, 1 } @{ $user->has_right_to(undef, 'edit', 'metagenome') };      
+      foreach my $mgid ( @{$project->metagenomes(1)} ) {
+	if (exists($mg_rights{'*'}) || exists($mg_rights{$mgid})) {
+	  $editable_jobs += 1;
+	}
+      }
       my $delete_div    = $project->public ? '' : "<div style='display:none;' id='delete_div'>".$self->delete_info()."</div>";
       my $share_html    = $self->share_info();
       my $edit_html     = $self->edit_info();
       my $add_info_html = $self->add_info_info($project->id);
-      my $add_md_html   = $self->add_md_info($project->id);
+      my $add_md_html   = $editable_jobs ? $self->add_md_info($project->id) : '';
 
       $html .= "<p><div class='quick_links'><ul>";
       if (! $project->public) {
@@ -191,13 +201,17 @@ sub output {
     document.getElementById("add_info_div").style.display = "inline";
   } else {
     document.getElementById("add_info_div").style.display = "none";
-  }'>Upload Info</a></li>
+  }'>Upload Info</a></li>~;
+      if ($editable_jobs) {
+	$html .= qq~
 <li><a style='cursor:pointer;' onclick='
   if (document.getElementById("add_md_div").style.display == "none") {
     document.getElementById("add_md_div").style.display = "inline";
   } else {
     document.getElementById("add_md_div").style.display = "none";
-  }'>Upload MetaData</a></li>
+  }'>Upload MetaData</a></li>~;
+      }
+      $html .= qq~
 <li><a style='cursor:pointer;' onclick='
   if (document.getElementById("export_md_div").style.display == "none") {
     document.getElementById("export_md_div").style.display = "inline";
@@ -211,9 +225,9 @@ $delete_div
 <div style='display:none;' id='add_job_div'></div>
 <div style='display:none;' id='edit_div'>$edit_html</div>
 <div style='display:none;' id='add_info_div'>$add_info_html</div>
-<div style='display:none;' id='add_md_div'>$add_md_html</div>
-<img src='./Html/clear.gif' onload='execute_ajax(\"export_metadata\", \"export_md_div\", \"project=$id\");'>
+<img src='./Html/clear.gif' onload='execute_ajax("export_metadata", "export_md_div", "project=$id");'>
 <div style='display:none;' id='export_md_div'></div>~;
+      $html .= $editable_jobs ? "<div style='display:none;' id='add_md_div'>$add_md_html</div>" : "";
     } else {
       $html .= qq~<p><div class='quick_links'><ul>
 <li><a style='cursor:pointer;' onclick='
@@ -223,7 +237,7 @@ $delete_div
     document.getElementById("export_md_div").style.display = "none";
   }'>Export MetaData</a></li>
 </ul></div></p>
-<img src='./Html/clear.gif' onload='execute_ajax(\"export_metadata\", \"export_md_div\", \"project=$id\");'>
+<img src='./Html/clear.gif' onload='execute_ajax("export_metadata", "export_md_div", "project=$id");'>
 <div style='display:none;' id='export_md_div'></div>~;
     }
 
@@ -556,7 +570,7 @@ sub job_list {
 sub export_metadata {
   my ($self) = @_;
 
-  my $html  = '';
+  my $html  = "<h3>Export MetaData</h3>";
   my $json  = new JSON;
   $json = $json->utf8();
   my $pid   = $self->application->cgi->param('project');
@@ -571,7 +585,7 @@ sub export_metadata {
   close JFH;
   my $cmd = $Conf::export_metadata." -j $jfile -o $mfile";
   unless (system($cmd) == 0) {
-    return "<p>ERROR: Could not transform metadata to excel format: $!</p>";
+    return $html."<p>ERROR: Could not transform metadata to excel format: $!</p>";
   }
 
   ## validate
@@ -584,10 +598,9 @@ sub export_metadata {
     close JFH;
     $cmd = $Conf::export_metadata." -j $jfile -o $mfile";
     unless (system($cmd) == 0) {
-      return "<p>ERROR: Could not transform metadata to excel format: $!</p>";
+      return $html."<p>ERROR: Could not transform metadata to excel format: $!</p>";
     }
   }
-
   $html .= "<p><b>click to download: </b><a href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filetype=xlsx&filename=$base.xlsx'>MG-RAST metadata file</a></p>";
   unless ($is_valid) {
     $html .= "<p><font color='red'>This metadata file is currently invalid:</font><br><pre>$log</pre></p>";
@@ -656,7 +669,7 @@ sub add_md_info {
   
   my $html = "<h3>Add / Relaod MetaData</h3>";
   $html .= $self->start_form('upload_form', {project => $pid, action => 'upload_md'});
-  $html .= "Map metagenome to metadata by: <select name='map_type'><option value='name'>Metagenome Name</option><option value='id'>MG-RAST ID</option></select>";
+  $html .= "Map metagenome to metadata by: <select name='map_type'><option value='name'>Metagenome Name</option><option value='id'>Metagenome ID</option></select>";
   $html .= "<br><br><input type='file' name='upload_md' size ='38'><span>&nbsp;&nbsp;&nbsp;</span><input type='submit' value='upload'>";
   $html .= $self->end_form();
   return $html;
