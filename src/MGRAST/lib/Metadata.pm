@@ -914,31 +914,39 @@ sub add_valid_metadata {
   my ($self, $user, $data, $jobs, $project, $map_by_id, $delete_old) = @_;
 
   unless ($user && ref($user)) {
-    print STDERR "invalid user object";
-    return [];
+    return ([], ["invalid user object"]);
   }
 
+  my $err_msg = [];
   my $added   = [];
   my $mddb    = $self->{_handle};
   my $curator = $self->add_curator($user);
   my $job_map = {};
+  my $job_name_change = []; # [old, new]
   if ($map_by_id) {
     %$job_map = map {$_->metagenome_id, $_} grep {$user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) || $user->has_star_right('edit', 'metagenome')} @$jobs;
   } else {
     %$job_map = map {$_->name, $_} grep {$user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) || $user->has_star_right('edit', 'metagenome')} @$jobs;
   }
   if (scalar(keys %$job_map) < scalar(@$jobs)) {
-    print STDERR "user lacks permission to edit ".(scalar(@$jobs) - scalar(keys %$job_map))." metagenome(s)";
+    push @$err_msg, "user lacks permission to edit ".(scalar(@$jobs) - scalar(keys %$job_map))." metagenome(s)";
   }
   
   ### create project / add jobs and metadata
+  my $new_proj = 0;
+  my @proj_md  = map { [$_, $data->{data}{$_}{value}] } keys %{$data->{data}};
   unless ($project && ref($project)) {
-    my @pmd  = map { [$_, $data->{data}{$_}{value}] } keys %{$data->{data}};
-    $project = $mddb->Project->create_project($user, $data->{name}, \@pmd, $curator, 0);
+    $project  = $mddb->Project->create_project($user, $data->{name}, \@proj_md, $curator, 0);
+    $new_proj = 1;
   }
   unless ( $user->has_right(undef, 'edit', 'project', $project->id) || $user->has_star_right('edit', 'project') ) {
-    print STDERR "user lacks permission to edit project ".$project->id;
-    return [];
+    push @$err_msg, "user lacks permission to edit project ".$project->id;
+    return ([], $err_msg);
+  }
+  unless ($new_proj) {
+    foreach my $md (@proj_md) {
+      $project->data($md->[0], $md->[1]);
+    }
   }
 
   ## process samples
@@ -954,7 +962,7 @@ sub add_valid_metadata {
 	$samp_proj = $mddb->ProjectCollection->get_objects({project => $project, collection => $samp_coll});
       }
       if (@$samp_proj == 0) {
-	print STDERR "sample ".$samp->{id}." does not exist";
+	push @$err_msg, "sample ".$samp->{id}." does not exist";
 	next SAMP;
       } else {
 	# valid sample for this project
@@ -1007,6 +1015,7 @@ sub add_valid_metadata {
       my $lib_mg  = $map_by_id ? ($lib->{data}{metagenome_id} ? $lib->{data}{metagenome_id}{value} : undef) : $lib->{data}{metagenome_name}{value};
       my $lib_job = ($lib_mg && exists($job_map->{$lib_mg})) ? $job_map->{$lib_mg} : undef;
       unless ($lib_job && ref($lib_job)) {
+	push @$err_msg, "unable to map a metagenome to library ".$lib->{name};
 	next LIB;
       }
 
@@ -1021,6 +1030,7 @@ sub add_valid_metadata {
 	  $lib_proj = $mddb->ProjectCollection->get_objects({project => $project, collection => $lib_coll});
 	}
 	if (@$lib_proj == 0) {
+	  push @$err_msg, "library ".$lib->{id}." does not exist";
 	  next LIB;
 	} else {
 	  # valid library for this project
@@ -1043,7 +1053,7 @@ sub add_valid_metadata {
       ### add job to project
       my $msg = $project->add_job($lib_job);
       if ($msg =~ /error/i) {
-	print STDERR $msg;
+	push @$err_msg, $msg;
 	next LIB;
       } else {
 	## delete old if exists and not same as new
@@ -1071,15 +1081,20 @@ sub add_valid_metadata {
 	$project->add_collection( $lib_job->library );
 	push @$added, $lib_job;
 	$has_lib = 1;
+
+	# change job name if differs and using id mapping
+	if ($map_by_id && exists($lib->{data}{metagenome_name}) && ($lib->{data}{metagenome_name}{value} ne $lib_job->name)) {
+	  $lib_job->name( $lib->{data}{metagenome_name}{value} );
+	}
       }
     }
     unless ($has_lib) {
-      print STDERR "sample ".$samp_coll->name." has no library, deleting sample";
+      push @$err_msg, "sample '".$samp_coll->name."' has no library, not creating sample";
       $samp_coll->delete_all;
       $samp_coll->delete;
     }
   }
-  return $added;
+  return ($added, $err_msg);
 }
 
 sub html_dump {

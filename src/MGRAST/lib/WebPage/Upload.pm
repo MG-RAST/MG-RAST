@@ -543,9 +543,10 @@ sub submit_to_mgrast {
   }
 
   my $successfully_created_jobs = [];
+  my $err_msgs = [];
   # create metadata collections
   if ($mdata) {
-    $successfully_created_jobs = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
+    ($successfully_created_jobs, $err_msgs) = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
   }
   # else just add to project
   elsif ($project_obj) {
