@@ -1430,6 +1430,19 @@ sub workbench_blat_output {
   my $blat_cmd = "blat -prot -out=blast ".$nr_file_name." ".$fgs_infile_name.".fgs.faa ".$fgs_infile_name.".blat.out";
   `$blat_cmd`;
 
+  # Printing some error messages to inform users if this fails.
+  foreach my $mg (@metas) {
+    my $mgrast = $self->application->data_handle('MGRAST');
+    my $js = $mgrast->Job->get_objects( { metagenome_id => $mg } );
+    my $job_stats = $js->[0]->stats();
+    my $raw_len_max = exists($job_stats->{length_max_raw}) ? $job_stats->{length_max_raw} : 0;
+    if($raw_len_max > 500000) {
+      $self->application->add_message('warning', "The maximum sequence length in this metagenome is $raw_len_max"."bp which is over the size limit (500kbp) for this part of the analysis.");
+    } elsif($fgs_infile_content eq "") {
+      $self->application->add_message('warning', "Unable to retrieve any sequences for this project.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact mg-rast\@mcs.anl.gov");
+    }
+  }
+
   my $fgs_output = "";
   if (open(FH, "<".$fgs_infile_name.".fgs")) {
     while (<FH>) {
