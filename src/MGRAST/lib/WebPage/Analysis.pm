@@ -1419,16 +1419,6 @@ sub workbench_blat_output {
     push @fastas, ">".$s->{id}."\n".$s->{sequence};
   }
   my $fgs_infile_content = join("\n", @fastas);
-  my ($fgs_infile, $fgs_infile_name) = tempfile( "fgs_in_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.faa');
-  print $fgs_infile $fgs_infile_content;
-  close $fgs_infile;
-  my ($nr_file, $nr_file_name) = tempfile( "nr_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.faa');
-  print $nr_file $nr_seq_data;
-  close $nr_file;
-  my $fgs_cmd = $Conf::fraggenescan_executable." -s $fgs_infile_name -o " . $fgs_infile_name . ".fgs -w 0 -t 454_30";
-  `$fgs_cmd`;
-  my $blat_cmd = "blat -prot -out=blast ".$nr_file_name." ".$fgs_infile_name.".fgs.faa ".$fgs_infile_name.".blat.out";
-  `$blat_cmd`;
 
   # Printing some error messages to inform users if this fails.
   foreach my $mg (@metas) {
@@ -1441,7 +1431,21 @@ sub workbench_blat_output {
     } elsif($fgs_infile_content eq "") {
       $self->application->add_message('warning', "Unable to retrieve any sequences for this project.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact mg-rast\@mcs.anl.gov");
     }
+    $self->{blat} = "<br />No results were returned.";
+
+    return 1;
   }
+
+  my ($fgs_infile, $fgs_infile_name) = tempfile( "fgs_in_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.faa');
+  print $fgs_infile $fgs_infile_content;
+  close $fgs_infile;
+  my ($nr_file, $nr_file_name) = tempfile( "nr_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.faa');
+  print $nr_file $nr_seq_data;
+  close $nr_file;
+  my $fgs_cmd = $Conf::fraggenescan_executable." -s $fgs_infile_name -o " . $fgs_infile_name . ".fgs -w 0 -t 454_30";
+  `$fgs_cmd`;
+  my $blat_cmd = "blat -prot -out=blast ".$nr_file_name." ".$fgs_infile_name.".fgs.faa ".$fgs_infile_name.".blat.out";
+  `$blat_cmd`;
 
   my $fgs_output = "";
   if (open(FH, "<".$fgs_infile_name.".fgs")) {
