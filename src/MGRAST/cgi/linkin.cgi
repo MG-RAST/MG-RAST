@@ -46,6 +46,13 @@ sub main {
 	}
     
     } else {
+	my @params = $cgi->keywords;
+	foreach my $p (@params) {
+	    if ($p =~ /^project(\d+)$/) {
+		print $cgi->redirect('metagenomics.cgi?page=MetagenomeProject&project='.$1);
+	    }
+	}
+	
 	$error = '<h2>Invalid link</h2><p>You linked to MG-RAST without passing an appropriate id.<br></p>';
     }
 
