@@ -153,7 +153,7 @@ sub output {
 				   "material"    => $self->get_unique_job_info('material'),
 				   "env_package" => $mddb->get_cv_list('env_package'),
 				   "country"     => $self->get_unique_job_info('country'),
-				   "sequencing method" => $mddb->get_cv_list('seq_method') },
+				   "sequencing method" => $mddb->get_cv_list('seq_meth') },
 		 "organism"   => { "tax_phylum" => $mgdb->ach->get_taxonomy4level("tax_phylum"),
 				   "tax_domain" => $mgdb->ach->get_taxonomy4level("tax_domain") },
 		 "Subsystems" => { "level1" => $mgdb->ach->get_level4ontology("Subsystems","level1"),
