@@ -877,7 +877,7 @@ sub update_curator {
 }
 
 sub validate_metadata {
-  my ($self, $filename, $skip_required) = @_;
+  my ($self, $filename, $skip_required, $map_by_id) = @_;
 
   my $extn = '';
   if ($filename =~ /\.(xls(x)?)$/) {
@@ -890,7 +890,7 @@ sub validate_metadata {
 
   my $data = {};
   my $json = new JSON;
-  my $cmd  = $Conf::validate_metadata.($skip_required ? " -s" : "")." -f $extn -j $out_name $filename 2>&1";
+  my $cmd  = $Conf::validate_metadata.($skip_required ? " -s" : "").($map_by_id ? " -d" : "")." -f $extn -j $out_name $filename 2>&1";
   my $log  = `$cmd`;
   chomp $log;
   

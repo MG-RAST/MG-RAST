@@ -796,7 +796,7 @@ sub upload_md {
       return 0;
     }
     ## validate
-    my ($is_valid, $mdata, $log) = $meta->validate_metadata($tmp_name, $skip);
+    my ($is_valid, $mdata, $log) = $meta->validate_metadata($tmp_name, $skip, $map_by_id);
     unless ($is_valid) {
       $application->add_message('warning', "uploaded metadata file is invalid, no metadata has been updated:<br><pre>".$log."</pre>");
       return 0;
