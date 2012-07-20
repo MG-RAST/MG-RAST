@@ -270,7 +270,7 @@ sub single_select {
   $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("single_sel_ident").style.display="";')."</td><td style='display: none;' id='single_sel_ident'>".$self->identity_select()."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("single_sel_alen").style.display="";')."</td><td style='display: none;' id='single_sel_alen'>".$self->alength_select()."</td></tr></table>";
 #  $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
-  $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about the known members within each metagenome.'></td><td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td><td style='padding-right: 15px;'><img src='./Html/rarefaction.jpg'></td><td></td></tr><tr><td><input type=radio name='vis_type' value='vbar' checked=checked>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree' checked=checked>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td><td><input type=radio name='vis_type' value='heatmap' checked=checked>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca' checked=checked>&nbsp;PCoA</td><td><input type=radio name='vis_type' value='rarefaction' checked=checked>&nbsp;rarefaction</td><td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"single_visual\",\"buffer_space\",\"single_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
+  $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px; display: none;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about the known members within each metagenome.'></td><td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td><td style='padding-right: 15px;'><img src='./Html/rarefaction.jpg'></td><td></td></tr><tr><td style='display: none;'><input type=radio name='vis_type' value='vbar'd>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td><td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td><td><input type=radio name='vis_type' value='rarefaction'>&nbsp;rarefaction</td><td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"single_visual\",\"buffer_space\",\"single_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
 
   return $select;
 }
@@ -1856,8 +1856,13 @@ sub single_visual {
   my $content = "";
   my $cgi = $self->application->cgi;
   my $data = $self->single_data();
-  #return "<div><div>test</div><div><pre>".clear_progress_image().Dumper($data)."</pre></div></div>";
   # mgid => md5 => abundance
+
+  # new
+  #  0        1           2         3           4            5         6            7        8        9         10      11          12         13        14       15      16
+  # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+
+  # old
   # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
 
   my $tabnum = $cgi->param('tabnum') || 2;
@@ -2100,7 +2105,7 @@ sub single_visual {
       $noclick = 1;
     }
 
-    my $dom_v = $self->data_to_vbar($md5_abund, $vbardata, $level, 10, ($cgi->param('top')||10), 'phylo', $fid, undef, $noclick);
+    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level, 10, ($cgi->param('top')||10), 'phylo', $fid, undef, $noclick);
 
     $settings .= "<i>$psettings</i><br>";
     # check for p-value calculation
@@ -2317,12 +2322,12 @@ sub single_visual {
 	$mg2num->{$comp_mgs[$hh]} = $hh;
       }
       foreach my $row (@$data) {
-	next if ($tree_domain_filter && $tree_domain_filter ne $row->[2]);
-	$spec_hash->{$row->[9]} = [ @$row[2..9] ];
-	unless (exists($exp_hash->{$row->[9]})) {
-	  $exp_hash->{$row->[9]} = [];
+	next if ($tree_domain_filter && $tree_domain_filter ne $row->[1]);
+	$spec_hash->{$row->[8]} = [ @$row[1..8] ];
+	unless (exists($exp_hash->{$row->[8]})) {
+	  $exp_hash->{$row->[8]} = [];
 	}
-	$exp_hash->{$row->[9]}->[$mg2num->{$row->[0]}] = $row->[10];
+	$exp_hash->{$row->[8]}->[$mg2num->{$row->[0]}] = $row->[9];
       }
       foreach my $key (sort(keys(%$exp_hash))) {
 	my $vals = [];
@@ -2339,13 +2344,13 @@ sub single_visual {
       }    
     } else {
       foreach my $row (@$data) {
-	next if ($tree_domain_filter && $tree_domain_filter ne $row->[2]);
+	next if ($tree_domain_filter && $tree_domain_filter ne $row->[1]);
 	foreach my $r (@$row) {
 	  if ($r =~ /derived/) {
 	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
 	  }
 	}
-	push(@$expanded_data, [ @$row[2..10] ] );
+	push(@$expanded_data, [ @$row[1..9] ] );
       }
     }
     @$expanded_data = sort { $b->[8] <=> $a->[8] } @$expanded_data;
@@ -2368,11 +2373,11 @@ sub single_visual {
     if ($cgi->param('high_res')) {
       print $cgi->header();
       print $cgi->start_html();
-      $pt->size(10000);
-      $pt->level_distance(400);
-      $pt->leaf_weight_space(600);
+      $pt->size(5000);
+      $pt->level_distance(200);
+      $pt->leaf_weight_space(300);
       $pt->enable_click(0);
-      $pt->title_space(3000);
+      $pt->title_space(1500);
       $pt->font_size($cgi->param('pts') || 40);
       $pt->{thick2} = 10;
       $pt->{thick} = 30;
@@ -2480,13 +2485,13 @@ sub single_visual {
 	next unless ($d->[$level]);
 	if (exists($hashed_data->{$d->[$level]})) {
 	  if ($hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}]) {
-	    $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] += $d->[10];
+	    $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] += $d->[9];
 	  } else {
-	    $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] = $d->[10];
+	    $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] = $d->[9];
 	  }
 	} else {
 	  $hashed_data->{$d->[$level]} = [];
-	  $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] = $d->[10];
+	  $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] = $d->[9];
 	}
       }
       foreach my $key (keys(%$hashed_data)) {
