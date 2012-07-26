@@ -68,7 +68,7 @@ sub request {
     print "ERROR: abundance profile call requires at least an id parameter";
     exit 0;
   }
-  
+
   my $id = shift @$rest;
   (undef, $id) = $id =~ /^(mgm)?(\d+\.\d+)$/;
   unless ($id) {
@@ -96,13 +96,13 @@ sub request {
     exit 0;
   }
 
+  # set params
   my $params = {};
   while (scalar(@$rest) > 1) {
     my $key = shift @$rest;
     my $value = shift @$rest;
     $params->{$key} = $value;
   }
-
   $params->{type}   = $cgi->param('type') ? $cgi->param('type') : 'organism';
   $params->{source} = $cgi->param('source') ? $cgi->param('source') :
     (($params->{type} eq 'organism') ? 'M5NR' : (($params->{type} eq 'function') ? 'Subsystems': 'RefSeq'));
@@ -117,12 +117,29 @@ sub request {
   }
   $mgdb->set_jobs([$id]);
 
-  my $all_srcs = $mgdb->ach->sources();
+  # validate type / source
+  my $all_srcs = {};
+  if ($params->{type} eq 'organism') {
+    $all_srcs = { M5NR => 1, M5RNA => 1 };
+    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_protein_sources};
+    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_rna_sources};
+  } elsif ($params->{type} eq 'function') {
+    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_ontology_sources};
+  } elsif ($params->{type} eq 'feature') {
+    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_protein_sources};
+    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_rna_sources};
+  } else {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 400,
+		       -Access_Control_Allow_Origin => '*' );
+    print "ERROR: Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']";
+    exit 0;
+  }
   unless (exists $all_srcs->{ $params->{source} }) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid source for profile call: ".$params->{source}." - valid types are [".join(",", keys %$all_srcs)."]";
+    print "ERROR: Invalid source for profile call of type ".$params->{type}.": ".$params->{source}." - valid types are [".join(", ", keys %$all_srcs)."]";
     exit 0;
   }
 
@@ -135,6 +152,7 @@ sub request {
 		  { id => 'alignment length', metadata => { metagenome => 'mgm'.$id } }
 		];
 
+  # get data
   if ($params->{type} eq 'organism') {
     $ttype = 'Taxon';
     my $strain2tax = $mgdb->ach->map_organism_tax_id();
@@ -171,13 +189,6 @@ sub request {
       push(@$rows, { "id" => $row->[1], "metadata" => { $params->{source}." ID" => $md52id->{$row->[1]} } });
       push(@$values, [ toFloat($row->[2]), toFloat($row->[3]), toFloat($row->[5]), toFloat($row->[7]) ]);
     }
-  }
-  else {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 400,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid type for profile call: ".$params->{type}." - valid types are [ 'organism', 'function', 'feature' ]";
-    exit 0;
   }
 
   my $data = { "id"                  => "mgm".$id,
