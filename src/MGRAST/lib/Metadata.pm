@@ -20,7 +20,7 @@ sub new {
   $debug = $debug || '';
   my $self = { app   => $app,
 	       debug => $debug,
-	       ontology_url => 'http://bioportal.bioontology.org/ontologies/',
+	       ontology_url => 'http://bioportal.bioontology.org/visualize/',
 	       ontology_api => 'http://rest.bioontology.org/bioportal/search',
 	       ontology_key => '56a9721b-0d62-4185-933d-81447db2457a'
 	     };
