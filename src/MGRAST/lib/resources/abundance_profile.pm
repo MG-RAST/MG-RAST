@@ -121,13 +121,13 @@ sub request {
   my $all_srcs = {};
   if ($params->{type} eq 'organism') {
     $all_srcs = { M5NR => 1, M5RNA => 1 };
-    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_protein_sources};
-    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_rna_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
   } elsif ($params->{type} eq 'function') {
-    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_ontology_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_ontology_sources};
   } elsif ($params->{type} eq 'feature') {
-    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_protein_sources};
-    map { $all_srcs->{$_} = 1 } @{$mgdb->ach->get_rna_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
   } else {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
