@@ -292,12 +292,7 @@ sub get_jobs_metadata_fast {
 	$data->{$j}{library}{name} = $n;
       }
       ## type: calculated takes precidence over inputed      
-      if ($t) {
-	$data->{$j}{library}{type} = $t;
-      } else {
-	$data->{$j}{library}{type} = $libs->{$l}{data}{investigation_type} || '';
-	$data->{$j}{library}{type} = ($data->{$j}{library}{type} =~ /metagenome/i) ? 'WGS' : (($data->{$j}{library}{type} =~ /mimarks/i) ? 'Amplicon' : '');
-      }
+      $data->{$j}{library}{type} = $t ? $t : $self->investigation_type_alias($libs->{$l}{data}{investigation_type});
       unless ($data->{$j}{library}{data}{seq_meth}) {
 	$data->{$j}{data}{library}{seq_meth} = exists($mmap{$j}) ? $mmap{$j} : '';
       }
@@ -351,12 +346,7 @@ sub get_jobs_metadata {
     if ($job->library) {
       $data->{$key}{library} = {id => 'mgl'.$job->library->ID, name => $job->library->name || $job->name, data => $job->library->data};
       ## type: calculated takes precidence over inputed
-      if ($job->sequence_type) {
-	$data->{$key}{library}{type} = $job->sequence_type;
-      } else {
-	$data->{$key}{library}{type} = $job->library->lib_type || '';
-	$data->{$key}{library}{type} = ($data->{$key}{library}{type} =~ /metagenome/i) ? 'WGS' : (($data->{$key}{library}{type} =~ /mimarks/i) ? 'Amplicon' : '');
-      }
+      $data->{$key}{library}{type} = $job->sequence_type ? $job->sequence_type : $self->investigation_type_alias($job->library->lib_type);
       unless ($data->{$key}{library}{data}{seq_meth}) {
 	$data->{$key}{library}{data}{seq_meth} = $job->data('sequencing_method_guess')->{sequencing_method_guess} || '';
       }
@@ -1095,6 +1085,18 @@ sub add_valid_metadata {
     }
   }
   return ($added, $err_msg);
+}
+
+sub investigation_type_alias {
+  my ($type) = @_;
+  unless ($type) { return ""; }
+  if    ($type eq 'metagenome')        { return "WGS"; }
+  elsif ($type eq 'mimarks-survey')    { return "Amplicon"; }
+  elsif ($type eq 'metatranscriptome') { return "MT"; }
+  elsif ($type eq 'WGS')               { return "metagenome"; }
+  elsif ($type eq 'Amplicon')          { return "mimarks-survey"; }
+  elsif ($type eq 'MT')                { return "metatranscriptome"; }
+  else { return ""; }
 }
 
 sub html_dump {

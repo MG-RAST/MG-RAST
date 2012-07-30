@@ -826,11 +826,11 @@ sub seq_method {
 
 sub seq_type {
   my ($self) = @_;
+  my $mddb  = MGRAST::Metadata->new();
   my $guess = $self->sequence_type || '';
   my $input = $self->get_metadata_value('investigation_type', 'library');
   ## calculated takes precidence over inputed
-  $input = ($input =~ /metagenome/i) ? 'WGS' : (($input =~ /mimarks/i) ? 'Amplicon' : '');
-  return $guess ? $guess : $input;
+  return $guess ? $guess : $mddb->investigation_type_alias($input);
 }
 
 sub pubmed {
