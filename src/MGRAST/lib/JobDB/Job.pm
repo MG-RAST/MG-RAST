@@ -111,6 +111,16 @@ sub initialize {
     }
   }
   
+  # replace whitespace
+  foreach my $key (keys %$params) {
+    $key =~ s/\s+/_/g;
+    $params->{$key} =~ s/\s+/_/g;
+  }
+  # sequence_type is currently a guess, add it
+  if (exists $params->{sequence_type}) {
+    $params->{sequence_type_guess} = $params->{sequence_type};
+  }
+
   my $job_keys  = ['name','file','file_size','file_checksum','sequence_type'];
   my $stat_keys = ['bp_count','sequence_count','average_length','standard_deviation_length','length_min','length_max','average_gc_content','standard_deviation_gc_content','average_gc_ratio','standard_deviation_gc_ratio','ambig_char_count','ambig_sequence_count','average_ambig_chars','drisee_score'];
 
@@ -175,8 +185,6 @@ sub initialize {
   
   foreach my $key (keys %$params) {
     next if (exists $used_keys->{$key});
-    $key =~ s/\s+/_/g;
-    $params->{$key} =~ s/\s+/_/g;
     $master->JobAttributes->create({ job => $job, tag => $key, value => $params->{$key} });
   }
   $job->set_filter_options();
