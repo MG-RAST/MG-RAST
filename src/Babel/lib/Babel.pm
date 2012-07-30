@@ -462,7 +462,7 @@ sub get_level4ontology {
 }
 
 sub get_level4ontology_full {
-  my ($self, $source, $level) = @_;
+  my ($self, $source, $level, $no_join) = @_;
   
   my $table = $self->get_ontology_table($source);
   unless ($table) { return []; }
@@ -485,7 +485,11 @@ sub get_level4ontology_full {
   if ($hasl && scalar(@cols)) {
     my $rows = $self->dbh->selectall_arrayref("SELECT DISTINCT ".join(", ", @cols)." FROM $table");
     if ($rows && (@$rows > 0)) {
-      map { $sets->{$_->[-1]} = join(";", @$_) } grep { $_->[-1] && ($_->[-1] =~ /\S/) } @$rows;
+      if ($no_join) {
+	map { $sets->{$_->[-1]} = $_ } grep { $_->[-1] && ($_->[-1] =~ /\S/) } @$rows;
+      } else {
+	map { $sets->{$_->[-1]} = join(";", @$_) } grep { $_->[-1] && ($_->[-1] =~ /\S/) } @$rows;
+      }
     }
   }
   return $sets;
