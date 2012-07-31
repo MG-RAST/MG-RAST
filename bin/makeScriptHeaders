@@ -2,7 +2,7 @@
 
 TOOL_HDR=$1
 
-echo "#!/usr/bin/env perl
+echo "#!/soft/packages/perl/5.12.1/bin/perl
 
 BEGIN {
     unshift @INC, qw(
