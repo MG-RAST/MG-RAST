@@ -14,12 +14,30 @@ my $json = new JSON;
 $json = $json->utf8();
 
 sub about {
-  my $content = { 'description' => "",
-		  'parameters'  => { "id" => "string",
-				     "type" => ["level1", "level2", "subsystem", "role"],
-				     "format" => [ "plain", "biome" ] },
-		  'defaults' => { "type" => "subsystem",
-				  "format" => "biom" },
+  my $content = { 'description' => "genome matrix",
+		  'options' => { "id" => ["string", "metagenome or project id"],
+				 "group_level" => [ ['subsystem', 'function subsystem level'],
+						    ['role', 'function role level'],
+						    ['level2', 'subsystem group level'],
+						    ['level1', 'top hierarchy level']
+						  ],
+				 "format" => [ ['biom', 'Biological Observation Matrix (BIOM) format: http://biom-format.org/'],
+					       ['plain', 'tab-seperated plain text format']
+					     ]
+			       },
+		  'attributes' => { "id"                   => "string",
+				    "format"               => "string",
+				    "format_url"           => "uri",
+				    "type"                 => "string",
+				    "generated_by"         => "string",
+				    "date"                 => "datetime",
+				    "matrix_type"          => "string",
+				    "matrix_element_type"  => "string",
+				    "shape"                => "list<integer>",
+				    "rows"                 => "list<object>",
+				    "columns"              => "list<object>",
+				    "data"                 => "list<list<integer>>"
+				  },
 		  'version' => $version,
 		  'return_type' => "application/json" };
 
@@ -42,33 +60,24 @@ sub request {
   my $ua = LWP::UserAgent->new;
   my $cdmi_url = "http://bio-data-1.mcs.anl.gov/services/cdmi_api";
 
-  ## no ids, show all available genome ids
-  unless ($rest && scalar(@$rest)) {
-    my $data = { 'params' => [ 0, 1000000, ["id"] ],
-		 'method' => 'CDMI_EntityAPI.all_entities_Genome',
-		 'version' => $version };
-    
-    my $response = $json->decode($ua->post($cdmi_url, Content => $json->encode($data))->content);
-    $response = $response->{result};
-
-    my $genome_list = [];
-    @$genome_list = map { keys(%$_) } @$response;
-
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
+  # get params
+  unless ($cgi->param('id')) {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
-    
-    print $json->encode( $genome_list );
+    print "ERROR: No ids submitted, aleast one 'id' is required";
     exit 0;
   }
 
-  my $type   = $cgi->param('type') || "subsystem";
+  my @ids    = $cgi->param('id');
+  my $type   = $cgi->param('group_level') || "subsystem";
   my $format = $cgi->param('format') || "biom";
+
   unless ($type =~ /^(level1|level2|subsystem|role)$/) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid type parameter, use one of: 'subsystem', 'role'";
+    print "ERROR: Invalid group_level parameter, use one of: 'subsystem', 'role'";
     exit 0;
   }
   unless ($format =~ /^(biom|plain)$/) {
@@ -81,7 +90,7 @@ sub request {
 
   ## get genome data
   my $content;
-  my $genome_data = { 'params' => [ $rest, [ "id", "pegs", "rnas", "scientific_name", "complete", "prokaryotic", "dna_size", "contigs", "domain", "genetic_code", "gc_content", "phenotype", "md5", "source_id" ] ],
+  my $genome_data = { 'params' => [ \@ids, [ "id", "pegs", "rnas", "scientific_name", "complete", "prokaryotic", "dna_size", "contigs", "domain", "genetic_code", "gc_content", "phenotype", "md5", "source_id" ] ],
 		      'method' => 'CDMI_EntityAPI.get_entity_Genome',
 		      'version' => $version };
   $content = $json->encode($genome_data);
@@ -169,7 +178,7 @@ sub request {
     foreach my $f (@funcs) {
       my $row = [];
       foreach my $g (@orgs) {
-	push @$row, exists($fmap->{$f}{$g}) ? $fmap->{$f}{$g} : 0;
+	push @$row, exists($fmap->{$f}{$g}) ? int($fmap->{$f}{$g}) : 0;
       }
       push @$matrix, $row;
     }
