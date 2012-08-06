@@ -147,7 +147,7 @@ if ($resource) {
     if ($resource eq 'about') {
         my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
 	my $content = { id => 'MG-RAST',
-			documentation => $Conf::html_url.'/api.html',
+			documentation => $Conf::cgi_url.'Html/api.html',
 			contact => 'mg-rast@mcs.anl.gov',
 			resources => \@resource_objects,
 			url => $cgi->url."/" };
@@ -182,7 +182,7 @@ else {
     if ($ENV{HTTP_ACCEPT} eq '*/*') {
 	my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
 	my $content = { id => 'MG-RAST',
-			documentation => $Conf::html_url.'/api.html',
+			documentation => $Conf::cgi_url.'Html/api.html',
 			contact => 'mg-rast@mcs.anl.gov',
 			resources => \@resource_objects,
 			url => $cgi->url."/" };

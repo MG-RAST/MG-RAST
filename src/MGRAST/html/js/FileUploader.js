@@ -120,7 +120,7 @@ function upload(blobOrFile, fn) {
 }
 
 function cancel_upload () {
-  if (confirm('do you really want to cance the current upload?')) {
+  if (confirm('Do you really want to cancel the current upload?')) {
     for (var i=0; i<pending_uploads.length; i++) {
       pending_uploads[i].abort();
     }

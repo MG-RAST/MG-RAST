@@ -887,6 +887,19 @@ sub get_abundance_for_tax_level {
   my ($self, $level, $names, $sources, $value) = @_;
 
   unless ($sources && @$sources) { $sources = []; }
+  my $m5_map    = {};
+  my $get_m5nr  = first {$_ =~ /^m5nr$/i} @$sources;
+  my $get_m5rna = first {$_ =~ /^m5rna$/i} @$sources;
+  if ($get_m5nr) {
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("protein") };
+  }
+  if ($get_m5rna) {
+    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("rna") };
+  }
+  if ($get_m5nr || $get_m5rna) {
+    @$sources = grep { (! exists $m5_map->{$_}) && ($_ !~ /(m5nr|m5rna)/i) } @$sources;
+    push @$sources, keys %$m5_map;
+  }
   my $all = ($names && (@$names > 0)) ? 0 : 1;
   my $name_map = $self->ach->get_organisms4level($level, $names);
   my $src_str  = @$sources ? join("", @$sources) : '';
