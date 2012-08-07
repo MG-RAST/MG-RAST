@@ -117,7 +117,7 @@ sub request {
 	$obj->{errors} = { total => $stats->{drisee_score_raw} ? $stats->{drisee_score_raw} * 1.0 : undef };
 
 	if ($drisee && (@$drisee > 2) && ($drisee->[1][0] eq '#')) {
-	  $obj->{errors}{insertion_delition} =  $drisee->[1][6] * 1.0;
+	  $obj->{errors}{insertion_deletion} =  $drisee->[1][6] * 1.0;
 	  $obj->{errors}{substitution} = { A => $drisee->[1][1] * 1.0,
 					   T => $drisee->[1][2] * 1.0,
 					   C => $drisee->[1][3] * 1.0,
