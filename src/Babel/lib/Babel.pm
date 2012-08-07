@@ -212,13 +212,13 @@ sub md5s2organisms_unique {
   my ($self, $md5s, $source) = @_;
 
   my $data = {};
-  my $size = 35000;
+  my $size = 10000;
   my $iter = natatime $size, @$md5s;
 
   while (my @curr = $iter->()) {
     my $list = join(",", map {$self->dbh->quote($_)} @curr);
-    my $statement = "select md5, organism from md5_organism_unique where md5 in ($list) and source = ".$self->dbh->quote($source);
-    my $rows = $self->dbh->selectall_arrayref($statement);
+    my $sql  = "select md5, organism from md5_organism_unique where md5 in ($list) and source = ".$self->dbh->quote($source);
+    my $rows = $self->dbh->selectall_arrayref($sql);
     if ($rows && (@$rows > 0)) {
       map { $data->{$_->[0]} = $_->[1] } @$rows;
     }
@@ -254,27 +254,29 @@ sub md52id4source {
 sub md5s2ids4source {
   my ($self, $md5s, $source) = @_;
   
+  my $srcs = $self->sources;
   unless (ref($md5s) && (scalar @$md5s) && $source) {
     return [];
   }
-
-  my $sql  = '';
-  my $srcs = $self->sources;
-
-  if ($srcs->{$source} && ($srcs->{$source}{type} =~ /^(protein|rna|ontology)$/)) {
-    $sql = "select d.id, d.md5 from md5_".$srcs->{$source}{type}." d, sources s where d.source = s._id and s.name = '$source'";
-  }
-  else {
+  unless ($srcs->{$source} && ($srcs->{$source}{type} =~ /^(protein|rna|ontology)$/)) {
     return [];
   }
-  if (@$md5s == 1) {
-    $sql .= " and d.md5 = " . $self->dbh->quote($md5s->[0]);
-  } else {
-    $sql .= " and d.md5 in (" . join(",", map {$self->dbh->quote($_)} @$md5s) . ")";
+
+  my $sid  = $srcs->{$source}{_id};
+  my $data = [];
+  my $size = 10000;
+  my $iter = natatime $size, @$md5s;
+
+  while (my @curr = $iter->()) {
+    my $list = join(",", map {$self->dbh->quote($_)} @curr);
+    my $sql  = "select id, md5 from md5_".$srcs->{$source}{type}." where md5 in ($list) and source = $sid";
+    my $rows = $self->dbh->selectall_arrayref($sql);
+    if ($rows && (@$rows > 0)) {
+      push @$data, @$rows;
+    }
   }
-  
-  my $rows = $self->dbh->selectall_arrayref($sql);
-  return ($rows && (@$rows > 0)) ? $rows : [];
+  return $data;
+  # [ id, md5 ]
 }
 
 sub md5s2sets4source {
@@ -460,7 +462,7 @@ sub get_level4ontology {
 }
 
 sub get_level4ontology_full {
-  my ($self, $source, $level) = @_;
+  my ($self, $source, $level, $no_join) = @_;
   
   my $table = $self->get_ontology_table($source);
   unless ($table) { return []; }
@@ -483,7 +485,11 @@ sub get_level4ontology_full {
   if ($hasl && scalar(@cols)) {
     my $rows = $self->dbh->selectall_arrayref("SELECT DISTINCT ".join(", ", @cols)." FROM $table");
     if ($rows && (@$rows > 0)) {
-      map { $sets->{$_->[-1]} = join(";", @$_) } grep { $_->[-1] && ($_->[-1] =~ /\S/) } @$rows;
+      if ($no_join) {
+	map { $sets->{$_->[-1]} = $_ } grep { $_->[-1] && ($_->[-1] =~ /\S/) } @$rows;
+      } else {
+	map { $sets->{$_->[-1]} = join(";", @$_) } grep { $_->[-1] && ($_->[-1] =~ /\S/) } @$rows;
+      }
     }
   }
   return $sets;
@@ -752,6 +758,16 @@ sub get_organism_tax_id {
   my $qorg = $self->dbh->quote($org);
   my $rows = $self->dbh->selectcol_arrayref("SELECT ncbi_tax_id FROM organisms_ncbi WHERE name = $qorg");
   return ($rows && (@$rows > 0)) ? $rows->[0] : 0;
+}
+
+sub map_organism_tax_id {
+  my ($self) = @_;
+  my $data = {};
+  my $rows = $self->dbh->selectall_arrayref("SELECT name, ncbi_tax_id FROM organisms_ncbi");
+  if ($rows && (@$rows > 0)) {
+    %$data = map { $_->[0], $_->[1] } grep { $_->[1] } @$rows;
+  }
+  return $data;
 }
 
 sub get_taxonomy4level {
