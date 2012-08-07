@@ -34,7 +34,7 @@ sub about {
 				 "source" => [ ['M5NR', "Non-Redundant Multi-Source Protein Annotation Database"],
 					       @{$ach->get_protein_sources},
 					       ['M5RNA', 'Non-Redundant Multi-Source Ribosomal RNA Annotation Database'],
-					       @{$ach->get_ontology_sources},
+					       @{$ach->get_rna_sources},
 					       @{$ach->get_ontology_sources}
 					     ],
 				 "format" => [ ['biom', 'Biological Observation Matrix (BIOM) format: http://biom-format.org/'],
