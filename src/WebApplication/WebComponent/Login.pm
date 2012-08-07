@@ -138,13 +138,10 @@ sub perform_login {
 	      return $self->{backend};
 	    }
 	  }
-	  if ($user->has_right($back_app, 'login')) {
+	  if (! $user->has_right($back_app, 'login')) {
 	    my $r = $user->add_login_right($self->application->backend);
 	    $r->granted(1);
 	    last;
-	  }
-	  else {
-	    die "Unable to find backend '$d'.";
 	  }
 	}
       }
