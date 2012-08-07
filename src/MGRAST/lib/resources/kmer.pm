@@ -103,6 +103,9 @@ sub request {
 		};
       my $kmer = $analysis->get_qc_stats($job->job_id, 'kmer.'.$size);
       if ($kmer && (@$kmer > 1)) {
+	foreach $row (@$kmer) {
+	  @$row = map { $_ * 1.0 } @$row;
+	}
 	$obj->{profile} = $kmer;
       }
       print $cgi->header(-type => 'application/json',
