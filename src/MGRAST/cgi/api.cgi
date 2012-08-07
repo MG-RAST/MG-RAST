@@ -110,11 +110,6 @@ if ($ENV{'REQUEST_METHOD'} eq "POST") {
     }
 }
 
-# check for authentication in request header
-if ($cgi->http('user_auth')) {
-    $auth = $cgi->http('user_auth');
-}
-
 # check authentication
 my $user;
 if ($auth && $authentication_available) {
@@ -139,17 +134,11 @@ if ($auth && $authentication_available) {
 	    $user = $u;
 	}
     } else {
-	# try session id mapping
-	my $session = $dbmaster->UserSession->init({ 'session_id' => $auth });
-	if ($session) {
-	    $user = $session->user;
-	} else {
-	    print $cgi->header(-type => 'text/plain',
-			       -status => 401,
-			       -Access_Control_Allow_Origin => '*' );
-	    print "ERROR: Authentication failed - invalid WebServiceKey";
-	    exit 0;
-	}
+	print $cgi->header(-type => 'text/plain',
+			   -status => 401,
+			   -Access_Control_Allow_Origin => '*' );
+	print "ERROR: Authentication failed - invalid WebServiceKey";
+	exit 0;	
     }
 }
 
@@ -189,17 +178,23 @@ if ($resource) {
 }
 # we are called without a resource, return API information
 else {
-    my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
-    my $content = { id => 'MG-RAST',
-		    documentation => $Conf::cgi_url.'Html/api.html',
-		    contact => 'mg-rast@mcs.anl.gov',
-		    resources => \@resource_objects,
-		    url => $cgi->url."/" };
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode($content);
-    exit 0;
+    # check if we are called from a Browser or a script
+    if ($ENV{HTTP_ACCEPT} eq '*/*') {
+	my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
+	my $content = { id => 'MG-RAST',
+			documentation => $Conf::cgi_url.'Html/api.html',
+			contact => 'mg-rast@mcs.anl.gov',
+			resources => \@resource_objects,
+			url => $cgi->url."/" };
+	print $cgi->header(-type => 'application/json',
+			   -status => 200,
+			   -Access_Control_Allow_Origin => '*' );
+	print $json->encode($content);
+	exit 0;
+    } else {
+	print $cgi->redirect($Conf::cgi_url.'Html/api.html');
+	exit 0;
+    }
 }
 
 sub TO_JSON { return { %{ shift() } }; }
