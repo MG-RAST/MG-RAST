@@ -796,9 +796,9 @@ sub upload_md {
       return 0;
     }
     ## validate
-    my ($is_valid, $mdata, $log) = $meta->validate_metadata($tmp_name, $skip);
+    my ($is_valid, $mdata, $log) = $meta->validate_metadata($tmp_name, $skip, $map_by_id);
     unless ($is_valid) {
-      $application->add_message('warning', "uploaded metadata is invalid, no metadata has been updated:<br><pre>".$log."</pre>");
+      $application->add_message('warning', "uploaded metadata file is invalid, no metadata has been updated:<br><pre>".$log."</pre>");
       return 0;
     }
     my $skip_jobs = [];
@@ -822,7 +822,7 @@ sub upload_md {
       $application->add_message('warning', "you do not have the permissions to add metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$skip_jobs));
     }
     
-    my $md_jobs = $meta->add_valid_metadata($user, $mdata, $edit_jobs, $project, $map_by_id, 1);
+    my ($md_jobs, $err_msgs) = $meta->add_valid_metadata($user, $mdata, $edit_jobs, $project, $map_by_id, 1);
     if ((@$md_jobs == @$edit_jobs) && (@$skip_jobs == 0)) {
       $application->add_message('info', "successfully added / updated metadata to all jobs in this project");
     }
@@ -830,17 +830,17 @@ sub upload_md {
       $application->add_message('info', "successfully added / updated metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$edit_jobs));
     }
     elsif ((@$md_jobs == 0) && (@$skip_jobs == 0)) {
-      $application->add_message('warning', "unable to add metadata to any job in this project");
+      $application->add_message('warning', "unable to add metadata to any job in this project:<blockquote>".join("<br>", @$err_msgs)."</blockquote>");
       return 0;
     }
     elsif (@$md_jobs == 0) {
-      $application->add_message('warning', "unable to add metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$edit_jobs));
+      $application->add_message('warning', "unable to add metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$edit_jobs)."<blockquote>".join("<br>", @$err_msgs)."</blockquote>");
       return 0;
     }
     else {
       my %md_map = map { $_->metagenome_id, 1 } @$md_jobs;
       my @no_md  = grep { ! exists $md_map{$_} } map {$_->metagenome_id} @$edit_jobs;
-      $application->add_message('warning', "unable to add metadata to the following jobs:<br>".join(", ", sort @no_md));
+      $application->add_message('warning', "unable to add metadata to the following jobs:<br>".join(", ", sort @no_md)."<blockquote>".join("<br>", @$err_msgs)."</blockquote>");
       $application->add_message('info', "successfully added/updated metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$md_jobs));
     }
   } else {

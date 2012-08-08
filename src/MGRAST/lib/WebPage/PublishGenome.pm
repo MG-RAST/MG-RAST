@@ -114,7 +114,6 @@ sub meta_info {
 
   my $mdata = $self->data('meta')->get_metadata_for_table($job);
   my $mixs  = $self->data('meta')->mixs();
-  my $table = $self->application->component('DisplayMetaData');
   my @tdata = ();
   my @miss  = ();
   my %seen  = ();
@@ -145,6 +144,7 @@ sub meta_info {
       }
     }
   }
+
   if ($no_proj_md && ref($project)) {
     unshift @tdata, [ "<font color='red'>Project</font>", "<font color='red'>project_name</font>", $project->name ];
   } elsif ($no_proj_md) {
@@ -152,8 +152,8 @@ sub meta_info {
     $error .= "<p>Your metagenome does not exist in a project. Please create a new project or add it to an existing project before you can publish.</p>";
 
     my $projects = $self->app->data_handle('MGRAST')->Project->get_private_projects($user, 1);
-    if (@$project > 0) {
-      my $pp_table = $self->app->component('private_projects_table');
+    if (@$projects > 0) {
+      my $pp_table = $self->application->component('private_projects_table');
       $pp_table->columns( [ { name => 'id' }, { name => 'name' }, { name => 'type' } ] );
       $pp_table->data([ map { [ $_->{id}, "<a href='?page=MetagenomeProject&project=".$_->{id}."' target=_blank>".($_->{name} ? $_->{name} : "-")."</a>", $_->{type} ] } grep { $_->{id} } @$projects ]);
       $pp_table->items_per_page(20);
@@ -168,6 +168,7 @@ sub meta_info {
     return $error;
   }
   
+  my $table = $self->application->component('DisplayMetaData');
   if ( scalar(@tdata) > 50 ) {
     $table->show_top_browse(1);
     $table->show_bottom_browse(1);
