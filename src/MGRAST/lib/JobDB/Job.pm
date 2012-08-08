@@ -110,7 +110,11 @@ sub initialize {
       $params->{$k} = $v;
     }
   }
-  
+
+  # hack due too same keys: 'sequence type' and 'sequence_type'
+  if (exists $params->{'sequence type'}) {
+    delete $params->{'sequence type'};
+  }
   # replace whitespace
   foreach my $key (keys %$params) {
     $key =~ s/\s+/_/g;
