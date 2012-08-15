@@ -58,7 +58,7 @@ sub main {
     $WebApp->fancy_login(1);
 
     # set metatags
-    if ($cgi->param('page') && $cgi->param('page') ne 'Home') {
+    if ($WebApp->cgi->param('page') && $WebApp->cgi->param('page') ne 'Home') {
 	$WebApp->metatags("robots", "nofollow");
     } else {
 	$WebApp->metatags("robots", "index,follow");
