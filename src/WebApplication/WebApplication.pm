@@ -139,7 +139,7 @@ sub new {
 	       actions     => {},
 	       time        => time,
 	       page_title_prefix => '',
-	       test_bot    => 0,
+	       test_bot    => $cgi->param('test_bot') || 0,
 	       no_bot      => 0,
 	       bot_no_follow => 0,
 	       metatags    => [],
