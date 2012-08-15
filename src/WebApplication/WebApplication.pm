@@ -1613,12 +1613,12 @@ Finds out whether the user agent is a robot / spider
 
 sub bot {
   my ($self) = @_;
-
+  
   my $agent = $ENV{HTTP_USER_AGENT};
   
   my $allowed_bots = ['Google','msnbot','Rambler','Yahoo','AbachoBOT','accoona','AcoiRobot','ASPSeek','CrocCrawler','Dumbot','FAST-WebCrawler','GeonaBot','Gigabot','Lycos','MSRBOT','Scooter','AltaVista','IDBot','eStyle','Scrubby'];
- 
-  foreach my $bot ($@allowed_bots) {
+  
+  foreach my $bot (@$allowed_bots) {
     if ($agent =~ /$bot/i) {
       return 1;
     }
