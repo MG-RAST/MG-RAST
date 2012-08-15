@@ -165,7 +165,7 @@ sub output {
                        <td style="padding-left: 240px;">
                           <p>Select one or more files to upload to your private inbox folder.</p>
                           <p>Sequence files must be fasta, fastq, or sff format.
-                             Use vaild file extensions for the appropriate format: .fasta, .fa, .ffn, .frn, .fna, .fq, .fastq, .sff</p>
+                             Use vaild file extensions for the appropriate format: .fasta, .fa, .ffn, .frn, .fna, .fq, .fastq, .sff </p>
                        </td>
                     </tr>
                  </table>
@@ -192,8 +192,12 @@ sub output {
 		                 <progress id="prog2" min="0" max="100" value="0" style="width: 400px;">0% complete</progress>
     		              </td>
 		           </tr>
+                           <tr>
+                              <td style="height: 50px;">
+	                         <a class="btn btn-danger" href="#" onclick="cancel_upload();" style="position: relative; top: 5px; left: 435px;"><i class="icon-ban-circle"></i> cancel upload</a>
+                              </td>
+                           </tr>
 	                </table>
-	                <a class="btn btn-danger" href="#" onclick="cancel_upload();" style="position: relative; top: 9px; left: 435px;"><i class="icon-ban-circle"></i> cancel upload</a>
  	             </div>
                   </div>
                
@@ -539,9 +543,10 @@ sub submit_to_mgrast {
   }
 
   my $successfully_created_jobs = [];
+  my $err_msgs = [];
   # create metadata collections
   if ($mdata) {
-    $successfully_created_jobs = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
+    ($successfully_created_jobs, $err_msgs) = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
   }
   # else just add to project
   elsif ($project_obj) {

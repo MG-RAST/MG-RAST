@@ -62,9 +62,20 @@ sub init {
 
   # sanity check on job
   if ($id) { 
-    my $job = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $id }); 
-    unless (ref($job) && $job->viewable) {
-      $self->app->error("Unable to retrieve the job for metagenome '$id'.");
+    my $mgrast = $self->application->data_handle('MGRAST');
+    my $jobs_array = $mgrast->Job->get_objects( { metagenome_id => $id } );
+    unless (@$jobs_array > 0) {
+      $self->app->add_message('warning', "Unable to retrieve the metagenome '$id'. This metagenome does not exist.");
+      return 1;
+    }
+    my $job = $jobs_array->[0];
+    my $user = $self->application->session->user;
+    unless($job->public || ($user and $user->has_right(undef, 'view', 'metagenome', $id))) {
+      $self->app->add_message('warning', "Unable to view metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+      return 1;
+    }
+    unless ($job->viewable) {
+      $self->app->add_message('warning', "Unable to view metagenome '$id' because it is still processing.");
       return 1;
     }
     $self->data('job', $job);

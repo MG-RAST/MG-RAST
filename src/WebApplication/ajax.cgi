@@ -94,7 +94,6 @@ else
     if ($@)
     {
 	my $error = $@;
-	Warn("Script error: $error") if T(SeedViewer => 0);
 	
 	print CGI::header();
 	print CGI::start_html();
