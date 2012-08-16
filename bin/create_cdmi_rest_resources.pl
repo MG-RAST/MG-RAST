@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/soft/packages/perl/5.12.1/bin/perl
 
 use strict;
 use warnings;

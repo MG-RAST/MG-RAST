@@ -1,15 +1,5 @@
 #!/soft/packages/perl/5.12.1/bin/perl
 
-BEGIN {
-  unshift @INC, qw(
-		   /homes/paczian/public_html/MG-RAST/site/lib
-		   /homes/paczian/public_html/MG-RAST/site/lib/MGRAST
-		   /homes/paczian/public_html/MG-RAST/site/lib/WebApplication
-		   /homes/paczian/public_html/MG-RAST/site/lib/PPO
-		   /homes/paczian/public_html/MG-RAST/conf
-		  );
-}
-
 use warnings;
 use strict;
 
