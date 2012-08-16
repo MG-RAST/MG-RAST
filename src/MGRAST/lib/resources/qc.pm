@@ -11,8 +11,7 @@ my $cgi = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
-my $result_data_dir = "/homes/paczian/public/asynch/qc";
-my $pipeline_dir = "/mcs/bio/mg-rast/prod/pipeline/bin";
+my $result_data_dir = $Conf::qc_result_directory;
 
 sub request {
   my ($params) = @_;
@@ -74,7 +73,7 @@ sub request {
       if ($compute->{error} eq "job does not exist") {
 	$compute = submit({ resource => 'qc',
 			     id => $id,
-			     script => "$pipeline_dir/consensus.py -i $result_data_dir/$id -o $result_data_dir/$id.histogram" });
+			     script => "consensus.py -i $result_data_dir/$id -o $result_data_dir/$id.histogram" });
       }
       $status->{status} = $compute->{status};
       $status->{error} = $compute->{error};

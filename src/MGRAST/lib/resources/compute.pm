@@ -8,7 +8,7 @@ use Conf;
 our @ISA = qw( Exporter );
 our @EXPORT = qw( status submit delete_job );
 
-my $compute_dir = '/homes/paczian/public/asynch'; # $Conf::compute_dir;
+my $compute_dir = $Conf::compute_dir;
 
 sub status {
   my ($params) = @_;
