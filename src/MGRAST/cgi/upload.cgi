@@ -315,7 +315,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    my $info = { "type" => $file_type,
 			 "suffix" => $file_suffix,
 			 "file_type" => $file_format,
-			 "sequence type" => $file_seq_type,
+			 "sequence_type" => $file_seq_type,
 			 "file_checksum" => $file_md5,
 			 "file_size" => $file_size };
 	    
