@@ -327,6 +327,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    print FH "file_checksum\t$file_md5\n";
 	    print FH "file_size\t$file_size\n";
 	    close(FH);
+	    `chmod 666 $udir/$sequence_file.stats_info`;
 	    
 	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
 	    
