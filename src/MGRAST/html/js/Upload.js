@@ -498,6 +498,7 @@ function check_submitable () {
 }
 
 function submit_job () {
+    document.getElementById("submit_job_button").disabled = true;
   var seq_files = selected_sequence_files.join('|');
   $.get("?page=Upload&action=check_for_duplicates&seqfiles="+seq_files, function (data) {
       if (data == "unique") {
@@ -506,6 +507,7 @@ function submit_job () {
 	  if ( confirm(data) ) {
 	      document.forms.submission_form.submit();
 	  } else {
+	      document.getElementById("submit_job_button").disabled = false;
 	      return false;
 	  }
       }
