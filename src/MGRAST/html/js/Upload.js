@@ -123,7 +123,7 @@ function update_inbox (data, files, action) {
       for (var i=0; i<metadata_files.length; i++) {
 	html += "<option>"+metadata_files[i]+"</option>";
       }
-      html += "</select><br><p><input type='checkbox' value='no_metadata' name='no_metadata' id='no_metadata' onclick=\"if(this.checked){alert('INFO\\nNot submitting metadata will severely lower your priority in the computation queue.\\nYou will also not be able to make your data public until you provide metadata for it.');}\"> I do not want to supply metadata</p> <input type='button' class='btn' value='select' onclick='select_metadata_file();'></form></td><td><p id='metadata_file_info' style='margin-left: 20px;'></p></td></tr></table></div>";
+      html += "</select><br><p><input type='checkbox' value='no_metadata' name='no_metadata' id='no_metadata' onclick=\"if(this.checked){alert('INFO\\nNot submitting metadata will severely lower your priority in the computation queue.\\nYou will also not be able to make your data public until you provide metadata for it.');document.getElementById('accept_metadata_selection').onclick();}\"> I do not want to supply metadata</p> <input type='button' id='accept_metadata_selection' class='btn' value='select' onclick='select_metadata_file();'></form></td><td><p id='metadata_file_info' style='margin-left: 20px;'></p></td></tr></table></div>";
       document.getElementById("sel_mdfile_div").innerHTML = html;
       document.getElementById('inbox_select').onchange = function () {
 	var fn = this.options[this.selectedIndex].value;
