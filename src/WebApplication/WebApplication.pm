@@ -1411,7 +1411,7 @@ sub run {
   $self->check_for_anonymous_login();
 
   # check for terms of service
-  if ($self->require_terms_of_service && $self->session->user && $page ne "TermsofService") {
+  if ($self->require_terms_of_service && $self->session->user && $page ne "TermsofService" && $page ne "Logout") {
     my $pref = $self->dbmaster->Preferences->get_objects( { user => $self->session->user,
 							    name => 'AgreeTermsOfService' } );
     unless (scalar(@$pref) && $pref->[0]->value && $self->require_terms_of_service <= $pref->[0]->value) {
