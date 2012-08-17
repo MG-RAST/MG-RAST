@@ -323,7 +323,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    print FH "type\t$file_type\n";
 	    print FH "suffix\t$file_suffix\n";
 	    print FH "file_type\t$file_format\n";
-	    print FH "sequence type\t$file_seq_type\n";
+	    print FH "sequence_type\t$file_seq_type\n";
 	    print FH "file_checksum\t$file_md5\n";
 	    print FH "file_size\t$file_size\n";
 	    close(FH);
