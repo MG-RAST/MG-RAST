@@ -287,6 +287,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	# create basic and extended file information if we do not yet have it
 	if (! $info_files->{$sequence_file}) {
+	    `touch "$udir/$sequence_file.stats_info"`;
 	    my $file_type = &file_type($sequence_file, $udir);
 	    my @msg;
 
