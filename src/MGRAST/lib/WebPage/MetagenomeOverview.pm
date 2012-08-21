@@ -1332,6 +1332,7 @@ sub get_consensus_chart {
   }
   my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
   my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
+  my $num_bps = scalar(@$data);
 
   my $html .= qq~<a name='consensus_ref'></a>
 <h3>Nucleotide Position Histogram
@@ -1345,7 +1346,7 @@ sub get_consensus_chart {
     this.innerHTML = "show";
   }'>hide</a></h3>
 <div id='consensus_show'>
-  <p>These graphs show the fraction of base pairs of each type (A, C, G, T, or ambiguous base "N") at each position starting from the beginning of each read up to the first 100 base pairs. Amplicon datasets should show consensus sequences; shotgun datasets should have roughly equal proportions of basecalls.</p>
+  <p>These graphs show the fraction of base pairs of each type (A, C, G, T, or ambiguous base "N") at each position starting from the beginning of each read up to the first $num_bps base pairs. Amplicon datasets should show consensus sequences; shotgun datasets should have roughly equal proportions of basecalls.</p>
   <p>$consensus_link</p>
   <script type="text/javascript">
     google.load("visualization", "1", {packages:["corechart"]});
