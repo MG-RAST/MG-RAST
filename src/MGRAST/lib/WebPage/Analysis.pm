@@ -133,9 +133,7 @@ sub output {
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"metabolism\");' name='tool_entry' id='metabolism_tool' title='Report abundances using protein databases that support hierarchical
 relationships between functions (COG, NOG, SEED, subsystems, KEGG)
 '>Hierarchical Classification</div>";
-  $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"annotation\");' name='tool_entry' id='annotation_tool' title='Report abundances using protein databases that include all functional
-labels
-'>All Annotations</div>";
+  $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"annotation\");' name='tool_entry' id='annotation_tool' title='Report abundances using protein databases that include all functional labels'>All Annotations</div>";
   $tools .= "<div class='category_tool'>Other</div>";
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"recruitment_plot\");' name='tool_entry' id='recruitment_plot_tool' title='Recruits sequences to proteins in a reference genome 
 '>Recruitment Plot</div>";
@@ -270,10 +268,13 @@ sub single_select {
   $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("single_sel_ident").style.display="";')."</td><td style='display: none;' id='single_sel_ident'>".$self->identity_select()."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("single_sel_alen").style.display="";')."</td><td style='display: none;' id='single_sel_alen'>".$self->alength_select()."</td></tr></table>";
 #  $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
-  $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px; display: none;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about the known members within each metagenome.'></td>";
-  #$select .= "<td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td><td style='padding-right: 15px;'><img src='./Html/rarefaction.jpg'></td>";
-  $select .= "<td></td></tr><tr><td style='display: none;'><input type=radio name='vis_type' value='vbar'd>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td>";
-  #$select .= "<td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td><td><input type=radio name='vis_type' value='rarefaction'>&nbsp;rarefaction</td>";
+  $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr>";
+  $select .= "<td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about the known members within each metagenome.'></td>";
+  $select .= "<td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td>";
+  #$select .= "<td style='padding-right: 15px;'><img src='./Html/rarefaction.jpg'></td>";
+  $select .= "<td></td></tr><tr><td><input type=radio name='vis_type' value='vbar'>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td>";
+  $select .= "<td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td>";
+  #$select .= "<td><input type=radio name='vis_type' value='rarefaction'>&nbsp;rarefaction</td>";
   $select .= "<td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"single_visual\",\"buffer_space\",\"single_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
 
   return $select;
@@ -2116,18 +2117,20 @@ sub single_visual {
 
   if ($cgi->param('vis_type') eq 'vbar') {
     my $vbardata = [];
-    if ($cgi->param('phylo_bar_sel') && $cgi->param('phylo_bar_col')) {
-      @$vbardata = map { ($_->[$cgi->param('phylo_bar_col')] && ($_->[$cgi->param('phylo_bar_col')] eq $cgi->param('phylo_bar_sel'))) ? $_ : () } @$data;
+    if ($cgi->param('single_bar_sel') && $cgi->param('single_bar_col')) {
+      @$vbardata = map { ($_->[$cgi->param('single_bar_col')] && ($_->[$cgi->param('single_bar_col')] eq $cgi->param('single_bar_sel'))) ? $_ : () } @$data;
     } else {
       @$vbardata = map { $_ } @$data;
     }
-    my $level = $cgi->param('phylo_bar_col') ? ($cgi->param('phylo_bar_col') + 1) : 2;
+    if ($cgi->param('single_bar_col')) {
+      $cgi->param('single_bar_col', $cgi->param('single_bar_col') + 1);
+    }
+    my $level = $cgi->param('single_bar_col') ? ($cgi->param('single_bar_col') + 1) : 2;
     my $noclick;
     if ($level > 8) {
       $noclick = 1;
     }
-
-    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level, 10, ($cgi->param('top')||10), 'phylo', $fid, undef, $noclick);
+    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level - 1, 10, ($cgi->param('top')||10), 'single', $fid, undef, $noclick);
 
     $settings .= "<i>$psettings</i><br>";
     # check for p-value calculation
@@ -2273,7 +2276,7 @@ sub single_visual {
     }
 
     if ($level == 2) {
-      $content .= "<div><div>Organism barchart $tabnum</div><div>";
+      $content .= "<div><div>Representative Organism Barchart $tabnum</div><div>";
       my $selnorm = "";
       if (defined($cgi->param('raw'))) {
 	$content = "<div>";
@@ -2281,9 +2284,9 @@ sub single_visual {
 	  $selnorm = " selected=selected";
 	}
       }
-      $content .= "<form id='phylo_drilldown$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='phylo_bar_sel'><input type='hidden' name='phylo_bar_col'><input type='hidden' name='fid'><input type='hidden' name='vis_type' value='vbar'><input type='hidden' name='top' value='1000'>$settings_preserve<input type='hidden' name='raw' value='".($cgi->param('raw') || 0)."'></form>";
+      $content .= "<form id='single_drilldown$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='single_bar_sel'><input type='hidden' name='single_bar_col'><input type='hidden' name='fid'><input type='hidden' name='vis_type' value='vbar'><input type='hidden' name='top' value='1000'>$settings_preserve<input type='hidden' name='raw' value='".($cgi->param('raw') || 0)."'></form>";
       $content .= clear_progress_image()."$settings<br>";
-      $content .= "<form id='phylo_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='vbar'><input type='hidden' name='top' value='1000'>$settings_preserve<div>You can redraw this barchart with different options:<br><br><table><tr><td rowspan=2 style='width: 50px;'>&nbsp;</td><td>use <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values</td><td rowspan=2 style='vertical-align: bottom; padding-left: 15px;'><input type='button' value='draw' onclick='execute_ajax(\"phylogeny_visual\", \"tab_div_".($tabnum+1)."\", \"phylo_redraw$fid\");'></td></tr><tr><td><input type='checkbox' value='' name='pval' onclick='check_group_selection(this, \"$tabnum\")'> calculate p-values</td></tr></table></div></form>";
+      $content .= "<form id='single_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='vbar'><input type='hidden' name='top' value='1000'>$settings_preserve<div>You can redraw this barchart with different options:<br><br><table><tr><td rowspan=2 style='width: 50px;'>&nbsp;</td><td>use <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values</td><td rowspan=2 style='vertical-align: bottom; padding-left: 15px;'><input type='button' value='draw' onclick='execute_ajax(\"single_visual\", \"tab_div_".($tabnum+1)."\", \"single_redraw$fid\");'></td></tr><tr><td><input type='checkbox' value='' name='pval' onclick='check_group_selection(this, \"$tabnum\")'> calculate p-values</td></tr></table></div></form>";
       if (! defined($cgi->param('raw')) || ($cgi->param('raw') == '0')) {
 	$content .= "The displayed data has been normalized to values between 0 and 1 to allow for comparison of differently sized samples.";
       }
@@ -2300,14 +2303,14 @@ sub single_visual {
       @comp_mgs = $cgi->param('comparison_metagenomes');
       my $md5s = {};
       foreach my $row (@$vbardata) {
-	if ($row->[$level - 1] eq $cgi->param('phylo_bar_sel')) {
+	if ($row->[$level - 1] eq $cgi->param('single_bar_sel')) {
 	  my @currmd5s = split /;/, $row->[scalar(@$row) - 1];
 	  foreach my $cmd5 (@currmd5s) {
 	    $md5s->{$cmd5} = 1;
 	  }
 	}
       }
-      return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('phylo_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$sorcs phylogenetic\", \"".$cgi->param('phylo_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
+      return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('single_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$sorcs phylogenetic\", \"".$cgi->param('single_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
     }
   }
   
@@ -2465,11 +2468,11 @@ sub single_visual {
     }
     $change_settings_form .= "</select></td></tr>";
     $change_settings_form .= "<tr><td><b>restrict view to domain</b></td><td><select name='tree_domain'><option value='0'>all</option><option value='Bacteria'".($cgi->param('tree_domain') && $cgi->param('tree_domain') eq 'Bacteria' ? " selected=selected" : "").">Bacteria</option><option value='Eukaryota'".($cgi->param('tree_domain') && $cgi->param('tree_domain') eq 'Eukaryota' ? " selected=selected" : "").">Eukaryota</option><option value='Archaea'".($cgi->param('tree_domain') && $cgi->param('tree_domain') eq 'Archaea' ? " selected=selected" : "").">Archaea</option><option value='Viruses'".($cgi->param('tree_domain') && $cgi->param('tree_domain') eq 'Viruses' ? " selected=selected" : "").">Viruses</option></select></td></tr>";
-    $change_settings_form .= "<tr><td colspan=2><input type='hidden' name='reroot' value='".($self->application->cgi->param('reroot')||"")."' id='reroot$tabnum'> <input type='checkbox' name='do_reroot'> reroot at selected node</td></tr></table> <input type='button' onclick='execute_ajax(\"phylogeny_visual\", \"pt$newid\", \"pt_form$newid\");' value='change'><input type='hidden' name='high_res' value=0 id='pt_highres$newid'><input type='hidden' name='page' value='Analysis'><input type='hidden' name='action' value='phylogeny_visual'><input type='button' onclick='var f=document.getElementById(\"pt_form$newid\");f.target=\"_blank\";document.getElementById(\"pt_highres$newid\").value=1;f.submit();' value='create high resolution image'></form>";
+    $change_settings_form .= "<tr><td colspan=2><input type='hidden' name='reroot' value='".($self->application->cgi->param('reroot')||"")."' id='reroot$tabnum'> <input type='checkbox' name='do_reroot'> reroot at selected node</td></tr></table> <input type='button' onclick='execute_ajax(\"single_visual\", \"pt$newid\", \"pt_form$newid\");' value='change'><input type='hidden' name='high_res' value=0 id='pt_highres$newid'><input type='hidden' name='page' value='Analysis'><input type='hidden' name='action' value='single_visual'><input type='button' onclick='var f=document.getElementById(\"pt_form$newid\");f.target=\"_blank\";document.getElementById(\"pt_highres$newid\").value=1;f.submit();' value='create high resolution image'></form>";
     if ($cgi->param('recalc')) {
       return "$settings<p style='width: 800px;'>$explain</p>".$change_settings_form.$pt_out;
     } else {
-      $content .= "<div><div>Organism tree $tabnum</div><div><div id='pt$newid'>".clear_progress_image()."$settings<p style='width: 800px;'>$explain</p>".$change_settings_form.$pt_out."</div></div></div>";
+      $content .= "<div><div>Representative Organism tree $tabnum</div><div><div id='pt$newid'>".clear_progress_image()."$settings<p style='width: 800px;'>$explain</p>".$change_settings_form.$pt_out."</div></div></div>";
       $tabnum++;
     }
   }
@@ -2494,7 +2497,11 @@ sub single_visual {
       for (my $i=0; $i<scalar(@comp_mgs); $i++) {
 	$mg_ind->{$comp_mgs[$i]} = $i;
       }
-      my $level = $cgi->param('heatmap_level') || 4;
+      if (defined($cgi->param('heatmap_level'))) {
+	$cgi->param('heatmap_level', $cgi->param('heatmap_level') + 1);
+      }
+      my $level = $cgi->param('heatmap_level') || 3;
+      $level--;
       my $dd_col;
       my $dd_val;
       if ($cgi->param('drilldown') && $cgi->param('drilldown_on')) {
@@ -2527,7 +2534,7 @@ sub single_visual {
 	}
 	push(@$heatmap_data, $row);
       }
-      
+
       # write data to a tempfile
       my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       foreach my $row (@$heatmap_data) {
@@ -2535,7 +2542,7 @@ sub single_visual {
       }
       close $fh;
       chmod 0666, $infile;
-      
+
       # preprocess data
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
@@ -2543,6 +2550,7 @@ sub single_visual {
       print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
+
       my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
       `$R --vanilla --slave < $prefn`;
       unlink($prefn);
@@ -2551,16 +2559,16 @@ sub single_visual {
 	unlink $infile;
 	$infile = $Conf::temp."/rdata.preprocessed.$time";
       }
-
+      
       if ($cgi->param('vis_type') eq 'heatmap') {
-	my $level_names = [ [ 2, 'domain' ],
-			    [ 3, 'phylum' ],
-			    [ 4, 'class' ],
-			    [ 5, 'order' ],
-			    [ 6, 'family' ],
-			    [ 7, 'genus' ],
-			    [ 8, 'species' ],
-			    [ 9, 'strain' ] ];
+	my $level_names = [ [ 1, 'domain' ],
+			    [ 2, 'phylum' ],
+			    [ 3, 'class' ],
+			    [ 4, 'order' ],
+			    [ 5, 'family' ],
+			    [ 6, 'genus' ],
+			    [ 7, 'species' ],
+			    [ 8, 'strain' ] ];
 	my $dd_sel = "";
 	my $hm_level_select = "<select name='heatmap_level'>";
 	foreach my $l (@$level_names) {
@@ -2574,7 +2582,10 @@ sub single_visual {
 	  $hm_level_select .= "<option value='".$l->[0]."'$sel>".$l->[1]."</option>";
 	}
 	$hm_level_select .= "</select>";
-	$content .= "<div><div>Organism Heatmap $tabnum</div><div>".clear_progress_image()."<form id='heat_drilldown$fid' onkeypress='return event.keyCode!=13'>$settings<br>The heatmap was clustered using ".($cgi->param('heatmap_clust_method') || 'ward')." with ".($cgi->param('heatmap_dist_method') || 'bray-curtis')." distance metric.<br>group heatmap by $hm_level_select <input type='hidden' name='vis_type' value='heatmap'><input type='hidden' id='tabnum2$fid' name='tabnum' value=''><br>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "<div><div>Representative Organism Heatmap $tabnum</div><div>".clear_progress_image();
+	}
+	$content .= "<form id='heat_drilldown$fid' onkeypress='return event.keyCode!=13'>$settings<br>The heatmap was clustered using ".($cgi->param('heatmap_clust_method') || 'ward')." with ".($cgi->param('heatmap_dist_method') || 'bray-curtis')." distance metric.<br>group heatmap by $hm_level_select <input type='hidden' name='vis_type' value='heatmap'><input type='hidden' id='tabnum2$fid' name='tabnum' value='".($tabnum+1)."'><br>";
 
 	my $selnorm = "";
 	if ($cgi->param('raw')) {
@@ -2590,7 +2601,7 @@ sub single_visual {
 	  my $sel = ($cgi->param('heatmap_clust_method') && ($cgi->param('heatmap_clust_method') eq $d)) ? " selected=selected" : "";
 	  $clustopts .= "<option value='$d'$sel>$d</option>";
 	}
-	$content .= "$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values, <select name='heatmap_clust_method'>$clustopts</select> clustering and <select name='heatmap_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"phylogeny_visual\", \"tab_div_".($tabnum+1)."\", \"heat_drilldown$fid\");'></div></form>";
+	$content .= "$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values, <select name='heatmap_clust_method'>$clustopts</select> clustering and <select name='heatmap_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"single_visual\", \"tab_div_".($tabnum+1)."\", \"heat_drilldown$fid\");'></div></form>";
 
 	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"heatmap_canvas_$tabnum\");document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"\";'></div>";
 
@@ -2678,7 +2689,10 @@ sub single_visual {
 	my $max_val = max @values;
 	$max_val  = ($max_val < 1) ? 1 : $max_val;
 	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div><img src='".$Conf::temp_url."/$boxfile' width=600>";
-	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
+	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "</div></div>";
+	}
 	$tabnum++;
       }
       if ($cgi->param('vis_type') eq 'pca') {
@@ -2691,8 +2705,10 @@ sub single_visual {
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
 	`$R --vanilla --slave < $pcan`; 
 	unlink($pcan);
-
-	$content .= "<div><div>Organism PCoA $tabnum</div><div>$settings<i>$psettings</i><br><br>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "<div><div>Representative Organism PCoA $tabnum</div><div>";
+	}
+	$content .= "$settings<i>$psettings</i><br><br>";
 
 	my $selnorm  = (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) ? " selected=selected" : "";
 	my $distopts = "";
@@ -2700,7 +2716,7 @@ sub single_visual {
 	  my $sel = ($cgi->param('pca_dist_method') && ($cgi->param('pca_dist_method') eq $d)) ? " selected=selected" : "";
 	  $distopts .= "<option value='$d'$sel>$d</option>";
 	}
-	$content .= "<form id='phylo_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='pca'>$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values and <select name='pca_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"phylogeny_visual\", \"tab_div_".($tabnum+1)."\", \"phylo_redraw$fid\");'></div></form>";
+	$content .= "<form id='single_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='pca'>$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values and <select name='pca_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"single_visual\", \"tab_div_".($tabnum+1)."\", \"single_redraw$fid\");'></div></form>";
 	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"pca_canvas_$tabnum\");document.getElementById(\"pca_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"pca_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"pca_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"pca_canvas_$tabnum\").style.display=\"\";'></div>";
 
 	my (@comp, @items);
@@ -2792,55 +2808,13 @@ sub single_visual {
 	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
 	$content .= $img_control;
 	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table><img src='".$Conf::temp_url."/$boxfile' width=600>";
-	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
+	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "</div></div>";
+	}
 	$tabnum++;
       }
     }
-  }
-
-  if ($cgi->param('vis_type') eq 'rarefaction') {
-    # data = [ mgid, [x, y] ]
-    my $rare_data  = [];
-    my $alpha_data = [];
-    my $colors = $self->google_colors();
-
-    my (@allX, @allY);
-    for (my $i = 0; $i < @$data; $i++) {
-      my ($mgid, $coord, $alpha) = @{$data->[$i]};
-      my $c_index = $i % scalar(@$colors);
-      foreach (@$coord) {
-	push @allX, $_->[0];
-	push @allY, $_->[1];
-      }
-      push @$rare_data, $mgid . '~' . join('~', map { $_->[0] . ';;' . $_->[1] } @$coord);
-      push @$alpha_data, [ "<div style='height:14px; width:56px; margin: 2 0 2 1; background-color:".$colors->[$i].";'></div>", $mgid, sprintf("%.2f", $alpha) ];
-    }
-    my $maxX = max @allX;
-    my $maxY = max @allY;
-
-    my $t = $self->application->component('t1');
-    ## nasty id manipulation to allow for multiple tables
-    my $newid = int(rand(100000));
-    $self->application->component('TableHoverComponent'.$t->id)->id($newid);
-    $self->application->{component_index}->{'TableHoverComponent'.$newid} = $self->application->component('TableHoverComponent'.$t->id);
-    $self->application->component('TableAjaxComponent'.$t->id)->id($newid);
-    $self->application->{component_index}->{'TableAjaxComponent'.$newid} = $self->application->component('TableAjaxComponent'.$t->id);
-    $t->id($newid);
-    ##
-    $t->items_per_page(scalar(@$data));
-    $t->columns([ {name => 'rarefaction<br>curve', tooltip => 'color of rarefaction curve'},
-		  {name => 'metagenome', filter => 1, sortable => 1, tooltip => 'id of metagenomic sample'},
-		  {name => 'alpha diversity', filter => 1, sortable => 1, operators => ['less','more'], tooltip => 'alpha diversity of metagenome'} ]);
-    $t->data($alpha_data);
-    
-
-    $content .= "<div><div>Rarefaction Plot $tabnum</div><div>".clear_progress_image()."$settings<br>";
-    $content .= "<div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"rare_canvas_$tabnum\");document.getElementById(\"rare_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"rare_canvas_$tabnum\").style.display=\"none\";'></div>";
-    $content .= "<div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"rare_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"rare_canvas_$tabnum\").style.display=\"\";'></div>";
-    $content .= "<div id='rare_canvas_$tabnum'></div><input type='hidden' id='rare_data_$tabnum' value='".join('@', @$rare_data)."'/>";
-    $content .= "<img src='./Html/clear.gif' onload='draw_rarefaction(\"rare_data_$tabnum\", \"rare_canvas_$tabnum\", \"$maxX\", \"$maxY\");'/>";
-    $content .= "<br>".$t->output."</div></div>";
-    $tabnum++;
   }
 
   return $content;
@@ -5330,6 +5304,13 @@ sub qiime_export_visual {
 sub data_to_vbar {
   my ($self, $md5_abund, $data, $colnum, $countrow, $topx, $source, $id, $raw, $noclick) = @_;
 
+  my $cgi = new CGI;
+  my $single = 0;
+  if ($source eq 'single') {
+    $single = 1;
+  }
+  my $selsource = $cgi->param('source');
+
   $raw = defined($self->application->cgi->param('raw')) ? $self->application->cgi->param('raw') : 0;
   my $v = $self->application->component('v'.$colnum);
 
@@ -5355,6 +5336,9 @@ sub data_to_vbar {
   my $counts = {};  # mg => category => source => {raw, log2, norm, scale, md5s}
   my %cats   = map { $_->[$colnum], {} } @$data; # all categories => {vals, stat} (1 source only)
   my %srcs   = map { $_->[1], {} } @$data;       # all sources => {log2, stat, norm, max, min}
+  if ($single) {
+    %srcs = ( $selsource => {} );
+  }
   my $snum   = scalar(keys %srcs);
   my %catnum = map { $_, 0 } keys %cats;
 
@@ -5363,11 +5347,16 @@ sub data_to_vbar {
     unless (exists $counts->{$row->[0]}) {
       foreach my $cat (keys %cats) {
 	foreach my $src (keys %srcs) {
-	  $counts->{$row->[0]}{$cat}{$src} = {raw => 0, log2 => 0, norm => 0, scale => 0, md5s => {}};
+	  $counts->{$row->[0]}{$cat}{$src} = {raw => 0, log2 => 0, norm => 0, scale => 0, md5s => {}};	  
 	}
       }
     }
-    map { $counts->{$row->[0]}{$row->[$colnum]}{$row->[1]}{md5s}{$_} = 1 } split(/;/, $row->[-1]);
+    if ($single) {
+      $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{raw} = $row->[9];
+      map { $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{md5s}{$_} = 1 } @{$row->[-1]};
+    } else {
+      map { $counts->{$row->[0]}{$row->[$colnum]}{$row->[1]}{md5s}{$_} = 1 } split(/;/, $row->[-1]);
+    }
   }
 
   #### do this by default
@@ -5376,7 +5365,9 @@ sub data_to_vbar {
     foreach my $mg (keys %$counts) {
       foreach my $cat (keys %{$counts->{$mg}}) {
 	foreach my $src (keys %{$counts->{$mg}{$cat}}) {
-	  map { $counts->{$mg}{$cat}{$src}{raw} += $md5_abund->{$mg}{$_} } grep {exists $md5_abund->{$mg}{$_}} keys %{$counts->{$mg}{$cat}{$src}{md5s}};
+	  unless ($single) {
+	    map { $counts->{$mg}{$cat}{$src}{raw} += $md5_abund->{$mg}{$_} } grep {exists $md5_abund->{$mg}{$_}} keys %{$counts->{$mg}{$cat}{$src}{md5s}};
+	  }
 	  $counts->{$mg}{$cat}{$src}{log2} = 2 * (log($counts->{$mg}{$cat}{$src}{raw} + 1) / log(2));
 	  push @{ $srcs{$src}{log2} }, $counts->{$mg}{$cat}{$src}{log2};
 	}
@@ -5423,7 +5414,9 @@ sub data_to_vbar {
       foreach my $cat (keys %{$counts->{$mg}}) {
 	foreach my $src (keys %{$counts->{$mg}{$cat}}) {
 	  # get top value per category
-	  map { $counts->{$mg}{$cat}{$src}{raw} += $md5_abund->{$mg}{$_} } grep {exists $md5_abund->{$mg}{$_}} keys %{$counts->{$mg}{$cat}{$src}{md5s}};
+	  unless ($single) {
+	    map { $counts->{$mg}{$cat}{$src}{raw} += $md5_abund->{$mg}{$_} } grep {exists $md5_abund->{$mg}{$_}} keys %{$counts->{$mg}{$cat}{$src}{md5s}};
+	  }
 	  $catnum{$cat} = max ($catnum{$cat}, $counts->{$mg}{$cat}{$src}{raw});
 	  # get stdev per mg group
 	  if ($snum == 1) { push @{ $cats{$cat}{vals} }, $counts->{$mg}{$cat}{$src}{raw}; }
@@ -5467,6 +5460,9 @@ sub data_to_vbar {
 	} elsif ($source eq 'meta' && $id) {
 	  $title_onclicks->[$i] = "document.getElementById(\"meta_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"meta_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"meta_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"metabolism_visual\",\"".(int($colnum)+1)."_$id\",\"meta_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
 	  $data_onclicks->[$i]->[$h]->[$j] = "document.getElementById(\"meta_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"meta_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"meta_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"metabolism_visual\",\"".(int($colnum)+1)."_$id\",\"meta_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
+	} elsif ($source eq 'single' && $id) {
+	  $title_onclicks->[$i] = "document.getElementById(\"single_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"single_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"single_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"single_visual\",\"".(int($colnum)+2)."_$id\",\"single_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
+	  $data_onclicks->[$i]->[$h]->[$j] = "document.getElementById(\"single_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"single_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"single_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"single_visual\",\"".(int($colnum)+2)."_$id\",\"single_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
 	}
 	$j++;
       }
