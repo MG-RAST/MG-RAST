@@ -96,7 +96,7 @@ sub request {
 	print $cgi->header(-type => 'text/plain',
 			   -status => 404,
 			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: could not access job directory: $dir";
+	print "ERROR: could not access job directory for id ".$rest->[0];
 	exit 0;
       }
       $job->download(0);
