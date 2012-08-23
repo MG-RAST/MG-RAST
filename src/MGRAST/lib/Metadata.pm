@@ -105,7 +105,11 @@ sub mixs {
     foreach my $tag (keys %{$template->{$cat}}) {
       next if ($tag eq 'category_type');
       if ($template->{$cat}{$tag}{required} && $template->{$cat}{$tag}{mixs}) {
-	$mixs->{$ct}{$tag} = 1;
+	if ($ct eq 'library') {
+	  $mixs->{$ct}{$cat}{$tag} = 1;
+	} else {
+	  $mixs->{$ct}{$tag} = 1;
+	}
       }
     }
   }
@@ -400,11 +404,26 @@ sub is_job_compliant {
 
   my $mixs = $self->mixs();
   my $data = $self->get_job_metadata($job);
+  unless (exists $data->{library}{data}{investigation_type}) {
+    return 0;
+  }
+  my $lib = $data->{library}{data}{investigation_type};
+  unless (exists $mixs->{library}{$lib}) {
+    return 0;
+  }
   foreach my $cat (keys %$mixs) {
-    $cat = ($cat eq 'ep') ? 'env_package' : $cat;
-    foreach my $tag (keys %{$mixs->{$cat}}) {
-      if (! exists($data->{$cat}{data}{$tag})) {
-	return 0;
+    if ($cat eq 'library') {
+      foreach my $tag (keys %{$mixs->{library}{$lib}}) {
+	if (! exists($data->{$cat}{data}{$tag})) {
+	  return 0;
+	}
+      }
+    }
+    else {
+      foreach my $tag (keys %{$mixs->{$cat}}) {
+	if (! exists($data->{$cat}{data}{$tag})) {
+	  return 0;
+	}
       }
     }
   }
@@ -431,6 +450,7 @@ sub get_metadata_for_tables {
       push @{$table->{$job}}, [ 'Project', 'project_name', $data->{$job}{project}{name} ];
       push @{$table->{$job}}, [ 'Project', 'mgrast_id', $data->{$job}{project}{id} ];
       while ( my ($k, $v) = each %{ $data->{$job}{project}{data} } ) {
+	next if ($k eq 'project_name');
 	$v = clean_value($v);
 	next unless (defined($v) && ($v =~ /\S/));
 	push @{$table->{$job}}, [ 'Project', $k, $v ];
