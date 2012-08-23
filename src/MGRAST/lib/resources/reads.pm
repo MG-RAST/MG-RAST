@@ -27,6 +27,8 @@ sub request {
   my $rest = $params->{rest_parameters};
   my $user = $params->{user};
   my ($master, $error) = WebServiceObject::db_connect();
+  $master->{_user} = $user;
+
   if ($rest && scalar(@$rest) == 1 && $rest->[0] eq 'about') {
     &about();
     exit 0;
@@ -94,7 +96,7 @@ sub request {
 	print $cgi->header(-type => 'text/plain',
 			   -status => 404,
 			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: could not access job directory";
+	print "ERROR: could not access job directory: $dir";
 	exit 0;
       }
       $job->download(0);
