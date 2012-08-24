@@ -52,6 +52,8 @@ function update_inbox (data, files, action) {
 	  html += "<option style='display: none; padding-left: 35px; color: red;' title='the unique id count does not match the sequence count' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && (! inf['bp count'])) {
 	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] < 1000001) {
+	  html += "<option style='display: none; padding-left: 35px; color: red;' title='this file is too small for submission, the minimum is 1Mbp' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else {
 	  html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	}
@@ -76,6 +78,8 @@ function update_inbox (data, files, action) {
 	html += "<option title='the unique id count does not match the sequence count' style='color: red;'>"+flist[i]+"</option>";
       } else if (isSeq && (! inf['bp count'])) {
 	html += "<option title='the sequence stats computation for this file is still running' style='color: gray;'>"+flist[i]+"</option>";
+      } else if (isSeq && inf['bp count'] && inf['bp count'] < 1000001) {
+	html += "<option title='this file is too small for submission, the minimum is 1Mbp' style='color: red;'>"+flist[i]+"</option>";
       } else {
 	html += "<option>"+flist[i]+"</option>";
       }
@@ -96,7 +100,7 @@ function update_inbox (data, files, action) {
 	  var fn = DataStore['user_inbox'][user.login].fileinfo[i][h];
 	  if (fn.match(is_a_sequence_file_ending)) {
 	    var inf = DataStore['user_inbox'][user.login].fileinfo[i+'/'+fn];
-	      if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error'])) {
+	      if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error']) && inf['bp count'] > 1000000) {
 	      var trow = [ 0, i, fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
@@ -107,7 +111,7 @@ function update_inbox (data, files, action) {
       for (var i=0; i<sequence_files.length; i++) {
 	  var fn = sequence_files[i];
 	  var inf = DataStore['user_inbox'][user.login].fileinfo[fn];
-	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error'])) {
+	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error']) && inf['bp count'] > 1000000) {
 	    var trow = [ 0, "-", fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
 	  }
@@ -119,7 +123,7 @@ function update_inbox (data, files, action) {
       for (var i=0; i<metadata_files.length; i++) {
 	html += "<option>"+metadata_files[i]+"</option>";
       }
-      html += "</select><br><p><input type='checkbox' value='no_metadata' name='no_metadata' id='no_metadata' onclick=\"if(this.checked){alert('INFO\\nNot submitting metadata will severely lower your priority in the computation queue.\\nYou will also not be able to make your data public until you provide metadata for it.');}\"> I do not want to supply metadata</p> <input type='button' class='btn' value='select' onclick='select_metadata_file();'></form></td><td><p id='metadata_file_info' style='margin-left: 20px;'></p></td></tr></table></div>";
+      html += "</select><br><p><input type='checkbox' value='no_metadata' name='no_metadata' id='no_metadata' onclick=\"if(this.checked){alert('INFO\\nNot submitting metadata will severely lower your priority in the computation queue.\\nYou will also not be able to make your data public until you provide metadata for it.');document.getElementById('accept_metadata_selection').onclick();}\"> I do not want to supply metadata</p> <input type='button' id='accept_metadata_selection' class='btn' value='select' onclick='select_metadata_file();'></form></td><td><p id='metadata_file_info' style='margin-left: 20px;'></p></td></tr></table></div>";
       document.getElementById("sel_mdfile_div").innerHTML = html;
       document.getElementById('inbox_select').onchange = function () {
 	var fn = this.options[this.selectedIndex].value;
@@ -494,6 +498,7 @@ function check_submitable () {
 }
 
 function submit_job () {
+    document.getElementById("submit_job_button").disabled = true;
   var seq_files = selected_sequence_files.join('|');
   $.get("?page=Upload&action=check_for_duplicates&seqfiles="+seq_files, function (data) {
       if (data == "unique") {
@@ -502,6 +507,7 @@ function submit_job () {
 	  if ( confirm(data) ) {
 	      document.forms.submission_form.submit();
 	  } else {
+	      document.getElementById("submit_job_button").disabled = false;
 	      return false;
 	  }
       }

@@ -57,6 +57,15 @@ sub main {
     $WebApp->show_login_user_info(1);
     $WebApp->fancy_login(1);
 
+    # set metatags
+    if ($WebApp->cgi->param('page') && $WebApp->cgi->param('page') ne 'Home') {
+	$WebApp->metatags("robots", "nofollow");
+    } else {
+	$WebApp->metatags("robots", "index,follow");
+    }
+    $WebApp->metatags("description", "MG-RAST (the Metagenomics RAST) server is an automated analysis platform for metagenomes providing quantitative insights into microbial populations based on sequence data. The server primarily provides upload, quality control, automated annotation and analysis for prokaryotic metagenomic shotgun samples.");
+    $WebApp->metatags("keywords", "metagenomics, MG-RAST, mgrast, prokaryotic, metagenome, shotgun, qc, quality control, upload, publish, 454, illumina, solexa, histogram, pca, pcoa, blast, blat, recruitment plot, environment, metadata, biodiversity, analysis, automation, api, search");
+
     # run application
     $WebApp->run();
 
