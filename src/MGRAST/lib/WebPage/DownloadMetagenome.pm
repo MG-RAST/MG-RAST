@@ -194,8 +194,8 @@ my $css_tmp = qq~
     close FH;
   }
   $down_info->add_tooltip('meta_down', 'Download metadata for this metagenome');
-  $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filename=$mfile'><img src='./Html/mg-download.png' style='height:15px;'/><small>metadata</small></a>";
-  if ($pid) {
+  $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='metagenomics.cgi?page=DownloadMetagenome&action=download_md&filename=$mfile'><img src='./Html/mg-download.png' style='height:15px;'/><small>metadata</small></a>";
+  if ($pid && $job->public) {
     $down_info->add_tooltip('sub_down', 'Download submitted metagenome');
     $down_info->add_tooltip('derv_down', 'Download all derived data for this metagenome');
     $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"sub_down\",".$down_info->id.")' target=_blank href='ftp://".$Conf::ftp_download."/projects/$pid/$mid/raw'><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted</small></a>";
@@ -245,10 +245,14 @@ my $css_tmp = qq~
   my $rawid = 50;
   $stages->{$rawid} = $self->data('stages')->{$rawid};
   $stages->{$rawid}->{prefix} = $job->job_id;
+  if ( exists $self->data('default')->{$rawid} ) {
+    $stages->{$rawid}->{info} = $self->data('default')->{$rawid};
+  }
   
   # prep output for every stage
   foreach my $stage (sort {$a <=> $b} keys %$stages) {
-    $content .= $self->stage_download_info($stage, $stages, $job->download_dir($stage));
+    my $dir = ($stage == 50) ? $job->download_dir() : $job->download_dir($stage);
+    $content .= $self->stage_download_info($stage, $stages, $dir);
   }    
   return $content;
 }
