@@ -103,6 +103,7 @@ sub meta_info {
   my ($self) = @_;
 
   my $mg_id   = $self->application->cgi->param('metagenome');
+  my $mddb    = $self->data('meta');
   my $job     = $self->data('job');
   my $project = $job->primary_project;
   my $user    = $self->application->session->user;
@@ -112,34 +113,56 @@ sub meta_info {
     $content .= "<p>If you wish to change any metadata in this metagenome, use the 'Upload MetaData' button within project <a href='metagenomics.cgi?page=MetagenomeProject&project=".$project->id."'>".$project->name."</a> to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='ftp://".$Conf::ftp_download."/data/misc/metadata/".$Conf::mgrast_metadata_template."'>metadata spreadsheet template</a>.</p>";
   }
 
-  my $mdata = $self->data('meta')->get_metadata_for_table($job);
-  my $mixs  = $self->data('meta')->mixs();
+  my $mdata = $mddb->get_metadata_for_table($job);
+  my $mixs  = $mddb->mixs();
   my @tdata = ();
   my @miss  = ();
   my %seen  = ();
   
+  my @lib_type_rows = grep { $_->[1] eq 'investigation_type' } @$mdata;
+  my $lib_type = scalar(@lib_type_rows) ? $lib_type_rows[0][2] : ($job->sequence_type ? $mddb->investigation_type_alias($job->sequence_type) : 'metagenome');
   my $no_proj_md = 0;
+
   foreach my $row (@$mdata) {
     my ($cat, $tag, $val) = @$row;
     next unless ($val && ($val =~ /\S/) && ($val ne '-'));
     next if (exists $seen{$cat.$tag.$val});
     my $ccat = (split(/:/, lc($cat)))[0];
-    if (exists $mixs->{$ccat}{$tag}) {
-      push @tdata, [ "<font color='red'>$cat</font>", "<font color='red'>$tag</font>", $val ];
-      $mixs->{$ccat}{$tag} = 'yes';
-    } else {
-      push @tdata, $row;
+    if ($ccat eq 'library') {
+      if (exists $mixs->{library}{$lib_type}{$tag}) {
+	push @tdata, [ "<font color='red'>$cat</font>", "<font color='red'>$tag</font>", $val ];
+	$mixs->{library}{$lib_type}{$tag} = 'yes';
+      } else {
+	push @tdata, $row;
+      }
+    }
+    else {
+      if (exists $mixs->{$ccat}{$tag}) {
+	push @tdata, [ "<font color='red'>$cat</font>", "<font color='red'>$tag</font>", $val ];
+	$mixs->{$ccat}{$tag} = 'yes';
+      } else {
+	push @tdata, $row;
+      }
     }
     $seen{$cat.$tag.$val} = 1;
   }
 
   foreach my $cat (keys %$mixs) {
-    foreach my $tag (keys %{$mixs->{$cat}}) {
-      if ($mixs->{$cat}{$tag} ne 'yes') {
-	if ($cat =~ /project/i) {
-	  $no_proj_md = 1;
-	} else {
+    if ($cat eq 'library') {
+      foreach my $tag (keys %{$mixs->{library}{$lib_type}}) {
+	if ($mixs->{library}{$lib_type}{$tag} ne 'yes') {
 	  push @miss, [ ucfirst($cat), $tag ];
+	}
+      }
+    }
+    else {
+      foreach my $tag (keys %{$mixs->{$cat}}) {
+	if ($mixs->{$cat}{$tag} ne 'yes') {
+	  if ($cat =~ /project/i) {
+	    $no_proj_md = 1;
+	  } else {
+	    push @miss, [ ucfirst($cat), $tag ];
+	  }
 	}
       }
     }

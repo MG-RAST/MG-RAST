@@ -52,7 +52,12 @@ sub init {
 
   # # check if the user has the right to see this job
   unless ($job->public) {
-    unless ( $job->_master->{_user} && $job->_master->{_user}->has_right(undef, 'view' , 'metagenome', $job->metagenome_id  ) ){
+    unless ($job->_master->{_user}) {
+      print STDERR "Private job ".$job->metagenome_id." called with no user.\n";
+      return undef;
+    }
+    unless ($job->_master->{_user}->has_right(undef,'view','metagenome',$job->metagenome_id) || $job->_master->{_user}->has_star_right('view','metagenome')) {
+      print STDERR "User ".$job->_master->{_user}->login." lacks rights for job ".$job->metagenome_id.".\n";
       return undef;
     }
   }

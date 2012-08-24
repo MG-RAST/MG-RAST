@@ -287,6 +287,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	# create basic and extended file information if we do not yet have it
 	if (! $info_files->{$sequence_file}) {
+	    `touch "$udir/$sequence_file.stats_info"`;
 	    my $file_type = &file_type($sequence_file, $udir);
 	    my @msg;
 
@@ -315,7 +316,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    my $info = { "type" => $file_type,
 			 "suffix" => $file_suffix,
 			 "file_type" => $file_format,
-			 "sequence type" => $file_seq_type,
+			 "sequence_type" => $file_seq_type,
 			 "file_checksum" => $file_md5,
 			 "file_size" => $file_size };
 	    
@@ -323,10 +324,11 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    print FH "type\t$file_type\n";
 	    print FH "suffix\t$file_suffix\n";
 	    print FH "file_type\t$file_format\n";
-	    print FH "sequence type\t$file_seq_type\n";
+	    print FH "sequence_type\t$file_seq_type\n";
 	    print FH "file_checksum\t$file_md5\n";
 	    print FH "file_size\t$file_size\n";
 	    close(FH);
+	    `chmod 666 $udir/$sequence_file.stats_info`;
 	    
 	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
 	    
@@ -334,6 +336,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    if ($file_type eq 'ASCII text') {
 	      my $compute_script = $Conf::sequence_statistics;
 	      my $jobid = $user->{login};
+	      $jobid =~ s/\s/_/g
 	      my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
 	      my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 	      $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;

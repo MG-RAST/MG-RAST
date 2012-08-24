@@ -1,4 +1,8 @@
 <pipeline>
+  <stage num='50'>
+    <input>This is the original sumbitted sequence file.</input>
+    <description>This is a sequence file in either fasta or fastq format. It may have been edited to change all end-of-line characters into UNIX format.</description>
+  </stage>
   <stage num='100'>
     <input>The input sequence data for this step is in the original uploaded sequence data.</input>
     <description>Depending on the options chosen, the preprocessing step filters sequences based on length, number of ambiguous bases and quality values if available.</description>

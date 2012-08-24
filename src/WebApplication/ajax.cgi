@@ -94,7 +94,6 @@ else
     if ($@)
     {
 	my $error = $@;
-	Warn("Script error: $error") if T(SeedViewer => 0);
 	
 	print CGI::header();
 	print CGI::start_html();
@@ -127,7 +126,6 @@ sub main
 	    eval "require $package_";
 	    $realPage = $package_;
 	    if ($@) {
-		Warn("Error rendering $page for Ajax: $@");
 		$ajaxError = "Sorry, but the page '$page' was not found.";
 	    }
 	}
@@ -154,7 +152,6 @@ sub main
 	}
     }
     if (defined $ajaxError) {
-	Warn("Error during Ajax: $ajaxError");
 	$result = CGI::div({style => join("\n", "margin: 20px 10px 20px 10px;",
 					  "padding-left: 10px;",
 					  "padding-right: 10px;",

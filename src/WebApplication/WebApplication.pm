@@ -139,9 +139,10 @@ sub new {
 	       actions     => {},
 	       time        => time,
 	       page_title_prefix => '',
-	       test_bot    => 0,
+	       test_bot    => $cgi->param('test_bot') || 0,
 	       no_bot      => 0,
 	       bot_no_follow => 0,
+	       metatags    => [],
 	       strict_browser => 0,
 	       anonymous_mode => $Conf::anonymous_mode || 0,
                transmitted  => 0,
@@ -1410,7 +1411,7 @@ sub run {
   $self->check_for_anonymous_login();
 
   # check for terms of service
-  if ($self->require_terms_of_service && $self->session->user && $page ne "TermsofService") {
+  if ($self->require_terms_of_service && $self->session->user && $page ne "TermsofService" && $page ne "Logout") {
     my $pref = $self->dbmaster->Preferences->get_objects( { user => $self->session->user,
 							    name => 'AgreeTermsOfService' } );
     unless (scalar(@$pref) && $pref->[0]->value && $self->require_terms_of_service <= $pref->[0]->value) {
@@ -1551,44 +1552,53 @@ sub run {
       $self->layout->add_metatag( '<meta name="robots" content="nofollow" />' );
     }
 
-    # fill the layout only with title and content
-    $self->layout->set_content( { title    => $self->page_title_prefix . $self->page->title,
-				  content  => $content . $self->page->robot_content
-				} );
+    foreach my $tag (@{$self->metatags}) {
+      $self->layout->add_metatag( '<meta name="'.$tag->{key}.'" content="'.$tag->{value}.'" />' );
+    }
+
   } else {
-      # Not a bot, so we want site meter code in. Check for the site meter override.
+    # Not a bot, so we want site meter code in. Check for the site meter override.
     # add no-robot to the header, since this is not one of our recognized robots
     $self->layout->add_metatag( '<meta name="robots" content="noindex,nofollow" />' );
-
-      $self->layout->set_page($page);
-    # fill the layout 
-      my $initialize_all = qq~<script>function initialize_all () {
-~;
-      foreach my $call (@{$self->js_init_functions()}) {
-	$initialize_all .= $call."\n";
-      }
-      $initialize_all .= qq~
-}</script>~;
-    $self->layout->set_content( { title     => $self->page_title_prefix . $self->page->title,
-				  pagetitle => ($self->page->{icon}||"").$self->page->title,
-				  content   => $initialize_all.$content,
-				  warnings  => $self->get_messages('warning'),
-				  info      => $self->get_messages('info'),
-				  menu      => $self->menu->output($self),
-				  user      => $self->get_user_info(),
-				} );
   }
-  
+
+  $self->layout->set_page($page);
+  # fill the layout 
+  my $initialize_all = qq~<script>function initialize_all () {
+~;
+  foreach my $call (@{$self->js_init_functions()}) {
+    $initialize_all .= $call."\n";
+  }
+  $initialize_all .= qq~
+}</script>~;
+  $self->layout->set_content( { title     => $self->page_title_prefix . $self->page->title,
+				pagetitle => ($self->page->{icon}||"").$self->page->title,
+				content   => $initialize_all.$content,
+				warnings  => $self->get_messages('warning'),
+				info      => $self->get_messages('info'),
+				menu      => $self->menu->output($self),
+				user      => $self->get_user_info(),
+			      } );
+ 
   # Print the output. We only do this once. If we hit this code a second
   # time, it means a redirect took place, and we only want the redirect's
   # output, not ours.
-  if ($self->{transmitted}) {
-  } else {
+  unless ($self->{transmitted}) {
     $self->{transmitted} = 1;
     print $self->cgi->header( -cookie => $self->session->cookie );
     my $output = $self->layout->output;
     print $output;
   }
+}
+
+sub metatags {
+  my ($self, $key, $value) = @_;
+
+  if ($key && $value) {
+    push(@{$self->{metatags}}, { key => $key, value => $value } );
+  }
+
+  return $self->{metatags};
 }
 
 =pod
@@ -1603,11 +1613,22 @@ Finds out whether the user agent is a robot / spider
 
 sub bot {
   my ($self) = @_;
-  my $retVal;
+  
+  my $agent = $ENV{HTTP_USER_AGENT};
+  
+  my $allowed_bots = ['Google','msnbot','Rambler','Yahoo','AbachoBOT','accoona','AcoiRobot','ASPSeek','CrocCrawler','Dumbot','FAST-WebCrawler','GeonaBot','Gigabot','Lycos','MSRBOT','Scooter','AltaVista','IDBot','eStyle','Scrubby'];
+  
+  foreach my $bot (@$allowed_bots) {
+    if ($agent =~ /$bot/i) {
+      return 1;
+    }
+  }
+  
   if ($self->test_bot) {
-    $retVal = 1;
-  } 
-  return $retVal;
+    return 1;
+  }
+
+  return 0;
 }
 
 =pod

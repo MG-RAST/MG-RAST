@@ -309,7 +309,7 @@ sub output {
   if ((! $is_rna) || $bp_consensus) {
     $html .= "<li style='padding-top:5px;'>Metagenome QC</li>";
     $html .= "<ul style='margin:0;'>";
-    if (($drisee_num > 0) && (! $is_rna)) {
+    if (exists($job_stats->{drisee_score_raw}) && (! $is_rna)) {
       $html .= "<li><a href='#drisee_ref'>DRISEE</a></li>";
     }
     if (! $is_rna) {
@@ -465,9 +465,25 @@ sub output {
   $html .= "<img src='./Html/clear.gif' onload='draw_bar_plot(\"flowchart_div\", $fc_titles, $fc_colors, $fc_data);'></td></tr></table>";
 
   # drisee score
-  if (($drisee_num > 0) && (! $is_rna)) {
+  my $drisee_refrence = "<p>DRISEE: Duplicate Read Inferred Sequencing Error Estimation (<a target=_blank href='http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1002541'>Keegan et al., PLoS Computational Biology, 2012</a>)</p>";
+  my $drisee_boilerplate = qq~
+  <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
+  <p>Note that DRISEE is designed to examine sequencing error in raw whole genome shotgun sequence data. It assumes that adapter and/or barcode sequences have been removed, but that the sequence data have not been modified in any additional way. (e.g.) Assembly or merging, QC based triage or trimming will both reduce DRISEE's ability to provide an accurate assessment of error by removing error before it is analyzed.</p>~;
+
+  if (exists($job_stats->{drisee_score_raw}) && ($drisee_num == 0) && (! $is_rna)) {
+    $html .= qq~<a name='drisee_ref'></a>
+<h3>DRISEE
+<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a></h3>
+$drisee_refrence
+<p>DRISEE could not produce a profile; the sample failed to meet the minimal ADR requirements to calculate an error profile (see Keegan et al. 2012)</p>
+$drisee_boilerplate
+~;
+  }
+  elsif (($drisee_num > 0) && (! $is_rna)) {
     my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
     my $drisee_score = sprintf("%.3f", $drisee_num);
+    my $drisee_info  = $self->get_drisee_info($job);
+    ## [ Input seqs, Processed bins, Processed seqs, Drisee score ]
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a>
@@ -480,12 +496,13 @@ sub output {
     this.innerHTML = "show";
   }'>hide</a></h3>
 <div id='drisee_show'>
+  $drisee_refrence
   <p><b>Total DRISEE Error = $drisee_score %</b></p>
   <img src='./Html/clear.gif' onload='draw_position_on_range("drisee_bar_div", $drisee_num, $min, $max, $avg, $stdv);'>
   <div id='drisee_bar_div'></div>
   <p>The above image shows the range of total DRISEE percent errors in all of MG-RAST. The min, max, and mean values are shown, with the standard deviation ranges (&sigma; and 2&sigma;) in different shades. The total DRISEE percent error of this metagenome is shown in red.</p>
-  <p>DRISEE: Duplicate Read Inferred Sequencing Error Estimation (<a target=_blank href='http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1002541'>Keegan et al., PLoS Computational Biology, 2012</a>)</p>
-  <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
+  <p>DRISEE successfully calculated an error profile. DRISEE used ~.format_number($drisee_info->[0]).qq~ reads randomly selected from the ~.format_number($raw_seqs).qq~ reads in this sample. ~.format_number($drisee_info->[2]).qq~ duplicate reads were found with bins of 20 or more reads. A total of ~.format_number($drisee_info->[1]).qq~ such bins were detected</p>
+  $drisee_boilerplate
   $drisee_plot
 </div>~;
   }
@@ -502,7 +519,12 @@ sub output {
   } else {
     document.getElementById("kmer_show").style.display = "none";
     this.innerHTML = "show";
-  }'>hide</a></h3>
+  }'>hide</Note that
+DRISEE is designed to examine sequencing error in raw whole genome
+shotgun sequence data. It assumes that adapter and/or barcode sequences have
+been removed, but that the sequence data have not been modified in
+any additional way. (e.g.) Assembly or merging , QC based triage or
+trimming will both reduce DRISEE's ability to provide an accurate assessment  of error by removing error before it is analyzed!   a></h3>
 <a style='cursor:pointer;clear:both;padding-right:20px;' onclick='
     var new_type = document.getElementById("kmer_type").value;
     var new_size = document.getElementById("kmer_size").value;
@@ -1202,6 +1224,22 @@ sub draw_krona {
   }
 }
 
+sub get_drisee_info {
+  my ($self, $job) = @_;
+
+  my $dinfo = [];
+  my $info_file = $job->download_dir('qc').'075.drisee.info';
+  my @bin_stats = `tail -4 $info_file`;
+  chomp @bin_stats;
+
+  foreach my $line (@bin_stats) {
+    my ($key, $val) = split('\t', $line);
+    push @$dinfo, $val;
+  }
+  ## [ Input seqs, Processed bins, Processed seqs, Drisee score ]
+  return $dinfo;
+}
+
 sub get_drisee_chart {
   my ($self, $job) = @_;
 
@@ -1332,6 +1370,7 @@ sub get_consensus_chart {
   }
   my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
   my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
+  my $num_bps = scalar(@$data);
 
   my $html .= qq~<a name='consensus_ref'></a>
 <h3>Nucleotide Position Histogram
@@ -1345,7 +1384,7 @@ sub get_consensus_chart {
     this.innerHTML = "show";
   }'>hide</a></h3>
 <div id='consensus_show'>
-  <p>These graphs show the fraction of base pairs of each type (A, C, G, T, or ambiguous base "N") at each position starting from the beginning of each read up to the first 100 base pairs. Amplicon datasets should show consensus sequences; shotgun datasets should have roughly equal proportions of basecalls.</p>
+  <p>These graphs show the fraction of base pairs of each type (A, C, G, T, or ambiguous base "N") at each position starting from the beginning of each read up to the first $num_bps base pairs. Amplicon datasets should show consensus sequences; shotgun datasets should have roughly equal proportions of basecalls.</p>
   <p>$consensus_link</p>
   <script type="text/javascript">
     google.load("visualization", "1", {packages:["corechart"]});
