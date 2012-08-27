@@ -334,12 +334,12 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    
 	    # call the extended information
 	    if ($file_type eq 'ASCII text') {
-	      my $compute_script = $Conf::sequence_statistics;
-	      my $jobid = $user->{login};
-	      $jobid =~ s/\s/_/g
-	      my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
-	      my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
-	      $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+		my $compute_script = $Conf::sequence_statistics;
+		my $jobid = $user->{login};
+		$jobid =~ s/\s/_/g;
+		my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
+		my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 	      open(FH, ">>$udir/.tmp/jobs");
 	      print FH "$jnum";
 	      close FH;
