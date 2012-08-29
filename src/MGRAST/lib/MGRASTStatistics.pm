@@ -139,6 +139,28 @@ sub job {
     }
 }
 
+sub project {
+    my($self, $_id) = @_;
+
+    # collect project information
+
+    if ( not exists $self->{project} )
+    {
+	my $dbh = $self->job_dbh->db_handle();
+	my $sql = "SELECT _id,public,name,type,id FROM Project";
+	$self->{project} = $dbh->selectall_hashref($sql, '_id');
+    }
+
+    if ( defined $_id )
+    {
+	return (exists $self->{project}{$_id})? $self->{project}{$_id} : {};
+    }
+    else
+    {
+	return $self->{project};
+    }
+}
+
 sub organization {
     my($self, $_id) = @_;
 
@@ -1058,6 +1080,46 @@ sub job2lastpipelinestage {
     {
 	my $stages = $self->job2pipelinestage($_id);
 	return $stages->[-1] || [];
+    }
+}
+
+sub projectjob {
+    my($self) = @_;
+
+    # ProjectJob table gives mapping: project <--> job
+
+    if ( not exists $self->{projectjob} )
+    {
+	my $dbh = $self->job_dbh->db_handle();
+	my $sql = "SELECT project,job FROM ProjectJob";
+	$self->{projectjob} = $dbh->selectall_arrayref($sql);
+    }
+    
+    return $self->{projectjob};    
+}
+
+sub job2project {
+    my($self, $_id) = @_;
+
+    if ( not exists $self->{job2project} )
+    {
+	my %hash;
+	foreach my $rec ( @{ $self->projectjob() } )
+	{
+	    my($_id_project, $_id_job) = @$rec;
+	    push @{ $hash{$_id_job} }, $_id_project;
+	}
+
+	$self->{job2project} = \%hash;
+    }
+
+    if ( defined $_id )
+    {
+	return (exists $self->{job2project}{$_id})? $self->{job2project}{$_id} : [];
+    }
+    else
+    {
+	return $self->{job2project};
     }
 }
 

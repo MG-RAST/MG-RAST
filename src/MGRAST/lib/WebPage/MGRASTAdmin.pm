@@ -170,9 +170,10 @@ sub output {
     $average_size_table->export_excel();
   }
 
-  my $mgusers = $self->{mgstat}->user();
-  my $mgorgs  = $self->{mgstat}->organization();
-  my $mgjobs  = $self->{mgstat}->job();
+  my $mgusers    = $self->{mgstat}->user();
+  my $mgorgs     = $self->{mgstat}->organization();
+  my $mgjobs     = $self->{mgstat}->job();
+  my $mgprojects = $self->{mgstat}->project();
 
   my $pipeline_job_ids = {};
   my $pipeline_jobs = $self->{mgstat}->pipeline_jobs_count();
@@ -389,6 +390,26 @@ sub output {
 	  $name_text = $mgjobs->{$_id_job}{name};
       }
 
+      # link to project page(s)
+      my $project_links = [];
+      my $_id_projects  = $self->{mgstat}->job2project($_id_job);
+
+      if ( @$_id_projects )
+      {
+	  foreach my $_id_project ( @$_id_projects )
+	  {
+	      my $id_project = $mgprojects->{$_id_project}{id};
+
+	      # some weirdness in database Project table, need to check that $id_project is found
+	      if ( $id_project )
+	      {
+		  push @$project_links, qq(<a href='?page=MetagenomeProject&project=$id_project' target='_blank'>$id_project</a>);
+	      }
+	  }
+      }
+
+      my $project_link = scalar @$project_links ? join(', ', @$project_links) : '';
+
       push @$jdata, [ 
 		      $mgjobs->{$_id_job}{created_on}, 
 		      $mgjobs->{$_id_job}{metagenome_id}, 
@@ -399,7 +420,7 @@ sub output {
 		      $mgjobs->{$_id_job}{viewable},
 		      $mgjobs->{$_id_job}{public},
 		      $mgjobs->{$_id_job}{server_version}, 
-		      $mgjobs->{$_id_job}{project_name}, 
+		      $project_link,
 		      $mgusers->{$_id_user}{firstname}, 
 		      $mgusers->{$_id_user}{lastname}, 
 		      $mgusers->{$_id_user}{login}, 
