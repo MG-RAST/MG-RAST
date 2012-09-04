@@ -364,7 +364,7 @@ sub output {
   # gsc mixs
   $html .= "<h3>GSC MIxS Info</h3>";
   $html .= "<div class='metagenome_info' style='width: 300px;'><ul style='margin: 0; padding: 0;'>";
-  $html .= "<li class='even'><label style='text-align: left;'>Investigation Type</label><span style='width: 180px'>Metagenome".(($md_seq_type =~ /wgs|amplicon/i) ? ": $md_seq_type" : "")."</span></li>";
+  $html .= "<li class='even'><label style='text-align: left;'>Investigation Type</label><span style='width: 180px'>".(($md_seq_type =~ /wgs|amplicon|mt/i) ? $mddb->investigation_type_alias($md_seq_type) : "unknown")."</span></li>";
   $html .= "<li class='odd'><label style='text-align: left;'>Project Name</label><span style='width: 180px'>".($self->{project} ? $project_link : "-")."</span></li>";
   $html .= "<li class='even'><label style='text-align: left;'>Latitude and Longitude</label><span style='width: 180px'>".(scalar(@$md_coordinate) ? join(", ", @$md_coordinate) : "-, -")."</span></li>";
   $html .= "<li class='odd'><label style='text-align: left;'>Country and/or Sea, Location</label><span style='width: 180px'>".(scalar(@$md_region) ? join("<br>", @$md_region) : "-")."</span></li>";

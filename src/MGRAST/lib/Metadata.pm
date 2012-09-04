@@ -1108,7 +1108,7 @@ sub add_valid_metadata {
 }
 
 sub investigation_type_alias {
-  my ($type) = @_;
+  my ($self, $type) = @_;
   unless ($type) { return ""; }
   if    ($type eq 'metagenome')        { return "WGS"; }
   elsif ($type eq 'mimarks-survey')    { return "Amplicon"; }
