@@ -452,8 +452,9 @@ sub download {
   my $job  = $self->{job};
   my $file = $cgi->param('file');
   my $sid  = $cgi->param('stage');
+  my $dir  = ($sid == 50) ? $job->download_dir() : $job->download_dir($sid);
 
-  if (open(FH, $job->download_dir($sid) . "/" . $file)) {
+  if (open(FH, $dir.$file)) {
     my $content = do { local $/; <FH> };
     close FH;
     print "Content-Type:application/x-download\n";  
