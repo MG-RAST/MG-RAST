@@ -564,30 +564,39 @@ sub submit_to_mgrast {
     return undef;
   }
 
-  my $mgids = [];
-  foreach my $job (@$successfully_created_jobs) {
-    my $create_job_script = $Conf::create_job;
-    my $seqfile = $job2seq->{$job->{job_id}};
-    my $jid = $job->{job_id};
-    my $is_fastq = ($job2type->{$job->{job_id}} eq 'fastq') ? " --fastq" : "";
-    my $options  = $job->{options} ? ' -o "'.$job->{options}.'"' : "";
-    my $result = `$create_job_script -j $jid -f "$udir/$seqfile"$options$is_fastq`;
-
-    # check if the sequence file made it over to the jobdirectory, then delete it in the inbox
-    my $rawfile = $job->download_dir.$job->{job_id}.".";
-    if ($is_fastq) {
-      $rawfile .= "fastq";
-    } else {
-      $rawfile .= "fna";
-    }
-    if (-f $rawfile && (stat($rawfile))[7] == (stat("$udir/$seqfile"))[7]) {
-      `rm "$udir/$seqfile"`; 
-    }
-
-    push @$mgids, $job->{metagenome_id};
-  }
+  my $pid = fork();
   
-  return $mgids;
+  # child
+  if ($pid == 0) {
+    close STDERR;
+    close STDOUT;
+    foreach my $job (@$successfully_created_jobs) {
+      my $create_job_script = $Conf::create_job;
+      my $seqfile = $job2seq->{$job->{job_id}};
+      my $jid = $job->{job_id};
+      my $is_fastq = ($job2type->{$job->{job_id}} eq 'fastq') ? " --fastq" : "";
+      my $options  = $job->{options} ? ' -o "'.$job->{options}.'"' : "";
+      my $result = `$create_job_script -j $jid -f "$udir/$seqfile"$options$is_fastq`;
+      
+      # check if the sequence file made it over to the jobdirectory, then delete it in the inbox
+      my $rawfile = $job->download_dir.$job->{job_id}.".";
+      if ($is_fastq) {
+	$rawfile .= "fastq";
+      } else {
+	$rawfile .= "fna";
+      }
+      if (-f $rawfile && (stat($rawfile))[7] == (stat("$udir/$seqfile"))[7]) {
+	`rm "$udir/$seqfile"`; 
+      }
+    }
+    exit;
+  }
+  # parent
+  else {
+    my $mgids = [];
+    @$mgids = map { $_->{metagenome_id} } @$successfully_created_jobs;
+    return $mgids;
+  }
 }
 
 sub check_for_duplicates {
