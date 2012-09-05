@@ -3,21 +3,42 @@ package resources::project;
 use CGI;
 use JSON;
 
+use HTML::Entities;
 use MGRAST::Metadata;
 use WebServiceObject;
 
 my $cgi = new CGI;
 my $json = new JSON;
-$json = $json->utf8();
+$json = $json->utf8(); 
+
+=pod
+
+=head1 NAME
+
+project resource
+
+=head1 DESCRIPTION
+
+returns requested project information
+
+=head1 EXAMPLES
+
+=over 4
+
+=item * api.cgi/project/mgp10
+
+=item * api.cgi/project?display=name&display=pi
+
+=cut
 
 sub about {
   my $content = { 'description' => "metagenomic project",
-		  'parameters' => { "id" => "string" },
-		  'return_type' => "application/json" };
+      'parameters' => { "id" => "string" },
+      'return_type' => "application/json" };
 
   print $cgi->header(-type => 'application/json',
-		     -status => 200,
-		     -Access_Control_Allow_Origin => '*' );
+         -status => 200,
+         -Access_Control_Allow_Origin => '*' );
   print $json->encode($content);
   exit 0;
 }
@@ -35,8 +56,8 @@ sub request {
 
   if ($error) {
     print $cgi->header(-type => 'text/plain',
-		       -status => 500,
-		       -Access_Control_Allow_Origin => '*' );
+           -status => 500,
+           -Access_Control_Allow_Origin => '*' );
     print "ERROR: resource database offline";
     exit 0;
   }
@@ -49,19 +70,64 @@ sub request {
     $id =~ s/mgp(.+)/$1/;
     $project = $master->Project->init( {id => $id} );
   } else {
-    my $ids = {};
+    my $projects= ();
     if (exists $rights{'*'}) {
-      map { $ids->{"mgp".$_->{id}} = 1 } @{ $master->Project->get_objects() };
+      push @$projects, @{ $master->Project->get_objects() };
+    } else {
+      my $public = $master->Project->get_public_projects();
+      push @$projects, @$public;
+      push @$projects, keys %rights;
     }
-    else {
-      my $public = $master->Project->get_objects( {public => 1} );
-      map { $ids->{"mgp".$_->{id}} = 1 } @$public;
-      map { $ids->{"mgp".$_} = 1 } keys %rights;
+    
+    my @results;
+
+    # Returning the 'display' attributes for all requested projects.
+    foreach my $project (@$projects) {
+      my @attributes = $cgi->param('display');
+      my $metadata;
+      my @colls = ();
+      
+      my $obj  = {};
+
+      foreach my $attr (@attributes) {
+        if($attr eq 'id')                  { $obj->{id}             = "mgp".$project->id;
+	} elsif($attr eq 'name')           { $obj->{name}           = $project->name;
+	} elsif($attr eq 'analyzed')       {
+          @jobs       = map { "mgm".$_ } @{ $project->all_metagenome_ids };
+          $obj->{analyzed}       = \@jobs
+	} elsif($attr eq 'pi')             { $obj->{pi}             = $project->pi;
+	} elsif($attr eq 'metadata')       {
+          $metadata   = $project->data();
+          $obj->{metadata}       = $metadata;
+	} elsif($attr eq 'description')    {
+          $metadata   = $project->data();
+          $metadata->{project_description} || $metadata->{study_abstract} || " - ";
+          $obj->{description}    = $desc;
+	} elsif($attr eq 'funding_source') {
+          $metadata   = $project->data();
+          $metadata->{project_funding} || " - ";
+          $obj->{funding_source} = $fund;
+	} elsif($attr eq 'samples') {
+          @colls      = @{ $project->collections };
+          @samples    = map { "mgs".$_->{ID} } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
+          $obj->{samples}        = \@samples;
+	} elsif($attr eq 'libraries')      {
+          @colls      = @{ $project->collections };
+          @libraries  = map { "mgl".$_->{ID} } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
+          $obj->{libraries}      = \@libraries;
+	} elsif($attr eq 'about')          { $obj->{about}          = "metagenomics project";
+	} elsif($attr eq 'version')        { $obj->{version}        = 1;
+	} elsif($attr eq 'url')            { $obj->{url}            = $cgi->url.'/project/'.$obj->{id};
+	} elsif($attr eq 'created')        { $obj->{created}        = "";
+        }
+      }
+      push @results, $obj;
     }
+  
     print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode([sort keys %$ids]);
+           -status => 200,
+           -Access_Control_Allow_Origin => '*' );
+    print $json->encode(\@results);
     exit 0;
   }
   
@@ -95,14 +161,14 @@ sub request {
     $obj->{created}        = "";
 
     print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
+           -status => 200,
+           -Access_Control_Allow_Origin => '*' );
     print $json->encode( $obj );
     exit 0;
   } else {
     print $cgi->header(-type => 'text/plain',
-		       -status => 400,
-		       -Access_Control_Allow_Origin => '*' );
+           -status => 400,
+           -Access_Control_Allow_Origin => '*' );
     print "ERROR: project not found";
     exit 0;
   }
