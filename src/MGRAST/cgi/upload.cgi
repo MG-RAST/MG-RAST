@@ -70,21 +70,21 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    if (-f "$udir/$file.stats_info") {
 			`rm '$udir/$file.stats_info'`;
 		    }
-		    
-		    # check if the file is in a directory
-		    if ($file =~ /\//) {		      
-			my ($dn) = $file =~ /^(.*)\//;
-			$dn = $udir."/".$dn;
-
-			# if the directory is empty, delete it
-			my @fls = <$dn/*>;
-			if (! scalar(@fls)) {
-			    `rmdir $dn`;
-			}
-		    }
 		}
 	    }
 	}
+
+        # delete an empty directory
+        if($action eq 'delete_dir') {
+	    my $target_dir = shift(@files);
+            my @dir_files = `ls $udir/$target_dir`;
+            if(scalar(@dir_files) == 0) {
+                # command will fail unless directory is empty
+                `rmdir $udir/$target_dir`;
+            } else {
+		push(@{$data->[0]->{messages}}, "Could not delete directory: $target_dir because it was not empty");
+            }
+        }
 
 	#  move a list of files
 	if ($action eq 'move') {
@@ -92,9 +92,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    if ($target_dir eq 'inbox') {
 		$target_dir = $udir."/";
 	    } else {
-		unless (-d "$udir/$target_dir") {
-		    `mkdir '$udir/$target_dir'`;
-		}
 		$target_dir = "$udir/$target_dir/";
 	    }
 	    foreach my $file (@files) {
@@ -104,6 +101,14 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		}
 	    }
 	}
+
+        # create a directory
+        if ($action eq 'create_dir') {
+            my $dir = shift(@files);
+            unless(-d "$udir/$dir") {
+                `mkdir '$udir/$dir'`;
+            }
+        }
 	
 	# decompress a list of files
 	if ($action eq 'unpack') {
@@ -113,7 +118,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    if ($file =~ /\.(tar\.gz|tgz)$/) {
 			@msg = `tar -xzf '$udir/$file' -C $udir 2>&1`;
 		    } elsif ($file =~ /\.zip$/) {
-			@msg = `unzip -d $udir '$udir/$file' 2>&1`;
+			@msg = `unzip -q -o -d $udir '$udir/$file' 2>&1`;
 		    } elsif ($file =~ /\.(tar\.bz2|tbz|tbz2|tb2)$/) {
 			@msg = `tar -xjf '$udir/$file' -C $udir 2>&1`;
 		    } elsif ($file =~ /\.gz$/) {
@@ -144,6 +149,10 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		}
 	    }
 	}
+
+        # merge_mate_pairs, there will be two paired-end fastq files
+        if ($action eq 'merge_mate_pairs') {
+        }
 	
 	# demultiplex, there will be one sequence and one barcode file
 	if ($action eq 'demultiplex') {
@@ -235,19 +244,15 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		opendir(my $dh2, $udir."/".$ufile);
 		my @numfiles = grep { /^[^\.]/ && -f $udir."/".$ufile."/".$_ } readdir($dh2);
 		closedir $dh2;
-		if (scalar(@numfiles)) {
-		    push(@{$data->[0]->{directories}}, $ufile);
-		    my $dirseqs = [];
-		    foreach my $nf (@numfiles) {
-			unless ($nf =~ /\.stats_info$/) {
-			    push(@$dirseqs, $nf);
-			}
-			push(@ufiles, "$ufile/$nf");		
+		push(@{$data->[0]->{directories}}, $ufile);
+		my $dirseqs = [];
+		foreach my $nf (@numfiles) {
+		    unless ($nf =~ /\.stats_info$/) {
+			push(@$dirseqs, $nf);
 		    }
-		    $data->[0]->{fileinfo}->{$ufile} = $dirseqs;
-		} else {
-		    `rmdir $udir/$ufile`;
+		    push(@ufiles, "$ufile/$nf");		
 		}
+		$data->[0]->{fileinfo}->{$ufile} = $dirseqs;
 	    }
 	    # check files
 	    else {

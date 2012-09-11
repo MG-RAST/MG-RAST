@@ -31,12 +31,21 @@ function update_inbox (data, files, action) {
     var sequence_files = [];
     var metadata_files = [];
 
+    var dir_list_html = '<form><select id="dir_select">';
+    dir_list_html += '  <option value="inbox">inbox (base directory)</option>';
+    var delete_dir_list_html = '<form><select id="delete_dir_select">';
     var html = '<table><tr><td rowspan=2 style="padding-right: 20px;"><form class="form-horizontal">';
     html += '<select id="inbox_select" multiple style="width: 420px; height: 200px;">';
     var seq_dlist = [];
     var seqs_in_dir = false;
     for (var i=0; i<dlist.length; i++) {
-      html += "<optgroup title='this is a directory\nclick to toggle open / close' open=0 label='[ "+dlist[i]+" ] - "+DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length+" files' onclick='if(event.originalTarget.nodeName==\"OPTGROUP\"){if(this.open){this.open=0;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"none\";}}else{this.open=1;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"\";}}}'>";
+      dir_list_html += "  <option>"+dlist[i]+"</option>";
+      if (!dlist[i].match(/^(\_)/)) {
+        if(DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length == 0) {
+          delete_dir_list_html += "  <option>"+dlist[i]+"</option>";
+        }
+        html += "<optgroup title='this is a directory\nclick to toggle open / close' open=0 label='[ "+dlist[i]+" ] - "+DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length+" files' onclick='if(event.originalTarget.nodeName==\"OPTGROUP\"){if(this.open){this.open=0;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"none\";}}else{this.open=1;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"\";}}}'>";
+      }
       for (var h=0; h<DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length; h++) {
 	var fn = DataStore['user_inbox'][user.login].fileinfo[dlist[i]][h];
 	if (fn.match(is_a_sequence_file_ending)) {
@@ -84,6 +93,10 @@ function update_inbox (data, files, action) {
 	html += "<option>"+flist[i]+"</option>";
       }
     }
+    dir_list_html += '</select></form>';
+    document.getElementById('dir_list').innerHTML = dir_list_html;
+    delete_dir_list_html += '</select></form>';
+    document.getElementById('delete_dir_list').innerHTML = delete_dir_list_html;
     html += '</select>';
     html += '</form></td><td id="inbox_feedback"></td></tr><tr><td id="inbox_file_info"></td></tr></table>';
     document.getElementById('inbox').innerHTML = html;
@@ -174,6 +187,8 @@ function update_inbox (data, files, action) {
 	loading_info += "Converting sff file(s) to fastq. The resulting files will be processed for statistics. This will take a few minutes, depending on the file size.<br><br>";
       } else if (action == "demultiplex") {
 	loading_info += "Demultiplexing in progress. The resulting files will be processed for statistics. This will take a few minutes, depending on the number of files and file size.<br><br>";
+      } else if (action == "merge_mate_pairs") {
+	loading_info += "Mate-pair merging in progress. This will take a few minutes, depending on the file sizes.<br><br>";
       }
       for (var i=0; i<files.length; i++) {
 	params['query'][params['query'].length] = 'fn';
@@ -228,6 +243,30 @@ function convert_files () {
     }
   }
   update_inbox(null, files, "convert");  
+}
+
+function merge_mate_pairs () {
+  var files = [];
+  var filebox = document.getElementById('inbox_select');
+  for (var i=0; i<filebox.options.length; i++) {
+    if (filebox.options[i].selected) {
+      files[files.length] = filebox.options[i].value;
+    }
+  }
+  
+  if (files.length == 2) {
+    var seqfile;
+    if (files[0].match(/(fastq|fq)$/) || files[1].match(/(fastq|fq)$/)) {
+      alert("This might take some minutes, depending on filesize.\nWhen the merging has finished, your inbox\nwill update automatically.\n\n");
+      
+      update_inbox(null, files, "merge_mate_pairs");
+    } else {
+      alert("Your selection must include two fastq sequence files (.fq or .fastq)");
+      return false;
+    }
+  } else {
+    alert("You need to select two paired-end read fastq files to proceed with mate-pair merging.");
+  }
 }
 
 function demultiplex_files () {
@@ -549,7 +588,38 @@ function check_project () {
     });
 }
 
-function change_file_dir () {
+function create_dir () {
+  var dn = document.getElementById('create_dir_name').value;
+  var dlist = DataStore['user_inbox'][user.login].directories;
+  var files = [];
+  if (dn) {
+    if(dn == 'inbox') {
+      alert('Cannot name a directory "inbox".  This name is reserved for your base upload directory.');
+      return false;
+    }
+    var existing = 0;
+    for (var i=0; i<dlist.length; i++) {
+      if (dlist[i] == dn) {
+	existing = 1;
+	break;
+      }
+    }
+    if (existing) {
+      alert('Directory already exists.');
+      return false;
+    } else {
+      if (! dn.match(/^[\w\d_\.\s]+$/) ) {
+	alert('Directory names may only consist of letters, numbers and the "_" character.');
+	return false;
+      }
+      files.unshift(dn);
+      update_inbox(null, files, 'create_dir');
+    }
+  }
+}
+
+function move_files () {
+  var dn = document.getElementById('dir_select').value;
   var dlist = DataStore['user_inbox'][user.login].directories;
   var files = [];
   var filebox = document.getElementById('inbox_select');
@@ -559,7 +629,6 @@ function change_file_dir () {
     }
   }
   if (files.length) {
-    var dn = prompt("Select target directory, choose 'inbox' for top level", last_directory);
     if (dn) {
       if (dn == 'inbox') {
 	files.unshift('inbox');
@@ -576,19 +645,25 @@ function change_file_dir () {
 	  files.unshift(dn);
 	  update_inbox(null, files, 'move');
 	} else {
-	  if (! dn.match(/^[\w\d_\.\s]+$/) ) {
-	    alert('Directory names may only consist of letters, numbers and the "_" character.');
-	    return false;
-	  }
-	  if (confirm('This directory does not exist. Do you want to create it?')) {
-	    files.unshift(dn);
-	    update_inbox(null, files, 'move');
-	  }
+          alert('This directory no longer exists!  Please update your inbox.');
 	}
       }
     }
   } else {
     alert("You did not select any files to move.");
+  }
+}
+
+function delete_dir () {
+  var dn = document.getElementById('delete_dir_select').value;
+  var files = [];
+  if (dn) {
+    if (dn != 'inbox') {
+      files.unshift(dn);
+      update_inbox(null, files, 'delete_dir');
+    }
+  } else {
+    alert('No directories to delete!');
   }
 }
 
