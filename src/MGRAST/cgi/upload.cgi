@@ -152,6 +152,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
         # merge_mate_pairs, there will be two paired-end fastq files
         if ($action eq 'merge_mate_pairs') {
+            # do stuff
         }
 	
 	# demultiplex, there will be one sequence and one barcode file
@@ -172,33 +173,31 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		$has_seqs = 1;
 	    }
 	    if ($has_seqs) {
-		open(MID, "<$udir/$midfile") or die "could not open file '$udir/$midfile': $!";
-		my @mid_tags;
-		my $tagnames = {};
-		my $tag;
-		my $tagname;
-		while ( defined($tag = <MID>) ) {
-		    chomp $tag;
-		    $tag =~ s/\r//g;
-		    if ($tag =~ /\t/) {
-			($tag, $tagname) = split(/\t/, $tag);
-			$tagnames->{$tag} = $tagname;
-		    }
-		    push @mid_tags, $tag;
-		}
-		close(MID);
-		
-		my $retfiles = [];
-		if (my ($bc_length) = $mid_tags[0] =~ /^(\d+)$/) {
-		    $retfiles = &split_fasta_by_bc_length($seqfile, $udir, $filetype, $bc_length);
-		} else {
-		    $retfiles = &split_fasta_by_mid_tag($seqfile, $udir, $filetype, \@mid_tags, $tagnames);
-		}
-		if (scalar(@$retfiles)) {
-		    push(@{$data->[0]->{messages}}, "successfully demultiplexed ".$seqfile." into ".scalar(@$retfiles)." files.");
-		} else {
-		    push(@{$data->[0]->{messages}}, "There was an error during demultiplexing.");
-		}
+                my $lock_file = "$udir/$seqfile.lock";
+                if (-f $lock_file) {
+                    my $lock_msg = `cat $lock_file`;
+                    chomp $lock_msg;
+		    push(@{$data->[0]->{messages}}, "Unable to demultiplex $seqfile, currently running $lock_msg.");
+                } else {
+                    my $subdir = "";
+                    if ($seqfile =~ /\//) {
+                       $subdir = $seqfile;
+                       $subdir =~ /^(.*\/).*/;
+                    }
+
+		    my $jobid = $user->{login};
+		    $jobid =~ s/\s/_/g;
+		    `echo "demultiplex" > $lock_file`;
+		    my $jnum = `echo "$Conf::demultiplex -f $filetype -b $midfile -i $seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+		    open(FH, ">>$udir/.tmp/jobs");
+		    print FH "$jnum";
+		    close FH;
+
+		    my $bc_count = `wc $midfile | awk '{print $1}'`;
+		    chomp $bc_count;
+		    push(@{$data->[0]->{messages}}, "Sequence file $seqfile is queued to be demultiplexed using $bc_count barcodes.");
+                }
 	    }
 	    else {
 		push(@{$data->[0]->{messages}}, "Unknown file types for demultiplex, please select one sequence file and one barcode file.");
@@ -339,11 +338,11 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    
 	    # call the extended information
 	    if ($file_type eq 'ASCII text') {
-		my $compute_script = $Conf::sequence_statistics;
+                my $lock_file = "$udir/$sequence_file.lock";
+                `echo "seqeunce stats" > $lock_file`;
 		my $jobid = $user->{login};
 		$jobid =~ s/\s/_/g;
-		my $exec_line = "echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir";
-		my $jnum = `echo $compute_script -file '$sequence_file' -dir $udir -file_format $file_format | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $Conf::cluster_temp; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 	      open(FH, ">>$udir/.tmp/jobs");
 	      print FH "$jnum";

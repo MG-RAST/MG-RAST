@@ -39,8 +39,8 @@ function update_inbox (data, files, action) {
     var seq_dlist = [];
     var seqs_in_dir = false;
     for (var i=0; i<dlist.length; i++) {
-      dir_list_html += "  <option>"+dlist[i]+"</option>";
       if (!dlist[i].match(/^(\_)/)) {
+        dir_list_html += "  <option>"+dlist[i]+"</option>";
         if(DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length == 0) {
           delete_dir_list_html += "  <option>"+dlist[i]+"</option>";
         }
@@ -53,6 +53,14 @@ function update_inbox (data, files, action) {
 	  seqs_in_dir = true;
 	}
 	var inf = DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn];
+        var lock_msg = "";
+        $.get("?page=Upload&action=read_status_file&type=lock&filename="+fn, function (data) {
+          lock_msg = data;
+        });
+        var error_msg = "";
+        $.get("?page=Upload&action=read_status_file&type=error_log&filename="+fn, function (data) {
+          error_msg = data;
+        });
 	if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
 	  html += "<option style='display: none; padding-left: 35px; color: red;' title='this is a malformed / unidentifiable sequence file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['Error']) {
@@ -61,6 +69,10 @@ function update_inbox (data, files, action) {
 	  html += "<option style='display: none; padding-left: 35px; color: red;' title='the unique id count does not match the sequence count' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && (! inf['bp count'])) {
 	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && (lock_msg != "")) {
+	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='the "+lock_msg+" computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && (error_msg != "")) {
+	  html += "<option style='display: none; padding-left: 35px; color: red;' title='Error: "+error_msg+"' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] < 1000001) {
 	  html += "<option style='display: none; padding-left: 35px; color: red;' title='this file is too small for submission, the minimum is 1Mbp' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else {
@@ -186,9 +198,9 @@ function update_inbox (data, files, action) {
       } else if (action == "convert") {
 	loading_info += "Converting sff file(s) to fastq. The resulting files will be processed for statistics. This will take a few minutes, depending on the file size.<br><br>";
       } else if (action == "demultiplex") {
-	loading_info += "Demultiplexing in progress. The resulting files will be processed for statistics. This will take a few minutes, depending on the number of files and file size.<br><br>";
+	loading_info += "Submitting demultiplexing...<br><br>";
       } else if (action == "merge_mate_pairs") {
-	loading_info += "Mate-pair merging in progress. This will take a few minutes, depending on the file sizes.<br><br>";
+	loading_info += "Submitting mate-pair merging...<br><br>";
       }
       for (var i=0; i<files.length; i++) {
 	params['query'][params['query'].length] = 'fn';

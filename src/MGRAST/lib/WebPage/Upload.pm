@@ -48,6 +48,7 @@ sub init {
   $self->application->register_action($self, 'validate_metadata', 'validate_metadata');
   $self->application->register_action($self, 'submit_to_mgrast', 'submit_to_mgrast');
   $self->application->register_action($self, 'generate_webkey', 'generate_webkey');
+  $self->application->register_action($self, 'read_status_file', 'read_status_file');
 
   $self->application->register_component('Table', 'sequence_table');
 
@@ -754,6 +755,30 @@ sub check_project_name {
     print $cgi->header();
     print 1;
   }
+  exit 0;
+}
+
+sub read_status_file {
+  my ($self) = @_;
+
+  my $application = $self->application;
+  my $user = $self->application->session->user;
+  my $cgi = $self->application->cgi;
+  my $type = $cgi->param('type');
+  my $filename = $cgi->param('filename');
+  
+  my $base_dir = "$Conf::incoming";
+  my $udir = $base_dir."/".md5_hex($user->login);
+  my $status_file = "$udir/$filename.$type";
+
+  my $msg = "";
+  if (-f $status_file) {
+    $msg = `cat $status_file`;
+    chomp $msg;
+  }
+
+  print $cgi->header;
+  print $msg;
   exit 0;
 }
 
