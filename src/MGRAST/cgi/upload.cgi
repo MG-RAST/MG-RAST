@@ -188,7 +188,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    my $jobid = $user->{login};
 		    $jobid =~ s/\s/_/g;
 		    `echo "demultiplex" > $lock_file`;
-		    my $jnum = `echo "$Conf::demultiplex -f $filetype -b $midfile -i $seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    my $jnum = `echo "$Conf::demultiplex -f $filetype -b $udir/$midfile -i $udir/$seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 		    open(FH, ">>$udir/.tmp/jobs");
 		    print FH "$jnum";
@@ -213,7 +213,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
     if (opendir(my $dh, $udir)) {
 	
 	# ignore . files and the USER file
-	@ufiles = grep { /^[^\.]/ && $_ ne "USER" } readdir($dh);
+	@ufiles = grep { /^[^\.]/ && !/\.lock$/ && $_ ne "USER" } readdir($dh);
 	closedir $dh;
 	
 	# iterate over all entries in the user inbox directory
