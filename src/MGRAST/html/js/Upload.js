@@ -34,8 +34,7 @@ function update_inbox (data, files, action) {
     var dir_list_html = '<form><select id="dir_select">';
     dir_list_html += '  <option value="inbox">inbox (base directory)</option>';
     var delete_dir_list_html = '<form><select id="delete_dir_select">';
-    var html = '<table><tr><td rowspan=2 style="padding-right: 20px;"><form class="form-horizontal">';
-    html += '<select id="inbox_select" multiple style="width: 420px; height: 200px;">';
+    var inbox_html = '<select id="inbox_select" multiple style="width: 420px; height: 200px;">';
     var seq_dlist = [];
     var seqs_in_dir = false;
     for (var i=0; i<dlist.length; i++) {
@@ -44,7 +43,7 @@ function update_inbox (data, files, action) {
         if(DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length == 0) {
           delete_dir_list_html += "  <option>"+dlist[i]+"</option>";
         }
-        html += "<optgroup title='this is a directory\nclick to toggle open / close' open=0 label='[ "+dlist[i]+" ] - "+DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length+" files' onclick='if(event.originalTarget.nodeName==\"OPTGROUP\"){if(this.open){this.open=0;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"none\";}}else{this.open=1;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"\";}}}'>";
+        inbox_html += "<optgroup title='this is a directory\nclick to toggle open / close' open=0 label='[ "+dlist[i]+" ] - "+DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length+" files' onclick='if(event.originalTarget.nodeName==\"OPTGROUP\"){if(this.open){this.open=0;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"none\";}}else{this.open=1;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"\";}}}'>";
       }
       for (var h=0; h<DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length; h++) {
 	var fn = DataStore['user_inbox'][user.login].fileinfo[dlist[i]][h];
@@ -54,32 +53,30 @@ function update_inbox (data, files, action) {
 	}
 	var inf = DataStore['user_inbox'][user.login].fileinfo[dlist[i]+"/"+fn];
         var lock_msg = "";
-        $.get("?page=Upload&action=read_status_file&type=lock&filename="+fn, function (data) {
-          lock_msg = data;
-        });
+        $.ajax({ async: false, url: "?page=Upload&action=read_status_file&type=lock&filename="+fn, success: function (result) {
+          lock_msg = result;
+        }});
         var error_msg = "";
-        $.get("?page=Upload&action=read_status_file&type=error_log&filename="+fn, function (data) {
-          error_msg = data;
-        });
+        $.ajax({ async: false, url: "?page=Upload&action=read_status_file&type=error_log&filename="+fn, success: function (result) {
+          error_msg = result;
+        }});
 	if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
-	  html += "<option style='display: none; padding-left: 35px; color: red;' title='this is a malformed / unidentifiable sequence file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='this is a malformed / unidentifiable sequence file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['Error']) {
-	  html += "<option style='display: none; padding-left: 35px; color: red;' title='there was an error in the sequence stats computation for this file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='there was an error in the sequence stats computation for this file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
-	  html += "<option style='display: none; padding-left: 35px; color: red;' title='the unique id count does not match the sequence count' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
-	} else if ((seq_dlist[dlist[i]] == 1) && (! inf['bp count'])) {
-	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='the sequence stats computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='the unique id count does not match the sequence count' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && (lock_msg != "")) {
-	  html += "<option style='display: none; padding-left: 35px; color: gray;' title='the "+lock_msg+" computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: gray;' title='the "+lock_msg+" computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>("+lock_msg+" computing) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && (error_msg != "")) {
-	  html += "<option style='display: none; padding-left: 35px; color: red;' title='Error: "+error_msg+"' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='Error: "+error_msg+"' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] < 1000001) {
-	  html += "<option style='display: none; padding-left: 35px; color: red;' title='this file is too small for submission, the minimum is 1Mbp' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='this file is too small for submission, the minimum is 1Mbp' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else {
-	  html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	}
       }
-      html += "</optgroup>";
+      inbox_html += "</optgroup>";
     }
     for (var i=0; i<flist.length; i++) {
       var isSeq = flist[i].match(is_a_sequence_file_ending);
@@ -91,31 +88,36 @@ function update_inbox (data, files, action) {
 	metadata_files[metadata_files.length] = flist[i];
       }
       var inf = DataStore['user_inbox'][user.login].fileinfo[flist[i]];
+      var lock_msg = "";
+      $.ajax({ async: false, url: "?page=Upload&action=read_status_file&type=lock&filename="+flist[i], success: function (result) {
+        lock_msg = result;
+      }});
+      var error_msg = "";
+      $.ajax({ async: false, url: "?page=Upload&action=read_status_file&type=error_log&filename="+flist[i], success: function (result) {
+        error_msg = result;
+      }});
       if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
-	html += "<option title='this is a malformed / unidentifiable sequence file' style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option title='this is a malformed / unidentifiable sequence file' style='color: red;'>"+flist[i]+"</option>";
       } else if (isSeq && inf['Error']) {
-	html += "<option title='there was an error in the sequence stats computation for this file' style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option title='there was an error in the sequence stats computation for this file' style='color: red;'>"+flist[i]+"</option>";
       } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
-	html += "<option title='the unique id count does not match the sequence count' style='color: red;'>"+flist[i]+"</option>";
-      } else if (isSeq && (! inf['bp count'])) {
-	html += "<option title='the sequence stats computation for this file is still running' style='color: gray;'>"+flist[i]+"</option>";
+	inbox_html += "<option title='the unique id count does not match the sequence count' style='color: red;'>"+flist[i]+"</option>";
+      } else if (isSeq && lock_msg != "") {
+        inbox_html += "<option style='color: gray;' title='the "+lock_msg+" computation for this file is still running' value='"+flist[i]+"'>("+lock_msg+" computing) "+flist[i]+"</option>";
+      } else if (isSeq && error_msg != "") {
+        inbox_html += "<option style='color: red;' title='Error: "+error_msg+"' value='"+flist[i]+"'>(error) "+flist[i]+"</option>";
       } else if (isSeq && inf['bp count'] && inf['bp count'] < 1000001) {
-	html += "<option title='this file is too small for submission, the minimum is 1Mbp' style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option title='this file is too small for submission, the minimum is 1Mbp' style='color: red;'>"+flist[i]+"</option>";
       } else {
-	html += "<option>"+flist[i]+"</option>";
+        inbox_html += "<option>"+flist[i]+"</option>";
       }
     }
     dir_list_html += '</select></form>';
     document.getElementById('dir_list').innerHTML = dir_list_html;
     delete_dir_list_html += '</select></form>';
     document.getElementById('delete_dir_list').innerHTML = delete_dir_list_html;
-    html += '</select>';
-    html += '</form></td><td id="inbox_feedback"></td></tr><tr><td id="inbox_file_info"></td></tr></table>';
-    document.getElementById('inbox').innerHTML = html;
-
-    if (messages.length) {
-      document.getElementById('inbox_feedback').innerHTML = "<h4>Info</h4>"+messages.join("<br>");
-    }
+    inbox_html += '</select>';
+    document.getElementById('inbox').innerHTML = inbox_html;
 
     if ((sequence_files.length || seqs_in_dir) && ! selected_sequence_file) {
       var tdata = [];
@@ -144,7 +146,7 @@ function update_inbox (data, files, action) {
       initialize_table(0, tdata);
     }
     if (! selected_metadata_file) {
-      html = "<div><h3>available metadata files</h3><table><tr><td><form class='form-horizontal'><select id='metadata_file_select' multiple style='width: 420px; height: 200px;'>";
+      var html = "<div><h3>available metadata files</h3><table><tr><td><form class='form-horizontal'><select id='metadata_file_select' multiple style='width: 420px; height: 200px;'>";
       for (var i=0; i<metadata_files.length; i++) {
 	html += "<option>"+metadata_files[i]+"</option>";
       }
@@ -186,7 +188,7 @@ function update_inbox (data, files, action) {
     params['query'] = [];
     params['query'][params['query'].length] = 'auth';
     params['query'][params['query'].length] = user.auth;
-    var loading_info = " updating...<br><br>";
+/*    var loading_info = " updating...<br><br>";
     if (action && action == "upload_complete") {
       loading_info = "New files were added. If the upload contained sequence files, they will be processed for statistics. This process might take up to one minute.";
     }
@@ -208,9 +210,9 @@ function update_inbox (data, files, action) {
 	loading_info += "<br>"+files[i];
       }
     }
-    if (document.getElementById('inbox_feedback')) {
+    if (document.getElementById('inbox_feedback').innerHTML != "") {
       document.getElementById('inbox_feedback').innerHTML = "<img src='./Html/ajax-loader.gif'>"+loading_info;
-    }
+    }*/
 
     get_objects('user_inbox', params, update_inbox, 1);    
   }
