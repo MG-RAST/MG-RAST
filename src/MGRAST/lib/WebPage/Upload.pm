@@ -215,7 +215,7 @@ sub output {
                <li><a onclick="toggle('sel_inbox_div');" class="pill_incomplete" id="sel_inbox_pill" style="font-size: 17px; font-weight: bold;">3. manage inbox</a></li>
 	       <div id="sel_inbox_div" style="display: none;" class="well">
 <p>You can unpack, delete, convert and demultiplex files from your inbox below. Metadata files will automatically appear in the <i>'select metadata file'</i> section below. Sequence files will automatically appear in the <i>'select sequence file(s)'</i> section below after sequence statistics are calculated (may take anywhere from seconds to hours depending on file size).</p>
-<p>File names that are grey in your Inbox are undergoing sequence statistical analysis.  File names in red encountered an error.</p>
+<p>Filenames in gray in your Inbox are undergoing analysis and cannot be moved or submitted to a different process until analysis is complete.  Filenames in red have encountered an error.</p>
                  <br>
                  <table border=0 cellpadding=4>
                    <tr >
@@ -235,82 +235,94 @@ sub output {
                    </tr>
                  </table>
                  <br>
-                 <div id="inbox" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-                 <table border=0 cellpadding=4>
+                 <table>
                    <tr>
-                     <td colspan=2 style='font-size:14px;'><B>Directory Management Operations</B></td>
-                   <tr>
-                     <td><input type="button" class="btn" style='width:130px;' value="update inbox" onclick="update_inbox();"></td>
-                     <td style='vertical-align:middle;'>Refreshes the contents of your inbox.</td>
-                   </tr>
-                   <tr>
-                     <td>
-                       <div class="modal hide" id="moveModal" tabindex="-1" role="dialog" aria-labelledby="moveModalLabel" aria-hidden="true">
-                         <div class="modal-header">
-                           <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-                           <h3 id="moveModalLabel">move selected files</h3>
-                         </div>
-                         <div class="modal-body">
-                           <p>Please select the directory where you would like to move your selected files:</p>
-                           <div id="dir_list" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-                         </div>
-                         <div class="modal-footer">
-                           <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-                           <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="move_files();" data-dismiss="modal" aria-hidden="true">Move files</button>
-                         </div>
-                       </div>
-                       <input type="button" class="btn" style='width:130px;' value="move selected" data-toggle="modal" href="#moveModal">
-                     </td>
-                     <td style='vertical-align:middle;'>Moves the selected files into or out of a directory.</td>
-                   </tr>
-                   <tr>
-                     <td><input type="button" class="btn" style='width:130px;' value="delete selected" onclick="check_delete_files();"></td>
-                     <td style='vertical-align:middle;'>Deletes the selected files.</td>
-                   </tr>
-                   <tr>
-                     <td>
-                       <form style='margin:0;'>
-                         <div class="modal hide" id="createDirModal" tabindex="-1" role="dialog" aria-labelledby="createDirModalLabel" aria-hidden="true">
-                           <button style="display: none;" onclick="create_dir();" data-dismiss="modal" aria-hidden="true">Hidden Create directory button for enter key submission</button>
-                           <div class="modal-header">
-                             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-                             <h3 id="createDirModalLabel">create directory</h3>
-                           </div>
-                           <div class="modal-body">
-                             <p>Please enter the name of the directory you would like to create:</p>
-                             <div id="create_dir_input" style='margin-top: 10px;'><input type="text" id="create_dir_name" /></div>
-                           </div>
-                           <div class="modal-footer">
-                             <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-                             <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="create_dir();" data-dismiss="modal" aria-hidden="true">Create directory</button>
-                           </div>
-                         </div>
+                     <td rowspan=2 style="padding-right: 20px;">
+                       <form class="form-horizontal">
+                         <div id="inbox" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
                        </form>
-                       <input type="button" class="btn" style='width:130px;' value="create directory" data-toggle="modal" href="#createDirModal">
+		       <table border=0 cellpadding=4>
+			 <tr>
+			   <td colspan=2 style='font-size:14px;'><B>Directory Management Operations</B></td>
+			 <tr>
+			   <td><input type="button" class="btn" style='width:130px;' value="update inbox" onclick="update_inbox();"></td>
+			   <td style='vertical-align:middle;'>Refreshes the contents of your inbox.</td>
+			 </tr>
+			 <tr>
+			   <td>
+			     <div class="modal hide" id="moveModal" tabindex="-1" role="dialog" aria-labelledby="moveModalLabel" aria-hidden="true">
+			       <div class="modal-header">
+				 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+				 <h3 id="moveModalLabel">move selected files</h3>
+			       </div>
+			       <div class="modal-body">
+				 <p>Please select the directory where you would like to move your selected files:</p>
+				 <div id="dir_list" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			       </div>
+			       <div class="modal-footer">
+				 <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+				 <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="move_files();" data-dismiss="modal" aria-hidden="true">Move files</button>
+			       </div>
+			     </div>
+			     <input type="button" class="btn" style='width:130px;' value="move selected" data-toggle="modal" href="#moveModal">
+			   </td>
+			   <td style='vertical-align:middle;'>Moves the selected files into or out of a directory.</td>
+			 </tr>
+			 <tr>
+			   <td><input type="button" class="btn" style='width:130px;' value="delete selected" onclick="check_delete_files();"></td>
+			   <td style='vertical-align:middle;'>Deletes the selected files.</td>
+			 </tr>
+			 <tr>
+			   <td>
+			     <form style='margin:0;'>
+			       <div class="modal hide" id="createDirModal" tabindex="-1" role="dialog" aria-labelledby="createDirModalLabel" aria-hidden="true">
+				 <button style="display: none;" onclick="create_dir();" data-dismiss="modal" aria-hidden="true">Hidden Create directory button for enter key submission</button>
+				 <div class="modal-header">
+				   <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+				   <h3 id="createDirModalLabel">create directory</h3>
+				 </div>
+				 <div class="modal-body">
+				   <p>Please enter the name of the directory you would like to create:</p>
+				   <div id="create_dir_input" style='margin-top: 10px;'><input type="text" id="create_dir_name" /></div>
+				 </div>
+				 <div class="modal-footer">
+				   <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+				   <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="create_dir();" data-dismiss="modal" aria-hidden="true">Create directory</button>
+				 </div>
+			       </div>
+			     </form>
+			     <input type="button" class="btn" style='width:130px;' value="create directory" data-toggle="modal" href="#createDirModal">
+			   </td>
+			   <td style='vertical-align:middle;'>Creates a new directory in your inbox.</td>
+			 </tr>
+			 <tr>
+			   <td>
+			     <div class="modal hide" id="deleteDirModal" tabindex="-1" role="dialog" aria-labelledby="deleteDirModalLabel" aria-hidden="true">
+			       <div class="modal-header">
+				 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+				 <h3 id="deleteDirModalLabel">delete directory</h3>
+			       </div>
+			       <div class="modal-body">
+				 <p>Please select the directory you would like to delete (only empty directories can be deleted):</p>
+				 <div id="delete_dir_list" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			       </div>
+			       <div class="modal-footer">
+				 <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+				 <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="delete_dir();" data-dismiss="modal" aria-hidden="true">Delete directory</button>
+			       </div>
+			     </div>
+			     <input type="button" class="btn" style='width:130px;' value="delete directory" data-toggle="modal" href="#deleteDirModal">
+			   </td>
+			   <td style='vertical-align:middle;'>Allows you to select and delete an empty directory.</td>
+			 </tr>
+		       </table> 
                      </td>
-                     <td style='vertical-align:middle;'>Creates a new directory in your inbox.</td>
+                     <td style='height:5px;' id="inbox_feedback"></td>
                    </tr>
                    <tr>
-                     <td>
-                       <div class="modal hide" id="deleteDirModal" tabindex="-1" role="dialog" aria-labelledby="deleteDirModalLabel" aria-hidden="true">
-                         <div class="modal-header">
-                           <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-                           <h3 id="deleteDirModalLabel">delete directory</h3>
-                         </div>
-                         <div class="modal-body">
-                           <p>Please select the directory you would like to delete (only empty directories can be deleted):</p>
-                           <div id="delete_dir_list" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-                         </div>
-                         <div class="modal-footer">
-                           <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-                           <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="delete_dir();" data-dismiss="modal" aria-hidden="true">Delete directory</button>
-                         </div>
-                       </div>
-                       <input type="button" class="btn" style='width:130px;' value="delete directory" data-toggle="modal" href="#deleteDirModal">
-                     </td>
-                     <td style='vertical-align:middle;'>Allows you to select and delete an empty directory.</td>
+                     <td id="inbox_file_info"></td>
                    </tr>
-                 </table> 
+                 </table>
                </div>
             </ul>
           </div>
