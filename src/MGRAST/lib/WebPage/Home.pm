@@ -158,8 +158,12 @@ END
 
   $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This work was supported in part by the Office of Advanced Scientific Computing Research, Office of Science, U.S. Department of Energy, under Contract DE-AC02-06CH11357.</p>";
 
-  $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>If you use our service, please cite:<br/><em>The Metagenomics RAST server - A public resource for the automatic phylogenetic and functional analysis of metagenomes</em> F. Meyer, D. Paarmann, M. D'Souza, R. Olson , E. M. Glass, M. Kubal, T. Paczian , A. Rodriguez , R. Stevens, A. Wilke, J. Wilkening, R. A. Edwards<br/><em>BMC Bioinformatics 2008, 9:386
-, [<a href=\"http://www.biomedcentral.com/1471-2105/9/386\" target=\"_blank\">article</a>]</em></p>";
+  $content .= "<a href=\"http://www.biomedcentral.com/1471-2105/9/386\" target=\"_blank\"><p style='border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; color: white; padding: 5px 0px 3px 10px; color: white; font-size:14; background-color: #5281B0; width: 100px; float: left; margin-right: 10px; top: -12px; position: relative;'>cite MG-RAST</p></a>";
+
+  #$content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'><em>The Metagenomics RAST server - A public resource for the automatic phylogenetic and functional analysis of metagenomes</em> F. Meyer, D. Paarmann, M. D'Souza, R. Olson , E. M. Glass, M. Kubal, T. Paczian , A. Rodriguez , R. Stevens, A. Wilke, J. Wilkening, R. A. Edwards<br/><em>BMC Bioinformatics 2008, 9:386
+#, [<a href=\"http://www.biomedcentral.com/1471-2105/9/386\" target=\"_blank\">article</a>]</em></p>";
+
+  $content .= "<p style='text-align: center; float: right;'><span style='font-size: 11px; color: white;'>powered by</span><br><img style='width: 50px;' src='./Html/kbase_logo.png'></p>";
 
   my $logos = "<img src='./Html/argonne_header_logo.jpg' style='padding-top: 15px; width: 150px;'>";
   # news - logos
