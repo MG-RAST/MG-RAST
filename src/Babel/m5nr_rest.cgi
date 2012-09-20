@@ -9,12 +9,12 @@ use URI::Escape;
 use Data::Dumper;
 
 use Babel::lib::Babel;
-use Babel::lib::M5NR_Config;
+use Conf;
 
 # create objects
 my $cgi  = new CGI;
 my $json = new JSON;
-my $dbh  = DBI->connect("DBI:$M5NR_Config::m5nr_dbtype:dbname=$M5NR_Config::m5nr_dbname;host=$M5NR_Config::m5nr_dbhost", $M5NR_Config::m5nr_dbuser, '');
+my $dbh  = DBI->connect("DBI:$Conf::m5nr_dbtype:dbname=$Conf::m5nr_dbname;host=$Conf::m5nr_dbhost", $Conf::m5nr_dbuser, '');
 my $ach  = Babel::lib::Babel->new($dbh);
 
 unless ($ach && $ach->dbh) {
