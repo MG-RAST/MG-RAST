@@ -314,6 +314,19 @@ def format_factory(out_files):
                 func = "16S/18S ribosomal RNA"
                 if get_tax:
                     tax_f.write("%s\t%s;%s\n" %(rec.id, "".join(tax_list), org))
+            elif ann_desc == 'fungal':
+                hdrs.pop(0)
+                tax_id = 0
+                if hdrs[0].isdigit():
+                    tax_id = int( hdrs.pop(0) )
+                tax_str = " ".join(hdrs).rstrip('.')
+                org  = tax_str.split(";")[-1]
+                func = "ITS ribosomal RNA"
+                if get_tax:
+                    if tax_id > 0:
+                        tax_f.write("%s\t%d\n" %(rec.id, tax_id))
+                    else:
+                        tax_f.write("%s\t%s\n" %(rec.id, tax_str))
             else:
                 if len(hdrs) > 1:
                     hdrs.pop(0)
@@ -437,7 +450,7 @@ def main(args):
     parser.add_option("-e", "--eggnog_map", dest="eggnogmap", metavar="FILE", default=None, help="Optional eggNOG orthgroups tabed FILE for func mapping")
     parser.add_option("-d", "--out_dir", dest="outdir", metavar="DIR", default="", help="DIR to write output [default is current dir]")
     parser.add_option("-a", "--annotation_header", dest="annheader", metavar="ANNOTATION", default="function",
-                      help="For fasta files, header description contains annotation.  Must be one of following: greengenes, seed, img, phantome, organism, function [default is function]")
+                      help="For fasta files, header description contains annotation.  Must be one of following: greengenes, fungal, seed, img, phantome, organism, function [default is function]")
     parser.add_option("-o", "--get_ontology", dest="getont", action="store_true", default=False, help="Output ontology (id, type) for proteins with mapped ontology [default is off]")
     parser.add_option("-c", "--get_contig", dest="getcontig", action="store_true", default=False, help="Output contig info for organism genbank files [default is off]")
     parser.add_option("-t", "--get_tax", dest="gettax", action="store_true", default=False, help="Output taxonomy string for genbank files [default is off]")

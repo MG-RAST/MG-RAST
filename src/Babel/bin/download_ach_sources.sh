@@ -8,7 +8,7 @@ fi
 
 # Config
 DOWNLOAD_DIR=$1
-SOURCES="eggNOG GO Greengenes IMG InterPro KEGG KO NR PATRIC Phantome RefSeq RDP SEED SILVA UniProt"
+SOURCES="eggNOG FungalDB GO Greengenes IMG InterPro KEGG KO NR PATRIC Phantome RefSeq RDP SEED SILVA UniProt"
 
 echo Starting Download for ACH `date`
 
@@ -24,9 +24,15 @@ do
 done
 
 echo Downloading eggNOG `date`
-wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/download/protein.sequences.v2.fa.gz
-wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/download/COG.mapping.txt.gz
-wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/download/NOG.mapping.txt.gz
+wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/fun.txt.gz
+wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/UniProtAC2eggNOG.tsv.gz
+wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/COG.funccat.txt.gz
+wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/NOG.funccat.txt.gz
+wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/COG.description.txt.gz
+wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/NOG.description.txt.gz
+
+echo Downloading FungalDB `date`
+wget -v -N -P ${DOWNLOAD_DIR}/FungalDB http://fungalgenomes.org/public/mobedac/for_VAMPS/fungalITSdatabaseID.taxonomy.seqs.gz
 
 echo Downloading GO hierarchy `date`
 time lftp -c "open -e 'mirror -v --no-recursion -I gene_ontology.1_2.obo /pub/go/ontology/obo_format_1_2/ ${DOWNLOAD_DIR}/GO' ftp://ftp.geneontology.org"
@@ -57,13 +63,13 @@ echo Downloading PATRIC `date`
 time lftp -c "open -e 'mirror -v --parallel=2 -I *.PATRIC.gbf /patric2/genomes/ ${DOWNLOAD_DIR}/PATRIC' http://brcdownloads.vbi.vt.edu"
 
 echo Downloading Phantome `date`
-wget -v -N -P ${DOWNLOAD_DIR}/Phantome http://www.phantome.org/Downloads/proteins/all_sequences/phage_proteins_1317466802.fasta.gz
+wget -v -N -P ${DOWNLOAD_DIR}/Phantome http://www.phantome.org/Downloads/proteins/all_sequences/phage_proteins_1330603201.fasta.gz
 
 echo Downloading RefSeq `date`
 time lftp -c "open -e 'mirror -v -e --delete-first -I *.genomic.gbff.gz /refseq/release/complete/ ${DOWNLOAD_DIR}/RefSeq' ftp://ftp.ncbi.nih.gov"
 
 echo Downloading RDP `date`
-wget -v -N -P ${DOWNLOAD_DIR}/RDP http://rdp.cme.msu.edu/download/release10_27_unaligned.gb.gz
+wget -v -N -P ${DOWNLOAD_DIR}/RDP http://rdp.cme.msu.edu/download/release10_28_unaligned.gb.gz
 
 echo Downloading SEED `date`
 time lftp -c "open -e 'mirror -v --no-recursion -I SEED.fasta /misc/Data/idmapping/ ${DOWNLOAD_DIR}/SEED' ftp://ftp.theseed.org"
