@@ -32,7 +32,7 @@ my @rest = split m#/#, $rest;
 
 map {$rest[$_] =~ s#forwardslash#/#gi} (0 .. $#rest);
 
-if ( $ENV{'REQUEST_METHOD'} =~ /post/i ) {
+if ( $ENV{'REQUEST_METHOD'} && ($ENV{'REQUEST_METHOD'} =~ /post/i) ) {
   print $cgi->header('text/plain');
   print "ERROR: POST is not supported by this version";
   exit 0;
