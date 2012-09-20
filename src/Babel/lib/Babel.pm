@@ -323,7 +323,7 @@ sub md52sequence {
 }
 
 sub md5s2sequences {
-  my ($self, $md5s) = @_;
+  my ($self, $md5s, $obj) = @_;
 
   my $nr   = $self->nr;
   my $seqs = '';
@@ -333,6 +333,18 @@ sub md5s2sequences {
   foreach (@recs) {
     if ((! $_) || ($_ =~ /^\s+$/) || ($_ =~ /^\[fastacmd\]/)) { next; }
     $seqs .= $_;
+  }
+  if ($obj) {
+    my @fasta = split(/\n/, $seqs);
+    my $seq_set = [];
+    for (my $i=0; $i<@fasta; $i += 2) {
+        if ($fasta[$i] =~ /^>(\S+)/) {
+            my $id = $1;
+            $id    =~ s/^lcl\|//;
+            push @$seq_set, [ $id, $fasta[$i+1] ];
+        }
+    }
+     return $seq_set;
   }
   return $seqs || $list;
 }
@@ -1134,7 +1146,7 @@ sub id2sequence {
 }
 
 sub ids2sequences {
-  my ($self, $ids) = @_;
+  my ($self, $ids, $obj) = @_;
 
   my $md5seq = {};
   my $md5id  = $self->ids2md5s($ids);
@@ -1148,8 +1160,12 @@ sub ids2sequences {
       $md5seq->{$id} = $fasta[$i+1];
     }
   }
-
-  return join("\n",  map {">".$_->[1]."\n".$md5seq->{$_->[0]}} grep {exists($md5seq->{$_->[0]})} @$md5id);
+  my @seq_set = map { [$_->[1], $md5seq->{$_->[0]}] } grep { exists($md5seq->{$_->[0]}) } @$md5id;
+  if ($obj) {
+      return \@seq_set;
+  } else {
+      return join("\n", map { ">".$_->[0]."\n".$_->[1] } @seq_set)."\n";
+  }
 }
 
 #
