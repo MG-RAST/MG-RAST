@@ -14,7 +14,7 @@ use Conf;
 # create objects
 my $cgi  = new CGI;
 my $json = new JSON;
-my $dbh  = DBI->connect("DBI:$Conf::m5nr_dbtype:dbname=$Conf::m5nr_dbname;host=$Conf::m5nr_dbhost", $Conf::m5nr_dbuser, '');
+my $dbh  = DBI->connect("DBI:$Conf::babel_dbtype:dbname=$Conf::babel_db;host=$Conf::babel_dbhost", $Conf::babel_dbuser, '');
 my $ach  = Babel::lib::Babel->new($dbh);
 
 unless ($ach && $ach->dbh) {
