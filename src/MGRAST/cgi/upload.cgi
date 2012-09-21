@@ -320,10 +320,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    # check files
 	    else {
 		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size, $atime,$mtime,$ctime,$blksize,$blocks) = stat("$udir/$ufile");
-		if ($size == 0) {
-		    `rm -f "$udir/$ufile"`;
-		    next;
-		}
 		if ($ufile =~ /\.($seq_ext)$/) {
 		    push(@$sequence_files, $ufile);
 		}
