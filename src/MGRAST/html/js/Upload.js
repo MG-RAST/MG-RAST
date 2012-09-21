@@ -70,7 +70,7 @@ function update_inbox (data, files, action) {
 	} else if ((seq_dlist[dlist[i]] == 1) && (lock_msg != "")) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: gray;' title='the "+lock_msg+" computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>("+lock_msg+" computing) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && (error_msg != "")) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='Error: "+error_msg+"' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='Error: "+error_msg+"' value='"+dlist[i]+"/"+fn+"'>(error) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] < 1000001) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='this file is too small for submission, the minimum is 1Mbp' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else {
