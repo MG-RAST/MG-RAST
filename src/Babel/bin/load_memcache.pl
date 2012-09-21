@@ -8,13 +8,13 @@ use Getopt::Long;
 use Cache::Memcached;
 use DBI;
 
-my $bindir  = "/homes/tharriso/MGRAST/Babel/bin";
+my $bindir  = "";
 my $verbose = 0;
 my $memkey  = '_ach';
-my $memhost = "kursk-1.mcs.anl.gov:11211";
-my $dbhost  = "kursk-1.mcs.anl.gov";
-my $dbname  = "mgrast_ach_prod";
-my $dbuser  = "mgrastprod";
+my $memhost = "";
+my $dbhost  = "";
+my $dbname  = "";
+my $dbuser  = "";
 my $tmpdir  = "/tmp";
 my $usage   = qq($0
   --verbose     optional
@@ -59,24 +59,14 @@ unless ($has_lca && ($has_lca->[0] == 1)) {
   print STDERR "Done\n" if ($verbose);
 }
 
-# create mapping tables
-print STDERR "Creating tables ... " if ($verbose);
-foreach my $t ((@types, @md5s)) {
-  $dbh->do("DROP TABLE IF EXISTS ${t}_map");
-}
-$dbh->do("SELECT _id, name, type INTO source_map FROM sources");
-$dbh->do("SELECT _id, name, ncbi_tax_id INTO organism_map FROM organisms_ncbi");
-$dbh->do("SELECT _id, name INTO function_map FROM functions");
-$dbh->do("SELECT DISTINCT md5, source, function, organism INTO md5_protein_map FROM md5_protein");
-$dbh->do("SELECT DISTINCT md5, source, function, organism INTO md5_rna_map FROM md5_rna");
-$dbh->do("SELECT DISTINCT md5, source, function, id INTO md5_ontology_map FROM md5_ontology");
-print STDERR "Done\n" if ($verbose);
-
-# dump tables
-print STDERR "Dumping tables ... " if ($verbose);
-foreach my $t ((@types, @md5s)) {
-  $dbh->do("COPY ${t}_map TO '$tmpdir/${t}_map' WITH NULL AS ''");
-}
+# dump table data to files
+print STDERR "Dumping table data ... " if ($verbose);
+$dbh->do("COPY (SELECT _id, name, type FROM sources) TO '$tmpdir/source_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT _id, name, ncbi_tax_id FROM organisms_ncbi) TO '$tmpdir/organism_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT _id, name FROM functions) TO '$tmpdir/function_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_protein) TO '$tmpdir/md5_protein_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_rna) TO '$tmpdir/md5_rna_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT md5, source, function, id FROM md5_ontology) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
 system("cat ".join(" ", map {"$tmpdir/${_}_map"} @md5s)." | sort > $tmpdir/md5_data_map");
 print STDERR "Done\n" if ($verbose);
 

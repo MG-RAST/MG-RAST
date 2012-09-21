@@ -3,8 +3,10 @@ use warnings;
 
 use Getopt::Long;
 use Data::Dumper;
+use DBI;
 
 use Babel::lib::M5NR;
+use Babel::lib::M5NR_Config;
 
 my $verbose = 0;
 my $sim     = '';
@@ -20,13 +22,14 @@ GetOptions( "verbose!"   => \$verbose,
 	    "sim=s"      => \$sim,
 	    "id=s"       => \$id,
 	    "md5=s"      => \$md5,
-            "sequence=s" => \$seq,
+        "sequence=s" => \$seq,
 	    "source=s"   => \$source,
 	    "option=s"   => \$option,
 	    "help!"      => \$help
  	  );
 
-my $m5nr = new M5NR;
+my $dbh  = DBI->connect("DBI:$M5NR_Config::m5nr_dbtype:dbname=$M5NR_Config::m5nr_dbname;host=$M5NR_Config::m5nr_dbhost", $M5NR_Config::m5nr_dbuser, '');
+my $m5nr = M5NR->new($dbh);
 unless ($m5nr->dbh) {
   print STDERR "Unable to retrieve the M5NR database.\n";
   exit 1;
@@ -40,9 +43,9 @@ if ($help or ! ($options->{$option} or $seq)) {
   exit 1;
 }
 
-my $hdr = ["ID", "MD5", "Function", "Organism"];
+my $hdr = ["ID", "MD5", "Function", "Organism", "Source"];
 if ($source) {
-  push @$hdr, "Source";
+  #push @$hdr, "Source";
   unless (exists $smap{$source}) {
     &help($options, \%smap);
     exit 1;
@@ -51,18 +54,19 @@ if ($source) {
 
 if ($sim) {
   unless ((-s $sim) && $source) {
+    print "POOP\n";
     &help($options, \%smap);
     exit 1;
   }
-  my ($total, $count) = &process_sims($sim, $source);
+  my ($total, $count) = &process_sims($m5nr, $sim, $source);
   print STDERR "$count out of $total similarities annotated\n";
 }
 elsif ($seq) {
-  &output( [[$m5nr->sequence2md5($seq)]] );
+  print $m5nr->sequence2md5($seq)."\n";
 }
 elsif ($md5 && ($option eq 'sequence')) {
   my $md5s = &list_from_input($md5);
-  &output( [[$m5nr->md5s2sequences($md5s)]] );
+  print $m5nr->md5s2sequences($md5s);
 }
 elsif ($md5 && ($option eq 'annotation')) {
   my $md5s = &list_from_input($md5);
@@ -74,7 +78,7 @@ elsif ($md5 && ($option eq 'annotation')) {
 }
 elsif($id && ($option eq 'sequence')) {
   my $ids = &list_from_input($id);
-  &output( [[$m5nr->ids2sequences($ids)]] );
+  print $m5nr->ids2sequences($ids);
 }
 elsif($id && ($option eq 'annotation')) {
   my %ids  = map {$_, 1} @{ &list_from_input($id) };

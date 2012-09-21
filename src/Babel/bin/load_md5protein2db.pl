@@ -13,9 +13,9 @@ my @datafile  = ();
 my @aliasfile = ();
 my $index     = 0;
 my $tmpdir    = "/tmp";
-my $dbname    = "mgrast_ach_prod";
-my $dbhost    = "kursk-3.mcs.anl.gov";
-my $dbuser    = "mgrastprod";
+my $dbname    = "";
+my $dbhost    = "";
+my $dbuser    = "";
 my $usage     = qq(
 DESCRIPTION: ($0)
 load the ACH database tables with the inputed file data. Must be postgresql db.
