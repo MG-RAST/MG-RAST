@@ -230,7 +230,26 @@ sub output {
                    <tr>
                      <td><input type="button" class="btn" style='width:130px;' value="convert sff to fastq" onclick="convert_files();"></td>
                      <td width=250 style='vertical-align:middle;'>Converts selected sff files to fastq format.</td>
-                     <td><input type="button" class="btn" style='width:130px;' value="merge mate-pairs" onclick="merge_mate_pairs();"></td>
+                     <td>
+		       <form style='margin:0;'>
+			 <div class="modal hide" id="mergeMatePairsModal" tabindex="-1" role="dialog" aria-labelledby="mergeMatePairsModalLabel" aria-hidden="true">
+			   <button style="display: none;" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Hidden merge mate-pairs button for enter key submission</button>
+			   <div class="modal-header">
+			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+			     <h3 id="mergeMatePairsModalLabel">create directory</h3>
+		           </div>
+			   <div class="modal-body">
+			     <p>Please enter the desired name of your merge mate-pairs output file:</p>
+			     <div id="merge_mate_pairs_input" style='margin-top: 10px;'><input type="text" id="merge_output_filename" /></div>
+		           </div>
+			   <div class="modal-footer">
+			     <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Merge Mate-Pair Files</button>
+		           </div>
+			 </div>
+		       </form>
+                       <input type="button" class="btn" style='width:130px;' value="merge mate-pairs" data-toggle="modal" href="#mergeMatePairsModal"">
+                     </td>
                      <td width=250 style='vertical-align:middle;'>Merges selected mate-pair files.</td>
                    </tr>
                  </table>
@@ -317,10 +336,9 @@ sub output {
 			 </tr>
 		       </table> 
                      </td>
-                     <td style='height:5px;' id="inbox_feedback"></td>
                    </tr>
                    <tr>
-                     <td id="inbox_file_info"></td>
+                     <td><div id="inbox_feedback"></div><div id="inbox_file_info"></div></td>
                    </tr>
                  </table>
                </div>
