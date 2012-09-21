@@ -416,6 +416,7 @@ sub output {
                            <option value="d_melanogaster_fb5_22">D. melanogaster, Flybase, r5.22</option>
                            <option value="a_thaliana">A. thaliana, TAIR, TAIR9</option>
                            <option value="e_coli">E. coli, NCBI, st. 536</option>
+                           <option value="s_scrofa_ncbi10.2">Sus scrofa, NCBI v10.2</option>
 			   <option value="none">none</option>
                         </select>
 			<br>Remove any host specific species sequences (e.g. plant, human or mouse) using DNA level matching with bowtie <a href='http://genomebiology.com/2009/10/3/R25' target='blank'>Langmead et al., Genome Biol. 2009, Vol 10, issue 3</a>
