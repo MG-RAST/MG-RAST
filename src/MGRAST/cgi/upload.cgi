@@ -207,7 +207,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    $jobid =~ s/\s/_/g;
 		    `echo "merge mate-pairs" > $lock_file1`;
 		    `echo "merge mate-pairs" > $lock_file2`;
-		    my $jnum = `echo "$Conf::pairend_join -m 8 -p 10 -s -n 10 -t $Conf::cluster_temp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    my $jnum = `echo "$Conf::pairend_join -m 8 -p 10 -s -n 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 		    open(FH, ">>$udir/.tmp/jobs");
 		    print FH "$jnum";
@@ -246,7 +246,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                     my $subdir = "";
                     if ($seqfile =~ /\//) {
                        $subdir = $seqfile;
-                       $subdir =~ /^(.*\/).*/;
+                       $subdir =~ s/^(.*\/).*/$1/;
                     }
 
 		    my $jobid = $user->{login};
@@ -426,7 +426,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 `echo "sequence stats" > $lock_file`;
 		my $jobid = $user->{login};
 		$jobid =~ s/\s/_/g;
-		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/$Conf::cluster_temp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 	      open(FH, ">>$udir/.tmp/jobs");
 	      print FH "$jnum";
@@ -503,7 +503,7 @@ sub initialize_user_dir {
   }
   unless ( -d "$udir/.tmp") {
     mkdir "$udir/.tmp" or die "could not create directory '$udir/.tmp'";
-    chmod 0777, "$udir/.temp";
+    chmod 0777, "$udir/.tmp";
   }
   my $user_file = "$udir/USER";
   if ( ! -e $user_file ) {	
