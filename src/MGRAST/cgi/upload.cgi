@@ -65,16 +65,17 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	# delete a list of files
 	if ($action eq 'del') {
 	    foreach my $file (@files) {
-		if (-f "$udir/$file") {		    
-		    `rm '$udir/$file'`;
-		    if (-f "$udir/$file.stats_info") {
-			`rm '$udir/$file.stats_info'`;
-		    }
-		    if (-f "$udir/$file.lock") {
-			`rm '$udir/$file.lock'`;
-		    }
-		    if (-f "$udir/$file.error_log") {
-			`rm '$udir/$file.error_log'`;
+                if (-f "$udir/$file.lock") {
+                    push(@{$data->[0]->{popup_messages}}, "File undergoing computation cannot be deleted: $file");
+                } else {
+		    if (-f "$udir/$file") {		    
+		        `rm '$udir/$file'`;
+		        if (-f "$udir/$file.stats_info") {
+			    `rm '$udir/$file.stats_info'`;
+		        }
+		        if (-f "$udir/$file.error_log") {
+			    `rm '$udir/$file.error_log'`;
+                        }
 		    }
 		}
 	    }
@@ -102,16 +103,17 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		$target_dir = "$udir/$target_dir/";
 	    }
 	    foreach my $file (@files) {
-		`mv $udir/$file $target_dir`;
-		if (-f "$udir/$file.stats_info") {
-		    `mv $udir/$file.stats_info $target_dir`;
-		}
-		if (-f "$udir/$file.lock") {
-		    `mv $udir/$file.lock $target_dir`;
-		}
-		if (-f "$udir/$file.error_log") {
-		    `mv $udir/$file.error_log $target_dir`;
-		}
+                if (-f "$udir/$file.lock") {
+                    push(@{$data->[0]->{popup_messages}}, "File undergoing computation cannot be moved: $file");
+                } else {
+		    `mv $udir/$file $target_dir`;
+		    if (-f "$udir/$file.stats_info") {
+		        `mv $udir/$file.stats_info $target_dir`;
+		    }
+		    if (-f "$udir/$file.error_log") {
+		        `mv $udir/$file.error_log $target_dir`;
+		    }
+                }
 	    }
 	}
 
@@ -205,7 +207,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    $jobid =~ s/\s/_/g;
 		    `echo "merge mate-pairs" > $lock_file1`;
 		    `echo "merge mate-pairs" > $lock_file2`;
-		    my $jnum = `echo "$Conf::pairend_join -m 8 -p 10 -s -n 10 -t $Conf::cluster_temp -o $joinfile $seqfile1 $seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    my $jnum = `echo "$Conf::pairend_join -m 8 -p 10 -s -n 10 -t $Conf::cluster_temp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 		    open(FH, ">>$udir/.tmp/jobs");
 		    print FH "$jnum";
@@ -424,7 +426,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 `echo "sequence stats" > $lock_file`;
 		my $jobid = $user->{login};
 		$jobid =~ s/\s/_/g;
-		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $Conf::cluster_temp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/$Conf::cluster_temp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 	      open(FH, ">>$udir/.tmp/jobs");
 	      print FH "$jnum";
