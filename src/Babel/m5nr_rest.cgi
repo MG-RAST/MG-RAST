@@ -2,8 +2,10 @@ use strict;
 use warnings;
 no warnings 'once';
 
+use DBI;
 use CGI;
 use JSON;
+use URI::Escape;
 use Data::Dumper;
 
 use Babel::lib::Babel;
@@ -12,7 +14,8 @@ use Conf;
 # create objects
 my $cgi  = new CGI;
 my $json = new JSON;
-my $ach  = new Babel::lib::Babel;
+my $dbh  = DBI->connect("DBI:$Conf::babel_dbtype:dbname=$Conf::babel_db;host=$Conf::babel_dbhost", $Conf::babel_dbuser, '');
+my $ach  = Babel::lib::Babel->new($dbh);
 
 unless ($ach && $ach->dbh) {
   print $cgi->header('text/plain');
@@ -29,7 +32,7 @@ my @rest = split m#/#, $rest;
 
 map {$rest[$_] =~ s#forwardslash#/#gi} (0 .. $#rest);
 
-if ( $ENV{'REQUEST_METHOD'} =~ /post/i ) {
+if ( $ENV{'REQUEST_METHOD'} && ($ENV{'REQUEST_METHOD'} =~ /post/i) ) {
   print $cgi->header('text/plain');
   print "ERROR: POST is not supported by this version";
   exit 0;
@@ -48,36 +51,48 @@ if (scalar(@rest) == 0) {
 }
 
 my $request = shift @rest;
-my $regex   = $cgi->param('regex') ? 1 : 0;
+my $partial = $cgi->param('partial') ? 1 : 0;
 my $get_seq = $cgi->param('sequence') ? 1 : 0;
+my $format  = $cgi->param('format') || '';
 my $results = '';
+$request = uri_unescape($request);
 
 if ($cgi->param('pretty')) {
   $json = $json->pretty;
 }
 
 # set object:  [ [id, md5, func, org, source] ]
-if ($object_type eq 'ID') {
+if ($object_type eq 'id') {
+  my @id_array = split(/;/, $request);
   if ($get_seq) {
-    $results = &seq2json($json, $ach->id2sequence($request));
+    if ($format eq 'fasta') {
+      $results = $ach->ids2sequences(\@id_array);
+    } else {
+      $results = &seq2json($json, $ach->ids2sequences(\@id_array, 1), 1);
+    }	
   } else {
-    $results = &set2json($json, $ach->id2set($request));
+    $results = &set2json($json, $ach->ids2sets(\@id_array));
   }
 }
-elsif ($object_type eq 'Function') {
-  $results = &set2json($json, $ach->functions2sets([$request], $regex));
+elsif ($object_type eq 'function') {
+  $results = &set2json($json, $ach->functions2sets([$request], $partial));
 }
-elsif ($object_type eq "Organism") {
-  $results = &set2json($json, $ach->organisms2sets([$request], $regex));
+elsif ($object_type eq "organism") {
+  $results = &set2json($json, $ach->organisms2sets([$request], $partial));
 }
-elsif ($object_type eq "Sequence") {
-  $results = &set2json($json, $ach->sequence2set($request));
+elsif ($object_type eq "sequence") {
+  $results = &set2json($json, $ach->sequence2set(uc($request)));
 }
-elsif ($object_type eq "MD5") {
+elsif ($object_type eq "md5") {
+  my @md5_array = split(/;/, $request);
   if ($get_seq) {
-    $results = &seq2json($json, $ach->md52sequence($request));
+    if ($format eq 'fasta') {
+      $results = $ach->md5s2sequences(\@md5_array);
+    } else {
+      $results = &seq2json($json, $ach->md5s2sequences(\@md5_array, 1));
+    }
   } else {
-    $results = &set2json($json, $ach->md52set($request));
+    $results = &set2json($json, $ach->md5s2sets(\@md5_array));
   }
 }
 else {
@@ -111,7 +126,11 @@ sub set2json {
 }
 
 sub seq2json {
-  my ($json, $seq) = @_;
-  chomp $seq;
-  return $json->encode({ sequence => $seq });
+  my ($json, $seq, $is_id) = @_;
+  my $printable = [];
+  my $key = $is_id ? 'id' : 'md5';
+  foreach my $data (@$seq) {
+    push @$printable, {	$key => $data->[0], sequence => $data->[1] };
+  } 
+  return $json->encode($printable);
 }

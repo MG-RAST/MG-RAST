@@ -1,0 +1,69 @@
+M5NR update (version X):
+
+X=[version number]
+BIN=[dir with build scripts]
+DIR=[dir for downloads / tmp files]
+
+### download ###
+mkdir $DIR/tmp
+mkdir $DIR/m5nr.$X
+cd $DIR/m5nr.$X
+mkdir raw
+mkdir parsed
+
+$BIN/download_ach_sources.sh raw
+
+### database ###
+psql -d template1 -c "CREATE DATABASE m5nr_v$X"
+psql -d m5nr_v$X -f $BIN/create_pg_tables.sql
+
+### protein ###
+mkdir parsed/NCBI
+ls raw/RefSeq/* | xargs -n1 -P8 -I {} gunzip {}
+$BIN/source2ach.py -v -t -c -o -f genbank -p 8 -d parsed/NCBI RefSeq raw/RefSeq/*
+
+gunzip raw/NR/nr.gz
+$BIN/source2ach.py -v -n gb -f nr -p 1 -d parsed/NCBI GenBank raw/NR/nr
+
+mkdir parsed/UniProt
+gunzip raw/UniProt/uniprot_sprot.dat.gz
+gunzip raw/UniProt/uniprot_trembl.dat.gz
+$BIN/source2ach.py -v -o -f swiss -p 1 -d parsed/UniProt SwissProt raw/UniProt/uniprot_sprot.dat
+$BIN/source2ach.py -v -o -f swiss -p 1 -d parsed/UniProt TrEMBL raw/UniProt/uniprot_trembl.dat
+
+mkdir parsed/InterPro
+$BIN/source2ach.py -v -f swiss -p 2 -i raw/InterPro/names.dat -d parsed/InterPro InterPro raw/UniProt/uniprot_*.dat
+
+mkdir parsed/PATRIC
+$BIN/source2ach.py -v -t -o -f genbank -p 8 -d parsed/PATRIC PATRIC raw/PATRIC/*/*.gbf
+
+mkdir parsed/IMG
+cd raw/IMG
+ls | xargs -n1 -P8 -I {} tar -zxf {}
+cd ../../
+rm raw/IMG/*.gz
+$BIN/source2ach.py -v -a img -f fasta -p 8 -d parsed/IMG IMG raw/IMG/*/*.genes.faa
+
+mkdir parsed/SEED
+gunzip raw/SEED/subsystems2role.gz
+$BIN/source2ach.py -v -a seed -f fasta -d parsed/SEED SEED raw/SEED/SEED.fasta
+
+mkdir parsed/Phantome
+gunzip raw/Phantome/phage_proteins_1317466802.fasta.gz
+$BIN/source2ach.py -v -a phantome -f fasta  -p 1 -d parsed/Phantome Phantome raw/Phantome/phage_proteins_1317466802.fasta
+
+mkdir parsed/KEGG
+mv raw/KEGG/genome raw/kegg.genome
+tar -zxvf raw/KEGG/genes.tar.gz -C raw/KEGG
+rm raw/KEGG/genes.tar.gz
+$BIN/source2ach.py -v -o -k raw/kegg.genome -f kegg -p 8 -d parsed/KEGG KEGG raw/KEGG/*
+
+cd parsed
+$BIN/load_md5protein2db.pl --verbose --index --dbname m5nr_v$X --tmp_dir $DIR/tmp --datafile IMG/IMG.md52id2func --datafile InterPro/InterPro.md52id2func --datafile KEGG/KEGG.md52id2func --datafile NCBI/GenBank.md52id2func --datafile NCBI/RefSeq.md52id2func --datafile PATRIC/PATRIC.md52id2func --datafile Phantome/Phantome.md52id2func --datafile SEED/SEED.md52id2func --datafile UniProt/SwissProt.md52id2func --datafile UniProt/TrEMBL.md52id2func --aliasfile KEGG/KEGG.id2xref --aliasfile NCBI/GenBank.id2xref --aliasfile NCBI/RefSeq.id2xref --aliasfile UniProt/SwissProt.id2xref --aliasfile UniProt/TrEMBL.id2xref
+
+### create nr ###
+cat */*.md52seq | sort -u > all.md52seq
+while read line; do md5=`echo $line` | cut -f1; seq=`echo $line` | cut -f2; echo ">$md5\n$seq\n"; done < all.md52seq > m5nr.fasta
+
+### stats ###
+$BIN/load_stats.pl --dbname m5nr_v$X

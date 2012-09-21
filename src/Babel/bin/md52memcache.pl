@@ -13,16 +13,16 @@ my $md5f    = '';
 my $mapf    = '';
 my $select  = '';
 my $memkey  = '_ach';
-my $memhost = "kursk-1.mcs.anl.gov:11211";
+my $memhost = "";
 my $options = { md5      => 1,
-		function => 1,
-		organism => 1,
-		source   => 1
-	      };
+		        function => 1,
+		        organism => 1,
+		        source   => 1
+	        };
 
 my $usage = "$0 [--verbose] --mem_host <server address: default '$memhost'> --mem_key <key extension: default '$memkey'> --lca <lca file> --md5 <md5 data file> --map <annotation mapping file> --option <input type: " . join("|", keys %$options) . ">\n";
 $usage   .= "lca file (unique md5s):\tmd5, domain, phylum, class, order, family, genus, species, name, level\n";
-$usage   .= "md5 file (sorted md5s):\tmd5, source, organism, function\n";
+$usage   .= "md5 file (sorted md5s):\tmd5, source, function, organism\n";
 $usage   .= "map file:\tinteger id, text name, optional\n";
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit 1; }
