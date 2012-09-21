@@ -48,13 +48,13 @@ my $udir = $base_dir."/".md5_hex($user->login);
 if (scalar(@rest) && $rest[0] eq 'user_inbox') {
     
     # prepare return data structure
-    my $data = [ { type => 'user_inbox', id => $user->login, files => [], fileinfo => {}, messages => [], directories => [] }];
+    my $data = [ { type => 'user_inbox', id => $user->login, files => [], fileinfo => {}, computation_error_log => {}, locks => {}, messages => [], popup_messages => [], directories => [] }];
 
     # check if the user has stats calculations in the queue
     my $uname = $user->{login};
     my $count = `/usr/local/bin/qstat | grep $uname | wc -l`;
     if ($count && $count > 0) {
-	push(@{$data->[0]->{messages}}, "You have $count sequence files with ongoing statistics computation. The information on these files will be incomplete and you will not be able to select these for submisson until the computation is complete. You can reload this page or click the 'update inbox' button to update the status.");
+	push(@{$data->[0]->{messages}}, "You have $count ongoing analyses computing. The information on the files involved in these operations may be incomplete and you will not be able to select these for submisson until the computations are complete. You can reload this page or click the 'update inbox' button to update the status of your inbox.");
     }
 
     # check if we are supposed to do anything else than return the content of the inbox
@@ -70,6 +70,12 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    if (-f "$udir/$file.stats_info") {
 			`rm '$udir/$file.stats_info'`;
 		    }
+		    if (-f "$udir/$file.lock") {
+			`rm '$udir/$file.lock'`;
+		    }
+		    if (-f "$udir/$file.error_log") {
+			`rm '$udir/$file.error_log'`;
+		    }
 		}
 	    }
 	}
@@ -82,7 +88,8 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 # command will fail unless directory is empty
                 `rmdir $udir/$target_dir`;
             } else {
-		push(@{$data->[0]->{messages}}, "Could not delete directory: $target_dir because it was not empty");
+                # this should never be called as the javascript will not allow it
+		push(@{$data->[0]->{popup_messages}}, "Could not delete directory: $target_dir because it was not empty.");
             }
         }
 
@@ -98,6 +105,12 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		`mv $udir/$file $target_dir`;
 		if (-f "$udir/$file.stats_info") {
 		    `mv $udir/$file.stats_info $target_dir`;
+		}
+		if (-f "$udir/$file.lock") {
+		    `mv $udir/$file.lock $target_dir`;
+		}
+		if (-f "$udir/$file.error_log") {
+		    `mv $udir/$file.error_log $target_dir`;
 		}
 	    }
 	}
@@ -126,8 +139,10 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    } elsif ($file =~ /\.bz2$/) {
 			@msg = `bunzip2 -d '$udir/$file' 2>&1`;
 		    }
-		    
-		    push(@{$data->[0]->{messages}}, join("<br>",@msg));
+
+                    if(@msg > 0) {
+                        push(@{$data->[0]->{popup_messages}}, "Output from unpacking file $file:\n".join("\n",@msg));
+                    }
 		}
 	    }
 	}
@@ -137,15 +152,15 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    foreach my $file (@files) {
 		if ($file =~ /\.sff$/) {
 		    if (-f "$udir/$file.fastq") {
-			push(@{$data->[0]->{messages}}, "The conversion for $file is either already finished or in progress.");
+			push(@{$data->[0]->{popup_messages}}, "File: $file exists. The conversion for this file is either already finished or in progress.");
 		    } else {
 			my ($success, $message) = &extract_fastq_from_sff($file, $udir);
 			unless ($success) {
-			    push(@{$data->[0]->{messages}}, $message);
+			    push(@{$data->[0]->{popup_messages}}, "Problem extracting sff file to fastq:\n".$message);
 			}
 		    }
 		} else {
-		    push(@{$data->[0]->{messages}}, "Unknown filetype for fastq conversion, currently only sff is supported.");
+		    push(@{$data->[0]->{popup_messages}}, "Unknown filetype for fastq conversion for file $file.  Currently only sff is supported.");
 		}
 	    }
 	}
@@ -153,7 +168,54 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
         # merge_mate_pairs, there will be two paired-end fastq files
         if ($action eq 'merge_mate_pairs') {
             # do stuff
-        }
+	    my $seqfile1;
+	    my $seqfile2;
+	    my $filetype1;
+	    my $filetype2;
+	    my $has_seqs = 0;
+	    if (@files == 3 && $files[0] =~ /\.$seq_ext$/ && $files[1] =~ /\.$seq_ext$/) {
+                my $ext1 = $files[0];
+                $ext1 =~ s/^\S+\.($seq_ext)$/$1/;
+		$filetype1 = ($ext1 =~ /^(fq|fastq)$/) ? 'fastq' : 'fasta';
+		$seqfile1  = $files[0];
+
+                my $ext2 = $files[1];
+                $ext2 =~ s/^\S+\.($seq_ext)$/$1/;
+		$filetype2 = ($ext2 =~ /^(fq|fastq)$/) ? 'fastq' : 'fasta';
+		$seqfile2  = $files[1];
+
+                if($filetype1 eq 'fastq' && $filetype2 eq 'fastq') {
+		    $has_seqs = 1;
+                }
+	    }
+	    if ($has_seqs) {
+                my $lock_file1 = "$udir/$seqfile1.lock";
+                my $lock_file2 = "$udir/$seqfile2.lock";
+                if (-f $lock_file1) {
+                    my $lock_msg = `cat $lock_file1`;
+                    chomp $lock_msg;
+		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
+                } elsif (-f $lock_file2) {
+                    my $lock_msg = `cat $lock_file2`;
+                    chomp $lock_msg;
+		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
+                } else {
+                    my $joinfile = $files[2];
+		    my $jobid = $user->{login};
+		    $jobid =~ s/\s/_/g;
+		    `echo "merge mate-pairs" > $lock_file1`;
+		    `echo "merge mate-pairs" > $lock_file2`;
+		    my $jnum = `echo "$Conf::pairend_join -m 8 -p 10 -s -n 10 -t $Conf::cluster_temp -o $joinfile $seqfile1 $seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+		    open(FH, ">>$udir/.tmp/jobs");
+		    print FH "$jnum";
+		    close FH;
+                }
+	    }
+	    else {
+		push(@{$data->[0]->{popup_messages}}, "Unknown file types for merge mate-pairs, please select two .fastq or .fq sequence files.");
+	    }
+	}
 	
 	# demultiplex, there will be one sequence and one barcode file
 	if ($action eq 'demultiplex') {
@@ -161,12 +223,12 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    my $seqfile;
 	    my $filetype;
 	    my $has_seqs = 0;
-	    if ($files[0] =~ /\.($seq_ext)$/) {
+	    if (@files == 2 && $files[0] =~ /\.($seq_ext)$/) {
 		$filetype = ($1 =~ /^(fq|fastq)$/) ? 'fastq' : 'fasta';
 		$seqfile  = $files[0];
 		$midfile  = $files[1];
 		$has_seqs = 1;
-	    } elsif ($files[1] =~ /\.($seq_ext)$/) {
+	    } elsif (@files == 2 && $files[1] =~ /\.($seq_ext)$/) {
 		$filetype = ($1 =~ /^(fq|fastq)$/) ? 'fastq' : 'fasta';
 		$seqfile  = $files[1];
 		$midfile  = $files[0];
@@ -177,7 +239,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 if (-f $lock_file) {
                     my $lock_msg = `cat $lock_file`;
                     chomp $lock_msg;
-		    push(@{$data->[0]->{messages}}, "Unable to demultiplex $seqfile, currently running $lock_msg.");
+		    push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex $seqfile, currently running $lock_msg.");
                 } else {
                     my $subdir = "";
                     if ($seqfile =~ /\//) {
@@ -194,13 +256,13 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    print FH "$jnum";
 		    close FH;
 
-		    my $bc_count = `wc $midfile | awk '{print $1}'`;
+		    my $bc_count = `wc $udir/$midfile | awk '{print \$1}'`;
 		    chomp $bc_count;
-		    push(@{$data->[0]->{messages}}, "Sequence file $seqfile is queued to be demultiplexed using $bc_count barcodes.");
+		    push(@{$data->[0]->{popup_messages}}, "Sequence file $seqfile is queued to be demultiplexed using $bc_count barcodes.");
                 }
 	    }
 	    else {
-		push(@{$data->[0]->{messages}}, "Unknown file types for demultiplex, please select one sequence file and one barcode file.");
+		push(@{$data->[0]->{popup_messages}}, "Unknown file types for demultiplex, please select one sequence file and one barcode file.");
 	    }
 	}
     }
@@ -213,7 +275,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
     if (opendir(my $dh, $udir)) {
 	
 	# ignore . files and the USER file
-	@ufiles = grep { /^[^\.]/ && !/\.lock$/ && $_ ne "USER" } readdir($dh);
+	@ufiles = grep { /^[^\.]/ && $_ ne "USER" } readdir($dh);
 	closedir $dh;
 	
 	# iterate over all entries in the user inbox directory
@@ -234,7 +296,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    $count++;
 		}
 		`mv '$udir/$ufile' '$udir/$newfilename'`;
-		push(@{$data->[0]->{messages}}, "<br>The file <b>'$ufile'</b> contained invalid characters. It has been renamed to <b>'$newfilename'</b>.<br><b>WARNING</b> If this is a sequence file associated with a library in your metadata, you will have to adjust the library file_name or metagenome_name in the metadata file!");
+		push(@{$data->[0]->{popup_messages}}, "The file '$ufile' contained invalid characters. It has been renamed to '$newfilename'.\n\nWARNING\nIf this is a sequence file associated with a library in your metadata, you will have to adjust the library file_name or metagenome_name in the metadata file!");
 		$ufile = $newfilename;
 	    }
 	    
@@ -246,7 +308,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		push(@{$data->[0]->{directories}}, $ufile);
 		my $dirseqs = [];
 		foreach my $nf (@numfiles) {
-		    unless ($nf =~ /\.stats_info$/) {
+		    unless ($nf =~ /\.stats_info$/ || $nf =~ /\.lock$/ || $nf =~ /\.error_log$/) {
 			push(@$dirseqs, $nf);
 		    }
 		    push(@ufiles, "$ufile/$nf");		
@@ -277,6 +339,28 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			close FH;
 		    }
 		    $data->[0]->{fileinfo}->{$fn} = $info;
+		} elsif ($ufile =~ /^(.+)\.error_log$/) {
+		    my $fn = $1;
+                    my $str = "";
+		    if (open(FH, "<$udir/$ufile")) {
+			while (my $line=<FH>) {
+			    chomp $line;
+                            $str .= $line;
+			}
+			close FH;
+		    }
+		    $data->[0]->{computation_error_log}->{$fn} = $str;
+		} elsif ($ufile =~ /^(.+)\.lock$/) {
+		    my $fn = $1;
+                    my $str = "";
+		    if (open(FH, "<$udir/$ufile")) {
+			while (my $line=<FH>) {
+			    chomp $line;
+                            $str .= $line;
+			}
+			close FH;
+		    }
+		    $data->[0]->{locks}->{$fn} = $str;
 		} else {
 		    unless ($ufile =~ /\//) {
 			push(@{$data->[0]->{files}}, $ufile);
@@ -303,11 +387,9 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	      `mv '$udir/$sequence_file.tmp' '$udir/$sequence_file'`;
 	      $file_type = 'ASCII text';
 	    }
-	    push(@{$data->[0]->{messages}}, join("<br>",@msg));
-
 	    unless ($file_type eq 'ASCII text') {
 	      $file_type = "binary or non-ASCII or invalid end of line characters";
-	      push(@{$data->[0]->{messages}}, "WARNING: The sequnce file $sequence_file seems to be binary or non-ASCII or contain invalid end of line characters. You will not be able to use this file as a sequence file.");
+	      push(@{$data->[0]->{popup_messages}}, "WARNING: The sequnce file '$sequence_file' seems to be binary or non-ASCII or contain invalid end of line characters. You will not be able to use this file as a sequence file.");
 	    }
 
 	    my $file_eol      = &file_eol($file_type);
@@ -339,10 +421,10 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    # call the extended information
 	    if ($file_type eq 'ASCII text') {
                 my $lock_file = "$udir/$sequence_file.lock";
-                `echo "seqeunce stats" > $lock_file`;
+                `echo "sequence stats" > $lock_file`;
 		my $jobid = $user->{login};
 		$jobid =~ s/\s/_/g;
-		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $Conf::cluster_temp; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $Conf::cluster_temp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 	      open(FH, ">>$udir/.tmp/jobs");
 	      print FH "$jnum";
