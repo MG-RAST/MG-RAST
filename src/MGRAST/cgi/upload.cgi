@@ -246,7 +246,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                     my $subdir = "";
                     if ($seqfile =~ /\//) {
                        $subdir = $seqfile;
-                       $subdir =~ /^(.*\/).*/;
+                       $subdir =~ s/^(.*\/).*/$1/;
                     }
 
 		    my $jobid = $user->{login};
