@@ -239,6 +239,10 @@ sub output {
 			     <h3 id="mergeMatePairsModalLabel">create directory</h3>
 		           </div>
 			   <div class="modal-body">
+			     <p>Please select file 1 of your mate-pairs:</p>
+			     <div id="mate_pair_one" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Please select file 2 of your mate-pairs:</p>
+			     <div id="mate_pair_two" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
 			     <p>Please enter the desired name of your merge mate-pairs output file:</p>
 			     <div id="merge_mate_pairs_input" style='margin-top: 10px;'><input type="text" id="merge_output_filename" /></div>
 		           </div>
@@ -250,7 +254,7 @@ sub output {
 		       </form>
                        <input type="button" class="btn" style='width:130px;' value="merge mate-pairs" data-toggle="modal" href="#mergeMatePairsModal"">
                      </td>
-                     <td width=250 style='vertical-align:middle;'>Merges selected mate-pair files.</td>
+                     <td width=250 style='vertical-align:middle;'>Merges mate-pair files.</td>
                    </tr>
                  </table>
                  <br>
