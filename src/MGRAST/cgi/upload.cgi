@@ -205,8 +205,8 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                     my $joinfile = $files[2];
 		    my $jobid = $user->{login};
 		    $jobid =~ s/\s/_/g;
-		    `echo "merge mate-pairs" > $lock_file1`;
-		    `echo "merge mate-pairs" > $lock_file2`;
+		    `echo "computing merge mate-pairs" > $lock_file1`;
+		    `echo "computing merge mate-pairs" > $lock_file2`;
 		    my $jnum = `echo "$Conf::pairend_join -m 8 -p 10 -s -n 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 		    open(FH, ">>$udir/.tmp/jobs");
@@ -251,7 +251,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 		    my $jobid = $user->{login};
 		    $jobid =~ s/\s/_/g;
-		    `echo "demultiplex" > $lock_file`;
+		    `echo "computing demultiplex" > $lock_file`;
 		    my $jnum = `echo "$Conf::demultiplex -f $filetype -b $udir/$midfile -i $udir/$seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 		    open(FH, ">>$udir/.tmp/jobs");
@@ -310,7 +310,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		push(@{$data->[0]->{directories}}, $ufile);
 		my $dirseqs = [];
 		foreach my $nf (@numfiles) {
-		    unless ($nf =~ /\.stats_info$/ || $nf =~ /\.lock$/ || $nf =~ /\.error_log$/) {
+		    unless ($nf =~ /\.stats_info$/ || $nf =~ /\.lock$/ || $nf =~ /\.part$/ || $nf =~ /\.error_log$/) {
 			push(@$dirseqs, $nf);
 		    }
 		    push(@ufiles, "$ufile/$nf");		
@@ -359,6 +359,8 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			close FH;
 		    }
 		    $data->[0]->{locks}->{$fn} = $str;
+		} elsif ($ufile =~ /^(.+)\.part$/) {
+                    # do nothing
 		} else {
 		    unless ($ufile =~ /\//) {
 			push(@{$data->[0]->{files}}, $ufile);
@@ -386,8 +388,13 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	      $file_type = 'ASCII text';
 	    }
 	    unless ($file_type eq 'ASCII text') {
-	      $file_type = "binary or non-ASCII or invalid end of line characters";
-	      push(@{$data->[0]->{popup_messages}}, "WARNING: The sequnce file '$sequence_file' seems to be binary or non-ASCII or contain invalid end of line characters. You will not be able to use this file as a sequence file.");
+              if((-s "$udir/$sequence_file") == 0) {
+	          $file_type = "empty file";
+	          push(@{$data->[0]->{popup_messages}}, "WARNING: The sequence file '$sequence_file' seems to be empty. You will not be able to use this file as a sequence file.");
+              } else {
+	          $file_type = "binary or non-ASCII or invalid end of line characters";
+	          push(@{$data->[0]->{popup_messages}}, "WARNING: The sequence file '$sequence_file' seems to be binary or non-ASCII or contain invalid end of line characters. You will not be able to use this file as a sequence file.");
+              }
 	    }
 
 	    my $file_eol      = &file_eol($file_type);
@@ -419,7 +426,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    # call the extended information
 	    if ($file_type eq 'ASCII text') {
                 my $lock_file = "$udir/$sequence_file.lock";
-                `echo "sequence stats" > $lock_file`;
+                `echo "computing sequence stats" > $lock_file`;
 		my $jobid = $user->{login};
 		$jobid =~ s/\s/_/g;
 		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
@@ -465,6 +472,8 @@ if (-f "$udir/".$filename && ! -f "$udir/$filename.part") {
 }
 # otherwise, append to the file
 else {
+    my $lock_file = "$udir/$filename.lock";
+    `echo "uploading" > $lock_file`;
     if (open(FH, ">>$udir/".$filename)) {
 	while ($bytesread = $fh->read($buffer,1024)) {
 	    print FH $buffer;
@@ -481,6 +490,7 @@ print "Content-Type: text/plain\n\n";
 if ($cgi->param('last_chunk')) {
     print "file received";
     `rm $udir/$filename.part`;
+    `rm $udir/$filename.lock`;
 } else {
     print "chunk received";
 }
