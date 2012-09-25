@@ -1,5 +1,6 @@
 package resources::matrix;
 
+use MGRAST::Metadata;
 use MGRAST::Analysis;
 use WebServiceObject;
 use Babel::lib::Babel;
@@ -304,8 +305,11 @@ sub request {
       my $rmd = exists($r_map->{$rid}) ? { $mtype => $r_map->{$rid} } : undef;
       push @$brows, { id => $rid, metadata => $rmd };
     }
+	my $mddb = MGRAST::Metadata->new();
+	my $meta = $mddb->get_jobs_metadata_fast([keys %$col_ids], 1);
     foreach my $cid (sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids) {
-      push @$bcols, { id => 'mgm'.$cid, metadata => undef };
+	  my $cmd = exists($meta->{$cid}) ? $meta->{$cid} : undef;
+      push @$bcols, { id => 'mgm'.$cid, metadata => $cmd };
     }
     my $bdata = { "id"                   => join(";", map { $_->{id} } @$bcols),
 		  "format"               => "Biological Observation Matrix 1.0",

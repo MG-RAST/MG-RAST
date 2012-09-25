@@ -181,9 +181,10 @@ sub md5s2sets {
     return [];
   }
 
-  my $sql = qq(select d.id, d.md5, f.name, o.name, s.name
-               from md5_protein d, functions f, organisms_ncbi o, sources s
-               where d.function = f._id and d.organism = o._id and d.source = s._id);
+  # need to handle case of function being null
+  my $sql = qq(select d.id, d.md5, d.function, o.name, s.name
+               from md5_protein d, organisms_ncbi o, sources s
+               where d.organism = o._id and d.source = s._id);
   if (@$md5s == 1) {
     $sql .= " and d.md5 = " . $self->dbh->quote($md5s->[0]);
   } else {
@@ -191,7 +192,18 @@ sub md5s2sets {
   }
   
   my $rows = $self->dbh->selectall_arrayref($sql);
-  return ($rows && ref($rows)) ? $rows : [];
+  if ($rows && (@$rows > 0)) {
+      my %funcs = map { $_->[2], 1 } grep { $_->[2] } @$rows;
+      my $fmap  = {};
+      if (scalar(keys %funcs) > 0) {
+          my $fsql = "select d.function, f.name from md5_protein d, functions f where d.function=f._id and d.function in (".join(",", keys %funcs).")";
+          %$fmap = map { $_->[0], $_->[1] } @{ $self->dbh->selectall_arrayref($fsql) };
+      }
+      map { $_->[2] = ($_->[2] && exists($fmap->{$_->[2]})) ? $fmap->{$_->[2]} : 'unknown' } @$rows;
+      return $rows
+  } else {
+      return [];
+  }
 }
 
 sub md52org {
@@ -323,7 +335,7 @@ sub md52sequence {
 }
 
 sub md5s2sequences {
-  my ($self, $md5s) = @_;
+  my ($self, $md5s, $obj) = @_;
 
   my $nr   = $self->nr;
   my $seqs = '';
@@ -333,6 +345,18 @@ sub md5s2sequences {
   foreach (@recs) {
     if ((! $_) || ($_ =~ /^\s+$/) || ($_ =~ /^\[fastacmd\]/)) { next; }
     $seqs .= $_;
+  }
+  if ($obj) {
+    my @fasta = split(/\n/, $seqs);
+    my $seq_set = [];
+    for (my $i=0; $i<@fasta; $i += 2) {
+        if ($fasta[$i] =~ /^>(\S+)/) {
+            my $id = $1;
+            $id    =~ s/^lcl\|//;
+            push @$seq_set, [ $id, $fasta[$i+1] ];
+        }
+    }
+     return $seq_set;
   }
   return $seqs || $list;
 }
@@ -1134,7 +1158,7 @@ sub id2sequence {
 }
 
 sub ids2sequences {
-  my ($self, $ids) = @_;
+  my ($self, $ids, $obj) = @_;
 
   my $md5seq = {};
   my $md5id  = $self->ids2md5s($ids);
@@ -1148,8 +1172,12 @@ sub ids2sequences {
       $md5seq->{$id} = $fasta[$i+1];
     }
   }
-
-  return join("\n",  map {">".$_->[1]."\n".$md5seq->{$_->[0]}} grep {exists($md5seq->{$_->[0]})} @$md5id);
+  my @seq_set = map { [$_->[1], $md5seq->{$_->[0]}] } grep { exists($md5seq->{$_->[0]}) } @$md5id;
+  if ($obj) {
+      return \@seq_set;
+  } else {
+      return join("\n", map { ">".$_->[0]."\n".$_->[1] } @seq_set)."\n";
+  }
 }
 
 #

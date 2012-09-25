@@ -1,7 +1,5 @@
 package Babel::WebPage::Search;
 
-# $Id: Search.pm,v 1.8 2011-10-17 19:41:18 tharriso Exp $
-
 use strict;
 use warnings;
 
@@ -21,9 +19,9 @@ sub output {
   my ($self) = @_;
 
   my $content = "<h2>Searching within the M5nr</h2>";
-  $content .= "<p>Welcome to the web search of the M5nr. You can search for data associated with proteins from the following categories: identifiers, functions, organisms, sequences, or md5 checksums. For function or organism annotaion, you can search for data with an exact match to your query, or for data that matches part of your query. It is possible to search for multiple types of data by entering a comma separated list of queries.</p>";
+  $content .= "<p>Welcome to the web search of the M5nr. You can search for data associated with proteins from the following categories: source ids, functions, organisms, sequences, or md5 checksums. For function or organism annotaion, you can search for data with an exact match to your query, or for data that matches part of your query. It is possible to search for multiple types of data by entering a comma separated list of queries.</p>";
 
-  $content .= "<p>Choose a category and enter a search query. Optionally select exact or partial match.</p>";
+  $content .= "<p>Choose a search category and enter a search query. Optionally select exact or partial match.</p>";
   $content .= $self->start_form('search_form', { 'page' => 'SearchResults' });
   $content .= qq(<table><tr>
 <th>Search for</th>
@@ -37,7 +35,7 @@ sub output {
       document.getElementById("tdMatch").style.display = "none";
       document.getElementById("selMatch").value = "exact";
     }'>
-    <option value='Identifier' selected='selected'>Identifier</option>
+    <option value='Identifier' selected='selected'>Source ID</option>
     <option value='Function'>Function</option>
     <option value='Organism'>Organism</option>
     <option value='Sequence'>Sequence</option>
