@@ -372,9 +372,10 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
     
     # iterate over all sequence files found in the inbox
     foreach my $sequence_file (@$sequence_files) {
+        my $lock_file = "$udir/$sequence_file.lock";
 
-	# create basic and extended file information if we do not yet have it
-	if (! $info_files->{$sequence_file}) {
+	# create basic and extended file information if we do not yet have it and there is no lock file present
+	if (! $info_files->{$sequence_file} && ! -f $lock_file) {
 	    `touch "$udir/$sequence_file.stats_info"`;
 	    my $file_type = &file_type($sequence_file, $udir);
 	    my @msg;
@@ -422,10 +423,9 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    `chmod 666 $udir/$sequence_file.stats_info`;
 	    
 	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
-	    
+
 	    # call the extended information
 	    if ($file_type eq 'ASCII text') {
-                my $lock_file = "$udir/$sequence_file.lock";
                 `echo "computing sequence stats" > $lock_file`;
 		my $jobid = $user->{login};
 		$jobid =~ s/\s/_/g;
@@ -464,23 +464,23 @@ my $fh = $cgi->upload('upload_file')->handle;
 my $bytesread;
 my $buffer;
 
-# check if this is the first block, if so, create the file
+# check if file already exists
 if (-f "$udir/".$filename && ! -f "$udir/$filename.part") {
-    print "Content-Type: text/plain\n\n";
-    print "file already exists";
-    exit 0;
+    `rm $udir/$filename`;
+    `rm $udir/$filename.lock`;
+    `rm $udir/$filename.stats_info`;
+    `rm $udir/$filename.error_log`;
 }
-# otherwise, append to the file
-else {
-    my $lock_file = "$udir/$filename.lock";
-    `echo "uploading" > $lock_file`;
-    if (open(FH, ">>$udir/".$filename)) {
-	while ($bytesread = $fh->read($buffer,1024)) {
-	    print FH $buffer;
-	}
-	close FH;
-	`touch $udir/$filename.part`;
+
+my $lock_file = "$udir/$filename.lock";
+`echo "uploading" > $lock_file`;
+
+if (open(FH, ">>$udir/".$filename)) {
+    while ($bytesread = $fh->read($buffer,1024)) {
+        print FH $buffer;
     }
+    close FH;
+    `touch $udir/$filename.part`;
 }
 
 # return a message to the sender
