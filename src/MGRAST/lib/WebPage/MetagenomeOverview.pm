@@ -311,20 +311,16 @@ sub output {
   }
   $html .= "</ul>";
   # qc
-  if ((! $is_rna) || $bp_consensus) {
-    $html .= "<li style='padding-top:5px;'>Metagenome QC</li>";
-    $html .= "<ul style='margin:0;'>";
-    if (exists($job_stats->{drisee_score_raw}) && (! $is_rna)) {
-      $html .= "<li><a href='#drisee_ref'>DRISEE</a></li>";
-    }
-    if (! $is_rna) {
-      $html .= "<li><a href='#kmer_ref'>Kmer Profile</a></li>";
-    }
-    if ($bp_consensus) {
-      $html .= "<li><a href='#consensus_ref'>Nucleotide Histogram</a></li>";
-    }
-    $html .= "</ul>";
+  $html .= "<li style='padding-top:5px;'>Metagenome QC</li>";
+  $html .= "<ul style='margin:0;'>";
+  if (exists $job_stats->{drisee_score_raw}) {
+  	$html .= "<li><a href='#drisee_ref'>DRISEE</a></li>";
   }
+  $html .= "<li><a href='#kmer_ref'>Kmer Profile</a></li>";
+  if ($bp_consensus) {
+  	$html .= "<li><a href='#consensus_ref'>Nucleotide Histogram</a></li>";
+  }
+  $html .= "</ul>";
   # organism
   $html .= "<li style='padding-top:5px;'>Organism Breakdown</li>";
   $html .= "<ul style='margin:0;'>";
@@ -470,7 +466,7 @@ sub output {
   $html .= "<img src='./Html/clear.gif' onload='draw_bar_plot(\"flowchart_div\", $fc_titles, $fc_colors, $fc_data);'></td></tr></table>";
 
   # drisee score
-  my $drisee_refrence = "<p>DRISEE: Duplicate Read Inferred Sequencing Error Estimation (<a target=_blank href='http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1002541'>Keegan et al., PLoS Computational Biology, 2012</a>)</p>";
+  my $drisee_refrence = "<p>Duplicate Read Inferred Sequencing Error Estimation (<a target=_blank href='http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1002541'>Keegan et al., PLoS Computational Biology, 2012</a>)</p>";
   my $drisee_boilerplate = qq~
   <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
   <p>Note that DRISEE is designed to examine sequencing error in raw whole genome shotgun sequence data. It assumes that adapter and/or barcode sequences have been removed, but that the sequence data have not been modified in any additional way. (e.g.) Assembly or merging, QC based triage or trimming will both reduce DRISEE's ability to provide an accurate assessment of error by removing error before it is analyzed.</p>~;
@@ -483,8 +479,7 @@ $drisee_refrence
 <p>DRISEE could not produce a profile; the sample failed to meet the minimal ADR requirements to calculate an error profile (see Keegan et al. 2012)</p>
 $drisee_boilerplate
 ~;
-  }
-  elsif (($drisee_num > 0) && (! $is_rna)) {
+  } elsif (($drisee_num > 0) && (! $is_rna)) {
     my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
     my $drisee_score = sprintf("%.3f", $drisee_num);
     my $drisee_info  = $self->get_drisee_info($job);
@@ -510,11 +505,18 @@ $drisee_boilerplate
   $drisee_boilerplate
   $drisee_plot
 </div>~;
+  } elsif ($is_rna) {
+	$html .= qq~<a name='drisee_ref'></a>
+<h3>DRISEE
+<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a></h3>
+$drisee_refrence
+<p>DRISEE could not produce a profile, this is an Amplicon dataset.</p>
+$drisee_boilerplate
+~;
   }
 
   # kmer profiles
-  if (! $is_rna) {
-    $html .= qq~<a name='kmer_ref'></a>
+  $html .= qq~<a name='kmer_ref'></a>
 <h3>Kmer Profiles
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#kmer_profile' style='font-size:14px;padding-left:5px;'>[?]</a>
 <a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='
@@ -548,10 +550,9 @@ trimming will both reduce DRISEE's ability to provide an accurate assessment  
   <img src='./Html/clear.gif' onload='execute_ajax("get_kmer_plot", "kmer_div", "metagenome=$mgid&job=$job_id&size=15&type=abundance");'>
   <div id='kmer_div'></div>
 </div>~;
-  }
 
   # consensus plot
-  if ($bp_consensus && (! $is_rna)) {
+  if ($bp_consensus) {
     $html .= $bp_consensus;
   }
 
