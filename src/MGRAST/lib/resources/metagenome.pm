@@ -83,6 +83,8 @@ sub request {
       $obj->{sample}   = $job->sample ? "mgs".$job->sample->ID : undef;
       $obj->{library}  = $job->library ? "mgl".$job->library->ID : undef;
       $obj->{metadata} = $mddb->get_job_metadata($job, $temp);
+	  $obj->{stats}    = $job->stats;
+	  $obj->{attributes} = $job->data;
 
       print $cgi->header(-type => 'application/json',
 			 -status => 200,
