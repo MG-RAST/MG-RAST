@@ -68,17 +68,17 @@ function update_inbox (data, files, action) {
           error_msg = DataStore['user_inbox'][user.login].computation_error_log[dlist[i]+"/"+fn];
         }
 	if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='this is a malformed / unidentifiable sequence file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['Error']) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='there was an error in the sequence stats computation for this file' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='the unique id count does not match the sequence count' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
-	} else if ((seq_dlist[dlist[i]] == 1) && (lock_msg != "")) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: gray;' title='the "+lock_msg+" computation for this file is still running' value='"+dlist[i]+"/"+fn+"'>("+lock_msg+") "+fn+"</option>";
-	} else if ((seq_dlist[dlist[i]] == 1) && (error_msg != "")) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='Error: "+error_msg+"' value='"+dlist[i]+"/"+fn+"'>(error) "+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] < 1000001) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' title='this file is too small for submission, the minimum is 1Mbp' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	} else if (lock_msg != "") {
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: gray;' value='"+dlist[i]+"/"+fn+"'>("+lock_msg+") "+fn+"</option>";
+	} else if (error_msg != "") {
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(error) "+fn+"</option>";
 	} else {
 	  inbox_html += "<option style='display: none; padding-left: 35px;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	}
@@ -108,17 +108,17 @@ function update_inbox (data, files, action) {
         error_msg = DataStore['user_inbox'][user.login].computation_error_log[flist[i]];
       }
       if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
-	inbox_html += "<option title='this is a malformed / unidentifiable sequence file' style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
       } else if (isSeq && inf['Error']) {
-	inbox_html += "<option title='there was an error in the sequence stats computation for this file' style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
       } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
-	inbox_html += "<option title='the unique id count does not match the sequence count' style='color: red;'>"+flist[i]+"</option>";
-      } else if (isSeq && lock_msg != "") {
-        inbox_html += "<option style='color: gray;' title='the "+lock_msg+" computation for this file is still running' value='"+flist[i]+"'>("+lock_msg+") "+flist[i]+"</option>";
-      } else if (isSeq && error_msg != "") {
-        inbox_html += "<option style='color: red;' title='Error: "+error_msg+"' value='"+flist[i]+"'>(error) "+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
       } else if (isSeq && inf['bp count'] && inf['bp count'] < 1000001) {
-	inbox_html += "<option title='this file is too small for submission, the minimum is 1Mbp' style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
+      } else if (lock_msg != "") {
+        inbox_html += "<option style='color: gray;' value='"+flist[i]+"'>("+lock_msg+") "+flist[i]+"</option>";
+      } else if (error_msg != "") {
+        inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(error) "+flist[i]+"</option>";
       } else {
         inbox_html += "<option>"+flist[i]+"</option>";
       }
@@ -177,7 +177,7 @@ function update_inbox (data, files, action) {
 	if (DataStore.user_inbox[user.login].fileinfo && DataStore.user_inbox[user.login].fileinfo[fn]) {
 	    var ptext = "<h4>File Information</h4><br>";
             if(DataStore['user_inbox'][user.login].locks[fn]) {
-	      ptext += '<div class="alert alert-block"><button class="close" data-dismiss="alert" type="button">x</button><strong>Notice</strong><br>This file is undergoing the computation:<br><span style="padding-left: 10px;"><pre>'+DataStore['user_inbox'][user.login].locks[fn]+'</pre></span><br>You cannot perform another computation on this file until this is complete.</div>';
+	      ptext += '<div class="alert alert-block"><button class="close" data-dismiss="alert" type="button">x</button><strong>Notice</strong><br>This file is currently:<br><span style="padding-left: 10px;"><pre>'+DataStore['user_inbox'][user.login].locks[fn]+'</pre></span><br>You cannot perform another operation on this file until this is complete.</div>';
             }
             if(DataStore['user_inbox'][user.login].computation_error_log[fn]) {
 	      ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file encountered a computation error:<br><span style="padding-left: 10px;"><pre>'+DataStore['user_inbox'][user.login].computation_error_log[fn]+'</pre></span></div>';
@@ -191,7 +191,9 @@ function update_inbox (data, files, action) {
 	    }
 	    else if (inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>The unique id count does not match the sequence count. You will not be able to use this file for submission.</div>';
-
+	    }
+            else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] < 1000001) {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file is too small for submission, the minimum is 1MBp.</div>';
 	    }
 	    ptext += "<table>";
 	  for (i in DataStore.user_inbox[user.login].fileinfo[fn]) {
@@ -301,6 +303,9 @@ function merge_mate_pairs () {
     if (output_filename == "") {
       alert("You need to enter an output filename to merge mate-pairs.");
       return false;
+    } else if(files[0] == files[1]) {
+      alert("You entered the same filename for both input files.  Your selection should include two different, paired fastq sequence files (.fq or .fastq)");
+      return false;
     }
 
     var seqfile;
@@ -308,8 +313,12 @@ function merge_mate_pairs () {
       if(! output_filename.match(/(fastq|fq)$/)) {
         output_filename += ".fastq";
       }
+      if(output_filename.match(/\//)) {
+        alert("Your output filename cannot contain a '/' character in the name.");
+        return false;
+      }
       files[files.length] = output_filename;
-      alert("Your output file will be saved in the Inbox base directory as: "+output_filename+"\n\nThis might take some minutes, depending on filesize.  When the merging has finished, your inbox will update automatically.\n\n");
+      alert("Your output file will be saved in your Inbox base directory as: "+output_filename+"\n\nThis might take some minutes, depending on filesize.  When the merging has finished, your inbox will update automatically.\n\n");
       update_inbox(null, files, "merge_mate_pairs");
     } else {
       alert("Your selection must include two fastq sequence files (.fq or .fastq)");
