@@ -80,7 +80,10 @@ sub output {
   $tab_component->add_tab('Table Statistics', $self->get_statistics());
   $tab_component->add_tab('Chart Statistics', $self->get_graphics());
 
-  return "<h2>Sources of the M5nr</h2><br>" . $tab_component->output();
+  return "<h2>Sources of the M5nr</h2>" . 
+         "The protein databases listed below were used to create the M5nr database.<br>" .
+	 "You can view statistics for the contribution of each source as well as the listing of the files used and links to the download location.<p>" .
+	 $tab_component->output();
 }
 
 sub get_statistics {
@@ -108,7 +111,7 @@ sub get_statistics {
 
     push @data, [ $_,
 		  qq(<a href="$srcs->{$_}{url}">$srcs->{$_}{source}</a>),
-		  $srcs->{$_}{type},
+		  (($srcs->{$_}{type} eq 'ontology') ? 'functional hierarchy' : $srcs->{$_}{type}),
 		  $self->commify($num_ids),
 		  &get_percent($ids, $num_ids),
 		  $self->commify($srcs->{$_}{md5s} ? $srcs->{$_}{md5s} : 0),
@@ -264,7 +267,10 @@ sub get_build_content {
 		  "'>$_</a> have been downloaded and used to build the M5nr:</p><p>" . $repo_down->{$_}[3] . "</p>";
     $roll_component->add_blind({'title' => "$_: " . $repo_down->{$_}[2], 'info' => "Last Update: " . $repo_down->{$_}[0], 'content' => $content});
   }
-  return $roll_component->output();
+
+  my $text = "<b>Click on a name to view additional information, including version number and a link to the download location</b>";
+
+  return '<p>' . $text . '<p>&nbsp;<p>' . $roll_component->output();
 }
 
 sub get_file_tbl {
@@ -272,7 +278,7 @@ sub get_file_tbl {
 
   my @data;
   for (my $i=0; $i<@$paths; $i++) {
-    push @data, [ $paths->[$i], $files->[$i] ];
+    push @data, [ qq(<a href="$paths->[$i]">$paths->[$i]</a>), $files->[$i] ];
   }
 
   my $tbl_component = $self->application->component($tbl);

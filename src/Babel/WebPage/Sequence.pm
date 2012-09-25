@@ -1,14 +1,11 @@
 package Babel::WebPage::Sequence;
 
-# $Id: Sequence.pm,v 1.10 2011-10-17 19:41:18 tharriso Exp $
-
 use strict;
 use warnings;
 
 use base qw( WebPage );
 
 use Babel::lib::Babel;
-use Conf;
 use Data::Dumper;
 
 1;

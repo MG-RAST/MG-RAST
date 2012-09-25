@@ -35,6 +35,8 @@ Called when the web page is instanciated.
 sub init {
   my ($self) = @_;
 
+  $self->application->register_action($self, 'export_kegg_abundance', 'export_kegg_abundance');
+
   $self->title('KeggMapper');
 
   $self->application->register_component('ListSelect', 'ls');
@@ -109,6 +111,7 @@ sub output {
   $html .= "<input type='button' value='highlight loaded data' onclick='compare();'>";
   $html .= "&nbsp;&nbsp;&nbsp;image size <input type='text' id='scalefactor' value='25' size=3>%&nbsp;&nbsp;";
   $html .= "<input type='button' value='scale image' onclick='scale_image();'>";
+  $html .= "<input type='button' value='export kegg abundance' onclick='export_kegg_abundance();' />\n";
 
   $html .= "<img src='./Html/map01100.png' id='m' style='height: 563px; width: 924px;' border='0' />";
   $html .= "<div id='raph'></div>";
@@ -118,6 +121,56 @@ sub output {
   $html .= "<a href='#top' id='bottom'>top</a><div id='submap'></div>";
 
   return $html;
+}
+
+sub export_kegg_abundance {
+  my ($self) = @_;
+
+  my $application = $self->application;
+  my $cgi = $application->cgi;
+
+  my $format = $cgi->param('format');
+  my @kids = split(/~/, $cgi->param('kids'));
+  my @abu = split(/~/, $cgi->param('abu'));
+  my @which = split(/~/, $cgi->param('which'));
+
+  my %master_hash = ();
+  for(my $i=0; $i<@kids; ++$i) {
+    $master_hash{$which[$i]}{$kids[$i]} = $abu[$i];
+  }
+
+  if($format eq 'html') {
+    my $content = "<table><tr><td style='vertical-align:top;width:300px'>\n";
+    $content .= "<h2>Data A</h2><table border=1><tr><td>EC number</td><td>Abundance</td></tr>";
+    my $dataset = 'a';
+    foreach my $kid (sort {$master_hash{$dataset}{$b} <=> $master_hash{$dataset}{$a}} keys %{$master_hash{$dataset}}) {
+      $content .= "<tr><td><a href=\"http://www.genome.jp/dbget-bin/www_bget?ec:$kid\" target=\"_blank\">$kid</a></td>".
+                  "<td>$master_hash{$dataset}{$kid}</td></tr>";
+    }
+    $content .= "</table></td><td style='vertical-align:top;width:300px'>";
+    $content .= "<h2>Data B</h2><table border=1><tr><td>EC number</td><td>Abundance</td></tr>";
+    $dataset = 'b';
+    foreach my $kid (sort {$master_hash{$dataset}{$b} <=> $master_hash{$dataset}{$a}} keys %{$master_hash{$dataset}}) {
+      $content .= "<tr><td><a href=\"http://www.genome.jp/dbget-bin/www_bget?ec:$kid\" target=\"_blank\">$kid</a></td>".
+                  "<td>$master_hash{$dataset}{$kid}</td></tr>";
+    }
+    $content .= "</table></td></tr></table>";
+    print "Content-Type: text/html\n\n";
+    print $content;
+    exit;
+  } elsif($format eq 'text') {
+    my $content = "Dataset\tEC number\tAbundance\n";
+    foreach my $dataset (keys %master_hash) {
+      foreach my $kid (sort {$master_hash{$dataset}{$b} <=> $master_hash{$dataset}{$a}} keys %{$master_hash{$dataset}}) {
+        $content .= uc($dataset)."\t$kid\t$master_hash{$dataset}{$kid}\n";
+      }
+    }
+    print "Content-Type:application/x-download\n";
+    print "Content-Length: " . length($content) . "\n";
+    print "Content-Disposition:attachment;filename=filename\n\n";
+    print $content;
+    exit;
+  }
 }
 
 sub require_javascript {
