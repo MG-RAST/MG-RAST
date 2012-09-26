@@ -70,10 +70,17 @@ sub init {
     }
     my $job = $jobs_array->[0];
     my $user = $self->application->session->user;
-    unless($job->public || ($user and $user->has_right(undef, 'view', 'metagenome', $id))) {
-      $self->app->add_message('warning', "Unable to view metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
-      return 1;
+
+    if(! $job->public) {
+      if(! $user) {
+        $self->app->add_message('warning', 'Please log into MG-RAST to view metagenomes.');
+        return 1;
+      } elsif(! $user->has_right(undef, 'view', 'metagenome', $id)) {
+        $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+        return 1;
+      }
     }
+
     unless ($job->viewable) {
       $self->app->add_message('warning', "Unable to view metagenome '$id' because it is still processing.");
       return 1;
