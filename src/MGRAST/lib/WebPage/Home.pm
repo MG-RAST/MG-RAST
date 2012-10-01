@@ -163,7 +163,7 @@ END
   #$content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'><em>The Metagenomics RAST server - A public resource for the automatic phylogenetic and functional analysis of metagenomes</em> F. Meyer, D. Paarmann, M. D'Souza, R. Olson , E. M. Glass, M. Kubal, T. Paczian , A. Rodriguez , R. Stevens, A. Wilke, J. Wilkening, R. A. Edwards<br/><em>BMC Bioinformatics 2008, 9:386
 #, [<a href=\"http://www.biomedcentral.com/1471-2105/9/386\" target=\"_blank\">article</a>]</em></p>";
 
-  #$content .= "<p style='text-align: center; float: right;'><span style='font-size: 11px; color: white;'>powered by</span><br><img style='width: 50px;' src='./Html/kbase_logo.png'></p>";
+  $content .= "<p style='text-align: center; float: right;'><span style='font-size: 11px; color: white;'>powered by</span><br><img style='width: 50px;' src='./Html/kbase_logo.png'></p>";
 
   my $logos = "<img src='./Html/argonne_header_logo.jpg' style='padding-top: 15px; width: 150px;'>";
   # news - logos
