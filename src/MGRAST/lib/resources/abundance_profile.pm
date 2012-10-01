@@ -14,13 +14,12 @@ $json = $json->utf8();
 
 sub about {
   my $ach = new Babel::lib::Babel;
+  my $sources = [ 'M5NR', map {$_->[0]} @{$ach->get_protein_sources}, map {$_->[0]} @{$ach->get_ontology_sources}, 'M5RNA', map {$_->[0]} @{$ach->get_rna_sources} ];
+
   my $content = { 'description' => "metagenomic abundance profile",
 		  'parameters'  => { "id" => "string",
 				     "type" => [ "organism", "function", "feature" ],
-				     "source" => { "protein"  => [ 'M5NR', map {$_->[0]} @{$ach->get_protein_sources} ],
-						   "ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
-						   "rna"      => [ 'M5RNA', map {$_->[0]} @{$ach->get_rna_sources} ]
-						 }
+				     "source" => [ map { [ $_, "$_ data source" ] } @$sources ],
 				   },
 		  'defaults' => { "source" => "M5NR (organism), or Subsystems (function), or RefSeq (feature)",
 				  "type"   => "organism"
@@ -104,8 +103,7 @@ sub request {
     $params->{$key} = $value;
   }
   $params->{type}   = $cgi->param('type') ? $cgi->param('type') : 'organism';
-  $params->{source} = $cgi->param('source') ? $cgi->param('source') :
-    (($params->{type} eq 'organism') ? 'M5NR' : (($params->{type} eq 'function') ? 'Subsystems': 'RefSeq'));
+  $params->{source} = $cgi->param('source') ? $cgi->param('source') : (($params->{type} eq 'organism') ? 'M5NR' : (($params->{type} eq 'function') ? 'Subsystems': 'RefSeq'));
 
   my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {

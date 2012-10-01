@@ -41,7 +41,9 @@ sub request {
 				      "md5" => 'string',
 				      "source_id" => 'string' },
 		    'description' => "A genome is a sequenced strain of an organism. It contains some overview information and references to its contig sequences and annotated features",
-		    'resource_type' => 'object' };
+		    'type' => 'object',
+		    'url' => $cgi->url,
+		    'name' => 'genome' };
     
     if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
       my $data = { 'params' => [ 0, 1000000, ["id"] ],
