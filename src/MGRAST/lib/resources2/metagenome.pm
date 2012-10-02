@@ -1,4 +1,4 @@
-package resources::metagenome;
+package resources2::metagenome;
 
 use Conf;
 use CGI;

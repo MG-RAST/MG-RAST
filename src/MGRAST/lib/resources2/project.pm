@@ -1,4 +1,4 @@
-package resources::project;
+package resources2::project;
 
 use Conf;
 use CGI;

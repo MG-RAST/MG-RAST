@@ -1,4 +1,4 @@
-package resources::sequenceset;
+package resources2::sequenceset;
 
 use Conf;
 use CGI;
