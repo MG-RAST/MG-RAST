@@ -133,7 +133,7 @@ if ($cgi->http('user_auth')) {
 # if a resource is passed, call the resources module
 if ($resource) {
   if ($resources_hash->{$resource}) {
-    my $query = "use resources::$resource; resources::".$resource."::request( { 'rest_parameters' => \\\@rest_parameters, 'method' => \$request_method, 'user' => \$user, 'json_rpc' => \$json_rpc, 'json_rpc_id' => \$json_rpc_id, 'submethod' => \$submethod, 'cgi' => \$cgi } );";
+    my $query = "use resources2::$resource; resources2::".$resource."::request( { 'rest_parameters' => \\\@rest_parameters, 'method' => \$request_method, 'user' => \$user, 'json_rpc' => \$json_rpc, 'json_rpc_id' => \$json_rpc_id, 'submethod' => \$submethod, 'cgi' => \$cgi } );";
     eval $query;
     if ($@) {
       print $cgi->header(-type => 'text/plain',

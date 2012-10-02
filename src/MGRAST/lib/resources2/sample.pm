@@ -1,4 +1,4 @@
-package resources::sample;
+package resources2::sample;
 
 use Conf;
 use CGI;

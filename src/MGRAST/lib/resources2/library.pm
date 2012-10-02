@@ -1,4 +1,4 @@
-package resources::library;
+package resources2::library;
 
 use Conf;
 use CGI;

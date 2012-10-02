@@ -1,4 +1,4 @@
-package resources::abundanceprofile;
+package resources2::abundanceprofile;
 
 use Conf;
 use CGI;
