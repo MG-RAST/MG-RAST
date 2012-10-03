@@ -196,7 +196,7 @@ sub md5s2sets {
       my %funcs = map { $_->[2], 1 } grep { $_->[2] } @$rows;
       my $fmap  = {};
       if (scalar(keys %funcs) > 0) {
-          my $fsql = "select d.function, f.name from md5_protein d, functions f where d.function=f._id and d.function in (".join(",", keys %funcs).")";
+          my $fsql = "select _id, name from functions where _id in (".join(",", keys %funcs).")";
           %$fmap = map { $_->[0], $_->[1] } @{ $self->dbh->selectall_arrayref($fsql) };
       }
       map { $_->[2] = ($_->[2] && exists($fmap->{$_->[2]})) ? $fmap->{$_->[2]} : 'unknown' } @$rows;
