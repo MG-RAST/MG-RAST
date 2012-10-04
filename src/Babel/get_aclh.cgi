@@ -27,7 +27,7 @@ my $passwd = $cgi->param('passwd') | '';
 my $expert = $cgi->param('expert') | '';
 
 
-my $aclh = AnnoClearinghouse->new( $FIG_Config::clearinghouse_data , $FIG_Config::clearinghouse_contrib , 0 , $fig->db_handle);
+my $aclh = AnnoClearinghouse->new( $Conf::clearinghouse_data , $Conf::clearinghouse_contrib , 0 , $fig->db_handle);
 
 
 # print "Params:\n" , join (" " , $cgi->param) , "\n";

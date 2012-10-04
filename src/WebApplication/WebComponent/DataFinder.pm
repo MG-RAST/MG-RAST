@@ -5,7 +5,7 @@ use warnings;
 
 use base qw( WebComponent );
 
-use FIG_Config;
+use Conf;
 
 1;
 
@@ -59,17 +59,17 @@ sub output {
   $content .= "<input type='hidden' id='data_finder_max_elements' value='".$self->max_elements."'>";
   $content .= "<div id='data_finder_main' class='data_finder_main' style='margin-top: 15px; height: ".$self->height."; width: ".$self->width."px;$visible'></div>";
   my $crumbs = "";
-  $content .= qq~<img src='$FIG_Config::cgi_url/Html/clear.gif' onload='initialize_data_finder();'>~;
+  $content .= qq~<img src='$Conf::cgi_url/Html/clear.gif' onload='initialize_data_finder();'>~;
   
   return $content;
 }
 
 sub require_css {
-  return "$FIG_Config::cgi_url/Html/DataFinder.css";
+  return "$Conf::cgi_url/Html/DataFinder.css";
 }
 
 sub require_javascript {
-  return [ "$FIG_Config::cgi_url/Html/DataFinder.js" ];
+  return [ "$Conf::cgi_url/Html/DataFinder.js" ];
 }
 
 sub data {

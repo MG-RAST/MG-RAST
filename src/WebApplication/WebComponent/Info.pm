@@ -141,9 +141,9 @@ sub title {
 }
 
 sub require_css {
-  return "$FIG_Config::cgi_url/Html/Info.css";
+  return "$Conf::cgi_url/Html/Info.css";
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/Info.js"];
+  return ["$Conf::cgi_url/Html/Info.js"];
 }

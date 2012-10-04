@@ -9,7 +9,7 @@ use warnings;
 
 use DBMaster;
 use FIG;
-use FIG_Config;
+use Conf;
 use BasicLocation;
 
 use base qw( WebComponent );

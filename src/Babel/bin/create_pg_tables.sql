@@ -31,7 +31,7 @@ source integer
 
 DROP TABLE IF EXISTS md5_lca;
 CREATE TABLE md5_lca (
-md5 text PRIMARY KEY,
+md5 char(32) PRIMARY KEY,
 tax_domain text,
 tax_phylum text,
 tax_class text,
@@ -41,6 +41,13 @@ tax_genus text,
 tax_species text,
 tax_strain text,
 level integer
+);
+
+DROP TABLE IF EXISTS md5_organism_unique;
+CREATE TABLE md5_organism_unique (
+md5 char(32) NOT NULL,
+organism text,
+source text
 );
 
 DROP TABLE IF EXISTS aliases_protein;

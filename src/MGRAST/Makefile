@@ -22,40 +22,45 @@
 #
 SEED_RUNNING_PERL = seed_running_perl.fragment 
 PKGNAME=MGRAST
-PERLCGISCRIPTS := $(subst .pl,,$(wildcard *.cgi))
+PERLCGISCRIPTS := $(wildcard cgi/*.cgi)
 
-PERL_LIB = $(wildcard *.pm) \
-	$(wildcard WebPage/*.pm) \
-	$(wildcard OntologyOnDemand/*.pm) \
-	$(wildcard JobDB/*.pm) \
-	$(wildcard MGRASTMetadata/*.pm) \
-	$(wildcard MGRASTMetadata2/*.pm) \
-	$(wildcard JobDB/*.pm)
+PERL_LIB = $(wildcard lib/*.pm) \
+	$(wildcard lib/WebPage/*.pm) \
+	$(wildcard lib/OntologyOnDemand/*.pm) \
+	$(wildcard lib/JobDB/*.pm) \
+	$(wildcard lib/resources/*.pm)
 
-WEBPAGES := $(wildcard *.tmpl) \
-	$(wildcard images/*.png) \
-	$(wildcard images/*.gif) \
-	$(wildcard images/*.jpg) \
-        $(wildcard *.js) \
-	$(wildcard *.css) \
-	$(wildcard *.jar) \
-	$(wildcard images/*.ico)
+WEBPAGES := $(wildcard html/*.tmpl) \
+	$(wildcard html/images/*.png) \
+	$(wildcard html/images/*.gif) \
+	$(wildcard html/images/*.jpg) \
+	$(wildcard html/images/*.ico) \
+	$(wildcard html/*.html) \
+        $(wildcard html/js/*.js) \
+	$(wildcard html/css/*.css)
 
 INST_PERL_LIB = $(foreach var, $(PERL_LIB), $(libdir)/$(PKGNAME)/$(var))
+
+INST_CGI = $(foreach var, $(PERLCGISCRIPTS), $(cgidir)/$(var))
 
 PERL_BIN_SRC := $(wildcard *.pl)
 PERL_BIN = $(subst .pl,, $(PERL_BIN_SRC))
 
-all: lib bin
+R_SCRIPTS_SRC := $(wildcard r/*.r)
+R_SCRIPTS = $(subst r/,, $(R_SCRIPTS_SRC))
+
+all: bin
 
 show:
 	@echo cgis $(foreach var, $(PERLCGISCRIPTS), $(cgidir)/$(var))
 	@echo top $(TOPDIR)
 	@echo pkg $(PKGNAME)
 	@echo toolhdr $(TOOL_HDR)
-bin: $(foreach var, $(PERL_BIN), $(bindir)/$(var))
-
-lib: $(foreach var, $(PERLCGISCRIPTS), $(cgidir)/$(var)) copy_htaccess $(INST_PERL_LIB) $(foreach var, $(WEBPAGES), $(cgidir)/Html/$(var)) rights
+	
+bin: $(foreach var, $(R_SCRIPTS), $(bindir)/$(var)) $(foreach var, $(PERL_BIN), $(bindir)/$(var)) 
+	@echo R $(foreach var, $(R_SCRIPTS), $(bindir)/$(var))
+	
+lib: $(INST_CGI) $(INST_PERL_LIB) bin $(foreach var, $(WEBPAGES), $(cgidir)/Html/$(var))
 
 htaccess_src = $(RTROOT)/config/all.htaccess
 htaccess_dst = $(cgidir)/.htaccess
@@ -74,33 +79,20 @@ test:
 clean:
 
 $(cgidir)/%: $(TOPDIR)/src/$(PKGNAME)/% $(TOOL_HDR)
-	( cat $(TOOL_HDR) $< > $@; chmod +x $@ )
+	( cat $(TOOL_HDR) $< > $(subst cgi/,, $@); chmod +x $(subst cgi/,, $@) )
 
 $(cgidir)/Html/%: $(TOPDIR)/src/$(PKGNAME)/%
 	cp $< $(cgidir)/Html/.
 
 $(bindir)/%: $(TOPDIR)/src/$(PKGNAME)/%.pl $(TOOL_HDR)
-	( cat $(TOOL_HDR) $< > $@; chmod +x $@ )
+	( cat $(TOOL_HDR) $< > $(subt $@); chmod +x $@ )
 
+$(bindir)/%.r: $(TOPDIR)/src/$(PKGNAME)/r/%.r
+	cp $< $@
 
-#
-# We have a config problem at the moment.  I do not want to depend
-# upon explicit calls to other packages, as done here nor do I want
-# to assume that package was built first.  For now, we live with this.
-
-#$(TOOL_HDR):
-#	cd $(workdir); $(TOPDIR)/FigCommon/configure-env $(RTARCH) $(TOPDIR)
-
-
-#
-# Since our lib files have directories, need to create the target
-# directory if it doesn't yet exist.
-#
-$(libdir)/$(PKGNAME)/%.pm: $(TOPDIR)/src/$(PKGNAME)/%.pm
-	tgt_dir=`dirname $@`;  \
+$(libdir)/$(PKGNAME)/%.pm: %.pm
+	tgt_dir=`dirname $(subst MGRAST/lib/,MGRAST/, $@)`;  \
 	if [ ! -d $$tgt_dir ] ; then \
 		mkdir $$tgt_dir; \
 	fi
-	cp  $< $@
-
-rights:
+	cp $< $(subst MGRAST/lib/,MGRAST/, $@)

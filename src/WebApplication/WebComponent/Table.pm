@@ -11,7 +11,7 @@ use URI::Escape;
 use Data::Dumper;
 use File::Temp qw/ tempfile tempdir /;
 
-use FIG_Config;
+use Conf;
 
 use base qw( WebComponent );
 
@@ -106,7 +106,7 @@ sub output {
 
 
   # set the image path
-  my $img_path = "$FIG_Config::cgi_url/Html/";
+  my $img_path = "$Conf::cgi_url/Html/";
 
   # format the data into strings
   my ($data_source, $onclicks, $highlights) = $self->format_data();
@@ -697,7 +697,7 @@ sub format_new_column_data {
   $new_column =~ s/'/\@1/g;
   $new_column =~ s/"/\@2/g;
 
-  $new_column = qq~<input type='hidden' id='table_~.$self->id().qq~_new_column_data' value='~.$new_column."**".$new_data.qq~'><img src=\"$FIG_Config::cgi_url/Html/clear.gif\" onload="var a=document.getElementById('table_~.$self->id().qq~_new_column_data').value.split('**');table_append_data('~.$self->id().qq~', a[0], a[1]);">~;
+  $new_column = qq~<input type='hidden' id='table_~.$self->id().qq~_new_column_data' value='~.$new_column."**".$new_data.qq~'><img src=\"$Conf::cgi_url/Html/clear.gif\" onload="var a=document.getElementById('table_~.$self->id().qq~_new_column_data').value.split('**');table_append_data('~.$self->id().qq~', a[0], a[1]);">~;
   
   return $new_column;
 }
@@ -812,11 +812,11 @@ sub format_data {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/Table.js", "$FIG_Config::cgi_url/Html/PopupTooltip.js"];
+  return ["$Conf::cgi_url/Html/Table.js", "$Conf::cgi_url/Html/PopupTooltip.js"];
 }
 
 sub require_css {
-  return "$FIG_Config::cgi_url/Html/Table.css";
+  return "$Conf::cgi_url/Html/Table.css";
 }
 
 sub export_excel {

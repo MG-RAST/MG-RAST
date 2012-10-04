@@ -11,9 +11,9 @@ package Babel::lib::Babel;
 use strict;
 use warnings;
 
-use FIG_Config;
+use Conf;
 use Data::Dumper;
-
+use List::MoreUtils qw(natatime);
 use Digest::MD5;
 use DBI;
 
@@ -25,7 +25,7 @@ sub new {
 
     # check 
     if (! $dbh) {
-      $dbh = DBI->connect("DBI:$FIG_Config::babel_dbtype:dbname=$FIG_Config::babel_db;host=$FIG_Config::babel_dbhost", $FIG_Config::babel_dbuser, '');
+      $dbh = DBI->connect("DBI:$Conf::babel_dbtype:dbname=$Conf::babel_db;host=$Conf::babel_dbhost", $Conf::babel_dbuser, '');
 #      if (! $dbh) { print STDERR "Error: " . DBI->error . "\n"; }
     }
     $contrib_dir = 0 unless ($contrib_dir and -d $contrib_dir);
@@ -206,6 +206,25 @@ sub md5s2organisms {
   my $statement = "select o.name, d.md5 from md5_protein d, organisms_ncbi o where d.md5 in ($list) and d.organism = o._id";
   my $rows = $self->dbh->selectall_arrayref($statement);
   return ($rows && ref($rows)) ? $rows : [];
+}
+
+sub md5s2organisms_unique {
+  my ($self, $md5s, $source) = @_;
+
+  my $data = {};
+  my $size = 35000;
+  my $iter = natatime $size, @$md5s;
+
+  while (my @curr = $iter->()) {
+    my $list = join(",", map {$self->dbh->quote($_)} @curr);
+    my $statement = "select md5, organism from md5_organism_unique where md5 in ($list) and source = ".$self->dbh->quote($source);
+    my $rows = $self->dbh->selectall_arrayref($statement);
+    if ($rows && (@$rows > 0)) {
+      map { $data->{$_->[0]} = $_->[1] } @$rows;
+    }
+  }
+  return $data;
+  # md5 => organism
 }
 
 sub md52taxonomy {

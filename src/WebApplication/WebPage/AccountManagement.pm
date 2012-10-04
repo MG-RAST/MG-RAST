@@ -7,7 +7,7 @@ use base qw( WebPage );
 use strict;
 use warnings;
 
-use FIG_Config;
+use Conf;
 
 =pod
 
@@ -155,7 +155,7 @@ sub output {
   $html .= "</td><td style='padding-left: 25px;'>";
 
   # show a link to the preferences
-  unless ($FIG_Config::no_prefs) {
+  unless ($Conf::no_prefs) {
     $html .= "<h2>Preferences</h2>";
     $html .= $self->start_form('preferences_form', { page => 'ManagePreferences' } );
     $html .= "<p>To manage your personal preferences, please click <input type='submit' value='here'></p>";
@@ -182,7 +182,7 @@ sub output {
   my $user_has_scopes = $master->UserHasScope->get_objects( { user => $user, granted => 1 } );
 
   # check if this is a RAST server
-  if ($FIG_Config::rast_jobs) {
+  if ($Conf::rast_jobs) {
     $html .= "<h2>Private Organism Preferences</h2>";
     $html .= "<p style='width: 400px;'>To change the set of your private organisms to be included into your data views click <b>Private Organisms Preferences</b> below.</p><input type='button' value='Private Organism Preferences' onclick='window.top.location=\"?page=PrivateOrganismPreferences\"'>";
   }
@@ -249,7 +249,7 @@ x.style.display = 'none';
 	my $user_select = "<select name='login'><option></option>";
 	my $users_to_impersonate = $master->User->get_objects();
 	foreach $user (sort{lc($a->lastname()) cmp lc($b->lastname())}@$users_to_impersonate){
-		$user_select .= "<option value='".$user->login()."'>".$user->lastname().", ".$user->firstname()."</option>";
+		$user_select .= "<option value='".$user->login()."'>".$user->lastname().", ".$user->firstname()." (".$user->login().")</option>";
 	}
 	$user_select .= "</select> <input type='submit' value='switch user'>";
     $html .= $user_select . $self->end_form();

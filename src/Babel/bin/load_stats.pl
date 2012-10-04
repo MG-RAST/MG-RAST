@@ -6,13 +6,13 @@ use warnings;
 use Data::Dumper;
 use Getopt::Long;
 
-use FIG_Config;
+use Conf;
 use Babel::lib::Babel;
 
 my $usage   = "load_stats.pl [--verbose] [--dbname NAME] [--dbuser USER] [--dbhost HOST]\n";
-my $dbname  = $FIG_Config::babel_db;
-my $dbuser  = $FIG_Config::babel_dbuser;
-my $dbhost  = $FIG_Config::babel_dbhost;
+my $dbname  = $Conf::babel_db;
+my $dbuser  = $Conf::babel_dbuser;
+my $dbhost  = $Conf::babel_dbhost;
 my $verbose = 0;
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit; }

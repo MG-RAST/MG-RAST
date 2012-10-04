@@ -8,7 +8,7 @@ use warnings;
 use base qw( WebPage );
 
 use AnnoClearinghouse;
-use FIG_Config;
+use Conf;
 use FIG;
 use DBMaster;
 
@@ -25,8 +25,8 @@ sub init {
 sub output {
     my ($self) = @_;
     
-    my $anno = new AnnoClearinghouse($FIG_Config::clearinghouse_data,
-				     $FIG_Config::clearinghouse_contrib);
+    my $anno = new AnnoClearinghouse($Conf::clearinghouse_data,
+				     $Conf::clearinghouse_contrib);
     
     my $category = $self->application->cgi->param('category') || 'identifier';
     my $query = $self->application->cgi->param('query') || '';

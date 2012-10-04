@@ -5,7 +5,7 @@ package WebComponent::ModelSelectTable;
 use strict;
 use warnings;
 use base qw( WebComponent );
-use FIG_Config;
+use Conf;
 
 1;
 
@@ -194,5 +194,5 @@ sub output {
 }
 
 sub require_javascript {
-  return ["$FIG_Config::cgi_url/Html/ModelSelectTable.js"];
+  return ["$Conf::cgi_url/Html/ModelSelectTable.js"];
 }

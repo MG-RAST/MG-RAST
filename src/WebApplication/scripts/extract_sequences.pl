@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 use FIG;
-use FIG_Config;
+use Conf;
 
 use Getopt::Long;
 use Data::Dumper;
@@ -62,7 +62,7 @@ foreach my $id (keys(%$genomes_hash)) {
   print scalar(@$features) . " features found.\n";
 
   # get sequence
-  if (open(SEQ, $FIG_Config::organisms."/".$id."/contigs")) {
+  if (open(SEQ, $Conf::organisms."/".$id."/contigs")) {
     my $contigs = {};
     my $contig = "";
     my $cid = "";
