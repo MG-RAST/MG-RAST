@@ -201,30 +201,29 @@ sub prepare_data {
     
     if ($cgi->param('verbosity')) {
       if ($cgi->param('verbosity') eq 'full') {
-	$obj->{metadata} = $jobdata->{$job->{metagenome_id}};
+		$obj->{metadata} = $jobdata->{$job->{metagenome_id}};
       }
       if ($cgi->param('verbosity') eq 'verbose' || $cgi->param('verbosity') eq 'full') {
-	if ($jobdata->{$job->{metagenome_id}}) {
-	  if ($jobdata->{$job->{metagenome_id}}->{project}) {
-	    $obj->{project_name} = $jobdata->{$job->{metagenome_id}}->{project}->{name} || "";
-	    if ($jobdata->{$job->{metagenome_id}}->{project}->{data}) {
-	      
-	      $obj->{PI} = ($jobdata->{$job->{metagenome_id}}->{project}->{data}->{PI_firstname} || "")." ".($jobdata->{$job->{metagenome_id}}->{project}->{data}->{PI_lastname} || "");
-	    }
-	  }
-	  if ($jobdata->{$job->{metagenome_id}}->{sample} && $jobdata->{$job->{metagenome_id}}->{sample}->{data}) {
-	    $obj->{country} = $jobdata->{$job->{metagenome_id}}->{sample}->{data}->{country} || "";
-	    $obj->{biome} = $jobdata->{$job->{metagenome_id}}->{sample}->{data}->{biome} || "";
-	    $obj->{location} = $jobdata->{$job->{metagenome_id}}->{sample}->{data}->{location} || "";
-	  }
-	}
-	$obj->{sample}   = $job->{sample} ? [ "mgs".$job->sample->ID, $cgi->url."sample/mgs".$job->sample->ID ] : undef;
-	$obj->{library}  = $job->{library} ? [ "mgl".$job->library->ID, $cgi->url."/library/mgl".$job->library->ID ] : undef;
+#		if ($jobdata->{$job->{metagenome_id}}) {
+#	  	  if ($jobdata->{$job->{metagenome_id}}->{project}) {
+#	    	$obj->{project_name} = $jobdata->{$job->{metagenome_id}}->{project}->{name} || "";
+#	    	if ($jobdata->{$job->{metagenome_id}}->{project}->{data}) {
+#	      	  $obj->{PI} = ($jobdata->{$job->{metagenome_id}}->{project}->{data}->{PI_firstname} || "")." ".($jobdata->{$job->{metagenome_id}}->{project}->{data}->{PI_lastname} || "");
+#	    	}
+#	  	  }
+#	  	  if ($jobdata->{$job->{metagenome_id}}->{sample} && $jobdata->{$job->{metagenome_id}}->{sample}->{data}) {
+#	        $obj->{country} = $jobdata->{$job->{metagenome_id}}->{sample}->{data}->{country} || "";
+#	        $obj->{biome} = $jobdata->{$job->{metagenome_id}}->{sample}->{data}->{biome} || "";
+#	        $obj->{location} = $jobdata->{$job->{metagenome_id}}->{sample}->{data}->{location} || "";
+#	      }
+#	    }
+	    $obj->{project}  = $job->{primary_project} ? [ "mgp".$job->primary_project->id, $cgi->url."/project/mgp".$job->primary_project->id ] : undef;
+	    $obj->{sample}   = $job->{sample} ? [ "mgs".$job->sample->ID, $cgi->url."/sample/mgs".$job->sample->ID ] : undef;
+	    $obj->{library}  = $job->{library} ? [ "mgl".$job->library->ID, $cgi->url."/library/mgl".$job->library->ID ] : undef;
       } elsif ($cgi->param('verbosity') ne 'minimal') {
-	return_data({ "ERROR" => "invalid value for option verbosity" }, 400);
+		return_data({ "ERROR" => "invalid value for option verbosity" }, 400);
       }
     }
-    
     push(@$objects, $obj);      
   }
 
