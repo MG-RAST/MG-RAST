@@ -567,7 +567,7 @@ sub public_project_download_table {
 		     join(" <br>", sort @{$project->countries}) || '',
 		     $pubmed_ids ? "<a href='http://www.ncbi.nlm.nih.gov/pubmed/$pubmed_ids' target=_blank >$pubmed_ids</a>" : '',
 		     join(", ", sort @{$project->sequence_types}) || 'Unknown',
-		     "<a href='?page=MetagenomeProject&project=$id#jobs' title='Download single metagenome from project page' >".scalar(@$all_mgids)."</a>",
+		     scalar(@$all_mgids),
 		     $formater->format_number(($project->bp_count_raw / 1000000), 0),
 		     $download
 		   ];
