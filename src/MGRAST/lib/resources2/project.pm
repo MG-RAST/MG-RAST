@@ -67,7 +67,10 @@ sub info {
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
 				      'attributes'  => attributes(),
-				      'parameters'  => { 'options'     => { 'limit' => [ 'integer', 'maximum number of items requested' ],
+				      'parameters'  => { 'options'     => { 'verbosity' => [ 'cv', [ [ 'minimal', 'returns only minimal information' ],
+												     [ 'verbose', 'returns all metadata' ],
+												     [ 'full', 'returns all metadata and references' ] ] ],
+									    'limit' => [ 'integer', 'maximum number of items requested' ],
 									    'offset' => [ 'integer', 'zero based index of the first data object to be returned' ],
 									    'order' => [ 'cv', [ [ 'created', 'return data objects ordered by creation date' ],
 												 [ 'id' , 'return data objects ordered by id' ],
@@ -121,7 +124,7 @@ sub instance {
   # check id format
   my (undef, $id) = $rest->[0] =~ /^(mgp)?(\d+)$/;
   if (! $id && scalar(@$rest)) {
-    return_data("ERROR: invalid id format: ".$rest->[0], 400);
+    return_data({ "ERROR" => "invalid id format: ".$rest->[0] }, 400);
   }
 
   # get database
@@ -130,12 +133,12 @@ sub instance {
   # get data
   my $project = $master->Project->init( { id => $id });
   unless (ref($project)) {
-    return_data("ERROR: id $id does not exists", 404);
+    return_data({ "ERROR" => "id $id does not exists" }, 404);
   }
 
   # check rights
   unless ($project->public || $user->has_right(undef, 'view', 'project', $id)) {
-    return_data("ERROR: insufficient permissions to view this data", 401);
+    return_data({ "ERROR" => "insufficient permissions to view this data" }, 401);
   }
 
   # prepare data
@@ -188,7 +191,7 @@ sub prepare_data {
     $obj->{url}            = $cgi->url.'/project/'.$obj->{id};
     $obj->{created}        = "";
     
-    if ($cgi->param('verbosity') && scalar(@$data) == 1) {
+    if ($cgi->param('verbosity')) {
       if ($cgi->param('verbosity') eq 'full') {
 	my @jobs      = map { "mgm".$_ } @{ $project->all_metagenome_ids };
 	my @colls     = @{ $project->collections };
@@ -207,7 +210,7 @@ sub prepare_data {
 	$obj->{description}    = $desc;
 	$obj->{funding_source} = $fund;	
       } elsif ($cgi->param('verbosity') ne 'minimal') {
-	return_data("ERROR: invalid value for option verbosity", 400);
+	return_data({ "ERROR" => "invalid value for option verbosity" }, 400);
       }
     }
     
@@ -227,7 +230,7 @@ sub connect_to_datasource {
 
   my ($master, $error) = WebServiceObject::db_connect();
   if ($error) {
-    return_data("ERROR: resource database offline", 503);
+    return_data({ "ERROR" => "resource database offline" }, 503);
   } else {
     return $master;
   }
@@ -248,6 +251,9 @@ sub check_pagination {
       next if ($param eq 'offset');
       $additional_params .= $param."=".$cgi->param($param)."&";
     }
+    if (length($additional_params) {
+      chop $additional_params;
+    }
     my $prev_offset = $offset - $limit;
     if ($prev_offset < 0) {
       $prev_offset = 0;
@@ -262,7 +268,7 @@ sub check_pagination {
       } else {
 	@$data = sort { $a->{$order} cmp $b->{$order} } @$data;
       }
-      @$data = @$data[$offset..($offset + $limit)];
+      @$data = @$data[$offset..($offset + $limit - 1)];
       $data = { "limit" => $limit,
 		"offset" => $offset,
 		"total_count" => $total_count,
@@ -272,7 +278,7 @@ sub check_pagination {
 		"data" => $data };
 
     } else {
-      return_data("ERROR: invalid sort order, there is not attribute $order", 400);
+      return_data({ "ERROR" => "invalid sort order, there is not attribute $order" }, 400);
     }
   }
    
@@ -323,7 +329,7 @@ sub return_data {
   # if an error is passed, change the return format to text 
   # and change the status code to the error code passed
   if ($error) {
-    $format = "text/plain";
+    $format = "application/json";
     $status = $error;
   }
 

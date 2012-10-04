@@ -121,7 +121,7 @@ sub instance {
   # check id format
   my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
   if (! $id && scalar(@$rest)) {
-    return_data("ERROR: invalid id format: ".$rest->[0], "text/plain", 400);
+    return_data({ "ERROR" => "invalid id format: ".$rest->[0] }, 400);
   }
 
   # get database
@@ -130,12 +130,12 @@ sub instance {
   # get data
   my $job = $master->Job->init( { metagenome_id => $id });
   unless (ref($job)) {
-    return_data("ERROR: id $id does not exists", 404);
+    return_data({ "ERROR" => "id $id does not exists" }, 404);
   }
 
   # check rights
   unless ($job->public || $user->has_right(undef, 'view', 'metagenome', $job->metagenome_id)) {
-    return_data("ERROR: insufficient permissions to view this data", 401);
+    return_data({ "ERROR" => "insufficient permissions to view this data" }, 401);
   }
 
   # prepare data
@@ -157,8 +157,9 @@ sub prepare_data {
   
   my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {
-    return_data("ERROR: could not connect to analysis database", 500);
+    return_data({ "ERROR" => "could not connect to analysis database" }, 500);
   }
+  my $id = $data->{metagenome_id};
   $mgdb->set_jobs([$id]);
   
   # validate type / source
@@ -173,10 +174,10 @@ sub prepare_data {
     map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
     map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
   } else {
-    return_data("ERROR: Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']", 400);
+    return_data({ "ERROR" => "Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']" }, 400);
   }
   unless (exists $all_srcs->{ $params->{source} }) {
-    return_data("ERROR: Invalid source for profile call of type ".$params->{type}.": ".$params->{source}." - valid types are [".join(", ", keys %$all_srcs)."]", 400);
+    return_data({ "ERROR" => "Invalid source for profile call of type ".$params->{type}.": ".$params->{source}." - valid types are [".join(", ", keys %$all_srcs)."]" }, 400);
   }
 
   my $values  = [];
@@ -240,7 +241,7 @@ sub prepare_data {
 	       "columns"             => $columns,
 	       "data"                => $values };
     
-  return $object;
+  return $obj;
 }
 
 ###################################################
@@ -253,7 +254,7 @@ sub connect_to_datasource {
 
   my ($master, $error) = WebServiceObject::db_connect();
   if ($error) {
-    return_data("ERROR: resource database offline", 503);
+    return_data({ "ERROR" => "resource database offline" }, 503);
   } else {
     return $master;
   }
@@ -301,7 +302,7 @@ sub return_data {
   # if an error is passed, change the return format to text 
   # and change the status code to the error code passed
   if ($error) {
-    $format = "text/plain";
+    $format = "application/json";
     $status = $error;
   }
 
