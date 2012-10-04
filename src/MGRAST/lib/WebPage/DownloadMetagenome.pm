@@ -194,8 +194,8 @@ my $css_tmp = qq~
     close FH;
   }
   $down_info->add_tooltip('meta_down', 'Download metadata for this metagenome');
-  $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filename=$mfile'><img src='./Html/mg-download.png' style='height:15px;'/><small>metadata</small></a>";
-  if ($pid) {
+  $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='metagenomics.cgi?page=DownloadMetagenome&action=download_md&filename=$mfile'><img src='./Html/mg-download.png' style='height:15px;'/><small>metadata</small></a>";
+  if ($pid && $job->public) {
     $down_info->add_tooltip('sub_down', 'Download submitted metagenome');
     $down_info->add_tooltip('derv_down', 'Download all derived data for this metagenome');
     $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"sub_down\",".$down_info->id.")' target=_blank href='ftp://".$Conf::ftp_download."/projects/$pid/$mid/raw'><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted</small></a>";
@@ -245,10 +245,14 @@ my $css_tmp = qq~
   my $rawid = 50;
   $stages->{$rawid} = $self->data('stages')->{$rawid};
   $stages->{$rawid}->{prefix} = $job->job_id;
+  if ( exists $self->data('default')->{$rawid} ) {
+    $stages->{$rawid}->{info} = $self->data('default')->{$rawid};
+  }
   
   # prep output for every stage
   foreach my $stage (sort {$a <=> $b} keys %$stages) {
-    $content .= $self->stage_download_info($stage, $stages, $job->download_dir($stage));
+    my $dir = ($stage == 50) ? $job->download_dir() : $job->download_dir($stage);
+    $content .= $self->stage_download_info($stage, $stages, $dir);
   }    
   return $content;
 }
@@ -448,14 +452,25 @@ sub download {
   my $job  = $self->{job};
   my $file = $cgi->param('file');
   my $sid  = $cgi->param('stage');
+  my $stats= $job->stats();
 
-  if (open(FH, $job->download_dir($sid) . "/" . $file)) {
-    my $content = do { local $/; <FH> };
-    close FH;
+  my $dir  = ($sid == 50) ? $job->download_dir() : $job->download_dir($sid);
+  my $file_path = $dir.$file;
+  my $number_of_bytes = (stat ($file_path))[7];
+
+  if (open(FH, $file_path)) {
+    binmode FH;
+
     print "Content-Type:application/x-download\n";  
-    print "Content-Length: " . length($content) . "\n";
+    print "Content-Length:$number_of_bytes\n";
     print "Content-Disposition:attachment;filename=" . $job->metagenome_id . "." . $cgi->param('file') . "\n\n";
-    print $content; 
+
+    my $data;
+    while ((read FH, $data, 1024) != 0) {
+      print "$data";
+    }
+    close FH;
+
     exit;
   } else {
     $self->application->add_message('warning', "Could not open download file " . $job->download_dir($sid) . "/$file");

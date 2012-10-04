@@ -133,9 +133,7 @@ sub output {
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"metabolism\");' name='tool_entry' id='metabolism_tool' title='Report abundances using protein databases that support hierarchical
 relationships between functions (COG, NOG, SEED, subsystems, KEGG)
 '>Hierarchical Classification</div>";
-  $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"annotation\");' name='tool_entry' id='annotation_tool' title='Report abundances using protein databases that include all functional
-labels
-'>All Annotations</div>";
+  $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"annotation\");' name='tool_entry' id='annotation_tool' title='Report abundances using protein databases that include all functional labels'>All Annotations</div>";
   $tools .= "<div class='category_tool'>Other</div>";
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"recruitment_plot\");' name='tool_entry' id='recruitment_plot_tool' title='Recruits sequences to proteins in a reference genome 
 '>Recruitment Plot</div>";
@@ -268,9 +266,17 @@ sub single_select {
   $select .= "<tr><td style='font-weight: bold;' title='Select database for annotation sequence comparison from the drop-down menu'><a target=_blank href='metagenomics.cgi?page=Sources'>Annotation Sources</a></td><td id='src_sel_td'>M5NR</td><td>".$self->more_button('document.getElementById("single_sel_source").style.display="";')."</td><td style='display: none;' id='single_sel_source'>".$self->source_select('phylogeny', {'M5NR' => 1}, 1, 1)."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("single_sel_eval").style.display="";')."</td><td style='display: none;' id='single_sel_eval'>".$self->evalue_select()."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("single_sel_ident").style.display="";')."</td><td style='display: none;' id='single_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("single_sel_alen").style.display="";')."</td><td style='display: none;' id='single_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned\", measured in aa for protein and bp for RNA databases.'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("single_sel_alen").style.display="";')."</td><td style='display: none;' id='single_sel_alen'>".$self->alength_select()."</td></tr></table>";
 #  $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
-  $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about the known members within each metagenome.'></td><td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td><td style='padding-right: 15px;'><img src='./Html/rarefaction.jpg'></td><td></td></tr><tr><td colspan=2 align=center>coming soon</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td><td colspan=3 align=center>coming soon</td><td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"single_visual\",\"buffer_space\",\"single_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
+  $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr>";
+  $select .= "<td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about the known members within each metagenome.'></td>";
+  $select .= "<td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td>";
+  #$select .= "<td style='padding-right: 15px;'><img src='./Html/rarefaction.jpg'></td>";
+  $select .= "<td></td></tr>";
+  $select .= "<tr><td><input type=radio name='vis_type' value='vbar'>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td>";
+  $select .= "<td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td>";
+  #$select .= "<td><input type=radio name='vis_type' value='rarefaction'>&nbsp;rarefaction</td>";
+  $select .= "<td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"single_visual\",\"buffer_space\",\"single_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
 
   return $select;
 }
@@ -319,7 +325,7 @@ sub phylogeny_select {
   $select .= "<tr><td style='font-weight: bold;' title='Select database for annotation sequence comparison from the drop-down menu'><a target=_blank href='metagenomics.cgi?page=Sources'>Annotation Sources</a></td><td id='src_sel_td'>M5NR</td><td>".$self->more_button('document.getElementById("phylo_sel_source").style.display="";')."</td><td style='display: none;' id='phylo_sel_source'>".$self->source_select('phylogeny', {'M5NR' => 1}, 0, 1)."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("phylo_sel_eval").style.display="";')."</td><td style='display: none;' id='phylo_sel_eval'>".$self->evalue_select()."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("phylo_sel_ident").style.display="";')."</td><td style='display: none;' id='phylo_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned\", measured in aa for protein and bp for RNA databases.'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
   $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
   $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about all known members within each metagenome.'></td><td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td><td style='padding-right: 15px;'><img src='./Html/rarefaction.jpg'></td><td></td></tr><tr><td><input type=radio name='vis_type' value='vbar'>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td><td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td><td><input type=radio name='vis_type' value='rarefaction'>&nbsp;rarefaction</td><td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"phylogeny_visual\",\"buffer_space\",\"phylo_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
 
@@ -369,7 +375,7 @@ sub metabolism_select {
   $select .= "<tr><td style='font-weight: bold;'><a target=_blank href='metagenomics.cgi?page=Sources' title='Select database for annotation sequence comparison from the drop-down menu'>Annotation Sources</a></td><td id='src_sel_td'>Subsystems</td><td>".$self->more_button('document.getElementById("meta_sel_source").style.display="";')."</td><td style='display: none;' id='meta_sel_source'>".$self->source_select('metabolism', {'Subsystems' => 1}, 1)."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("meta_sel_eval").style.display="";')."</td><td style='display: none;' id='meta_sel_eval'>".$self->evalue_select()."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("meta_sel_ident").style.display="";')."</td><td style='display: none;' id='meta_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned\", measured in aa for protein and bp for RNA databases.'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
   $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
   $select .= "<br><table style='border-collapse:collapse;'><tr><td><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr><td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td><td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td><td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about all known members within each metagenome.'></td><td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic). Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species. The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles.  Can be used to cluster samples based on their taxonomic or functional content.'></td><td></td></tr><tr><td><input type=radio name='vis_type' value='vbar'>&nbsp;barchart</td><td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td><td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td><td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td><td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"metabolism_visual\",\"buffer_space\",\"meta_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></td><td><div class='select_header'>KEGG Mapper</div><img src='./Html/keggico.png' style='margin-bottom: 5px; margin-top: 2px; margin-left: 30px;'><br>&nbsp;&nbsp;&nbsp;<input type='button' value='open KEGG Mapper' onclick='window.open(\"?page=KeggMapper\");'></td></tr></table></form>";
 
@@ -419,7 +425,7 @@ sub annotation_select {
   $select .= "<tr><td style='font-weight: bold;'><a target=_blank href='metagenomics.cgi?page=Sources' title='Select database for annotation sequence comparison from the drop-down menu'>Annotation Sources</a></td><td id='src_sel_td'>GenBank</td><td>".$self->more_button('document.getElementById("ann_sel_source").style.display="";')."</td><td style='display: none;' id='ann_sel_source'>".$self->source_select('annotation', {'GenBank' => 1})."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("ann_sel_eval").style.display="";')."</td><td style='display: none;' id='ann_sel_eval'>".$self->evalue_select()."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("ann_sel_ident").style.display="";')."</td><td style='display: none;' id='ann_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned\", measured in aa for protein and bp for RNA databases'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
   $select .= "<table><tr><td style='font-weight: bold; width: 200px;'>Workbench</td><td><input type='checkbox' name='use_buffer' value='' onchange='buffer_to_form(this);'> use features from workbench</td></tr></table>";
   $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr>";
   $select .= "<td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about all known members within each metagenome.'></td>";
@@ -473,13 +479,17 @@ sub lca_select {
   $select .= "<tr><td colspan=3 style='display: none;' id='sel_mg'><input type=radio name='mg_grp_sel' value='individual' checked=checked onclick='document.getElementById(\"mg_sel_div\").style.display=\"\";document.getElementById(\"grp_sel_div\").style.display=\"none\";'> compare individually <input type=radio name='mg_grp_sel' value='groups' onclick='document.getElementById(\"mg_sel_div\").style.display=\"none\";document.getElementById(\"grp_sel_div\").style.display=\"\";'> compare as groups <div id='mg_sel_div'><table><tr><td>".$mg_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$mg_sel->id."\");'></td></tr></table></div><div id='grp_sel_div' style='display: none;'><table><tr><td>".$grp_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$grp_sel->id."\", 1);'></td></tr></table></div></td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("lca_sel_eval").style.display="";')."</td><td style='display: none;' id='lca_sel_eval'>".$self->evalue_select()."</td></tr>";
   $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("lca_sel_ident").style.display="";')."</td><td style='display: none;' id='lca_sel_ident'>".$self->identity_select()."</td></tr>";
-  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned.\"'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("lca_sel_alen").style.display="";')."</td><td style='display: none;' id='lca_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned\", measured in aa for protein and bp for RNA databases.'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("lca_sel_alen").style.display="";')."</td><td style='display: none;' id='lca_sel_alen'>".$self->alength_select()."</td></tr></table>";
   $select .= "<br><div class='select_header' title='select a visualization or export format'><img src='./Html/three_white.png' style='width: 22px; margin-top: -2px; vertical-align: middle;'> Data Visualization</div><table><tr>";
+  $select .= "<td style='padding-right: 15px;'><img src='./Html/vbar.png' title='A comparison tool used to visualize the approximate membership percentage within each domain included in each metagenomic sample. Can also be used to perform significance tests to identify domains that are \"significantly\" different among selected groups of samples.'></td>";
   $select .= "<td style='padding-right: 15px;'><img src='./Html/tree.png' title='Produces a circular tree showing relatedness of the metagenomes chosen for comparison.'></td>";
   $select .= "<td style='padding-right: 15px;'><img src='./Html/table.png' title='Creates a descriptive table with information about all known members within each metagenome.'></td>";
+  $select .= "<td style='padding-right: 15px;'><img src='./Html/heatmap.jpg' title='A phylogenetic tree that organizes metagenomes based on similarity of their abundance profiles (functional or taxonomic).  Counts are represented by a red (low abundance) to green (high abundance) range. Dendrograms indicate the relation between samples (horizontal) and their respective selected content (vertical) - e.g. functional subsytems, or taxonomic species.  The analysis can use raw abundance counts, or those that have been normalized and scaled (see details) to lessen the impact of technical bias.'></td><td style='padding-right: 15px;'><img src='./Html/pca.png' title='Principal Component Analysis. A commonly used data reduction/ordination technique; metagenomic samples are clustered with respect to components of variation extracted from their normalized (see details) abundance profiles. Can be used to cluster samples based on their taxonomic or functional content.'></td>";
   $select .= "<td></td></tr><tr>";
+  $select .= "<tr><td><input type=radio name='vis_type' value='vbar'>&nbsp;barchart</td>";
   $select .= "<td><input type=radio name='vis_type' value='tree'>&nbsp;tree</td>";
   $select .= "<td><input type=radio name='vis_type' value='table' checked=checked>&nbsp;table</td>";
+  $select .= "<td><input type=radio name='vis_type' value='heatmap'>&nbsp;heatmap</td><td><input type=radio name='vis_type' value='pca'>&nbsp;PCoA</td>";
   $select .= "<td><input type='hidden' name='tabnum' id='tabnum'><input type='button' value='generate' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length || document.getElementById(\"list_select_list_b_".$self->application->component('ls2')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");list_select_select_all(\"".$self->application->component('ls2')->id."\");document.getElementById(\"tabnum\").value=curr_tab_num;execute_ajax(\"lca_visual\",\"buffer_space\",\"lca_form\",\"loading...\", null, load_tabs);show_progress();}else{alert(\"You did not select any metagenomes\");};'></td></tr></table></form>";
 
   return $select;
@@ -1419,6 +1429,24 @@ sub workbench_blat_output {
     push @fastas, ">".$s->{id}."\n".$s->{sequence};
   }
   my $fgs_infile_content = join("\n", @fastas);
+
+  # Printing some error messages to inform users if this fails.
+  foreach my $mg (@metas) {
+    my $mgrast = $self->application->data_handle('MGRAST');
+    my $js = $mgrast->Job->get_objects( { metagenome_id => $mg } );
+    my $job_stats = $js->[0]->stats();
+    my $raw_len_max = exists($job_stats->{length_max_raw}) ? $job_stats->{length_max_raw} : 0;
+    if($raw_len_max > 500000) {
+      $self->application->add_message('warning', "The maximum sequence length in this metagenome is $raw_len_max"."bp which is over the size limit (500kbp) for this part of the analysis.");
+      $self->{blat} = "<br />No results were returned.";
+      return 1;
+    } elsif($fgs_infile_content eq "") {
+      $self->application->add_message('warning', "Unable to retrieve any sequences for this project.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+      $self->{blat} = "<br />No results were returned.";
+      return 1;
+    }
+  }
+
   my ($fgs_infile, $fgs_infile_name) = tempfile( "fgs_in_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.faa');
   print $fgs_infile $fgs_infile_content;
   close $fgs_infile;
@@ -1494,13 +1522,13 @@ sub workbench_blat_output {
 	my ($score, $evalue, $identity) = ("","","");
 	while ($line !~ /Database/) {
 	  my ($s, $e) = $line =~ /Score = (\d+ bits \(\d+\)), Expect = (.*)/;
-	  if ($s) {
+	  if ($s && $score eq "") {
 	    chomp $e;
 	    $score = $s;
 	    $evalue = $e;
 	  }
 	  my ($iden) = $line =~ /Identities = ([^,]+)/;
-	  if ($iden) {
+	  if ($iden && $identity eq "") {
 	    $identity = $iden;
 	  }
 	  $alignments .= $line;
@@ -1856,8 +1884,13 @@ sub single_visual {
   my $content = "";
   my $cgi = $self->application->cgi;
   my $data = $self->single_data();
-  #return "<div><div>test</div><div><pre>".clear_progress_image().Dumper($data)."</pre></div></div>";
   # mgid => md5 => abundance
+
+  # new
+  #  0        1           2         3           4            5         6            7        8        9         10      11          12         13        14       15      16
+  # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+
+  # old
   # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
 
   my $tabnum = $cgi->param('tabnum') || 2;
@@ -1912,7 +1945,7 @@ sub single_visual {
   }
   my $cutoffs = "a maximum e-value of 1e-" . ($cgi->param('evalue') || '0') . ", ";
   $cutoffs   .= "a minimum identity of " . ($cgi->param('identity') || '0') . " %, ";
-  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1');
+  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1') . ' measured in aa for protein and bp for RNA databases';
 
   my $psettings = " The data has been normalized to values between 0 and 1. If you would like to view raw values, redraw using the form below.";
   if ($cgi->param('raw')) {
@@ -2087,6 +2120,708 @@ sub single_visual {
     $tabnum++;
   }
 
+  if ($cgi->param('vis_type') eq 'vbar') {
+    my $vbardata = [];
+    if ($cgi->param('single_bar_sel') && $cgi->param('single_bar_col')) {
+      @$vbardata = map { ($_->[$cgi->param('single_bar_col')] && ($_->[$cgi->param('single_bar_col')] eq $cgi->param('single_bar_sel'))) ? $_ : () } @$data;
+    } else {
+      @$vbardata = map { $_ } @$data;
+    }
+    if ($cgi->param('single_bar_col')) {
+      $cgi->param('single_bar_col', $cgi->param('single_bar_col') + 1);
+    }
+    my $level = $cgi->param('single_bar_col') ? ($cgi->param('single_bar_col') + 1) : 2;
+    my $noclick;
+    if ($level > 8) {
+      $noclick = 1;
+    }
+    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level - 1, 10, ($cgi->param('top')||10), 'single', $fid, ($cgi->param('raw') || undef), $noclick);
+
+    $settings .= "<i>$psettings</i><br>";
+    # check for p-value calculation
+    if (defined($cgi->param('pval'))) {
+      $settings_preserve .= "<input type='hidden' name='pval' value='".$cgi->param('pval')."'>";
+      $settings_preserve .= "<input type='hidden' name='raw' value='".($cgi->param('raw') || 0)."'>";
+      my $mg2group = {};
+      map { my ($g, $m) = split /\^/; $mg2group->{$m} = $g; } split /\|/, $cgi->param('pval');
+      @comp_mgs = $cgi->param('comparison_metagenomes');
+      my ($pvalgroupf, $pvalgroupn) = tempfile( "rpvalgXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $pvalgroupf join("\t", map { $mg2group->{$_} } @comp_mgs)."\n";
+      close $pvalgroupf;
+      my ($pvaldataf, $pvaldatan) = tempfile( "rpvaldXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $pvaldataf "\t".join("\t", map { "ID".$_ } @comp_mgs)."\n";
+      my $cats = $dom_v->datasets();
+      my $pd = $dom_v->data();
+      my $i = 0;
+      foreach my $row (@$pd) {
+	print $pvaldataf $cats->[$i]."\t".join("\t", map { $_->[0] } @$row)."\n";
+	$i++;
+      }
+      close $pvaldataf;
+      my ($pvalsuggestf, $pvalsuggestn) = tempfile( "rpvalsXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      close $pvalsuggestf;
+      my ($pvalresultf, $pvalresultn) = tempfile( "rpvalrXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      close $pvalresultf;
+      my ($pvalexecf, $pvalexecn) = tempfile( "rpvaleXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      my $rn = "normalized";
+      if ($cgi->param('raw')) {
+	$rn = "raw";
+      }
+      print $pvalexecf "source(\"".$Conf::bin."/suggest_stat_test.r\")\n";
+      print $pvalexecf "MGRAST_suggest_test(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", paired = FALSE, file_out = \"".$pvalsuggestn."\")\n";
+      close $pvalexecf;
+      my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+      `$R --vanilla --slave < $pvalexecn`;
+      open(FH, $pvalsuggestn);
+      my $res = <FH>;
+      chomp $res;
+      close FH;
+      $settings .= "<br><i>The p-values were calculated using $res and the following groups:</i><br>";
+      $settings .= "<table><tr><th>metagenome</th><th>group</th></tr>";
+      foreach my $cmg (@comp_mgs) {
+	$settings .= "<tr><td>$cmg</td><td>".$mg2group->{$cmg}."</td></tr>";
+      }
+      $settings .= "</table><br>";
+      my ($pvalexec2f, $pvalexec2n) = tempfile( "rpvale2XXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $pvalexec2f "source(\"".$Conf::bin."/do_stats.r\")\n";
+      print $pvalexec2f "MGRAST_do_stats(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", sig_test = \"".$res."\", file_out = \"".$pvalresultn."\")\n";
+      close $pvalexec2f;
+      `$R --vanilla --slave < $pvalexec2n`;
+      open(FH, $pvalresultn);
+      my $header = <FH>;
+      my $pval_data = {};
+      while (<FH>) {
+	chomp;
+	my @row = split /\t/;
+	my $name = substr($row[0], 1, length($row[0])-2);
+	my $stat = $row[scalar(@row)-2];
+	my $pval = $row[scalar(@row)-1];
+	$pval_data->{$name} = [ $stat, $pval ];
+      }
+      close FH;
+      unlink($pvalgroupn);
+      unlink($pvaldatan);
+      unlink($pvalexecn);
+      unlink($pvalexec2n);
+      unlink($pvalsuggestn);
+      unlink($pvalresultn);
+      my $chash = {};
+      for (my $i=0; $i<scalar(@$cats); $i++) {
+	$chash->{$cats->[$i]} = $pd->[$i];
+      }
+      
+      my $cats_pos = {};
+      my $cind = 0;
+      foreach my $k (@$cats) {
+	$cats_pos->{$k} = $cind;
+	$cind++;
+      }
+
+      @$cats = sort { $pval_data->{$a}->[1] <=> $pval_data->{$b}->[1] } keys(%$chash);
+      @$pd = map { $chash->{$_} } sort { $pval_data->{$a}->[1] <=> $pval_data->{$b}->[1] } keys(%$chash);
+
+      $cind = 0;
+      foreach my $nc (@$cats) {
+	$cats_pos->{$cind} = $cats_pos->{$nc};
+	$cind++;
+      }
+      my $onclicks = $dom_v->data_onclicks;
+      my $onclicks_title = $dom_v->title_onclicks;
+      my $newonclicks = [];
+      my $newonclicks_title = [];
+      $cind = 0;
+      foreach (@$onclicks) {
+	push(@$newonclicks, $onclicks->[$cats_pos->{$cind}]);
+	push(@$newonclicks_title, $onclicks_title->[$cats_pos->{$cind}]);
+	$cind++;
+      }
+      $dom_v->data_onclicks($newonclicks);
+      $dom_v->title_onclicks($newonclicks_title);
+
+      $dom_v->data($pd);
+      foreach my $cat (@$cats) {
+	if (exists($pval_data->{$cat})) {
+	  $cat = $cat." [".sprintf("%.4f", $pval_data->{$cat}->[1])."]";
+	} else {
+	  $cat = $cat." [-]";
+	}
+      }
+      $dom_v->datasets($cats);
+    }
+
+    # generate a stringified version of the current data for download
+    my $download_data = {};
+    my $ii = 0;
+    foreach my $bgroup (@{$dom_v->data}) {
+      my $hh = 0;
+      foreach my $bmg (@$bgroup) {
+	my $jj = 0;
+	foreach my $bsource (@$bmg) {
+	  unless (exists($download_data->{$dom_v->supersets->[$jj]})) {
+	    $download_data->{$dom_v->supersets->[$jj]} = {};
+	  }
+	  unless (exists($download_data->{$dom_v->supersets->[$jj]}->{$dom_v->datasets->[$ii]})) {
+	    $download_data->{$dom_v->supersets->[$jj]}->{$dom_v->datasets->[$ii]} = {};
+	  }
+	  $download_data->{$dom_v->supersets->[$jj]}->{$dom_v->datasets->[$ii]}->{$dom_v->subsets->[$hh]} = $bsource;
+	  $jj++;
+	}
+	$hh++;
+      }
+      $ii++;
+    }
+    my $download_data_string = "";
+    foreach my $key (sort(keys(%$download_data))) {
+      $download_data_string .= "$key\\n";
+      $download_data_string .= "\\t".join("\\t", sort(@{$dom_v->subsets}))."\\n";
+      foreach my $k2 (sort(keys(%{$download_data->{$key}}))) {
+	$download_data_string .= $k2."\\t".join("\\t", map { $download_data->{$key}->{$k2}->{$_} } sort(keys(%{$download_data->{$key}->{$k2}})))."\\n";
+      }
+      $download_data_string .= "\\n";
+    }
+
+    if ($level == 2) {
+      $content .= "<div><div>Representative Organism Barchart $tabnum</div><div>";
+      my $selnorm = "";
+      if (defined($cgi->param('raw'))) {
+	$content = "<div>";
+	if ($cgi->param('raw') == '1') {
+	  $selnorm = " selected=selected";
+	}
+      }
+      $content .= "<form id='single_drilldown$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='single_bar_sel'><input type='hidden' name='single_bar_col'><input type='hidden' name='fid'><input type='hidden' name='vis_type' value='vbar'><input type='hidden' name='top' value='1000'>$settings_preserve<input type='hidden' name='raw' value='".($cgi->param('raw') || 0)."'></form>";
+      $content .= clear_progress_image()."$settings<br>";
+      $content .= "<form id='single_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='vbar'><input type='hidden' name='top' value='1000'>$settings_preserve<div>You can redraw this barchart with different options:<br><br><table><tr><td rowspan=2 style='width: 50px;'>&nbsp;</td><td>use <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values</td><td rowspan=2 style='vertical-align: bottom; padding-left: 15px;'><input type='button' value='draw' onclick='execute_ajax(\"single_visual\", \"tab_div_".($tabnum+1)."\", \"single_redraw$fid\");'></td></tr><tr><td><input type='checkbox' value='' name='pval' onclick='check_group_selection(this, \"$tabnum\")'> calculate p-values</td></tr></table></div></form>";
+      if (! defined($cgi->param('raw')) || ($cgi->param('raw') == '0')) {
+	$content .= "The displayed data has been normalized to values between 0 and 1 to allow for comparison of differently sized samples.";
+      }
+      $content .= "<br><br>Click on a bar to drill down to the selected category (i.e. ".$vbardata->[0]->[2].")<br><br><div style='position: relative; float: right;'>".$dom_v->legend."</div><h3 style='margin-top: 0px;'>Domain Distribution <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'></h3>".$dom_v->output."<br><div id='3_$fid'></div></div></div>";
+      $tabnum++;
+    } else {
+      my $header_names = { 3 => 'Phylum',
+			   4 => 'Class',
+			   5 => 'Order', 
+			   6 => 'Family',
+			   7 => 'Genus',
+			   8 => 'Species',
+			   9 => 'Strain' };
+      @comp_mgs = $cgi->param('comparison_metagenomes');
+      my $md5s = {};
+      foreach my $row (@$vbardata) {
+	if ($row->[$level - 1] eq $cgi->param('single_bar_sel')) {
+	  my @currmd5s = split /;/, $row->[scalar(@$row) - 1];
+	  foreach my $cmd5 (@currmd5s) {
+	    $md5s->{$cmd5} = 1;
+	  }
+	}
+      }
+      return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('single_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$sorcs phylogenetic\", \"".$cgi->param('single_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
+    }
+  }
+  
+  if ($cgi->param('vis_type') eq 'tree') {
+    @comp_mgs = $cgi->param('comparison_metagenomes');
+    my $pt = $self->application->component('tree1');
+    ## nasty id manipulation to allow for multiple trees
+    my $newid = int(rand(100000));
+    if ($cgi->param('oldid')) {
+      $newid = $cgi->param('oldid');
+    }
+    $self->application->component('PhyloTreeHoverComponent'.$pt->id)->id($newid);
+    $self->application->{component_index}->{'PhyloTreeHoverComponent'.$newid} = $self->application->component('PhyloTreeHoverComponent'.$pt->id);
+    $self->application->component('HoverPie'.$pt->id)->id($newid);
+    $self->application->{component_index}->{'HoverPie'.$newid} = $self->application->component('HoverPie'.$pt->id);
+    $pt->id($newid);
+    $pt->sample_names( [ $comp_mgs[0] ] );
+    $pt->leaf_weight_type($cgi->param('lwt') || 'stack');
+    $pt->show_tooltip(0);
+    ##
+    my $tree_domain_filter = 0;
+    if ($cgi->param('tree_domain') && $cgi->param('tree_domain') ne 'all') {
+      $tree_domain_filter = $cgi->param('tree_domain');
+    }
+    my $expanded_data = [];
+    if (scalar(@comp_mgs) > 1) {
+      $pt->coloring_method('split');
+      $pt->sample_names( [ @comp_mgs ] );
+      my $exp_hash = {};
+      my $spec_hash = {};
+      my $mg2num = {};
+
+      for (my $hh=0; $hh<scalar(@comp_mgs); $hh++) {
+	$mg2num->{$comp_mgs[$hh]} = $hh;
+      }
+      foreach my $row (@$data) {
+	next if ($tree_domain_filter && $tree_domain_filter ne $row->[1]);
+	$spec_hash->{$row->[8]} = [ @$row[1..8] ];
+	unless (exists($exp_hash->{$row->[8]})) {
+	  $exp_hash->{$row->[8]} = [];
+	}
+	$exp_hash->{$row->[8]}->[$mg2num->{$row->[0]}] = $row->[9];
+      }
+      foreach my $key (sort(keys(%$exp_hash))) {
+	my $vals = [];
+	for (my $ii=0; $ii<scalar(@comp_mgs); $ii++) {
+	  push(@$vals, $exp_hash->{$key}->[$ii] || 0);
+	}
+	my $row = $spec_hash->{$key};
+	foreach my $r (@$row) {
+	  if ($r =~ /derived/) {
+	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
+	  }
+	}
+	push(@$expanded_data, [ @$row, $vals ] );
+      }    
+    } else {
+      foreach my $row (@$data) {
+	next if ($tree_domain_filter && $tree_domain_filter ne $row->[1]);
+	foreach my $r (@$row) {
+	  if ($r =~ /derived/) {
+	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
+	  }
+	}
+	push(@$expanded_data, [ @$row[1..9] ] );
+      }
+    }
+    @$expanded_data = sort { $b->[8] <=> $a->[8] } @$expanded_data;
+    $pt->data($expanded_data);
+    $pt->show_leaf_weight(1);
+    $pt->show_titles(1);
+    $pt->shade_titles($cgi->param('title_level') || 2);
+    $pt->enable_click(1);
+    $pt->size(1000);
+    $pt->depth($cgi->param('depth') || 4);
+    $pt->level_distance(40);
+    $pt->leaf_weight_space(60);
+    $pt->color_leafs_only(1);
+    $pt->reroot_field("reroot$tabnum");
+    my $md5sel = "";
+    if ($self->application->cgi->param('reroot') && $self->application->cgi->param('do_reroot')) {
+      $pt->reroot_id($self->application->cgi->param('reroot'));
+    }
+
+    if ($cgi->param('high_res')) {
+      print $cgi->header();
+      print $cgi->start_html();
+      $pt->size(5000);
+      $pt->level_distance(200);
+      $pt->leaf_weight_space(300);
+      $pt->enable_click(0);
+      $pt->title_space(1500);
+      $pt->font_size($cgi->param('pts') || 40);
+      $pt->{thick2} = 10;
+      $pt->{thick} = 30;
+      print $pt->output();
+      print $cgi->end_html();
+      exit;
+    }
+    
+    my $pt_out = $pt->output;
+    $pt_out = "<table><tr><td>".$pt->legend."</td><td>".$pt_out."</td></tr></table>";
+    if ($self->application->cgi->param('reroot') && $self->application->cgi->param('do_reroot')) {
+      my $tmd5s = {};
+      my $rootnode = $pt->{nodes}->{$self->application->cgi->param('reroot')};
+      my $lineage = [ split(/; /, $rootnode->{lineage}) ];
+      foreach my $row (@$data) {
+	my $fits = 1;
+	for (my $i=1; $i<scalar(@$lineage); $i++) {
+	  if ($lineage->[$i] ne $row->[$i+2]) {
+	    $fits = 0;
+	    last;
+	  }
+	}
+	if ($fits) {
+	  foreach my $md5 (split(/;/, $row->[16])) {
+	    $tmd5s->{$md5} = 1;
+	  }
+	}
+      }
+      $md5sel = "<br><br><input type='hidden' id='".$tabnum."_mgids' value='".join(";", @comp_mgs)."'><input type='hidden' id='".$tabnum."_md5s' value='".join(";", keys(%$tmd5s))."'><input type='button' value='to workbench' onclick='buffer_data(\"tree\", \"$tabnum\", \"organism classification\", \"".$rootnode->{name}."\", \"0\", \"".join(";",$cgi->param('source'))."\");'>";
+    }
+    my $opts = [ [ 2, 'phylum' ],
+		 [ 3, 'class' ],
+		 [ 4, 'order' ],
+		 [ 5, 'family' ],
+		 [ 6, 'genus' ],
+		 [ 7, 'species' ],
+		 [ 8, 'strain' ] ];
+    my $explain = "Color shading of the ".$opts->[$pt->depth - 1]->[1]." names indicates ".$opts->[$pt->shade_titles - 1]->[1]." membership.";
+    $explain .= " Hover over a node to view the distributions of the children of the node. Click on a node to get distributions of the entire hierarchy of this node. If you have selected a node, you can reroot the tree by checking the reroot checkbox and clicking the 'change' button. Clicking the change button with the reroot checkbox unchecked will draw the entire tree.$md5sel";
+    my $change_settings_form = "<form id='pt_form$newid'>$settings_preserve<input type='hidden' name='vis_type' value='tree'><input type='hidden' name='recalc' value='1'><input type='hidden' name='oldid' value='$newid'>";
+    my $check1 = ' checked=checked';
+    my $check2 = '';
+    if ($cgi->param('lwt') && $cgi->param('lwt') eq 'bar') {
+      $check2 = ' checked=checked';
+      $check1 = '';
+    }
+    $change_settings_form .= "<table><tr><td><b>display leaf weights as</b></td><td><input type='radio' name='lwt' value='stack'$check1> stacked bar <br><input type='radio' name='lwt' value='bar'$check2> barchart</td></tr>";
+    $change_settings_form .= "<tr><td><b>maximum level</b></td><td><select name='depth'>";
+    foreach my $row (@$opts) {
+      my $sel = "";
+      if ($row->[0] == $pt->depth) {
+	$sel = " selected=selected";
+      }
+      $change_settings_form .= "<option value='".$row->[0]."'$sel>".$row->[1]."</option>";
+    }
+    $change_settings_form .= "</select></td></tr><tr><td><b>color by</b></td><td><select name='title_level'>";
+    foreach my $row (@$opts) {
+      my $sel = "";
+      if ($row->[0] == $pt->shade_titles) {
+	$sel = " selected=selected";
+      }
+      $change_settings_form .= "<option value='".$row->[0]."'$sel>".$row->[1]."</option>";
+    }
+    $change_settings_form .= "</select></td></tr>";
+    $change_settings_form .= "<tr><td><b>restrict view to domain</b></td><td><select name='tree_domain'><option value='0'>all</option><option value='Bacteria'".($cgi->param('tree_domain') && $cgi->param('tree_domain') eq 'Bacteria' ? " selected=selected" : "").">Bacteria</option><option value='Eukaryota'".($cgi->param('tree_domain') && $cgi->param('tree_domain') eq 'Eukaryota' ? " selected=selected" : "").">Eukaryota</option><option value='Archaea'".($cgi->param('tree_domain') && $cgi->param('tree_domain') eq 'Archaea' ? " selected=selected" : "").">Archaea</option><option value='Viruses'".($cgi->param('tree_domain') && $cgi->param('tree_domain') eq 'Viruses' ? " selected=selected" : "").">Viruses</option></select></td></tr>";
+    $change_settings_form .= "<tr><td colspan=2><input type='hidden' name='reroot' value='".($self->application->cgi->param('reroot')||"")."' id='reroot$tabnum'> <input type='checkbox' name='do_reroot'> reroot at selected node</td></tr></table> <input type='button' onclick='execute_ajax(\"single_visual\", \"pt$newid\", \"pt_form$newid\");' value='change'><input type='hidden' name='high_res' value=0 id='pt_highres$newid'><input type='hidden' name='page' value='Analysis'><input type='hidden' name='action' value='single_visual'><input type='button' onclick='var f=document.getElementById(\"pt_form$newid\");f.target=\"_blank\";document.getElementById(\"pt_highres$newid\").value=1;f.submit();' value='create high resolution image'></form>";
+    if ($cgi->param('recalc')) {
+      return "$settings<p style='width: 800px;'>$explain</p>".$change_settings_form.$pt_out;
+    } else {
+      $content .= "<div><div>Representative Organism tree $tabnum</div><div><div id='pt$newid'>".clear_progress_image()."$settings<p style='width: 800px;'>$explain</p>".$change_settings_form.$pt_out."</div></div></div>";
+      $tabnum++;
+    }
+  }
+
+  if ($cgi->param('vis_type') eq 'heatmap' || $cgi->param('vis_type') eq 'pca') {
+    # format the data for .r analysis
+    # data = [ mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s ]
+
+    @comp_mgs = ();
+    foreach my $mg ( $cgi->param('comparison_metagenomes') ) {
+      if (exists $data_mgs{$mg}) {
+	push @comp_mgs, $mg;
+      }
+    }
+
+    if (scalar(@comp_mgs) < 2) {
+      return "<div><div>no data</div><div>".clear_progress_image().$missing_txt."Heatmap and PCoA analysis require at least two metagenomes with available data.</div></div>";
+    } else {
+      my $heatmap_data = [ [ '', map { my $x = $_; $x =~ s/\./A/; "ID".$x } @comp_mgs ] ];
+      my $hashed_data = {};
+      my $mg_ind = {};
+      for (my $i=0; $i<scalar(@comp_mgs); $i++) {
+	$mg_ind->{$comp_mgs[$i]} = $i;
+      }
+      if (defined($cgi->param('heatmap_level'))) {
+	$cgi->param('heatmap_level', $cgi->param('heatmap_level') + 1);
+      }
+      my $level = $cgi->param('heatmap_level') || 3;
+      $level--;
+      my $dd_col;
+      my $dd_val;
+      if ($cgi->param('drilldown') && $cgi->param('drilldown_on')) {
+	($dd_col, $dd_val) = split(/;/, $cgi->param('drilldown'));
+      }
+      foreach my $d (@$data) {
+	if (defined($dd_col)) {
+	  next unless ($d->[$dd_col] eq $dd_val);
+	}
+	next unless ($d->[$level]);
+	if (exists($hashed_data->{$d->[$level]})) {
+	  if ($hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}]) {
+	    $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] += $d->[9];
+	  } else {
+	    $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] = $d->[9];
+	  }
+	} else {
+	  $hashed_data->{$d->[$level]} = [];
+	  $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] = $d->[9];
+	}
+      }
+      foreach my $key (keys(%$hashed_data)) {
+	my $row = [ $key ];
+	foreach my $mg (@comp_mgs) {
+	  if ($hashed_data->{$key}->[$mg_ind->{$mg}]) {
+	    push(@$row, $hashed_data->{$key}->[$mg_ind->{$mg}]);
+	  } else {
+	    push(@$row, 0);
+	  }
+	}
+	push(@$heatmap_data, $row);
+      }
+
+      # write data to a tempfile
+      my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      foreach my $row (@$heatmap_data) {
+	print $fh join("\t", @$row)."\n";
+      }
+      close $fh;
+      chmod 0666, $infile;
+
+      # preprocess data
+      my $time = time;
+      my $boxfile = "rdata.boxplot.$time.png";
+      my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
+      print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
+      close $prefh;
+
+      my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+      `$R --vanilla --slave < $prefn`;
+      unlink($prefn);
+      
+      unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
+	unlink $infile;
+	$infile = $Conf::temp."/rdata.preprocessed.$time";
+      }
+      
+      if ($cgi->param('vis_type') eq 'heatmap') {
+	my $level_names = [ [ 1, 'domain' ],
+			    [ 2, 'phylum' ],
+			    [ 3, 'class' ],
+			    [ 4, 'order' ],
+			    [ 5, 'family' ],
+			    [ 6, 'genus' ],
+			    [ 7, 'species' ],
+			    [ 8, 'strain' ] ];
+	my $dd_sel = "";
+	my $hm_level_select = "<select name='heatmap_level'>";
+	foreach my $l (@$level_names) {
+	  my $sel = "";
+	  if ($l->[0] == $level) {
+	    $sel = " selected=selected";
+	  }	  
+	  if (defined($dd_col) && ($l->[0] == $dd_col)) {
+	    $dd_sel = $l->[1];
+	  }
+	  $hm_level_select .= "<option value='".$l->[0]."'$sel>".$l->[1]."</option>";
+	}
+	$hm_level_select .= "</select>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "<div><div>Representative Organism Heatmap $tabnum</div><div>".clear_progress_image();
+	}
+	$content .= "<form id='heat_drilldown$fid' onkeypress='return event.keyCode!=13'>$settings<br>The heatmap was clustered using ".($cgi->param('heatmap_clust_method') || 'ward')." with ".($cgi->param('heatmap_dist_method') || 'bray-curtis')." distance metric.<br>group heatmap by $hm_level_select <input type='hidden' name='vis_type' value='heatmap'><input type='hidden' id='tabnum2$fid' name='tabnum' value='".($tabnum+1)."'><br>";
+
+	my $selnorm = "";
+	if ($cgi->param('raw')) {
+	  $selnorm = " selected=selected";
+	}
+	my $distopts = "";
+	foreach my $d (@{$self->distance_methods}) {
+	  my $sel = ($cgi->param('heatmap_dist_method') && ($cgi->param('heatmap_dist_method') eq $d)) ? " selected=selected" : "";
+	  $distopts .= "<option value='$d'$sel>$d</option>";
+	}
+	my $clustopts = "";
+	foreach my $d (@{$self->cluster_methods}) {
+	  my $sel = ($cgi->param('heatmap_clust_method') && ($cgi->param('heatmap_clust_method') eq $d)) ? " selected=selected" : "";
+	  $clustopts .= "<option value='$d'$sel>$d</option>";
+	}
+	$content .= "$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values, <select name='heatmap_clust_method'>$clustopts</select> clustering and <select name='heatmap_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"single_visual\", \"tab_div_".($tabnum+1)."\", \"heat_drilldown$fid\");'></div></form>";
+
+	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"heatmap_canvas_$tabnum\");document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"\";'></div>";
+
+	my ($col_f, $row_f) = ($Conf::temp."/rdata.col.$time", $Conf::temp."/rdata.row.$time");
+
+	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+	print $heath "source(\"".$Conf::bin."/dendrogram.r\")\n";
+	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
+	close $heath;
+	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+	`$R --vanilla --slave < $heatn`; 
+	unlink($heatn);
+
+	open(COL, "<$col_f");
+	my $tmp = <COL>;
+	chomp $tmp;
+	$content .= "<input id='columns_$tabnum' type='hidden' value='";
+	$content .= join "^", split /,\s*/, $tmp;
+	$content .= "'>";
+
+	$tmp = <COL>;
+	chomp $tmp;
+	$content .= "<input id='column_names_$tabnum' type='hidden' value='";
+	$tmp =~ s/'/@!/g;
+	$content .= join "^", split /,/, $tmp;
+	$content .= "'>";
+
+	$content .= "<input id='column_den_$tabnum' type='hidden' value='";
+	while (<COL>){
+	  chomp;
+	  $content .= "@";
+	  $content .= join "^", split /\s+/;
+	}
+	$content .= "'>";	
+
+	close(COL);
+	unlink($col_f);
+
+	open(ROW, "<$row_f");
+	$tmp = <ROW>;
+	chomp $tmp;
+	$content .= "<input id='rows_$tabnum' type='hidden' value='";
+	$content .= join "^", split /,\s*/, $tmp;
+	$content .= "'>";
+
+	$tmp = <ROW>;
+	chomp $tmp;
+	$content .= "<input id='row_names_$tabnum' type='hidden' value='";
+	$tmp =~ s/'/@!/g;
+	$content .= join "^", split /,/, $tmp;
+	$content .= "'>";
+
+	$content .= "<input id='row_den_$tabnum' type='hidden' value='";
+	while (<ROW>){
+	  chomp;
+	  $content .= "@";
+	  $content .= join "^", split /\t/;	
+	}
+	$content .= "'>";
+	
+	close(ROW);
+	unlink($row_f);
+
+	open(D, "<$infile");
+	my @values = 0;
+	my $cdata = "category\t".join("\t", @comp_mgs)."\n";
+	my $junk = <D>;
+
+	$content .= "<input id='table_$tabnum' type='hidden' value='";
+	while(<D>){
+	  $cdata .= $_;
+	  chomp;
+	  my ($junk, $data) = split /\t/, $_, 2;
+	  my @set = split /\t/, $data;
+	  push @values, @set;
+	  $content .= "@";
+	  $content .= join "^", @set;
+	}
+	$content .= "'>";
+	close(D);
+	unlink $infile;
+
+	$content .= "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='$cdata'><input type='submit' value='download values used to generate this figure'></form>";
+
+	my $max_val = max @values;
+	$max_val  = ($max_val < 1) ? 1 : $max_val;
+	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div><img src='".$Conf::temp_url."/$boxfile' width=600>";
+	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "</div></div>";
+	}
+	$tabnum++;
+      }
+      if ($cgi->param('vis_type') eq 'pca') {
+	my $time = time;
+	my ($pca_data) = ($Conf::temp."/rdata.pca.$time");
+	my ($pcah, $pcan) =  tempfile( "rpcaXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+	print $pcah "source(\"".$Conf::bin."/plot_pco.r\")\n";
+	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
+	close $pcah;
+	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+	`$R --vanilla --slave < $pcan`; 
+	unlink($pcan);
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "<div><div>Representative Organism PCoA $tabnum</div><div>";
+	}
+	$content .= "$settings<i>$psettings</i><br><br>";
+
+	my $selnorm  = (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) ? " selected=selected" : "";
+	my $distopts = "";
+	foreach my $d (@{$self->distance_methods}) {
+	  my $sel = ($cgi->param('pca_dist_method') && ($cgi->param('pca_dist_method') eq $d)) ? " selected=selected" : "";
+	  $distopts .= "<option value='$d'$sel>$d</option>";
+	}
+	$content .= "<form id='single_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='pca'>$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values and <select name='pca_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"single_visual\", \"tab_div_".($tabnum+1)."\", \"single_redraw$fid\");'></div></form>";
+	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"pca_canvas_$tabnum\");document.getElementById(\"pca_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"pca_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"pca_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"pca_canvas_$tabnum\").style.display=\"\";'></div>";
+
+	my (@comp, @items);
+
+	open(D, "<$pca_data");
+	while(<D>){
+	  chomp;
+	  s/"//g; #"
+	  my @fields = split /\t/;
+	  if ($fields[0] =~ /^PCO\d+$/) {
+	    push @comp, join("^", @fields); 
+	  } elsif ($fields[0] =~ /^ID([\dA]+)$/) {
+	    push @items, join("^", @fields); 
+	  }
+	}
+	close(D);
+
+	# metadata coloring
+	my $md_names = ['biome','feature','material','altitude','depth','ph','country','temperature','sequencing method','collection_date','name'];
+	my $jobmd = $self->app->data_handle('MGRAST')->Job->jobs_mixs_metadata_fast(\@comp_mgs);
+	my $mgmd  = [];
+	my $iii   = 0;
+	foreach my $mgid (@comp_mgs) {
+	  foreach my $md (@$md_names) {
+	    my $val = (exists($jobmd->{$mgid}{$md}) && ($jobmd->{$mgid}{$md} ne '')) ? $jobmd->{$mgid}{$md} : undef;
+	    if ($val) { $val =~ s/'//g; }
+	    push @{ $mgmd->[$iii] }, $val;
+	  }
+	  $iii += 1;
+	}
+	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
+	foreach my $md_name (@$md_names) {
+	  $md_type_select .= "<option value='$md_name'>$md_name</option>";
+	}
+	$md_type_select .= "</select><input type='button' value='apply' onclick='color_by_metadata(\"$tabnum\");'>";
+
+	my $comp_control = "<br><br><br><br><table><tr><th>component</th><th>r^2</th><th>x-axis</th><th>y-axis</th></tr>";
+	my $i = 0;
+	foreach my $row (@comp) {
+	  my ($pcname, $rsquare) = split /\^/, $row;
+	  $rsquare = sprintf("%.5f", $rsquare);
+	  my $sel_x = '';
+	  my $sel_y = '';
+	  if ($i == 0) {
+	    $sel_x = " checked=checked";
+	  }
+	  if ($i == 1) {
+	    $sel_y = " checked=checked";
+	  }
+	  $comp_control .= "<tr><td>$pcname</td><td>$rsquare</td><td><input type='radio' name='xcomp$tabnum' id='xcomp$tabnum' onclick='check_pca_components($tabnum);' value='".($i+1)."'$sel_x></td><td><input type='radio' name='ycomp$tabnum' id='ycomp$tabnum' onclick='check_pca_components($tabnum);' value='".($i+1)."'$sel_y></td></tr>";
+	  $i++;
+	}
+	$comp_control .= "</table>";
+
+	my $group_control = "<div id='grpctrl$tabnum' style='display: none;'><br><br><br><div id='feedback$tabnum'></div><table><tr><th>group</th><th>name</th><th style='width: 56px;'>save as collection</th></tr>";
+	$group_control .= "<tr><td>group 1</td><td><input type='text' id='group1_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"1\");'></td></tr>";
+	$group_control .= "<tr><td>group 2</td><td><input type='text' id='group2_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"2\");'></td></tr>";
+	$group_control .= "<tr><td>group 3</td><td><input type='text' id='group3_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"3\");'></td></tr>";
+	$group_control .= "<tr><td>group 4</td><td><input type='text' id='group4_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"4\");'></td></tr>";
+	$group_control .= "<tr><td>group 5</td><td><input type='text' id='group5_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"5\");'></td></tr>";
+	$group_control .= "<tr><td>group 6</td><td><input type='text' id='group6_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"6\");'></td></tr>";
+	$group_control .= "<tr><td>group 7</td><td><input type='text' id='group7_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"7\");'></td></tr>";
+	$group_control .= "<tr><td>group 8</td><td><input type='text' id='group8_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"8\");'></td></tr>";
+	$group_control .= "<tr><td>group 9</td><td><input type='text' id='group9_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"9\");'></td></tr>";
+	$group_control .= "<tr><td>group 10</td><td><input type='text' id='group10_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"10\");'></td></tr>";
+	$group_control .= "</table></div>";
+
+	my $img_control = "<table><tr><td><div style='cursor: pointer; background-color: #8FBC3F; color: white; font-weight: bold; height: 16px; width: 250px; text-align: center; padding-top: 4px;' onclick='if(document.getElementById(\"imgctrl$tabnum\").style.display==\"none\"){document.getElementById(\"imgctrl$tabnum\").style.display=\"\";document.getElementById(\"grpctrl$tabnum\").style.display=\"\";}else{document.getElementById(\"imgctrl$tabnum\").style.display=\"none\";document.getElementById(\"grpctrl$tabnum\").style.display=\"none\";}' title='click to expand'>PCoA grouping control</div></td></tr><tr><td id='imgctrl$tabnum' style='display: none;'>";
+	$img_control .= "<table><tr><td><div style='width: 280px;'><b>create a grouping</b><br>You can create a grouping of your metagenomes to calculate p-values in the barchart visualization. Select a group and click the metagenome circle in the graphic. You can also drag open a square to select multiple metagenomes at a time.</div><br><br>mark clicked as <select id='group_color$tabnum'><option value='red' selected=selected>group 1</option><option value='green'>group 2</option><option value='cyan'>group 3</option><option value='purple'>group 4</option><option value='yellow'>group 5</option><option value='blue'>group 6</option><option value='orange'>group 7</option><option value='gray'>group 8</option><option value='black'>group 9</option><option value='magenta'>group 10</option></select><br><br>or select groups in the table to the right.</td><td>";
+	$img_control .= "<table><tr><th>Metagenome</th><th>group</th><th>$md_type_select</th></tr>";
+	my $opts = "<option value='0'>- no group -</option><option value='group1'>group 1</option><option value='group2'>group 2</option><option value='group3'>group 3</option><option value='group4'>group 4</option><option value='group5'>group 5</option><option value='group6'>group 6</option><option value='group7'>group 7</option><option value='group8'>group 8</option><option value='group9'>group 9</option><option value='group10'>group 10</option>";
+	for (my $i=0; $i<scalar(@comp_mgs); $i++) {
+	  $img_control .= "<tr><td>".($comp_mgs[$i] || '')."</td><td><select id='group_list".$tabnum."_$i' onchange='change_pca_color(this, \"$tabnum\", \"$i\");'>$opts</select></td><td><span id='group_list_md_".$tabnum."_$i'>".($mgmd->[$i]->[0] || '')."</span></td></tr>";
+	}
+	$img_control .= "</table>";
+	$img_control .= "<input type='button' value='store grouping' onclick='store_grouping(\"$tabnum\", \"".join("^", @comp_mgs)."\");'>";
+
+	$img_control .= "<input type='hidden' id='pcamd_".$tabnum."' value='".join("~~", map { join(";;", map { defined($_) ? $_ : 'unknown' } @$_) } @$mgmd)."'></td></tr></table>";
+
+	$img_control .= "</td></tr></table>";
+
+	my @comp_b = @comp;
+	my @items_b = @items;
+	my $cmg_hash = {};
+	%$cmg_hash = map { my $x = $_; $x =~ s/\./A/; "ID".$x => $_; } @comp_mgs;
+	my $data_download_button = "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='PCA Component impact\n".join("\n", map { $_ =~ s/\^/\t/g; $_; } @comp_b)."\n\nData Items\nMetagenome\t".join("\t", map { $_ =~ s/(.*)\t.*/$1/; $_; } @comp_b)."\n".join("\n", map { $_ =~ s/\^/\t/g; my ($x) = $_ =~ /^([^\t]+)/; $x = $cmg_hash->{$x}; $_ =~ s/^[^\t]+(.*)/$x$1/; $_; } @items_b)."'><input type='submit' value='download values used to generate this figure'></form>";
+
+	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
+	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
+	$content .= $img_control;
+	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table><img src='".$Conf::temp_url."/$boxfile' width=600>";
+	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "</div></div>";
+	}
+	$tabnum++;
+      }
+    }
+  }
+
   return $content;
 }
 
@@ -2152,7 +2887,7 @@ sub phylogeny_visual {
   }
   my $cutoffs = "a maximum e-value of 1e-" . ($cgi->param('evalue') || '0') . ", ";
   $cutoffs   .= "a minimum identity of " . ($cgi->param('identity') || '0') . " %, ";
-  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1');
+  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1') . ' measured in aa for protein and bp for RNA databases';
 
   my $psettings = " The data has been normalized to values between 0 and 1. If you would like to view raw values, redraw using the form below.";
   if ($cgi->param('raw')) {
@@ -3139,7 +3874,7 @@ sub metabolism_visual {
   }
   my $cutoffs = "a maximum e-value of 1e-" . ($cgi->param('evalue') || '0') . ", ";
   $cutoffs   .= "a minimum identity of " . ($cgi->param('identity') || '0') . " %, ";
-  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1');
+  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1') . ' measured in aa for protein and bp for RNA databases';
 
   my $psettings = " The data has been normalized to values between 0 and 1. If you would like to view raw values, redraw using the form below.";
   if ($cgi->param('raw')) {
@@ -4020,7 +4755,7 @@ sub annotation_visual {
   }
   my $cutoffs = "a maximum e-value of 1e-" . ($cgi->param('evalue') || '0') . ", ";
   $cutoffs   .= "a minimum identity of " . ($cgi->param('identity') || '0') . " %, ";
-  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1');
+  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1') . ' measured in aa for protein and bp for RNA databases';
 
   my $psettings = " The data has been normalized to values between 0 and 1. If you would like to view raw values, redraw using the form below.";
   if ($cgi->param('raw')) {
@@ -4172,7 +4907,20 @@ sub lca_visual {
 
   my $cutoffs = "a maximum e-value of 1e-" . ($cgi->param('evalue') || '0') . ", ";
   $cutoffs   .= "a minimum identity of " . ($cgi->param('identity') || '0') . " %, ";
-  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1');
+  $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1') . ' measured in aa for protein and bp for RNA databases';
+
+  my $psettings = " The data has been normalized to values between 0 and 1. If you would like to view raw values, redraw using the form below.";
+  if ($cgi->param('raw')) {
+    $psettings = " The data is showing raw values. If you would like to view normalized values, redraw using the form below.";
+  }
+  my $pset = "";
+  if (defined($cgi->param('pval'))) {
+    $pset = "<br><br>You have chosen to calculate p-values. They will appear in brackets after the category name.";
+  }
+
+  if ($cgi->param('use_buffer')) {
+    $settings_preserve .= "<input type='hidden' name='use_buffer' value='".$cgi->param('use_buffer')."'>";
+  }
 
   $settings_preserve .= "<input type='hidden' name='evalue' value='"   . ($cgi->param('evalue') || '0')   . "'>";
   $settings_preserve .= "<input type='hidden' name='identity' value='" . ($cgi->param('identity') || '0') . "'>";
@@ -4191,6 +4939,8 @@ sub lca_visual {
       push @missing_mgs, $mg;
     }
   } 
+
+  my $sorcs = "lca";
 
   if (@missing_mgs > 0) {
     $missing_txt = "<br>";
@@ -4211,7 +4961,206 @@ sub lca_visual {
     $missing_txt .= " no lca data for the above selected sources and cutoffs. They are being excluded from the analysis.<br>";
   }
   $settings .= $missing_txt;
+  
+  if ($cgi->param('vis_type') eq 'vbar') {
+    my $vbardata = [];
+    if ($cgi->param('lca_bar_sel') && $cgi->param('lca_bar_col')) {
+      @$vbardata = map { ($_->[$cgi->param('lca_bar_col')] && ($_->[$cgi->param('lca_bar_col')] eq $cgi->param('lca_bar_sel'))) ? $_ : () } @$data;
+    } else {
+      @$vbardata = map { $_ } @$data;
+    }
+    if ($cgi->param('lca_bar_col')) {
+      $cgi->param('lca_bar_col', $cgi->param('lca_bar_col') + 1);
+    }
+    my $level = $cgi->param('lca_bar_col') ? ($cgi->param('lca_bar_col') + 1) : 2;
+    my $noclick;
+    if ($level > 8) {
+      $noclick = 1;
+    }
+    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level - 1, 10, ($cgi->param('top')||10), 'lca', $fid, ($cgi->param('raw') || undef), $noclick);
 
+    $settings .= "<i>$psettings</i><br>";
+    # check for p-value calculation
+    if (defined($cgi->param('pval'))) {
+      $settings_preserve .= "<input type='hidden' name='pval' value='".$cgi->param('pval')."'>";
+      $settings_preserve .= "<input type='hidden' name='raw' value='".($cgi->param('raw') || 0)."'>";
+      my $mg2group = {};
+      map { my ($g, $m) = split /\^/; $mg2group->{$m} = $g; } split /\|/, $cgi->param('pval');
+      @comp_mgs = $cgi->param('comparison_metagenomes');
+      my ($pvalgroupf, $pvalgroupn) = tempfile( "rpvalgXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $pvalgroupf join("\t", map { $mg2group->{$_} } @comp_mgs)."\n";
+      close $pvalgroupf;
+      my ($pvaldataf, $pvaldatan) = tempfile( "rpvaldXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $pvaldataf "\t".join("\t", map { "ID".$_ } @comp_mgs)."\n";
+      my $cats = $dom_v->datasets();
+      my $pd = $dom_v->data();
+      my $i = 0;
+      foreach my $row (@$pd) {
+	print $pvaldataf $cats->[$i]."\t".join("\t", map { $_->[0] } @$row)."\n";
+	$i++;
+      }
+      close $pvaldataf;
+      my ($pvalsuggestf, $pvalsuggestn) = tempfile( "rpvalsXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      close $pvalsuggestf;
+      my ($pvalresultf, $pvalresultn) = tempfile( "rpvalrXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      close $pvalresultf;
+      my ($pvalexecf, $pvalexecn) = tempfile( "rpvaleXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      my $rn = "normalized";
+      if ($cgi->param('raw')) {
+	$rn = "raw";
+      }
+      print $pvalexecf "source(\"".$Conf::bin."/suggest_stat_test.r\")\n";
+      print $pvalexecf "MGRAST_suggest_test(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", paired = FALSE, file_out = \"".$pvalsuggestn."\")\n";
+      close $pvalexecf;
+      my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+      `$R --vanilla --slave < $pvalexecn`;
+      open(FH, $pvalsuggestn);
+      my $res = <FH>;
+      chomp $res;
+      close FH;
+      $settings .= "<br><i>The p-values were calculated using $res and the following groups:</i><br>";
+      $settings .= "<table><tr><th>metagenome</th><th>group</th></tr>";
+      foreach my $cmg (@comp_mgs) {
+	$settings .= "<tr><td>$cmg</td><td>".$mg2group->{$cmg}."</td></tr>";
+      }
+      $settings .= "</table><br>";
+      my ($pvalexec2f, $pvalexec2n) = tempfile( "rpvale2XXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $pvalexec2f "source(\"".$Conf::bin."/do_stats.r\")\n";
+      print $pvalexec2f "MGRAST_do_stats(data_file = \"".$pvaldatan."\", groups_file = \"".$pvalgroupn."\", data_type = \"".$rn."\", sig_test = \"".$res."\", file_out = \"".$pvalresultn."\")\n";
+      close $pvalexec2f;
+      `$R --vanilla --slave < $pvalexec2n`;
+      open(FH, $pvalresultn);
+      my $header = <FH>;
+      my $pval_data = {};
+      while (<FH>) {
+	chomp;
+	my @row = split /\t/;
+	my $name = substr($row[0], 1, length($row[0])-2);
+	my $stat = $row[scalar(@row)-2];
+	my $pval = $row[scalar(@row)-1];
+	$pval_data->{$name} = [ $stat, $pval ];
+      }
+      close FH;
+      unlink($pvalgroupn);
+      unlink($pvaldatan);
+      unlink($pvalexecn);
+      unlink($pvalexec2n);
+      unlink($pvalsuggestn);
+      unlink($pvalresultn);
+      my $chash = {};
+      for (my $i=0; $i<scalar(@$cats); $i++) {
+	$chash->{$cats->[$i]} = $pd->[$i];
+      }
+      
+      my $cats_pos = {};
+      my $cind = 0;
+      foreach my $k (@$cats) {
+	$cats_pos->{$k} = $cind;
+	$cind++;
+      }
+
+      @$cats = sort { $pval_data->{$a}->[1] <=> $pval_data->{$b}->[1] } keys(%$chash);
+      @$pd = map { $chash->{$_} } sort { $pval_data->{$a}->[1] <=> $pval_data->{$b}->[1] } keys(%$chash);
+
+      $cind = 0;
+      foreach my $nc (@$cats) {
+	$cats_pos->{$cind} = $cats_pos->{$nc};
+	$cind++;
+      }
+      my $onclicks = $dom_v->data_onclicks;
+      my $onclicks_title = $dom_v->title_onclicks;
+      my $newonclicks = [];
+      my $newonclicks_title = [];
+      $cind = 0;
+      foreach (@$onclicks) {
+	push(@$newonclicks, $onclicks->[$cats_pos->{$cind}]);
+	push(@$newonclicks_title, $onclicks_title->[$cats_pos->{$cind}]);
+	$cind++;
+      }
+      $dom_v->data_onclicks($newonclicks);
+      $dom_v->title_onclicks($newonclicks_title);
+
+      $dom_v->data($pd);
+      foreach my $cat (@$cats) {
+	if (exists($pval_data->{$cat})) {
+	  $cat = $cat." [".sprintf("%.4f", $pval_data->{$cat}->[1])."]";
+	} else {
+	  $cat = $cat." [-]";
+	}
+      }
+      $dom_v->datasets($cats);
+    }
+
+    # generate a stringified version of the current data for download
+    my $download_data = {};
+    my $ii = 0;
+    foreach my $bgroup (@{$dom_v->data}) {
+      my $hh = 0;
+      foreach my $bmg (@$bgroup) {
+	my $jj = 0;
+	foreach my $bsource (@$bmg) {
+	  unless (exists($download_data->{$dom_v->supersets->[$jj]})) {
+	    $download_data->{$dom_v->supersets->[$jj]} = {};
+	  }
+	  unless (exists($download_data->{$dom_v->supersets->[$jj]}->{$dom_v->datasets->[$ii]})) {
+	    $download_data->{$dom_v->supersets->[$jj]}->{$dom_v->datasets->[$ii]} = {};
+	  }
+	  $download_data->{$dom_v->supersets->[$jj]}->{$dom_v->datasets->[$ii]}->{$dom_v->subsets->[$hh]} = $bsource;
+	  $jj++;
+	}
+	$hh++;
+      }
+      $ii++;
+    }
+    my $download_data_string = "";
+    foreach my $key (sort(keys(%$download_data))) {
+      $download_data_string .= "$key\\n";
+      $download_data_string .= "\\t".join("\\t", sort(@{$dom_v->subsets}))."\\n";
+      foreach my $k2 (sort(keys(%{$download_data->{$key}}))) {
+	$download_data_string .= $k2."\\t".join("\\t", map { $download_data->{$key}->{$k2}->{$_} } sort(keys(%{$download_data->{$key}->{$k2}})))."\\n";
+      }
+      $download_data_string .= "\\n";
+    }
+
+    if ($level == 2) {
+      $content .= "<div><div>LCA barchart $tabnum</div><div>";
+      my $selnorm = "";
+      if (defined($cgi->param('raw'))) {
+	$content = "<div>";
+	if ($cgi->param('raw') == '1') {
+	  $selnorm = " selected=selected";
+	}
+      }
+      $content .= "<form id='lca_drilldown$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='lca_bar_sel'><input type='hidden' name='lca_bar_col'><input type='hidden' name='fid'><input type='hidden' name='vis_type' value='vbar'><input type='hidden' name='top' value='1000'>$settings_preserve<input type='hidden' name='raw' value='".($cgi->param('raw') || 0)."'></form>";
+      $content .= clear_progress_image()."$settings<br>";
+      $content .= "<form id='lca_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='vbar'><input type='hidden' name='top' value='1000'>$settings_preserve<div>You can redraw this barchart with different options:<br><br><table><tr><td rowspan=2 style='width: 50px;'>&nbsp;</td><td>use <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values</td><td rowspan=2 style='vertical-align: bottom; padding-left: 15px;'><input type='button' value='draw' onclick='execute_ajax(\"lca_visual\", \"tab_div_".($tabnum+1)."\", \"lca_redraw$fid\");'></td></tr><tr><td><input type='checkbox' value='' name='pval' onclick='check_group_selection(this, \"$tabnum\")'> calculate p-values</td></tr></table></div></form>";
+      if (! defined($cgi->param('raw')) || ($cgi->param('raw') == '0')) {
+	$content .= "The displayed data has been normalized to values between 0 and 1 to allow for comparison of differently sized samples.";
+      }
+      $content .= "<br><br>Click on a bar to drill down to the selected category (i.e. ".$vbardata->[0]->[2].")<br><br><div style='position: relative; float: right;'>".$dom_v->legend."</div><h3 style='margin-top: 0px;'>Domain Distribution <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'></h3>".$dom_v->output."<br><div id='3_$fid'></div></div></div>";
+      $tabnum++;
+    } else {
+      my $header_names = { 3 => 'Phylum',
+			   4 => 'Class',
+			   5 => 'Order', 
+			   6 => 'Family',
+			   7 => 'Genus',
+			   8 => 'Species',
+			   9 => 'Strain' };
+      @comp_mgs = $cgi->param('comparison_metagenomes');
+      my $md5s = {};
+      foreach my $row (@$vbardata) {
+	if ($row->[$level - 1] eq $cgi->param('lca_bar_sel')) {
+	  my @currmd5s = split /;/, $row->[scalar(@$row) - 1];
+	  foreach my $cmd5 (@currmd5s) {
+	    $md5s->{$cmd5} = 1;
+	  }
+	}
+      }
+      return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('lca_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$sorcs phylogenetic\", \"".$cgi->param('lca_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
+    }
+  }
+  
   if ($cgi->param('vis_type') eq 'tree') {
     @comp_mgs = $cgi->param('comparison_metagenomes');
     my $pt = $self->application->component('tree1');
@@ -4431,7 +5380,347 @@ sub lca_visual {
     $content .= "<div><div>LCA table $tabnum</div><div>".clear_progress_image()."$settings$pivot<br>".$t->output."</div></div>";
     $tabnum++;
   }
-
+  
+  if ($cgi->param('vis_type') eq 'heatmap' || $cgi->param('vis_type') eq 'pca') {
+    # format the data for .r analysis
+    # data = [ mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s ]
+    
+    @comp_mgs = ();
+    foreach my $mg ( $cgi->param('comparison_metagenomes') ) {
+      if (exists $data_mgs{$mg}) {
+	push @comp_mgs, $mg;
+      }
+    }
+    
+    if (scalar(@comp_mgs) < 2) {
+      return "<div><div>no data</div><div>".clear_progress_image().$missing_txt."Heatmap and PCoA analysis require at least two metagenomes with available data.</div></div>";
+    } else {
+      my $heatmap_data = [ [ '', map { my $x = $_; $x =~ s/\./A/; "ID".$x } @comp_mgs ] ];
+      my $hashed_data = {};
+      my $mg_ind = {};
+      for (my $i=0; $i<scalar(@comp_mgs); $i++) {
+	$mg_ind->{$comp_mgs[$i]} = $i;
+      }
+      if (defined($cgi->param('heatmap_level'))) {
+	$cgi->param('heatmap_level', $cgi->param('heatmap_level') + 1);
+      }
+      my $level = $cgi->param('heatmap_level') || 3;
+      $level--;
+      my $dd_col;
+      my $dd_val;
+      if ($cgi->param('drilldown') && $cgi->param('drilldown_on')) {
+	($dd_col, $dd_val) = split(/;/, $cgi->param('drilldown'));
+      }
+      foreach my $d (@$data) {
+	if (defined($dd_col)) {
+	  next unless ($d->[$dd_col] eq $dd_val);
+	}
+	next unless ($d->[$level]);
+	if (exists($hashed_data->{$d->[$level]})) {
+	  if ($hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}]) {
+	    $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] += $d->[9];
+	  } else {
+	    $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] = $d->[9];
+	  }
+	} else {
+	  $hashed_data->{$d->[$level]} = [];
+	  $hashed_data->{$d->[$level]}->[$mg_ind->{$d->[0]}] = $d->[9];
+	}
+      }
+      foreach my $key (keys(%$hashed_data)) {
+	my $row = [ $key ];
+	foreach my $mg (@comp_mgs) {
+	  if ($hashed_data->{$key}->[$mg_ind->{$mg}]) {
+	    push(@$row, $hashed_data->{$key}->[$mg_ind->{$mg}]);
+	  } else {
+	    push(@$row, 0);
+	  }
+	}
+	push(@$heatmap_data, $row);
+      }
+      
+      # write data to a tempfile
+      my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      foreach my $row (@$heatmap_data) {
+	print $fh join("\t", @$row)."\n";
+      }
+      close $fh;
+      chmod 0666, $infile;
+      
+      # preprocess data
+      my $time = time;
+      my $boxfile = "rdata.boxplot.$time.png";
+      my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+      print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
+      print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
+      close $prefh;
+      
+      my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+      `$R --vanilla --slave < $prefn`;
+      unlink($prefn);
+      
+      unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
+	unlink $infile;
+	$infile = $Conf::temp."/rdata.preprocessed.$time";
+      }
+      
+      if ($cgi->param('vis_type') eq 'heatmap') {
+	my $level_names = [ [ 1, 'domain' ],
+			    [ 2, 'phylum' ],
+			    [ 3, 'class' ],
+			    [ 4, 'order' ],
+			    [ 5, 'family' ],
+			    [ 6, 'genus' ],
+			    [ 7, 'species' ],
+			    [ 8, 'strain' ] ];
+	my $dd_sel = "";
+	my $hm_level_select = "<select name='heatmap_level'>";
+	foreach my $l (@$level_names) {
+	  my $sel = "";
+	  if ($l->[0] == $level) {
+	    $sel = " selected=selected";
+	  }	  
+	  if (defined($dd_col) && ($l->[0] == $dd_col)) {
+	    $dd_sel = $l->[1];
+	  }
+	  $hm_level_select .= "<option value='".$l->[0]."'$sel>".$l->[1]."</option>";
+	}
+	$hm_level_select .= "</select>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "<div><div>LCA Heatmap $tabnum</div><div>".clear_progress_image();
+	}
+	$content .= "<form id='heat_drilldown$fid' onkeypress='return event.keyCode!=13'>$settings<br>The heatmap was clustered using ".($cgi->param('heatmap_clust_method') || 'ward')." with ".($cgi->param('heatmap_dist_method') || 'bray-curtis')." distance metric.<br>group heatmap by $hm_level_select <input type='hidden' name='vis_type' value='heatmap'><input type='hidden' id='tabnum2$fid' name='tabnum' value='".($tabnum+1)."'><br>";
+	
+	my $selnorm = "";
+	if ($cgi->param('raw')) {
+	  $selnorm = " selected=selected";
+	}
+	my $distopts = "";
+	foreach my $d (@{$self->distance_methods}) {
+	  my $sel = ($cgi->param('heatmap_dist_method') && ($cgi->param('heatmap_dist_method') eq $d)) ? " selected=selected" : "";
+	  $distopts .= "<option value='$d'$sel>$d</option>";
+	}
+	my $clustopts = "";
+	foreach my $d (@{$self->cluster_methods}) {
+	  my $sel = ($cgi->param('heatmap_clust_method') && ($cgi->param('heatmap_clust_method') eq $d)) ? " selected=selected" : "";
+	  $clustopts .= "<option value='$d'$sel>$d</option>";
+	}
+	$content .= "$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values, <select name='heatmap_clust_method'>$clustopts</select> clustering and <select name='heatmap_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"lca_visual\", \"tab_div_".($tabnum+1)."\", \"heat_drilldown$fid\");'></div></form>";
+	
+	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"heatmap_canvas_$tabnum\");document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"\";'></div>";
+	
+	my ($col_f, $row_f) = ($Conf::temp."/rdata.col.$time", $Conf::temp."/rdata.row.$time");
+	
+	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+	print $heath "source(\"".$Conf::bin."/dendrogram.r\")\n";
+	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
+	close $heath;
+	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+	`$R --vanilla --slave < $heatn`; 
+	unlink($heatn);
+	
+	open(COL, "<$col_f");
+	my $tmp = <COL>;
+	chomp $tmp;
+	$content .= "<input id='columns_$tabnum' type='hidden' value='";
+	$content .= join "^", split /,\s*/, $tmp;
+	$content .= "'>";
+	
+	$tmp = <COL>;
+	chomp $tmp;
+	$content .= "<input id='column_names_$tabnum' type='hidden' value='";
+	$tmp =~ s/'/@!/g;
+	$content .= join "^", split /,/, $tmp;
+	$content .= "'>";
+	
+	$content .= "<input id='column_den_$tabnum' type='hidden' value='";
+	while (<COL>){
+	  chomp;
+	  $content .= "@";
+	  $content .= join "^", split /\s+/;
+	}
+	$content .= "'>";	
+	
+	close(COL);
+	unlink($col_f);
+	
+	open(ROW, "<$row_f");
+	$tmp = <ROW>;
+	chomp $tmp;
+	$content .= "<input id='rows_$tabnum' type='hidden' value='";
+	$content .= join "^", split /,\s*/, $tmp;
+	$content .= "'>";
+	
+	$tmp = <ROW>;
+	chomp $tmp;
+	$content .= "<input id='row_names_$tabnum' type='hidden' value='";
+	$tmp =~ s/'/@!/g;
+	$content .= join "^", split /,/, $tmp;
+	$content .= "'>";
+	
+	$content .= "<input id='row_den_$tabnum' type='hidden' value='";
+	while (<ROW>){
+	  chomp;
+	  $content .= "@";
+	  $content .= join "^", split /\t/;	
+	}
+	$content .= "'>";
+	
+	close(ROW);
+	unlink($row_f);
+	
+	open(D, "<$infile");
+	my @values = 0;
+	my $cdata = "category\t".join("\t", @comp_mgs)."\n";
+	my $junk = <D>;
+	
+	$content .= "<input id='table_$tabnum' type='hidden' value='";
+	while(<D>){
+	  $cdata .= $_;
+	  chomp;
+	  my ($junk, $data) = split /\t/, $_, 2;
+	  my @set = split /\t/, $data;
+	  push @values, @set;
+	  $content .= "@";
+	  $content .= join "^", @set;
+	}
+	$content .= "'>";
+	close(D);
+	unlink $infile;
+	
+	$content .= "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='$cdata'><input type='submit' value='download values used to generate this figure'></form>";
+	
+	my $max_val = max @values;
+	$max_val  = ($max_val < 1) ? 1 : $max_val;
+	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div><img src='".$Conf::temp_url."/$boxfile' width=600>";
+	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "</div></div>";
+	}
+	$tabnum++;
+      }
+      if ($cgi->param('vis_type') eq 'pca') {
+	my $time = time;
+	my ($pca_data) = ($Conf::temp."/rdata.pca.$time");
+	my ($pcah, $pcan) =  tempfile( "rpcaXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
+	print $pcah "source(\"".$Conf::bin."/plot_pco.r\")\n";
+	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
+	close $pcah;
+	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+	`$R --vanilla --slave < $pcan`; 
+	unlink($pcan);
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "<div><div>LCA PCoA $tabnum</div><div>";
+	}
+	$content .= "$settings<i>$psettings</i><br><br>";
+	
+	my $selnorm  = (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) ? " selected=selected" : "";
+	my $distopts = "";
+	foreach my $d (@{$self->distance_methods}) {
+	  my $sel = ($cgi->param('pca_dist_method') && ($cgi->param('pca_dist_method') eq $d)) ? " selected=selected" : "";
+	  $distopts .= "<option value='$d'$sel>$d</option>";
+	}
+	$content .= "<form id='lca_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='pca'>$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values and <select name='pca_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"lca_visual\", \"tab_div_".($tabnum+1)."\", \"lca_redraw$fid\");'></div></form>";
+	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"pca_canvas_$tabnum\");document.getElementById(\"pca_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"pca_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"pca_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"pca_canvas_$tabnum\").style.display=\"\";'></div>";
+	
+	my (@comp, @items);
+	
+	open(D, "<$pca_data");
+	while(<D>){
+	  chomp;
+	  s/"//g; #"
+	  my @fields = split /\t/;
+	  if ($fields[0] =~ /^PCO\d+$/) {
+	    push @comp, join("^", @fields); 
+	  } elsif ($fields[0] =~ /^ID([\dA]+)$/) {
+	    push @items, join("^", @fields); 
+	  }
+	}
+	close(D);
+	
+	# metadata coloring
+	my $md_names = ['biome','feature','material','altitude','depth','ph','country','temperature','sequencing method','collection_date','name'];
+	my $jobmd = $self->app->data_handle('MGRAST')->Job->jobs_mixs_metadata_fast(\@comp_mgs);
+	my $mgmd  = [];
+	my $iii   = 0;
+	foreach my $mgid (@comp_mgs) {
+	  foreach my $md (@$md_names) {
+	    my $val = (exists($jobmd->{$mgid}{$md}) && ($jobmd->{$mgid}{$md} ne '')) ? $jobmd->{$mgid}{$md} : undef;
+	    if ($val) { $val =~ s/'//g; }
+	    push @{ $mgmd->[$iii] }, $val;
+	  }
+	  $iii += 1;
+	}
+	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
+	foreach my $md_name (@$md_names) {
+	  $md_type_select .= "<option value='$md_name'>$md_name</option>";
+	}
+	$md_type_select .= "</select><input type='button' value='apply' onclick='color_by_metadata(\"$tabnum\");'>";
+	
+	my $comp_control = "<br><br><br><br><table><tr><th>component</th><th>r^2</th><th>x-axis</th><th>y-axis</th></tr>";
+	my $i = 0;
+	foreach my $row (@comp) {
+	  my ($pcname, $rsquare) = split /\^/, $row;
+	  $rsquare = sprintf("%.5f", $rsquare);
+	  my $sel_x = '';
+	  my $sel_y = '';
+	  if ($i == 0) {
+	    $sel_x = " checked=checked";
+	  }
+	  if ($i == 1) {
+	    $sel_y = " checked=checked";
+	  }
+	  $comp_control .= "<tr><td>$pcname</td><td>$rsquare</td><td><input type='radio' name='xcomp$tabnum' id='xcomp$tabnum' onclick='check_pca_components($tabnum);' value='".($i+1)."'$sel_x></td><td><input type='radio' name='ycomp$tabnum' id='ycomp$tabnum' onclick='check_pca_components($tabnum);' value='".($i+1)."'$sel_y></td></tr>";
+	  $i++;
+	}
+	$comp_control .= "</table>";
+	
+	my $group_control = "<div id='grpctrl$tabnum' style='display: none;'><br><br><br><div id='feedback$tabnum'></div><table><tr><th>group</th><th>name</th><th style='width: 56px;'>save as collection</th></tr>";
+	$group_control .= "<tr><td>group 1</td><td><input type='text' id='group1_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"1\");'></td></tr>";
+	$group_control .= "<tr><td>group 2</td><td><input type='text' id='group2_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"2\");'></td></tr>";
+	$group_control .= "<tr><td>group 3</td><td><input type='text' id='group3_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"3\");'></td></tr>";
+	$group_control .= "<tr><td>group 4</td><td><input type='text' id='group4_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"4\");'></td></tr>";
+	$group_control .= "<tr><td>group 5</td><td><input type='text' id='group5_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"5\");'></td></tr>";
+	$group_control .= "<tr><td>group 6</td><td><input type='text' id='group6_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"6\");'></td></tr>";
+	$group_control .= "<tr><td>group 7</td><td><input type='text' id='group7_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"7\");'></td></tr>";
+	$group_control .= "<tr><td>group 8</td><td><input type='text' id='group8_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"8\");'></td></tr>";
+	$group_control .= "<tr><td>group 9</td><td><input type='text' id='group9_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"9\");'></td></tr>";
+	$group_control .= "<tr><td>group 10</td><td><input type='text' id='group10_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"10\");'></td></tr>";
+	$group_control .= "</table></div>";
+	
+	my $img_control = "<table><tr><td><div style='cursor: pointer; background-color: #8FBC3F; color: white; font-weight: bold; height: 16px; width: 250px; text-align: center; padding-top: 4px;' onclick='if(document.getElementById(\"imgctrl$tabnum\").style.display==\"none\"){document.getElementById(\"imgctrl$tabnum\").style.display=\"\";document.getElementById(\"grpctrl$tabnum\").style.display=\"\";}else{document.getElementById(\"imgctrl$tabnum\").style.display=\"none\";document.getElementById(\"grpctrl$tabnum\").style.display=\"none\";}' title='click to expand'>PCoA grouping control</div></td></tr><tr><td id='imgctrl$tabnum' style='display: none;'>";
+	$img_control .= "<table><tr><td><div style='width: 280px;'><b>create a grouping</b><br>You can create a grouping of your metagenomes to calculate p-values in the barchart visualization. Select a group and click the metagenome circle in the graphic. You can also drag open a square to select multiple metagenomes at a time.</div><br><br>mark clicked as <select id='group_color$tabnum'><option value='red' selected=selected>group 1</option><option value='green'>group 2</option><option value='cyan'>group 3</option><option value='purple'>group 4</option><option value='yellow'>group 5</option><option value='blue'>group 6</option><option value='orange'>group 7</option><option value='gray'>group 8</option><option value='black'>group 9</option><option value='magenta'>group 10</option></select><br><br>or select groups in the table to the right.</td><td>";
+	$img_control .= "<table><tr><th>Metagenome</th><th>group</th><th>$md_type_select</th></tr>";
+	my $opts = "<option value='0'>- no group -</option><option value='group1'>group 1</option><option value='group2'>group 2</option><option value='group3'>group 3</option><option value='group4'>group 4</option><option value='group5'>group 5</option><option value='group6'>group 6</option><option value='group7'>group 7</option><option value='group8'>group 8</option><option value='group9'>group 9</option><option value='group10'>group 10</option>";
+	for (my $i=0; $i<scalar(@comp_mgs); $i++) {
+	  $img_control .= "<tr><td>".($comp_mgs[$i] || '')."</td><td><select id='group_list".$tabnum."_$i' onchange='change_pca_color(this, \"$tabnum\", \"$i\");'>$opts</select></td><td><span id='group_list_md_".$tabnum."_$i'>".($mgmd->[$i]->[0] || '')."</span></td></tr>";
+	}
+	$img_control .= "</table>";
+	$img_control .= "<input type='button' value='store grouping' onclick='store_grouping(\"$tabnum\", \"".join("^", @comp_mgs)."\");'>";
+	
+	$img_control .= "<input type='hidden' id='pcamd_".$tabnum."' value='".join("~~", map { join(";;", map { defined($_) ? $_ : 'unknown' } @$_) } @$mgmd)."'></td></tr></table>";
+	
+	$img_control .= "</td></tr></table>";
+	
+	my @comp_b = @comp;
+	my @items_b = @items;
+	my $cmg_hash = {};
+	%$cmg_hash = map { my $x = $_; $x =~ s/\./A/; "ID".$x => $_; } @comp_mgs;
+	my $data_download_button = "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='PCA Component impact\n".join("\n", map { $_ =~ s/\^/\t/g; $_; } @comp_b)."\n\nData Items\nMetagenome\t".join("\t", map { $_ =~ s/(.*)\t.*/$1/; $_; } @comp_b)."\n".join("\n", map { $_ =~ s/\^/\t/g; my ($x) = $_ =~ /^([^\t]+)/; $x = $cmg_hash->{$x}; $_ =~ s/^[^\t]+(.*)/$x$1/; $_; } @items_b)."'><input type='submit' value='download values used to generate this figure'></form>";
+	
+	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
+	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
+	$content .= $img_control;
+	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table><img src='".$Conf::temp_url."/$boxfile' width=600>";
+	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
+	if (! defined($cgi->param('raw'))) {
+	  $content .= "</div></div>";
+	}
+	$tabnum++;
+      }
+    }
+  }
+  
   return $content;
 }
 
@@ -4574,6 +5863,13 @@ sub qiime_export_visual {
 sub data_to_vbar {
   my ($self, $md5_abund, $data, $colnum, $countrow, $topx, $source, $id, $raw, $noclick) = @_;
 
+  my $cgi = new CGI;
+  my $single = 0;
+  if (($source eq 'single') || ($source eq 'lca')) {
+    $single = 1;
+  }
+  my $selsource = $cgi->param('source') || 'lca';
+
   $raw = defined($self->application->cgi->param('raw')) ? $self->application->cgi->param('raw') : 0;
   my $v = $self->application->component('v'.$colnum);
 
@@ -4585,7 +5881,7 @@ sub data_to_vbar {
   ##
   
   my @mgs = $self->application->cgi->param('comparison_metagenomes');
-  my @sources = $self->application->cgi->param('source');
+  my @sources = $self->application->cgi->param('source') || ( 'lca' );
 
   $v->scale_step(0.1 * scalar(@sources));
   if ($raw) {
@@ -4599,6 +5895,9 @@ sub data_to_vbar {
   my $counts = {};  # mg => category => source => {raw, log2, norm, scale, md5s}
   my %cats   = map { $_->[$colnum], {} } @$data; # all categories => {vals, stat} (1 source only)
   my %srcs   = map { $_->[1], {} } @$data;       # all sources => {log2, stat, norm, max, min}
+  if ($single) {
+    %srcs = ( $selsource => {} );
+  }
   my $snum   = scalar(keys %srcs);
   my %catnum = map { $_, 0 } keys %cats;
 
@@ -4607,20 +5906,29 @@ sub data_to_vbar {
     unless (exists $counts->{$row->[0]}) {
       foreach my $cat (keys %cats) {
 	foreach my $src (keys %srcs) {
-	  $counts->{$row->[0]}{$cat}{$src} = {raw => 0, log2 => 0, norm => 0, scale => 0, md5s => {}};
+	  $counts->{$row->[0]}{$cat}{$src} = {raw => 0, log2 => 0, norm => 0, scale => 0, md5s => {}};	  
 	}
       }
     }
-    map { $counts->{$row->[0]}{$row->[$colnum]}{$row->[1]}{md5s}{$_} = 1 } split(/;/, $row->[-1]);
+    if ($single) {
+      $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{raw} = $row->[9];
+      unless ($selsource = 'lca') {
+	map { $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{md5s}{$_} = 1 } @{$row->[-1]};
+      }
+    } else {
+      map { $counts->{$row->[0]}{$row->[$colnum]}{$row->[1]}{md5s}{$_} = 1 } split(/;/, $row->[-1]);
+    }
   }
 
-  #### do this by default
+  # do this by default
   unless ($raw) {
     # get log2 data
     foreach my $mg (keys %$counts) {
       foreach my $cat (keys %{$counts->{$mg}}) {
 	foreach my $src (keys %{$counts->{$mg}{$cat}}) {
-	  map { $counts->{$mg}{$cat}{$src}{raw} += $md5_abund->{$mg}{$_} } grep {exists $md5_abund->{$mg}{$_}} keys %{$counts->{$mg}{$cat}{$src}{md5s}};
+	  unless ($single) {
+	    map { $counts->{$mg}{$cat}{$src}{raw} += $md5_abund->{$mg}{$_} } grep {exists $md5_abund->{$mg}{$_}} keys %{$counts->{$mg}{$cat}{$src}{md5s}};
+	  }
 	  $counts->{$mg}{$cat}{$src}{log2} = 2 * (log($counts->{$mg}{$cat}{$src}{raw} + 1) / log(2));
 	  push @{ $srcs{$src}{log2} }, $counts->{$mg}{$cat}{$src}{log2};
 	}
@@ -4667,7 +5975,9 @@ sub data_to_vbar {
       foreach my $cat (keys %{$counts->{$mg}}) {
 	foreach my $src (keys %{$counts->{$mg}{$cat}}) {
 	  # get top value per category
-	  map { $counts->{$mg}{$cat}{$src}{raw} += $md5_abund->{$mg}{$_} } grep {exists $md5_abund->{$mg}{$_}} keys %{$counts->{$mg}{$cat}{$src}{md5s}};
+	  unless ($single) {
+	    map { $counts->{$mg}{$cat}{$src}{raw} += $md5_abund->{$mg}{$_} } grep {exists $md5_abund->{$mg}{$_}} keys %{$counts->{$mg}{$cat}{$src}{md5s}};
+	  }
 	  $catnum{$cat} = max ($catnum{$cat}, $counts->{$mg}{$cat}{$src}{raw});
 	  # get stdev per mg group
 	  if ($snum == 1) { push @{ $cats{$cat}{vals} }, $counts->{$mg}{$cat}{$src}{raw}; }
@@ -4687,7 +5997,6 @@ sub data_to_vbar {
   $topx = $topx ? $topx : 10;
   my @topcat = sort { $catnum{$b} <=> $catnum{$a} } keys %catnum;
   if (scalar(@topcat) > $topx) { splice @topcat, $topx; }
-
   my $data_onclicks  = [];
   my $title_onclicks = [];
   my $i = 0;
@@ -4702,8 +6011,11 @@ sub data_to_vbar {
       my $j = 0;
       $data_onclicks->[$i]->[$h] = [];
       foreach my $src (@sources) {
-	if ($raw) { push @$cell, $counts->{$mg}{$cat}{$src}{raw}; }
-	else      { push @$cell, sprintf("%.3f", ($counts->{$mg}{$cat}{$src}{scale} || 0)); }
+	if ($raw) {
+	  push @$cell, $counts->{$mg}{$cat}{$src}{raw};
+	} else {
+	  push @$cell, sprintf("%.3f", ($counts->{$mg}{$cat}{$src}{scale} || 0));
+	}
 	if ($snum == 1) { push @$c2, $cats{$cat}{stat}->standard_deviation; }
 	if ($source eq 'phylo' && $id) {
 	  $title_onclicks->[$i] = "document.getElementById(\"phylo_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"phylo_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"phylo_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"phylogeny_visual\",\"".(int($colnum)+1)."_$id\",\"phylo_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
@@ -4711,6 +6023,12 @@ sub data_to_vbar {
 	} elsif ($source eq 'meta' && $id) {
 	  $title_onclicks->[$i] = "document.getElementById(\"meta_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"meta_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"meta_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"metabolism_visual\",\"".(int($colnum)+1)."_$id\",\"meta_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
 	  $data_onclicks->[$i]->[$h]->[$j] = "document.getElementById(\"meta_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"meta_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"meta_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"metabolism_visual\",\"".(int($colnum)+1)."_$id\",\"meta_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
+	} elsif ($source eq 'single' && $id) {
+	  $title_onclicks->[$i] = "document.getElementById(\"single_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"single_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"single_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"single_visual\",\"".(int($colnum)+2)."_$id\",\"single_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
+	  $data_onclicks->[$i]->[$h]->[$j] = "document.getElementById(\"single_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"single_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"single_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"single_visual\",\"".(int($colnum)+2)."_$id\",\"single_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
+	} elsif ($source eq 'lca' && $id) {
+	  $title_onclicks->[$i] = "document.getElementById(\"lca_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"lca_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"lca_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"lca_visual\",\"".(int($colnum)+2)."_$id\",\"lca_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
+	  $data_onclicks->[$i]->[$h]->[$j] = "document.getElementById(\"lca_drilldown$id\").firstChild.value=\"".$topcat[$i]."\";document.getElementById(\"lca_drilldown$id\").firstChild.nextSibling.value=\"$colnum\";document.getElementById(\"lca_drilldown$id\").firstChild.nextSibling.nextSibling.value=\"$id\";execute_ajax(\"lca_visual\",\"".(int($colnum)+2)."_$id\",\"lca_drilldown$id\",\"loading...\", null, load_tabs);show_progress();";
 	}
 	$j++;
       }

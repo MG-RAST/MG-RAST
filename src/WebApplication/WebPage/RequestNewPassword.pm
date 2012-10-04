@@ -37,6 +37,7 @@ sub init {
   my $self = shift;
   $self->title('Request a new password');
   $self->application->register_component('RequestNewPassword', 'RequestNewPassword');
+  $self->omit_from_session(1);
 }
 
 =pod

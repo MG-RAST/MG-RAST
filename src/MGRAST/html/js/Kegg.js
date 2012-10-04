@@ -49,6 +49,46 @@ function tobuff () {
   }
 }
 
+function export_kegg_abundance () {
+  var kids = [];
+  var abu = [];
+  var which = [];
+
+  if(Object.keys(buf_a).length == 0 && Object.keys(buf_b).length == 0) {
+    alert('You must load a metagenome into Data A or Data B before you can export the abundance.');
+    return false;
+  }
+
+  for (i in buf_a) {
+    kids.push(i);
+    abu.push(buf_a[i]);
+    which.push('a');
+  }
+
+  for (i in buf_b) {
+    kids.push(i);
+    abu.push(buf_b[i]);
+    which.push('b');
+  }
+  
+  var str_kids = kids.join('~');
+  var str_abu = abu.join('~');
+  var str_which = which.join('~');
+
+  var html_abundance_table = "";
+  $.ajax({ async: false, type: "POST", url: "metagenomics.cgi", data: { page: "KeggMapper", action: "export_kegg_abundance", format: "html", kids: str_kids, abu: str_abu, which: str_which }, success: function (result) {
+    html_abundance_table = result;
+  }});
+
+  var html = "<html><form id=\"saveTextForm\" method=\"post\" action=\"metagenomics.cgi\"><input type=\"hidden\" name=\"page\" value=\"KeggMapper\"><input type=\"hidden\" name=\"action\" value=\"export_kegg_abundance\"><input type=\"hidden\" name=\"format\" value=\"text\" /><input type=\"hidden\" name=\"kids\" value=\""+str_kids+"\" /><input type=\"hidden\" name=\"abu\" value=\""+str_abu+"\" /><input type=\"hidden\" name=\"which\" value=\""+str_which+"\" /><input type=\"submit\" value=\"Click to save as tab-delimited text file\" /></form><br /><br />";
+
+  html += html_abundance_table+"</html>";
+
+  var my_window = window.open("", "", "width=650,height=700,scrollbars,resizable");
+  my_window.document.open('text/html');
+  my_window.document.write(html);
+}
+
 function compare () {
   var all_a = [];
   var all_b = [];

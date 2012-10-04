@@ -11,9 +11,9 @@ my $usage   = "$0 [--verbose] [--load_db] --out <outfile: must be absolute path>
 my $verbose = 0;
 my $load_db = 0;
 my $outfile = '';
-my $dbname  = "mgrast_ach_prod";
-my $dbhost  = "kursk-3.mcs.anl.gov";
-my $dbuser  = "mgrastprod";
+my $dbname  = "";
+my $dbhost  = "";
+my $dbuser  = "";
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit 1; }
 if ( ! GetOptions('verbose!' => \$verbose,

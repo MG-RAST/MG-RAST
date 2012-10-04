@@ -16,12 +16,15 @@ sub about {
   my $ach = new Babel::lib::Babel;
   my $content = { 'description' => "metagenomic abundance profile",
 		  'parameters'  => { "id" => "string",
-				     "type" => [ "organism", "function" ],
-				     "source" => { "protein"  => [ 'm5nr', map {$_->[0]} @{$ach->get_protein_sources} ],
+				     "type" => [ "organism", "function", "feature" ],
+				     "source" => { "protein"  => [ 'M5NR', map {$_->[0]} @{$ach->get_protein_sources} ],
 						   "ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
-						   "rna"      => [ 'm5rna', map {$_->[0]} @{$ach->get_rna_sources} ]
+						   "rna"      => [ 'M5RNA', map {$_->[0]} @{$ach->get_rna_sources} ]
 						 }
 				   },
+		  'defaults' => { "source" => "M5NR (organism), or Subsystems (function), or RefSeq (feature)",
+				  "type"   => "organism"
+				},
 		  'return_type' => "application/json" };
 
   print $cgi->header(-type => 'application/json',
@@ -42,6 +45,14 @@ sub request {
     exit 0;
   }
 
+  if (scalar(@$rest) && $rest->[0] eq 'available_sources') {
+    print $cgi->header(-type => 'application/json',
+		       -status => 200,
+		       -Access_Control_Allow_Origin => '*' );
+    print $json->encode($mgdb->get_sources);
+    exit 0;
+  }
+
   if ($error) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
@@ -57,7 +68,7 @@ sub request {
     print "ERROR: abundance profile call requires at least an id parameter";
     exit 0;
   }
-  
+
   my $id = shift @$rest;
   (undef, $id) = $id =~ /^(mgm)?(\d+\.\d+)$/;
   unless ($id) {
@@ -85,23 +96,16 @@ sub request {
     exit 0;
   }
 
+  # set params
   my $params = {};
   while (scalar(@$rest) > 1) {
     my $key = shift @$rest;
     my $value = shift @$rest;
     $params->{$key} = $value;
   }
-
-  my $source = 'M5NR';
-  if ($params->{source}) {
-    $source = $params->{source};
-  } elsif ($cgi->param('source')) {
-    $source = $cgi->param('source');
-  }
-
-  if ($cgi->param('type')) {
-    $params->{type} = $cgi->param('type');
-  }
+  $params->{type}   = $cgi->param('type') ? $cgi->param('type') : 'organism';
+  $params->{source} = $cgi->param('source') ? $cgi->param('source') :
+    (($params->{type} eq 'organism') ? 'M5NR' : (($params->{type} eq 'function') ? 'Subsystems': 'RefSeq'));
 
   my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {
@@ -113,96 +117,92 @@ sub request {
   }
   $mgdb->set_jobs([$id]);
 
-  my $ach = new Babel::lib::Babel;
-  unless (ref($ach)) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 500,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Could not access ontology database";
-    exit 0;    
-  }
-  if (scalar(@$rest) && $rest->[0] eq 'available_sources') {
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode($mgdb->get_sources);
-    exit 0;
-  }
-
-  my $data;
-  if (! $params->{type} || ($params->{type} && $params->{type} eq 'organism')) {
-    my $strain2tax = {};
-    my $dbh = $ach->dbh;
-    my $rows = $dbh->selectall_arrayref("select name, ncbi_tax_id from organisms_ncbi");
-    %$strain2tax = map { $_->[0] => $_->[1] } @$rows;
-
-    my ($md5_abund, $result) = $mgdb->get_organisms_for_sources([$source]);
-    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-    
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-    
-    my $values = [];
-    my $tax = [];
-    foreach my $row (@$result) {
-      if (! $strain2tax->{$row->[9]}) {
-	next;
-      }
-      my $tax_str = [ "k__".$row->[2], "p__".$row->[3], "c__".$row->[4], "o__".$row->[5], "f__".$row->[6], "g__".$row->[7], "s__".$row->[9] ];
-      push(@$tax, { "id" => $strain2tax->{$row->[9]}, "metadata" => { "taxonomy" => $tax_str }  });
-      push(@$values, [ int($row->[10]) ]);
-    }
-    
-    $data = { "id"                  => "mgm".$id,
-	      "format"              => "Biological Observation Matrix 0.9.1",
-	      "format_url"          => "http://biom-format.org",
-	      "type"                => "Taxon table",
-	      "generated_by"        => "MG-RAST revision ".$Conf::server_version,
-	      "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-	      "matrix_type"         => "dense",
-	      "matrix_element_type" => "int",
-	      "shape"               => [ scalar(@$values), 1 ],
-	      "rows"                => $tax,
-	      "columns"             => [ { "id" => $id, "metadata" => undef } ],
-	      "data"                => $values };
-
-  } elsif ($params->{type} && $params->{type} eq 'function') {
-
-    my $function2ont = $ach->get_all_ontology4source_hash($source);
-    my ($md5_abund, $result) = $mgdb->get_ontology_for_source($source);
-    # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-    
-    my $values = [];
-    my $numrows = scalar(@$result);
-    my $ont = [];
-    foreach my $row (@$result) {
-      next unless ($function2ont->{$row->[1]});
-      my $ont_str = [ map { defined($_) ? $_ : '-' } @{$function2ont->{$row->[1]}} ];
-      push(@$ont, { "id" => $row->[1], "metadata" =>  { "ontology" => $ont_str }  });
-      push(@$values, [ int($row->[3]) ]);
-    }
-    
-    $data = { "id"                  => "mgm".$id,
-	      "format"              => "Biological Observation Matrix 0.9.1",
-	      "format_url"          => "http://biom-format.org",
-	      "type"                => "Function table",
-	      "generated_by"        => "MG-RAST revision ".$Conf::server_version,
-	      "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-	      "matrix_type"         => "dense",
-	      "matrix_element_type" => "int",
-	      "shape"               => [ scalar(@$values), 1 ],
-	      "rows"                => $ont,
-	      "columns"             => [ { "id" => $id, "metadata" => undef } ],
-	      "data"                => $values };
-
+  # validate type / source
+  my $all_srcs = {};
+  if ($params->{type} eq 'organism') {
+    $all_srcs = { M5NR => 1, M5RNA => 1 };
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
+  } elsif ($params->{type} eq 'function') {
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_ontology_sources};
+  } elsif ($params->{type} eq 'feature') {
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
   } else {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid type for profile call: ".$params->{type}." - valid types are [ 'organism', 'function' ]";
+    print "ERROR: Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']";
     exit 0;
   }
+  unless (exists $all_srcs->{ $params->{source} }) {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 400,
+		       -Access_Control_Allow_Origin => '*' );
+    print "ERROR: Invalid source for profile call of type ".$params->{type}.": ".$params->{source}." - valid types are [".join(", ", keys %$all_srcs)."]";
+    exit 0;
+  }
+
+  my $values  = [];
+  my $rows    = [];
+  my $ttype   = '';
+  my $columns = [ { id => 'abundance', metadata => { metagenome => 'mgm'.$id } },
+		  { id => 'e-value', metadata => { metagenome => 'mgm'.$id } },
+		  { id => 'percent identity', metadata => { metagenome => 'mgm'.$id } },
+		  { id => 'alignment length', metadata => { metagenome => 'mgm'.$id } }
+		];
+
+  # get data
+  if ($params->{type} eq 'organism') {
+    $ttype = 'Taxon';
+    my $strain2tax = $mgdb->ach->map_organism_tax_id();
+    my ($md5_abund, $result) = $mgdb->get_organisms_for_sources([$params->{source}]);
+    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+    foreach my $row (@$result) {
+      next unless (exists $strain2tax->{$row->[9]});
+      my $tax_str = [ "k__".$row->[2], "p__".$row->[3], "c__".$row->[4], "o__".$row->[5], "f__".$row->[6], "g__".$row->[7], "s__".$row->[9] ];
+      push(@$rows, { "id" => $strain2tax->{$row->[9]}, "metadata" => { "taxonomy" => $tax_str }  });
+      push(@$values, [ toFloat($row->[10]), toFloat($row->[12]), toFloat($row->[14]), toFloat($row->[16]) ]);
+    }
+  }
+  elsif ($params->{type} eq 'function') {
+    $ttype = 'Function';
+    my $function2ont = $mgdb->ach->get_all_ontology4source_hash($params->{source});
+    my ($md5_abund, $result) = $mgdb->get_ontology_for_source($params->{source});
+    # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+    foreach my $row (@$result) {
+      next unless (exists $function2ont->{$row->[1]});
+      my $ont_str = [ map { defined($_) ? $_ : '-' } @{$function2ont->{$row->[1]}} ];
+      push(@$rows, { "id" => $row->[1], "metadata" => { "ontology" => $ont_str } });
+      push(@$values, [ toFloat($row->[3]), toFloat($row->[5]), toFloat($row->[7]), toFloat($row->[9]) ]);
+    }
+  }
+  elsif ($params->{type} eq 'feature') {
+    $ttype = 'Gene';
+    my $md52id = {};
+    my $result = $mgdb->get_md5_data(undef, undef, undef, undef, 1);
+    # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
+    my @md5s = map { $_->[1] } @$result;
+    map { push @{$md52id->{$_->[1]}}, $_->[0] } @{ $mgdb->ach->md5s2ids4source(\@md5s, $params->{source}) };
+    foreach my $row (@$result) {
+      next unless (exists $md52id->{$row->[1]});
+      push(@$rows, { "id" => $row->[1], "metadata" => { $params->{source}." ID" => $md52id->{$row->[1]} } });
+      push(@$values, [ toFloat($row->[2]), toFloat($row->[3]), toFloat($row->[5]), toFloat($row->[7]) ]);
+    }
+  }
+
+  my $data = { "id"                  => "mgm".$id,
+	       "format"              => "Biological Observation Matrix 1.0",
+	       "format_url"          => "http://biom-format.org",
+	       "type"                => $ttype." table",
+	       "generated_by"        => "MG-RAST revision ".$Conf::server_version,
+	       "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+	       "matrix_type"         => "dense",
+	       "matrix_element_type" => "float",
+	       "shape"               => [ scalar(@$values), 4 ],
+	       "rows"                => $rows,
+	       "columns"             => $columns,
+	       "data"                => $values };
 
   print $cgi->header(-type => 'application/json',
 		     -status => 200,
@@ -210,6 +210,11 @@ sub request {
   print $json->encode($data);
   exit 0;
 
+}
+
+sub toFloat {
+  my ($x) = @_;
+  return $x * 1.0;
 }
 
 sub TO_JSON { return { %{ shift() } }; }

@@ -48,6 +48,7 @@ sub init {
   $self->application->register_action($self, 'validate_metadata', 'validate_metadata');
   $self->application->register_action($self, 'submit_to_mgrast', 'submit_to_mgrast');
   $self->application->register_action($self, 'generate_webkey', 'generate_webkey');
+  $self->application->register_action($self, 'read_status_file', 'read_status_file');
 
   $self->application->register_component('Table', 'sequence_table');
 
@@ -165,7 +166,7 @@ sub output {
                        <td style="padding-left: 240px;">
                           <p>Select one or more files to upload to your private inbox folder.</p>
                           <p>Sequence files must be fasta, fastq, or sff format.
-                             Use vaild file extensions for the appropriate format: .fasta, .fa, .ffn, .frn, .fna, .fq, .fastq, .sff</p>
+                             Use vaild file extensions for the appropriate format: .fasta, .fa, .ffn, .frn, .fna, .fq, .fastq, .sff </p>
                        </td>
                     </tr>
                  </table>
@@ -192,8 +193,12 @@ sub output {
 		                 <progress id="prog2" min="0" max="100" value="0" style="width: 400px;">0% complete</progress>
     		              </td>
 		           </tr>
+                           <tr>
+                              <td style="height: 50px;">
+	                         <a class="btn btn-danger" href="#" onclick="cancel_upload();" style="position: relative; top: 5px; left: 435px;"><i class="icon-ban-circle"></i> cancel upload</a>
+                              </td>
+                           </tr>
 	                </table>
-	                <a class="btn btn-danger" href="#" onclick="cancel_upload();" style="position: relative; top: 9px; left: 435px;"><i class="icon-ban-circle"></i> cancel upload</a>
  	             </div>
                   </div>
                
@@ -210,13 +215,136 @@ sub output {
                <li><a onclick="toggle('sel_inbox_div');" class="pill_incomplete" id="sel_inbox_pill" style="font-size: 17px; font-weight: bold;">3. manage inbox</a></li>
 	       <div id="sel_inbox_div" style="display: none;" class="well">
 <p>You can unpack, delete, convert and demultiplex files from your inbox below. Metadata files will automatically appear in the <i>'select metadata file'</i> section below. Sequence files will automatically appear in the <i>'select sequence file(s)'</i> section below after sequence statistics are calculated (may take anywhere from seconds to hours depending on file size).</p>
-                  <input type="button" class="btn" value="delete selected" onclick="check_delete_files();">
-                  <input type="button" class="btn" value="unpack selected" onclick="unpack_files();">
-                  <input type="button" class="btn" value="convert sff to fastq" onclick="convert_files();">
-                  <input type="button" class="btn" value="demultiplex" onclick="demultiplex_files();">
-                  <input type="button" class="btn" value="update inbox" onclick="update_inbox();">
-                  <input type="button" class="btn" value="change file directory" onclick="change_file_dir();">
-                  <div id="inbox" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+<p>Filenames in gray in your Inbox are undergoing analysis and cannot be moved or submitted to a different process until analysis is complete.  Filenames in red have encountered an error.</p>
+                 <br>
+                 <table border=0 cellpadding=4>
+                   <tr >
+                     <td colspan=2 style='font-size:14px;'><B>File Processing Operations</B></td>
+                   </tr>
+                   <tr>
+                     <td><input type="button" class="btn" style='width:130px;' value="unpack selected" onclick="unpack_files();"></td>
+                     <td width=250 style='vertical-align:middle;'>Unpacks selected zip, gzip, or tar files.</td>
+                     <td><input type="button" class="btn" style='width:130px;' value="demultiplex" onclick="demultiplex_files();"></td>
+                     <td width=250 style='vertical-align:middle;'>Demultiplexes selected files.</td>
+                   </tr>
+                   <tr>
+                     <td><input type="button" class="btn" style='width:130px;' value="convert sff to fastq" onclick="convert_files();"></td>
+                     <td width=250 style='vertical-align:middle;'>Converts selected sff files to fastq format.</td>
+                     <td>
+		       <form style='margin:0;'>
+			 <div class="modal hide" id="mergeMatePairsModal" tabindex="-1" role="dialog" aria-labelledby="mergeMatePairsModalLabel" aria-hidden="true">
+			   <button style="display: none;" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Hidden merge mate-pairs button for enter key submission</button>
+			   <div class="modal-header">
+			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+			     <h3 id="mergeMatePairsModalLabel">create directory</h3>
+		           </div>
+			   <div class="modal-body">
+			     <p>Please select file 1 of your mate-pairs:</p>
+			     <div id="mate_pair_one" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Please select file 2 of your mate-pairs:</p>
+			     <div id="mate_pair_two" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Please enter the desired name of your merge mate-pairs output file:</p>
+			     <div id="merge_mate_pairs_input" style='margin-top: 10px;'><input type="text" id="merge_output_filename" /></div>
+		           </div>
+			   <div class="modal-footer">
+			     <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Merge Mate-Pair Files</button>
+		           </div>
+			 </div>
+		       </form>
+                       <input type="button" class="btn" style='width:130px;' value="merge mate-pairs" data-toggle="modal" href="#mergeMatePairsModal"">
+                     </td>
+                     <td width=250 style='vertical-align:middle;'>Merges mate-pair files.</td>
+                   </tr>
+                 </table>
+                 <br>
+                 <table>
+                   <tr>
+                     <td rowspan=2 style="padding-right: 20px;">
+                       <form class="form-horizontal">
+                         <div id="inbox" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+                       </form>
+		       <table border=0 cellpadding=4>
+			 <tr>
+			   <td colspan=2 style='font-size:14px;'><B>Directory Management Operations</B></td>
+			 <tr>
+			   <td><input type="button" class="btn" style='width:130px;' value="update inbox" onclick="update_inbox();"></td>
+			   <td style='vertical-align:middle;'>Refreshes the contents of your inbox.</td>
+			 </tr>
+			 <tr>
+			   <td>
+			     <div class="modal hide" id="moveModal" tabindex="-1" role="dialog" aria-labelledby="moveModalLabel" aria-hidden="true">
+			       <div class="modal-header">
+				 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+				 <h3 id="moveModalLabel">move selected files</h3>
+			       </div>
+			       <div class="modal-body">
+				 <p>Please select the directory where you would like to move your selected files:</p>
+				 <div id="dir_list" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			       </div>
+			       <div class="modal-footer">
+				 <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+				 <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="move_files();" data-dismiss="modal" aria-hidden="true">Move files</button>
+			       </div>
+			     </div>
+			     <input type="button" class="btn" style='width:130px;' value="move selected" data-toggle="modal" href="#moveModal">
+			   </td>
+			   <td style='vertical-align:middle;'>Moves the selected files into or out of a directory.</td>
+			 </tr>
+			 <tr>
+			   <td><input type="button" class="btn" style='width:130px;' value="delete selected" onclick="check_delete_files();"></td>
+			   <td style='vertical-align:middle;'>Deletes the selected files.</td>
+			 </tr>
+			 <tr>
+			   <td>
+			     <form style='margin:0;'>
+			       <div class="modal hide" id="createDirModal" tabindex="-1" role="dialog" aria-labelledby="createDirModalLabel" aria-hidden="true">
+				 <button style="display: none;" onclick="create_dir();" data-dismiss="modal" aria-hidden="true">Hidden Create directory button for enter key submission</button>
+				 <div class="modal-header">
+				   <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+				   <h3 id="createDirModalLabel">create directory</h3>
+				 </div>
+				 <div class="modal-body">
+				   <p>Please enter the name of the directory you would like to create:</p>
+				   <div id="create_dir_input" style='margin-top: 10px;'><input type="text" id="create_dir_name" /></div>
+				 </div>
+				 <div class="modal-footer">
+				   <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+				   <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="create_dir();" data-dismiss="modal" aria-hidden="true">Create directory</button>
+				 </div>
+			       </div>
+			     </form>
+			     <input type="button" class="btn" style='width:130px;' value="create directory" data-toggle="modal" href="#createDirModal">
+			   </td>
+			   <td style='vertical-align:middle;'>Creates a new directory in your inbox.</td>
+			 </tr>
+			 <tr>
+			   <td>
+			     <div class="modal hide" id="deleteDirModal" tabindex="-1" role="dialog" aria-labelledby="deleteDirModalLabel" aria-hidden="true">
+			       <div class="modal-header">
+				 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+				 <h3 id="deleteDirModalLabel">delete directory</h3>
+			       </div>
+			       <div class="modal-body">
+				 <p>Please select the directory you would like to delete (only empty directories can be deleted):</p>
+				 <div id="delete_dir_list" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			       </div>
+			       <div class="modal-footer">
+				 <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+				 <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="delete_dir();" data-dismiss="modal" aria-hidden="true">Delete directory</button>
+			       </div>
+			     </div>
+			     <input type="button" class="btn" style='width:130px;' value="delete directory" data-toggle="modal" href="#deleteDirModal">
+			   </td>
+			   <td style='vertical-align:middle;'>Allows you to select and delete an empty directory.</td>
+			 </tr>
+		       </table> 
+                     </td>
+                   </tr>
+                   <tr>
+                     <td><div id="inbox_feedback"></div><div id="inbox_file_info"></div></td>
+                   </tr>
+                 </table>
                </div>
             </ul>
           </div>
@@ -292,6 +420,7 @@ sub output {
                            <option value="d_melanogaster_fb5_22">D. melanogaster, Flybase, r5.22</option>
                            <option value="a_thaliana">A. thaliana, TAIR, TAIR9</option>
                            <option value="e_coli">E. coli, NCBI, st. 536</option>
+                           <option value="s_scrofa_ncbi10.2">Sus scrofa, NCBI v10.2</option>
 			   <option value="none">none</option>
                         </select>
 			<br>Remove any host specific species sequences (e.g. plant, human or mouse) using DNA level matching with bowtie <a href='http://genomebiology.com/2009/10/3/R25' target='blank'>Langmead et al., Genome Biol. 2009, Vol 10, issue 3</a>
@@ -375,7 +504,7 @@ sub output {
 sub require_javascript {
   return [ "$Conf::cgi_url/Html/jquery.js",
 	   "$Conf::cgi_url/Html/FileUploader.js",
-	   "$Conf::cgi_url/Html/bootstrap.min.js",
+	   "$Conf::cgi_url/Html/bootstrap.js",
 	   "$Conf::cgi_url/Html/Upload.js",
 	   "$Conf::cgi_url/Html/DataHandler.js" ];
 }
@@ -539,9 +668,10 @@ sub submit_to_mgrast {
   }
 
   my $successfully_created_jobs = [];
+  my $err_msgs = [];
   # create metadata collections
   if ($mdata) {
-    $successfully_created_jobs = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
+    ($successfully_created_jobs, $err_msgs) = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
   }
   # else just add to project
   elsif ($project_obj) {
@@ -559,30 +689,39 @@ sub submit_to_mgrast {
     return undef;
   }
 
-  my $mgids = [];
-  foreach my $job (@$successfully_created_jobs) {
-    my $create_job_script = $Conf::create_job;
-    my $seqfile = $job2seq->{$job->{job_id}};
-    my $jid = $job->{job_id};
-    my $is_fastq = ($job2type->{$job->{job_id}} eq 'fastq') ? " --fastq" : "";
-    my $options  = $job->{options} ? ' -o "'.$job->{options}.'"' : "";
-    my $result = `$create_job_script -j $jid -f "$udir/$seqfile"$options$is_fastq`;
-
-    # check if the sequence file made it over to the jobdirectory, then delete it in the inbox
-    my $rawfile = $job->download_dir.$job->{job_id}.".";
-    if ($is_fastq) {
-      $rawfile .= "fastq";
-    } else {
-      $rawfile .= "fna";
-    }
-    if (-f $rawfile && (stat($rawfile))[7] == (stat("$udir/$seqfile"))[7]) {
-      `rm "$udir/$seqfile"`; 
-    }
-
-    push @$mgids, $job->{metagenome_id};
-  }
+  my $pid = fork();
   
-  return $mgids;
+  # child
+  if ($pid == 0) {
+    close STDERR;
+    close STDOUT;
+    foreach my $job (@$successfully_created_jobs) {
+      my $create_job_script = $Conf::create_job;
+      my $seqfile = $job2seq->{$job->{job_id}};
+      my $jid = $job->{job_id};
+      my $is_fastq = ($job2type->{$job->{job_id}} eq 'fastq') ? " --fastq" : "";
+      my $options  = $job->{options} ? ' -o "'.$job->{options}.'"' : "";
+      my $result = `$create_job_script -j $jid -f "$udir/$seqfile"$options$is_fastq`;
+      
+      # check if the sequence file made it over to the jobdirectory, then delete it in the inbox
+      my $rawfile = $job->download_dir.$job->{job_id}.".";
+      if ($is_fastq) {
+	$rawfile .= "fastq";
+      } else {
+	$rawfile .= "fna";
+      }
+      if (-f $rawfile && (stat($rawfile))[7] == (stat("$udir/$seqfile"))[7]) {
+	`rm "$udir/$seqfile"`; 
+      }
+    }
+    exit;
+  }
+  # parent
+  else {
+    my $mgids = [];
+    @$mgids = map { $_->{metagenome_id} } @$successfully_created_jobs;
+    return $mgids;
+  }
 }
 
 sub check_for_duplicates {
@@ -651,6 +790,30 @@ sub check_project_name {
     print $cgi->header();
     print 1;
   }
+  exit 0;
+}
+
+sub read_status_file {
+  my ($self) = @_;
+
+  my $application = $self->application;
+  my $user = $self->application->session->user;
+  my $cgi = $self->application->cgi;
+  my $type = $cgi->param('type');
+  my $filename = $cgi->param('filename');
+  
+  my $base_dir = "$Conf::incoming";
+  my $udir = $base_dir."/".md5_hex($user->login);
+  my $status_file = "$udir/$filename.$type";
+
+  my $msg = "";
+  if (-f $status_file) {
+    $msg = `cat $status_file`;
+    chomp $msg;
+  }
+
+  print $cgi->header;
+  print $msg;
   exit 0;
 }
 

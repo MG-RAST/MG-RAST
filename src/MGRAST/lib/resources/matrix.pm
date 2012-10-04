@@ -1,8 +1,10 @@
 package resources::matrix;
 
+use MGRAST::Metadata;
 use MGRAST::Analysis;
 use WebServiceObject;
 use Babel::lib::Babel;
+use Data::Dumper;
 
 use CGI;
 use JSON;
@@ -12,28 +14,71 @@ my $cgi = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
+my $result_idx = { abundance => {function => 3, organism => 10, feature => 2},
+		   evalue    => {function => 5, organism => 12, feature => 3},
+		   length    => {function => 7, organism => 14, feature => 5},
+		   identity  => {function => 9, organism => 16, feature => 7}
+		 };
+my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
+my $func_hier  = ['level1','level2','level3','function'];
+my $org_hier   = ['domain','phylum','class','order','family','genus','species','strain'];
+my $type_set   = ["function", "organism", "feature"];
+my $format_set = ["plain", "biome"];
+my $org2tax    = {};
+
 sub about {
   my $ach = new Babel::lib::Babel;
-  my $content = { 'description' => "metagenomic matrix",
-		  'parameters' => { "id" => "one or more metagenome ids joined by ';'",
-				    "source" => { "organism protein"  => [ 'M5NR', map {$_->[0]} @{$ach->get_protein_sources} ],
-						  "function ontology" => [ map {$_->[0]} @{$ach->get_ontology_sources} ],
-						  "organism rna"      => [ 'M5RNA', map {$_->[0]} @{$ach->get_rna_sources} ]
-						},
-				    "type" => [ "function", "organism" ],
-				    "format" => [ "plain", "biome" ],
-				    "result_column" => [ "abundance","evalue","length","identity" ],
-				    "group_level" => { "function" => ['level1','level2','level3','function'],
-						       "organism" => ['domain','phylum','class','order','family','genus','species','strain'] },
-				    "show_hierarchy" => "boolean" },
-		  'defaults' => { "source" => "M5NR (organism) or Subsystems (function)",
-				  "type"   => "organism",
-				  "format" => "biom",
-				  "result_column"  => "abundance",
-				  "group_level"    => "strain (organism) or function (function)",
-				  "show_hierarchy" => "false"
-				},
-		  'return_type' => "application/json" };
+  my $content = { 'description' => "metagenomic matrix. NOTE: different matrix types will have different 'source' and 'group_level' options.",
+		  'documentation' => '',
+		  'required' => [ "matrix annotation type" => $type_set ],
+		  'options' => { "id" => ["string", "metagenome or project id"],
+				 "source" => [ ['M5NR', "Non-Redundant Multi-Source Protein Annotation Database"],
+					       @{$ach->get_protein_sources},
+					       ['M5RNA', 'Non-Redundant Multi-Source Ribosomal RNA Annotation Database'],
+					       @{$ach->get_rna_sources},
+					       @{$ach->get_ontology_sources}
+					     ],
+				 "format" => [ ['biom', 'Biological Observation Matrix (BIOM) format: http://biom-format.org/'],
+					       ['plain', 'tab-seperated plain text format']
+					     ],
+				 "result_type" => [ ['abundance', 'number of reads with hits in annotation'],
+						    ['evalue', 'average e-value exponent of hits in annotation'],
+						    ['identity', 'average percent identity of hits in annotation'],
+						    ['length', 'average alignment length of hits in annotation']
+						  ],
+				 "group_level" => [ ['function', 'bottom ontology level (function:default)'],
+						    ['level3', 'function type level (function)' ],
+						    ['level2', 'function type level (function)' ],
+						    ['level1', 'top function type level (function)'],
+						    ['strain', 'bottom organism type level (organism:default)'],
+						    ['species', 'organism type level (organism)'],
+						    ['genus', 'organism type level (organism)'],
+						    ['family', 'organism type level (organism)'],
+						    ['order', 'organism type level (organism)'],
+						    ['class', 'organism type level (organism)'],
+						    ['phylum', 'organism type level (organism)'],
+						    ['domain', 'top organism type level (organism)'],
+						  ],
+				 "show_hierarchy" => [ ["0", "Show just annotation name in row when using format=plain"],
+						       ["1", "Show full hierarchy text string in row when using format=plain"]
+						     ]
+			       },
+		  'attributes' => { "id"                   => "string",
+				    "format"               => "string",
+				    "format_url"           => "uri",
+				    "type"                 => "string",
+				    "generated_by"         => "string",
+				    "date"                 => "datetime",
+				    "matrix_type"          => "string",
+				    "matrix_element_type"  => "string",
+				    "matrix_element_value" => "string",
+				    "shape"                => "list<integer>",
+				    "rows"                 => "list<object>",
+				    "columns"              => "list<object>",
+				    "data"                 => "list<list<integer|float>>"
+				  },
+		  'return_type' => "application/json"
+		};
 
   print $cgi->header(-type => 'application/json',
 		     -status => 200,
@@ -48,11 +93,10 @@ sub request {
   my $rest = $params->{rest_parameters};
   my $user = $params->{user};
   my ($master, $error) = WebServiceObject::db_connect();
-  if ($rest && scalar(@$rest) == 1 && $rest->[0] eq 'about') {
+  if (($rest && scalar(@$rest) == 1 && $rest->[0] eq 'about') || (scalar(@$rest) == 0)) {
     &about();
     exit 0;
   }
-
   if ($error) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 500,
@@ -61,333 +105,318 @@ sub request {
     exit 0;
   }
 
-  my $raw_ids = [];
-  my $ids = [];
-  @$raw_ids = split /;/, $rest->[0];
-  my $id_pos = {};
-  my $x = 0;
-  foreach my $raw_id (@$raw_ids) {
-    my (undef, $id) = $raw_id =~ /^(mgm)?(\d+\.\d+)$/;
-    if ($id) {
-      push(@$ids, $id);
-      $id_pos->{$id} = $x;
-      $x++;
-    }
-  }
-
-  unless (scalar(@$ids)) {
+  # get matrix type
+  my $type = shift @$rest;
+  unless ( grep(/^$type$/, @$type_set) ) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid id format for profile call: ".$rest->[0];
+    print "ERROR: Invalid type for matrix call: ".$type." - valid types are [".join(", ", @$type_set)."]";
     exit 0;
   }
 
-  if (scalar(@$ids) < 30) {
-    foreach my $id (@$ids) {
-      my $job_object = $master->Job->get_objects( { metagenome_id => $id } );
-      unless ($job_object) {
-	print $cgi->header(-type => 'text/plain',
-			   -status => 400,
-			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: Unknown id in matrix call: ".$id;
-	exit 0;
-      }
-      
-      unless ($job_object->[0]->{public} || ($user && $user->has_right(undef, 'view', 'metagenome', $id))) {
-	print $cgi->header(-type => 'text/plain',
-			   -status => 401,
-			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: Insufficient permissions for matrix call for id: ".$id;
-	exit 0;
-      }
-    }
-  } else {
-    my $allowed = {};
-    if ($user) {
-      my $hrt = $user->has_right_to(undef, 'view', 'metagenome');
-      %$allowed = map { $_ => 1 } @$hrt;
-    }
-    my $public = $master->Job->get_objects( { public => 1 } );
-    foreach my $pj (@$public) {
-      $allowed->{$pj->{metagenome_id}} = 1;
-    }
-    foreach my $id (@$ids) {
-      unless ($allowed->{$id}) {
+  # get id set
+  unless ($cgi->param('id')) {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 400,
+		       -Access_Control_Allow_Origin => '*' );
+    print "ERROR: No ids submitted, aleast one 'id' is required";
+    exit 0;
+  }
+  my @ids   = $cgi->param('id');
+  my $mgids = {};
+  my $seen  = {};
+
+  # get user viewable
+  my %p_rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'project')} : ();
+  my %m_rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
+  map { $p_rights{$_} = 1 } @{ $master->Project->get_public_projects(1) };
+  map { $m_rights{$_} = 1 } @{ $master->Job->get_public_jobs(1) };
+
+  # get unique list of mgids based on user rights and inputed ids
+  foreach my $id (@ids) {
+    next if (exists $seen->{$id});
+    if ($id =~ /^mgm(\d+\.\d+)$/) {
+      if (exists($m_rights{'*'}) || exists($m_rights{$1})) {
+	$mgids->{$1} = 1;
+      } else {
 	print $cgi->header(-type => 'text/plain',
 			   -status => 401,
 			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: Insufficient permissions for matrix call for id: ".$id;
+	print "ERROR: Insufficient permissions in matrix call for id: ".$id;
 	exit 0;
       }
+    } elsif ($id =~ /^mgp(\d+)$/) {
+      if (exists($p_rights{'*'}) || exists($p_rights{$1})) {
+	my $proj = $master->Project->init( {id => $1} );
+	foreach my $mgid (@{ $proj->metagenomes(1) }) {
+	  next unless (exists($m_rights{'*'}) || exists($m_rights{$mgid}));
+	  $mgids->{$mgid} = 1;
+	}
+      } else {
+	print $cgi->header(-type => 'text/plain',
+			   -status => 401,
+			   -Access_Control_Allow_Origin => '*' );
+	print "ERROR: Insufficient permissions in matrix call for id: ".$id;
+	exit 0;
+      }
+    } else {
+      print $cgi->header(-type => 'text/plain',
+			 -status => 400,
+			 -Access_Control_Allow_Origin => '*' );
+      print "ERROR: Unknown id in matrix call: ".$id;
+      exit 0;
     }
+    $seen->{$id} = 1;
+  }
+  if (scalar(keys %$mgids) == 0) {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 400,
+		       -Access_Control_Allow_Origin => '*' );
+    print "ERROR: No valid ids submitted and/or found: ".join(", ", @ids);
+    exit 0;
   }
 
-  shift @$rest;
+  # get optional params
+  my $format = $cgi->param('format') ? $cgi->param('format') : 'biom';
+  my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'M5NR' : (($type eq 'function') ? 'Subsystems': 'RefSeq'));
+  my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
+  my $glvl   = $cgi->param('group_level') ? $cgi->param('group_level') : (($type eq 'organism') ? 'strain' : 'function');
+  my $show_h = $cgi->param('show_hierarchy') ? 1 : 0;
+  my $all_srcs  = {};
+  my $leaf_node = 0;
 
+  # initialize analysis obj with mgids
   my $mgdb = MGRAST::Analysis->new( $master->db_handle );
-  $mgdb->set_jobs($ids);
-
-  my $ach = new Babel::lib::Babel;
-
-  my $params = {};
-  while (scalar(@$rest) > 1) {
-    my $key = shift @$rest;
-    my $value = shift @$rest;
-    $params->{$key} = $value;
+  unless (ref($mgdb)) {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 500,
+		       -Access_Control_Allow_Origin => '*' );
+    print "ERROR: Could not access analysis database";
+    exit 0;
   }
+  $mgdb->set_jobs([ keys %$mgids ]);
 
-  my $source = 'M5NR';
-  if ($params->{source}) {
-    $source = $params->{source};
-  } elsif ($params->{type} && $params->{type} eq 'function') {
-    $source = $params->{source} || 'Subsystems';
-  }
-
-  my $data;
-  my ($md5_abund, $result);
-
-  if (! $params->{type} || ($params->{type} && $params->{type} eq 'organism')) {
-    ($md5_abund, $result) = $mgdb->get_organisms_for_sources([$source]);   
-  } elsif ($params->{type} && $params->{type} eq 'function') {
-    ($md5_abund, $result) = $mgdb->get_ontology_for_source($source);
-  } else {
+  # validate controlled vocabulary params
+  unless (exists $result_map->{$rtype}) {
     print $cgi->header(-type => 'text/plain',
 		       -status => 400,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid type for matrix call: ".$params->{type}." - valid types are [ 'function', 'organism' ]";
+    print "ERROR: Invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]";
+    exit 0;
+  }
+  if ($type eq 'organism') {
+    $all_srcs = { M5NR => 1, M5RNA => 1 };
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
+    if ( grep(/^$glvl$/, @$org_hier) ) {
+      $glvl = 'tax_'.$glvl;
+      if ($glvl eq 'tax_strain') {
+	$glvl = 'name';
+	$leaf_node = 1;
+      }
+    } else {
+      print $cgi->header(-type => 'text/plain',
+			 -status => 400,
+			 -Access_Control_Allow_Origin => '*' );
+      print "ERROR: Invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @$org_hier)."]";
+      exit 0;
+    }
+  } elsif ($type eq 'function') {
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_ontology_sources};
+    if ( grep(/^$glvl$/, @$func_hier) ) {
+      if ($glvl eq 'function') {
+	$glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
+      }
+      if ( ($glvl eq 'level4') || (($source =~ /^[NC]OG$/) && ($glvl eq 'level3')) ) {
+	$leaf_node = 1;
+      }
+    } else {
+      print $cgi->header(-type => 'text/plain',
+			 -status => 400,
+			 -Access_Control_Allow_Origin => '*' );
+      print "ERROR: Invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @$func_hier)."]";
+      exit 0;
+    }
+  } elsif ($type eq 'feature') {
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
+    map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
+  }
+  unless (exists $all_srcs->{$source}) {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 400,
+		       -Access_Control_Allow_Origin => '*' );
+    print "ERROR: Invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %$all_srcs)."]";
     exit 0;
   }
 
-  if ($params->{format} && $params->{format} eq 'plain') {
-    my $mg_pos = {};
-    for (my $i=0;$i<scalar(@$ids);$i++) {
-      $mg_pos->{$ids->[$i]} = $i;
-    }
-    unless (defined($params->{result_column})) {
-      $params->{result_column} = 'abundance';
-    }
-    unless (defined($params->{show_hierarchy})) {
-      $params->{show_hierarchy} = 0;
-    }
-    my $first_val_cell = 1;
-    my $row_hash = {};
-    if (! $params->{type} || ($params->{type} && $params->{type} eq 'organism')) {
+  # get data
+  my $md52id  = {};
+  my $ttype   = '';
+  my $mtype   = '';
+  my $matrix  = []; # [ row <annotation>, col <mgid>, value ]
+  my $col_idx = $result_idx->{$rtype}{$type};
+
+  if ($type eq 'organism') {
+    $ttype = 'Taxon';
+    $mtype = 'taxonomy';
+    if ($leaf_node) {
+      my (undef, $info) = $mgdb->get_organisms_for_sources([$source]);
       # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-      my $colmapping = { 'abundance' => 10,
-			 'evalue'   => 12,
-			 'length'   => 16,
-			 'identity' => 14 };
-
-      my $levelmapping = { 'domain'  => 2,
-			   'phylum'  => 3,
-			   'class'   => 4,
-			   'order'   => 5,
-			   'family'  => 6,
-			   'genus'   => 7,
-			   'species' => 8,
-			   'strain'  => 9 };
-
-      unless (defined($params->{group_level})) {
-	$params->{group_level} = 'strain';
-      }
-
-      my $value_col = $colmapping->{$params->{result_column}};
-      my $group_col = $levelmapping->{$params->{group_level}};
-      my $tax_hash = {};
-      if ($params->{show_hierarchy}) {
-	$first_val_cell += $group_col - 2;
-      }
-      foreach my $row (@$result) {
-	unless (defined($tax_hash->{$row->[$group_col]})) {
-	  $tax_hash->{$row->[$group_col]} = [];
-	  for (my $i=2; $i<=$group_col; $i++) {
-	    push(@{$tax_hash->{$row->[$group_col]}}, $row->[$i]);
-	  }
-	}
-	if (! exists($row_hash->{$row->[$group_col]})) {
-	  my $new_row = [];
-	  if ($params->{show_hierarchy}) {
-	    push(@$new_row, @{$tax_hash->{$row->[$group_col]}});
-	  } else {
-	    push(@$new_row, $row->[$group_col]);
-	  }
-	  if ($params->{result_column} eq 'abundance') {
-	    push(@$new_row, map { 0 } @$ids);
-	  } else {
-	    push(@$new_row, map { "0;0" } @$ids);
-	  }
-	  $row_hash->{$row->[$group_col]} = $new_row;
-	}
-	if ($params->{result_column} eq 'abundance') {
-	  $row_hash->{$row->[$group_col]}->[$first_val_cell + $mg_pos->{$row->[0]}] += $row->[$value_col];
-	} else {
-	  my ($v, $n) = split /;/, $row_hash->{$row->[$group_col]}->[$first_val_cell + $mg_pos->{$row->[0]}];
-	  $row_hash->{$row->[$group_col]}->[$first_val_cell + $mg_pos->{$row->[0]}] = ((($row->[$value_col] * $row->[10]) + ($v * $n)) / ($n + $row->[10])).";".($n+$row->[10]);
-	}
-      }
-      
+      @$matrix = map {[ $_->[9], $_->[0], toNum($_->[$col_idx], $rtype) ]} @$info;
+      map { $org2tax->{$_->[9]} = [ @$_[2..9] ] } @$info;
     } else {
+      @$matrix = map {[ $_->[1], $_->[0], toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype})};
+      # mgid, hier_annotation, value
+    }
+  }
+  elsif ($type eq 'function') {
+    $ttype = 'Function';
+    $mtype = 'ontology';
+    if ($leaf_node) {
+      my (undef, $info) = $mgdb->get_ontology_for_source($source);
       # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-      my $function2ont = $ach->get_all_ontology4source_hash($source);
-
-      my $colmapping = { 'abundance' => 3,
-			 'evalue  ' => 5,
-			 'length'   => 9,
-			 'identity' => 7 };
-
-      my $levelmapping = { 'level1'   => 0,
-			   'level2'   => 1,
-			   'level3'   => 2,
-			   'function' => 3 };
-
-      unless (defined($params->{group_level})) {
-	$params->{group_level} = 'function';
-      }
-
-      my $value_col = $colmapping->{$params->{result_column}};
-      my $group_col = $levelmapping->{$params->{group_level}};
-      my $ont_hash = {};
-      if ($params->{show_hierarchy}) {
-	$first_val_cell += $group_col;
-      }
-      foreach my $row (@$result) {
-	unless (defined($ont_hash->{$function2ont->{$row->[1]}->[$group_col]})) {
-	  $ont_hash->{$function2ont->{$row->[1]}->[$group_col]} = [];
-	  for (my $i=0; $i<=$group_col; $i++) {
-	    push(@{$ont_hash->{$row->[$group_col]}}, $function2ont->{$row->[1]}->[$i]);
-	  }
-	}
-
-	if (! exists($row_hash->{$function2ont->{$row->[1]}->[$group_col]})) {
-	  my $new_row = [];
-	  if ($params->{show_hierarchy}) {
-	    push(@$new_row, @{$ont_hash->{$function2ont->{$row->[1]}->[$group_col]}});
-	  } else {
-	    push(@$new_row, $function2ont->{$row->[1]}->[$group_col]);
-	  }
-	  if ($params->{result_column} eq 'abundance') {
-	    push(@$new_row, map { 0 } @$ids);
-	  } else {
-	    push(@$new_row, map { "0;0" } @$ids);
-	  }
-	  $row_hash->{$function2ont->{$row->[1]}->[$group_col]} = $new_row;
-	}
-	if ($params->{result_column} eq 'abundance') {
-	  $row_hash->{$function2ont->{$row->[1]}->[$group_col]}->[$first_val_cell + $mg_pos->{$row->[0]}] += $row->[$value_col];
-	} else {
-	  my ($v, $n) = split /;/, $row_hash->{$function2ont->{$row->[1]}->[$group_col]}->[$first_val_cell + $mg_pos->{$row->[0]}];
-	  $row_hash->{$function2ont->{$row->[1]}->[$group_col]}->[$first_val_cell + $mg_pos->{$row->[0]}] = ((($row->[$value_col] * $row->[3]) + ($v * $n)) / ($n + $row->[3])).";".($n+$row->[3]);
-	}
-      }
-    }
-    foreach my $key (sort(keys(%$row_hash))) {
-      if ($params->{result_column} ne 'abundance') {
-	my $len = scalar(@$ids) + $first_val_cell;
-	for (my $i=$first_val_cell; $i<$len; $i++) {
-	  ($row_hash->{$key}->[$i], undef) = split /;/, $row_hash->{$key}->[$i];
-	}
-      }
-      push(@$data, $row_hash->{$key});
-    }
-
-    my $header = [];
-    for (my $i=0;$i<$first_val_cell; $i++) {
-      push(@$header, "");
-    }
-    for (my $i=0;$i<scalar(@$ids); $i++) {
-      push(@$header, $ids->[$i]);
-    }
-    
-    print $cgi->header(-type => 'text/plain',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print join("\t", @$header)."\n";
-    print join("\n", map { join("\t", @$_) } @$data);
-    exit 0;
-  } else {
-    if (! $params->{type} || ($params->{type} && $params->{type} eq 'organism')) {
-      my $value_index = 10;
-      my $strain2tax = {};
-      my $dbh = $ach->dbh;
-      my $rows = $dbh->selectall_arrayref("select name, ncbi_tax_id from organisms_ncbi");
-      %$strain2tax = map { $_->[0] => $_->[1] } @$rows;
-      
-      my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-      
-      my $values = [];
-      my $numrows = scalar(@$result);
-      my $tax = [];
-      my $taxa = {};
-      my $pos = 0;
-      foreach my $row (@$result) {
-	if (! $strain2tax->{$row->[9]}) {
-	  next;
-	}
-	unless (exists($taxa->{$strain2tax->{$row->[9]}})) {
-	  my $tax_str = [ "k__".$row->[2], "p__".$row->[3], "c__".$row->[4], "o__".$row->[5], "f__".$row->[6], "g__".$row->[7], "s__".$row->[9] ];
-	  push(@$tax, { "id" => $strain2tax->{$row->[9]}, "metadata" =>  { "taxonomy" => $tax_str }  });
-	  $taxa->{$strain2tax->{$row->[9]}} = $pos;
-	  $pos++;
-	}
-	push(@$values, [ int($taxa->{$strain2tax->{$row->[9]}}), $id_pos->{$row->[0]}, int($row->[10]) ]);
-      }
-      
-      $data = { "id"                  => join(";", map { "mgm".$_ } @$ids) ,
-		"format"              => "Biological Observation Matrix 0.9.1",
-		"format_url"          => "http://biom-format.org",
-		"type"                => "Taxon table",
-		"generated_by"        => "MG-RAST revision ".$Conf::server_version,
-		"date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-		"matrix_type"         => "sparse",
-		"matrix_element_type" => "int",
-		"shape"               => [ $pos, scalar(@$ids) ],
-		"rows"                => $tax,
-		"columns"             => [ map { { "id" => $_, "metadata" => undef } } @$ids ],
-		"data"                => $values };
-
+      @$matrix = map {[ $_->[1], $_->[0], toNum($_->[$col_idx], $rtype) ]} @$info;
     } else {
-
-      my $value_index = 3;
-      my $function2ont = $ach->get_all_ontology4source_hash($source);
-
-      my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-      my $values = [];
-      my $numrows = scalar(@$result);
-      my $ont = [];
-      my $pos = 0;
-      my $ontol = {};
-      foreach my $row (@$result) {
-	next unless ($function2ont->{$row->[1]});
-	my $function = $row->[1];
-	unless (exists($ontol->{$function})) {
-	  my $ont_str = [ map { defined($_) ? $_ : '-' } @{$function2ont->{$row->[1]}} ];
-	  push(@$ont, { "id" => $row->[1], "metadata" =>  { "ontology" => $ont_str }  });
-	  $ontol->{$function} = $pos;
-	  $pos++;
-	}
-	push(@$values, [ $ontol->{$function}, $id_pos->{$row->[0]}, int($row->[3]) ]);
-      }
-      
-      $data = { "id"                  => join(";", map { "mgm".$_ } @$ids),
-		"format"              => "Biological Observation Matrix 0.9.1",
-		"format_url"          => "http://biom-format.org",
-		"type"                => "Function table",
-		"generated_by"        => "MG-RAST revision ".$Conf::server_version,
-		"date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-		"matrix_type"         => "sparse",
-		"matrix_element_type" => "int",
-		"shape"               => [ $pos, scalar(@$ids) ],
-		"rows"                => $ont,
-		"columns"             => [ map { { "id" => $_, "metadata" => undef } } @$ids ],
-		"data"                => $values };
+      @$matrix = map {[ $_->[1], $_->[0], toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_ontol_level($glvl, undef, $source, $result_map->{$rtype})};
+      # mgid, hier_annotation, value
     }
+  }
+  elsif ($type eq 'feature') {
+    $ttype = 'Gene';
+    $mtype = $source.' ID';
+    my $info = $mgdb->get_md5_data(undef, undef, undef, undef, 1);
+    # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
+    my %md5s = map { $_->[1], 1 } @$info;
+    map { push @{$md52id->{$_->[1]}}, $_->[0] } @{ $mgdb->ach->md5s2ids4source([keys %md5s], $source) };
+    @$matrix = map {[ $_->[1], $_->[0], toNum($_->[$col_idx], $rtype) ]} grep {exists $md52id->{$_->[1]}} @$info;
+  }
 
+  @$matrix = sort { $a->[0] cmp $b->[0] || $a->[1] cmp $b->[1] } @$matrix;
+  my $row_ids = sorted_hash($matrix, 0);
+  my $col_ids = sorted_hash($matrix, 1);
+
+  # produce output
+  if ($format eq 'biom') {
+    my $brows = [];
+    my $bcols = [];
+    my $r_map = ($type eq 'feature') ? $md52id : get_hierarchy($mgdb, $type, $glvl, $source, $leaf_node);
+    foreach my $rid (sort {$row_ids->{$a} <=> $row_ids->{$b}} keys %$row_ids) {
+      my $rmd = exists($r_map->{$rid}) ? { $mtype => $r_map->{$rid} } : undef;
+      push @$brows, { id => $rid, metadata => $rmd };
+    }
+	my $mddb = MGRAST::Metadata->new();
+	my $meta = $mddb->get_jobs_metadata_fast([keys %$col_ids], 1);
+    foreach my $cid (sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids) {
+	  my $cmd = exists($meta->{$cid}) ? $meta->{$cid} : undef;
+      push @$bcols, { id => 'mgm'.$cid, metadata => $cmd };
+    }
+    my $bdata = { "id"                   => join(";", map { $_->{id} } @$bcols),
+		  "format"               => "Biological Observation Matrix 1.0",
+		  "format_url"           => "http://biom-format.org",
+		  "type"                 => $ttype." table",
+		  "generated_by"         => "MG-RAST revision ".$Conf::server_version,
+		  "date"                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+		  "matrix_type"          => "sparse",
+		  "matrix_element_type"  => ($rtype eq 'abundance') ? "int" : "float",
+		  "matrix_element_value" => $rtype,
+		  "shape"                => [ scalar(keys %$row_ids), scalar(keys %$col_ids) ],
+		  "rows"                 => $brows,
+		  "columns"              => $bcols,
+		  "data"                 => index_sparse_matrix($matrix, $row_ids, $col_ids)
+		};
     print $cgi->header(-type => 'application/json',
 		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode($data);
+    print $json->encode($bdata);
     exit 0;
+  }
+  elsif ($format eq 'plain') {
+    my $hier_map = $show_h ? get_hierarchy($mgdb, $type, $glvl, $source, $leaf_node) : {};
+    my $m_dense  = sparse_to_dense($matrix, $row_ids, $col_ids);
+    my @row_head = sort {$row_ids->{$a} <=> $row_ids->{$b}} keys %$row_ids;
+    my @col_head = sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids;
+    print $cgi->header(-type => 'text/plain',
+		       -status => 200,
+		       -Access_Control_Allow_Origin => '*' );
+    print "\t".join("\t", @col_head)."\n";
+    my $rnum = 0;
+    foreach my $mrow (@$m_dense) {
+      my $rname = exists($hier_map->{$row_head[$rnum]}) ? join(';', @{$hier_map->{$row_head[$rnum]}}) : $row_head[$rnum];
+      print $rname."\t".join("\t", @$mrow)."\n";
+      $rnum += 1;
+    }
+    exit 0;
+  }
+  else {
+    print $cgi->header(-type => 'text/plain',
+		       -status => 400,
+		       -Access_Control_Allow_Origin => '*' );
+    print "ERROR: Invalid format for matrix call: ".$format." - valid formats are [".join(", ", @$format_set)."]";
+    exit 0;
+  }
+}
+
+sub get_hierarchy {
+  my ($mgdb, $type, $level, $src, $leaf_node) = @_;
+  if ($type eq 'organism') {
+    if ($leaf_node) {
+      return $org2tax;
+    } else {
+      return $mgdb->ach->get_taxonomy4level_full($level, 1);
+    }
+  } elsif ($type eq 'function') {
+    if ($leaf_node) {
+      return $mgdb->ach->get_all_ontology4source_hash($src);
+    } else {
+      return $mgdb->ach->get_level4ontology_full($src, $level, 1);
+    }
+  } else {
+    return {};
+  }
+}
+
+sub sparse_to_dense {
+  my ($matrix, $rows, $cols) = @_;
+  my $nrows  = scalar(keys %$rows);
+  my $ncols  = scalar(keys %$cols);
+  my @dense  = map { [ map { 0 } 1..$ncols ] } 1..$nrows;
+  foreach my $pos (@$matrix) {
+    my ($r, $c, $v) = @$pos;
+    $dense[ $rows->{$r} ][ $cols->{$c} ] = $v;
+  }
+  return \@dense;
+}
+
+sub index_sparse_matrix {
+  my ($matrix, $rows, $cols) = @_;
+  my $sparse = [];
+  foreach my $pos (@$matrix) {
+    my ($r, $c, $v) = @$pos;
+    push @$sparse, [ $rows->{$r}, $cols->{$c}, $v ];
+  }
+  return $sparse;
+}
+
+sub sorted_hash {
+  my ($array, $idx) = @_;
+  my $pos = 0;
+  my $out = {};
+  my @sub = sort map { $_->[$idx] } @$array;
+  foreach my $x (@sub) {
+    next if (exists $out->{$x});
+    $out->{$x} = $pos;
+    $pos += 1;
+  }
+  return $out;
+}
+
+sub toNum {
+  my ($x, $type) = @_;
+  if ($type eq 'abundance') {
+    return int($x);
+  } else {
+    return $x * 1.0;
   }
 }
 

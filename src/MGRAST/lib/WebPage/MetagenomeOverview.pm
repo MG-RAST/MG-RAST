@@ -62,9 +62,27 @@ sub init {
 
   # sanity check on job
   if ($id) { 
-    my $job = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $id }); 
-    unless (ref($job) && $job->viewable) {
-      $self->app->error("Unable to retrieve the job for metagenome '$id'.");
+    my $mgrast = $self->application->data_handle('MGRAST');
+    my $jobs_array = $mgrast->Job->get_objects( { metagenome_id => $id } );
+    unless (@$jobs_array > 0) {
+      $self->app->add_message('warning', "Unable to retrieve the metagenome '$id'. This metagenome does not exist.");
+      return 1;
+    }
+    my $job = $jobs_array->[0];
+    my $user = $self->application->session->user;
+
+    if(! $job->public) {
+      if(! $user) {
+        $self->app->add_message('warning', 'Please log into MG-RAST to view private metagenomes.');
+        return 1;
+      } elsif(! $user->has_right(undef, 'view', 'metagenome', $id)) {
+        $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+        return 1;
+      }
+    }
+
+    unless ($job->viewable) {
+      $self->app->add_message('warning', "Unable to view metagenome '$id' because it is still processing.");
       return 1;
     }
     $self->data('job', $job);
@@ -148,9 +166,9 @@ sub output {
   $html .= "<p><table><tr>";
   $html .= "<td style='font-size:large;'><b>MG-RAST ID</b></td>";
   $html .= "<td style='font-size:large;'>&nbsp;&nbsp;&nbsp;$mgid".($user && $user->is_admin('MGRAST') ? " (".$job->job_id.")" : "")."</td>";
-  $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' target=_blank href='metagenomics.cgi?page=DownloadMetagenome&metagenome=$mgid'><img src='./Html/mg-download.png' style='width:20px;height:20px;' title='Download $mgid'></a></td>";
-  $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'><img src='./Html/analysis.gif' style='width:20px;height:20px;' title='Analyze $mgid'></a></td>";
-  $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' href='#search_ref'><img src='./Html/lupe.png' style='width:20px;height:20px;' title='Search $mgid'></a></td>";
+  $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' style='color:rgb(82, 129, 176);' target=_blank href='metagenomics.cgi?page=DownloadMetagenome&metagenome=$mgid'><img src='./Html/mg-download.png' style='width:20px;height:20px;' title='Download $mgid'> Download</a></td>";
+  $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' style='color:rgb(82, 129, 176);' target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'><img src='./Html/analysis.gif' style='width:20px;height:20px;' title='Analyze $mgid'> Analyze</a></td>";
+  $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' style='color:rgb(82, 129, 176);' href='#search_ref'><img src='./Html/lupe.png' style='width:20px;height:20px;' title='Search $mgid'> Search</a></td>";
   $html .= "</tr></table></p>";
   $html .= "<p><div style='width: 700px'>";
   $html .= "<div style='float: left'><table>";
@@ -240,6 +258,11 @@ sub output {
 	my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
 	$unkn_aa_reads = ($diff > $unkn_aa_reads) ? 0 : $unkn_aa_reads - $diff;
       }
+      ## hack to make MT numbers add up
+      if (($unknown_all == 0) && ($unkn_aa_reads == 0) && ($raw_seqs < ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads))) {
+	my $diff = ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+	$ann_rna_reads = ($diff > $ann_rna_reads) ? 0 : $ann_rna_reads - $diff;
+      }
   }
 
   # get charts
@@ -295,20 +318,16 @@ sub output {
   }
   $html .= "</ul>";
   # qc
-  if ((! $is_rna) || $bp_consensus) {
-    $html .= "<li style='padding-top:5px;'>Metagenome QC</li>";
-    $html .= "<ul style='margin:0;'>";
-    if (($drisee_num > 0) && (! $is_rna)) {
-      $html .= "<li><a href='#drisee_ref'>DRISEE</a></li>";
-    }
-    if (! $is_rna) {
-      $html .= "<li><a href='#kmer_ref'>Kmer Profile</a></li>";
-    }
-    if ($bp_consensus) {
-      $html .= "<li><a href='#consensus_ref'>Nucleotide Histogram</a></li>";
-    }
-    $html .= "</ul>";
+  $html .= "<li style='padding-top:5px;'>Metagenome QC</li>";
+  $html .= "<ul style='margin:0;'>";
+  if (exists $job_stats->{drisee_score_raw}) {
+  	$html .= "<li><a href='#drisee_ref'>DRISEE</a></li>";
   }
+  $html .= "<li><a href='#kmer_ref'>Kmer Profile</a></li>";
+  if ($bp_consensus) {
+  	$html .= "<li><a href='#consensus_ref'>Nucleotide Histogram</a></li>";
+  }
+  $html .= "</ul>";
   # organism
   $html .= "<li style='padding-top:5px;'>Organism Breakdown</li>";
   $html .= "<ul style='margin:0;'>";
@@ -353,7 +372,7 @@ sub output {
   # gsc mixs
   $html .= "<h3>GSC MIxS Info</h3>";
   $html .= "<div class='metagenome_info' style='width: 300px;'><ul style='margin: 0; padding: 0;'>";
-  $html .= "<li class='even'><label style='text-align: left;'>Investigation Type</label><span style='width: 180px'>Metagenome".(($md_seq_type =~ /wgs|amplicon/i) ? ": $md_seq_type" : "")."</span></li>";
+  $html .= "<li class='even'><label style='text-align: left;'>Investigation Type</label><span style='width: 180px'>".(($md_seq_type =~ /wgs|amplicon|mt/i) ? $mddb->investigation_type_alias($md_seq_type) : "unknown")."</span></li>";
   $html .= "<li class='odd'><label style='text-align: left;'>Project Name</label><span style='width: 180px'>".($self->{project} ? $project_link : "-")."</span></li>";
   $html .= "<li class='even'><label style='text-align: left;'>Latitude and Longitude</label><span style='width: 180px'>".(scalar(@$md_coordinate) ? join(", ", @$md_coordinate) : "-, -")."</span></li>";
   $html .= "<li class='odd'><label style='text-align: left;'>Country and/or Sea, Location</label><span style='width: 180px'>".(scalar(@$md_region) ? join("<br>", @$md_region) : "-")."</span></li>";
@@ -454,9 +473,24 @@ sub output {
   $html .= "<img src='./Html/clear.gif' onload='draw_bar_plot(\"flowchart_div\", $fc_titles, $fc_colors, $fc_data);'></td></tr></table>";
 
   # drisee score
-  if (($drisee_num > 0) && (! $is_rna)) {
+  my $drisee_refrence = "<p>Duplicate Read Inferred Sequencing Error Estimation (<a target=_blank href='http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1002541'>Keegan et al., PLoS Computational Biology, 2012</a>)</p>";
+  my $drisee_boilerplate = qq~
+  <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
+  <p>Note that DRISEE is designed to examine sequencing error in raw whole genome shotgun sequence data. It assumes that adapter and/or barcode sequences have been removed, but that the sequence data have not been modified in any additional way. (e.g.) Assembly or merging, QC based triage or trimming will both reduce DRISEE's ability to provide an accurate assessment of error by removing error before it is analyzed.</p>~;
+
+  if (exists($job_stats->{drisee_score_raw}) && ($drisee_num == 0) && (! $is_rna)) {
+    $html .= qq~<a name='drisee_ref'></a>
+<h3>DRISEE
+<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a></h3>
+$drisee_refrence
+<p>DRISEE could not produce a profile; the sample failed to meet the minimal ADR requirements to calculate an error profile (see Keegan et al. 2012)</p>
+$drisee_boilerplate
+~;
+  } elsif (($drisee_num > 0) && (! $is_rna)) {
     my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
     my $drisee_score = sprintf("%.3f", $drisee_num);
+    my $drisee_info  = $self->get_drisee_info($job);
+    ## [ Input seqs, Processed bins, Processed seqs, Drisee score ]
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a>
@@ -469,19 +503,27 @@ sub output {
     this.innerHTML = "show";
   }'>hide</a></h3>
 <div id='drisee_show'>
+  $drisee_refrence
   <p><b>Total DRISEE Error = $drisee_score %</b></p>
   <img src='./Html/clear.gif' onload='draw_position_on_range("drisee_bar_div", $drisee_num, $min, $max, $avg, $stdv);'>
   <div id='drisee_bar_div'></div>
   <p>The above image shows the range of total DRISEE percent errors in all of MG-RAST. The min, max, and mean values are shown, with the standard deviation ranges (&sigma; and 2&sigma;) in different shades. The total DRISEE percent error of this metagenome is shown in red.</p>
-  <p>DRISEE: Duplicate Read Inferred Sequencing Error Estimation (<a target=_blank href='http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.1002541'>Keegan et al., PLoS Computational Biology, 2012</a>)</p>
-  <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
+  <p>DRISEE successfully calculated an error profile. DRISEE used ~.format_number($drisee_info->[0]).qq~ reads randomly selected from the ~.format_number($raw_seqs).qq~ reads in this sample. ~.format_number($drisee_info->[2]).qq~ duplicate reads were found with bins of 20 or more reads. A total of ~.format_number($drisee_info->[1]).qq~ such bins were detected</p>
+  $drisee_boilerplate
   $drisee_plot
 </div>~;
+  } elsif ($is_rna) {
+	$html .= qq~<a name='drisee_ref'></a>
+<h3>DRISEE
+<a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a></h3>
+$drisee_refrence
+<p>DRISEE could not produce a profile, this is an Amplicon dataset.</p>
+$drisee_boilerplate
+~;
   }
 
   # kmer profiles
-  if (! $is_rna) {
-    $html .= qq~<a name='kmer_ref'></a>
+  $html .= qq~<a name='kmer_ref'></a>
 <h3>Kmer Profiles
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#kmer_profile' style='font-size:14px;padding-left:5px;'>[?]</a>
 <a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='
@@ -491,7 +533,12 @@ sub output {
   } else {
     document.getElementById("kmer_show").style.display = "none";
     this.innerHTML = "show";
-  }'>hide</a></h3>
+  }'>hide</Note that
+DRISEE is designed to examine sequencing error in raw whole genome
+shotgun sequence data. It assumes that adapter and/or barcode sequences have
+been removed, but that the sequence data have not been modified in
+any additional way. (e.g.) Assembly or merging , QC based triage or
+trimming will both reduce DRISEE's ability to provide an accurate assessment  of error by removing error before it is analyzed!   a></h3>
 <a style='cursor:pointer;clear:both;padding-right:20px;' onclick='
     var new_type = document.getElementById("kmer_type").value;
     var new_size = document.getElementById("kmer_size").value;
@@ -510,10 +557,9 @@ sub output {
   <img src='./Html/clear.gif' onload='execute_ajax("get_kmer_plot", "kmer_div", "metagenome=$mgid&job=$job_id&size=15&type=abundance");'>
   <div id='kmer_div'></div>
 </div>~;
-  }
 
   # consensus plot
-  if ($bp_consensus && (! $is_rna)) {
+  if ($bp_consensus) {
     $html .= $bp_consensus;
   }
 
@@ -1191,6 +1237,22 @@ sub draw_krona {
   }
 }
 
+sub get_drisee_info {
+  my ($self, $job) = @_;
+
+  my $dinfo = [];
+  my $info_file = $job->download_dir('qc').'075.drisee.info';
+  my @bin_stats = `tail -4 $info_file`;
+  chomp @bin_stats;
+
+  foreach my $line (@bin_stats) {
+    my ($key, $val) = split('\t', $line);
+    push @$dinfo, $val;
+  }
+  ## [ Input seqs, Processed bins, Processed seqs, Drisee score ]
+  return $dinfo;
+}
+
 sub get_drisee_chart {
   my ($self, $job) = @_;
 
@@ -1321,6 +1383,7 @@ sub get_consensus_chart {
   }
   my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
   my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
+  my $num_bps = scalar(@$data);
 
   my $html .= qq~<a name='consensus_ref'></a>
 <h3>Nucleotide Position Histogram
@@ -1334,7 +1397,7 @@ sub get_consensus_chart {
     this.innerHTML = "show";
   }'>hide</a></h3>
 <div id='consensus_show'>
-  <p>These graphs show the fraction of base pairs of each type (A, C, G, T, or ambiguous base "N") at each position starting from the beginning of each read up to the first 100 base pairs. Amplicon datasets should show consensus sequences; shotgun datasets should have roughly equal proportions of basecalls.</p>
+  <p>These graphs show the fraction of base pairs of each type (A, C, G, T, or ambiguous base "N") at each position starting from the beginning of each read up to the first $num_bps base pairs. Amplicon datasets should show consensus sequences; shotgun datasets should have roughly equal proportions of basecalls.</p>
   <p>$consensus_link</p>
   <script type="text/javascript">
     google.load("visualization", "1", {packages:["corechart"]});
