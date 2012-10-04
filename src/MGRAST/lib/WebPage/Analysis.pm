@@ -1522,13 +1522,13 @@ sub workbench_blat_output {
 	my ($score, $evalue, $identity) = ("","","");
 	while ($line !~ /Database/) {
 	  my ($s, $e) = $line =~ /Score = (\d+ bits \(\d+\)), Expect = (.*)/;
-	  if ($s) {
+	  if ($s && $score eq "") {
 	    chomp $e;
 	    $score = $s;
 	    $evalue = $e;
 	  }
 	  my ($iden) = $line =~ /Identities = ([^,]+)/;
-	  if ($iden) {
+	  if ($iden && $identity eq "") {
 	    $identity = $iden;
 	  }
 	  $alignments .= $line;
