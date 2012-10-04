@@ -452,15 +452,25 @@ sub download {
   my $job  = $self->{job};
   my $file = $cgi->param('file');
   my $sid  = $cgi->param('stage');
-  my $dir  = ($sid == 50) ? $job->download_dir() : $job->download_dir($sid);
+  my $stats= $job->stats();
 
-  if (open(FH, $dir.$file)) {
-    my $content = do { local $/; <FH> };
-    close FH;
+  my $dir  = ($sid == 50) ? $job->download_dir() : $job->download_dir($sid);
+  my $file_path = $dir.$file;
+  my $number_of_bytes = (stat ($file_path))[7];
+
+  if (open(FH, $file_path)) {
+    binmode FH;
+
     print "Content-Type:application/x-download\n";  
-    print "Content-Length: " . length($content) . "\n";
+    print "Content-Length:$number_of_bytes\n";
     print "Content-Disposition:attachment;filename=" . $job->metagenome_id . "." . $cgi->param('file') . "\n\n";
-    print $content; 
+
+    my $data;
+    while ((read FH, $data, 1024) != 0) {
+      print "$data";
+    }
+    close FH;
+
     exit;
   } else {
     $self->application->add_message('warning', "Could not open download file " . $job->download_dir($sid) . "/$file");
