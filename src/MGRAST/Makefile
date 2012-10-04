@@ -29,7 +29,7 @@ PERL_LIB = $(wildcard lib/*.pm) \
 	$(wildcard lib/OntologyOnDemand/*.pm) \
 	$(wildcard lib/JobDB/*.pm) \
 	$(wildcard lib/resources/*.pm) \
-	$(wildcard lib/resources2/*.pm
+	$(wildcard lib/resources2/*.pm)
 
 WEBPAGES := $(wildcard html/*.tmpl) \
 	$(wildcard html/images/*.png) \
