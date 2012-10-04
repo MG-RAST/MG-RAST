@@ -250,7 +250,7 @@ sub check_pagination {
       next if ($param eq 'offset');
       $additional_params .= $param."=".$cgi->param($param)."&";
     }
-    if (length($additional_params) {
+    if (length($additional_params)) {
       chop $additional_params;
     }
     my $prev_offset = $offset - $limit;
