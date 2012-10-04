@@ -128,7 +128,7 @@ sub instance {
   # check id format
   my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
   if (! $id && scalar(@$rest)) {
-    return_data("ERROR: invalid id format: ".$rest->[0], 400);
+    return_data({ "ERROR" => "invalid id format: ".$rest->[0] }, 400);
   }
 
   # get database
@@ -141,10 +141,10 @@ sub instance {
       my $data = prepare_data($job);
       return_data([$data]);
     } else {
-      return_data("ERROR: insufficient permissions to view this data", 401);
+      return_data({ "ERROR" => "insufficient permissions to view this data" }, 401);
     }
   } else {
-    return_data("ERROR: id $id does not exists", 404);
+    return_data({ "ERROR" => "id $id does not exists" }, 404);
   }
 }
 
@@ -180,7 +180,7 @@ sub prepare_data {
   use MGRAST::Analysis;
   my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {
-    return_data("ERROR: resource database offline", 503);
+    return_data({ "ERROR" => "resource database offline" }, 503);
   }
   $mgdb->set_jobs([$data->{metagenome_id}]);
   
@@ -209,7 +209,7 @@ sub connect_to_datasource {
 
   my ($master, $error) = WebServiceObject::db_connect();
   if ($error) {
-    return_data("ERROR: resource database offline", 503);
+    return_data({ "ERROR" => "resource database offline" }, 503);
   } else {
     return $master;
   }
@@ -230,6 +230,9 @@ sub check_pagination {
       next if ($param eq 'offset');
       $additional_params .= $param."=".$cgi->param($param)."&";
     }
+    if (length($additional_params) {
+      chop $additional_params;
+    }
     my $prev_offset = $offset - $limit;
     if ($prev_offset < 0) {
       $prev_offset = 0;
@@ -244,7 +247,7 @@ sub check_pagination {
       } else {
 	@$data = sort { $a->{$order} cmp $b->{$order} } @$data;
       }
-      @$data = @$data[$offset..($offset + $limit)];
+      @$data = @$data[$offset..($offset + $limit - 1)];
       $data = { "limit" => $limit,
 		"offset" => $offset,
 		"total_count" => $total_count,
@@ -254,7 +257,7 @@ sub check_pagination {
 		"data" => $data };
 
     } else {
-      return_data("ERROR: invalid sort order, there is not attribute $order", 400);
+      return_data({ "ERROR" => "invalid sort order, there is not attribute $order" }, 400);
     }
   }
    
@@ -305,7 +308,7 @@ sub return_data {
   # if an error is passed, change the return format to text 
   # and change the status code to the error code passed
   if ($error) {
-    $format = "text/plain";
+    $format = "application/json";
     $status = $error;
   }
 
