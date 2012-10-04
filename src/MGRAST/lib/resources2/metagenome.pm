@@ -221,7 +221,7 @@ sub prepare_data {
 	$obj->{sample}   = $job->{sample} ? [ "mgs".$job->sample->ID, $cgi->url."sample/mgs".$job->sample->ID ] : undef;
 	$obj->{library}  = $job->{library} ? [ "mgl".$job->library->ID, $cgi->url."/library/mgl".$job->library->ID ] : undef;
       } elsif ($cgi->param('verbosity') ne 'minimal') {
-	return_data({ "ERROR" => "invalid value for option verbosity", 400);
+	return_data({ "ERROR" => "invalid value for option verbosity" }, 400);
       }
     }
     
@@ -262,7 +262,7 @@ sub check_pagination {
       next if ($param eq 'offset');
       $additional_params .= $param."=".$cgi->param($param)."&";
     }
-    if (length($additional_params) {
+    if (length($additional_params)) {
       chop $additional_params;
     }
     my $prev_offset = $offset - $limit;
