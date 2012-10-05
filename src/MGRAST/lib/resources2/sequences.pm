@@ -139,7 +139,7 @@ sub instance {
   if ($job && ref($job)) {
     if ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $id))) {
       my $data = prepare_data($job);
-      return_data([$data]);
+      return_data($data);
     } else {
       return_data({ "ERROR" => "insufficient permissions to view this data" }, 401);
     }

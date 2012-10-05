@@ -144,7 +144,7 @@ sub instance {
   # prepare data
   my $data = prepare_data([ $project ]);
 
-  return_data($data)
+  return_data($data->[0])
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
@@ -358,7 +358,7 @@ sub return_data {
 	
 	# normal result
 	$data = { jsonrpc => "2.0",
-		  result => $data,
+		  result => [$data],
 		  id => $json_rpc_id };
       }
 
