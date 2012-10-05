@@ -131,7 +131,7 @@ sub instance {
   # prepare data
   my $data = prepare_data([ $sample ]);
 
-  return_data($data)
+  return_data($data->[0])
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
@@ -180,8 +180,8 @@ sub prepare_data {
     $obj->{created}  = $sample->{entry_date};
     
     if ($cgi->param('verbosity')) {
-      my $mdata = $sample->data();
       if ($cgi->param('verbosity') eq 'full') {
+    my $mdata = $sample->data();
 	my $name  = $sample->name ? $sample->name : (exists($mdata->{sample_name}) ? $mdata->{sample_name} : (exists($mdata->{sample_id}) ? $mdata->{sample_id} : ''));
 	my $proj  = $sample->project;
 	my $epack = $sample->children('ep');
@@ -203,6 +203,7 @@ sub prepare_data {
 	@{ $obj->{metagenomes} } = map { "mgm".$_->{metagenome_id} } @jobs;
       }
       if (($cgi->param('verbosity') eq 'verbose') || ($cgi->param('verbosity') eq 'full')) {
+    my $mdata = $sample->data();
 	if ($cgi->param('template')) {
 	  $mdata = $mddb->add_template_to_data('sample', $mdata);
 	}
