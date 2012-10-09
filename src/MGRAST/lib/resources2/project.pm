@@ -143,6 +143,7 @@ sub instance {
 
   # prepare data
   my $data = prepare_data([ $project ]);
+  $data = $data->[0];
 
   return_data($data)
 }

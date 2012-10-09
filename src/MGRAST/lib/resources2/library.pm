@@ -132,6 +132,7 @@ sub instance {
 
   # prepare data
   my $data = prepare_data([ $library ]);
+  $data = $data->[0];
 
   return_data($data)
 }

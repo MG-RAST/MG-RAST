@@ -130,6 +130,7 @@ sub instance {
 
   # prepare data
   my $data = prepare_data([ $sample ]);
+  $data = $data->[0];
 
   return_data($data)
 }
