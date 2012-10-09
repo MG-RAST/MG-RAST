@@ -15,6 +15,7 @@ my $select  = '';
 my $memkey  = '_ach';
 my $memhost = "";
 my $options = { md5      => 1,
+		        ontology => 1,
 		        function => 1,
 		        organism => 1,
 		        source   => 1
@@ -112,7 +113,9 @@ elsif (($select ne 'md5') && $mapf && (-s $mapf)) {
     if (($select eq 'organism') || ($select eq 'source')) {
       $other =~ s/\\N//;
       $map_data->{$id} = [ $name, $other ];
-    } else {
+    } elsif ($select eq 'ontology') {
+		$map_data->{$other}{$id} = $name;
+	} else {
       $map_data->{$id} = $name;
     }
   }
