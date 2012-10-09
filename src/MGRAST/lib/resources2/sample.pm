@@ -335,8 +335,13 @@ sub return_data {
   # check for remote procedure call
   if ($json_rpc) {
     
+    # check to comply to Bob Standards
+    unless (ref($data) eq 'ARRAY') {
+      $data = [ $data ];
+    }
+
     # only reply if this is not a notification
-    if (defined($json_rpc_id)) { 
+    #if (defined($json_rpc_id)) { 
       if ($error) {
 
 	my $error_code = $status;
@@ -366,7 +371,7 @@ sub return_data {
 			 -Access_Control_Allow_Origin => '*' );
       print $json->encode($data);
       exit 0;
-    }
+    #} else { exit; }
   } else {
     
     # check for JSONP

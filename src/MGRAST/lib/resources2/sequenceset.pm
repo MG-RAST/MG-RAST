@@ -343,6 +343,11 @@ sub return_data {
 
   # check for remote procedure call
   if ($json_rpc) {
+
+    # check to comply to Bob Standards
+    unless (ref($data) eq 'ARRAY') {
+      $data = [ $data ];
+    }
     
     # only reply if this is not a notification
     #if (defined($json_rpc_id)) { 
