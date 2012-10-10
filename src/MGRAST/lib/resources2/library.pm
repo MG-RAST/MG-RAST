@@ -134,7 +134,7 @@ sub instance {
   my $data = prepare_data([ $library ]);
   $data = $data->[0];
 
-  return_data($data->[0])
+  return_data($data)
 }
 
 # the resource is called without an id parameter, but with at least one query parameter

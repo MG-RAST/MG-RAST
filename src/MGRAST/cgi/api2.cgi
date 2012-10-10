@@ -65,7 +65,7 @@ if (opendir(my $dh, $resource_path)) {
 }
 
 # check for json rpc
-my $json_rpc = $cgi->param('POSTDATA');
+my $json_rpc = $cgi->param('POSTDATA') || $cgi->param('keywords');
 $cgi->delete('POSTDATA');
 my $json_rpc_id;
 my $rpc_request;
