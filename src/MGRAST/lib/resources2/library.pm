@@ -248,9 +248,9 @@ sub check_pagination {
   my ($data) = @_;
 
   if ($cgi->param('limit')) {
-    my $limit = $cgi->param('limit');
+    my $limit = $cgi->param('limit') || 10;
     my $offset = $cgi->param('offset') || 0;
-    my $order = $cgi->param('order') || "created";
+    my $order = $cgi->param('order') || "id";
     my $total_count = scalar(@$data);
     my $additional_params = "";
     my @params = $cgi->param;
