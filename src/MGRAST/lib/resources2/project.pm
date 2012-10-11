@@ -358,7 +358,7 @@ sub return_data {
 	$data = { jsonrpc => "2.0",
 		  error => { code => $error_code,
 			     message => $error_messages->{$status},
-			     data => $data },
+			     data => $data->[0] },
 		  id => $json_rpc_id };
 
       } else {
