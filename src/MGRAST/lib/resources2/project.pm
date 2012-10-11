@@ -66,18 +66,20 @@ sub info {
 				      'description' => "Returns a set of data matching the query criteria.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
-				      'attributes'  => attributes(),
+				      'attributes'  => { "next"   => [ "uri", "link to the previous set or null if this is the first set" ],
+							 "prev"   => [ "uri", "link to the next set or null if this is the last set" ],
+							 "order"  => [ "string", "name of the attribute the returned data is ordered by" ],
+							 "data"   => [ "list", [ "object", attributes() ] ],
+							 "limit"  => [ "integer", "maximum number of data items returned, default is 10" ],
+							 "total_count" => [ "integer", "total number of available data items" ],
+							 "offset" => [ "integer", "zero based index of the first returned data item" ] },
 				      'parameters'  => { 'options'     => { 'verbosity' => [ 'cv', [ [ 'minimal', 'returns only minimal information' ],
 												     [ 'verbose', 'returns all metadata' ],
 												     [ 'full', 'returns all metadata and references' ] ] ],
 									    'limit' => [ 'integer', 'maximum number of items requested' ],
 									    'offset' => [ 'integer', 'zero based index of the first data object to be returned' ],
-									    'order' => [ 'cv', [ [ 'created', 'return data objects ordered by creation date' ],
-												 [ 'id' , 'return data objects ordered by id' ],
-												 [ 'name' , 'return data objects ordered by name' ],
-												 [ 'funding_source' , 'return data objects ordered by funding source' ],
-												 [ 'pi' , 'return data objects ordered by principal investigator' ],
-												 [ 'version' , 'return data objects ordered by version' ] ] ] },
+									    'order' => [ 'cv', [ [ 'id' , 'return data objects ordered by id' ],
+												 [ 'name' , 'return data objects ordered by name' ] ] ] },
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
@@ -143,8 +145,9 @@ sub instance {
 
   # prepare data
   my $data = prepare_data([ $project ]);
+  $data = $data->[0];
 
-  return_data($data->[0])
+  return_data($data)
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
@@ -157,12 +160,17 @@ sub query {
   # get all user rights
   my %rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'project')} : ();    
   my $staruser = ($user && $user->has_right(undef, 'view', 'project', '*')) ? 1 : 0;
+
+  # check pagination
+  my $limit = $cgi->param('limit') || 10;
+  my $offset = $cgi->param('offset') || 0;
+  my $order = $cgi->param('order') || "id";
   
   # get all items the user has access to
   if ($staruser) {
-    $projects = $master->Project->get_objects();
+    $projects = $master->Project->get_objects( { $order => [ undef, "_id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset" ] } );
   } else {
-    $projects = $master->Project->get_objects( { public => 1 } );
+    $projects = $master->Project->get_objects( { $order => [ undef, "public=1 AND _id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset" ] } );
     foreach my $key (keys %rights) {
       push(@$projects, $master->Project->init( { id => $key } ));
     }
@@ -240,10 +248,10 @@ sub connect_to_datasource {
 sub check_pagination {
   my ($data) = @_;
 
-  if ($cgi->param('limit')) {
-    my $limit = $cgi->param('limit');
+  if ($cgi->param('limit') || $cgi->param('order')) {
+    my $limit = $cgi->param('limit') || 10;
     my $offset = $cgi->param('offset') || 0;
-    my $order = $cgi->param('order') || "created";
+    my $order = $cgi->param('order') || "id";
     my $total_count = scalar(@$data);
     my $additional_params = "";
     my @params = $cgi->param;
@@ -263,12 +271,6 @@ sub check_pagination {
     my $next = ($offset < $total_count) ? $cgi->url."/".name()."?$additional_params&offset=$next_offset" : undef;
     my $attributes = attributes();
     if (exists($attributes->{$order})) {
-      if ($attributes->{$order}->[0] eq 'integer' || $attributes->{$order}->[0] eq 'float') {
-	@$data = sort { $a->{$order} <=> $b->{$order} } @$data;
-      } else {
-	@$data = sort { $a->{$order} cmp $b->{$order} } @$data;
-      }
-      @$data = @$data[$offset..($offset + $limit - 1)];
       $data = { "limit" => $limit,
 		"offset" => $offset,
 		"total_count" => $total_count,
@@ -278,7 +280,7 @@ sub check_pagination {
 		"data" => $data };
 
     } else {
-      return_data({ "ERROR" => "invalid sort order, there is not attribute $order" }, 400);
+      return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
     }
   }
    
@@ -336,8 +338,13 @@ sub return_data {
   # check for remote procedure call
   if ($json_rpc) {
     
+    # check to comply to Bob Standards
+    unless (ref($data) eq 'ARRAY') {
+      $data = [ $data ];
+    }
+
     # only reply if this is not a notification
-    if (defined($json_rpc_id)) { 
+    #if (defined($json_rpc_id)) { 
       if ($error) {
 
 	my $error_code = $status;
@@ -351,7 +358,7 @@ sub return_data {
 	$data = { jsonrpc => "2.0",
 		  error => { code => $error_code,
 			     message => $error_messages->{$status},
-			     data => $data },
+			     data => $data->[0] },
 		  id => $json_rpc_id };
 
       } else {
@@ -367,7 +374,7 @@ sub return_data {
 			 -Access_Control_Allow_Origin => '*' );
       print $json->encode($data);
       exit 0;
-    }
+    #} else { exit; }
   } else {
     
     # check for JSONP
