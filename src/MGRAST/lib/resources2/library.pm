@@ -185,8 +185,8 @@ sub prepare_data {
 
   my $objects = [];
   foreach my $library (@$data) {
-    my $obj  = {};	
-
+    if ($library->{ID}) { $library->{id} = $library->{ID}; }
+    my $obj  = {};
     $obj->{id}       = "mgl".$library->{id};
     $obj->{name}     = $library->{name};
     $obj->{url}      = $cgi->url.'/library/'.$obj->{id};

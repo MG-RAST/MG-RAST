@@ -180,7 +180,8 @@ sub prepare_data {
   my %rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
 
   my $objects = [];
-  foreach my $sample (@$data) {    
+  foreach my $sample (@$data) {
+    if ($sample->{ID}) { $sample->{id} = $sample->{ID}; }
     my $obj   = {};
     $obj->{id}       = "mgs".$sample->{id};
     $obj->{name}     = $sample->{name};
