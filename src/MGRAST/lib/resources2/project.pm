@@ -72,12 +72,10 @@ sub info {
 												     [ 'full', 'returns all metadata and references' ] ] ],
 									    'limit' => [ 'integer', 'maximum number of items requested' ],
 									    'offset' => [ 'integer', 'zero based index of the first data object to be returned' ],
-									    'order' => [ 'cv', [ [ 'created', 'return data objects ordered by creation date' ],
-												 [ 'id' , 'return data objects ordered by id' ],
+									    'order' => [ 'cv', [ [ 'id' , 'return data objects ordered by id' ],
 												 [ 'name' , 'return data objects ordered by name' ],
 												 [ 'funding_source' , 'return data objects ordered by funding source' ],
-												 [ 'pi' , 'return data objects ordered by principal investigator' ],
-												 [ 'version' , 'return data objects ordered by version' ] ] ] },
+												 [ 'pi' , 'return data objects ordered by principal investigator' ] ] ] },
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
@@ -158,12 +156,17 @@ sub query {
   # get all user rights
   my %rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'project')} : ();    
   my $staruser = ($user && $user->has_right(undef, 'view', 'project', '*')) ? 1 : 0;
+
+  # check pagination
+  my $limit = $cgi->param('limit') || 10;
+  my $offset = $cgi->param('offset') || 0;
+  my $order = $cgi->param('order') || "id";
   
   # get all items the user has access to
   if ($staruser) {
-    $projects = $master->Project->get_objects();
+    $projects = $master->Project->get_objects( { $order => [ undef, "_id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset" ] } );
   } else {
-    $projects = $master->Project->get_objects( { public => 1 } );
+    $projects = $master->Project->get_objects( { $order => [ undef, "public=1 AND _id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset" ] } );
     foreach my $key (keys %rights) {
       push(@$projects, $master->Project->init( { id => $key } ));
     }
@@ -241,10 +244,10 @@ sub connect_to_datasource {
 sub check_pagination {
   my ($data) = @_;
 
-  if ($cgi->param('limit')) {
-    my $limit = $cgi->param('limit');
+  if ($cgi->param('limit') || $cgi->param('order')) {
+    my $limit = $cgi->param('limit') || 10;
     my $offset = $cgi->param('offset') || 0;
-    my $order = $cgi->param('order') || "created";
+    my $order = $cgi->param('order') || "id";
     my $total_count = scalar(@$data);
     my $additional_params = "";
     my @params = $cgi->param;
@@ -264,12 +267,6 @@ sub check_pagination {
     my $next = ($offset < $total_count) ? $cgi->url."/".name()."?$additional_params&offset=$next_offset" : undef;
     my $attributes = attributes();
     if (exists($attributes->{$order})) {
-      if ($attributes->{$order}->[0] eq 'integer' || $attributes->{$order}->[0] eq 'float') {
-	@$data = sort { $a->{$order} <=> $b->{$order} } @$data;
-      } else {
-	@$data = sort { $a->{$order} cmp $b->{$order} } @$data;
-      }
-      @$data = @$data[$offset..($offset + $limit - 1)];
       $data = { "limit" => $limit,
 		"offset" => $offset,
 		"total_count" => $total_count,
@@ -279,7 +276,7 @@ sub check_pagination {
 		"data" => $data };
 
     } else {
-      return_data({ "ERROR" => "invalid sort order, there is not attribute $order" }, 400);
+      return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
     }
   }
    

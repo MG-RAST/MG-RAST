@@ -213,6 +213,7 @@ sub setlist {
 	$stagehash->{$stageid} = 1;
       }
       push(@$stages, { id => "mgm".$mgid."-".$stageid."-".$stagehash->{$stageid},
+		       url => $cgi->url.'/sequenceset/'."mgm".$mgid."-".$stageid."-".$stagehash->{$stageid},
 		       stage_id => $stageid,
 		       stage_name => $stagename,
 		       stage_type => $stageresult,
