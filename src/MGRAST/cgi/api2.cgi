@@ -65,7 +65,7 @@ if (opendir(my $dh, $resource_path)) {
 }
 
 # check for json rpc
-my $json_rpc = $cgi->param('POSTDATA');
+my $json_rpc = $cgi->param('POSTDATA') || $cgi->param('keywords');
 $cgi->delete('POSTDATA');
 my $json_rpc_id;
 my $rpc_request;
@@ -157,7 +157,6 @@ else {
 		  service => 'MG-RAST',
 		  url => $cgi->url,
 		  description => "RESTful Metagenomics RAST object and resource API\nFor usage note that required parameters need to be passed as path parameters, optional parameters need to be query parameters. If an optional parameter has a list of option values, the first displayed will be used as default.",
-		  documentation => $Conf::cgi_url.'Html/api.html',
 		  contact => 'mg-rast@mcs.anl.gov',
 		  resources => \@resource_objects };
   print $cgi->header(-type => 'application/json',

@@ -66,12 +66,17 @@ sub info {
 				      'description' => "Returns a set of data matching the query criteria.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
-				      'attributes'  => attributes(),
+				      'attributes'  => { "next"   => [ "uri", "link to the previous set or null if this is the first set" ],
+							 "prev"   => [ "uri", "link to the next set or null if this is the last set" ],
+							 "order"  => [ "string", "name of the attribute the returned data is ordered by" ],
+							 "data"   => [ "list", [ "object", attributes() ] ],
+							 "limit"  => [ "integer", "maximum number of data items returned, default is 10" ],
+							 "total_count" => [ "integer", "total number of available data items" ],
+							 "offset" => [ "integer", "zero based index of the first returned data item" ] },
 				      'parameters'  => { 'options'     => { 'limit' => [ 'integer', 'maximum number of items requested' ],
 									    'offset' => [ 'integer', 'zero based index of the first data object to be returned' ],
-									    'order' => [ 'cv', [ [ 'created', 'return data objects ordered by creation date' ],
-												 [ 'id' , 'return data objects ordered by id' ],
-												 [ 'name' , 'return data objects ordered by name' ],												 [ 'version' , 'return data objects ordered by version' ] ] ] },
+									    'order' => [ 'cv', [ [ 'id' , 'return data objects ordered by id' ],
+												 [ 'name' , 'return data objects ordered by name' ] ] ] },
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
@@ -130,8 +135,9 @@ sub instance {
 
   # prepare data
   my $data = prepare_data([ $sample ]);
+  $data = $data->[0];
 
-  return_data($data->[0])
+  return_data($data)
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
@@ -145,7 +151,7 @@ sub query {
   my $job_sam_map = {};
   my $job_sample = $dbh->selectall_arrayref("SELECT sample, metagenome_id, public FROM Job");
   map { $job_sam_map->{$_->[0]} = 1 }  @$job_sample;
-  map { $sample_map->{$_->[0]} = { ID => $_->[1], name => $_->[2], entry_date => $_->[3] } } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='sample'")};
+  map { $sample_map->{$_->[0]} = { id => $_->[1], name => $_->[2], entry_date => $_->[3] } } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='sample'")};
   
   # add libraries with job: public or rights
   map { $samples_hash->{"mgl".$sample_map->{$_->[0]}} = $sample_map->{$_->[0]} } grep { ($_->[2] == 1) || exists($rights{$_->[1]}) || exists($rights{'*'}) } @$job_sample;
@@ -153,6 +159,13 @@ sub query {
   map { $samples_hash->{"mgl".$sample_map->{$_}} = $sample_map->{$_} } grep { ! exists $job_sam_map->{$_} } keys %$library_map;
   my $samples = [];
   @$samples = map { $samples_hash->{$_} } keys(%$samples_hash);
+
+  # check limit
+  my $limit = $cgi->param('limit') || 10;
+  my $offset = $cgi->param('offset') || 0;
+  my $order = $cgi->param('order') || "id";
+  @$samples = sort { $a->{$order} cmp $b->{$order} } @$samples;
+  @$samples = @$samples[$offset..($offset+$limit-1)];
 
   # prepare data to the correct output format
   my $data = prepare_data($samples);
@@ -169,19 +182,25 @@ sub prepare_data {
 
   use MGRAST::Metadata;
   my $mddb  = MGRAST::Metadata->new();
+  my $master = connect_to_datasource();
+  my %rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
 
   my $objects = [];
-  foreach my $sample (@$data) {    
+  foreach my $sample (@$data) {
+    if ($sample->{ID}) { $sample->{id} = $sample->{ID}; }
     my $obj   = {};
-    $obj->{id}       = "mgs".$sample->{ID};
+    $obj->{id}       = "mgs".$sample->{id};
     $obj->{name}     = $sample->{name};
     $obj->{url}      = $cgi->url.'/sample/'.$obj->{id};
     $obj->{version}  = 1;
     $obj->{created}  = $sample->{entry_date};
     
     if ($cgi->param('verbosity')) {
+      if ($cgi->param('verbosity') ne 'minimal' && ref($sample) ne 'JobDB::MetaDataCollection') {
+	$sample =  $master->MetaDataCollection->init( { ID => $sample->{id} } );
+      }
       if ($cgi->param('verbosity') eq 'full') {
-    my $mdata = $sample->data();
+	my $mdata = $sample->data();
 	my $name  = $sample->name ? $sample->name : (exists($mdata->{sample_name}) ? $mdata->{sample_name} : (exists($mdata->{sample_id}) ? $mdata->{sample_id} : ''));
 	my $proj  = $sample->project;
 	my $epack = $sample->children('ep');
@@ -241,9 +260,9 @@ sub check_pagination {
   my ($data) = @_;
 
   if ($cgi->param('limit')) {
-    my $limit = $cgi->param('limit');
+    my $limit = $cgi->param('limit') || 10;
     my $offset = $cgi->param('offset') || 0;
-    my $order = $cgi->param('order') || "created";
+    my $order = $cgi->param('order') || "id";
     my $total_count = scalar(@$data);
     my $additional_params = "";
     my @params = $cgi->param;
@@ -263,12 +282,6 @@ sub check_pagination {
     my $next = ($offset < $total_count) ? $cgi->url."/".name()."?$additional_params&offset=$next_offset" : undef;
     my $attributes = attributes();
     if (exists($attributes->{$order})) {
-      if ($attributes->{$order}->[0] eq 'integer' || $attributes->{$order}->[0] eq 'float') {
-	@$data = sort { $a->{$order} <=> $b->{$order} } @$data;
-      } else {
-	@$data = sort { $a->{$order} cmp $b->{$order} } @$data;
-      }
-      @$data = @$data[$offset..($offset + $limit - 1)];
       $data = { "limit" => $limit,
 		"offset" => $offset,
 		"total_count" => $total_count,
@@ -278,7 +291,7 @@ sub check_pagination {
 		"data" => $data };
 
     } else {
-      return_data({ "ERROR" => "invalid sort order, there is not attribute $order" }, 400);
+      return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
     }
   }
    
@@ -336,8 +349,13 @@ sub return_data {
   # check for remote procedure call
   if ($json_rpc) {
     
+    # check to comply to Bob Standards
+    unless (ref($data) eq 'ARRAY') {
+      $data = [ $data ];
+    }
+
     # only reply if this is not a notification
-    if (defined($json_rpc_id)) { 
+    #if (defined($json_rpc_id)) { 
       if ($error) {
 
 	my $error_code = $status;
@@ -351,7 +369,7 @@ sub return_data {
 	$data = { jsonrpc => "2.0",
 		  error => { code => $error_code,
 			     message => $error_messages->{$status},
-			     data => $data },
+			     data => $data->[0] },
 		  id => $json_rpc_id };
 
       } else {
@@ -367,7 +385,7 @@ sub return_data {
 			 -Access_Control_Allow_Origin => '*' );
       print $json->encode($data);
       exit 0;
-    }
+    #} else { exit; }
   } else {
     
     # check for JSONP

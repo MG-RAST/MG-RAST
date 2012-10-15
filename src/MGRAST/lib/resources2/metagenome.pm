@@ -66,18 +66,20 @@ sub info {
 				      'description' => "Returns a set of data matching the query criteria.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
-				      'attributes'  => attributes(),
+				      'attributes'  => { "next"   => [ "uri", "link to the previous set or null if this is the first set" ],
+							 "prev"   => [ "uri", "link to the next set or null if this is the last set" ],
+							 "order"  => [ "string", "name of the attribute the returned data is ordered by" ],
+							 "data"   => [ "list", [ "object", attributes() ] ],
+							 "limit"  => [ "integer", "maximum number of data items returned, default is 10" ],
+							 "total_count" => [ "integer", "total number of available data items" ],
+							 "offset" => [ "integer", "zero based index of the first returned data item" ] },
 				      'parameters'  => { 'options'     => { 'verbosity' => [ 'cv', [ [ 'minimal', 'returns only minimal information' ],
 												     [ 'verbose', 'returns a standard subselection of metadata' ],
 												     [ 'full', 'returns all connected metadata' ] ] ],
 									    'limit' => [ 'integer', 'maximum number of items requested' ],
 									    'offset' => [ 'integer', 'zero based index of the first data object to be returned' ],
-									    'order' => [ 'cv', [ [ 'created', 'return data objects ordered by creation date' ],
-												 [ 'id' , 'return data objects ordered by id' ],
-												 [ 'name' , 'return data objects ordered by name' ],
-												 [ 'sequence_type' , 'return data objects ordered by sequence type' ],
-												 [ 'file_size' , 'return data objects ordered by file size' ],
-												 [ 'version' , 'return data objects ordered by version' ] ] ] },
+									    'order' => [ 'cv', [ [ 'id' , 'return data objects ordered by id' ],
+												 [ 'name' , 'return data objects ordered by name' ] ] ] },
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
@@ -143,8 +145,9 @@ sub instance {
 
   # prepare data
   my $data = prepare_data([ $job ]);
+  $data = $data->[0];
 
-  return_data($data->[0])
+  return_data($data)
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
@@ -167,6 +170,14 @@ sub query {
       push(@$jobs, $master->Job->get_objects( { metagenome_id => $key })->[0]);
     }
   }
+
+  # check limit
+  my $limit = $cgi->param('limit') || 10;
+  my $offset = $cgi->param('offset') || 0;
+  my $order = $cgi->param('order') || "id";
+  if ($order eq 'id') { $order = 'metagenome_id'; }
+  @$jobs = sort { $a->{$order} cmp $b->{$order} } @$jobs;
+  @$jobs = @$jobs[$offset..($offset + $limit - 1)];
 
   # prepare data to the correct output format
   my $data = prepare_data($jobs);
@@ -203,13 +214,13 @@ sub prepare_data {
 		$obj->{metadata} = $jobdata->{$job->{metagenome_id}};
       }
       if ($cgi->param('verbosity') eq 'verbose' || $cgi->param('verbosity') eq 'full') {
-		$obj->{version} = 1;
-		$obj->{sequence_type} = $job->{sequence_type};
-	    $obj->{project} = $job->{primary_project} ? [ "mgp".$job->primary_project->id, $cgi->url."/project/mgp".$job->primary_project->id ] : undef;
-	    $obj->{sample}  = $job->{sample} ? [ "mgs".$job->sample->ID, $cgi->url."/sample/mgs".$job->sample->ID ] : undef;
-	    $obj->{library} = $job->{library} ? [ "mgl".$job->library->ID, $cgi->url."/library/mgl".$job->library->ID ] : undef;
+	$obj->{version} = 1;
+	$obj->{sequence_type} = $job->{sequence_type};
+	$obj->{project} = $job->{primary_project} ? [ "mgp".$job->primary_project->id, $cgi->url."/project/mgp".$job->primary_project->id ] : undef;
+	$obj->{sample}  = $job->{sample} ? [ "mgs".$job->sample->ID, $cgi->url."/sample/mgs".$job->sample->ID ] : undef;
+	$obj->{library} = $job->{library} ? [ "mgl".$job->library->ID, $cgi->url."/library/mgl".$job->library->ID ] : undef;
       } elsif ($cgi->param('verbosity') ne 'minimal') {
-		return_data({ "ERROR" => "invalid value for option verbosity" }, 400);
+	return_data({ "ERROR" => "invalid value for option verbosity" }, 400);
       }
     }
     push(@$objects, $obj);      
@@ -238,10 +249,10 @@ sub connect_to_datasource {
 sub check_pagination {
   my ($data) = @_;
 
-  if ($cgi->param('limit')) {
-    my $limit = $cgi->param('limit');
+  if ($cgi->param('limit') || $cgi->param('order')) {
+    my $limit = $cgi->param('limit') || 10;
     my $offset = $cgi->param('offset') || 0;
-    my $order = $cgi->param('order') || "created";
+    my $order = $cgi->param('order') || "id";
     my $total_count = scalar(@$data);
     my $additional_params = "";
     my @params = $cgi->param;
@@ -261,12 +272,6 @@ sub check_pagination {
     my $next = ($offset < $total_count) ? $cgi->url."/".name()."?$additional_params&offset=$next_offset" : undef;
     my $attributes = attributes();
     if (exists($attributes->{$order})) {
-      if ($attributes->{$order}->[0] eq 'integer' || $attributes->{$order}->[0] eq 'float') {
-	@$data = sort { $a->{$order} <=> $b->{$order} } @$data;
-      } else {
-	@$data = sort { $a->{$order} cmp $b->{$order} } @$data;
-      }
-      @$data = @$data[$offset..($offset + $limit - 1)];
       $data = { "limit" => $limit,
 		"offset" => $offset,
 		"total_count" => $total_count,
@@ -276,7 +281,7 @@ sub check_pagination {
 		"data" => $data };
 
     } else {
-      return_data({ "ERROR" => "invalid sort order, there is not attribute $order" }, 400);
+      return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
     }
   }
    
@@ -334,6 +339,11 @@ sub return_data {
   # check for remote procedure call
   if ($json_rpc) {
     
+    # check to comply to Bob Standards
+    unless (ref($data) eq 'ARRAY') {
+      $data = [ $data ];
+    }
+
     # only reply if this is not a notification
     #if (defined($json_rpc_id)) { 
       if ($error) {
@@ -349,7 +359,7 @@ sub return_data {
 	$data = { jsonrpc => "2.0",
 		  error => { code => $error_code,
 			     message => $error_messages->{$status},
-			     data => $data },
+			     data => $data->[0] },
 		  id => $json_rpc_id };
 
       } else {
