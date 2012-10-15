@@ -96,7 +96,26 @@ sub output {
   if ($cgi->param('create_job')) {
     my $success = $self->submit_to_mgrast();
     if ($success && @$success) {
-      $html .= "<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: ".join(", ", @$success)."</p></div>";
+      my $mgrast_ids = join(", ", @$success);
+      $html .= qq~
+<form style='margin:0;'>
+  <div class="modal hide" id="successfulSubmissionModal" tabindex="-1" role="dialog" aria-labelledby="successfulSubmissionModalLabel" aria-hidden="true">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+      <h3 id="successfulSubmissionModalLabel">job submission successful</h3>
+    </div>
+    <div class="modal-body">
+      <p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: $mgrast_ids</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal" aria-hidden="true">OK</button>
+    </div>
+  </div>
+</form>
+<script>
+\$('#successfulSubmissionModal').modal('show');
+</script>
+<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: $mgrast_ids</p></div>~;
     }
   }
 
@@ -236,7 +255,7 @@ sub output {
 			   <button style="display: none;" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Hidden merge mate-pairs button for enter key submission</button>
 			   <div class="modal-header">
 			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-			     <h3 id="mergeMatePairsModalLabel">create directory</h3>
+			     <h3 id="mergeMatePairsModalLabel">merge mate pairs</h3>
 		           </div>
 			   <div class="modal-body">
 			     <p>Please select file 1 of your mate-pairs:</p>
@@ -639,6 +658,7 @@ sub submit_to_mgrast {
 	my ($key, $val) = split /\t/;
 	$info->{$key} = $val;
       }
+      # If "assembled" sequence CGI parameter is 1 then set $info->{assembled} = 1 here.
       if ($filter_ln_mult) {
 	$info->{min_ln} = int($info->{average_length} - ($filter_ln_mult * $info->{standard_deviation_length}));
 	$info->{max_ln} = int($info->{average_length} + ($filter_ln_mult * $info->{standard_deviation_length}));
@@ -739,7 +759,11 @@ sub check_for_duplicates {
   @$seqfiles = split(/\|/, $cgi->param('seqfiles'));
 
   my $dupes = [];
+  my $missing_files = [];
   foreach my $seqfile (@$seqfiles) {
+    unless (-e "$udir/$seqfile") {
+      push @$missing_files, $seqfile;
+    }
     if (open(FH, "<$udir/$seqfile.stats_info")) {
       my $info = {};
       while (<FH>) {
@@ -754,7 +778,14 @@ sub check_for_duplicates {
       }
     }
   }
-  if (@$dupes > 0) {
+  if (@$missing_files > 0) {
+    $output = "ERROR: The following files are missing from your inbox, perhaps you alread submitted them?\n\n";
+    foreach my $file (@$missing_files) {
+      $output .= "$file\n";
+    }
+    print $cgi->header;
+    print $output;
+  } elsif (@$dupes > 0) {
     $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tYour File\n---------------\t---------------\n";
     map { $output .= join("\t", @$_)."\n" } @$dupes;
     $output .= "\nDo you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
