@@ -2411,6 +2411,7 @@ sub single_visual {
       $pt->font_size($cgi->param('pts') || 40);
       $pt->{thick2} = 10;
       $pt->{thick} = 30;
+      $pt->{style} = "width: 800; height: 800;";
       print $pt->output();
       print $cgi->end_html();
       exit;
@@ -3228,6 +3229,7 @@ sub phylogeny_visual {
       $pt->font_size($cgi->param('pts') || 40);
       $pt->{thick2} = 10;
       $pt->{thick} = 30;
+      $pt->{style} = "width: 800; height: 800;";
       print $pt->output();
       print $cgi->end_html();
       exit;
