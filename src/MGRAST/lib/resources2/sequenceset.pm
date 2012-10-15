@@ -213,6 +213,7 @@ sub setlist {
 	$stagehash->{$stageid} = 1;
       }
       push(@$stages, { id => "mgm".$mgid."-".$stageid."-".$stagehash->{$stageid},
+		       url => $cgi->url.'/sequenceset/'."mgm".$mgid."-".$stageid."-".$stagehash->{$stageid},
 		       stage_id => $stageid,
 		       stage_name => $stagename,
 		       stage_type => $stageresult,
@@ -343,6 +344,11 @@ sub return_data {
 
   # check for remote procedure call
   if ($json_rpc) {
+
+    # check to comply to Bob Standards
+    unless (ref($data) eq 'ARRAY') {
+      $data = [ $data ];
+    }
     
     # only reply if this is not a notification
     #if (defined($json_rpc_id)) { 
@@ -359,7 +365,7 @@ sub return_data {
 	$data = { jsonrpc => "2.0",
 		  error => { code => $error_code,
 			     message => $error_messages->{$status},
-			     data => $data },
+			     data => $data->[0] },
 		  id => $json_rpc_id };
 
       } else {
