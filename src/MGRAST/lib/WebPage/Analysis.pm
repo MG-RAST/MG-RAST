@@ -5191,7 +5191,11 @@ sub lca_visual {
       for (my $hh=0; $hh<scalar(@comp_mgs); $hh++) {
 	$mg2num->{$comp_mgs[$hh]} = $hh;
       }
+      use Data::Dumper;
       foreach my $row (@$data) {
+	if ($row->[7] =~ /domain/) {
+	  print STDERR Dumper($row)."\n";
+	}
 	$spec_hash->{$row->[8]} = [ @$row[1..8] ];
 	unless (exists($exp_hash->{$row->[8]})) {
 	  $exp_hash->{$row->[8]} = [];
@@ -5204,21 +5208,14 @@ sub lca_visual {
 	  push(@$vals, $exp_hash->{$key}->[$ii] || 0);
 	}
 	my $row = $spec_hash->{$key};
-	my $last_r = undef;
-	my $cellcount = 0;
 	foreach my $r (@$row) {
-	  if ($last_r && $last_r eq $r) {
-	    @$row = @$row[0..$cellcount];
-	    last;
-	  }
-	  $cellcount++;
-	  $last_r = $r;
 	  if ($r =~ /derived/) {
 	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
 	  }
 	}
 	push(@$expanded_data, [ @$row, $vals ] );
-      }    
+
+      }
     } else {
       foreach my $row (@$data) {
 	foreach my $r (@$row) {

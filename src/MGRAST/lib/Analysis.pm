@@ -1618,11 +1618,11 @@ sub get_lca_data {
   $memd->disconnect_all;
   
   # replaces unclassified entries by the last available classification (LCA) (by wolfgang)
-  my @tax_ranks = ('domain', 'phylum', 'class', 'order', 'family', 'genus', 'species');
+  my @tax_ranks = ('domain', 'phylum', 'class', 'order', 'family', 'genus', 'species', 'strain');
   
   foreach my $row (@data) {
     my $last_classification = 1;
-    for (my $i = 2; $i < 8; ++$i) {
+    for (my $i = 2; $i < 9; ++$i) {
       if (${$row}[$i] eq '-') {
 	${$row}[$i] = '('.$tax_ranks[$last_classification-1].') '.${$row}[$last_classification];
       } else {
