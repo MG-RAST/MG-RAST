@@ -5204,7 +5204,15 @@ sub lca_visual {
 	  push(@$vals, $exp_hash->{$key}->[$ii] || 0);
 	}
 	my $row = $spec_hash->{$key};
+	my $last_r = undef;
+	my $cellcount = 0;
 	foreach my $r (@$row) {
+	  if ($last_r && $last_r eq $r) {
+	    @$row = @$row[0..$cellcount];
+	    last;
+	  }
+	  $cellcount++;
+	  $last_r = $r;
 	  if ($r =~ /derived/) {
 	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
 	  }
