@@ -5191,11 +5191,7 @@ sub lca_visual {
       for (my $hh=0; $hh<scalar(@comp_mgs); $hh++) {
 	$mg2num->{$comp_mgs[$hh]} = $hh;
       }
-      use Data::Dumper;
       foreach my $row (@$data) {
-	if ($row->[7] =~ /domain/) {
-	  print STDERR Dumper($row)."\n";
-	}
 	$spec_hash->{$row->[8]} = [ @$row[1..8] ];
 	unless (exists($exp_hash->{$row->[8]})) {
 	  $exp_hash->{$row->[8]} = [];
