@@ -4,9 +4,11 @@ use strict;
 use warnings;
 no warnings('once');
 
+use Conf;
 use Data::Dumper;
 use CGI;
 use JSON;
+use LWP::UserAgent;
 
 1;
 
@@ -14,11 +16,11 @@ sub new {
     my ($class, $params) = @_;
 
     # set variables
-    my $json = new JSON;
+    my $agent = LWP::UserAgent->new;
+    my $json  = new JSON;
     $json = $json->utf8();
     $json->max_size(0);
     $json->allow_nonref;
-    
     my $html_messages = { 200 => "OK",
                           201 => "Created",
                           204 => "No Content",
@@ -35,6 +37,7 @@ sub new {
     # create object
     my $self = {
         format        => "application/json",
+        agent         => $agent,
         json          => $json,
         cgi           => $params->{cgi},
         rest          => $params->{rest_parameters} || [],
@@ -51,6 +54,10 @@ sub new {
 }
 
 # get functions for class variables
+sub agent {
+    my ($self) = @_;
+    return $self->{agent};
+}
 sub json {
     my ($self) = @_;
     return $self->{json};
@@ -283,7 +290,46 @@ sub get_sequence_sets {
 sub get_shock_node {
     my ($self, $id) = @_;
     
-    return;
+    my $shock = undef;
+    eval {
+        $shock = $self->json->decode( $self->agent->get($Conf::shock_url.'/node/'.$id)->content );
+    };
+    if ($@ || (! ref($shock)) || $shock->{E}) {
+        return undef;
+    } else {
+        return $shock->{D};
+    }
+}
+
+sub get_shock_file {
+    my ($self, $id) = @_;
+    
+    my $file = undef;
+    eval {
+        $file = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download')->content;
+    };
+    if ($@ || (! $file)) {
+        return undef;
+    } else {
+        return $file;
+    }
+}
+
+sub get_shock_query {
+    my ($self, $params) = @_;
+    
+    my $shock = undef;
+    my $query = '?query';
+    map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
+    
+    eval {
+        $shock = $self->json->decode( $self->agent->get($Conf::shock_url.'/node'.$query)->content );
+    };
+    if ($@ || (! ref($shock)) || $shock->{E} || (! $shock->{D})) {
+        return [];
+    } else {
+        return $shock->{D};
+    }
 }
 
 ###################################################
