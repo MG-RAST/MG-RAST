@@ -5210,7 +5210,8 @@ sub lca_visual {
 	  }
 	}
 	push(@$expanded_data, [ @$row, $vals ] );
-      }    
+
+      }
     } else {
       foreach my $row (@$data) {
 	foreach my $r (@$row) {
