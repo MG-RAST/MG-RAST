@@ -1,11 +1,12 @@
 #!/usr/bin/perl
+
 use CGI;
 use JSON;
-
 use Conf;
+use Data::Dumper;
 
 # create cgi and json objects
-my $cgi = new CGI;
+my $cgi  = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
@@ -28,7 +29,6 @@ my $resource = shift @rest_parameters;
 
 # get resource list
 my $resources = [];
-my $resources_hash = {};
 my $resource_path = $Conf::api_resource_path."2";
 if (! $resource_path) {
   print $cgi->header(-type => 'text/plain',
@@ -41,9 +41,7 @@ if (! $resource_path) {
 if (opendir(my $dh, $resource_path)) {
   my @res = grep { -f "$resource_path/$_" } readdir($dh);
   closedir $dh;
-  @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } @res;
-  %$resources_hash = map { $_ => 1 } @$resources;
-  
+  @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } @res;  
 } else {
   if ($cgi->param('POSTDATA') && ! $resource) {
     print $cgi->header(-type => 'application/json',
@@ -110,17 +108,6 @@ if ($json_rpc && ! $resource) {
   }
   (undef, $request_method, $resource, $submethod) = $rpc_request->{method} =~ /^(\w+\.)?(get|post|delete|put)_(\w+)_(\w+)$/;
   $json_rpc = 1;
-  # } else {
-  # 	print $cgi->header(-type => 'application/json',
-  # 		     -status => 200,
-  # 		     -Access_Control_Allow_Origin => '*' );
-  # 	print $json->encode( { jsonrpc => "2.0",
-  # 			       id => undef,
-  # 			       error => {  code => -32600,
-  # 					   message => "Invalid Request",
-  # 					   data => "Malformed JSON structure for JSON RPC 2.0 request, please check the specifications at http://www.jsonrpc.org/specification" } } );
-  # 	exit 0;
-  # }
 }
 
 # check for authentication
@@ -132,23 +119,40 @@ if ($cgi->http('user_auth')) {
 
 # if a resource is passed, call the resources module
 if ($resource) {
-  if ($resources_hash->{$resource}) {
-    my $query = "use resources2::$resource; resources2::".$resource."::request( { 'rest_parameters' => \\\@rest_parameters, 'method' => \$request_method, 'user' => \$user, 'json_rpc' => \$json_rpc, 'json_rpc_id' => \$json_rpc_id, 'submethod' => \$submethod, 'cgi' => \$cgi } );";
-    eval $query;
-    if ($@) {
-      print $cgi->header(-type => 'text/plain',
-			 -status => 500,
-			 -Access_Control_Allow_Origin => '*' );
-      print "ERROR: resource request failed\n$@\n";
-      exit 0;
+    my $error   = '';
+    my $package = "resources2::".$resource;
+    {
+        no strict;
+        eval "require $package;";
+        $error = $@;
     }
-  } else {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 500,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: resource '$resource' does not exist";
-    exit 0;
-  }
+    if ($error) {
+        print $cgi->header( -type => 'text/plain',
+    		                -status => 500,
+    		                -Access_Control_Allow_Origin => '*' );
+        print "ERROR: resource '$resource' does not exist";
+        exit 0;
+    } else {
+        my $params= { 'rest_parameters' => \@rest_parameters,
+                      'method'          => $request_method,
+                      'user'            => $user,
+                      'json_rpc'        => $json_rpc,
+                      'json_rpc_id'     => $json_rpc_id,
+                      'submethod'       => $submethod,
+                      'cgi'             => $cgi
+                    };
+        eval {
+            my $resource_obj = $package->new($params);
+            $resource_obj->request();
+        };
+        if ($@) {
+            print $cgi->header( -type => 'text/plain',
+			                    -status => 500,
+			                    -Access_Control_Allow_Origin => '*' );
+            print "ERROR: resource request failed\n$@\n";
+            exit 0;
+        }
+    }
 }
 # we are called without a resource, return API information
 else {
