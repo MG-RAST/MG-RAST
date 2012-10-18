@@ -153,8 +153,8 @@ sub check_pagination {
         }
         my $prev = $offset ? $self->cgi->url."/".$self->name."?$additional_params&offset=$prev_offset" : undef;
         my $next_offset = $offset + $limit;
-        my $next = ($offset < $total_count) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$next_offset" : undef;
-        my $attributes = attributes();
+        my $next = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$next_offset" : undef;
+        my $attributes = $self->attributes;
         if (exists($attributes->{$order})) {
             $data = { "limit" => $limit,
 		              "offset" => $offset,
@@ -290,28 +290,36 @@ sub get_sequence_sets {
 sub get_shock_node {
     my ($self, $id) = @_;
     
-    my $shock = undef;
+    my $content = undef;
     eval {
-        $shock = $self->json->decode( $self->agent->get($Conf::shock_url.'/node/'.$id)->content );
+        $content = $self->json->decode( $self->agent->get($Conf::shock_url.'/node/'.$id)->content );
     };
-    if ($@ || (! ref($shock)) || $shock->{E}) {
+    if ($@ || (! ref($content)) || $content->{E}) {
         return undef;
     } else {
-        return $shock->{D};
+        return $content->{D};
     }
 }
 
 sub get_shock_file {
-    my ($self, $id) = @_;
+    my ($self, $id, $file) = @_;
     
-    my $file = undef;
+    my $content = undef;
     eval {
-        $file = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download')->content;
+        $content = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download')->content;
     };
-    if ($@ || (! $file)) {
+    if ($@ || (! $content)) {
         return undef;
+    } elsif ($file) {
+        if (open(FILE, ">$file")) {
+            print FILE $content;
+            close(FILE);
+            return 1;
+        } else {
+            return undef;
+        }
     } else {
-        return $file;
+        return $content;
     }
 }
 
