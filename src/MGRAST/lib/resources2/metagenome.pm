@@ -69,7 +69,7 @@ sub info {
 				      'attributes'  => { "next"   => [ "uri", "link to the previous set or null if this is the first set" ],
 							 "prev"   => [ "uri", "link to the next set or null if this is the last set" ],
 							 "order"  => [ "string", "name of the attribute the returned data is ordered by" ],
-							 "data"   => [ "list", [ "object", attributes() ] ],
+							 "data"   => [ "list", [ "object", [ attributes(), "list of the metagenome objects" ] ] ],
 							 "limit"  => [ "integer", "maximum number of data items returned, default is 10" ],
 							 "total_count" => [ "integer", "total number of available data items" ],
 							 "offset" => [ "integer", "zero based index of the first returned data item" ] },
@@ -217,8 +217,18 @@ sub prepare_data {
 	$obj->{version} = 1;
 	$obj->{sequence_type} = $job->{sequence_type};
 	$obj->{project} = $job->{primary_project} ? [ "mgp".$job->primary_project->id, $cgi->url."/project/mgp".$job->primary_project->id ] : undef;
-	$obj->{sample}  = $job->{sample} ? [ "mgs".$job->sample->ID, $cgi->url."/sample/mgs".$job->sample->ID ] : undef;
-	$obj->{library} = $job->{library} ? [ "mgl".$job->library->ID, $cgi->url."/library/mgl".$job->library->ID ] : undef;
+	eval {
+	  $obj->{sample}  = $job->{sample} ? [ "mgs".$job->sample->ID, $cgi->url."/sample/mgs".$job->sample->ID ] : undef;
+	};
+	if ($@) {
+	  $obj->{sample} = undef;
+	}
+	eval {
+	  $obj->{library} = $job->{library} ? [ "mgl".$job->library->ID, $cgi->url."/library/mgl".$job->library->ID ] : undef;
+	};
+	if ($@) {
+	  $obj->{library} = undef;
+	}
       } elsif ($cgi->param('verbosity') ne 'minimal') {
 	return_data({ "ERROR" => "invalid value for option verbosity" }, 400);
       }
