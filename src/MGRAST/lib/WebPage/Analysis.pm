@@ -5210,7 +5210,6 @@ sub lca_visual {
 	  }
 	}
 	push(@$expanded_data, [ @$row, $vals ] );
-
       }
     } else {
       foreach my $row (@$data) {
@@ -5238,7 +5237,13 @@ sub lca_visual {
     if ($self->application->cgi->param('reroot') && $self->application->cgi->param('do_reroot')) {
       $pt->reroot_id($self->application->cgi->param('reroot'));
     }
-    my $pt_out = $pt->output();
+    my $pt_out;
+    eval {
+      $pt_out = $pt->output();
+    };
+    if ($@) {
+      print STDERR $@."\n";
+    }
     my $opts = [ [ 2, 'phylum' ],
 		 [ 3, 'class' ],
 		 [ 4, 'order' ],
