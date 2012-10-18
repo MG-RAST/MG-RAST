@@ -102,29 +102,12 @@ sub request {
         $self->info();
     }
 
-<<<<<<< HEAD:src/MGRAST/lib/resources2/project.pm
     # check for id
     if ( scalar(@{$self->rest}) ) {
         $self->instance();
     } else {
         $self->query();
     }
-=======
-# attributes of the resource
-sub attributes {
-  return { "id"              => [ 'string', 'unique object identifier' ],
-	   "name"            => [ 'string', 'human readable identifier' ],
-	   "libraries"       => [ 'list', [ 'reference library', 'a list of references to the related library objects' ] ],
-	   "samples"         => [ 'list', [ 'reference sample', 'a list of references to the related sample objects' ] ],
-	   "analyzed"        => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
-	   "description"     => [ 'string', 'a short, comprehensive description of the project' ],
-	   "funding_source"  => [ 'string', 'the official name of the source of funding of this project' ],
-	   "pi"              => [ 'string', 'the first and last name of the principal investigator of the project' ],
-	   "metadata"        => [ 'hash', 'key value pairs describing metadata' ],
-	   "created"         => [ 'date', 'time the object was first created' ],
-	   "version"         => [ 'integer', 'version of the object' ],
-	   "url"             => [ 'uri', 'resource location of this object instance' ] };
->>>>>>> dd4a6d8d5564f38a07ce8ac8b4b83d3c3cd10016:src/MGRAST/lib/resources2/project.pm
 }
 
 # the resource is called with an id parameter
