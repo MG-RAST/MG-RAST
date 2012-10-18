@@ -1084,7 +1084,11 @@ sub get_leaf_height {
 	$sumheight += $x;
       }
       foreach my $x (@$heights) {
-	$x = int(($height - 5) / $sumheight * $x);
+	if ($sumheight * $x > 0) {
+	  $x = int(($height - 5) / $sumheight * $x);
+	} else {
+	  $x = 0;
+	}
       }
     }
     return $heights;

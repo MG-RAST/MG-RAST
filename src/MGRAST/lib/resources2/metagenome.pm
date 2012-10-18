@@ -57,7 +57,7 @@ sub info {
                                           'attributes'  => { "next"   => ["uri","link to the previous set or null if this is the first set"],
                                                              "prev"   => ["uri","link to the next set or null if this is the last set"],
                                                              "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                             "data"   => ["list", ["object", $self->attributes]],
+                                                             "data"   => ["list", ["object", [$self->attributes, "list of the metagenome objects"] ]],
                                                              "limit"  => ["integer","maximum number of data items returned, default is 10"],
                                                              "offset" => ["integer","zero based index of the first returned data item"],
                                                              "total_count" => ["integer","total number of available data items"] },
@@ -224,8 +224,14 @@ sub prepare_data {
                 $obj->{sequence_type} = $job->{sequence_type};
                 $obj->{version} = 1;
                 $obj->{project} = $proj ? ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}] : undef;
-                $obj->{sample}  = $samp ? ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}] : undef;
-                $obj->{library} = $lib  ? ["mgl".$lib->{ID}, $url."/library/mgl".$lib->{ID}] : undef;
+                eval { $obj->{sample} = $samp ? ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}] : undef; };
+            	if ($@) {
+            	  $obj->{sample} = undef;
+            	}
+            	eval { $obj->{library} = $lib ? ["mgl".$lib->{ID}, $url."/library/mgl".$lib->{ID}] : undef; };
+            	if ($@) {
+            	  $obj->{library} = undef;
+            	}
             } elsif ($self->cgi->param('verbosity') ne 'minimal') {
                 return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
             }

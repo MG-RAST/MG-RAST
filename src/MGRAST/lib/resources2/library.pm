@@ -20,7 +20,7 @@ sub new {
     $self->{rights} = \%rights;
     $self->{attributes} = { "id"           => [ 'string', 'unique object identifier' ],
     	                    "name"         => [ 'string', 'human readable identifier' ],
-    	                    "sequencesets" => [ 'list reference sequenceset', 'a list of references to the related sequence sets' ],
+    	                    "sequencesets" => [ 'list', [ 'reference sequenceset', 'a list of references to the related sequence sets' ] ],
     	                    "metagenome"   => [ 'reference metagenome', 'reference to the related metagenome object' ],
     	                    "sample"       => [ 'reference sample', 'reference to the related sample object' ],
     	                    "project"      => [ 'reference project', 'reference to the project object' ],
@@ -58,7 +58,7 @@ sub info {
 				      'attributes'  => { "next"   => [ "uri", "link to the previous set or null if this is the first set" ],
 							 "prev"   => [ "uri", "link to the next set or null if this is the last set" ],
 							 "order"  => [ "string", "name of the attribute the returned data is ordered by" ],
-							 "data"   => [ "list", [ "object", $self->attributes ] ],
+							 "data"   => [ "list", [ "object", [$self->attributes, "list of the library objects"] ] ],
 							 "limit"  => [ "integer", "maximum number of data items returned, default is 10" ],
 							 "total_count" => [ "integer", "total number of available data items" ],
 							 "offset" => [ "integer", "zero based index of the first returned data item" ] },
