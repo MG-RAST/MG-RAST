@@ -1622,7 +1622,7 @@ sub get_lca_data {
   
   foreach my $row (@data) {
     my $last_classification = 1;
-    for (my $i = 2; $i < 9; ++$i) {
+    for (my $i = 2; $i < 10; ++$i) {
       if (${$row}[$i] eq '-') {
 	${$row}[$i] = '('.$tax_ranks[$last_classification-1].') '.${$row}[$last_classification];
       } else {
