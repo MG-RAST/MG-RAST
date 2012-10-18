@@ -75,8 +75,8 @@ sub instance {
     }
 
     # check rights
-    my $uname = $self->user ? $user->login : '';
-    unless (($node->{user} eq 'public') || ($node->{user} eq $uname)) {
+    my $uname = $self->user ? $self->user->login : '';
+    unless (($node->{attributes}{user} eq 'public') || ($node->{attributes}{user} eq $uname)) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
@@ -92,7 +92,7 @@ sub query {
     my ($self) = @_;
  
     # get all items the user has access to
-    my $uname = $self->user ? $user->login : '';
+    my $uname = $self->user ? $self->user->login : '';
     my $nodes = [];
     map { push @$nodes, $_ } @{ $self->get_shock_query( {type => 'ipynb', user => $uname} ) };
     map { push @$nodes, $_ } @{ $self->get_shock_query( {type => 'ipynb', user => 'public'} ) };
@@ -104,6 +104,28 @@ sub query {
     $data = $self->check_pagination($data);
 
     $self->return_data($data);
+}
+
+# reformat the data into the requested output format
+sub prepare_data {
+    my ($self, $data) = @_;
+    
+    my $objects = [];
+    foreach my $node (@$data) {
+        my $url = $self->cgi->url;
+        my $obj = {};
+        $obj->{shock_id} = $node->{id};
+        $obj->{name}     = $node->{attributes}{name};
+        $obj->{uuid}     = $node->{attributes}{uuid};
+        $obj->{created}  = $node->{attributes}{created};
+        $obj->{version}  = 1;
+        $obj->{url}      = $url.'/notebook/'.$obj->{shock_id};
+        if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
+            $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{shock_id}) );
+        }
+        push @$objects, $obj;
+    }
+    return $objects;
 }
 
 1;
