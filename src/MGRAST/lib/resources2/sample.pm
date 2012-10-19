@@ -169,13 +169,14 @@ sub query {
   my $offset = $cgi->param('offset') || 0;
   my $order = $cgi->param('order') || "id";
   @$samples = sort { $a->{$order} cmp $b->{$order} } @$samples;
+  my $total = scalar(@$samples);
   @$samples = @$samples[$offset..($offset+$limit-1)];
 
   # prepare data to the correct output format
   my $data = prepare_data($samples);
 
   # check for pagination
-  $data = check_pagination($data);
+  $data = check_pagination($data, $total);
 
   return_data($data);
 }
@@ -261,13 +262,13 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-  my ($data) = @_;
+  my ($data, $total) = @_;
 
-  if ($cgi->param('limit')) {
+  if ($total) {
     my $limit = $cgi->param('limit') || 10;
     my $offset = $cgi->param('offset') || 0;
     my $order = $cgi->param('order') || "id";
-    my $total_count = scalar(@$data);
+    my $total_count = $total || scalar(@$data);
     my $additional_params = "";
     my @params = $cgi->param;
     foreach my $param (@params) {

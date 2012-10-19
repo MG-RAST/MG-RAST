@@ -139,7 +139,7 @@ sub instance {
   }
 
   # check rights
-  unless ($project->public || $user->has_right(undef, 'view', 'project', $id)) {
+  unless ($project->public || ($user && $user->has_right(undef, 'view', 'project', $id))) {
     return_data({ "ERROR" => "insufficient permissions to view this data" }, 401);
   }
 
@@ -165,14 +165,20 @@ sub query {
   my $limit = $cgi->param('limit') || 10;
   my $offset = $cgi->param('offset') || 0;
   my $order = $cgi->param('order') || "id";
+  my $total;
   
   # get all items the user has access to
   if ($staruser) {
     $projects = $master->Project->get_objects( { $order => [ undef, "_id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset" ] } );
+    my $result = $master->db_handle->selectall_arrayref("SELECT count(*) from Project");
+    $total = $result->[0]->[0];
   } else {
     $projects = $master->Project->get_objects( { $order => [ undef, "public=1 AND _id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset" ] } );
+    my $result = $master->db_handle->selectall_arrayref("SELECT count(*) from Project WHERE public=1");
+    $total = $result->[0]->[0];
     foreach my $key (keys %rights) {
       push(@$projects, $master->Project->init( { id => $key } ));
+      $total++;
     }
   }
 
@@ -180,7 +186,7 @@ sub query {
   my $data = prepare_data($projects);
 
   # check for pagination
-  $data = check_pagination($data);
+  $data = check_pagination($data, $total);
 
   return_data($data);
 }
@@ -246,13 +252,13 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-  my ($data) = @_;
+  my ($data, $total) = @_;
 
-  if ($cgi->param('limit') || $cgi->param('order')) {
+  if ($total) {
     my $limit = $cgi->param('limit') || 10;
     my $offset = $cgi->param('offset') || 0;
     my $order = $cgi->param('order') || "id";
-    my $total_count = scalar(@$data);
+    my $total_count = $total || scalar(@$data);
     my $additional_params = "";
     my @params = $cgi->param;
     foreach my $param (@params) {
