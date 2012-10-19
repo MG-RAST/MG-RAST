@@ -116,6 +116,28 @@ sub header {
 	                           -Access_Control_Allow_Origin => '*' );
 }
 
+# method initially called from the api module
+# method to parse parameters and decide which requests to process
+# overide this if not doing standard info / instance / query options
+sub request {
+    my ($self) = @_;
+
+    # check for parameters
+    my @parameters = $self->cgi->param;
+    if ( (scalar(@{$self->rest}) == 0) &&
+         ((scalar(@parameters) == 0) || ((scalar(@parameters) == 1) && ($parameters[0] eq 'keywords'))) )
+    {
+        $self->info();
+    }
+
+    # check for id
+    if ( scalar(@{$self->rest}) ) {
+        $self->instance();
+    } else {
+        $self->query();
+    }
+}
+
 # get a connection to the datasource
 sub connect_to_datasource {
     my ($self) = @_;
@@ -131,43 +153,39 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-    my ($self, $data) = @_;
+    my ($self, $data, $total_count) = @_;
 
-    if ($self->cgi->param('limit') || $self->cgi->param('order')) {
-        my $limit  = $self->cgi->param('limit') || 10;
-        my $offset = $self->cgi->param('offset') || 0;
-        my $order  = $self->cgi->param('order') || "id";
-        my $total_count = scalar(@$data);
-        my $additional_params = "";
-        my @params = $self->cgi->param;
-        foreach my $param (@params) {
-            next if ($param eq 'offset');
-            $additional_params .= $param."=".$self->cgi->param($param)."&";
-        }
-        if (length($additional_params)) {
-            chop $additional_params;
-        }
-        my $prev_offset = $offset - $limit;
-        if ($prev_offset < 0) {
-            $prev_offset = 0;
-        }
-        my $prev = $offset ? $self->cgi->url."/".$self->name."?$additional_params&offset=$prev_offset" : undef;
-        my $next_offset = $offset + $limit;
-        my $next = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$next_offset" : undef;
-        my $attributes = $self->attributes;
-        if (exists($attributes->{$order})) {
-            $data = { "limit" => $limit,
-		              "offset" => $offset,
-		              "total_count" => $total_count,
-		              "order" => $order,
-		              "next" => $next,
-		              "prev" => $prev,
-		              "data" => $data };
-        } else {
-            $self->return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
-        }
+    my $limit  = $self->cgi->param('limit')  || 10;
+    my $offset = $self->cgi->param('offset') || 0;
+    my $order  = $self->cgi->param('order')  || "id";
+    my @params = $self->cgi->param;
+    my $additional_params = "";
+
+    foreach my $param (@params) {
+        next if ($param eq 'offset');
+        $additional_params .= $param."=".$self->cgi->param($param)."&";
     }
-    return $data;
+    if (length($additional_params)) {
+        chop $additional_params;
+    }
+    my $prev_offset = (($offset - $limit) < 0) ? 0 : $offset - $limit;
+    my $next_offset = $offset + $limit;
+    
+    my $prev = ($offset > 0) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$prev_offset" : undef;
+    my $next = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$next_offset" : undef;
+
+    my $attributes = $self->attributes;
+    if (exists($attributes->{$order})) {
+        return { "limit" => $limit,
+		          "offset" => $offset,
+		          "total_count" => $total_count,
+		          "order" => $order,
+		          "next" => $next,
+		          "prev" => $prev,
+		          "data" => $data };
+    } else {
+        $self->return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
+    }
 }
 
 # print the actual data output
@@ -241,6 +259,28 @@ sub return_data {
             }
             exit 0;
         }
+    }
+}
+
+# print a file to download
+sub return_file {
+    my ($self, $filedir, $filename) = @_;
+    
+    unless ("$filedir/$filename" && (-s "$filedir/$filename")) {
+	    $self->return_data( {"ERROR" => "could not access filesystem"}, 404 );
+    }
+    if (open(FH, "<$filedir/$filename")) {
+	    print "Content-Type:application/x-download\n";  
+	    print "Access-Control-Allow-Origin: *\n";
+	    print "Content-Length: " . (stat("$filedir/$filename"))[7] . "\n";
+	    print "Content-Disposition:attachment;filename=$filename\n\n";
+	    while (<FH>) {
+	        print $_;
+	    }
+	    close FH;
+	    exit 0;
+    } else {
+	    $self->return_data( {"ERROR" => "could not access requested file: $filename"}, 404 );
     }
 }
 
@@ -351,15 +391,21 @@ sub info {
     return undef;
 }
 
+# the resource is called with an id parameter
+sub instance {
+    my ($self) = @_;
+    return $self->info();
+}
+
+# the resource is called without an id parameter, but with at least one query parameter
+sub query {
+    my ($self) = @_;
+    return $self->info();
+}
+
 # reformat the data into the requested output format
 sub prepare_data {
     my ($self, $data) = @_;
-    return undef;
-}
-
-# method to parse parameters and decide which requests to process
-sub request {
-    my ($self) = @_;
     return undef;
 }
 
