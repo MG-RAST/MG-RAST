@@ -139,7 +139,7 @@ sub instance {
   }
 
   # check rights
-  unless ($job->public || $user->has_right(undef, 'view', 'metagenome', $job->metagenome_id)) {
+  unless ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $job->metagenome_id))) {
     return_data({ "ERROR" => "insufficient permissions to view this data" }, 401);
   }
 
@@ -177,13 +177,14 @@ sub query {
   my $order = $cgi->param('order') || "id";
   if ($order eq 'id') { $order = 'metagenome_id'; }
   @$jobs = sort { $a->{$order} cmp $b->{$order} } @$jobs;
+  my $total = scalar(@$jobs);
   @$jobs = @$jobs[$offset..($offset + $limit - 1)];
 
   # prepare data to the correct output format
   my $data = prepare_data($jobs);
 
   # check for pagination
-  $data = check_pagination($data);
+  $data = check_pagination($data, $total);
 
   return_data($data);
 }
@@ -257,13 +258,13 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-  my ($data) = @_;
+  my ($data, $total) = @_;
 
-  if ($cgi->param('limit') || $cgi->param('order')) {
+  if ($total) {
     my $limit = $cgi->param('limit') || 10;
     my $offset = $cgi->param('offset') || 0;
     my $order = $cgi->param('order') || "id";
-    my $total_count = scalar(@$data);
+    my $total_count = $total || scalar(@$data);
     my $additional_params = "";
     my @params = $cgi->param;
     foreach my $param (@params) {
