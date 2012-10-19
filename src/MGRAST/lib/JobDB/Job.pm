@@ -498,6 +498,26 @@ sub get_public_jobs {
   }
 }
 
+sub count_all {
+  my ($self) = @_;
+ 
+  my $dbh = $self->_master()->db_handle();
+  my $sth = $dbh->prepare("SELECT count(*) FROM Job WHERE viewable=1");
+  $sth->execute;
+  my $result = $sth->fetchrow_arrayref();
+  return ( $result->[0] ) ;
+}
+
+sub count_public {
+  my ($self) = @_;
+  
+  my $dbh = $self->_master()->db_handle();
+  my $sth = $dbh->prepare("SELECT count(*) FROM Job WHERE viewable=1 AND public=1");
+  $sth->execute;
+  my $result = $sth->fetchrow_arrayref();
+  return ( $result->[0] ) ;
+}
+
 # new method section
 
 =pod
