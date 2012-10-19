@@ -15,7 +15,9 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name}       = "project";
+    my %rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
+    $self->{name} = "project";
+    $self->{rights} = \%rights;
     $self->{attributes} = { "id"             => [ 'string', 'unique object identifier' ],
     	                    "name"           => [ 'string', 'human readable identifier' ],
     	                    "libraries"      => [ 'list', [ 'reference library', 'a list of references to the related library objects' ] ],
@@ -88,28 +90,6 @@ sub info {
     $self->return_data($content);
 }
 
-
-# method initially called from the api module
-# method to parse parameters and decide which requests to process
-sub request {
-    my ($self) = @_;
-
-    # check for parameters
-    my @parameters = $self->cgi->param;
-    if ( (scalar(@{$self->rest}) == 0) &&
-         ((scalar(@parameters) == 0) || ((scalar(@parameters) == 1) && ($parameters[0] eq 'keywords'))) )
-    {
-        $self->info();
-    }
-
-    # check for id
-    if ( scalar(@{$self->rest}) ) {
-        $self->instance();
-    } else {
-        $self->query();
-    }
-}
-
 # the resource is called with an id parameter
 sub instance {
     my ($self) = @_;
@@ -131,12 +111,12 @@ sub instance {
     }
 
     # check rights
-    unless ($project->public || $self->user->has_right(undef, 'view', 'project', $id)) {
+    unless ($project->{public} || exists($self->rights->{$id})) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
     # prepare data
-    my $data = $self->prepare_data([ $project ]);
+    my $data = $self->prepare_data( [$project] );
     $data = $data->[0];
 
     $self->return_data($data)
@@ -147,33 +127,31 @@ sub query {
     my ($self) = @_;
 
     # get database
-    my $master = $self->connect_to_datasource();
+    my $master   = $self->connect_to_datasource();
     my $projects = [];
-
-    # get all user rights
-    my %rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();    
-    my $staruser = ($self->user && $self->user->has_right(undef, 'view', 'project', '*')) ? 1 : 0;
+    my $total    = 0;
 
     # check pagination
-    my $limit  = $self->cgi->param('limit') || 10;
+    my $limit  = $self->cgi->param('limit')  || 10;
     my $offset = $self->cgi->param('offset') || 0;
-    my $order  = $self->cgi->param('order') || "id";
-  
-    # get all items the user has access to
-    if ($staruser) {
-        $projects = $master->Project->get_objects( { $order => [undef, "_id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset"] } );
-    } else {
-        $projects = $master->Project->get_objects( { $order => [undef, "public=1 AND _id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset"] } );
-        foreach my $key (keys %rights) {
-            push @$projects, $master->Project->init( {id => $key} );
-        }
-    }
+    my $order  = $self->cgi->param('order')  || "id";
 
+    # get all items the user has access to
+    if (exists $self->rights->{'*'}) {
+        $total    = $master->Project->count_all();
+        $projects = $master->Project->get_objects( {$order => [undef, "_id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    } else {
+        my $public = $master->Project->get_public_projects(1);
+        my $list   = join(',', (@$public, keys %{$self->rights}));
+        $total     = scalar(@$public) + scalar(keys %{$self->rights});
+        $projects  = $master->Project->get_objects( {$order => [undef, "id IN ($list) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    }
+    
     # prepare data to the correct output format
     my $data = $self->prepare_data($projects);
 
     # check for pagination
-    $data = $self->check_pagination($data);
+    $data = $self->check_pagination($data, $total);
 
     $self->return_data($data);
 }

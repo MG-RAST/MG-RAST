@@ -116,12 +116,6 @@ sub instance {
 	$self->return_file($filedir, $filename);
 }
 
-# the resource is called without an id parameter, but with at least one query parameter
-sub query {
-    my ($self) = @_;
-    $self->info();
-}
-
 sub setlist {
     my ($self, $job) = @_;
 

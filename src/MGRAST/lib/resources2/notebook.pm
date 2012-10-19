@@ -16,7 +16,7 @@ sub new {
     
     # Add name / attributes
     $self->{name}       = "notebook";
-    $self->{attributes} = { "shock_id" => [ 'string', 'unique shock identifier' ],
+    $self->{attributes} = { "id"       => [ 'string', 'unique shock identifier' ],
                             "name"     => [ 'string', 'human readable identifier' ],
                             "uuid"     => [ 'string', 'ipynb identifier - stable across different versions'],
                             "notebook" => [ 'hash', 'notebook object in JSON format' ],
@@ -40,27 +40,6 @@ sub info {
                     'requests'      => [],
                   };
     $self->return_data($content);
-}
-
-# method initially called from the api module
-# method to parse parameters and decide which requests to process
-sub request {
-    my ($self) = @_;
-
-    # check for parameters
-    my @parameters = $self->cgi->param;
-    if ( (scalar(@{$self->rest}) == 0) &&
-         ((scalar(@parameters) == 0) || ((scalar(@parameters) == 1) && ($parameters[0] eq 'keywords'))) )
-    {
-        $self->info();
-    }
-
-    # check for id
-    if ( scalar(@{$self->rest}) ) {
-        $self->instance();
-    } else {
-        $self->query();
-    }
 }
 
 # the resource is called with an id parameter
@@ -96,12 +75,20 @@ sub query {
     my $nodes = [];
     map { push @$nodes, $_ } @{ $self->get_shock_query( {type => 'ipynb', user => $uname} ) };
     map { push @$nodes, $_ } @{ $self->get_shock_query( {type => 'ipynb', user => 'public'} ) };
+    my $total = scalar @$nodes;
+ 
+    # check limit
+    my $limit  = $self->cgi->param('limit')  || 10;
+    my $offset = $self->cgi->param('offset') || 0;
+    my $order  = $self->cgi->param('order')  || "id";
+    @$nodes = sort { $a->{$order} cmp $b->{$order} } @$nodes;
+    @$nodes = @$nodes[$offset..($offset+$limit-1)];
  
     # prepare data to the correct output format
     my $data = $self->prepare_data($nodes);
 
     # check for pagination
-    $data = $self->check_pagination($data);
+    $data = $self->check_pagination($data, $total);
 
     $self->return_data($data);
 }
@@ -114,14 +101,14 @@ sub prepare_data {
     foreach my $node (@$data) {
         my $url = $self->cgi->url;
         my $obj = {};
-        $obj->{shock_id} = $node->{id};
+        $obj->{id}       = $node->{id};
         $obj->{name}     = $node->{attributes}{name};
         $obj->{uuid}     = $node->{attributes}{uuid};
         $obj->{created}  = $node->{attributes}{created};
         $obj->{version}  = 1;
-        $obj->{url}      = $url.'/notebook/'.$obj->{shock_id};
+        $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
-            $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{shock_id}) );
+            $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{id}) );
         }
         push @$objects, $obj;
     }

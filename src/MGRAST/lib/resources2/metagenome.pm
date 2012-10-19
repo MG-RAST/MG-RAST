@@ -15,7 +15,9 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name}       = "metagenome";
+    my %rights = $self->user ? map { $_, 1 } @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
+    $self->{name} = "metagenome";
+    $self->{rights} = \%rights;
     $self->{attributes} = { "id"       => [ 'string', 'unique object identifier' ],
                             "name"     => [ 'string', 'human readable identifier' ],
                             "library"  => [ 'reference library', 'reference to the related library object' ],
@@ -93,27 +95,6 @@ sub info {
     $self->return_data($content);
 }
 
-# method initially called from the api module
-# method to parse parameters and decide which requests to process
-sub request {
-    my ($self) = @_;
-
-    # check for parameters
-    my @parameters = $self->cgi->param;
-    if ( (scalar(@{$self->rest}) == 0) &&
-         ((scalar(@parameters) == 0) || ((scalar(@parameters) == 1) && ($parameters[0] eq 'keywords'))) )
-    {
-        $self->info();
-    }
-
-    # check for id
-    if ( scalar(@{$self->rest}) ) {
-        $self->instance();
-    } else {
-        $self->query();
-    }
-}
-
 # the resource is called with an id parameter
 sub instance {
     my ($self) = @_;
@@ -129,23 +110,20 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get data
-    my $job = $master->Job->get_objects( {metagenome_id => $id} );
-    if (scalar(@$job)) {
-        $job = $job->[0];
-    }
-    else {
+    my $job = $master->Job->init( {metagenome_id => $id} );
+    unless ($job && ref($job)) {
         $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
     }
-
+    
     # check rights
-    unless ($job->public || $self->user->has_right(undef, 'view', 'metagenome', $job->metagenome_id)) {
+    unless ($job->{public} || exists($self->rights->{$id})) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
     # prepare data
     my $data = $self->prepare_data( [$job] );
     $data = $data->[0];
-
+    
     $self->return_data($data);
 }
 
@@ -156,37 +134,32 @@ sub query {
     # get database
     my $master = $self->connect_to_datasource();
     my $jobs   = [];
+    my $total  = 0;
 
-    # get all user rights
-    my %rights   = $self->user ? map { $_, 1 } @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
-    my $staruser = ($self->user && $self->user->has_right(undef, 'view', 'metagenome', '*')) ? 1 : 0;
-
-    # get all items the user has access to
-    if ($staruser) {
-        $jobs = $master->Job->get_objects({viewable => 1});
-    }
-    else {
-        $jobs = $master->Job->get_public_jobs();
-        foreach my $key (keys %rights) {
-            push @$jobs, $master->Job->get_objects({metagenome_id => $key})->[0];
-        }
-    }
-
-    # check limit
+    # check pagination
     my $limit  = $self->cgi->param('limit')  || 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
     if ($order eq 'id') {
         $order = 'metagenome_id';
     }
-    @$jobs = sort { $a->{$order} cmp $b->{$order} } @$jobs;
-    @$jobs = @$jobs[ $offset .. ($offset + $limit - 1) ];
+
+    # get all items the user has access to
+    if (exists $self->rights->{'*'}) {
+        $total = $master->Job->count_all();
+        $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    } else {
+        my $public = $master->Job->get_public_jobs(1);
+        my $list   = join(',', (@$public, keys %{$self->rights}));
+        $total = scalar(@$public) + scalar(keys %{$self->rights});
+        $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($list) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    }
 
     # prepare data to the correct output format
     my $data = $self->prepare_data($jobs);
 
     # check for pagination
-    $data = $self->check_pagination($data);
+    $data = $self->check_pagination($data, $total);
 
     $self->return_data($data);
 }

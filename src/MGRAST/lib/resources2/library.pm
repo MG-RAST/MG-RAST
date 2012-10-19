@@ -86,27 +86,6 @@ sub info {
     $self->return_data($content);
 }
 
-# method initially called from the api module
-# method to parse parameters and decide which requests to process
-sub request {
-    my ($self) = @_;
-
-    # check for parameters
-    my @parameters = $self->cgi->param;
-    if ( (scalar(@{$self->rest}) == 0) &&
-         ((scalar(@parameters) == 0) || ((scalar(@parameters) == 1) && ($parameters[0] eq 'keywords'))) )
-    {
-        $self->info();
-    }
-
-    # check for id
-    if ( scalar(@{$self->rest}) ) {
-        $self->instance();
-    } else {
-        $self->query();
-    }
-}
-
 # the resource is called with an id parameter
 sub instance {
     my ($self) = @_;
@@ -154,7 +133,8 @@ sub query {
     # add libraries with no job
     map { $libraries_hash->{"mgl".$library_map->{$_}} = $library_map->{$_} } grep { ! exists $job_lib_map->{$_} } keys %$library_map;
     my $libraries = [];
-    @$libraries = map { $libraries_hash->{$_} } keys(%$libraries_hash);
+    @$libraries   = map { $libraries_hash->{$_} } keys(%$libraries_hash);
+    my $total     = scalar @$libraries;
 
     # check limit
     my $limit  = $self->cgi->param('limit') || 10;
@@ -167,7 +147,7 @@ sub query {
     my $data = $self->prepare_data($libraries);
 
     # check for pagination
-    $data = $self->check_pagination($data);
+    $data = $self->check_pagination($data, $total);
 
     $self->return_data($data);
 }

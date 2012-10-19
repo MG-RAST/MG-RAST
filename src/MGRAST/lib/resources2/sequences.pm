@@ -123,12 +123,6 @@ sub instance {
     $self->return_data($data);
 }
 
-# the resource is called without an id parameter, but with at least one query parameter
-sub query {
-    my ($self) = @_;
-    $self->info();
-}
-
 # reformat the data into the requested output format
 sub prepare_data {
     my ($self, $data) = @_;
