@@ -153,12 +153,14 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-    my ($self, $data, $total_count) = @_;
+    my ($self, $data, $total) = @_;
 
     my $limit  = $self->cgi->param('limit')  || 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
     my @params = $self->cgi->param;
+    
+    my $total_count = $total || scalar(@$data);
     my $additional_params = "";
 
     foreach my $param (@params) {
@@ -378,6 +380,11 @@ sub get_shock_query {
     } else {
         return $shock->{D};
     }
+}
+
+sub toFloat {
+  my ($self, $x) = @_;
+  return $x * 1.0;
 }
 
 ###################################################
