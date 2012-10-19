@@ -139,7 +139,7 @@ sub instance {
   }
 
   # check rights
-  unless ($job->public || $user->has_right(undef, 'view', 'metagenome', $job->metagenome_id)) {
+  unless ($job->public || ($user && $user->has_right(undef, 'view', 'metagenome', $job->metagenome_id))) {
     return_data({ "ERROR" => "insufficient permissions to view this data" }, 401);
   }
 
