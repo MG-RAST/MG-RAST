@@ -42,6 +42,7 @@ if (opendir(my $dh, $resource_path)) {
   my @res = grep { -f "$resource_path/$_" } readdir($dh);
   closedir $dh;
   @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } @res;  
+  @$resources = map { $_ eq 'resource' ? () : $_; } @$resources;
 } else {
   if ($cgi->param('POSTDATA') && ! $resource) {
     print $cgi->header(-type => 'application/json',
