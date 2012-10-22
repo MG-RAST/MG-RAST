@@ -425,7 +425,7 @@ sub output {
 		    <div class="controls">
 		      <label class="checkbox">
 			<input id="assembled" type="checkbox" value="assembled" name="assembled">
-			Select this option if your input sequence file(s) contain assembled data and include the coverage information within each sequence as describe <a href='http://blog.metagenomics.anl.gov/' target='blank'>here</a>.
+			Select this option if your input sequence file(s) contain assembled data and include the coverage information within each sequence as described <a href='http://blog.metagenomics.anl.gov/' target='blank'>here</a>.
 		      </label>
 		    </div>
 
