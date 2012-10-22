@@ -421,6 +421,14 @@ sub output {
 	      <div id="sel_pip_div" style="display: none;" class="well">
 		  <h3>selected pipeline options</h3>
 		  <div class="control-group">
+		    <label class="control-label" for="assembled"><b>assembled</b></label>
+		    <div class="controls">
+		      <label class="checkbox">
+			<input id="assembled" type="checkbox" value="assembled" name="assembled">
+			Select this option if your input sequence file(s) contain assembled data and include the coverage information within each sequence as describe <a href='http://blog.metagenomics.anl.gov/' target='blank'>here</a>.
+		      </label>
+		    </div>
+
 		    <label class="control-label" for="dereplication"><b>dereplication</b></label>
 		    <div class="controls">
 		      <label class="checkbox">
@@ -609,6 +617,7 @@ sub submit_to_mgrast {
   my $filter_ambig = $cgi->param('filter_ambig');
   my $max_ambig = $cgi->param('max_ambig');
   my $priority = $cgi->param('priorityOption');
+  my $assembled = $cgi->param('assembled');
 
   my $seqfiles = [];
   @$seqfiles = split /\|/, $cgi->param('seqfiles');
@@ -651,14 +660,14 @@ sub submit_to_mgrast {
 		   'max_ambig' => $max_ambig,
 		   'file' => $seqfile,
 		   'name' => $name,
-		   'priority' => $priority
+		   'priority' => $priority,
+		   'assembled' => $assembled ? 1 : 0
 		 };
       while (<FH>) {
 	chomp;
 	my ($key, $val) = split /\t/;
 	$info->{$key} = $val;
       }
-      # If "assembled" sequence CGI parameter is 1 then set $info->{assembled} = 1 here.
       if ($filter_ln_mult) {
 	$info->{min_ln} = int($info->{average_length} - ($filter_ln_mult * $info->{standard_deviation_length}));
 	$info->{max_ln} = int($info->{average_length} + ($filter_ln_mult * $info->{standard_deviation_length}));
