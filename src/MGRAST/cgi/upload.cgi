@@ -724,7 +724,7 @@ sub extract_fastq_from_sff {
 	return (0, "$sff\tError unpacking uploaded sff file '$dir/$sff': $@");
     }
 
-    if ( -s "$dir/$sff.fastq" )
+    if ( -s "$dir/$without_extension.fastq" )
     {
 	return (1, "$sff\tsff to fastq success, created $sff.fastq");
     }
