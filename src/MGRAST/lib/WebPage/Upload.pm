@@ -741,6 +741,8 @@ sub submit_to_mgrast {
       }
       if (-f $rawfile && (stat($rawfile))[7] == (stat("$udir/$seqfile"))[7]) {
 	`rm "$udir/$seqfile"`; 
+	`rm "$udir/$seqfile.error_log"`; 
+	`rm "$udir/$seqfile.stats_info"`; 
       }
     }
     exit;
