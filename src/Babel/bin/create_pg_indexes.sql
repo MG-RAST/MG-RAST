@@ -34,9 +34,7 @@ CREATE INDEX organisms_ncbi_name ON organisms_ncbi (name);
 CREATE INDEX organisms_ncbi_tax_id ON organisms_ncbi (ncbi_tax_id);
 
 CREATE INDEX ontology_seed_id ON ontology_seed (id);
-
 CREATE INDEX ontology_kegg_id ON ontology_kegg (id);
-
 CREATE INDEX ontology_eggnog_id ON ontology_eggnog (id);
 CREATE INDEX ontology_eggnog_type ON ontology_eggnog (type);
 

@@ -45,9 +45,6 @@ if ( ! GetOptions(
 my $dbh = DBI->connect("DBI:Pg:dbname=$dbname;host=$dbhost", $dbuser, '', {AutoCommit => 0});
 unless ($dbh) { print STDERR "Error: " . $DBI::errstr . "\n"; exit 1; }
 
-my $mch = new Cache::Memcached {'servers' => [$memhost], 'debug' => 0, 'compress_threshold' => 10_000};
-unless ($mch && ref($mch)) { print STDERR "Unable to connect to memcache:\n$usage"; exit 1; }
-
 my @types = ('source', 'organism', 'function', 'ontology');
 my @md5s  = ('md5_protein', 'md5_rna', 'md5_ontology');
 
@@ -71,8 +68,8 @@ $dbh->do("COPY (SELECT _id, name FROM functions) TO '$tmpdir/function_map' WITH 
 $dbh->do("COPY (SELECT _id, id, type FROM ontologies) TO '$tmpdir/ontology_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_protein) TO '$tmpdir/md5_protein_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_rna) TO '$tmpdir/md5_rna_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT DISTINCT md5, source, function, id FROM md5_ontology) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
-system("cat ".join(" ", map {"$tmpdir/${_}_map"} @md5s)." | sort > $tmpdir/md5_data_map");
+$dbh->do("COPY (SELECT DISTINCT m.md5, m.source, m.function, o._id FROM md5_ontology m, ontologies o WHERE m.id=o.id) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
+system("cat ".join(" ", map {"$tmpdir/${_}_map"} @md5s)." | sort -T $tmpdir > $tmpdir/md5_data_map");
 print STDERR "Done\n" if ($verbose);
 $dbh->disconnect;
 
