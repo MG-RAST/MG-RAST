@@ -121,8 +121,6 @@ sub instance {
 
     # prepare data
     my $data = $self->prepare_data($job);
-    $data = $data->[0];
-    
     $self->return_data($data);
 }
 
@@ -131,6 +129,7 @@ sub prepare_data {
     my ($self, $data) = @_;
 
     my $params = {};
+    my $cgi = $self->cgi;
     $params->{type}   = $cgi->param('type') ? $cgi->param('type') : 'organism';
     $params->{source} = $cgi->param('source') ? $cgi->param('source') : (($params->{type} eq 'organism') ? 'M5NR' : (($params->{type} eq 'function') ? 'Subsystems': 'RefSeq'));
   
@@ -180,7 +179,7 @@ sub prepare_data {
             next unless (exists $strain2tax->{$row->[9]});
             my $tax_str = [ "k__".$row->[2], "p__".$row->[3], "c__".$row->[4], "o__".$row->[5], "f__".$row->[6], "g__".$row->[7], "s__".$row->[9] ];
             push(@$rows, { "id" => $strain2tax->{$row->[9]}, "metadata" => { "taxonomy" => $tax_str }  });
-            push(@$values, [ toFloat($row->[10]), toFloat($row->[12]), toFloat($row->[14]), toFloat($row->[16]) ]);
+            push(@$values, [ $self->toFloat($row->[10]), $self->toFloat($row->[12]), $self->toFloat($row->[14]), $self->toFloat($row->[16]) ]);
         }
     }
     elsif ($params->{type} eq 'function') {
@@ -192,7 +191,7 @@ sub prepare_data {
             next unless (exists $function2ont->{$row->[1]});
             my $ont_str = [ map { defined($_) ? $_ : '-' } @{$function2ont->{$row->[1]}} ];
             push(@$rows, { "id" => $row->[1], "metadata" => { "ontology" => $ont_str } });
-            push(@$values, [ toFloat($row->[3]), toFloat($row->[5]), toFloat($row->[7]), toFloat($row->[9]) ]);
+            push(@$values, [ $self->toFloat($row->[3]), $self->toFloat($row->[5]), $self->toFloat($row->[7]), $self->toFloat($row->[9]) ]);
         }
     }
     elsif ($params->{type} eq 'feature') {
@@ -205,7 +204,7 @@ sub prepare_data {
         foreach my $row (@$result) {
             next unless (exists $md52id->{$row->[1]});
             push(@$rows, { "id" => $row->[1], "metadata" => { $params->{source}." ID" => $md52id->{$row->[1]} } });
-            push(@$values, [ toFloat($row->[2]), toFloat($row->[3]), toFloat($row->[5]), toFloat($row->[7]) ]);
+            push(@$values, [ $self->toFloat($row->[2]), $self->toFloat($row->[3]), $self->toFloat($row->[5]), $self->toFloat($row->[7]) ]);
         }
     }
   
