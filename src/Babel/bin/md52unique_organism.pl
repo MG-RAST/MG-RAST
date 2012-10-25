@@ -59,32 +59,35 @@ foreach my $src_set ((['protein', $prot_src], ['rna', $rna_src])) {
     while ( my ($md5, $orgs) = each %$md5_org) {
       # if only one, use it
       if (scalar($orgs) == 1) {
-	my $oname = exists($ncbi_org->{$orgs->[0]}) ? $ncbi_org->{$orgs->[0]} : $other_org->{$orgs->[0]};
-	print OUTF join("\t", ($md5, $oname, $sname))."\n";
-	$only_one += 1;
+	    #my $oname = exists($ncbi_org->{$orgs->[0]}) ? $ncbi_org->{$orgs->[0]} : $other_org->{$orgs->[0]};
+	    #print OUTF join("\t", ($md5, $oname, $sname))."\n";
+	    print OUTF join("\t", ($md5, $orgs->[0], $sname))."\n";
+	    $only_one += 1;
       }
       # get ncbi set or other set sorted by abundance
       else {
-	my @org_set = map { [$ncbi_org->{$_}, $org_num->{$_}] } grep {exists $ncbi_org->{$_}} @$orgs;
-	if (@org_set == 0) {
-	  @org_set = map { [$other_org->{$_}, $org_num->{$_}] } grep {exists $other_org->{$_}} @$orgs;
-	  $no_taxid += 1;
-	}
-	next if (@org_set == 0);
-	@org_set = sort { $b->[1] <=> $a->[1] } @org_set;
-	my $max  = $org_set[0][1];
-	my @top  = map { $_->[0] } grep { $_->[1] == $max } @org_set;
-	# if we have a top one, use
-	if (@top == 1) {
-	  print OUTF join("\t", ($md5, $top[0], $sname))."\n";
-	  $has_max += 1;
-	}
-	# randomly choose
-	else {
-	  my $rand_index = int( rand(scalar(@top)) );
-	  print OUTF join("\t", ($md5, $top[$rand_index], $sname))."\n";
-	  $random += 1;
-	}
+	    #my @org_set = map { [$ncbi_org->{$_}, $org_num->{$_}] } grep {exists $ncbi_org->{$_}} @$orgs;
+	    my @org_set = map { [$_, $org_num->{$_}] } grep {exists $ncbi_org->{$_}} @$orgs;
+	    if (@org_set == 0) {
+	      #@org_set = map { [$other_org->{$_}, $org_num->{$_}] } grep {exists $other_org->{$_}} @$orgs;
+	      @org_set = map { [$_, $org_num->{$_}] } grep {exists $other_org->{$_}} @$orgs;
+	      $no_taxid += 1;
+	    }
+	    next if (@org_set == 0);
+	    @org_set = sort { $b->[1] <=> $a->[1] } @org_set;
+	    my $max  = $org_set[0][1];
+	    my @top  = map { $_->[0] } grep { $_->[1] == $max } @org_set;
+	    # if we have a top one, use
+	    if (@top == 1) {
+	      print OUTF join("\t", ($md5, $top[0], $sname))."\n";
+	      $has_max += 1;
+	    }
+	    # randomly choose
+	    else {
+	      my $rand_index = int( rand(scalar(@top)) );
+	      print OUTF join("\t", ($md5, $top[$rand_index], $sname))."\n";
+	      $random += 1;
+	    }
       }
     }
     print STDERR "total: ".($only_one+$has_max+$random)." ($no_taxid no taxid), only one: $only_one, has max: $has_max, random: $random\n" if ($verbose);
@@ -96,7 +99,7 @@ print STDERR "Done processing sources.\n" if ($verbose);
 if ($load_db) {
   print STDERR "Creating table md5_organism_unique ... " if ($verbose);
   $dbh->do("DROP TABLE IF EXISTS md5_organism_unique");
-  $dbh->do("CREATE TABLE md5_organism_unique (md5 char(32) NOT NULL, organism text, source text);");
+  $dbh->do("CREATE TABLE md5_organism_unique (md5 char(32) NOT NULL, organism integer, source text);");
   $dbh->commit;
   print STDERR "Done.\n" if ($verbose);
 
