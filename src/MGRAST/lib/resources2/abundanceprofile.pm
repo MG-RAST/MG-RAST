@@ -59,9 +59,7 @@ sub info {
 				    'method'      => "GET" ,
 				    'type'        => "synchronous" ,  
 				    'attributes'  => $self->attributes,
-				    'parameters'  => { 'options'     => { 'verbosity' => [ 'cv', [ [ 'minimal', 'returns only minimal information' ],
-												   [ 'verbose', 'returns all metadata' ],
-												   [ 'full', 'returns all references' ] ] ],
+				    'parameters'  => { 'options' => {
 									  'type' => [ 'cv', [ ['organism', 'return organism data'],
 											      ['function', 'return functional data'],
 											      ['feature', 'return feature data'] ] ],
