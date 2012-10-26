@@ -87,6 +87,10 @@ if (($select eq 'md5') && $lcaf && $md5f && (-s $lcaf) && (-s $md5f)) {
     push @{ $data->{$src}->{$func} }, $org;
   }
   close MD5F;
+  # add last
+  if (scalar(keys %$data) > 0) {
+      $mem_cache->set($curr.$memkey, $data, undef); # no experiation
+  }
   print STDERR "Done parsing / adding $num md5s\n" if ($verbose);
 }
 elsif (($select ne 'md5') && $mapf && (-s $mapf)) {
