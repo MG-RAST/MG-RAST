@@ -1086,7 +1086,8 @@ sub fetch_browsepage_viewable {
 		'sequence_count'  => $stat->{$job->[0]}{sequence_count_raw} || 0,
 		'average_length'  => $stat->{$job->[0]}{average_length_raw} || '',
 		'drisee'          => $stat->{$job->[0]}{drisee_score_raw} || '',
-		'alpha_diversity' => $stat->{$job->[0]}{alpha_diversity_shannon} || ''
+		'alpha_diversity' => $stat->{$job->[0]}{alpha_diversity_shannon} || '',
+		'sequence_type'   => $job->[6]
 	      };
     if (exists $jmd->{$job->[1]}{project}) {
       my $proj = $jmd->{$job->[1]}{project};
@@ -1120,8 +1121,8 @@ sub fetch_browsepage_viewable {
     }
     if (exists $jmd->{$job->[1]}{library}) {
       my $lib = $jmd->{$job->[1]}{library};
+      if ($lib->{type}) { $row->{sequence_type} = $lib->{type}; }
       $row->{'sequencing method'} = exists($lib->{data}{seq_meth}) ? $lib->{data}{seq_meth} : '';
-      $row->{sequence_type}       = $lib->{type} ? $lib->{type} : $job->[6];
     }
     push(@$data, $row);
   }
