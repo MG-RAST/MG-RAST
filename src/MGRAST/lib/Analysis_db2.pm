@@ -21,6 +21,9 @@ sub new {
   # get ach object
   my $ach = new Babel::lib::Babel;
   
+  # get memcache object
+  my $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
+  
   # connect to database
   my $dbh;
   eval {
@@ -48,16 +51,23 @@ sub new {
   my $self = { dbh     => $dbh,     # job data db_handle
 	           ach     => $ach,     # ach/babel object
 	           jcache  => $job_dbh, # job cache db_handle
-	           jobs    => {},       # hash: mg_id => job_id
+	           memd    => $memd,    # memcached handle
+	           jobs    => [],       # array: job_id	           
+	           job_map => {},       # hash: mg_id => job_id
+	           mg_map  => {},       # hash: job_id => mg_id
 	           jrna    => {},       # hash: job_id => rna_only
 	           expire  => $Conf::web_memcache_expire || 172800, # use config or 48 hours
 	           version => $Conf::m5nr_annotation_version || 1,
-	           tables  => { md5          => 'job_md5s',
+	           jtbl    => { md5          => 'job_md5s',
 	                        ontology     => 'job_ontologies',
 	                        function     => 'job_functions',
 	                        organism     => 'job_organisms',
 	                        rep_organism => 'job_rep_organisms',
-	                        lca          => 'job_lcas' }
+	                        lca          => 'job_lcas' },
+	           atbl    => { ontology     => 'ontologies',
+	                        function     => 'functions',
+	                        organism     => 'organisms_ncbi',
+	                        rep_organism => 'organisms_ncbi' }
 	         };
   bless $self, $class;
   return $self;
@@ -85,9 +95,29 @@ sub jcache {
   return $self->{jcache};
 }
 
+sub memd {
+  my ($self) = @_;
+  return $self->{memd};
+}
+
 sub jobs {
   my ($self) = @_;
   return $self->{jobs};
+}
+
+sub qjobs {
+  my ($self) = @_;
+  return "job IN (".join(',' @{$self->{jobs}}).")";
+}
+
+sub job_map {
+  my ($self) = @_;
+  return $self->{job_map};
+}
+
+sub mg_map {
+  my ($self) = @_;
+  return $self->{mg_map};
 }
 
 sub expire {
@@ -101,18 +131,23 @@ sub version {
 }
 
 sub qver {
-  my ($self, $w) = @_;
-  return ($w ? " WHERE" : " AND")." version = ".$self->{version};
+  my ($self) = @_;
+  return "version = ".$self->{version};
 }
 
-sub tables {
+sub jtbl {
   my ($self) = @_;
-  return $self->{tables};
+  return $self->{jtbl};
+}
+
+sub atbl {
+  my ($self) = @_;
+  return $self->{atbl};
 }
 
 sub has_job {
   my ($self, $mgid) = @_;
-  return exists($self->jobs->{$mgid}) ? 1 : 0;
+  return exists($self->job_map->{$mgid}) ? 1 : 0;
 }
 
 # add values to $self->{jobs} based on metagenome_id list
@@ -120,19 +155,27 @@ sub add_jobs {
   my ($self, $mgids) = @_;
   my @new_mg  = grep { ! $self->has_job($_) } @$mgids;
   my $new_map = $self->get_jobid_map(\@new_mg);
-  %{ $self->{jobs} } = ( %{$self->{jobs}}, %$new_map );
-  $self->set_rna_state();
+  %{ $self->{job_map} } = ( %{$self->{job_map}}, %$new_map );
+  $self->set_data();
 }
 
-# set values for $self->{jobs} and $self->{tables} based on metagenome_id list
+# set values for $self->{jobs} and $self->{jtbl} based on metagenome_id list
 sub set_jobs {
   my ($self, $mgids, $jids) = @_;
   if (defined($jids)) {
-    $self->{jobs} = $self->get_jobid_map($mgids, 1);
+    $self->{job_map} = $self->get_jobid_map($mgids, 1);
   } else {
-    $self->{jobs} = $self->get_jobid_map($mgids);
+    $self->{job_map} = $self->get_jobid_map($mgids);
   }
-  $self->set_rna_state();
+  $self->set_data();
+}
+
+sub set_data {
+    my ($self) = @_;
+    my %rev = reverse %{$self->{job_map}};
+    $self->{mg_map} = \%rev;
+    $self->{jobs} = values %{$self->{job_map}};
+    $self->{jrna} = $self->get_rna_state();
 }
 
 # populate obj with all public jobs
@@ -141,10 +184,6 @@ sub set_public_jobs {
   my $mgids = $self->jcache->selectcol_arrayref("SELECT metagenome_id FROM Job WHERE public = 1 AND viewable = 1");
   if ($mgids && (@$mgids > 0)) {
     $self->set_jobs($mgids);
-  }
-  else {
-    $self->{jobs} = {};
-    $self->{jrna} = {};
   }
 }
 
@@ -167,16 +206,16 @@ sub get_jobid_map {
   return $hash;
 }
 
-sub set_rna_state {
+sub get_rna_state {
     my ($self) = @_;
-    my $jobs = {};
-    my $list = join(",", keys %{$self->{jobs}});
-    my $rows = $self->dbh->selectcol_arrayref("SELECT job FROM job_info WHERE rna_only IS TRUE AND job IN ($list)".$self->qver);
-    %$jobs   = map { $_, 0 } keys %{$self->{jobs}};
+    my $jobs  = {};
+    my $where = $self->get_where_str(["rna_only IS TRUE", $self->qjobs, $self->qver]);
+    my $rows  = $self->dbh->selectcol_arrayref("SELECT job FROM job_info".$where);
+    %$jobs    = map { $_, 0 } values %{$self->{jobs}};
     if ($rows && (@$rows > 0)) {
         map { $jobs->{$_} = 1 } @$rows;
     }
-    $self->{jrna} = $jobs;
+    return $jobs;
 }
 
 sub get_seq_count {
@@ -188,7 +227,7 @@ sub get_seq_count {
 
 sub get_all_job_ids {
   my ($self, $type) = @_;
-  my $query = "SELECT distinct(job) FROM job_info WHERE loaded IS TRUE".$self->qver;
+  my $query = "SELECT distinct(job) FROM job_info WHERE loaded IS TRUE AND ".$self->qver;
   if ($type eq 'rna') {
     $query .= " AND rna_only IS TRUE";
   } elsif ($type eq 'protein') {
@@ -328,6 +367,13 @@ sub run_fraggenescan {
   }
   unlink($infile_name, $infile_name.".fgs.faa", $infile_name.".fgs.ffn", $infile_name.".fgs.out");
   return $output;
+}
+
+sub get_table_cols {
+  my ($self, $table) = @_;
+  my $sql  = "SELECT a.attname FROM pg_attribute a, pg_class c WHERE c.oid = a.attrelid AND a.attnum > 0 AND c.relname = '$table'";
+  my $cols = $self->dbh->selectcol_arrayref($sql);
+  return ($cols && (@$cols > 0)) ? $cols : [];
 }
 
 ####################
@@ -471,6 +517,51 @@ sub gammaln {
 }
 
 ####################
+# All functions conducted on annotation tables
+####################
+
+sub get_annotation_map {
+    my ($self, $type, $anns, $src) = @_;
+    
+    my $tbl = exists($self->atbl->{$type}) ? $self->atbl->{$type} : '';
+    unless ($tbl && $anns && @$anns) { return {}; }
+    
+    my $amap = {};
+    my $qann = join(",", map {$self->dbh->quote($_)} @$anns);
+    my $sql  = "SELECT _id, name FROM $tbl WHERE name IN ($qann) AND ".$self->qver;
+    if ($src && ($type eq 'ontology')) {
+        $sql .= " AND type = ".$self->dbh->quote($src);
+    }
+    my $tmp  = $self->dbh->selectall_arrayref($sql);
+    if ($tmp && @$tmp) {
+        %$amap = map { $_->[0], $_->[1] } @$tmp;
+    }
+    return $amap;    
+}
+
+sub get_annotations4level {
+  my ($self, $type, $level, $names, $src, $get_ids) = @_;
+
+  my $tbl = exists($self->atbl->{$type}) ? $self->atbl->{$type} : '';
+  unless ($tbl && $level) { return {}; }
+
+  my $key   = $get_ids ? '_id' : 'name';
+  my $anns  = {};
+  my $qname = ($names && @$names) ? $level." IN (".join(",", map {$self->dbh->quote($_)} @$names).")" : "";
+  my $qsrc  = ($src && ($type eq 'ontology')) ? "type = ".$self->dbh->quote($src) : "";
+  my $where = $self->get_where_str([$qname, $qsrc]);
+  my @cols  = grep { $_ eq $level } @{ $self->get_table_cols($tbl) };
+
+  if (@cols == 1) {
+    my $rows = $self->dbh->selectall_arrayref("SELECT DISTINCT $key, $level FROM ".$tbl.$where);
+    if ($rows && (@$rows > 0)) {
+      %$anns = map { $_->[0], $_->[1] } grep { $_->[1] && ($_->[1] =~ /\S/) } @$rows;
+    }
+  }
+  return $anns;
+}
+
+####################
 # All functions conducted on individual job
 ####################
 
@@ -478,17 +569,17 @@ sub get_sources {
   my ($self, $mgid, $type) = @_;
 
   $self->set_jobs([$mgid]);
-  my $job = $self->jobs->{$mgid};
+  my $where = $self->get_where_str(["job = ".$self->job_map->{$mgid}, $self->qver]);
 
-  if ($type && exists($self->tables->{$type})) {
-    my $srcs = $self->dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$self->tables->{$type}.$self->qver(1)." ORDER BY source");
+  if ($type && exists($self->jtbl->{$type})) {
+    my $srcs  = $self->dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$self->jtbl->{$type}.$where." ORDER BY source");
     return $srcs;
   }
   else {
     my $total = {};
-    while ( my ($type, $name) = each $self->tables ) {
+    while ( my ($type, $name) = each %{$self->jtbl} ) {
       next if ($type =~ /^(md5|lca)$/);
-      my $srcs = $self->dbh->selectcol_arrayref("SELECT DISTINCT source FROM $name".$self->qver(1));
+      my $srcs = $self->dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$name.$where);
       map { $total->{$_} = 1 } @$srcs;
     }
     return [ sort keys %$total ];
@@ -499,24 +590,24 @@ sub md5_abundance_for_annotations {
   my ($self, $mgid, $type, $srcs, $anns) = @_;
 
   $self->set_jobs([$mgid]);
-  my $job = $self->jobs->{$mgid};
-  my $tbl = exists($self->tables->{$type}) ? $self->tables->{$type} : '';
+  my $job = $self->job_map->{$mgid};
+  my $tbl = exists($self->jtbl->{$type}) ? $self->jtbl->{$type} : '';
   unless ($tbl) { return {}; }
 
-  my ($name, $where);
-  if    ($type eq 'organism') { $name = "t.organism"; }
-  elsif ($type eq 'function') { $name = "t.function"; }
-  elsif ($type eq 'ontology') { $name = "t.id"; }
-  else  { return {}; }
+  my $amap = {};
+  if ($anns && @$anns) {
+      $amap = $self->get_annotation_map($type, $anns);
+      if (scalar(keys %$amap) { return {}; }
+  }
   
-  my $data = {};
-  my $qsrc = ($srcs && @$srcs) ? " AND t.source IN (".join(",", map {$self->dbh->quote($_)} @$srcs).")" : '';
-  my $qann = ($anns && @$anns) ? " AND $name IN (".join(",", map {$self->dbh->quote($_)} @$anns).")" : '';
-  my $qver = " AND t.version = ".$self->version." AND m.version = ".$self->version;
-  my $sql  = "SELECT distinct $name, m.md5, m.abundance FROM $tbl t, job_md5s m WHERE m.md5 = ANY(t.md5s)".$qsrc.$qann.$qver;
-  my $rows = $self->dbh->selectall_arrayref($sql);
+  my $data  = {};
+  my $qsrc  = ($srcs && @$srcs) ? "t.source IN (".join(",", map {$self->dbh->quote($_)} @$srcs).")" : '';
+  my $qids  = (scalar(keys %$amap) > 0) ? "t.id IN (".join(",", map keys %$amap).")" : '';
+  my $where = $self->get_where_str(["m.md5 = ANY(t.md5s)", "t.job = $job", "t.".$self->qver, "m.".$self->qver, $qsrc, $qids, $qver]);
+  my $sql   = "SELECT DISTINCT t.id, m.md5, m.abundance FROM $tbl t, job_md5s m".$where;
+  my $rows  = $self->dbh->selectall_arrayref($sql);
   if ($rows && (@$rows > 0)) {
-    map { $data->{$_->[0]}->{$_->[1]} = $_->[2] } @$rows;
+    map { $data->{ $amap->{$_->[0]} }->{$_->[1]} = $_->[2] } @$rows;
   }
   # ann => md5 => abundance
   return $data;  
@@ -585,18 +676,19 @@ sub sequences_for_annotation {
 sub metagenome_search {
   my ($self, $type, $srcs, $ann, $exact) = @_;
 
-  my $tbl = exists($self->tables->{$type}) ? $self->tables->{$type} : '';
-  unless ($tbl) { return []; }
-  my $jobs = {};
-  my $qann = $self->dbh->quote($ann);
-  my $qsrc = ($srcs && @$srcs) ? " AND source IN (".join(",", map {$self->dbh->quote($_)} @$srcs).")" : '';
-  my $opr  = $exact ? '=' : '~*';
-  my $rows = $self->dbh->selectcol_arrayref("SELECT DISTINCT job FROM $tbl WHERE name $opr $qann".$qsrc);
+  my $jtbl = exists($self->jtbl->{$type}) ? $self->jtbl->{$type} : '';
+  my $atbl = exists($self->atbl->{$type}) ? $self->atbl->{$type} : '';
+  unless ($jtbl && $atbl) { return []; }
 
-  if ($rows && (@$rows > 0)) {
-    %$jobs = map {$_, 1} @$row;
+  my $jobs  = {};
+  my $qsrc  = ($srcs && @$srcs) ? "j.source IN (".join(",", map {$self->dbh->quote($_)} @$srcs).")" : "";
+  my $qann  = "a.name ".($exact ? '= ' : '~* ').$self->dbh->quote($ann)
+  my $where = $self->get_where_str(["j.id = a._id", 'a.'.$self->qver, 'j.'.$self->qver, $qsrc, $qann]);
+  my $rows  = $self->dbh->selectcol_arrayref("SELECT DISTINCT j.job FROM $jtbl j, $atbl a".$where);
+  unless ($rows && (@$rows > 0)) {
+    return [];
   }
-  return [ keys %{$self->get_jobid_map([keys %$jobs], 1)} ];
+  return [ keys %{$self->get_jobid_map($rows, 1)} ];
 }
 
 ####################
@@ -615,13 +707,13 @@ sub all_read_sequences {
   my ($self) = @_;
 
   my $seqs = [];
-  while ( my ($mg, $j) = each %{$self->jobs} ) {
+  foreach my $j ( @{$self->jobs} ) {
     open(FILE, "<" . $self->sim_file($j)) || next;
     while (my $line = <FILE>) {
       chomp $line;
       my @tabs = split(/\t/, $line);
       if (@tabs == 13) {
-	push @$seqs, { id => "$mg|$tabs[0]", sequence => $tabs[12] };
+	    push @$seqs, { id => "$mg|$tabs[0]", sequence => $tabs[12] };
       }
     }
     close FILE;
@@ -638,115 +730,95 @@ Retrieve the [ {id , sequence} ] from the metagenome job directory for I<md5s> w
 =cut 
 
 sub md5s_to_read_sequences {
-  my ($self, $md5s, $eval, $ident, $alen) = @_;
+    my ($self, $md5s, $eval, $ident, $alen) = @_;
 
-  $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
-  $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
-  $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
+    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
+    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
+    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
 
-  my $w_md5s = ($md5s && (@$md5s > 0)) ? "md5 IN (" . join(",", map {"'$_'"} @$md5s) . ")" : "";
-  my $where  = $self->get_where_str([$w_md5s, $eval, $ident, $alen, "seek IS NOT NULL", "length IS NOT NULL"]);
-  my $seqs   = [];
+    my $w_md5s = ($md5s && (@$md5s > 0)) ? "md5 IN (".join(",", map {"'$_'"} @$md5s).")" : "";
+    my $where  = $self->get_where_str([$w_md5s, $self->qjobs, $self->qver, $eval, $ident, $alen, "seek IS NOT NULL", "length IS NOT NULL"]);
+    my $data   = {};
+    my $seqs   = [];
 
-  unless ($w_md5s || $eval || $ident || $alen) { return $self->all_read_sequences(); }
+    unless ($w_md5s || $eval || $ident || $alen) { return $self->all_read_sequences(); }
 
-  while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $sql  = "SELECT md5, seek, length FROM " . $self->md5_tbl($j) . "$where ORDER BY seek";
+    my $sql  = "SELECT job, md5, seek, length FROM ".$self->jtbl->{md5}.$where." ORDER BY job, seek";
     my $rows = $self->dbh->selectall_arrayref($sql);
     if ($rows && (@$rows > 0)) {
-      open(FILE, "<" . $self->sim_file($j)) || next;
-      foreach my $row (@$rows) {
-	my ($md5, $seek, $len) = @$row;
-	my $rec = '';
-	seek(FILE, $seek, 0);
-	read(FILE, $rec, $len);
-	chomp $rec;
-	foreach my $line ( split(/\n/, $rec) ) {
-	  my @tabs = split(/\t/, $line);
-	  if (@tabs == 13) {
-	    push @$seqs, { md5 => $md5, id => "$mg|$tabs[0]", sequence => $tabs[12] };
-	  }
-	}
-      }
-      close FILE;
+        map { push @{ $data->{$_->[0]} }, [$_->[1], $_->[2], $_->[3]] } @$rows;
     }
-    $self->dbh->commit();
-  }
-  return $seqs;
+    while ( my ($j, $info) = each %$data ) {
+        open(FILE, "<" . $self->sim_file($j)) || next;
+        foreach my $set (@$info) {
+	        my ($md5, $seek, $len) = @$set;
+	        my $rec = '';
+	        seek(FILE, $seek, 0);
+	        read(FILE, $rec, $len);
+	        chomp $rec;
+	        foreach my $line ( split(/\n/, $rec) ) {
+	            my @tabs = split(/\t/, $line);
+	            if (@tabs == 13) {
+	                push @$seqs, { md5 => $md5, id => $self->mg_map->{$j}."|".$tabs[0], sequence => $tabs[12] };
+	            }
+	        }
+        }
+        close FILE;
+    }
+    return $seqs;
 }
 
 sub get_abundance_for_organism_source {
-  my ($self, $organism, $source) = @_;
+  my ($self, $org, $src) = @_;
 
-  my $qorg = $self->dbh->quote($organism);
-  my $qsrc = $self->dbh->quote($source);
-  my @sqls = ();
-  my $num  = 0;
-
-  foreach my $j (values %{$self->jobs}) {
-    if ($self->org_tbl($j)) {
-      push @sqls, "SELECT abundance FROM " . $self->org_tbl($j) . " WHERE organism = $qorg AND source = $qsrc";
-    }
-  }
-  if (@sqls > 0) {
-    my $rows = $self->dbh->selectcol_arrayref( join(" UNION ALL ", @sqls) );
-    if ($rows && (@$rows > 0)) {
-      map { $num += $_ } @$rows;
-    }
-  }
-  return $num;
+  my $qorg  = "a.name = ".$self->dbh->quote($org);
+  my $qsrc  = "j.source = ".$self->dbh->quote($src);
+  my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qorg, $qsrc]);
+  my $sql   = "SELECT SUM(j.abundance) FROM ".$self->jtbl->{organism}." j ".$self->atbl->{organism}." a".$where;
+  my $sum   = $self->dbh->selectcol_arrayref($sql);
+  return ($sum && (@$sum > 0)) ? $sum->[0] : 0;
 }
 
 sub get_organism_abundance_for_source {
-  my ($self, $source) = @_;
+  my ($self, $src) = @_;
 
-  my $qsrc = $self->dbh->quote($source);
-  my @sqls = ();
-  my $data = {};
-
-  foreach my $j (values %{$self->jobs}) {
-    if ($self->org_tbl($j)) {
-      push @sqls, "SELECT organism, abundance FROM " . $self->org_tbl($j) . " WHERE source = $qsrc";
-    }
-  }
-  if (@sqls > 0) {  
-    my $rows = $self->dbh->selectall_arrayref( join(" UNION ALL ", @sqls) );
-    if ($rows && (@$rows > 0)) {
-      map { $data->{$_->[0]} += $_->[1] } @$rows;
-    }
+  my $qsrc  = "j.source = ".$self->dbh->quote($src);
+  my $data  = {};
+  my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qsrc]);
+  my $sql   = "SELECT a.name, SUM(j.abundance) FROM ".$self->jtbl->{organism}." j ".$self->atbl->{organism}." a".$where." GROUP BY a.name";
+  my $rows  = $self->dbh->selectall_arrayref($sql);
+  if ($rows && (@$rows > 0)) {
+    %$data = map { $_->[0], $_->[1] } @$rows;
   }
   return $data;
 }
 
 sub get_organisms_with_contig_for_source {
-  my ($self, $source, $num, $len) = @_;
+  my ($self, $src, $num, $len) = @_;
 
-  my $job_orgs = $self->get_organism_abundance_for_source($source);
+  my $job_orgs = $self->get_organism_abundance_for_source($src);
   my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[1]}] } grep { exists $job_orgs->{$_->[1]} } @{ $self->ach->get_organism_with_contig_list($num, $len) };
   return \@job_ctgs;
 }
 
 sub get_md5_evals_for_organism_source {
-  my ($self, $organism, $source) = @_;
+  my ($self, $org, $src) = @_;
 
-  my $qorg = $self->dbh->quote($organism);
-  my $qsrc = $self->dbh->quote($source);
-  my @sqls = ();
-
-  foreach my $j (values %{$self->jobs}) {
-    push @sqls, "SELECT distinct p.md5, p.evals FROM " . $self->org_tbl($j) . " o, " . $self->md5_tbl($j) .
-                " p WHERE p.md5 = ANY(o.md5s) AND o.organism = $qorg AND o.source = $qsrc";
-  }
-  my $data = {};
-  my $rows = $self->dbh->selectall_arrayref( join(" UNION ALL ", @sqls) );
+  my $data  = {};
+  my $qorg  = "a.name = ".$self->dbh->quote($org);
+  my $qsrc  = "j.source = ".$self->dbh->quote($src);
+  my $where = $self->get_where_str([ 'j.'.$self->qjobs, 'm.'.$self->qjobs, 'j.'.$self->qver, 'm.'.$self->qver, 'a.'.$self->qver,
+                                     "j.id = a._id", "m.md5 = ANY(j.md5s)", $qorg, $qsrc ]);
+  my $sql  = "SELECT DISTINCT m.md5, m.evals FROM ".$self->jtbl->{md5}." m ".$self->jtbl->{organism}." j ".$self->atbl->{organism}." a".$where;
+  my $rows = $self->dbh->selectall_arrayref($sql);
   if ($rows && (@$rows > 0)) {
     foreach my $r (@$rows) {
       my ($md5, $evals) = @$r;
       if (exists $data->{$md5}) {
-	for (my $i=0; $i<@$evals; $i++) { $data->{$md5}->[$i] += $evals->[$i]; }
+	    for (my $i=0; $i<@$evals; $i++) { $data->{$md5}->[$i] += $evals->[$i]; }
       }
       else {
-	$data->{$md5} = $evals;
+	    $data->{$md5} = $evals;
       }
     }
   }
@@ -754,109 +826,97 @@ sub get_md5_evals_for_organism_source {
 }
 
 sub get_md5_data_for_organism_source {
-  my ($self, $organism, $source, $eval) = @_;
+  my ($self, $org, $src, $eval) = @_;
 
-  my $w_org  = "o.organism = " . $self->dbh->quote($organism);
-  my $w_src  = "o.source = " . $self->dbh->quote($source);
-  my $w_eval = (defined($eval) && ($eval =~ /^\d+$/)) ? "p.exp_avg <= " . ($eval * -1) : "";
-  my $where  = $self->get_where_str([$w_org, $w_src, $w_eval, " p.md5 = ANY(o.md5s)", "p.seek IS NOT NULL", "p.length IS NOT NULL"]);
-  my @data   = ();
-
-  while ( my ($mg, $j) = each %{$self->jobs} ) {
-    unless ($self->md5_tbl($j) && $self->org_tbl($j)) { next; }
-    my $sql = "SELECT distinct p.md5,p.abundance,p.exp_avg,p.exp_stdv,p.ident_avg,p.ident_stdv,p.len_avg,p.len_stdv,p.seek,p.length " .
-              "FROM " . $self->org_tbl($j) . " o, " . $self->md5_tbl($j) . " p" . $where . " ORDER BY p.seek";
-    my $tmp = $self->dbh->selectall_arrayref($sql);
-    if ($tmp && (@$tmp > 0)) {
-      foreach my $row ( @$tmp ) {
-	push @data, [ $mg, @$row ];
-      }
-    }
-    $self->dbh->commit();
+  my $qorg  = "a.name = ".$self->dbh->quote($org);
+  my $qsrc  = "j.source = ".$self->dbh->quote($src);
+  my $qeval = (defined($eval) && ($eval =~ /^\d+$/)) ? "m.exp_avg <= ".($eval * -1) : "";
+  my $where = $self->get_where_str([ 'j.'.$self->qjobs, 'm.'.$self->qjobs, 'j.'.$self->qver, 'm.'.$self->qver, 'a.'.$self->qver,
+                                     "j.id = a._id", "m.md5 = ANY(j.md5s)", $qorg, $qsrc, $qeval, "m.seek IS NOT NULL", "m.length IS NOT NULL"]);
+  my $sql  = "SELECT DISTINCT m.job,m.md5,m.abundance,m.exp_avg,m.exp_stdv,m.ident_avg,m.ident_stdv,m.len_avg,m.len_stdv,m.seek,m.length FROM " .
+             $self->jtbl->{md5}." m ".$self->jtbl->{organism}." j ".$self->atbl->{organism}." a".$where." ORDER BY m.seek";
+  my $rows = $self->dbh->selectall_arrayref($sql);
+  if ($rows && (@$rows > 0)) {
+    map { $_->[0] = $self->mg_map->{$_->[0]} } @$rows;
+    return $rows;
+  } else {
+    return [];
   }
-
-  return \@data;
 }
 
 sub get_rarefaction_curve {
-  my ($self, $sources, $get_alpha) = @_;
+  my ($self, $srcs, $get_alpha) = @_;
 
-  unless ($sources && @$sources) { $sources = []; }
+  unless ($srcs && @$srcs) { $srcs = []; }
 
-  my $raw_data = {};  # mgid => species => abundance
-  my $mg_alpha = {};  # mgid => alpha diversity
-  my $mg_rare  = {};  # mgid => [ rare-x, rare-y ]
-  my $mg_abund = $self->get_abundance_for_tax_level('tax_species', [], $sources);  # [mgid, species, abundance]
+  my $raw_data  = {};  # mgid => species => abundance
+  my $mg_alpha  = {};  # mgid => alpha diversity
+  my $mg_rare   = {};  # mgid => [ rare-x, rare-y ]
+  my $mg_abund  = $self->get_abundance_for_tax_level('tax_species', [], $srcs);  # [mgid, species, abundance]
+  my $cache_key = 'rarefaction'.join(':', @$srcs);
 
   map { $raw_data->{$_->[0]}->{$_->[1]} = $_->[2] } @$mg_abund;
   
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
-  my $cache_key = 'rarefaction'.join(':', @$sources);
-
   # calculate alpha diversity
   if ($get_alpha) {
     foreach my $mg (keys %$raw_data) {
-      my $cdata = $memd->get($mg.$cache_key."alpha");
+      my $cdata = $self->memd->get($mg.$cache_key."alpha");
       unless ($cdata) {
-	my $h1  = 0;
-	my $sum = sum values %{$raw_data->{$mg}};
-	unless ($sum) {
-	  $mg_alpha->{$mg} = 0;
-	  $memd->set($mg.$cache_key."alpha", 0, $self->expire);
-	  next;
-	}
-	foreach my $num (values %{$raw_data->{$mg}}) {
-	  my $p = $num / $sum;
-	  if ($p > 0) { $h1 += ($p * log(1/$p)) / log(2); }
-	}
-	$mg_alpha->{$mg} = 2 ** $h1;
-	$memd->set($mg.$cache_key."alpha", $mg_alpha->{$mg}, $self->expire);
-      }
-      else {
-	$mg_alpha->{$mg} = $cdata;
+	    my $h1  = 0;
+	    my $sum = sum values %{$raw_data->{$mg}};
+	    unless ($sum) {
+	      $mg_alpha->{$mg} = 0;
+	      $self->memd->set($mg.$cache_key."alpha", 0, $self->expire);
+	      next;
+	    }
+	    foreach my $num (values %{$raw_data->{$mg}}) {
+	      my $p = $num / $sum;
+	      if ($p > 0) { $h1 += ($p * log(1/$p)) / log(2); }
+	    }
+	    $mg_alpha->{$mg} = 2 ** $h1;
+	    $self->memd->set($mg.$cache_key."alpha", $mg_alpha->{$mg}, $self->expire);
+      } else {
+        $mg_alpha->{$mg} = $cdata;
       }
     }
-    $memd->disconnect_all;
     return $mg_alpha;
   }
 
   # calculate rarefaction (x, y)
   foreach my $mg (keys %$raw_data) {
-    my $cdata = $memd->get($mg.$cache_key."curve");
+    my $cdata = $self->memd->get($mg.$cache_key."curve");
     unless ($cdata) {
       my @nums = sort {$a <=> $b} values %{$raw_data->{$mg}};
       my $k    = scalar @nums;
       my $nseq = $self->get_seq_count($mg);
       my $size = ($nseq > 1000) ? int($nseq / 1000) : 1;
       unless ($nseq) {
-	$mg_rare->{$mg} = [];
-	$memd->set($mg.$cache_key."curve", [], $self->expire);
-	next;
+	    $mg_rare->{$mg} = [];
+	    $self->memd->set($mg.$cache_key."curve", [], $self->expire);
+	    next;
       }
       for (my $n = 0; $n < $nseq; $n += $size) {
-	my $coeff = $self->nCr2ln($nseq, $n);
-	my $curr  = 0;
-	map { $curr += exp( $self->nCr2ln($nseq - $_, $n) - $coeff ) } @nums;
-	push @{ $mg_rare->{$mg} }, [ $n, $k - $curr ];
+	    my $coeff = $self->nCr2ln($nseq, $n);
+	    my $curr  = 0;
+	    map { $curr += exp( $self->nCr2ln($nseq - $_, $n) - $coeff ) } @nums;
+	    push @{ $mg_rare->{$mg} }, [ $n, $k - $curr ];
       }
-      $memd->set($mg.$cache_key."curve", $mg_rare->{$mg}, $self->expire);
-    }
-    else {
+      $self->memd->set($mg.$cache_key."curve", $mg_rare->{$mg}, $self->expire);
+    } else {
       $mg_rare->{$mg} = $cdata;
     }
   }
-  $memd->disconnect_all;
   
   return $mg_rare;
 }
 
 sub get_abundance_for_tax_level {
-  my ($self, $level, $names, $sources, $value) = @_;
+  my ($self, $level, $names, $srcs, $value) = @_;
 
-  unless ($sources && @$sources) { $sources = []; }
+  unless ($srcs && @$srcs) { $srcs = []; }
   my $m5_map    = {};
-  my $get_m5nr  = first {$_ =~ /^m5nr$/i} @$sources;
-  my $get_m5rna = first {$_ =~ /^m5rna$/i} @$sources;
+  my $get_m5nr  = first {$_ =~ /^m5nr$/i} @$srcs;
+  my $get_m5rna = first {$_ =~ /^m5rna$/i} @$srcs;
   if ($get_m5nr) {
     map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("protein") };
   }
@@ -864,38 +924,63 @@ sub get_abundance_for_tax_level {
     map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("rna") };
   }
   if ($get_m5nr || $get_m5rna) {
-    @$sources = grep { (! exists $m5_map->{$_}) && ($_ !~ /(m5nr|m5rna)/i) } @$sources;
-    push @$sources, keys %$m5_map;
+    @$srcs = grep { (! exists $m5_map->{$_}) && ($_ !~ /(m5nr|m5rna)/i) } @$srcs;
+    push @$srcs, keys %$m5_map;
   }
   my $all = ($names && (@$names > 0)) ? 0 : 1;
-  my $name_map = $self->ach->get_organisms4level($level, $names);
-  my $src_str  = @$sources ? join("", @$sources) : '';
-  return $self->get_abundance_for_hierarchy($name_map, "organism", $level.$src_str, $all, $sources, $value);
+  my $name_map = $self->get_annotations4level("organism", $level, $names, undef, 1);
+  my $src_str  = @$srcs ? join("", @$srcs) : '';
+  return $self->get_abundance_for_hierarchy($name_map, "organism", $level.$src_str, $all, $srcs, $value);
 }
 
 sub get_abundance_for_ontol_level {
-  my ($self, $level, $names, $source, $value) = @_;
+  my ($self, $level, $names, $src, $value) = @_;
 
   my $all = ($names && (@$names > 0)) ? 0 : 1;
-  my $name_map = $self->ach->get_ids4level($source, $level, $names);
-  return $self->get_abundance_for_hierarchy($name_map, "id", $level.$source, $all, [$source], $value);
+  my $name_map = $self->get_annotations4level("ontology", $level, $names, $src, 1);
+  return $self->get_abundance_for_hierarchy($name_map, "ontology", $level.$src, $all, [$src], $value);
 }
 
 sub get_abundance_for_hierarchy {
-  my ($self, $name_map, $type, $key, $all, $sources, $value) = @_;
+    my ($self, $id_map, $type, $key, $all, $srcs, $value) = @_;
 
-  unless ($value) { $value = "abundance"; }
-  my $data   = [];
-  my $w_type = $all ? "" : "$type in (" . join(",", map {$self->dbh->quote($_)} keys %$name_map) . ")";
-  my $w_srcs = (@$sources > 0) ? "source in (" . join(",", map {"'$_'"} @$sources) . ")" : "";
-  my $where  = $self->get_where_str([$w_type, $w_srcs]);
+    unless ($value) { $value = "abundance"; }
+    my $data  = [];
+    my $qids  = $all ? '' : "id IN (".join(",", keys %$id_map).")";
+    my $qsrcs = (@$srcs > 0) ? "source in (".join(",", map {"'$_'"} @$srcs).")" : "";
+    my $cache_key = $value.$type.$key;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
-  my $cache_key = $value.$type.$key;
+    my $jobs = [];
+    if ($all) {
+        while ( my ($mg, $j) = each %{$self->job_map} ) {
+            my $cdata = $self->memd->get($mg.$cache_key);
+            if ($cdata) { push @$data, @$cdata; }
+            else        { push @$jobs, $mg; }
+        }
+    } else {
+        $jobs = $self->jobs;
+    }
+    unless (@$jobs) { return $data; }
+    my $where = $self->get_where_str(["job IN (".join(",", @$jobs).")", $self->qver, $qids, $qsrcs]);
 
-  # get for jobs
+    # get for jobs
+    my $md5s = {};
+    my $hier = {};
+    my $sql  = "SELECT DISTINCT job, id, md5s FROM ".$self->jtbl->{organism}.$where." ORDER BY job";
+    my $tmp  = $self->dbh->selectall_arrayref($sql);
+    unless ($tmp && (@$tmp)) { return $data; }
+    foreach my $row (@$tmp) {
+        if (exists $name_map->{$row->[1]}) {
+            foreach my $md5 (@{$row->[2]}) {
+                unless ($all) { $md5s->{$md5} = 0; }
+                $hier->{ $name_map->{$row->[1]} }{$md5} = 1;
+            }
+        }
+    }
+
+  
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = $all ? $memd->get($mg.$cache_key) : undef;
+    my $cdata = $all ? $self->memd->get($mg.$cache_key) : undef;
     unless ($cdata) {
       my $table = ($type eq "organism") ? $self->org_tbl($j) : (($type eq "id") ? $self->ontol_tbl($j) : "");
       unless ($table && $self->md5_tbl($j)) { next; }
@@ -937,13 +1022,12 @@ sub get_abundance_for_hierarchy {
       $self->dbh->commit();
 
       if ($all) {
-	$memd->set($mg.$cache_key, $cdata, $self->expire);
+	$self->memd->set($mg.$cache_key, $cdata, $self->expire);
       }
     } else {
       push @$data, @$cdata;
     }
   }
-  $memd->disconnect_all;
 
   return $data;
   # mgid, taxa_name, abundance
@@ -1137,11 +1221,11 @@ sub search_organisms {
   my ($self, $text) = @_;
 
   my %data = ();
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "org_search".quotemeta($text);
   
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = $memd->get($mg.$cache_key);
+    my $cdata = $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->org_tbl($j)) { next; }
       $cdata  = [];
@@ -1154,12 +1238,12 @@ sub search_organisms {
 	}
       }
       $self->dbh->commit();
-      $memd->set($mg.$cache_key, $cdata, $self->expire);
+      $self->memd->set($mg.$cache_key, $cdata, $self->expire);
     } else {
       $data{$mg} = $cdata;
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
 
   return \%data;
   # mgid => [ source, organism, abundance ]
@@ -1245,7 +1329,7 @@ sub get_organisms_for_md5s {
     push @$sources, keys %$m5_map;
   }
   #return (undef, $sources);
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "org";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1264,7 +1348,7 @@ sub get_organisms_for_md5s {
   my %all_orgs = ();
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $memd->get($mg.$cache_key);
+    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->org_tbl($j)) { next; }
       $cdata = [];
@@ -1323,14 +1407,14 @@ sub get_organisms_for_md5s {
 	}
       }
       unless ($md5s && (@$md5s > 0)) {
-	$memd->set($mg.$cache_key, $cdata, $self->expire);
-	$memd->set($mg.$cache_key."orgs", [ keys %$corgs ], $self->expire);
-	$memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->expire);
+	$self->memd->set($mg.$cache_key, $cdata, $self->expire);
+	$self->memd->set($mg.$cache_key."orgs", [ keys %$corgs ], $self->expire);
+	$self->memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->expire);
       }
     } else {
       push @data, @$cdata;
-      my $o = $memd->get($mg.$cache_key."orgs");
-      my $m = $memd->get($mg.$cache_key."md5s");
+      my $o = $self->memd->get($mg.$cache_key."orgs");
+      my $m = $self->memd->get($mg.$cache_key."md5s");
       if ($o) {
 	map { $all_orgs{$_} = 1 } @$o;
       }
@@ -1339,7 +1423,7 @@ sub get_organisms_for_md5s {
       }
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
 
   my $taxons = $self->ach->get_taxonomy4orgs([keys %all_orgs]);
   my $result = [];
@@ -1379,11 +1463,11 @@ sub search_ontology {
   my ($self, $text) = @_;
 
   my %data = ();
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "ontol_search".quotemeta($text);
   
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = $memd->get($mg.$cache_key);
+    my $cdata = $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->ontol_tbl($j)) { next; }
       $cdata  = [];
@@ -1396,12 +1480,12 @@ sub search_ontology {
 	}
       }
       $self->dbh->commit();
-      $memd->set($mg.$cache_key, $cdata, $self->expire);
+      $self->memd->set($mg.$cache_key, $cdata, $self->expire);
     } else {
       $data{$mg} = $cdata;
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
 
   return \%data;
   # mgid => [ source, annotation, abundance ]
@@ -1415,7 +1499,7 @@ sub get_ontology_for_source {
 sub get_ontology_for_md5s {
   my ($self, $md5s, $source, $eval, $ident, $alen) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "ontol";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1436,7 +1520,7 @@ sub get_ontology_for_md5s {
   my %mdata  = ();
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $memd->get($mg.$cache_key);
+    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->ontol_tbl($j)) { next; }
       $cdata = [];
@@ -1459,19 +1543,19 @@ sub get_ontology_for_md5s {
       $self->dbh->commit();
 
       unless ($md5s && (@$md5s > 0)) {
-	$memd->set($mg.$cache_key, $cdata, $self->expire);
-	$memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->expire);
+	$self->memd->set($mg.$cache_key, $cdata, $self->expire);
+	$self->memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->expire);
       }
     } else {
       push @data, @$cdata;
-      my $m = $memd->get($mg.$cache_key."md5s");
+      my $m = $self->memd->get($mg.$cache_key."md5s");
       if ($m) {
 	map { $mdata{$mg}{$_} = $m->{$_} } keys %$m;
       }
     }
 
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
 
   return (\%mdata, \@data);
   # mgid => md5 => abundance
@@ -1491,7 +1575,7 @@ sub get_functions_for_md5s {
   my $mg_md5_abund = ($md5s && (@$md5s > 0)) ? $self->get_md5_abundance($eval, $ident, $alen, $md5s) : {};
   my %md5_set = map {$_, 1} @$md5s;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "func";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1508,7 +1592,7 @@ sub get_functions_for_md5s {
   my @data   = ();
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $memd->get($mg.$cache_key);
+    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->func_tbl($j)) { next; }
       $cdata = [];
@@ -1530,13 +1614,13 @@ sub get_functions_for_md5s {
       $self->dbh->commit();
       
       unless ($md5s && (@$md5s > 0)) {
-	$memd->set($mg.$cache_key, $cdata, $self->expire);
+	$self->memd->set($mg.$cache_key, $cdata, $self->expire);
       }
     } else {
       push @data, @$cdata;
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
 
   return \@data;
   # mgid, source, function, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
@@ -1545,7 +1629,7 @@ sub get_functions_for_md5s {
 sub get_lca_data {
   my ($self, $eval, $ident, $alen) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::analysis_memcache || "140.221.76.21:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "lca";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1559,7 +1643,7 @@ sub get_lca_data {
   my @data  = ();
   
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = $memd->get($mg.$cache_key);
+    my $cdata = $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->lca_tbl($j)) { next; }
       $cdata  = [];
@@ -1577,12 +1661,12 @@ sub get_lca_data {
 	}
       }
       $self->dbh->commit();
-      $memd->set($mg.$cache_key, $cdata, $self->expire);
+      $self->memd->set($mg.$cache_key, $cdata, $self->expire);
     } else {
       push @data, @$cdata;
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
   
   return \@data;
   # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
@@ -1591,7 +1675,7 @@ sub get_lca_data {
 sub get_md5_data {
   my ($self, $md5s, $eval, $ident, $alen, $ignore_sk) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "md5data";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1606,7 +1690,7 @@ sub get_md5_data {
   my @data   = ();
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $memd->get($mg.$cache_key);
+    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->md5_tbl($j)) { next; }
       $cdata  = [];
@@ -1626,13 +1710,13 @@ sub get_md5_data {
       $self->dbh->commit();
 
       unless ($md5s && (@$md5s > 0)) {
-	$memd->set($mg.$cache_key, $cdata, $self->expire);
+	$self->memd->set($mg.$cache_key, $cdata, $self->expire);
       }
     } else {
       push @data, @$cdata;
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
   
   return \@data;
   # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
@@ -1641,7 +1725,7 @@ sub get_md5_data {
 sub get_md5_abundance {
   my ($self, $eval, $ident, $alen, $md5s) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "md5";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1656,7 +1740,7 @@ sub get_md5_abundance {
   my $data   = {};
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $memd->get($mg.$cache_key);
+    my $cdata = ($md5s && (@$md5s > 0)) ? undef : $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->md5_tbl($j)) { next; }
       my $sql = "select md5, abundance from " . $self->md5_tbl($j) . $where;
@@ -1669,13 +1753,13 @@ sub get_md5_abundance {
       $self->dbh->commit();
 
       unless ($md5s && (@$md5s > 0)) {
-	$memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
+	$self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
       }
     } else {
       $data->{$mg} = $cdata;
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
 
   return $data;
   # mgid => md5 => abundance
@@ -1700,7 +1784,7 @@ sub get_org_md5 {
     push @$sources, keys %$m5_map;
   }
 
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "orgmd5";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1716,7 +1800,7 @@ sub get_org_md5 {
   my $data   = {};
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = $memd->get($mg.$cache_key);
+    my $cdata = $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->org_tbl($j)) { next; }
       my $sql = "select distinct organism, md5s from " . $self->org_tbl($j) . $where;
@@ -1730,12 +1814,12 @@ sub get_org_md5 {
 	}
       }
       $self->dbh->commit();
-      $memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
+      $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
     } else {
       $data->{$mg} = $cdata;
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
 
   return $data;
   # mgid => org => { md5 }
@@ -1744,7 +1828,7 @@ sub get_org_md5 {
 sub get_ontol_md5 {
   my ($self, $eval, $ident, $alen, $source) = @_;
 
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "ontolmd5";
   $cache_key .= defined($eval) ? $eval : ":";
   $cache_key .= defined($ident) ? $ident : ":";
@@ -1760,7 +1844,7 @@ sub get_ontol_md5 {
   my $data  = {};
 
   while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = $memd->get($mg.$cache_key);
+    my $cdata = $self->memd->get($mg.$cache_key);
     unless ($cdata) {
       unless ($self->ontol_tbl($j)) { next; }
       my $sql = "select distinct id, md5s from " . $self->ontol_tbl($j) . $where;
@@ -1774,12 +1858,12 @@ sub get_ontol_md5 {
 	}
       }
       $self->dbh->commit();
-      $memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
+      $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
     } else {
       $data->{$mg} = $cdata;
     }
   }
-  $memd->disconnect_all;
+  $self->memd->disconnect_all;
 
   return $data;
   # mgid => id => { md5 }
