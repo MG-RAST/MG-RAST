@@ -255,7 +255,7 @@ sub output {
 			   <button style="display: none;" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Hidden merge mate-pairs button for enter key submission</button>
 			   <div class="modal-header">
 			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-			     <h3 id="mergeMatePairsModalLabel">merge mate pairs</h3>
+			     <h3 id="mergeMatePairsModalLabel">merge mate-pairs</h3>
 		           </div>
 			   <div class="modal-body">
 			     <p>Please select file 1 of your mate-pairs:</p>
@@ -425,7 +425,7 @@ sub output {
 		    <div class="controls">
 		      <label class="checkbox">
 			<input id="assembled" type="checkbox" value="assembled" name="assembled">
-			Select this option if your input sequence file(s) contain assembled data and include the coverage information within each sequence as described <a href='http://blog.metagenomics.anl.gov/' target='blank'>here</a>.
+			Select this option if your input sequence file(s) contain assembled data and include the coverage information within each sequence header as described <a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#assembled_pipeline' target='blank'>here</a>.
 		      </label>
 		    </div>
 
