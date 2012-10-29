@@ -17,14 +17,14 @@ sub new {
     
     # Add name / attributes
     my %rights   = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
-    my $metadata = { 'hash', ['key', ['string', 'metadata label']],
-                             ['value', ['object', [ { 'type'       => ['string', 'value type: text, int, float, select, ontology'],
+    my $metadata = [ 'hash', [['key', ['string', 'metadata label']],
+                              ['value', ['object', [ { 'type'       => ['string', 'value type: text, int, float, select, ontology'],
                                                       'definition' => ['string', 'definition of label'],
                                                       'required'   => ['boolean', 'is a required label'],
                                                       'mixs'       => ['boolean', 'is a MIxS label'],
                                                       'aliases'    => ['list', ['string', 'alternative name for label']]
-                                                    }, 'information about metadata keyword' ]]]
-                   };
+                                                    }, 'information about metadata keyword' ]]] ]
+                   ];
     $self->{name}       = "metadata";
     $self->{rights}     = \%rights;
     $self->{attributes} = { "template" => { "project" => [ 'hash', ['key', ['string', 'project type']],
