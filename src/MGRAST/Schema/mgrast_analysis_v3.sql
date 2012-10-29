@@ -5,7 +5,16 @@
 # 1. param / cutoff lookup: version, job, exp_avg, len_avg, ident_avg, source
 # 2. annotation searching: version, name, source
 
+CREATE OR REPLACE FUNCTION update_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_on = now(); 
+   RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 CREATE TABLE job_info (
+ updated_on timestamp NOT NULL DEFAULT LOCALTIMESTAMP,
  version smallint NOT NULL,
  job integer NOT NULL,
  rna_only boolean,
@@ -13,6 +22,7 @@ CREATE TABLE job_info (
 );
 CREATE UNIQUE INDEX job_info_loaded ON job_info (loaded);
 CREATE UNIQUE INDEX job_info_rna ON job_info (rna_only);
+CREATE TRIGGER job_info_update_timestamp BEFORE UPDATE ON job_info FOR EACH ROW EXECUTE PROCEDURE update_timestamp();
 
 CREATE TABLE job_md5s (
  version smallint NOT NULL,
@@ -38,7 +48,7 @@ CREATE INDEX job_md5s_seek_length ON job_md5s (seek, length);
 CREATE TABLE job_functions (
  version smallint NOT NULL,
  job integer NOT NULL,
- function integer NOT NULL,
+ id integer NOT NULL,
  abundance integer NOT NULL,
  exp_avg real,
  exp_stdv real,
@@ -55,7 +65,7 @@ CREATE UNIQUE INDEX job_functions_key ON job_functions (version, job, function, 
 CREATE TABLE job_organisms (
  version smallint NOT NULL,
  job integer NOT NULL,
- organism integer NOT NULL,
+ id integer NOT NULL,
  abundance integer NOT NULL,
  exp_avg real,
  exp_stdv real,
@@ -72,7 +82,7 @@ CREATE UNIQUE INDEX job_organisms_key ON job_organisms (version, job, organism, 
 CREATE TABLE job_rep_organisms (
  version smallint NOT NULL,
  job integer NOT NULL,
- organism integer NOT NULL,
+ id integer NOT NULL,
  abundance integer NOT NULL,
  exp_avg real,
  exp_stdv real,
@@ -149,7 +159,7 @@ CREATE TABLE ontologies (
  level2 text,
  level3 text,
  level4 text,
- id text,
+ name text,
  type text
 );
 CREATE INDEX ontologies_id ON ontologies (id);
