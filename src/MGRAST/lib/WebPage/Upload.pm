@@ -168,7 +168,8 @@ sub output {
 	         <p>Using community generated questionnaires we capture this metadata. MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank>Minimum Information about any (X) Sequence</a> developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC).</p>
 <p>The best form to capture metadata is via a simple spreadsheet with 12 mandatory terms. You can download the spreadsheet file here, fill in the required data fields later upload it to your inbox.</p>
 <p>While the MIxS required data fields capture only the most minimal metadata, many areas of study have chosen to require more elaborate questionnaires ("environmental packages") to help with analysis and comparison. These are marked as optional in the spreadsheet. If the "environmental package" for your area of study has not been created yet, please <a href="mailto:mg-rast\@mcs.anl.gov">contact MG-RAST staff</a> and we will forward your inquiry to the appropriate GSC working group.</p>
-<p>Once you have filled out the template, you can upload it below and it will be validated and appear in the metadata selection section.</p>
+<p>To get started on filling out your metadata spreadsheet, you can either download the blank template below, or you can try out <a href="http://metagenomics.anl.gov/metazen.cgi" target=_blank>Metazen</a>, a tool we have developed to try and make filling in metadata a little easier.</p>
+<p>Once you have filled out the blank template or the partially filled-in template from Metazen, you can upload it below and it will be validated and appear in the metadata selection section.</p>
                  <p><a href="$template_link"><img title="download metadata spreadsheet template" style="width: 20px; height: 20px;" src="./Html/mg-download.png"> download metadata spreadsheet template</a></p>
               </div>
 
