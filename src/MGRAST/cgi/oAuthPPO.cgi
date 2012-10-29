@@ -1,16 +1,3 @@
-#!/soft/packages/perl/5.12.1/bin/perl
-
-BEGIN {
-    unshift @INC, qw(
-              /mcs/bio/mg-rast/prod/sites/MG-RAST/site/lib
-              /mcs/bio/mg-rast/prod/sites/MG-RAST/site/lib/WebApplication
-              /mcs/bio/mg-rast/prod/sites/MG-RAST/site/lib/PPO
-              /mcs/bio/mg-rast/prod/sites/MG-RAST/site/lib/MGRAST
-              /mcs/bio/mg-rast/prod/sites/MG-RAST/site/lib/Babel
-              /mcs/bio/mg-rast/prod/sites/MG-RAST/conf
-	);
-}
-########################################################################
 use strict;
 use warnings;
 
