@@ -157,8 +157,24 @@ unless ($cgi->param('action')) {
 	      print $cgi->redirect( -uri => $url."code=".$secret );
 	      exit 0;				
 	    } else {
-	      auth_client_screen();
-	      exit 0;
+		$res = $dbh->selectrow_arrayref("SELECT application, token FROM accepts WHERE application='".$cgi->param("client_id")."' AND login='".$user->login."';");
+		if ($dbh->err()) {
+		    warning_message($DBI::errstr);
+		    exit 0;
+		}
+		if ($res) {
+		    my $url = $cgi->param("redirect_url");
+		    if ($url =~ /\?/) {
+			$url .= "&";
+		    } else {
+			$url .= "?";
+		    }
+		    print $cgi->redirect( -uri => $url."code=".$res->[1] );
+		    exit 0;				
+		} else {
+		    auth_client_screen();
+		    exit 0;
+		}
 	    }
 	  } else {
 	    login_screen();
