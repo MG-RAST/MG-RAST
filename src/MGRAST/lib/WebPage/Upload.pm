@@ -256,25 +256,32 @@ sub output {
 			   <button style="display: none;" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Hidden merge mate-pairs button for enter key submission</button>
 			   <div class="modal-header">
 			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-			     <h3 id="mergeMatePairsModalLabel">merge mate-pairs</h3>
+			     <h3 id="mergeMatePairsModalLabel">merge overlapping mate-pairs</h3>
 		           </div>
 			   <div class="modal-body">
-			     <p>Please select file 1 of your mate-pairs:</p>
+			     <p>Select file 1 of your mate-pairs:</p>
 			     <div id="mate_pair_one" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Please select file 2 of your mate-pairs:</p>
+			     <p>Select file 2 of your mate-pairs:</p>
 			     <div id="mate_pair_two" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Please enter the desired name of your merge mate-pairs output file:</p>
+			     <p>Select the index (aka barcode) file of your mate-pairs (optional):</p>
+			     <div id="mate_pair_index" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Select if you would like to remove or retain non-overlapping mate-pairs:</p>
+			     <div id="mate_pair_select" style='margin: 10px 20px 0px 20px;'>
+                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="mate_pair_option" value="remove" checked><b> Remove</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - this is the default, non-overlapping mate-pairs will not appear in your output file.</td></tr></table>
+                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="mate_pair_option" value="retain"><b> Retain</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - non-overlapping mate-pairs will be retained in your output file as individual (non-merged) sequences.</td></tr></table><br>
+                             </div>
+			     <p>Enter the desired name of your merge overlapping mate-pairs output file:</p>
 			     <div id="merge_mate_pairs_input" style='margin-top: 10px;'><input type="text" id="merge_output_filename" /></div>
 		           </div>
 			   <div class="modal-footer">
 			     <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Merge Mate-Pair Files</button>
+			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Merge Overlapping Mate-Pairs</button>
 		           </div>
 			 </div>
 		       </form>
-                       <input type="button" class="btn" style='width:130px;' value="merge mate-pairs" data-toggle="modal" href="#mergeMatePairsModal"">
+                       <input type="button" class="btn" style='width:130px;' value="merge overlapping" data-toggle="modal" href="#mergeMatePairsModal"">
                      </td>
-                     <td width=250 style='vertical-align:middle;'>Merges mate-pair files.</td>
+                     <td width=250 style='vertical-align:middle;'>Merges overlapping mate-pairs.</td>
                    </tr>
                  </table>
                  <br>
