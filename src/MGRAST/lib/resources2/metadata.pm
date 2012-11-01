@@ -126,7 +126,7 @@ sub request {
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
     } elsif (($self->rest->[0] eq 'template') || ($self->rest->[0] eq 'cv')) {
-        $self->metadata($self->rest->[0]);
+        $self->static($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'export') && (scalar(@{$self->rest}) == 2)) {
         $self->instance($self->rest->[1]);
     } elsif ($self->rest->[0] eq 'validate') {
@@ -136,7 +136,8 @@ sub request {
     }
 }
 
-sub metadata {
+# return static data: template or cv
+sub static {
     my ($self, $type) = @_;
     
     # get database
@@ -168,6 +169,7 @@ sub metadata {
     $self->return_data($data);
 }
 
+# the resource is called with an id parameter
 sub instance {
     my ($self, $pid) = @_;
     
@@ -197,6 +199,7 @@ sub instance {
     $self->return_data($data)
 }
 
+# validate metadata, this can be GET for single value or POST for whole spreadsheet
 sub validate {
     my ($self) = @_;
     

@@ -1,5 +1,6 @@
 package resources2::abundanceprofile;
 
+use strict;
 use warnings;
 no warnings('once');
 use POSIX qw(strftime);
@@ -63,12 +64,7 @@ sub info {
 									  'type' => [ 'cv', [ ['organism', 'return organism data'],
 											      ['function', 'return functional data'],
 											      ['feature', 'return feature data'] ] ],
-									  'source' => [ 'cv', [ [ "M5RNA", "comprehensive RNA database, type organism only" ],
-												[  "RDP", "RNA database, type organism and feature only" ],
-												[ "Greengenes", "RNA database, type organism and feature only" ],
-												[ "LSU", "RNA database, type organism and feature only" ],
-												[ "SSU", "RNA database, type organism and feature only" ],
-												[ "M5NR", "comprehensive protein database, type organism only" ],
+									  'source' => [ 'cv', [ [ "M5NR", "comprehensive protein database, type organism only" ],
 												[ "SwissProt", "protein database, type organism and feature only" ],
 												[ "GenBank", "protein database, type organism and feature only" ],
 												[ "IMG", "protein database, type organism and feature only" ],
@@ -76,19 +72,21 @@ sub info {
 												[ "TrEMBL", "protein database, type organism and feature only" ],
 												[ "RefSeq", "protein database, type organism and feature only" ],
 												[ "PATRIC", "protein database, type organism and feature only" ],
-												[ "eggNOG", "protein database, type organism and feature only" ],
 												[ "KEGG", "protein database, type organism and feature only" ],
+												[ "M5RNA", "comprehensive RNA database, type organism only" ],
+            									[ "RDP", "RNA database, type organism and feature only" ],
+            									[ "Greengenes", "RNA database, type organism and feature only" ],
+            									[ "LSU", "RNA database, type organism and feature only" ],
+            									[ "SSU", "RNA database, type organism and feature only" ],
+            									[ "Subsystems", "ontology database, type function only" ],
 												[ "NOG", "ontology database, type function only" ],
 												[ "COG", "ontology database, type function only" ],
-												[ "KO", "ontology database, type function only" ],
-												[ "GO", "ontology database, type function only" ],
-												[ "Subsystems", "ontology database, type function only" ] ] ],
+												[ "KO", "ontology database, type function only" ] ] ]
 									},
 						       'required'    => { "id" => [ "string", "unique object identifier" ] },
-						       'body'        => {} } },
+						       'body'        => {} } }
 				]
 		};
-  
     $self->return_data($content);
 }
 
