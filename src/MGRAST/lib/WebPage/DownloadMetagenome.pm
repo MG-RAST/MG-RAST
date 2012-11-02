@@ -530,7 +530,7 @@ sub public_project_download_table {
     $table->show_clear_filter_button(1);
     $table->width(800);
     $table->columns( [ { name => 'Project&nbsp;ID', visible => 0, show_control => 0, filter =>1 },
-		       { name => 'Metagenome&nbsp;ID', visible => 0, show_control => 1, filter =>1 },
+		       { name => 'Metagenome&nbsp;ID', visible => 0, show_control => 1, filter =>1, unaddable => 1 },
 		       { name => 'Project', filter => 1, sortable => 1 },
 		       { name => 'Contact', filter => 1, sortable => 1 },
 		       { name => 'Enviroment', filter => 1, sortable => 1 },
@@ -567,7 +567,7 @@ sub public_project_download_table {
 		     join(" <br>", sort @{$project->countries}) || '',
 		     $pubmed_ids ? "<a href='http://www.ncbi.nlm.nih.gov/pubmed/$pubmed_ids' target=_blank >$pubmed_ids</a>" : '',
 		     join(", ", sort @{$project->sequence_types}) || 'Unknown',
-		     "<a href='?page=MetagenomeProject&project=$id#jobs' title='Download single metagenome from project page' >".scalar(@$all_mgids)."</a>",
+		     scalar(@$all_mgids),
 		     $formater->format_number(($project->bp_count_raw / 1000000), 0),
 		     $download
 		   ];

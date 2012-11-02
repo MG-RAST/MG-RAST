@@ -1653,7 +1653,7 @@ sub array2json {
     return '["' . join('","', map {krona_clean($_)} @$array) . '"]';
   }
   elsif ($depth == 2) {
-    return '[' . join(',', map { '["' . join('","', map {krona_clean($_)} @$_) . '"]' } @$array) . ']';
+    return '[' . join(',', map {'["'.join('","', map {krona_clean($_)} @$_).'"]' } grep {$_} @$array) . ']';
   }
   else {
     return '[]';
@@ -1662,6 +1662,7 @@ sub array2json {
 
 sub krona_clean {
   my ($txt) = @_;
+  unless ($txt) { return ''; }
   $txt =~ s/\'/\@1/g;
   $txt =~ s/\"/\@2/g;
   return $txt;
