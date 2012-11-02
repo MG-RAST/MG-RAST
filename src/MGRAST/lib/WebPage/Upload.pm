@@ -96,7 +96,26 @@ sub output {
   if ($cgi->param('create_job')) {
     my $success = $self->submit_to_mgrast();
     if ($success && @$success) {
-      $html .= "<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: ".join(", ", @$success)."</p></div>";
+      my $mgrast_ids = join(", ", @$success);
+      $html .= qq~
+<form style='margin:0;'>
+  <div class="modal hide" id="successfulSubmissionModal" tabindex="-1" role="dialog" aria-labelledby="successfulSubmissionModalLabel" aria-hidden="true">
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+      <h3 id="successfulSubmissionModalLabel">job submission successful</h3>
+    </div>
+    <div class="modal-body">
+      <p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: $mgrast_ids</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal" aria-hidden="true">OK</button>
+    </div>
+  </div>
+</form>
+<script>
+\$('#successfulSubmissionModal').modal('show');
+</script>
+<div class='well'><h4>Job submission successful</h4><p>Your data has been successfully submitted to the pipeline. You can view the status of your submitted jobs <a href='?page=MetagenomeSelect'>here</a> and click on the number next to 'In Progress'.</p><p>Your MG-RAST IDs: $mgrast_ids</p></div>~;
     }
   }
 
@@ -149,7 +168,8 @@ sub output {
 	         <p>Using community generated questionnaires we capture this metadata. MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank>Minimum Information about any (X) Sequence</a> developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC).</p>
 <p>The best form to capture metadata is via a simple spreadsheet with 12 mandatory terms. You can download the spreadsheet file here, fill in the required data fields later upload it to your inbox.</p>
 <p>While the MIxS required data fields capture only the most minimal metadata, many areas of study have chosen to require more elaborate questionnaires ("environmental packages") to help with analysis and comparison. These are marked as optional in the spreadsheet. If the "environmental package" for your area of study has not been created yet, please <a href="mailto:mg-rast\@mcs.anl.gov">contact MG-RAST staff</a> and we will forward your inquiry to the appropriate GSC working group.</p>
-<p>Once you have filled out the template, you can upload it below and it will be validated and appear in the metadata selection section.</p>
+<p>To get started on filling out your metadata spreadsheet, you can either download the blank template below, or you can try out <a href="http://metagenomics.anl.gov/metazen.cgi" target=_blank>Metazen</a>, a tool we have developed to try and make filling in metadata a little easier.</p>
+<p>Once you have filled out the blank template or the partially filled-in template from Metazen, you can upload it below and it will be validated and appear in the metadata selection section.</p>
                  <p><a href="$template_link"><img title="download metadata spreadsheet template" style="width: 20px; height: 20px;" src="./Html/mg-download.png"> download metadata spreadsheet template</a></p>
               </div>
 
@@ -236,25 +256,32 @@ sub output {
 			   <button style="display: none;" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Hidden merge mate-pairs button for enter key submission</button>
 			   <div class="modal-header">
 			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-			     <h3 id="mergeMatePairsModalLabel">create directory</h3>
+			     <h3 id="mergeMatePairsModalLabel">merge overlapping mate-pairs</h3>
 		           </div>
 			   <div class="modal-body">
-			     <p>Please select file 1 of your mate-pairs:</p>
+			     <p>Select file 1 of your mate-pairs:</p>
 			     <div id="mate_pair_one" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Please select file 2 of your mate-pairs:</p>
+			     <p>Select file 2 of your mate-pairs:</p>
 			     <div id="mate_pair_two" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Please enter the desired name of your merge mate-pairs output file:</p>
+			     <p>Select the index (aka barcode) file of your mate-pairs (optional):</p>
+			     <div id="mate_pair_index" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Select if you would like to remove or retain non-overlapping mate-pairs:</p>
+			     <div id="mate_pair_select" style='margin: 10px 20px 0px 20px;'>
+                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="mate_pair_option" value="remove" checked><b> Remove</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - this is the default, non-overlapping mate-pairs will not appear in your output file.</td></tr></table>
+                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="mate_pair_option" value="retain"><b> Retain</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - non-overlapping mate-pairs will be retained in your output file as individual (non-merged) sequences.</td></tr></table><br>
+                             </div>
+			     <p>Enter the desired name of your merge overlapping mate-pairs output file:</p>
 			     <div id="merge_mate_pairs_input" style='margin-top: 10px;'><input type="text" id="merge_output_filename" /></div>
 		           </div>
 			   <div class="modal-footer">
 			     <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Merge Mate-Pair Files</button>
+			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Merge Overlapping Mate-Pairs</button>
 		           </div>
 			 </div>
 		       </form>
-                       <input type="button" class="btn" style='width:130px;' value="merge mate-pairs" data-toggle="modal" href="#mergeMatePairsModal"">
+                       <input type="button" class="btn" style='width:130px;' value="merge overlapping" data-toggle="modal" href="#mergeMatePairsModal"">
                      </td>
-                     <td width=250 style='vertical-align:middle;'>Merges mate-pair files.</td>
+                     <td width=250 style='vertical-align:middle;'>Merges overlapping mate-pairs.</td>
                    </tr>
                  </table>
                  <br>
@@ -402,6 +429,14 @@ sub output {
 	      <div id="sel_pip_div" style="display: none;" class="well">
 		  <h3>selected pipeline options</h3>
 		  <div class="control-group">
+		    <label class="control-label" for="assembled"><b>assembled</b></label>
+		    <div class="controls">
+		      <label class="checkbox">
+			<input id="assembled" type="checkbox" value="assembled" name="assembled">
+			Select this option if your input sequence file(s) contain assembled data and include the coverage information within each sequence header as described <a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#assembled_pipeline' target='blank'>here</a>.
+		      </label>
+		    </div>
+
 		    <label class="control-label" for="dereplication"><b>dereplication</b></label>
 		    <div class="controls">
 		      <label class="checkbox">
@@ -590,6 +625,7 @@ sub submit_to_mgrast {
   my $filter_ambig = $cgi->param('filter_ambig');
   my $max_ambig = $cgi->param('max_ambig');
   my $priority = $cgi->param('priorityOption');
+  my $assembled = $cgi->param('assembled');
 
   my $seqfiles = [];
   @$seqfiles = split /\|/, $cgi->param('seqfiles');
@@ -632,7 +668,8 @@ sub submit_to_mgrast {
 		   'max_ambig' => $max_ambig,
 		   'file' => $seqfile,
 		   'name' => $name,
-		   'priority' => $priority
+		   'priority' => $priority,
+		   'assembled' => $assembled ? 1 : 0
 		 };
       while (<FH>) {
 	chomp;
@@ -712,6 +749,8 @@ sub submit_to_mgrast {
       }
       if (-f $rawfile && (stat($rawfile))[7] == (stat("$udir/$seqfile"))[7]) {
 	`rm "$udir/$seqfile"`; 
+	`rm "$udir/$seqfile.error_log"`; 
+	`rm "$udir/$seqfile.stats_info"`; 
       }
     }
     exit;
@@ -739,7 +778,11 @@ sub check_for_duplicates {
   @$seqfiles = split(/\|/, $cgi->param('seqfiles'));
 
   my $dupes = [];
+  my $missing_files = [];
   foreach my $seqfile (@$seqfiles) {
+    unless (-e "$udir/$seqfile") {
+      push @$missing_files, $seqfile;
+    }
     if (open(FH, "<$udir/$seqfile.stats_info")) {
       my $info = {};
       while (<FH>) {
@@ -754,7 +797,14 @@ sub check_for_duplicates {
       }
     }
   }
-  if (@$dupes > 0) {
+  if (@$missing_files > 0) {
+    $output = "ERROR: The following files are missing from your inbox, perhaps you alread submitted them?\n\n";
+    foreach my $file (@$missing_files) {
+      $output .= "$file\n";
+    }
+    print $cgi->header;
+    print $output;
+  } elsif (@$dupes > 0) {
     $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tYour File\n---------------\t---------------\n";
     map { $output .= join("\t", @$_)."\n" } @$dupes;
     $output .= "\nDo you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";

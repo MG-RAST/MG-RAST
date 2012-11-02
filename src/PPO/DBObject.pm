@@ -494,7 +494,8 @@ sub get_objects {
 
       if ($key eq '_id' or $self->attributes->{$key}->[0] == DB_SCALAR) {
 	if (ref($values->{$key}) eq 'ARRAY') {
-	  push(@filter_by, $key . " " . $values->{$key}->[1] . " " . $self->_master->backend->quote($values->{$key}->[0]));
+	  my $q = $values->{$key}->[0] ? $key . " " . $values->{$key}->[1] . " " . $self->_master->backend->quote($values->{$key}->[0]) : $values->{$key}->[1];
+	  push(@filter_by, $q);
 	} else {
 	  push(@filter_by, $key . "=" . $self->_master->backend->quote($values->{$key}));
 	}
