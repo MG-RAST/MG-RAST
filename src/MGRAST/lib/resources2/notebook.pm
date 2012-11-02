@@ -34,7 +34,7 @@ sub info {
     my ($self) = @_;
     my $content = { 'name'          => $self->name,
                     'url'           => $self->cgi->url."/".$self->name,
-                    'description'   => "A notebook is a JSON sgtructure describing the contents of an ipython session.",
+                    'description'   => "A notebook is a JSON structure describing the contents of an ipython session.",
                     'type'          => 'object',
                     'documentation' => '',
                     'requests'      => [ { 'name'        => "info",

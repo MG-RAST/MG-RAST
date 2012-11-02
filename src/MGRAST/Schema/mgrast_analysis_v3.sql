@@ -62,7 +62,7 @@ CREATE TABLE job_functions (
  md5s char(32)[],
  source text NOT NULL
 );
--- COPY job_functions (version,job,function,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
+-- COPY job_functions (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
 CREATE UNIQUE INDEX job_functions_key ON job_functions (version, job, id, source);
 
 DROP TABLE IF EXISTS job_organisms;
@@ -80,7 +80,7 @@ CREATE TABLE job_organisms (
  md5s char(32)[],
  source text NOT NULL
 );
--- COPY job_organisms (version,job,organism,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
+-- COPY job_organisms (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
 CREATE UNIQUE INDEX job_organisms_key ON job_organisms (version, job, id, source);
 
 DROP TABLE IF EXISTS job_rep_organisms;
