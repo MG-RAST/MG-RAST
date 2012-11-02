@@ -170,14 +170,17 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
         # merge_mate_pairs, there will be two paired-end fastq files
         if ($action eq 'merge_mate_pairs') {
             # do stuff
-	    my $seqfile1;
-	    my $seqfile2;
-	    my $seqfile3;
+	    my $seqfile1; # mate-pair file 1
+	    my $seqfile2; # mate-pair file 2
+	    my $seqfile3; # index file
 	    my $filetype1;
 	    my $filetype2;
 	    my $filetype3;
+	    my $join_option; # option to include non-overlapping mate-pairs
+            my $joinfile; # output filename
+
 	    my $has_seqs = 0;
-	    if (@files == 5 && $files[0] =~ /\.$seq_ext$/ && $files[1] =~ /\.$seq_ext$/ && ($files[2] eq "" || $files[2] =~ /\.$seq_ext$/)) {
+	    if (@files == 5 && $files[0] =~ /\.$seq_ext$/ && $files[1] =~ /\.$seq_ext$/ && ($files[2] eq "none" || $files[2] =~ /\.$seq_ext$/)) {
                 my $ext1 = $files[0];
                 $ext1 =~ s/^\S+\.($seq_ext)$/$1/;
 		$filetype1 = ($ext1 =~ /^(fq|fastq)$/) ? 'fastq' : 'fasta';
@@ -191,16 +194,20 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 my $ext3 = $files[2];
                 $ext3 =~ s/^\S+\.($seq_ext)$/$1/;
 		$filetype3 = ($ext3 =~ /^(fq|fastq)$/) ? 'fastq' : 'fasta';
-		$seqfile3  = $files[2];
+		$seqfile3 = ($files[2] eq "none") ? "" : $files[2];
 
                 if($filetype1 eq 'fastq' && $filetype2 eq 'fastq' && ($seqfile3 eq "" || $filetype3 eq 'fastq')) {
 		    $has_seqs = 1;
                 }
+
+		$join_option = $files[3];
+		$joinfile = $files[4];
 	    }
+
 	    if ($has_seqs) {
                 my $lock_file1 = "$udir/$seqfile1.lock";
                 my $lock_file2 = "$udir/$seqfile2.lock";
-                my $lock_file3 = "$udir/$seqfile3.lock";
+                my $lock_file3 = ($seqfile3 ne "") ? "$udir/$seqfile3.lock" : "";
                 if (-f $lock_file1) {
                     my $lock_msg = `cat $lock_file1`;
                     chomp $lock_msg;
@@ -214,28 +221,27 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                     chomp $lock_msg;
 		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
                 } else {
-		    my $indexfile = $files[2];
-		    my $join_option = $files[3];
-                    my $joinfile = $files[4];
 		    my $jobid = $user->{login};
 		    $jobid =~ s/\s/_/g;
 		    `echo "computing merge mate-pairs" > $lock_file1`;
 		    `echo "computing merge mate-pairs" > $lock_file2`;
-		    `echo "computing merge mate-pairs" > $lock_file3`;
+		    if($lock_file3 ne "") { `echo "computing merge mate-pairs" > $lock_file3`; }
 		    my $jnum = "";
+                    my $command = "";
 		    if($join_option eq 'remove') {
-		      if($indexfile eq "") {
-			$jnum = `echo "$Conf::pairend_join -j -m 8 -p 10 -s -n 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		      if($seqfile3 eq "") {
+                        $command = "echo \"$Conf::pairend_join -j -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 		      } else {
-			$jnum = `echo "$Conf::pairend_join -j -r -i $indexfile -m 8 -p 10 -s -n 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+			$command = "echo \"$Conf::pairend_join -j -r -i $seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 		      }
 		    } else {
-		      if($indexfile eq "") {
-			$jnum = `echo "$Conf::pairend_join -m 8 -p 10 -s -n 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		      if($seqfile3 eq "") {
+			$command = "echo \"$Conf::pairend_join -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 		      } else {
-			$jnum = `echo "$Conf::pairend_join -r -i $indexfile -m 8 -p 10 -s -n 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+			$command = "echo \"$Conf::pairend_join -r -i $seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 		      }
 		    }
+                    $jnum = `$command`;
 		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 		    open(FH, ">>$udir/.tmp/jobs");
 		    print FH "$jnum";
