@@ -45,6 +45,7 @@ function update_inbox (data, files, action) {
       if (!dlist[i].match(/^(\_)/)) {
         dir_list_html += "  <option>"+dlist[i]+"</option>";
         if(DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length == 0) {
+           DataStore['user_inbox'][user.login].fileinfo[files[0]]
           delete_dir_list_html += "  <option>"+dlist[i]+"</option>";
         }
         inbox_html += "<optgroup title='this is a directory\nclick to toggle open / close' open=0 label='[ "+dlist[i]+" ] - "+DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length+" files' onclick='if(event.originalTarget.nodeName==\"OPTGROUP\"){if(this.open){this.open=0;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"none\";}}else{this.open=1;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"\";}}}'>";
@@ -126,7 +127,7 @@ function update_inbox (data, files, action) {
     mate_pair_file_list += '</select></form>';
     document.getElementById('mate_pair_one').innerHTML = '<form><select id="mate_pair_one_select">'+mate_pair_file_list;
     document.getElementById('mate_pair_two').innerHTML = '<form><select id="mate_pair_two_select">'+mate_pair_file_list;
-    document.getElementById('mate_pair_index').innerHTML = '<form><select id="mate_pair_index_select"><option>-- none --</option>'+mate_pair_file_list;
+    document.getElementById('mate_pair_index').innerHTML = '<form><select id="mate_pair_index_select"><option>none</option>'+mate_pair_file_list;
     dir_list_html += '</select></form>';
     document.getElementById('dir_list').innerHTML = dir_list_html;
     delete_dir_list_html += '</select></form>';
@@ -301,7 +302,7 @@ function merge_mate_pairs () {
   files[0] = document.getElementById('mate_pair_one_select').value;
   files[1] = document.getElementById('mate_pair_two_select').value;
   files[2] = document.getElementById('mate_pair_index_select').value;
-  files[3] = document.getElementById('mate_pair_option').value;
+  files[3] = $('input[@name="mate_pair_option"]:checked').val();
 
   if (output_filename == "") {
     alert("You need to enter an output filename to merge mate-pairs.");
@@ -318,7 +319,23 @@ function merge_mate_pairs () {
   }
 
   var seqfile;
-  if (files[0].match(/(fastq|fq)$/) && files[1].match(/(fastq|fq)$/) && (files[2] == "-- none --" || files[2].match(/(fastq|fq)$/))) {
+  if (files[0].match(/(fastq|fq)$/) && files[1].match(/(fastq|fq)$/) && (files[2] == "none" || files[2].match(/(fastq|fq)$/))) {
+    var seq_count1 = DataStore['user_inbox'][user.login].fileinfo[files[0]]['sequence count'];
+    var seq_count2 = DataStore['user_inbox'][user.login].fileinfo[files[1]]['sequence count'];
+    var seq_count3 = 0;
+    if(files[2] != "none") {
+      seq_count3 = DataStore['user_inbox'][user.login].fileinfo[files[2]]['sequence count'];
+    }
+    if(seq_count1 == seq_count2) {
+      if(seq_count3 != 0 && seq_count3 != seq_count1) {
+        alert("Your index (aka barcodes) file does not have the same number of sequence headers as your sequence files.  Merge mate-pairs cannot be run with this input.");
+        return false;
+      }
+    } else {
+      alert("Your input sequence files 1 and 2 do not have the same number of sequences in them.  Merge mate-pairs cannot be run with this input.");
+      return false;
+    }
+
     if(! output_filename.match(/(fastq|fq)$/)) {
       output_filename += ".fastq";
     }
