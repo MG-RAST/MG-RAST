@@ -222,7 +222,7 @@ sub output {
  	             </div>
                   </div>
                
-		  <p style='color:red;'><b>Note:</b> Uploaded files may be removed from your inbox within 72 hours.  Please perform submission of your files within that time frame.</p>
+		  <p style='color:red;'><b>Note:</b> Uploaded files may be removed from your inbox after 72 hours.  Please perform submission of your files within that time frame.</p>
                   <p>In addition to using your web browser for uploads to the system the following alternatives are available:</p>
                   <table>
                      <tr style='display: none;'><td width="125px"><b>ftp</b></td><td>ftp://incoming.metagenomics.anl.gov/<span id="ftp_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
