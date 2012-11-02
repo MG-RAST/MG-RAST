@@ -1,3 +1,5 @@
+var BP_CUTOFF = 1000000;
+
 var user;
 var auth;
 var selected_sequence_file;
@@ -35,8 +37,7 @@ function update_inbox (data, files, action) {
     var dir_list_html = '<form><select id="dir_select">';
     dir_list_html += '  <option value="inbox">inbox (base directory)</option>';
     var delete_dir_list_html = '<form><select id="delete_dir_select">';
-    var mate_pair_one_file_list = '<form><select id="mate_pair_one_select">';
-    var mate_pair_two_file_list = '<form><select id="mate_pair_two_select">';
+    var mate_pair_file_list = "";
     var inbox_html = '<select id="inbox_select" multiple style="width: 420px; height: 200px;">';
     var seq_dlist = [];
     var seqs_in_dir = false;
@@ -44,6 +45,7 @@ function update_inbox (data, files, action) {
       if (!dlist[i].match(/^(\_)/)) {
         dir_list_html += "  <option>"+dlist[i]+"</option>";
         if(DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length == 0) {
+           DataStore['user_inbox'][user.login].fileinfo[files[0]]
           delete_dir_list_html += "  <option>"+dlist[i]+"</option>";
         }
         inbox_html += "<optgroup title='this is a directory\nclick to toggle open / close' open=0 label='[ "+dlist[i]+" ] - "+DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length+" files' onclick='if(event.originalTarget.nodeName==\"OPTGROUP\"){if(this.open){this.open=0;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"none\";}}else{this.open=1;for(var i=0;i<this.childNodes.length;i++){this.childNodes[i].style.display=\"\";}}}'>";
@@ -51,8 +53,7 @@ function update_inbox (data, files, action) {
       for (var h=0; h<DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length; h++) {
 	var fn = DataStore['user_inbox'][user.login].fileinfo[dlist[i]][h];
         if(fn.match(/(fastq|fq)$/)) {
-          mate_pair_one_file_list += "  <option>"+dlist[i]+"/"+fn+"</option>";
-          mate_pair_two_file_list += "  <option>"+dlist[i]+"/"+fn+"</option>";
+          mate_pair_file_list += "  <option>"+dlist[i]+"/"+fn+"</option>";
         }
 	if (fn.match(is_a_sequence_file_ending)) {
 	  seq_dlist[dlist[i]] = 1;
@@ -73,7 +74,7 @@ function update_inbox (data, files, action) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
-	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] < 1000001) {
+	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
 	} else if (lock_msg != "") {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: gray;' value='"+dlist[i]+"/"+fn+"'>("+lock_msg+") "+fn+"</option>";
@@ -87,8 +88,7 @@ function update_inbox (data, files, action) {
     }
     for (var i=0; i<flist.length; i++) {
       if(flist[i].match(/(fastq|fq)$/)) {
-        mate_pair_one_file_list += "  <option>"+flist[i]+"</option>";
-        mate_pair_two_file_list += "  <option>"+flist[i]+"</option>";
+        mate_pair_file_list += "  <option>"+flist[i]+"</option>";
       }
       var isSeq = flist[i].match(is_a_sequence_file_ending);
       if (isSeq) {
@@ -113,7 +113,7 @@ function update_inbox (data, files, action) {
 	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
       } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
-      } else if (isSeq && inf['bp count'] && inf['bp count'] < 1000001) {
+      } else if (isSeq && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
 	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
       } else if (lock_msg != "") {
         inbox_html += "<option style='color: gray;' value='"+flist[i]+"'>("+lock_msg+") "+flist[i]+"</option>";
@@ -123,10 +123,11 @@ function update_inbox (data, files, action) {
         inbox_html += "<option>"+flist[i]+"</option>";
       }
     }
-    mate_pair_one_file_list += '</select></form>';
-    document.getElementById('mate_pair_one').innerHTML = mate_pair_one_file_list;
-    mate_pair_two_file_list += '</select></form>';
-    document.getElementById('mate_pair_two').innerHTML = mate_pair_two_file_list;
+
+    mate_pair_file_list += '</select></form>';
+    document.getElementById('mate_pair_one').innerHTML = '<form><select id="mate_pair_one_select">'+mate_pair_file_list;
+    document.getElementById('mate_pair_two').innerHTML = '<form><select id="mate_pair_two_select">'+mate_pair_file_list;
+    document.getElementById('mate_pair_index').innerHTML = '<form><select id="mate_pair_index_select"><option>none</option>'+mate_pair_file_list;
     dir_list_html += '</select></form>';
     document.getElementById('dir_list').innerHTML = dir_list_html;
     delete_dir_list_html += '</select></form>';
@@ -147,7 +148,8 @@ function update_inbox (data, files, action) {
 	  var fn = DataStore['user_inbox'][user.login].fileinfo[i][h];
 	  if (fn.match(is_a_sequence_file_ending)) {
 	    var inf = DataStore['user_inbox'][user.login].fileinfo[i+'/'+fn];
-	      if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error']) && inf['bp count'] > 1000000) {
+	    var lock_msg = DataStore['user_inbox'][user.login].locks[i+'/'+fn];
+	    if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error']) && inf['bp count'] > BP_CUTOFF && (! lock_msg)) {
 	      var trow = [ 0, i, fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
@@ -158,7 +160,8 @@ function update_inbox (data, files, action) {
       for (var i=0; i<sequence_files.length; i++) {
 	  var fn = sequence_files[i];
 	  var inf = DataStore['user_inbox'][user.login].fileinfo[fn];
-	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error']) && inf['bp count'] > 1000000) {
+	  var lock_msg = DataStore['user_inbox'][user.login].locks[fn];
+	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error']) && inf['bp count'] > BP_CUTOFF && (! lock_msg)) {
 	    var trow = [ 0, "-", fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
 	  }
@@ -192,7 +195,7 @@ function update_inbox (data, files, action) {
 	    else if (inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>The unique id count does not match the sequence count. You will not be able to use this file for submission.</div>';
 	    }
-            else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] < 1000001) {
+            else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file is too small for submission, the minimum is 1MBp.</div>';
 	    }
 	    ptext += "<table>";
@@ -298,34 +301,53 @@ function merge_mate_pairs () {
   var files = [];
   files[0] = document.getElementById('mate_pair_one_select').value;
   files[1] = document.getElementById('mate_pair_two_select').value;
+  files[2] = document.getElementById('mate_pair_index_select').value;
+  files[3] = $('input[@name="mate_pair_option"]:checked').val();
 
-  if (files.length == 2) {
-    if (output_filename == "") {
-      alert("You need to enter an output filename to merge mate-pairs.");
-      return false;
-    } else if(files[0] == files[1]) {
-      alert("You entered the same filename for both input files.  Your selection should include two different, paired fastq sequence files (.fq or .fastq)");
-      return false;
+  if (output_filename == "") {
+    alert("You need to enter an output filename to merge mate-pairs.");
+    return false;
+  } else if(files[0] == files[1]) {
+    alert("You entered the same filename for both input files.  Your selection should include two different, paired fastq sequence files (.fq or .fastq)");
+    return false;
+  } else if(files[0] == files[2]) {
+    alert("You entered the same filename for mate pair file 1 and your index file.  These must be two different files (.fq or .fastq)");
+    return false;
+  } else if(files[1] == files[2]) {
+    alert("You entered the same filename for mate pair file 2 and your index file.  These must be two different files (.fq or .fastq)");
+    return false;
+  }
+
+  var seqfile;
+  if (files[0].match(/(fastq|fq)$/) && files[1].match(/(fastq|fq)$/) && (files[2] == "none" || files[2].match(/(fastq|fq)$/))) {
+    var seq_count1 = DataStore['user_inbox'][user.login].fileinfo[files[0]]['sequence count'];
+    var seq_count2 = DataStore['user_inbox'][user.login].fileinfo[files[1]]['sequence count'];
+    var seq_count3 = 0;
+    if(files[2] != "none") {
+      seq_count3 = DataStore['user_inbox'][user.login].fileinfo[files[2]]['sequence count'];
     }
-
-    var seqfile;
-    if (files[0].match(/(fastq|fq)$/) && files[1].match(/(fastq|fq)$/)) {
-      if(! output_filename.match(/(fastq|fq)$/)) {
-        output_filename += ".fastq";
-      }
-      if(output_filename.match(/\//)) {
-        alert("Your output filename cannot contain a '/' character in the name.");
+    if(seq_count1 == seq_count2) {
+      if(seq_count3 != 0 && seq_count3 != seq_count1) {
+        alert("Your index (aka barcodes) file does not have the same number of sequence headers as your sequence files.  Merge mate-pairs cannot be run with this input.");
         return false;
       }
-      files[files.length] = output_filename;
-      alert("Your output file will be saved in your Inbox base directory as: "+output_filename+"\n\nThis might take some minutes, depending on filesize.  When the merging has finished, your inbox will update automatically.\n\n");
-      update_inbox(null, files, "merge_mate_pairs");
     } else {
-      alert("Your selection must include two fastq sequence files (.fq or .fastq)");
+      alert("Your input sequence files 1 and 2 do not have the same number of sequences in them.  Merge mate-pairs cannot be run with this input.");
       return false;
     }
+
+    if(! output_filename.match(/(fastq|fq)$/)) {
+      output_filename += ".fastq";
+    }
+    if(output_filename.match(/\//)) {
+      alert("Your output filename cannot contain a '/' character in the name.");
+      return false;
+    }
+    files[files.length] = output_filename;
+    alert("Your output file will be saved in your Inbox base directory as: "+output_filename+"\n\nThis might take some minutes, depending on filesize.  When the merging has finished, your inbox will update automatically.\n\n");
+    update_inbox(null, files, "merge_mate_pairs");
   } else {
-    alert("You need to select two paired-end read fastq files to proceed with mate-pair merging.");
+    alert("Your selection must include two input fastq sequence files (.fq or .fastq) and if an index file is included it must also be in fastq format.");
     return false;
   }
 }
@@ -357,7 +379,7 @@ function demultiplex_files () {
 // upload workflow
 function select_sequence_file () {
   if ((document.getElementById("sel_md_pill").className == "pill_incomplete") && (document.getElementById("sel_project_pill").className = "pill_incomplete")) {
-    alert("You must either select a metadata file in Step 1\nor choose a project in Step 2 before selecting sequence file(s).");
+    alert("You need to complete both Steps 1 and 2 before selecting a sequence file.");
     return false;
   }
   var sel = document.getElementById('sequence_file_select');
@@ -393,15 +415,23 @@ function select_sequence_file () {
 	return 0;
       }
     } else {
-      if (selected_sequence_files.length == selected_libraries.length) {
+      if (selected_sequence_files.length <= selected_libraries.length) {
 	var valid = 1;
 	var broken = "";
+        var stripped_filenames = [];
 	for (i=0;i<selected_sequence_files.length; i++) {
 	  var start = 0;
 	  if (selected_sequence_files[i].indexOf('/') > -1) {
 	    start = selected_sequence_files[i].lastIndexOf('/') + 1;
 	  }
-	  var fn = selected_sequence_files[i].substr(start, selected_sequence_files[i].lastIndexOf('.'));
+	  var fn = selected_sequence_files[i].substr(start, selected_sequence_files[i].lastIndexOf('.') - start);
+          for (j=0; j<stripped_filenames.length; j++) {
+            if (stripped_filenames[j] == fn) {
+              alert("WARNING: The filename (without the file extension): "+fn+" exists multiple times in your selected input files.  This is probably due to the same filename being present in different directories.  Please change your input files to include only distinct filenames.");
+              return 0;
+            }
+          }
+          stripped_filenames[stripped_filenames.length] = fn;
 	  var found = 0;
 	  for (h=0; h<selected_libraries.length; h++) {
 	    if (selected_libraries[h] == fn) {
@@ -416,39 +446,18 @@ function select_sequence_file () {
 	  }
 	}
 	if (! valid) {
-	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library ("+fn+").\nThe file_name or metagenome_name field in library should match your sequence file name (minus extension if using metagenome_name).\nEither correct your metadata file or change your sequence file selection.");
-	  return 0;
-	}
-      } else if (selected_sequence_files.length < selected_libraries.length) {
-	var valid = 1;
-	var broken = "";
-	for (i=0;i<selected_sequence_files.length; i++) {
-	  var start = 0;
-	  if (selected_sequence_files[i].indexOf('/') > -1) {
-	    start = selected_sequence_files[i].lastIndexOf('/') + 1;
-	  }
-	  var fn = selected_sequence_files[i].substr(start, selected_sequence_files[i].lastIndexOf('.'));
-	  var found = 0;
-	  for (h=0; h<selected_libraries.length; h++) {
-	    if (selected_libraries[h] == fn) {
-	      found = 1;
-	      break;
-	    }
-	  }
-	  if (! found) {
-	    valid = 0;
-	    broken = selected_sequence_files[i];
-	    break;
-	  }
-	}
-	if (! valid) {
-	  alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library.\nEither correct your metadata file or change your sequence file selection.");
-	  return 0;
-	} else {
+          if (selected_sequence_files.length == selected_libraries.length) {
+	    alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library ("+fn+").\nThe file_name or metagenome_name field in library should match your sequence file name (minus extension if using metagenome_name).\nEither correct your metadata file or change your sequence file selection.");
+	    return 0;
+          } else if(selected_sequence_files.length < selected_libraries.length) {
+	    alert("WARNING: The libraries in your selected metadata file do\nnot match the selected sequence files, i.e. the sequence\nfile "+broken+" does not have a matching library.\nEither correct your metadata file or change your sequence file selection.");
+	    return 0;
+          }
+	} else if(selected_sequence_files.length < selected_libraries.length) {
 	  if (! confirm("WARNING: Your metadata contains more libraries than you have sequence files selected.\nHowever, all selected sequence files have a matching library.\n\nDo you want to continue?")) {
 	    return 0;
-	  }
-	}
+          }
+        }
       } else {
 	alert("WARNING: The number of libraries in your metadata file is less than\nthe number of selected sequence files.\nEither correct your metadata file or change your sequence file selection.");
 	return 0;
@@ -600,21 +609,21 @@ function check_submitable () {
 function submit_job () {
     document.getElementById("submit_job_button").disabled = true;
   var seq_files = selected_sequence_files.join('|');
-  $.get("?page=Upload&action=check_for_duplicates&seqfiles="+seq_files, function (data) {
-      if (data == "unique") {
+  $.ajax({ async: false, type: "POST", url: "metagenomics.cgi", data: { page: "Upload", action: "check_for_duplicates", seqfiles: seq_files }, success: function (result) {
+      if (result == "unique") {
 	  document.forms.submission_form.submit();
-      } else if (data.match(/ERROR/) ) {
-        alert(data);
+      } else if (result.match(/ERROR/) ) {
+        alert(result);
         return false;
       } else {
-	  if ( confirm(data) ) {
+	  if ( confirm(result) ) {
 	      document.forms.submission_form.submit();
 	  } else {
 	      document.getElementById("submit_job_button").disabled = false;
 	      return false;
 	  }
       }
-  });
+  }});
 }
 
 function toggle (id) {
