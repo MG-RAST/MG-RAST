@@ -52,7 +52,7 @@ function update_inbox (data, files, action) {
       }
       for (var h=0; h<DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length; h++) {
 	var fn = DataStore['user_inbox'][user.login].fileinfo[dlist[i]][h];
-        if(fn.match(/(fastq|fq)$/)) {
+        if(fn.match(/(fastq|fq)$/) && !(DataStore['user_inbox'][user.login].locks[dlist[i]+"/"+fn])) {
           mate_pair_file_list += "  <option>"+dlist[i]+"/"+fn+"</option>";
         }
 	if (fn.match(is_a_sequence_file_ending)) {
@@ -87,7 +87,7 @@ function update_inbox (data, files, action) {
       inbox_html += "</optgroup>";
     }
     for (var i=0; i<flist.length; i++) {
-      if(flist[i].match(/(fastq|fq)$/)) {
+      if(flist[i].match(/(fastq|fq)$/) && !(DataStore['user_inbox'][user.login].locks[flist[i]])) {
         mate_pair_file_list += "  <option>"+flist[i]+"</option>";
       }
       var isSeq = flist[i].match(is_a_sequence_file_ending);
