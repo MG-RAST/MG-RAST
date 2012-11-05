@@ -46,7 +46,7 @@ my $dbh = DBI->connect("DBI:Pg:dbname=$dbname;host=$dbhost", $dbuser, '', {AutoC
 unless ($dbh) { print STDERR "Error: " . $DBI::errstr . "\n"; exit 1; }
 
 my @types = ('source', 'organism', 'function', 'ontology');
-my @md5s  = ('md5_protein', 'md5_rna', 'md5_ontology');
+my @md5s  = ('md5_organism', 'md5_ontology', 'md5_lca');
 
 # get lca table
 my $has_lca = $dbh->selectcol_arrayref("SELECT COUNT(relname) FROM pg_class WHERE relname = 'md5_lca'");
@@ -69,7 +69,7 @@ $dbh->do("COPY (SELECT _id, id, type FROM ontologies) TO '$tmpdir/ontology_map' 
 $dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_protein) TO '$tmpdir/md5_protein_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_rna) TO '$tmpdir/md5_rna_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT DISTINCT m.md5, m.source, m.function, o._id FROM md5_ontology m, ontologies o WHERE m.id=o.id) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
-system("cat ".join(" ", map {"$tmpdir/${_}_map"} @md5s)." | sort -T $tmpdir > $tmpdir/md5_data_map");
+system("cat md5_protein_map md5_rna_map | sort -T $tmpdir > $tmpdir/md5_organism_map");
 print STDERR "Done\n" if ($verbose);
 $dbh->disconnect;
 
@@ -79,6 +79,8 @@ unless ($fdump) {
     foreach my $t (@types) {
         system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --map $tmpdir/${t}_map --option $t");
     }
-    system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --md5 $tmpdir/md5_data_map --lca $tmpdir/md5_lca_map --option md5");
+    foreach my $m (@md5s) {
+        system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --map $tmpdir/${m}_map --option $m");
+    }
     print STDERR "Done\n" if ($verbose);
 }
