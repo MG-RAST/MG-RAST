@@ -71,6 +71,7 @@ elsif (($select eq 'md5_organism') || ($select eq 'md5_ontology')) {
   while (my $line = <MD5F>) {
     chomp $line;
     my ($md5, $sid, $fid, $oid) = split(/\t/, $line);
+    unless ($fid) { $fid = 0; }
     
     # initial
     if ($curr eq '') {
