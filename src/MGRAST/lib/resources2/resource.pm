@@ -383,8 +383,17 @@ sub get_shock_query {
 }
 
 sub toFloat {
-  my ($self, $x) = @_;
-  return $x * 1.0;
+    my ($self, $x) = @_;
+    return $x * 1.0;
+}
+
+sub toNum {
+    my ($x, $type) = @_;
+    if ($type eq 'abundance') {
+        return int($x);
+    } else {
+        return $x * 1.0;
+    }
 }
 
 ###################################################

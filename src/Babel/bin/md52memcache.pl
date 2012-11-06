@@ -14,8 +14,9 @@ my $mapf    = '';
 my $select  = '';
 my $memkey  = '_ach';
 my $memhost = "";
-my $options = { md5_organism => 1,
-                md5_ontology => 1,
+my $options = { md5_ontology => 1,
+                md5_protein  => 1,
+                md5_rna  => 1,
                 md5_lca  => 1,
 		        ontology => 1,
 		        function => 1,
@@ -24,8 +25,9 @@ my $options = { md5_organism => 1,
 	          };
 
 my $usage = "$0 [--verbose] --mem_host <server address: default '$memhost'> --mem_key <key extension: default '$memkey'> --map <annotation mapping file> --option <input type: " . join("|", keys %$options) . ">\n";
-$usage   .= "md5_organism file (sorted md5s):\tmd5, source, function, organism\n";
 $usage   .= "md5_ontology file (sorted md5s):\tmd5, source, function, ontology\n";
+$usage   .= "md5_protein file (sorted md5s):\t\tmd5, source, function, organism\n";
+$usage   .= "md5_rna file (sorted md5s):\t\tmd5, source, function, organism\n";
 $usage   .= "md5_lca file (unique md5s):\t\tmd5, domain, phylum, class, order, family, genus, species, name, level\n";
 $usage   .= "annotation file:\t\tinteger id, text name, optional\n";
 
@@ -45,7 +47,7 @@ unless ($mapf && (-s $mapf)) {
   print STDERR "Missing file.\n$usage"; exit 1;
 }
 
-my $mtype = ($select eq 'md5_organism') ? 'organism' : 'ontology';
+my $mtype = ($select eq 'md5_ontology') ? 'ontology' : 'organism';
 my $num   = 0;
 my $mem_cache = new Cache::Memcached {'servers' => [$memhost], 'debug' => 0, 'compress_threshold' => 10_000};
 unless ($mem_cache && ref($mem_cache)) { print STDERR "Unable to connect to memcache:\n$usage"; exit 1; }
@@ -63,7 +65,7 @@ if ($select eq 'md5_lca') {
   close LCAF;
   print STDERR "Done parsing / adding $num md5s\n" if ($verbose);
 }
-elsif (($select eq 'md5_organism') || ($select eq 'md5_ontology')) {
+elsif (($select eq 'md5_protein') || ($select eq 'md5_rna') || ($select eq 'md5_ontology')) {
   my $curr = '';
   my $data = {};
   print STDERR "Parsing md5 file / adding to memcache ... " if ($verbose);
@@ -88,6 +90,7 @@ elsif (($select eq 'md5_organism') || ($select eq 'md5_ontology')) {
       $num += 1;
     }
     # add data
+    $data->{is_aa} = ($select eq 'md5_rna') ? 0 : 1;
     push @{ $data->{$sid}->{$fid}->{$mtype} }, $oid;
   }
   close MD5F;
