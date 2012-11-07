@@ -1090,8 +1090,9 @@ sub get_organisms_unique_for_source {
 
     my $all_orgs    = {};
     my $mg_org_data = {};
+    # mgid => org => [ count_md5s, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, [md5s] ]
     my $mg_md5_data = $self->get_md5_data(undef, $eval, $ident, $alen, 1, $source);
-    # [ mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, organism ]
+    # [ mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, rep_org_id ]
 
     foreach my $row (@$mg_md5_data) {
         my $org = $row->[9];
@@ -1111,21 +1112,25 @@ sub get_organisms_unique_for_source {
         }
     }
 
-    my $taxons = $self->ach->get_taxonomy4orgs([keys %$all_orgs]);
+    my $tax = {};
+    my $sql = "SELECT _id,COALESCE(tax_domain,'unassigned') AS txd,COALESCE(tax_phylum,'unassigned') AS txp,COALESCE(tax_class,'unassigned') AS txc,".
+              "COALESCE(tax_order,'unassigned') AS txo,COALESCE(tax_family,'unassigned') AS txf,COALESCE(tax_genus,'unassigned') AS txg,".
+              "COALESCE(tax_species,'unassigned') AS txs,name FROM ".$self->atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")";
+    foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
+        my $oid = pop @$row;
+        $tax->{$oid} = $row;
+    }
+    
     my $result = [];
-    my @no_tax = ('unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned');
-
     foreach my $mgid (keys %$mg_org_data) {
-        foreach my $org (keys %{$mg_org_data->{$mgid}}) {
-            my $stats = $mg_org_data->{$mgid}{$org};
+        foreach my $oid (keys %{$mg_org_data->{$mgid}}) {
+            my $stats = $mg_org_data->{$mgid}{$oid};
             my $total = $stats->[0];
             my $abund = $stats->[1];
             my $md5s  = $stats->[8];
             my ($ea, $es, $ia, $is, $la, $ls) = (($stats->[2] / $total),($stats->[3] / $total),($stats->[4] / $total),($stats->[5] / $total),($stats->[6] / $total),($stats->[7] / $total));
-            if (exists $taxons->{$org}) {
-	            push @$result, [ $mgid, @{$taxons->{$org}}, $org, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
-            } else {
-	            push @$result, [ $mgid, @no_tax, $org, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+            if (exists $tax->{$oid}) {
+	            push @$result, [ $mgid, @{$tax->{$oid}}, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
             }
         }
     }
@@ -1150,18 +1155,15 @@ sub get_organisms_for_md5s {
     my $data = {};
     my $jobs = [];
     my %mdata = ();
-    my %all_orgs = ();
     
     if ($md5s && (@$md5s > 0)) {
         $jobs = $self->jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->job_map} ) {
             my $c = $self->memd->get($mg.$cache_key);
-            my $o = $self->memd->get($mg.$cache_key."orgs");
             my $m = $self->memd->get($mg.$cache_key."md5s");
-            if ($c && $o && $m) {
+            if ($c && $m) {
                 push @{$data->{$mg}}, @$c;
-                map { $all_orgs{$_} = 1 } @$o;
                 map { $mdata{$mg}{$_} = $m->{$_} } keys %$m;
             } else {
                 push @$jobs, $j;
@@ -1169,7 +1171,6 @@ sub get_organisms_for_md5s {
         }
     }
   
-    unless ($sources && (@$sources > 0)) { $sources = []; }
     my %md5_set = map {$_, 1} @$md5s;
     my $mg_md5_abund = $self->get_md5_abundance();
   
@@ -1177,46 +1178,34 @@ sub get_organisms_for_md5s {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
-    my $qsrcs = (@$sources > 0) ? "j.source IN (" . join(",", map {"'$_'"} @$sources) . ")" : "";
+    my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map {"'$_'"} @$sources) . ")" : "";
     my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5s && '{" . join(",", map {qq("$_")} @$md5s) . "}'" : "";
     my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
                                        "j.id = a._id", $qmd5s, $qsrcs, $eval, $ident, $alen ]);
-    my $sql = "SELECT DISTINCT j.job,j.source,a.name,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
+    my $tax = "COALESCE(a.tax_domain,'unassigned') AS txd,COALESCE(a.tax_phylum,'unassigned') AS txp,COALESCE(a.tax_class,'unassigned') AS txc,".
+              "COALESCE(a.tax_order,'unassigned') AS txo,COALESCE(a.tax_family,'unassigned') AS txf,COALESCE(a.tax_genus,'unassigned') AS txg,".
+              "COALESCE(a.tax_species,'unassigned') AS txs,a.name";
+    my $sql = "SELECT DISTINCT j.job,j.source,$tax,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where;
 
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->mg_map($row->[0]);
         if ($qmd5s && exists($mg_md5_abund->{$mg})) {
-	        map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) && exists($md5_set{$_}) } @{$row->[10]};
+	        map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) && exists($md5_set{$_}) } @{$row->[17]};
 	    } else {
-	        $sub_abund = $row->[3];
+	        $sub_abund = $row->[10];
 	    }
-	    push @{$data->{$mg}}, [ $mg, @$row[1..3], $sub_abund, @$row[4..9], join(";", @{$row->[10]}) ];
-	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[10]};
+	    push @{$data->{$mg}}, [ $mg, @$row[1..10], $sub_abund, @$row[11..16], join(";", @{$row->[17]}) ];
+	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[17]};
     }
     unless ($md5s && (@$md5s > 0)) {
         foreach my $mg (keys %$data) {
 	        $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
-	        $self->memd->set($mg.$cache_key."orgs", [ map { $_->[2] } @{$data->{$mg}} ], $self->expire);
 	        $self->memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->expire);
 	    }
     }
-
-    my $taxons = $self->ach->get_taxonomy4orgs([keys %all_orgs]);
-    my $result = [];
-    my @no_tax = ('unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned');
-
-    foreach my $mg (keys %$data) {
-        foreach my $row ( @{$data->{$mg}} ) {
-            if (exists $taxons->{$row->[2]}) {
-                $row = [ @$row[0,1], @{$taxons->{$row->[2]}}, @$row[2..11] ];
-            } else {
-                $row = [ @$row[0,1], @no_tax, @$row[2..11] ];
-            }
-        }
-    }
-
+    
     return (\%mdata, [ map { @$_ } values %$data ]);
     # mgid => md5 => abundance
     # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
@@ -1305,23 +1294,24 @@ sub get_ontology_for_md5s {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
+    my $level = "COALESCE(a.level4, a.level3) as annotation";
     my $qsrcs = ($source) ? "source = '$source'" : "";
     my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5s && '{" . join(",", map {qq("$_")} @$md5s) . "}'" : "";
     my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
                                        "j.id = a._id", $qmd5s, $qsrcs, $eval, $ident, $alen ]);
-    my $sql = "SELECT DISTINCT j.job,a.name,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
+    my $sql = "SELECT DISTINCT j.job,a.name,$level,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->jtbl->{ontology}." j, ".$self->atbl->{ontology}." a".$where;
 
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->mg_map($row->[0]);
         if ($qmd5s && exists($mg_md5_abund->{$mg})) {
-	        map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) && exists($md5_set{$_}) } @{$row->[9]};
+	        map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) && exists($md5_set{$_}) } @{$row->[10]};
 	    } else {
-	        $sub_abund = $row->[2];
+	        $sub_abund = $row->[3];
 	    }
-	    push @{$data->{$mg}}, [ $mg, @$row[1,2], $sub_abund, @$row[3..8], join(";", @{$row->[9]}) ];
-	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[9]};
+	    push @{$data->{$mg}}, [ $mg, @$row[1..3], $sub_abund, @$row[4..9], join(";", @{$row->[10]}) ];
+	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[10]};
     }
     unless ($md5s && (@$md5s > 0)) {
         foreach my $mg (keys %$data) {
@@ -1461,23 +1451,24 @@ sub get_md5_data {
   
     my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5 IN (" . join(",", map {"'$_'"} @$md5s) . ")" : "";
     my $qseek = $ignore_sk ? "" : "j.seek IS NOT NULL AND j.length IS NOT NULL";
-    my $qrep  = $rep_org_src ? "a.".$self->qver." AND r.".$self->qver." AND r.organism=a._id AND j.md5=r.md5 AND r.source='$rep_org_src'" : "";
+    my $qrep  = $rep_org_src ? "r.".$self->qver." AND j.md5=r.md5 AND r.source='$rep_org_src'" : "";
     my $where = $self->get_where_str(["j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, $qrep, $qmd5s, $eval, $ident, $alen, $qseek]);
     my $cseek = $ignore_sk ? "" : ",j.seek,j.length";
-    my $crep  = $rep_org_src ? ",a.name" : "";
+    my $crep  = $rep_org_src ? ",r.organism" : "";
     my $sql   = "SELECT DISTINCT j.job,j.md5,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv${cseek}${crep} FROM ".
-                $self->jtbl->{md5}." j".($rep_org_src ? ", ".$self->atbl->{organism}." a, md5_organism_unique r" : "").$where.($ignore_sk ? "" : " ORDER BY seek");
+                $self->jtbl->{md5}." j".($rep_org_src ? ", md5_organism_unique r" : "").$where.($ignore_sk ? "" : " ORDER BY job, seek");
     
-    foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
-        my $j = pop @$row;
-        push @{ $data->{ $self->mg_map($j) } }, [ $self->mg_map($j), @$row ];
+    foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {        
+        my $j  = pop @$row;
+        my $mg = $self->mg_map($j);
+        push @{ $data->{$mg} }, [ $mg, @$row ];
     }
     foreach my $mg (keys %$data) {
         $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
     }
 
     return [ map { @$_ } values %$data ];
-    # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, (seek, length || organism)
+    # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, (seek, length || rep_org_id)
 }
 
 sub get_md5_abundance {
@@ -1517,107 +1508,81 @@ sub get_md5_abundance {
 }
 
 sub get_org_md5 {
-  my ($self, $eval, $ident, $alen, $sources) = @_;
+    my ($self, $eval, $ident, $alen, $sources) = @_;
+    
+    my $cache_key = "orgmd5";
+    $cache_key .= defined($eval) ? $eval : ":";
+    $cache_key .= defined($ident) ? $ident : ":";
+    $cache_key .= defined($alen) ? $alen : ":";
+    $cache_key .= defined($sources) ? join(";", @$sources) : ":";
 
-  unless ($sources && (@$sources > 0)) { $sources = []; }
-  my $m5_map    = {};
-  my $get_m5nr  = first {$_ =~ /^m5nr$/i} @$sources;
-  my $get_m5rna = first {$_ =~ /^m5rna$/i} @$sources;
-
-  if ($get_m5nr) {
-    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("protein") };
-  }
-  if ($get_m5rna) {
-    map { $m5_map->{$_} = 1 } keys %{ $self->ach->sources4type("rna") };
-  }
-  if ($get_m5nr || $get_m5rna) {
-    @$sources = grep { (! exists $m5_map->{$_}) && ($_ !~ /(m5nr|m5rna)/i) } @$sources;
-    push @$sources, keys %$m5_map;
-  }
-
-  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
-  my $cache_key = "orgmd5";
-  $cache_key .= defined($eval) ? $eval : ":";
-  $cache_key .= defined($ident) ? $ident : ":";
-  $cache_key .= defined($alen) ? $alen : ":";
-  $cache_key .= defined($sources) ? join(";", @$sources) : ":";
-
-  $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
-  $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
-  $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
-
-  my $w_srcs = (@$sources > 0) ? "source in (" . join(",", map {"'$_'"} @$sources) . ")" : "";
-  my $where  = $self->get_where_str([$w_srcs, $eval, $ident, $alen]);
-  my $data   = {};
-
-  while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = $self->memd->get($mg.$cache_key);
-    unless ($cdata) {
-      unless ($self->org_tbl($j)) { next; }
-      my $sql = "select distinct organism, md5s from " . $self->org_tbl($j) . $where;
-      my $tmp = $self->dbh->selectall_arrayref($sql);
-      if ($tmp && (@$tmp > 0)) {
-	foreach my $row ( @$tmp ) {
-	  my ($org, $md5s) = @$row;
-	  foreach my $m ( @$md5s ) {
-	    $data->{$mg}->{$org}->{$m} = 1;
-	  }
-	}
-      }
-      $self->dbh->commit();
-      $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
-    } else {
-      $data->{$mg} = $cdata;
+    my $data = {};
+    my $jobs = [];
+    while ( my ($mg, $j) = each %{$self->job_map} ) {
+        my $c = $self->memd->get($mg.$cache_key);
+        if ($c) { push @{$data->{$mg}}, @$c; }
+        else    { push @$jobs, $j; }
     }
-  }
-  $self->memd->disconnect_all;
+    unless (@$jobs) { return $data; }
+  
+    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
+    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
+    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
-  return $data;
-  # mgid => org => { md5 }
+    my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map {"'$_'"} @$sources) . ")" : "";
+    my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
+                                       "j.id = a._id", $qsrcs, $eval, $ident, $alen ]);
+    my $sql = "SELECT DISTINCT j.job,a.name,j.md5s FROM ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where;
+    
+    foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
+        my $mg = $self->mg_map($row->[0]);
+        map { $data->{$mg}{$row->[1]}{$_} = 1 } @{ $row->[2] };
+    }
+    foreach my $mg (keys %$data) {
+        $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
+    }
+
+    return $data;
+    # mgid => org => { md5 }
 }
 
 sub get_ontol_md5 {
-  my ($self, $eval, $ident, $alen, $source) = @_;
+    my ($self, $eval, $ident, $alen, $source) = @_;
 
-  my $self->memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
-  my $cache_key = "ontolmd5";
-  $cache_key .= defined($eval) ? $eval : ":";
-  $cache_key .= defined($ident) ? $ident : ":";
-  $cache_key .= defined($alen) ? $alen : ":";
-  $cache_key .= defined($source) ? $source : ":";
-
-  $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
-  $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
-  $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
-
-  my $w_src = ($source) ? "source = '$source'" : "";
-  my $where = $self->get_where_str([$w_src, $eval, $ident, $alen]);
-  my $data  = {};
-
-  while ( my ($mg, $j) = each %{$self->jobs} ) {
-    my $cdata = $self->memd->get($mg.$cache_key);
-    unless ($cdata) {
-      unless ($self->ontol_tbl($j)) { next; }
-      my $sql = "select distinct id, md5s from " . $self->ontol_tbl($j) . $where;
-      my $tmp = $self->dbh->selectall_arrayref($sql);
-      if ($tmp && (@$tmp > 0)) {
-	foreach my $row ( @$tmp ) {
-	  my ($id, $md5s) = @$row;
-	  foreach my $m ( @$md5s ) {
-	    $data->{$mg}->{$id}->{$m} = 1;
-	  }
-	}
-      }
-      $self->dbh->commit();
-      $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
-    } else {
-      $data->{$mg} = $cdata;
+    my $cache_key = "ontolmd5";
+    $cache_key .= defined($eval) ? $eval : ":";
+    $cache_key .= defined($ident) ? $ident : ":";
+    $cache_key .= defined($alen) ? $alen : ":";
+    $cache_key .= defined($source) ? $source : ":";
+    
+    my $data = {};
+    my $jobs = [];
+    while ( my ($mg, $j) = each %{$self->job_map} ) {
+        my $c = $self->memd->get($mg.$cache_key);
+        if ($c) { push @{$data->{$mg}}, @$c; }
+        else    { push @$jobs, $j; }
     }
-  }
-  $self->memd->disconnect_all;
+    unless (@$jobs) { return $data; }
 
-  return $data;
-  # mgid => id => { md5 }
+    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
+    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
+    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
+    
+    my $qsrcs = ($source) ? "source = '$source'" : "";
+    my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
+                                       "j.id = a._id", $qsrcs, $eval, $ident, $alen ]);
+    my $sql = "SELECT DISTINCT j.job,a.name,j.md5s FROM ".$self->jtbl->{ontology}." j, ".$self->atbl->{ontology}." a".$where;
+    
+    foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
+        my $mg = $self->mg_map($row->[0]);
+        map { $data->{$mg}{$row->[1]}{$_} = 1 } @{ $row->[2] };
+    }
+    foreach my $mg (keys %$data) {
+        $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
+    }
+
+    return $data;
+    # mgid => id => { md5 }
 }
 
 sub get_md5s_for_tax_level {
