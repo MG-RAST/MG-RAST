@@ -191,9 +191,18 @@ sub prepare_data {
                 $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
             }
             if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full')) {
-                my $proj = $job->primary_project;
-                my $samp = $job->sample;
-                my $lib  = $job->library;
+                my $proj;
+		eval {
+		  $proj = $job->primary_project;
+		};
+                my $samp;
+		eval {
+		  $samp = $job->sample;
+		};
+                my $lib;
+		eval {
+		  $lib = $job->library;
+		};
                 $obj->{sequence_type} = $job->{sequence_type};
                 $obj->{version} = 1;
                 $obj->{project} = $proj ? ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}] : undef;
