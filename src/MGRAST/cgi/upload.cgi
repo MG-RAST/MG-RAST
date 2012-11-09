@@ -284,9 +284,10 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		my %output_files_locked = ();
 		open IN, "$udir/$midfile" || die "Cannot open file $udir/$midfile for reading.\n";
 		while(my $line=<IN>) {
-		    chomp $line;
+		    $line =~ s/\s+$//;
 		    my @array = split(/\t/, $line);
 		    my $output_file = "$array[1]";
+		    chomp $output_file;
 		    if($filetype eq 'fastq') {
 			$output_file .= '.fastq';
 		    } else {
