@@ -119,14 +119,13 @@ sub query {
     my $total = scalar @$nodes;
  
     # check limit
-    my $limit  = defined($self->cgi->param('limit')) || 10;
+    my $limit  = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
     @$nodes = sort { $a->{$order} cmp $b->{$order} } @$nodes;
     $limit  = (($limit == 0) || ($limit > scalar(@$nodes))) ? scalar(@$nodes) : $limit;
-    $offset = ($offset >= $limit) ? $limit-1 : $offset;
     @$nodes = @$nodes[$offset..($offset+$limit-1)];
- 
+
     # prepare data to the correct output format
     my $data = $self->prepare_data($nodes);
 

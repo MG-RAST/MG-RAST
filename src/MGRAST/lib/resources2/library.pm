@@ -137,12 +137,11 @@ sub query {
     my $total     = scalar @$libraries;
 
     # check limit
-    my $limit   = defined($self->cgi->param('limit')) || 10;
+    my $limit   = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
     my $offset  = $self->cgi->param('offset') || 0;
-    my $order   = $self->cgi->param('order') || "id";
+    my $order   = $self->cgi->param('order')  || "id";
     @$libraries = sort { $a->{$order} cmp $b->{$order} } @$libraries;
     $limit      = (($limit == 0) || ($limit > scalar(@$libraries))) ? scalar(@$libraries) : $limit;
-    $offset     = ($offset >= $limit) ? $limit-1 : $offset;
     @$libraries = @$libraries[$offset..($offset+$limit-1)];
 
     # prepare data to the correct output format

@@ -137,7 +137,7 @@ sub query {
     my $total  = 0;
 
     # check pagination
-    my $limit  = defined($self->cgi->param('limit')) || 10;
+    my $limit  = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
     if ($order eq 'id') {
