@@ -10,6 +10,7 @@ use DBI;
 
 my $bindir  = "";
 my $verbose = 0;
+my $fdump   = 0;
 my $memkey  = '_ach';
 my $memhost = "";
 my $dbhost  = "";
@@ -18,6 +19,7 @@ my $dbuser  = "";
 my $tmpdir  = "/tmp";
 my $usage   = qq($0
   --verbose     optional
+  --file_dump   only dump files, do not load memcache
   --mem_host    memcache host, default '$memhost'
   --mem_key     memcache key extension, default '$memkey'
   --dbhost      db host, default '$dbhost'
@@ -27,13 +29,15 @@ my $usage   = qq($0
   );
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit 1; }
-if ( ! GetOptions('verbose!'   => \$verbose,
-		  'mem_host:s' => \$memhost,
-		  'mem_key:s'  => \$memkey,
-		  'dbname:s'   => \$dbname,
-		  'dbuser:s'   => \$dbuser,
-		  'dbhost:s'   => \$dbhost,
-		  'tmpdir:s'   => \$tmpdir
+if ( ! GetOptions(
+            'verbose!'   => \$verbose,
+            'file_dump!' => \$fdump,
+		    'mem_host:s' => \$memhost,
+		    'mem_key:s'  => \$memkey,
+		    'dbname:s'   => \$dbname,
+		    'dbuser:s'   => \$dbuser,
+		    'dbhost:s'   => \$dbhost,
+		    'tmpdir:s'   => \$tmpdir
 		 ) ) {
   print STDERR $usage; exit 1;
 }
@@ -41,10 +45,7 @@ if ( ! GetOptions('verbose!'   => \$verbose,
 my $dbh = DBI->connect("DBI:Pg:dbname=$dbname;host=$dbhost", $dbuser, '', {AutoCommit => 0});
 unless ($dbh) { print STDERR "Error: " . $DBI::errstr . "\n"; exit 1; }
 
-my $mch = new Cache::Memcached {'servers' => [$memhost], 'debug' => 0, 'compress_threshold' => 10_000};
-unless ($mch && ref($mch)) { print STDERR "Unable to connect to memcache:\n$usage"; exit 1; }
-
-my @types = ('source', 'organism', 'function');
+my @types = ('source', 'organism', 'function', 'ontology');
 my @md5s  = ('md5_protein', 'md5_rna', 'md5_ontology');
 
 # get lca table
@@ -64,18 +65,20 @@ print STDERR "Dumping table data ... " if ($verbose);
 $dbh->do("COPY (SELECT _id, name, type FROM sources) TO '$tmpdir/source_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT _id, name, ncbi_tax_id FROM organisms_ncbi) TO '$tmpdir/organism_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT _id, name FROM functions) TO '$tmpdir/function_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT _id, id, type FROM ontologies) TO '$tmpdir/ontology_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_protein) TO '$tmpdir/md5_protein_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_rna) TO '$tmpdir/md5_rna_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT DISTINCT md5, source, function, id FROM md5_ontology) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
-system("cat ".join(" ", map {"$tmpdir/${_}_map"} @md5s)." | sort > $tmpdir/md5_data_map");
+$dbh->do("COPY (SELECT DISTINCT m.md5, m.source, m.function, o._id FROM md5_ontology m, ontologies o WHERE m.id=o.id) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
+system("cat ".join(" ", map {"$tmpdir/${_}_map"} @md5s)." | sort -T $tmpdir > $tmpdir/md5_data_map");
 print STDERR "Done\n" if ($verbose);
-
-# load memcache
-print STDERR "Loading memcache ...\n" if ($verbose);
-foreach my $t (@types) {
-  system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --map $tmpdir/${t}_map --option $t");
-}
-system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --md5 $tmpdir/md5_data_map --lca $tmpdir/md5_lca_map --option md5");
-print STDERR "Done\n" if ($verbose);
-
 $dbh->disconnect;
+
+unless ($fdump) {
+# load memcache
+    print STDERR "Loading memcache ...\n" if ($verbose);
+    foreach my $t (@types) {
+        system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --map $tmpdir/${t}_map --option $t");
+    }
+    system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --md5 $tmpdir/md5_data_map --lca $tmpdir/md5_lca_map --option md5");
+    print STDERR "Done\n" if ($verbose);
+}
