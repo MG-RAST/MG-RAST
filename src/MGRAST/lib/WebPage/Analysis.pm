@@ -1509,9 +1509,9 @@ sub workbench_blat_output {
 	    $main_source .= "<div style='$sel' name='align' id='align_source_".$counter."_".$r->[0]."'>".$r->[0]."</div>";
 
 	    my $id_link = ($sorc->{$r->[0]}{link} && $links_hash->{$id}{$r->[0]}) ? "<a target=_blank href='".$sorc->{$r->[0]}{link}.$links_hash->{$id}{$r->[0]}."'>".$links_hash->{$id}{$r->[0]}."</a>" : $links->[$counter]->[0];
-
-	    $main_id .= "<div style='$sel' name='align' id='align_id_".$counter."_".$r->[0]."'>".$id_link."</div>";
-
+        if ($id_link) {
+	      $main_id .= "<div style='$sel' name='align' id='align_id_".$counter."_".$r->[0]."'>".$id_link."</div>";
+        }
 	    $line .= "<div style='$sel' name='align' id='align_row_".$counter."_".$r->[0]."'>>".$r->[0].": ".($links_hash->{$id}->{$r->[0]} ? ($links_hash->{$id}->{$r->[0]}) : "" )." ".$r->[2]." [".$oname."]</div>";
 	    $la = $r->[0];
 	    $lb = $r->[2];

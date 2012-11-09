@@ -258,19 +258,22 @@ my $css_tmp = qq~
 }
 
 sub read_stats {
-  my ($self, $fname, $type, $gz) = @_;
+  my ($self, $fname, $type, $gz, $is_fastq) = @_;
 
-  my $stats       = [];
+  my $stats  = [];
+  my $option = '';
   my $stats_file  = $fname . ".stats";
   my $source_file = $gz ? $fname . ".gz" : $fname;
-  my $option      = ($type =~ /^protein$/i) ? "--length_only" : "";
+  
+  if ($type =~ /^protein$/i) { $option .= " -f"; }
+  if ($is_fastq)             { $option .= " -t fastq"; }
   
   if (! -s $source_file) {
     return $stats;
   }
   if ((! -s $stats_file) && ($type =~ /^(protein|dna)$/i)) {
     if ($gz) { system("gunzip $source_file"); }
-    system("$Conf::seq_length_stats --fasta_file $fname --stat_file $stats_file $option");
+    system("$Conf::seq_length_stats -i $fname -o $stats_file $option");
     if ($gz) { system("gzip $fname"); }
   }
   
@@ -351,26 +354,27 @@ sub stage_download_info {
 
     if ($suffix eq '.info') {
       if (exists $stages->{$sid}->{info}) {
-	$info_text = parse_default_info($stages->{$sid}->{info});
+	    $info_text = parse_default_info($stages->{$sid}->{info});
       } else {
-	my $info = `cat $f | grep -v "#"`;
-	$info = ~s/\n/<br>\n/g;
-	$info_text = $info;
+	    my $info = `cat $f | grep -v "#"`;
+	    $info = ~s/\n/<br>\n/g;
+	    $info_text = $info;
       }
       next;
     }
     elsif (($suffix eq '.fna') || ($suffix eq '.fastq')) {
+      my $is_fastq = ($suffix eq '.fastq') ? 1 : 0
       $type   = "DNA";
-      $stats  = $self->read_stats($f, $type, $gz);
+      $stats  = $self->read_stats($f, $type, $gz, $is_fastq);
       $count  = (@$stats > 0) ? format_number($stats->[1][1]) . " reads" : '';
       if ($desc eq 'file') {
-	if    ($suffix eq '.fna')   { $desc = "fasta file"; }
-	elsif ($suffix eq '.fastq') { $desc = "fastq file"; }
+	    if    ($suffix eq '.fna')   { $desc = "fasta file"; }
+	    elsif ($suffix eq '.fastq') { $desc = "fastq file"; }
       }
     }
     elsif ($suffix eq '.faa') {
       $type   = "Protein";
-      $stats  = $self->read_stats($f, $type, $gz);
+      $stats  = $self->read_stats($f, $type, $gz, 0);
       $count  = (@$stats > 0) ? format_number($stats->[1][1]) . " reads" : '';
     }
     elsif ($suffix eq '.mapping') {
