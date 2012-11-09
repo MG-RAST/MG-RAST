@@ -207,7 +207,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    if ($has_seqs) {
                 my $lock_file1 = "$udir/$seqfile1.lock";
                 my $lock_file2 = "$udir/$seqfile2.lock";
-                my $lock_file3 = ($seqfile3 ne "") ? "$udir/$seqfile3.lock" : "";
+		my $lock_file3 = "$udir/$joinfile.lock";
                 if (-f $lock_file1) {
                     my $lock_msg = `cat $lock_file1`;
                     chomp $lock_msg;
@@ -271,22 +271,54 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		$has_seqs = 1;
 	    }
 	    if ($has_seqs) {
+		# Get the sub-directory
+                my $subdir = "";
+                if($seqfile =~ /\//) {
+                    $subdir = $seqfile;
+                    $subdir =~ s/^(.*\/).*/$1/;
+                }
+
+		#  Check for lock files that already exist for output filenames and
+		#  add to array if they do already exist.
+		my %output_files = ();
+		my %output_files_locked = ();
+		open IN, "$udir/$midfile" || die "Cannot open file $udir/$midfile for reading.\n";
+		while(my $line=<IN>) {
+		    chomp $line;
+		    my @array = split(/\t/, $line);
+		    my $output_file = "$array[1]";
+		    if($filetype eq 'fastq') {
+			$output_file .= '.fastq';
+		    } else {
+			$output_file .= '.fna';
+		    }
+		    my $output_lock_file = "$udir/$subdir/$output_file.lock";
+		    if(-f $output_lock_file) {
+			$output_files_locked{$output_file} = 1;
+		    }
+		    $output_files{$output_file} = 1;
+		}
+		close IN;
+
                 my $lock_file = "$udir/$seqfile.lock";
                 if (-f $lock_file) {
                     my $lock_msg = `cat $lock_file`;
                     chomp $lock_msg;
 		    push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex $seqfile, currently running $lock_msg.");
+		} elsif(keys %output_files_locked) {
+		    my $output_files_locked_str = join(" ", keys %output_files_locked);
+		    push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex into files: $output_files_locked_str, those files are currently undergoing other operations.");
                 } else {
-                    my $subdir = "";
-                    if ($seqfile =~ /\//) {
-                       $subdir = $seqfile;
-                       $subdir =~ s/^(.*\/).*/$1/;
-                    }
-
 		    my $jobid = $user->{login};
 		    $jobid =~ s/\s/_/g;
 		    `echo "computing demultiplex" > $lock_file`;
-		    my $jnum = `echo "$Conf::demultiplex -f $filetype -b $udir/$midfile -i $udir/$seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    my $output_lock_files_str = "";
+		    foreach my $output_file (keys %output_files) {
+			`echo "computing demultiplex" > $udir/$subdir/$output_file.lock`;
+			$output_lock_files_str .= "$udir/$subdir/$output_file.lock ";
+		    }
+
+		    my $jnum = `echo "$Conf::demultiplex -f $filetype -b $udir/$midfile -i $udir/$seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file; rm $output_lock_files_str;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 		    open(FH, ">>$udir/.tmp/jobs");
 		    print FH "$jnum";
