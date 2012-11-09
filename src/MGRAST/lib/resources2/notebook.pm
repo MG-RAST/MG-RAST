@@ -58,9 +58,8 @@ sub info {
                        							              "limit"  => ["integer", "maximum number of data items returned, default is 10"],
                        							              "total_count" => ["integer", "total number of available data items"],
                        							              "offset" => ["integer", "zero based index of the first returned data item"] },
-            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns only minimal information'],
-                       												                                 ['verbose', 'returns all metadata'],
-                       												                                 ['full', 'returns all metadata and references']]],
+            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+                       												                                 ['full', 'returns notebook attributes and object']]],
                        									                      'limit'     => ['integer', 'maximum number of items requested'],
                        									                      'offset'    => ['integer', 'zero based index of the first data object to be returned'],
                        									                      'order'     => ['cv', [['id' , 'return data objects ordered by id'],
@@ -74,9 +73,8 @@ sub info {
             				               'method'      => "GET",
             				               'type'        => "synchronous",  
             				               'attributes'  => $self->attributes,
-            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns only minimal information'],
-                       												                                 ['verbose', 'returns all metadata'],
-                       												                                 ['full', 'returns all metadata and references']]]
+            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+                       												                                 ['full', 'returns notebook attributes and object']]]
                        												        },
             							                      'required' => { "id" => ["string", "unique object identifier"] },
             							                      'body'     => {} } },            							  
@@ -121,17 +119,19 @@ sub query {
     my $total = scalar @$nodes;
  
     # check limit
-    my $limit  = $self->cgi->param('limit')  || 10;
+    my $limit  = defined($self->cgi->param('limit')) || 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
     @$nodes = sort { $a->{$order} cmp $b->{$order} } @$nodes;
+    $limit  = (($limit == 0) || ($limit > scalar(@$nodes))) ? scalar(@$nodes) : $limit;
+    $offset = ($offset >= $limit) ? $limit-1 : $offset;
     @$nodes = @$nodes[$offset..($offset+$limit-1)];
  
     # prepare data to the correct output format
     my $data = $self->prepare_data($nodes);
 
     # check for pagination
-    $data = $self->check_pagination($data, $total);
+    $data = $self->check_pagination($data, $total, $limit);
 
     $self->return_data($data);
 }

@@ -132,10 +132,13 @@ sub query {
     my $total    = 0;
 
     # check pagination
-    my $limit  = $self->cgi->param('limit')  || 10;
+    my $limit  = defined($self->cgi->param('limit')) || 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
 
+    if ($limit == 0) {
+        $limit = 18446744073709551615;
+    }
     # get all items the user has access to
     if (exists $self->rights->{'*'}) {
         $total    = $master->Project->count_all();
@@ -146,12 +149,13 @@ sub query {
         $total     = scalar(@$public) + scalar(keys %{$self->rights});
         $projects  = $master->Project->get_objects( {$order => [undef, "id IN ($list) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
     }
+    $limit = ($limit > scalar(@$projects)) ? scalar(@$projects) : $limit;
     
     # prepare data to the correct output format
     my $data = $self->prepare_data($projects);
 
     # check for pagination
-    $data = $self->check_pagination($data, $total);
+    $data = $self->check_pagination($data, $total, $limit);
 
     $self->return_data($data);
 }
