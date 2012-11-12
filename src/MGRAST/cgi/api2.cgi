@@ -113,9 +113,9 @@ if ($json_rpc && ! $resource) {
 
 # check for authentication
 my $user;
-if ($cgi->http('user_auth')) {
+if ($cgi->http('HTTP_AUTH')) {
   use Auth;
-  $user = Auth::authenticate($cgi->http('user_auth'));
+  $user = Auth::authenticate($cgi->http('HTTP_AUTH'));
 }
 
 # if a resource is passed, call the resources module
