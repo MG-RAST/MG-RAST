@@ -31,6 +31,7 @@ sub new {
     		              500 => "Internal Server Error",
     		              501 => "Not Implemented",
     		              503 => "Service Unavailable",
+    		              507 => "Storing object failed",
     		              -32602 => "Invalid params",
     		              -32603 => "Internal error"
     		              };
@@ -41,6 +42,8 @@ sub new {
         json          => $json,
         cgi           => $params->{cgi},
         rest          => $params->{rest_parameters} || [],
+        method        => $params->{method},
+        submethod     => $params->{submethod},
         user          => $params->{user},
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
         json_rpc_id   => ($params->{json_rpc} && exists($params->{json_rpc_id})) ? $params->{json_rpc_id} : undef,
@@ -69,6 +72,14 @@ sub cgi {
 sub rest {
     my ($self) = @_;
     return $self->{rest};
+}
+sub method {
+    my ($self) = @_;
+    return $self->{method};
+}
+sub submethod {
+    my ($self) = @_;
+    return $self->{submethod};
 }
 sub user {
     my ($self) = @_;
