@@ -46,8 +46,10 @@ sub new {
                                             "samples"   => [],
                                             "sampleNum" => [],
                                             "data"      => [] },
-                            "validate" => { 'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],
-                                            'message'  => [ 'string', 'if not valid, reason why' ] }
+                            "validate_post" => { 'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],
+                                                 'metadata' => [ 'object', 'valid metadata object for project and its samples and libraries' ] },
+                            "validate_get"  => { 'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],
+                                                 'message'  => [ 'string', 'if not valid, reason why' ] }
                           };
     return $self;
 }
@@ -92,20 +94,29 @@ sub info {
                                            'request'     => $self->cgi->url."/".$self->name."/export/{ID}",
                                            'description' => "",
                                            'method'      => "GET",
-                                           'type'        => "synchronous",  
+                                           'type'        => "synchronous",
                                            'attributes'  => $self->attributes->{export},
                                            'parameters'  => { 'options'  => {},
                                                               'required' => { "id" => ["string", "unique object identifier"] },
                                                               'body'     => {} } },
                                          { 'name'        => "validate",
+                                            'request'     => $self->cgi->url."/".$self->name."/validate",
+                                            'description' => "",
+                                            'method'      => "POST",
+                                            'type'        => "synchronous",
+                                            'attributes'  => $self->attributes->{validate_post},
+                                            'parameters'  => { 'options'  => {},
+                                                               'required' => {},
+                                                               'body'     => { "metadata_spreadsheet" => ["file", "xlsx or xls format spreadsheet with metadata"] } } },
+                                         { 'name'        => "validate",
                                            'request'     => $self->cgi->url."/".$self->name."/validate",
                                            'description' => "",
                                            'method'      => "GET",
                                            'type'        => "synchronous",  
-                                           'attributes'  => $self->attributes->{validate},
-                                           'parameters'  => { 'options'  => { 'group'    => ['cv', [['migs', 'label is part of MIGS (genome) metadata'],
+                                           'attributes'  => $self->attributes->{validate_get},
+                                           'parameters'  => { 'options'  => { 'group'    => ['cv', [['mixs', 'label is part of MIxS (minimal) metadata'],
                           												                            ['mims', 'label is part of MIMS (metagenome) metadata'],
-                          												                            ['mixs', 'label is part of MIxS (minimal) metadata']]],
+                          												                            ['migs', 'label is part of MIGS (genome) metadata']]],
                                    						                      'category' => ['cv', [['project', 'label belongs to project metadata'],
                                                                                                     ['sample', 'label belongs to sample metadata'],
                                                                                                     ['library', 'label belongs to library metadata'],
@@ -203,64 +214,107 @@ sub instance {
 sub validate {
     my ($self) = @_;
     
-    # paramater cv
-    my $categories = {project => 1, sample => 1, library => 1, env_package => 1};
-    my $groups     = {migs => 1, mims => 1, mixs => 1};
-    
-    # get paramaters
-    my $group = $self->cgi->param('group');
-    my $cat   = $self->cgi->param('category');
-    my $label = $self->cgi->param('label');
-    my $value = $self->cgi->param('value');
+    my $data = {};
     my $mddb  = MGRAST::Metadata->new();
-    my $data  = {};
+    
+    if ($self->method eq 'GET') {
+        # paramater cv
+        my $categories = {project => 1, sample => 1, library => 1, env_package => 1};
+        my $groups     = {migs => 1, mims => 1, mixs => 1};
+    
+        # get paramaters
+        my $group = $self->cgi->param('group') || 'mixs';
+        my $cat   = $self->cgi->param('category');
+        my $label = $self->cgi->param('label');
+        my $value = $self->cgi->param('value');
 
-    unless ($group && exists($groups->{$group})) {
-        $self->return_data({"ERROR" => "Invalid / missing parameter 'group': ".$group." - valid types are [ '".join("', '", keys %$groups)."' ]"}, 400);
-    }
-    unless ($cat && exists($categories->{$cat})) {
-        $self->return_data({"ERROR" => "Invalid / missing parameter 'category': ".$cat." - valid types are [ '".join("', '", keys %$categories)."' ]"}, 400);
-    }
-    unless ($label) {
-        $self->return_data({"ERROR" => "Missing parameter 'label'"}, 400);
-    }
-    unless ($value) {
-        $self->return_data({"ERROR" => "Missing parameter 'value'"}, 400);
-    }
+        unless ($group && exists($groups->{$group})) {
+            $self->return_data({"ERROR" => "Invalid / missing parameter 'group': ".$group." - valid types are [ '".join("', '", keys %$groups)."' ]"}, 400);
+        }
+        unless ($cat && exists($categories->{$cat})) {
+            $self->return_data({"ERROR" => "Invalid / missing parameter 'category': ".$cat." - valid types are [ '".join("', '", keys %$categories)."' ]"}, 400);
+        }
+        unless ($label) {
+            $self->return_data({"ERROR" => "Missing parameter 'label'"}, 400);
+        }
+        unless ($value) {
+            $self->return_data({"ERROR" => "Missing parameter 'value'"}, 400);
+        }
 
-    # internal name
-    if ($cat eq 'env_package') { $cat = 'ep'; }
+        # internal name
+        if ($cat eq 'env_package') { $cat = 'ep'; }
 
-    # special case: geo_loc_name
-    if (($cat eq 'sample') && ($label eq 'geo_loc_name')) { $label = 'country'; }
+        # special case: geo_loc_name
+        if (($cat eq 'sample') && ($label eq 'geo_loc_name')) { $label = 'country'; }
 
-    # special case: lat_lon
-    if (($cat eq 'sample') && ($label eq 'lat_lon')) {
-        my ($lat, $lon) = split(/\s+/, $value);
-        my ($lat_valid, $lat_err) = @{ $mddb->validate_value($cat, 'latitude', $lat) };
-        my ($lon_valid, $lon_err) = @{ $mddb->validate_value($cat, 'longitude', $lon) };
-        if ($lat_valid && $lon_valid) {
-	        $data = {is_valid => 1, message => ""};
-        } else {
-	        $data = {is_valid => 0, message => "unable to validate $value: $lat_err"};
+        # special case: lat_lon
+        if (($cat eq 'sample') && ($label eq 'lat_lon')) {
+            my ($lat, $lon) = split(/\s+/, $value);
+            my ($lat_valid, $lat_err) = @{ $mddb->validate_value($cat, 'latitude', $lat) };
+            my ($lon_valid, $lon_err) = @{ $mddb->validate_value($cat, 'longitude', $lon) };
+            if ($lat_valid && $lon_valid) {
+	            $data = {is_valid => 1, message => ""};
+            } else {
+	            $data = {is_valid => 0, message => "unable to validate $value: $lat_err"};
+            }
+        }
+        # invalid label
+        elsif (! $mddb->validate_tag($cat, $label)) {
+            $data = {is_valid => 0, message => "label '$label' does not exist in category '".(($cat eq 'ep') ? 'env_package' : $cat)."'"};
+        }
+        # not mixs label
+        elsif (! $mddb->validate_mixs($label)) {
+            $data = {is_valid => 0, message => "label '$label' is not a valid ".uc($group)." term"};
+        }
+        # test it
+        else {
+            my ($is_valid, $err_msg) = @{ $mddb->validate_value($cat, $label, $value) };
+            if ($is_valid) {
+	            $data = {is_valid => 1, message => ""};
+            } else {
+	            $data = {is_valid => 0, message => "unable to validate $value: $err_msg"};
+            }
         }
     }
-    # invalid label
-    elsif (! $mddb->validate_tag($cat, $label)) {
-        $data = {is_valid => 0, message => "label '$label' does not exist in category '".(($cat eq 'ep') ? 'env_package' : $cat)."'"};
+    elsif ($self->method eq 'POST') {
+        # get metadata file
+        my $tmp_dir = "$Conf::temp";
+        my $fname   = $self->cgi->{upload};
+        
+        unless ($fname) {
+            $self->return_data({"ERROR" => "Invalid parameters, requires filename and data"}, 400);
+        }
+        if ($fname =~ /\.\./) {
+            $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
+        }
+        if ($fname !~ /^[\w\d_\.]+$/) {
+            $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, . and number characters"}, 400);
+        }
+        
+        my $fhdl = $self->cgi->upload('upload');
+        unless ($fhdl) {
+            $self->return_data({"ERROR" => "Storing object failed - could not obtain filehandle"}, 507);
+        }
+        my $io_handle = $fhdl->handle;
+        if (open FH, ">$tmp_dir/$fname") {
+            my ($bytesread, $buffer);
+            while ($bytesread = $io_handle->read($buffer,4096)) {
+        	    print FH $buffer;
+        	}
+            close FH;
+        } else {
+            $self->return_data({"ERROR" => "Storing object failed - could not open target file"}, 507);
+        }
+        
+        # validate file
+        my ($is_valid, $obj, $log) = $mddb->validate_metadata($tmp_dir/$fname);
+        unless ($is_valid) {
+            $self->return_data({"ERROR" => "Validation failed - $log"}, 400);
+        }
+        $data = $obj;        
     }
-    # not mixs label
-    elsif (! $mddb->validate_mixs($label)) {
-        $data = {is_valid => 0, message => "label '$label' is not a valid ".uc($group)." term"};
-    }
-    # test it
     else {
-        my ($is_valid, $err_msg) = @{ $mddb->validate_value($cat, $label, $value) };
-        if ($is_valid) {
-	        $data = {is_valid => 1, message => ""};
-        } else {
-	        $data = {is_valid => 0, message => "unable to validate $value: $err_msg"};
-        }
+        $self->return_data({"ERROR" => "Invalid request method: ".$self->method}, 400);
     }
     $self->return_data($data);
 }
