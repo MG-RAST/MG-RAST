@@ -19,10 +19,10 @@ sub new {
     my %rights   = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
     my $metadata = [ 'hash', [['key', ['string', 'metadata label']],
                               ['value', ['object', [ { 'type'       => ['string', 'value type: text, int, float, select, ontology'],
-                                                      'definition' => ['string', 'definition of label'],
-                                                      'required'   => ['boolean', 'is a required label'],
-                                                      'mixs'       => ['boolean', 'is a MIxS label'],
-                                                      'aliases'    => ['list', ['string', 'alternative name for label']]
+                                                       'definition' => ['string', 'definition of label'],
+                                                       'required'   => ['boolean', 'is a required label'],
+                                                       'mixs'       => ['boolean', 'is a MIxS label'],
+                                                       'aliases'    => ['list', ['string', 'alternative name for label']]
                                                     }, 'information about metadata keyword' ]]] ]
                    ];
     $self->{name}       = "metadata";
@@ -279,7 +279,7 @@ sub validate {
     elsif ($self->method eq 'POST') {
         # get metadata file
         my $tmp_dir = "$Conf::temp";
-        my $fname   = $self->cgi->{upload};
+        my $fname   = $self->cgi->param('upload');
         
         unless ($fname) {
             $self->return_data({"ERROR" => "Invalid parameters, requires filename and data"}, 400);
@@ -307,7 +307,7 @@ sub validate {
         }
         
         # validate file
-        my ($is_valid, $obj, $log) = $mddb->validate_metadata($tmp_dir/$fname);
+        my ($is_valid, $obj, $log) = $mddb->validate_metadata("$tmp_dir/$fname");
         unless ($is_valid) {
             $self->return_data({"ERROR" => "Validation failed - $log"}, 400);
         }
