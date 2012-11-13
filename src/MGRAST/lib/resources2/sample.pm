@@ -140,17 +140,18 @@ sub query {
     my $total   = scalar @$samples;
 
     # check limit
-    my $limit  = $self->cgi->param('limit') || 10;
+    my $limit  = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') || 0;
-    my $order  = $self->cgi->param('order') || "id";
-    @$samples = sort { $a->{$order} cmp $b->{$order} } @$samples;
-    @$samples = @$samples[$offset..($offset+$limit-1)];
-
+    my $order  = $self->cgi->param('order')  || "id";
+    @$samples  = sort { $a->{$order} cmp $b->{$order} } @$samples;
+    $limit     = (($limit == 0) || ($limit > scalar(@$samples))) ? scalar(@$samples) : $limit;
+    @$samples  = @$samples[$offset..($offset+$limit-1)];
+    
     # prepare data to the correct output format
     my $data = $self->prepare_data($samples);
 
     # check for pagination
-    $data = $self->check_pagination($data, $total);
+    $data = $self->check_pagination($data, $total, $limit);
 
     $self->return_data($data);
 }
