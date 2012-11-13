@@ -339,6 +339,22 @@ sub get_sequence_sets {
     return $stages;
 }
 
+sub create_virtual_shock_node {
+    my ($self, $parent, $attr) = @_;
+
+    my $attr_str = $self->json->encode($attr);
+    my $content  = [ type => 'virtual', source => $parent, attributes => [undef, "$parent.json", Content => $attr_str] ];
+    my $response = undef;
+    eval {
+        $response = $self->json->decode( $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data')->content );
+    };
+    if ($@ || (! ref($response)) || $response->{E}) {
+        return undef;
+    } else {
+        return $response->{D};
+    }
+}
+
 sub get_shock_node {
     my ($self, $id) = @_;
     

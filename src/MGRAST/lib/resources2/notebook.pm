@@ -3,6 +3,7 @@ package resources2::notebook;
 use strict;
 use warnings;
 no warnings('once');
+use POSIX qw(strftime);
 
 use Conf;
 use parent qw(resources2::resource);
@@ -76,8 +77,20 @@ sub info {
             				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                        												                                 ['full', 'returns notebook attributes and object']]]
                        												        },
-            							                      'required' => { "id" => ["string", "unique object identifier"] },
-            							                      'body'     => {} } },            							  
+            							                      'required' => { "id" => ["string", "unique shock object identifier"] },
+            							                      'body'     => {} } },
+            							 { 'name'        => "clone",
+             				               'request'     => $self->cgi->url."/".$self->name."/{ID}/{NBID}",
+             				               'description' => "Clones a data object with new notebook id and returns it.",
+             				               'method'      => "GET",
+             				               'type'        => "synchronous",  
+             				               'attributes'  => $self->attributes,
+             				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+                          												                             ['full', 'returns notebook attributes and object']]]
+                          											        },
+             							                      'required' => { "id"   => ["string", "unique shock object identifier"],
+             							                                      "nbid" => ["string", "unique notebook object identifier"] },
+             							                      'body'     => {} } }
             						   ]
                   };
     $self->return_data($content);
@@ -88,6 +101,7 @@ sub instance {
     my ($self) = @_;
     
     # get data
+    my $data = [];
     my $id   = $self->rest->[0];
     my $node = $self->get_shock_node($id);
     unless ($node) {
@@ -100,10 +114,21 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
-    # prepare data
-    my $data = $self->prepare_data( [$node] );
+    # clone node if requested
+    if (@{$self->rest} > 1) {
+        my $attr = { type => $node->{attributes}{type},
+                     name => $node->{attributes}{name},
+                     user => $uname || 'public',
+                     uuid => $self->rest->[1],
+                     created => strftime("%Y-%m-%dT%H:%M:%S", localtime)
+                   };
+        my $clone = $self->create_virtual_shock_node($node->{id}, $attr);
+        $data = $self->prepare_data( [$clone] );
+    } else {
+        $data = $self->prepare_data( [$node] );
+    }
+    
     $data = $data->[0];
-
     $self->return_data($data);
 }
 
