@@ -1,4 +1,4 @@
-package MGRAST::Analysis;
+package MGRAST::Analysis_db2;
 
 use strict;
 use warnings;
@@ -28,7 +28,8 @@ sub new {
   my $dbh;
   eval {
     my $dbms     = $Conf::mgrast_dbms;
-    my $host     = $Conf::mgrast_dbhost;
+    #my $host     = $Conf::mgrast_dbhost;
+    my $host     = "kharkov-1.igsb.anl.gov";  # temp hardcoding
     my $database = $Conf::mgrast_db;
     my $user     = $Conf::mgrast_dbuser;
     my $password = $Conf::mgrast_dbpass;
