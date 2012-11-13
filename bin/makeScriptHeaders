@@ -1,8 +1,13 @@
 #!/bin/sh
 
 TOOL_HDR=$1
+<<<<<<< HEAD
+
+echo "#!/soft/packages/perl/5.12.1/bin/perl
+=======
 PERL=`which perl`
 echo "#!${PERL}
+>>>>>>> ecd41e0fa1bd4c97bef4c1afb6fe842c0abec859
 
 BEGIN {
     unshift @INC, qw(
