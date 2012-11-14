@@ -41,28 +41,7 @@ unless ($key) {
 
 
 
-# Analysis DB 
-my $analysis_db         = "mgrast_analysis";
-my $analysis_dbms       = "Pg";
-my $analysis_dbuser     = "mgrastprod";
-my $analysis_dbhost     = "kursk-3.mcs.anl.gov";
-my $analysis_dbpassword = '';
 
-my $analysisDB = DBI->connect("DBI:$analysis_dbms:dbname=$analysis_db;host=$analysis_dbhost", $analysis_dbuser, $analysis_dbpassword, 
-			      { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
-  die "database connect error.";
-
-# Analysis2 DB 
-my $analysis2_db         = "mgrast_analysis";
-my $analysis2_dbms       = "Pg";
-my $analysis2_dbuser     = "mgrastprod";
-my $analysis2_dbhost     = "kharkov-1.igsb.anl.gov";
-my $analysis2_dbpassword = '' ;
-
-
-my $analysis2DB = DBI->connect("DBI:$analysis2_dbms:dbname=$analysis2_db;host=$analysis2_dbhost", $analysis2_dbuser, $analysis2_dbpassword, 
-			       { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
-  die "database connect error.";
 
 
 
@@ -89,16 +68,49 @@ if ($user) {
 
 $dbm->{_user} = $user ;
 
-my $job_dbh = DBMaster->new( -database => $FIG_Config::mgrast_jobcache_db , 
-                             -host     => $FIG_Config::mgrast_jobcache_host,
-                             -user     => $FIG_Config::mgrast_jobcache_user,
-                             -password => $FIG_Config::mgrast_jobcache_password );
+
+my $mgrast_jobcache_db       = 'JobDB';
+my $mgrast_jobcache_host     = "kursk-3.mcs.anl.gov";
+my $mgrast_jobcache_user     = "mgrast";
+my $mgrast_jobcache_password = "";
+
+my $job_dbh = DBMaster->new( -database => $mgrast_jobcache_db , 
+                             -host     => $mgrast_jobcache_host,
+                             -user     => $mgrast_jobcache_user,
+                             -password => $mgrast_jobcache_password );
 
 
 
+# Initialize analysis objects
 
-my $babel = Babel::lib::Babel->new();
-my $mg    =  MGRAST::MetagenomeAnalysis2->new($job_dbh->db_handle);
+# Analysis DB 
+my $analysis_db         = "mgrast_analysis";
+my $analysis_dbms       = "Pg";
+my $analysis_dbuser     = "mgrastprod";
+my $analysis_dbhost     = "kursk-3.mcs.anl.gov";
+my $analysis_dbpassword = '';
+
+my $analysisDBH = DBI->connect("DBI:$analysis_dbms:dbname=$analysis_db;host=$analysis_dbhost", $analysis_dbuser, $analysis_dbpassword, 
+			       { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
+  die "database connect error.";
+
+# Analysis2 DB 
+my $analysis2_db         = "mgrast_analysis";
+my $analysis2_dbms       = "Pg";
+my $analysis2_dbuser     = "mgrastprod";
+my $analysis2_dbhost     = "kharkov-1.igsb.anl.gov";
+my $analysis2_dbpassword = '' ;
+
+
+my $analysis2DBH = DBI->connect("DBI:$analysis2_dbms:dbname=$analysis2_db;host=$analysis2_dbhost", $analysis2_dbuser, $analysis2_dbpassword,
+				{ RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
+  die "database connect error.";
+
+
+my $analysisDB  = MGRAST::Analysis->new( $job_dbh , $analysisDBH ) ;
+my $analysis2DB = MGRAST::Analysis2->new(  $job_dbh , $analysis2DBH );
+
+
 
 
 
@@ -151,6 +163,13 @@ foreach my $num (@tests) {
 
 done_testing($testCount);
 teardown();
+
+
+
+sub setup{
+  my ($class, $job_dbh) = @_;
+}
+
 
 # write your tests as subroutnes, add the sub name to @tests
 
