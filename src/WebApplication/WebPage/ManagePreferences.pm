@@ -226,12 +226,12 @@ sub editable_preferences {
 	    "WebServiceKeyTdate" => { value => '',
 				      type => 'dependant',
 				      category => 'Web Services' },
-	    "oauth" => { value => "",
-			 description => "OAuth identities",
-			 category => "Identity Management",
-			 type => "generator3",
-			 info => 'You can add accounts from google here, allowing you to log in with them.' },
-	   }
+	   #  "oauth" => { value => "",
+	   # 		 description => "OAuth identities",
+	   # 		 category => "Identity Management",
+	   # 		 type => "generator3",
+	   # 		 info => 'You can add accounts from google here, allowing you to log in with them.' },
+	   # }
   }
 
   return { "ComparedRegionsDefaultNumRegions" => { value => 4,

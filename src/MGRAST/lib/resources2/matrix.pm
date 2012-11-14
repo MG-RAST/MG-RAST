@@ -22,6 +22,19 @@ sub new {
     # Add name / attributes
     $self->{name} = "matrix";
     $self->{org2tax} = {};
+    $self->{hierarchy} = { organism => [ ['strain', 'bottom organism taxanomic level'],
+				                         ['species', 'organism type level'],
+				                         ['genus', 'organism taxanomic level'],
+				                         ['family', 'organism taxanomic level'],
+				                         ['order', 'organism taxanomic level'],
+				                         ['class', 'organism taxanomic level'],
+				                         ['phylum', 'organism taxanomic level'],
+				                         ['domain', 'top organism taxanomic level'] ],
+				           ontology => [ ['function', 'bottom ontology level (function:default)'],
+                                         ['level3', 'function type level (function)' ],
+                                         ['level2', 'function type level (function)' ],
+                          	             ['level1', 'top function type level (function)'] ]
+                         };
     $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
     	                    "format"               => [ 'string', 'format specification name' ],
     	                    "format_url"           => [ 'string', 'url to the format specification' ],
@@ -84,15 +97,7 @@ sub info {
                           												                      ["Greengenes", "RNA database"],
                           									                                  ["LSU", "RNA database"],
                           								                                      ["SSU", "RNA database"]] ],
-    												                     'show_hierarchy' => [ 'boolean', 'Show full hierarchy text string in row when using format=plain' ],
-    												                     'group_level' => [ 'cv', [['strain', 'bottom organism taxanomic level'],
-                                                         						                   ['species', 'organism type level'],
-                                                         						                   ['genus', 'organism taxanomic level'],
-                                                         						                   ['family', 'organism taxanomic level'],
-                                                         						                   ['order', 'organism taxanomic level'],
-                                                         						                   ['class', 'organism taxanomic level'],
-                                                         						                   ['phylum', 'organism taxanomic level'],
-                                                         						                   ['domain', 'top organism taxanomic level']] ],
+    												                     'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
                                                          				 'id' => [ "string", "one or more metagenome or project unique identifier" ] },
     						                             'required' => {},
     						                             'body'     => {} }
@@ -111,11 +116,7 @@ sub info {
     									                                                      ["NOG", "ontology database, type function only"],
     												                                          ["COG", "ontology database, type function only"],
     												                                          ["KO", "ontology database, type function only"]] ],
-    												                     'show_hierarchy' => [ 'boolean', 'Show full hierarchy text string in row when using format=plain' ],
-    												                     'group_level' => [ 'cv', [['function', 'bottom ontology level (function:default)'],
-                                                         						                   ['level3', 'function type level (function)' ],
-                                                         						                   ['level2', 'function type level (function)' ],
-                                                         						                   ['level1', 'top function type level (function)']] ],
+    												                     'group_level' => [ 'cv', $self->{hierarchy}{ontology} ],
     												                     'id' => [ "string", "one or more metagenome or project unique identifier" ] },
     						                             'required' => {},
     						                             'body'     => {} }
@@ -225,7 +226,6 @@ sub prepare_data {
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'M5NR' : (($type eq 'function') ? 'Subsystems': 'RefSeq'));
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
     my $glvl   = $cgi->param('group_level') ? $cgi->param('group_level') : (($type eq 'organism') ? 'strain' : 'function');
-    my $show_h = $cgi->param('show_hierarchy') ? 1 : 0;
     my $all_srcs  = {};
     my $leaf_node = 0;
 
@@ -244,8 +244,8 @@ sub prepare_data {
     		           identity  => {function => 9, organism => 16, feature => 7}
     		         };
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
-    my $func_hier  = ['level1','level2','level3','function'];
-    my $org_hier   = ['domain','phylum','class','order','family','genus','species','strain'];
+    my @func_hier  = map { $_->[0] } @{$self->{hierarchy}{ontology}};
+    my @org_hier   = map { $_->[0] } @{$self->{hierarchy}{organism}};
     my $type_set   = ["function", "organism", "feature"];
     		         
     # validate controlled vocabulary params
@@ -256,18 +256,18 @@ sub prepare_data {
         $all_srcs = { M5NR => 1, M5RNA => 1 };
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
-        if ( grep(/^$glvl$/, @$org_hier) ) {
+        if ( grep(/^$glvl$/, @org_hier) ) {
             $glvl = 'tax_'.$glvl;
             if ($glvl eq 'tax_strain') {
   	            $glvl = 'name';
   	            $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @$org_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @org_hier)."]"}, 500);
         }
     } elsif ($type eq 'function') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_ontology_sources};
-        if ( grep(/^$glvl$/, @$func_hier) ) {
+        if ( grep(/^$glvl$/, @func_hier) ) {
             if ($glvl eq 'function') {
   	            $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
             }
@@ -275,7 +275,7 @@ sub prepare_data {
   	            $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @$func_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @func_hier)."]"}, 500);
         }
     } elsif ($type eq 'feature') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
@@ -299,7 +299,7 @@ sub prepare_data {
             my (undef, $info) = $mgdb->get_organisms_for_sources([$source]);
             # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
             @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
-            map { $self->org2tax->{$_->[9]} = [ @$_[2..9] ] } @$info;
+            map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
         } else {
             @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype})};
             # mgid, hier_annotation, value
@@ -365,7 +365,7 @@ sub prepare_data {
 sub get_hierarchy {
     my ($self, $mgdb, $type, $level, $src, $leaf_node) = @_;
     if ($type eq 'organism') {
-        return $leaf_node ? $self->org2tax : $mgdb->ach->get_taxonomy4level_full($level, 1);
+        return $leaf_node ? $self->{org2tax} : $mgdb->ach->get_taxonomy4level_full($level, 1);
     } elsif ($type eq 'function') {
         return $leaf_node ? $mgdb->ach->get_all_ontology4source_hash($src) : $mgdb->ach->get_level4ontology_full($src, $level, 1);
     } else {

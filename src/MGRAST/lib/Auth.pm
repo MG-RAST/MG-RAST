@@ -12,7 +12,7 @@ sub authenticate {
   my $user = undef;
 
   my $auth_source = 'WebServicesKey';
-  my $auth_value = undef;
+  my $auth_value = $key;
 
   # this is kbase
   if ($key =~ /globusonline/) {
