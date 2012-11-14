@@ -56,7 +56,7 @@ sub new {
 	           jobs    => [],       # array: job_id	           
 	           job_map => {},       # hash: mg_id => job_id
 	           mg_map  => {},       # hash: job_id => mg_id
-	           jrna    => {},       # hash: job_id => rna_only
+	           #jrna    => {},       # hash: job_id => rna_only
 	           expire  => $Conf::web_memcache_expire || 172800, # use config or 48 hours
 	           version => $Conf::m5nr_annotation_version || 1,
 	           jtbl    => { md5          => 'job_md5s',
@@ -74,7 +74,7 @@ sub new {
   return $self;
 }
 
- sub DESTROY {
+sub DESTROY {
    my ($self) = @_;
    if ($self->{dbh})    { $self->{dbh}->disconnect; }
    if ($self->{ach})    { $self->{ach}->DESTROY; }
@@ -176,7 +176,7 @@ sub set_data {
     my %rev = reverse %{$self->{job_map}};
     $self->{mg_map} = \%rev;
     $self->{jobs} = values %{$self->{job_map}};
-    $self->{jrna} = $self->get_rna_state();
+#    $self->{jrna} = $self->get_rna_state();
 }
 
 # populate obj with all public jobs
@@ -207,17 +207,17 @@ sub get_jobid_map {
   return $hash;
 }
 
-sub get_rna_state {
-    my ($self) = @_;
-    my $jobs  = {};
-    my $where = $self->get_where_str(["rna_only IS TRUE", $self->qjobs, $self->qver]);
-    my $rows  = $self->dbh->selectcol_arrayref("SELECT job FROM job_info".$where);
-    %$jobs    = map { $_, 0 } values %{$self->{jobs}};
-    if ($rows && (@$rows > 0)) {
-        map { $jobs->{$_} = 1 } @$rows;
-    }
-    return $jobs;
-}
+#sub get_rna_state {
+#    my ($self) = @_;
+#    my $jobs  = {};
+#    my $where = $self->get_where_str(["rna_only IS TRUE", $self->qjobs, $self->qver]);
+#    my $rows  = $self->dbh->selectcol_arrayref("SELECT job FROM job_info".$where);
+#    %$jobs    = map { $_, 0 } values %{$self->{jobs}};
+#    if ($rows && (@$rows > 0)) {
+#        map { $jobs->{$_} = 1 } @$rows;
+#    }
+#    return $jobs;
+#}
 
 sub get_seq_count {
   my ($self, $mgid) = @_;
@@ -229,11 +229,11 @@ sub get_seq_count {
 sub get_all_job_ids {
   my ($self, $type) = @_;
   my $query = "SELECT DISTINCT job FROM job_info WHERE loaded IS TRUE AND ".$self->qver;
-  if ($type eq 'rna') {
-    $query .= " AND rna_only IS TRUE";
-  } elsif ($type eq 'protein') {
-    $query .= " AND rna_only IS FALSE";
-  }
+#  if ($type eq 'rna') {
+#    $query .= " AND rna_only IS TRUE";
+#  } elsif ($type eq 'protein') {
+#    $query .= " AND rna_only IS FALSE";
+#  }
   my $rows = $self->dbh->selectcol_arrayref($query);
   return ($rows && (@$rows > 0)) ? $rows : [];
 }
@@ -528,8 +528,7 @@ sub get_annotation_map {
     unless ($tbl && $anns && @$anns) { return {}; }
     
     my $amap = {};
-    my $qann = join(",", map {$self->dbh->quote($_)} @$anns);
-    my $sql  = "SELECT _id, name FROM $tbl WHERE name IN ($qann) AND ".$self->qver;
+    my $sql  = "SELECT _id, name FROM $tbl WHERE name IN (".join(",", map {$self->dbh->quote($_)} @$anns).")";
     if ($src && ($type eq 'ontology')) {
         $sql .= " AND type = ".$self->dbh->quote($src);
     }
@@ -548,7 +547,7 @@ sub get_annotations4level {
 
     my $key  = $get_ids ? '_id' : 'name';
     my $anns = {};
-    my $qsrc = ($src && ($type eq 'ontology')) ? "where type = ".$self->dbh->quote($src) : "";
+    my $qsrc = ($src && ($type eq 'ontology')) ? " WHERE type = ".$self->dbh->quote($src) : "";
     my @cols = grep { $_ eq $level } @{ $self->get_table_cols($tbl) };
 
     if (@cols == 1) {
@@ -568,7 +567,7 @@ sub get_sources {
     my ($self, $mgid, $type) = @_;
 
     $self->set_jobs([$mgid]);
-    my $where = $self->get_where_str(["job = ".$self->job_map->{$mgid}, $self->qver]);
+    my $where = $self->get_where_str([$self->qver, "job = ".$self->job_map->{$mgid}]);
 
     if ($type && exists($self->jtbl->{$type})) {
         my $srcs  = $self->dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$self->jtbl->{$type}.$where." ORDER BY source");
@@ -582,6 +581,7 @@ sub get_sources {
         }
         return [ sort keys %$total ];
     }
+    # [ source ]
 }
 
 sub md5_abundance_for_annotations {
@@ -601,7 +601,7 @@ sub md5_abundance_for_annotations {
     my $data  = {};
     my $qsrc  = ($srcs && @$srcs) ? "t.source IN (".join(",", map {$self->dbh->quote($_)} @$srcs).")" : '';
     my $qids  = (scalar(keys %$amap) > 0) ? "t.id IN (".join(",", keys %$amap).")" : '';
-    my $where = $self->get_where_str(["m.md5 = ANY(t.md5s)", "t.job = $job", "t.".$self->qver, "m.".$self->qver, $qsrc, $qids]);
+    my $where = $self->get_where_str(["t.".$self->qver, "m.".$self->qver, "t.job = $job", "m.job = $job", "m.md5 = ANY(t.md5s)", $qsrc, $qids]);
     my $sql   = "SELECT DISTINCT t.id, m.md5, m.abundance FROM $tbl t, job_md5s m".$where;
     my $rows  = $self->dbh->selectall_arrayref($sql);
     if ($rows && (@$rows > 0)) {
@@ -679,11 +679,12 @@ sub metagenome_search {
     my $jobs  = {};
     my $qsrc  = ($srcs && @$srcs) ? "j.source IN (".join(",", map {$self->dbh->quote($_)} @$srcs).")" : "";
     my $qann  = "a.name ".($exact ? '= ' : '~* ').$self->dbh->quote($ann);
-    my $where = $self->get_where_str(["j.id = a._id", 'a.'.$self->qver, 'j.'.$self->qver, $qsrc, $qann]);
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.id = a._id", $qsrc, $qann]);
     my $rows  = $self->dbh->selectcol_arrayref("SELECT DISTINCT j.job FROM $jtbl j, $atbl a".$where);
     unless ($rows && (@$rows > 0)) {
         return [];
     }
+    # [ mgid ]
     return [ keys %{$self->get_jobid_map($rows, 1)} ];
 }
 
@@ -733,7 +734,7 @@ sub md5s_to_read_sequences {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
 
     my $w_md5s = ($md5s && (@$md5s > 0)) ? "md5 IN (".join(",", map {"'$_'"} @$md5s).")" : "";
-    my $where  = $self->get_where_str([$w_md5s, $self->qjobs, $self->qver, $eval, $ident, $alen, "seek IS NOT NULL", "length IS NOT NULL"]);
+    my $where  = $self->get_where_str([$w_md5s, $self->qver, $self->qjobs, $eval, $ident, $alen, "seek IS NOT NULL", "length IS NOT NULL"]);
     my $data   = {};
     my $seqs   = [];
 
@@ -769,7 +770,7 @@ sub get_abundance_for_organism_source {
 
     my $qorg  = "a.name = ".$self->dbh->quote($org);
     my $qsrc  = "j.source = ".$self->dbh->quote($src);
-    my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qorg, $qsrc]);
+    my $where = $self->get_where_str(['j.'.$self->qver, 'j.'.$self->qjobs, "j.id = a._id", $qorg, $qsrc]);
     my $sql   = "SELECT SUM(j.abundance) FROM ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where;
     my $sum   = $self->dbh->selectcol_arrayref($sql);
     return ($sum && (@$sum > 0)) ? $sum->[0] : 0;
@@ -780,12 +781,13 @@ sub get_organism_abundance_for_source {
 
     my $qsrc  = "j.source = ".$self->dbh->quote($src);
     my $data  = {};
-        my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qsrc]);
+        my $where = $self->get_where_str(['j.'.$self->qver, 'j.'.$self->qjobs, "j.id = a._id", $qsrc]);
     my $sql   = "SELECT a.name, SUM(j.abundance) FROM ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where." GROUP BY a.name";
     my $rows  = $self->dbh->selectall_arrayref($sql);
     if ($rows && (@$rows > 0)) {
         %$data = map { $_->[0], $_->[1] } @$rows;
     }
+    # org => abund
     return $data;
 }
 
@@ -803,8 +805,7 @@ sub get_md5_evals_for_organism_source {
     my $data  = {};
     my $qorg  = "a.name = ".$self->dbh->quote($org);
     my $qsrc  = "j.source = ".$self->dbh->quote($src);
-    my $where = $self->get_where_str([ 'j.'.$self->qjobs, 'm.'.$self->qjobs, 'j.'.$self->qver, 'm.'.$self->qver, 'a.'.$self->qver,
-                                       "j.id = a._id", "m.md5 = ANY(j.md5s)", $qorg, $qsrc ]);
+    my $where = $self->get_where_str(['j.'.$self->qver, 'm.'.$self->qver, 'j.'.$self->qjobs, 'm.'.$self->qjobs, "j.id = a._id", "m.md5 = ANY(j.md5s)", $qorg, $qsrc]);
     my $sql  = "SELECT DISTINCT m.md5, m.evals FROM ".$self->jtbl->{md5}." m, ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where;
     my $rows = $self->dbh->selectall_arrayref($sql);
     if ($rows && (@$rows > 0)) {
@@ -817,6 +818,7 @@ sub get_md5_evals_for_organism_source {
             }
         }
     }
+    # md5 => [ eval ]
     return $data;
 }
 
@@ -826,8 +828,8 @@ sub get_md5_data_for_organism_source {
     my $qorg  = "a.name = ".$self->dbh->quote($org);
     my $qsrc  = "j.source = ".$self->dbh->quote($src);
     my $qeval = (defined($eval) && ($eval =~ /^\d+$/)) ? "m.exp_avg <= ".($eval * -1) : "";
-    my $where = $self->get_where_str([ 'j.'.$self->qjobs, 'm.'.$self->qjobs, 'j.'.$self->qver, 'm.'.$self->qver, 'a.'.$self->qver,
-                                       "j.id = a._id", "m.md5 = ANY(j.md5s)", $qorg, $qsrc, $qeval, "m.seek IS NOT NULL", "m.length IS NOT NULL"]);
+    my $where = $self->get_where_str([ 'j.'.$self->qver, 'm.'.$self->qver, 'j.'.$self->qjobs, 'm.'.$self->qjobs, "j.id = a._id",
+                                       "m.md5 = ANY(j.md5s)", $qorg, $qsrc, $qeval, "m.seek IS NOT NULL", "m.length IS NOT NULL"]);
     my $sql  = "SELECT DISTINCT m.job,m.md5,m.abundance,m.exp_avg,m.exp_stdv,m.ident_avg,m.ident_stdv,m.len_avg,m.len_stdv,m.seek,m.length FROM " .
                 $self->jtbl->{md5}." m, ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where." ORDER BY m.seek";
     my $rows = $self->dbh->selectall_arrayref($sql);
@@ -837,6 +839,7 @@ sub get_md5_data_for_organism_source {
     } else {
         return [];
     }
+    # [ mgid, md5, abund, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length ]
 }
 
 sub get_rarefaction_curve {
@@ -874,6 +877,7 @@ sub get_rarefaction_curve {
                 $mg_alpha->{$mg} = $cdata;
             }
         }
+        # mgid => alpha-diver
         return $mg_alpha;
     }
 
@@ -901,7 +905,7 @@ sub get_rarefaction_curve {
             $mg_rare->{$mg} = $cdata;
         }
     }
-
+    # mgid => [ x, y ]
     return $mg_rare;
 }
 
@@ -939,7 +943,7 @@ sub get_abundance_for_hierarchy {
     # get for jobs
     my $hier  = {};
     my $curr  = 0;
-    my $where = $self->get_where_str(["job IN (".join(",", @$jobs).")", $self->qver, $qsrcs]);
+    my $where = $self->get_where_str([$self->qver, "job IN (".join(",", @$jobs).")", $qsrcs]);
     my $sql   = "SELECT DISTINCT job, id, md5s FROM ".$self->jtbl->{organism}.$where." ORDER BY job";
     my ($job, $id, $md5);
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
@@ -947,7 +951,7 @@ sub get_abundance_for_hierarchy {
         next unless(exists $name_map->{$id});
         unless ($curr) { $curr = $job; }
         if ($curr != $job) {
-            my %md5s  = map { $_->[0], $_->[1] } @{ $self->dbh->selectall_arrayref( "select md5, $value from ".$self->md5_tbl($curr) ) };
+            my %md5s  = map { $_->[0], $_->[1] } @{ $self->dbh->selectall_arrayref("SELECT md5, $value FROM ".$self->jtbl->{md5}." WHERE ".$self->qver." AND job=".$curr) };
             my $cdata = [];
             foreach my $h (sort keys %$hier) {
                 my $num   = 0;
@@ -968,7 +972,7 @@ sub get_abundance_for_hierarchy {
     }
     # get last job
     if (scalar(keys %$hier) > 0) {
-        my %md5s  = map { $_->[0], $_->[1] } @{ $self->dbh->selectall_arrayref( "select md5, $value from ".$self->md5_tbl($job) ) };
+        my %md5s  = map { $_->[0], $_->[1] } @{ $self->dbh->selectall_arrayref("SELECT md5, $value FROM ".$self->jtbl->{md5}." WHERE ".$self->qver." AND job=".$job) };
         my $cdata = [];
         foreach my $h (sort keys %$hier) {
             my $num   = 0;
@@ -984,7 +988,7 @@ sub get_abundance_for_hierarchy {
     }
 
     return $data;
-    # mgid, taxa_name, abundance
+    # [ mgid, taxa_name, abundance ]
 }
 
 sub get_abundance_for_set {
@@ -998,7 +1002,7 @@ sub get_abundance_for_set {
     }
     my $qterm = "a.name IN (".join(", ", map { $self->dbh->quote($_) } @$set).")";
     my $qsrcs = (@$srcs > 0) ? "j.source IN (".join(",", map {"'$_'"} @$srcs).")" : "";
-    my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qsrcs, $qterm]);
+    my $where = $self->get_where_str(['j.'.$self->qver, 'j.'.$self->qjobs, "j.id = a._id", $qsrcs, $qterm]);
     my $sql   = "SELECT DISTINCT j.job, a.name, j.abundance FROM ".$self->jtbl->{$type}." j, ".$self->atbl->{$type}." a".$where;
 
     map { push @{ $data->{ $self->mg_map->{$_->[0]} }{$_->[1]} }, $_->[2] } @{ $self->dbh->selectall_arrayref($sql) };
@@ -1018,7 +1022,7 @@ sub get_rank_abundance {
     
     my $data  = {};
     my $qsrcs = (@$srcs > 0) ? "j.source IN (" . join(",", map {"'$_'"} @$srcs) . ")" : "";
-    my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qsrcs]);
+    my $where = $self->get_where_str(['j.'.$self->qver, 'j.'.$self->qjobs, "j.id = a._id", $qsrcs]);
     my $sql   = "SELECT DISTINCT j.job, a.name, j.abundance FROM ".$self->jtbl->{$type}." j, ".$self->atbl->{$type}." a".$where;
     
     map { push @{ $data->{ $self->mg_map->{$_->[0]} }{$_->[1]} }, $_->[2] } @{ $self->dbh->selectall_arrayref($sql) };
@@ -1040,7 +1044,7 @@ sub get_set_rank_abundance {
   
     my $qsrcs = (@$srcs > 0) ? "j.source IN (" . join(",", map {"'$_'"} @$srcs) . ")" : "";
     my $qjobs = $all ? '' : 'j.'.$self->qjobs;
-    my $where = $self->get_where_str([$qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qsrcs]);
+    my $where = $self->get_where_str(['j.'.$self->qver, $qjobs, "j.id = a._id", $qsrcs]);
     my $qlim  = "LIMIT ".($limit * scalar(@$srcs));
     my $sql   = "SELECT DISTINCT a.name SUM(j.job) FROM ".$self->jtbl->{$type}." j, ".$self->atbl->{$type}." a".$where." GROUP BY j.job ORDER BY SUM(j.job) DESC ".$limit;
     my $data  = $self->dbh->selectall_arrayref($sql);
@@ -1068,12 +1072,12 @@ sub search_organisms {
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->job_map} ) {
         my $cdata = $self->memd->get($mg.$cache_key);
-        if ($cdata) { push @{$data->{$mg}}, @$cdata; }
+        if ($cdata) { $data->{$mg} = $cdata; }
         else        { push @$jobs, $j; }
     }
     unless (@$jobs) { return $data; }
 
-    my $where = $self->get_where_str(["j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", "a.name ~* ".$self->dbh->quote($text)]);
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", "a.name ~* ".$self->dbh->quote($text)]);
     my $sql   = "SELECT DISTINCT j.job, j.source, a.name, j.abundance FROM ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where;
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
         push @{ $data->{ $self->mg_map->{$row->[0]} } }, @$row[1,2,3];
@@ -1153,19 +1157,20 @@ sub get_organisms_for_md5s {
     $cache_key .= defined($alen) ? $alen : ":";
     $cache_key .= defined($sources) ? join(";", @$sources) : ":";
 
-    my $data = {};
-    my $jobs = [];
+    my $data  = {};
+    my $jobs  = [];
     my %mdata = ();
+    my $qmd5s = ($md5s && (@$md5s > 0)) ? 1 : 0;
     
-    if ($md5s && (@$md5s > 0)) {
+    if ($qmd5s) {
         $jobs = $self->jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->job_map} ) {
             my $c = $self->memd->get($mg.$cache_key);
             my $m = $self->memd->get($mg.$cache_key."md5s");
             if ($c && $m) {
-                push @{$data->{$mg}}, @$c;
-                map { $mdata{$mg}{$_} = $m->{$_} } keys %$m;
+                $data->{$mg} = $c;
+                $mdata{$mg}  = $m;
             } else {
                 push @$jobs, $j;
             }
@@ -1180,9 +1185,7 @@ sub get_organisms_for_md5s {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
     my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map {"'$_'"} @$sources) . ")" : "";
-    my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5s && '{" . join(",", map {qq("$_")} @$md5s) . "}'" : "";
-    my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
-                                       "j.id = a._id", $qmd5s, $qsrcs, $eval, $ident, $alen ]);
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $tax = "COALESCE(a.tax_domain,'unassigned') AS txd,COALESCE(a.tax_phylum,'unassigned') AS txp,COALESCE(a.tax_class,'unassigned') AS txc,".
               "COALESCE(a.tax_order,'unassigned') AS txo,COALESCE(a.tax_family,'unassigned') AS txf,COALESCE(a.tax_genus,'unassigned') AS txg,".
               "COALESCE(a.tax_species,'unassigned') AS txs,a.name";
@@ -1192,15 +1195,17 @@ sub get_organisms_for_md5s {
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->mg_map($row->[0]);
-        if ($qmd5s && exists($mg_md5_abund->{$mg})) {
-	        map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) && exists($md5_set{$_}) } @{$row->[17]};
+        if ($qmd5s) {
+            my @has_md5 = grep { exists $md5_set{$_} } @{$row->[17]};
+            next unless ((@has_md5 > 0) && exists($mg_md5_abund->{$mg}));
+            map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) } @has_md5;
 	    } else {
 	        $sub_abund = $row->[10];
 	    }
 	    push @{$data->{$mg}}, [ $mg, @$row[1..10], $sub_abund, @$row[11..16], join(";", @{$row->[17]}) ];
 	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[17]};
     }
-    unless ($md5s && (@$md5s > 0)) {
+    unless ($qmd5s) {
         foreach my $mg (keys %$data) {
 	        $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
 	        $self->memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->expire);
@@ -1237,12 +1242,12 @@ sub search_ontology {
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->job_map} ) {
         my $c = $self->memd->get($mg.$cache_key);
-        if ($c) { push @{$data->{$mg}}, @$c; }
+        if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
     unless (@$jobs) { return $data; }
 
-    my $where = $self->get_where_str(["j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", "a.name ~* ".$self->dbh->quote($text)]);
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", "a.name ~* ".$self->dbh->quote($text)]);
     my $sql   = "SELECT DISTINCT j.job, j.source, a.name, j.abundance FROM ".$self->jtbl->{ontology}." j, ".$self->atbl->{ontology}." a".$where;
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
         push @{ $data->{ $self->mg_map->{$row->[0]} } }, @$row[1,2,3];
@@ -1269,19 +1274,20 @@ sub get_ontology_for_md5s {
     $cache_key .= defined($alen) ? $alen : ":";
     $cache_key .= defined($source) ? $source : ":";
 
-    my $data = {};
-    my $jobs = [];
+    my $data  = {};
+    my $jobs  = [];
     my %mdata = ();
+    my $qmd5s = ($md5s && (@$md5s > 0)) ? 1 : 0;
     
-    if ($md5s && (@$md5s > 0)) {
+    if ($qmd5s) {
         $jobs = $self->jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->job_map} ) {
             my $c = $self->memd->get($mg.$cache_key);
             my $m = $self->memd->get($mg.$cache_key."md5s");
             if ($c && $m) {
-                push @{$data->{$mg}}, @$c;
-                map { $mdata{$mg}{$_} = $m->{$_} } keys %$m;
+                $data->{$mg} = $c;
+                $mdata{$mg}  = $m;
             } else {
                 push @$jobs, $j;
             }
@@ -1297,24 +1303,24 @@ sub get_ontology_for_md5s {
 
     my $level = "COALESCE(a.level4, a.level3) as annotation";
     my $qsrcs = ($source) ? "source = '$source'" : "";
-    my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5s && '{" . join(",", map {qq("$_")} @$md5s) . "}'" : "";
-    my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
-                                       "j.id = a._id", $qmd5s, $qsrcs, $eval, $ident, $alen ]);
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,a.name,$level,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->jtbl->{ontology}." j, ".$self->atbl->{ontology}." a".$where;
 
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->mg_map($row->[0]);
-        if ($qmd5s && exists($mg_md5_abund->{$mg})) {
-	        map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) && exists($md5_set{$_}) } @{$row->[10]};
+	    if ($qmd5s) {
+            my @has_md5 = grep { exists $md5_set{$_} } @{$row->[10]};
+            next unless ((@has_md5 > 0) && exists($mg_md5_abund->{$mg}));
+            map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) } @has_md5;        
 	    } else {
 	        $sub_abund = $row->[3];
 	    }
 	    push @{$data->{$mg}}, [ $mg, @$row[1..3], $sub_abund, @$row[4..9], join(";", @{$row->[10]}) ];
 	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[10]};
     }
-    unless ($md5s && (@$md5s > 0)) {
+    unless ($qmd5s) {
         foreach my $mg (keys %$data) {
 	        $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
 	        $self->memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->expire);
@@ -1341,44 +1347,47 @@ sub get_functions_for_md5s {
     $cache_key .= defined($alen) ? $alen : ":";
     $cache_key .= defined($sources) ? join(";", @$sources) : ":";
 
-    my $data = {};
-    my $jobs = [];
-    if ($md5s && (@$md5s > 0)) {
+    my $data  = {};
+    my $jobs  = [];
+    my $qmd5s = ($md5s && (@$md5s > 0)) ? 1 : 0;
+    
+    if ($qmd5s) {
         $jobs = $self->jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->job_map} ) {
             my $c = $self->memd->get($mg.$cache_key);
-            if ($c) { push @{$data->{$mg}}, @$c; }
+            if ($c) { $data->{$mg} = $c; }
             else    { push @$jobs, $j; }
         }
     }
     unless (@$jobs) { return [ map { @$_ } values %$data ]; }
 
     my %md5_set = map {$_, 1} @$md5s;
-    my $mg_md5_abund = ($md5s && (@$md5s > 0)) ? $self->get_md5_abundance($eval, $ident, $alen, $md5s) : {};
+    my $mg_md5_abund = ($qmd5s) ? $self->get_md5_abundance() : {};
     
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
     my $qsrcs = (@$sources > 0) ? "j.source in (" . join(",", map {"'$_'"} @$sources) . ")" : "";
-    my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5s && '{" . join(",", map {qq("$_")} @$md5s) . "}'" : "";
-    my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
-                                       "j.id = a._id", $qmd5s, $qsrcs, $eval, $ident, $alen ]);
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,j.source,a.name,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->jtbl->{function}." j, ".$self->atbl->{function}." a".$where;        
 
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->mg_map($row->[0]);
-        if ($qmd5s && exists($mg_md5_abund->{$mg})) {
-	        map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) && exists($md5_set{$_}) } @{$row->[10]};
+        
+        if ($qmd5s) {
+            my @has_md5 = grep { exists $md5_set{$_} } @{$row->[10]};
+            next unless ((@has_md5 > 0) && exists($mg_md5_abund->{$mg}));
+            map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) } @has_md5;        
 	    } else {
 	        $sub_abund = $row->[3];
 	    }
 	    push @{$data->{$mg}}, [ $mg, @$row[1..3], $sub_abund, @$row[4..9], join(";", @{$row->[10]}) ];
     }
-    unless ($md5s && (@$md5s > 0)) {
+    unless ($qmd5s) {
         foreach my $mg (keys %$data) {
 	        $self->memd->set($mg.$cache_key, $data->{$mg}, $self->expire);
 	    }
@@ -1400,7 +1409,7 @@ sub get_lca_data {
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->job_map} ) {
         my $c = $self->memd->get($mg.$cache_key);
-        if ($c) { push @{$data->{$mg}}, @$c; }
+        if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
     unless (@$jobs) { return [ map { @$_ } values %$data ]; }
@@ -1409,7 +1418,7 @@ sub get_lca_data {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
     
-    my $where = $self->get_where_str(["job IN (".join(",", @$jobs).")", $self->qver, $eval, $ident, $alen]);
+    my $where = $self->get_where_str([$self->qver, "job IN (".join(",", @$jobs).")", $eval, $ident, $alen]);
     my $sql   = "SELECT DISTINCT job,lca,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv FROM ".$self->jtbl->{lca}.$where;
 
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
@@ -1441,7 +1450,7 @@ sub get_md5_data {
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->job_map} ) {
         my $c = $self->memd->get($mg.$cache_key);
-        if ($c) { push @{$data->{$mg}}, @$c; }
+        if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
     unless (@$jobs) { return [ map { @$_ } values %$data ]; }
@@ -1452,8 +1461,8 @@ sub get_md5_data {
   
     my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5 IN (" . join(",", map {"'$_'"} @$md5s) . ")" : "";
     my $qseek = $ignore_sk ? "" : "j.seek IS NOT NULL AND j.length IS NOT NULL";
-    my $qrep  = $rep_org_src ? "r.".$self->qver." AND j.md5=r.md5 AND r.source='$rep_org_src'" : "";
-    my $where = $self->get_where_str(["j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, $qrep, $qmd5s, $eval, $ident, $alen, $qseek]);
+    my $qrep  = $rep_org_src ? "j.md5=r.md5 AND r.source='$rep_org_src'" : "";
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.job IN (".join(",", @$jobs).")", $qrep, $qmd5s, $eval, $ident, $alen, $qseek]);
     my $cseek = $ignore_sk ? "" : ",j.seek,j.length";
     my $crep  = $rep_org_src ? ",r.organism" : "";
     my $sql   = "SELECT DISTINCT j.job,j.md5,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv${cseek}${crep} FROM ".
@@ -1484,7 +1493,7 @@ sub get_md5_abundance {
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->job_map} ) {
         my $c = $self->memd->get($mg.$cache_key);
-        if ($c) { push @{$data->{$mg}}, @$c; }
+        if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
     unless (@$jobs) { return $data; }
@@ -1494,7 +1503,7 @@ sub get_md5_abundance {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
   
     my $qmd5s = ($md5s && (@$md5s > 0)) ? "md5 IN (" . join(",", map {"'$_'"} @$md5s) . ")" : "";
-    my $where = $self->get_where_str(["job IN (".join(",", @$jobs).")", $self->qver, $qmd5s, $eval, $ident, $alen]);
+    my $where = $self->get_where_str([$self->qver, "job IN (".join(",", @$jobs).")", $qmd5s, $eval, $ident, $alen]);
     my $sql   = "SELECT DISTINCT job, md5, abundance FROM ".$self->jtbl->{md5}.$where;
 
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
@@ -1521,7 +1530,7 @@ sub get_org_md5 {
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->job_map} ) {
         my $c = $self->memd->get($mg.$cache_key);
-        if ($c) { push @{$data->{$mg}}, @$c; }
+        if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
     unless (@$jobs) { return $data; }
@@ -1531,8 +1540,7 @@ sub get_org_md5 {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
     my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map {"'$_'"} @$sources) . ")" : "";
-    my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
-                                       "j.id = a._id", $qsrcs, $eval, $ident, $alen ]);
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,a.name,j.md5s FROM ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where;
     
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
@@ -1560,7 +1568,7 @@ sub get_ontol_md5 {
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->job_map} ) {
         my $c = $self->memd->get($mg.$cache_key);
-        if ($c) { push @{$data->{$mg}}, @$c; }
+        if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
     unless (@$jobs) { return $data; }
@@ -1569,9 +1577,8 @@ sub get_ontol_md5 {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
     
-    my $qsrcs = ($source) ? "source = '$source'" : "";
-    my $where = $self->get_where_str([ "j.job IN (".join(",", @$jobs).")", 'j.'.$self->qver, 'a.'.$self->qver,
-                                       "j.id = a._id", $qsrcs, $eval, $ident, $alen ]);
+    my $qsrcs = ($source) ? "j.source = '$source'" : "";
+    my $where = $self->get_where_str(['j.'.$self->qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,a.name,j.md5s FROM ".$self->jtbl->{ontology}." j, ".$self->atbl->{ontology}." a".$where;
     
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
@@ -1594,7 +1601,7 @@ sub get_md5s_for_tax_level {
     my $name_map = $self->ach->get_organisms4level($level, $names);
     
     my $qname = $all ? "" : "a.name IN (".join(",", map {$self->dbh->quote($_)} keys %$name_map).")";
-    my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qname]);
+    my $where = $self->get_where_str(['j.'.$self->qver, 'j.'.$self->qjobs, "j.id = a._id", $qname]);
     my $sql   = "SELECT a.name, j.md5s FROM ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where;
     
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
@@ -1602,6 +1609,7 @@ sub get_md5s_for_tax_level {
         map { $data->{$_} = 1 } @{$row->[1]};
     }
     return [ keys %$data ];
+    # [ md5 ]
 }
 
 sub get_md5s_for_organism {
@@ -1609,12 +1617,13 @@ sub get_md5s_for_organism {
     
     my $data  = {};
     my $qname = "a.name = ".$self->dbh->quote($name);
-    my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qname]);
+    my $where = $self->get_where_str(['j.'.$self->qver, 'j.'.$self->qjobs, "j.id = a._id", $qname]);
     my $sql   = "SELECT j.md5s FROM ".$self->jtbl->{organism}." j, ".$self->atbl->{organism}." a".$where;
     foreach my $md5s (@{ $self->dbh->selectcol_arrayref($sql) }) {
         map { $data->{$_} = 1 } @$md5s;
     }
     return [ keys %$data ];
+    # [ md5 ]
 }
 
 sub get_md5s_for_ontol_level {
@@ -1626,7 +1635,7 @@ sub get_md5s_for_ontol_level {
 
     my $qname = $all ? "" : "a.name IN (".join(",", map {$self->dbh->quote($_)} keys %$name_map).")";
     my $qsrc  = ($source) ? "j.source = ".$self->dbh->quote($source) : "";
-    my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qname, $qsrc]);
+    my $where = $self->get_where_str(['j.'.$self->qver, 'j.'.$self->qjobs, "j.id = a._id", $qname, $qsrc]);
     my $sql   = "SELECT a.name, j.md5s FROM ".$self->jtbl->{ontology}." j, ".$self->atbl->{ontology}." a".$where;
     
     foreach my $row (@{ $self->dbh->selectall_arrayref($sql) }) {
@@ -1634,6 +1643,7 @@ sub get_md5s_for_ontol_level {
         map { $data->{$_} = 1 } @{$row->[1]};
     }
     return [ keys %$data ];
+    # [ md5 ]
 }
 
 sub get_md5s_for_ontology {
@@ -1642,10 +1652,11 @@ sub get_md5s_for_ontology {
     my $data  = {};
     my $qname = "a.name = ".$self->dbh->quote($name);
     my $qsrc  = ($source) ? "j.source = ".$self->dbh->quote($source) : "";
-    my $where = $self->get_where_str(['j.'.$self->qjobs, 'j.'.$self->qver, 'a.'.$self->qver, "j.id = a._id", $qname, $qsrc]);
+    my $where = $self->get_where_str(['j.'.$self->qver, 'j.'.$self->qjobs, "j.id = a._id", $qname, $qsrc]);
     my $sql   = "SELECT j.md5s FROM ".$self->jtbl->{ontology}." j, ".$self->atbl->{ontology}." a".$where;
     foreach my $md5s (@{ $self->dbh->selectcol_arrayref($sql) }) {
         map { $data->{$_} = 1 } @$md5s;
     }
     return [ keys %$data ];
+    # [ md5 ]
 }
