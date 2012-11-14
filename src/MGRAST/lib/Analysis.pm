@@ -16,27 +16,28 @@ use File::Temp qw/ tempfile tempdir /;
 1;
 
 sub new {
-  my ($class, $job_dbh) = @_;
+  my ($class, $job_dbh , $dbh) = @_;
 
   # get ach object
   my $ach = new Babel::lib::Babel;
   
   # connect to database
-  my $dbh;
-  eval {
-    my $dbms     = $Conf::mgrast_dbms;
-    my $host     = $Conf::mgrast_dbhost;
-    my $database = $Conf::mgrast_db;
-    my $user     = $Conf::mgrast_dbuser;
-    my $password = $Conf::mgrast_dbpass;
-
-    $dbh = DBI->connect("DBI:$dbms:dbname=$database;host=$host", $user, $password, 
-			{ RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
-			  die "database connect error.";
-  };
-  if ($@) {
-    warn "Unable to connect to metagenomics database: $@\n";
-    return undef;
+  unless ($dbh) {
+    eval {
+      my $dbms     = $Conf::mgrast_dbms;
+      my $host     = $Conf::mgrast_dbhost;
+      my $database = $Conf::mgrast_db;
+      my $user     = $Conf::mgrast_dbuser;
+      my $password = $Conf::mgrast_dbpass;
+      
+      $dbh = DBI->connect("DBI:$dbms:dbname=$database;host=$host", $user, $password, 
+			  { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
+			    die "database connect error.";
+    };
+    if ($@) {
+      warn "Unable to connect to metagenomics database: $@\n";
+      return undef;
+    }
   }
   unless ($job_dbh && ref($job_dbh)) {
     warn "Unable to connect to job_cache database\n";
