@@ -298,7 +298,7 @@ sub get_jobs_metadata_fast {
       ## type: calculated takes precidence over inputed      
       $data->{$j}{library}{type} = $t ? $t : $self->investigation_type_alias($libs->{$l}{data}{investigation_type});
       unless ($data->{$j}{library}{data}{seq_meth}) {
-	$data->{$j}{data}{library}{seq_meth} = exists($mmap{$j}) ? $mmap{$j} : '';
+	    $data->{$j}{library}{data}{seq_meth} = exists($mmap{$j}) ? $mmap{$j} : '';
       }
       # make sure these are same as job table
       $data->{$j}{library}{data}{metagenome_id}   = $m;
