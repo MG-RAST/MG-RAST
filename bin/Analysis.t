@@ -107,8 +107,12 @@ my $analysis2DBH = DBI->connect("DBI:$analysis2_dbms:dbname=$analysis2_db;host=$
   die "database connect error.";
 
 
+#
+# Initialize Analysis Objects and test them
+#
+
 my $analysisDB  = MGRAST::Analysis->new( $job_dbh , $analysisDBH ) ;
-my $analysis2DB = MGRAST::Analysis2->new(  $job_dbh , $analysis2DBH );
+my $analysis2DB = MGRAST::Analysis_db2->new(  $job_dbh , $analysis2DBH );
 
 
 
@@ -134,7 +138,7 @@ my $analysis2DB = MGRAST::Analysis2->new(  $job_dbh , $analysis2DBH );
 
 my @tests = ();
 my $testCount = 0;
-my $maxTestNum = 4;  # increment this each time you add a new test sub.
+my $maxTestNum = 2;  # increment this each time you add a new test sub.
 
 
 # keep adding tests to this list
@@ -155,10 +159,16 @@ my ($client) = setup();
 
 
 
-foreach my $num (@tests) {
-       my $test = "test" . $num;
-       &$test($client);
-       $testCount++;
+# foreach my $num (@tests) {
+#        my $test = "test" . $num;
+#        &$test();
+#        $testCount++;
+# }
+
+
+foreach my $num (@tests){
+  my $test = "test$num";
+  subtest "Subtest $num" => \&$test;
 }
 
 done_testing($testCount);
@@ -179,19 +189,83 @@ sub setup{
 #
 
 sub test1 {
+  my ($tmp) = @_ ;
+  
+  # set name for testing block
+  my  $bname = "Basic functions" ;
+  
+  note("TEST $bname"); 
+  plan tests => 7 ; 
 
-    
+  my @methods = qw[new DESTROY dbh ach jcache jobs expire has_job add_jobs set_jobs set_public_jobs get_jobid_map get_jobs_tables get_seq_count job_dir analysis_dir fasta_file sim_file source_stats_file taxa_stats_file ontology_stats_file rarefaction_stats_file qc_stats_file length_hist_file gc_hist_file org_tbl func_tbl md5_tbl ontol_tbl lca_tbl get_all_job_ids get_where_str run_fraggenescan get_source_stats file_to_array get_taxa_stats get_ontology_stats get_rarefaction_coords get_qc_stats get_histogram_nums get_md5_sims nCr2ln gammaln get_sources md5_abundance_for_annotations sequences_for_md5s sequences_for_annotation metagenome_search all_read_sequences md5s_to_read_sequences get_abundance_for_organism_source get_organism_abundance_for_source get_organisms_with_contig_for_source get_md5_evals_for_organism_source get_md5_data_for_organism_source get_rarefaction_curve get_abundance_for_tax_level get_abundance_for_ontol_level get_abundance_for_hierarchy get_abundance_for_set get_rank_abundance get_set_rank_abundance get_global_rank_abundance search_organisms get_organisms_unique_for_source get_organisms_for_sources get_organisms_for_md5s search_ontology get_ontology_for_source get_ontology_for_md5s get_functions_for_sources get_functions_for_md5s get_lca_data get_md5_data get_md5_abundance get_org_md5 get_ontol_md5 get_md5s_for_tax_level get_md5s_for_organism get_md5s_for_ontol_level get_md5s_for_ontology];
+
+  can_ok($analysisDB , @methods);
+  can_ok($analysis2DB ,@methods);
+
+  ok ( ($analysisDB->dbh and $analysis2DB->dbh) , 'Got DB Handles' ) ;
+  ok ( ($analysisDB->ach and $analysis2DB->ach) , 'Got ACH Handles') ; 
+  ok ( ($analysisDB->jcache and $analysis2DB->jcache) , 'Got jcache Handles') ; 
+  unless (ok ( (Dumper $analysisDB->jobs) eq (Dumper $analysis2DB->jobs) , 'Identical jobs') ){
+    print STDERR join "\t" , "Error(jobs):\n" , $analysisDB->jobs , (Dumper  $analysisDB->jobs) ,  $analysis2DB->jobs , (Dumper  $analysis2DB->jobs);
+  }
+  ok ( $analysisDB->expire eq $analysis2DB->expire , 'same expire') ;
+
 }
 
 
-# Test - Abundance Profile
+#
+# Test jobs methods
+#
+
+sub test2{
+  
+  # set name for testing block
+  my  $bname = "job methods" ;
+  
+  note("TEST $bname"); 
+  plan tests => 1 ; 
+
+  my @methods = qw[jobs has_job add_jobs set_jobs set_public_jobs get_jobid_map get_jobs_tables job_dir get_all_job_ids];
+
+  my @test_ids = qw[ 4440051.3 4440052.3 ];
+ 
+  # Test without job ids
+  foreach my $method (@methods){
+
+    my $res1 = undef ;
+    my $res2 = undef ;
+
+    eval{
+      $res1 =  $analysisDB->$method ;
+      $res2 =  $analysis2DB->$method;
+    };
+    
+    is($@, '', "Method $method without jobs works (".$@.")");
+    unless($@){
+      ok ( (Dumper $res1) eq (Dumper $res2) , "Identical output for method $method and no jobs");
+    }
+  }
+
+  # Test with job ids
+  foreach my $method (@methods){
+
+    my $res1 = undef ;
+    my $res2 = undef ;
+
+    eval{
+      $res1 =  $analysisDB->$method(\@test_ids) ;
+      $res2 =  $analysis2DB->$method(\@test_ids);
+    };
+    
+    is($@, '', "Method $method with jobs ".  (join "," , @test_ids ) ." works (".$@.")");
+    unless($@){
+      ok ( (Dumper $res1) eq (Dumper $res2) , "Identical output for method $method and jobs " . (join "," , @test_ids ));
+    }
+  }
 
 
 
-# initialize db-master
-
-
-
+}
 
 
 
