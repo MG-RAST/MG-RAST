@@ -2411,6 +2411,7 @@ sub single_visual {
       $pt->font_size($cgi->param('pts') || 40);
       $pt->{thick2} = 10;
       $pt->{thick} = 30;
+      $pt->{style} = "width: 800; height: 800;";
       print $pt->output();
       print $cgi->end_html();
       exit;
@@ -3228,6 +3229,7 @@ sub phylogeny_visual {
       $pt->font_size($cgi->param('pts') || 40);
       $pt->{thick2} = 10;
       $pt->{thick} = 30;
+      $pt->{style} = "width: 800; height: 800;";
       print $pt->output();
       print $cgi->end_html();
       exit;
@@ -5208,7 +5210,7 @@ sub lca_visual {
 	  }
 	}
 	push(@$expanded_data, [ @$row, $vals ] );
-      }    
+      }
     } else {
       foreach my $row (@$data) {
 	foreach my $r (@$row) {
@@ -5235,7 +5237,13 @@ sub lca_visual {
     if ($self->application->cgi->param('reroot') && $self->application->cgi->param('do_reroot')) {
       $pt->reroot_id($self->application->cgi->param('reroot'));
     }
-    my $pt_out = $pt->output();
+    my $pt_out;
+    eval {
+      $pt_out = $pt->output();
+    };
+    if ($@) {
+      print STDERR $@."\n";
+    }
     my $opts = [ [ 2, 'phylum' ],
 		 [ 3, 'class' ],
 		 [ 4, 'order' ],

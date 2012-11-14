@@ -34,11 +34,18 @@ CREATE INDEX organisms_ncbi_name ON organisms_ncbi (name);
 CREATE INDEX organisms_ncbi_tax_id ON organisms_ncbi (ncbi_tax_id);
 
 CREATE INDEX ontology_seed_id ON ontology_seed (id);
-
 CREATE INDEX ontology_kegg_id ON ontology_kegg (id);
-
 CREATE INDEX ontology_eggnog_id ON ontology_eggnog (id);
 CREATE INDEX ontology_eggnog_type ON ontology_eggnog (type);
 
+CREATE INDEX ontologies_id ON ontologies (id);
+CREATE INDEX ontologies_type ON ontologies (type);
+
 CREATE INDEX sources_name ON sources (name);
 CREATE INDEX sources_type ON sources (type);
+
+# load ontologies table
+INSERT INTO ontologies (level1,level2,level3,level4,id,type) SELECT level1,level2,level3,level4,id,'KO' FROM ontology_kegg;
+INSERT INTO ontologies (level1,level2,level3,level4,id,type) SELECT level1,level2,level3,level4,id,'Subsystems' FROM ontology_seed;
+INSERT INTO ontologies (level1,level2,level3,id,type) SELECT level1,level2,level3,id,type FROM ontology_eggnog;
+

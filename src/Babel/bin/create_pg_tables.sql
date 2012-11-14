@@ -129,6 +129,17 @@ id text,
 type text
 );
 
+DROP TABLE IF EXISTS ontologies;
+CREATE TABLE ontologies (
+ _id SERIAL PRIMARY KEY,
+ level1 text,
+ level2 text,
+ level3 text,
+ level4 text,
+ id text,
+ type text
+);
+
 DROP TABLE IF EXISTS sources;
 CREATE TABLE sources (
 _id SERIAL PRIMARY KEY,

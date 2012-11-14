@@ -77,6 +77,7 @@ sub new {
   $self->{reroot_id} = undef;
   $self->{reroot_field} = undef;
   $self->{legend} = "";
+  $self->{style} = "";
 
   $self->{show_tooltip} = 1;
 
@@ -739,8 +740,9 @@ sub output {
   $i2->copyResampled($self->image,0,0,0,0,$self->size(), $self->size(),$self->size() * 2,$self->size() * 2);
 
   # create inline gif
+  my $style = $self->style;
   my $map = "<map name='imap_circtree_".$self->id."'>".join("\n", @map_spots)."</map>";
-  my $image = qq~<img style="border: none; z-index: 1;" src="~ . $i2->image_src()  . qq~" usemap="#imap_circtree_~ . $self->id . qq~">~.$map.$hover_component->output()."<br>".$div;
+  my $image = qq~<img style="border: none; z-index: 1;$style" src="~ . $i2->image_src()  . qq~" usemap="#imap_circtree_~ . $self->id . qq~">~.$map.$hover_component->output()."<br>".$div;
 
   if ($self->enable_click) {
     $image = "<table style='width: 1500px;'><tr><td>".$image."</td><td><div id='phylo_detail_".$self->id."'></div></td></tr></table>";
@@ -1082,7 +1084,11 @@ sub get_leaf_height {
 	$sumheight += $x;
       }
       foreach my $x (@$heights) {
-	$x = int(($height - 5) / $sumheight * $x);
+	if ($sumheight * $x > 0) {
+	  $x = int(($height - 5) / $sumheight * $x);
+	} else {
+	  $x = 0;
+	}
       }
     }
     return $heights;
@@ -1420,4 +1426,14 @@ sub legend {
   }
 
   return $self->{legend};
+}
+
+sub style {
+  my ($self, $style) = @_;
+
+  if (defined($style)) {
+    $self->{style} = $style;
+  }
+
+  return $self->{style};
 }

@@ -54,6 +54,10 @@ sub init {
   }
   $self->{mgdb} = $mgdb;
 
+  $self->data('default_eval', '5');
+  $self->data('default_ident', '60');
+  $self->data('default_alen', '15');
+
   return 1;
 }
 
@@ -214,7 +218,11 @@ sub highlight_select {
   }
 
   my $mg_sel = $self->metagenome_select();
-  my $select = "<h2>Data Selection</h2><form name='meta_form' id='meta_form' onkeypress='return event.keyCode!=13'><input type='hidden' name='metagenome' value='".$mg."'><table id='non_wb_sel'><tr><td style='font-weight: bold; width: 200px;'>Target Buffer</td><td><select id='tbuff' name='tbuff'><option value='buffer_space_a'>Data A</option><option value='buffer_space_b'>Data B</option></select></td></tr><tr><td style='font-weight: bold; width: 200px;'>Metagenomes</td><td id='mg_sel_td'>".$metagenome."</td><td>".$self->more_button('document.getElementById("sel_mg").style.display="";', 'ok_button("'.$mg_sel->id.'");')."</td></tr><tr><td colspan=3 style='display: none;' id='sel_mg'><table><tr><td>".$mg_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$mg_sel->id."\");'></td></tr></table></td></tr><tr><td style='font-weight: bold;'>Max. e-Value Cutoff</td><td>".$self->get_evals->[0]."</td><td>".$self->more_button('document.getElementById("meta_sel_eval").style.display="";')."</td><td style='display: none;' id='meta_sel_eval'>".$self->evalue_select()."</td></tr><tr><td style='font-weight: bold;'>Min. % Identity Cutoff</td><td>".$self->get_idents->[0]."</td><td>".$self->more_button('document.getElementById("meta_sel_ident").style.display="";')."</td><td style='display: none;' id='meta_sel_ident'>".$self->identity_select()."</td></tr><tr><td style='font-weight: bold;'>Min. Alignment Length Cutoff</td><td>".$self->get_alens->[0]."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table><input type='button' value='load data' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");execute_ajax(\"get_kegg_data\",\"kdatabuf\",\"meta_form\",\"loading...\", null, tobuff);}else{alert(\"You did not select any metagenomes\");};'><input type='hidden' name='source' value='KO'></form>";
+  my $select = "<h2>Data Selection</h2><form name='meta_form' id='meta_form' onkeypress='return event.keyCode!=13'><input type='hidden' name='metagenome' value='".$mg."'><table id='non_wb_sel'><tr><td style='font-weight: bold; width: 200px;'>Target Buffer</td><td><select id='tbuff' name='tbuff'><option value='buffer_space_a'>Data A</option><option value='buffer_space_b'>Data B</option></select></td></tr><tr><td style='font-weight: bold; width: 200px;'>Metagenomes</td><td id='mg_sel_td'>".$metagenome."</td><td>".$self->more_button('document.getElementById("sel_mg").style.display="";', 'ok_button("'.$mg_sel->id.'");')."</td></tr><tr><td colspan=3 style='display: none;' id='sel_mg'><table><tr><td>".$mg_sel->output()."</td><td><input type='button' value='ok' onclick='ok_button(\"".$mg_sel->id."\");'></td></tr></table></td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Choose maximum probability that there is a sequence with a higher similarity to your target sequence than the one provided.'>Max. e-Value Cutoff</td><td>1e-".$self->data('default_eval')."</td><td>".$self->more_button('document.getElementById("meta_sel_eval").style.display="";')."</td><td style='display: none;' id='meta_sel_eval'>".$self->evalue_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Define the minimum percent identity between your selected metagenomes and existing sBLAT sequences.'>Min. % Identity Cutoff</td><td>".$self->data('default_ident')." %</td><td>".$self->more_button('document.getElementById("meta_sel_ident").style.display="";')."</td><td style='display: none;' id='meta_sel_ident'>".$self->identity_select()."</td></tr>";
+  $select .= "<tr><td style='font-weight: bold;' title='Minimum length of matching sequences considered sufficient to be \"aligned\", measured in aa for protein and bp for RNA databases.'>Min. Alignment Length Cutoff</td><td>".$self->data('default_alen')."</td><td>".$self->more_button('document.getElementById("phylo_sel_alen").style.display="";')."</td><td style='display: none;' id='phylo_sel_alen'>".$self->alength_select()."</td></tr></table>";
+  $select .= "<input type='button' value='load data' onclick='if(document.getElementById(\"list_select_list_b_".$self->application->component('ls')->id."\").options.length){list_select_select_all(\"".$self->application->component('ls')->id."\");execute_ajax(\"get_kegg_data\",\"kdatabuf\",\"meta_form\",\"loading...\", null, tobuff);}else{alert(\"You did not select any metagenomes\");};'><input type='hidden' name='source' value='KO'></form>";
 
   return $select;
 }
@@ -229,13 +237,10 @@ sub get_kegg_data {
   my $evalue   = $cgi->param('evalue');
   my $identity = $cgi->param('identity');
   my $alength  = $cgi->param('alength');
-  my $ev_index = $self->get_eval_index($evalue);
-  my $id_index = $self->get_ident_index($identity);
-  my $al_index = $self->get_alen_index($alength);
 
   $self->{mgdb}->set_jobs(\@metas);
 
-  $result = $self->{mgdb}->get_ontology_for_source($source, $ev_index, $id_index, $al_index);
+  $result = $self->{mgdb}->get_ontology_for_source($source, $evalue, $identity, $alength);
   my $id_map = $self->{mgdb}->ach->get_all_ontology4source_hash($source);
   my $funcs = {};
 
@@ -458,57 +463,51 @@ sub get_log {
 }
 
 sub evalue_select {
-  my ($self, $nook) = @_;
+  my ($self) = @_;
 
-  my $eval   = $self->application->cgi->param('evalue') || '';
-  my $select = "<select name='evalue'>";
+  my $eval = $self->application->cgi->param('evalue') || $self->data('default_eval');
+  my $html = qq(1e-&nbsp;<input type='text' name='evalue' value='$eval' size='5' /><span>&nbsp;</span><input type='button' onclick='
+var expNum = parseInt(this.previousSibling.previousSibling.value);
+if (isNaN(expNum) || (expNum < 0) || (expNum > 999)) {
+  this.parentNode.previousSibling.previousSibling.innerHTML = "Please enter integer from 0 to 999";
+} else {
+  this.parentNode.previousSibling.previousSibling.innerHTML = "1e-" + expNum;
+  this.parentNode.style.display="none";
+}' value='ok' />);
 
-  foreach ( @{ $self->get_evals } ) {
-    my $sel  = ($_ eq $eval) ? " selected='selected'" : "";
-    $select .= "<option value='$_'$sel>$_</option>";
-  }
-  $select .= "</select>";
-  unless ($nook) {
-    $select .= "<input type='button' onclick='this.parentNode.previousSibling.previousSibling.innerHTML=this.previousSibling.options[this.previousSibling.selectedIndex].text;this.parentNode.style.display=\"none\";' value='ok'>";
-  }
-
-  return $select;
+  return $html;
 }
 
 sub identity_select {
-  my ($self, $nook) = @_;
+  my ($self) = @_;
 
-  my $ident  = $self->application->cgi->param('identity') || '';
-  my $select = "<select name='identity'>";
+  my $ident = $self->application->cgi->param('identity') || $self->data('default_ident');
+  my $html  = qq(<input type='text' name='identity' value='$ident' size='5' /><span>&nbsp;&#37;&nbsp;</span><input type='button' onclick='
+var identNum = parseInt(this.previousSibling.previousSibling.value);
+if (isNaN(identNum) || (identNum < 0) || (identNum > 100)) {
+  this.parentNode.previousSibling.previousSibling.innerHTML = "Please enter integer from 0 to 100";
+} else {
+  this.parentNode.previousSibling.previousSibling.innerHTML = identNum + " %";
+  this.parentNode.style.display="none";
+}' value='ok' />);
 
-  foreach ( @{ $self->get_idents } ) {
-    my $sel  = ($_ eq $ident) ? " selected='selected'" : "";
-    $select .= "<option value='$_'$sel>$_</option>";
-  }
-  $select .= "</select>";
-  unless ($nook) {
-    $select .= "<input type='button' onclick='this.parentNode.previousSibling.previousSibling.innerHTML=this.previousSibling.options[this.previousSibling.selectedIndex].text;this.parentNode.style.display=\"none\";' value='ok'>";
-  }
-
-  return $select;
+  return $html;
 }
 
 sub alength_select { 	 
-  my ($self, $nook) = @_; 	 
+  my ($self) = @_; 	 
 
-  my $alen   = $self->application->cgi->param('alength') || '';
-  my $select = "<select name='alength'>";
-  
-  foreach ( @{ $self->get_alens } ) {
-    my $sel  = ($_ eq $alen) ? " selected='selected'" : "";
-    $select .= "<option value='$_'$sel>$_</option>";
-  }
-  $select .= "</select>";
-  unless ($nook) {
-    $select .= "<input type='button' onclick='this.parentNode.previousSibling.previousSibling.innerHTML=this.previousSibling.options[this.previousSibling.selectedIndex].text;this.parentNode.style.display=\"none\";' value='ok'>";
-  }
-  
-  return $select;
+  my $alen = $self->application->cgi->param('alength') || $self->data('default_alen');
+  my $html = qq(<input type='text' name='alength' value='$alen' size='5' /><span>&nbsp;</span><input type='button' onclick='
+var alenNum = parseInt(this.previousSibling.previousSibling.value);
+if (isNaN(alenNum) || (alenNum < 1)) {
+  this.parentNode.previousSibling.previousSibling.innerHTML = "Please enter integer greater than 0";
+} else {
+  this.parentNode.previousSibling.previousSibling.innerHTML = alenNum;
+  this.parentNode.style.display="none";
+}' value='ok' />);
+
+  return $html;
 }
 
 sub kegg_map {
