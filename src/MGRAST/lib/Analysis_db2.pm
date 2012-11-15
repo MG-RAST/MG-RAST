@@ -153,7 +153,7 @@ sub _has_job {
 # add values to $self->{jobs} based on metagenome_id list
 sub add_jobs {
   my ($self, $mgids) = @_;
-  if ($mgids && @$mgids) {
+  if ($mgids && scalar(@$mgids)) {
     my @new_mg  = grep { ! $self->_has_job($_) } @$mgids;
     my $new_map = $self->_get_jobid_map(\@new_mg);
     %{ $self->{job_map} } = ( %{$self->{job_map}}, %$new_map );
@@ -190,7 +190,7 @@ sub _set_data {
 
 sub _get_jobid_map {
   my ($self, $mgids, $jids) = @_;
-  unless (scalar(@$mgids)) {
+  unless ($mgids && scalar(@$mgids)) {
     return {};
   }
   my $hash = {};
@@ -545,7 +545,7 @@ sub _get_annotations4level {
     # (_id || name) => annot
 }
 
-sub _seach_annotations {
+sub _search_annotations {
     my ($self, $type, $text) = @_;
 
     unless (exists($self->_jtbl->{$type}) && exists($self->_atbl->{$type})) { return {}; }
@@ -1079,7 +1079,7 @@ sub get_global_rank_abundance {
 
 sub search_organisms {
     my ($self, $text) = @_;
-    return $self->_seach_annotations('organism', $text);
+    return $self->_search_annotations('organism', $text);
 }
 
 sub get_organisms_unique_for_source {
@@ -1228,7 +1228,7 @@ sub get_organisms_for_md5s {
 
 sub search_ontology {
     my ($self, $text) = @_;
-    return $self->_seach_annotations('ontology', $text);
+    return $self->_search_annotations('ontology', $text);
 }
 
 sub get_ontology_for_source {
@@ -1305,7 +1305,7 @@ sub get_ontology_for_md5s {
 
 sub search_functions {
     my ($self, $text) = @_;
-    return $self->_seach_annotations('function', $text);
+    return $self->_search_annotations('function', $text);
 }
 
 sub get_functions_for_sources {
