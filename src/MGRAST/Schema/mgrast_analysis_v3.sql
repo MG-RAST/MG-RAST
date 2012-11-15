@@ -18,11 +18,10 @@ CREATE TABLE job_info (
  updated_on timestamp NOT NULL DEFAULT LOCALTIMESTAMP,
  version smallint NOT NULL,
  job integer NOT NULL,
- rna_only boolean,
  loaded boolean
 );
-CREATE UNIQUE INDEX job_info_loaded ON job_info (loaded);
-CREATE UNIQUE INDEX job_info_rna ON job_info (rna_only);
+CREATE UNIQUE INDEX job_info_vj ON job_info (version, job);
+CREATE INDEX job_info_loaded ON job_info (loaded);
 CREATE TRIGGER job_info_update_timestamp BEFORE UPDATE ON job_info FOR EACH ROW EXECUTE PROCEDURE update_timestamp();
 
 DROP TABLE IF EXISTS job_md5s;
@@ -43,9 +42,9 @@ CREATE TABLE job_md5s (
  is_protein boolean
 );
 -- COPY job_md5s (version,job,md5,abundance,evals,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,seek,length,is_protein) FROM 'FILE' WITH NULL AS '';
-CREATE UNIQUE INDEX job_md5s_key ON job_md5s (version, job, md5);
-CREATE INDEX job_md5s_job_protein ON job_md5s (job, is_protein);
-CREATE INDEX job_md5s_seek_length ON job_md5s (seek, length);
+CREATE INDEX job_md5s_vj ON job_md5s (version, job);
+CREATE INDEX job_md5s_md5 ON job_md5s (md5);
+CREATE INDEX job_md5s_job_lookup ON job_md5s (exp_avg, len_avg, ident_avg);
 
 DROP TABLE IF EXISTS job_functions;
 CREATE TABLE job_functions (
@@ -63,7 +62,10 @@ CREATE TABLE job_functions (
  source text NOT NULL
 );
 -- COPY job_functions (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
-CREATE UNIQUE INDEX job_functions_key ON job_functions (version, job, id, source);
+CREATE INDEX job_functions_vj ON job_functions (version, job);
+CREATE INDEX job_functions_id ON job_functions (id);
+CREATE INDEX job_functions_source ON job_functions (source);
+CREATE INDEX job_functions_lookup ON job_functions (exp_avg, len_avg, ident_avg);
 
 DROP TABLE IF EXISTS job_organisms;
 CREATE TABLE job_organisms (
@@ -81,7 +83,10 @@ CREATE TABLE job_organisms (
  source text NOT NULL
 );
 -- COPY job_organisms (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
-CREATE UNIQUE INDEX job_organisms_key ON job_organisms (version, job, id, source);
+CREATE INDEX job_organisms_vj ON job_organisms (version, job);
+CREATE INDEX job_organisms_id ON job_organisms (id);
+CREATE INDEX job_organisms_source ON job_organisms (source);
+CREATE INDEX job_organisms_lookup ON job_organisms (exp_avg, len_avg, ident_avg);
 
 DROP TABLE IF EXISTS job_rep_organisms;
 CREATE TABLE job_rep_organisms (
@@ -98,7 +103,10 @@ CREATE TABLE job_rep_organisms (
  md5s char(32)[],
  source text NOT NULL
 );
-CREATE UNIQUE INDEX job_rep_organisms_key ON job_rep_organisms (version, job, id, source);
+CREATE INDEX job_rep_organisms_vj ON job_rep_organisms (version, job);
+CREATE INDEX job_rep_organisms_id ON job_rep_organisms (id);
+CREATE INDEX job_rep_organisms_source ON job_rep_organisms (source);
+CREATE INDEX job_rep_organisms_lookup ON job_rep_organisms (exp_avg, len_avg, ident_avg);
 
 DROP TABLE IF EXISTS job_ontologies;
 CREATE TABLE job_ontologies (
@@ -116,7 +124,10 @@ CREATE TABLE job_ontologies (
  source text NOT NULL
 );
 -- COPY job_ontologies (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
-CREATE UNIQUE INDEX job_ontologies_key ON job_ontologies (version, job, id, source);
+CREATE INDEX job_ontologies_vj ON job_ontologies (version, job);
+CREATE INDEX job_ontologies_id ON job_ontologies (id);
+CREATE INDEX job_ontologies_source ON job_ontologies (source);
+CREATE INDEX job_ontologies_lookup ON job_ontologies (exp_avg, len_avg, ident_avg);
 
 DROP TABLE IF EXISTS job_lcas;
 CREATE TABLE job_lcas (
@@ -134,8 +145,8 @@ CREATE TABLE job_lcas (
  level integer
 );
 -- COPY job_lcas (version,job,lca,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,level) FROM 'FILE' WITH NULL AS '';
-CREATE UNIQUE INDEX job_lcas_key ON job_lcas (version, job, lca);
-CREATE INDEX job_lcas_level ON job_lcas (level);
+CREATE INDEX job_lcas_vj ON job_lcas (version, job);
+CREATE INDEX job_lcas_lookup ON job_lcas (exp_avg, len_avg, ident_avg);
 
 DROP TABLE IF EXISTS functions;
 CREATE TABLE functions (
@@ -180,5 +191,5 @@ CREATE TABLE ontologies (
  name text,
  type text
 );
-CREATE INDEX ontologies_id ON ontologies (name);
+CREATE INDEX ontologies_name ON ontologies (name);
 CREATE INDEX ontologies_type ON ontologies (type);
