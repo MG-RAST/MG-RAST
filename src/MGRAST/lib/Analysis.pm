@@ -1188,7 +1188,7 @@ sub get_organisms_for_md5s {
     print STDERR $sql."\n"; 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
-        my $mg = $self->_mg_map($row->[0]);
+        my $mg = $self->_mg_map->{$row->[0]};
         if ($qmd5s) {
             my @has_md5 = grep { exists $md5_set{$_} } @{$row->[17]};
             next unless ((@has_md5 > 0) && exists($mg_md5_abund->{$mg}));
@@ -1282,7 +1282,7 @@ sub get_ontology_for_md5s {
     print STDERR $sql."\n"; 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
-        my $mg = $self->_mg_map($row->[0]);
+        my $mg = $self->_mg_map->{$row->[0]};
 	    if ($qmd5s) {
             my @has_md5 = grep { exists $md5_set{$_} } @{$row->[10]};
             next unless ((@has_md5 > 0) && exists($mg_md5_abund->{$mg}));
@@ -1354,7 +1354,7 @@ sub get_functions_for_md5s {
     print STDERR $sql."\n"; 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
-        my $mg = $self->_mg_map($row->[0]);
+        my $mg = $self->_mg_map->{$row->[0]};
         
         if ($qmd5s) {
             my @has_md5 = grep { exists $md5_set{$_} } @{$row->[10]};
@@ -1400,7 +1400,7 @@ sub get_lca_data {
     my $sql   = "SELECT DISTINCT job,lca,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv FROM ".$self->_jtbl->{lca}.$where;
 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        my $mg  = $self->_mg_map($row->[0]);
+        my $mg  = $self->_mg_map->{$row->[0]};
         my @tax = ('-','-','-','-','-','-','-','-');
         my @lca = split(/;/, $row->[1]);
         for (my $i=0; $i<@lca; $i++) {
@@ -1448,7 +1448,7 @@ sub get_md5_data {
     
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {        
         my $j  = pop @$row;
-        my $mg = $self->_mg_map($j);
+        my $mg = $self->_mg_map->{$j};
         push @{ $data->{$mg} }, [ $mg, @$row ];
     }
     foreach my $mg (keys %$data) {
@@ -1485,7 +1485,7 @@ sub get_md5_abundance {
     my $sql   = "SELECT DISTINCT job, md5, abundance FROM ".$self->_jtbl->{md5}.$where;
 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        $data->{ $self->_mg_map($row->[0]) }{$row->[1]} = $row->[2];
+        $data->{ $self->_mg_map->{$row->[0]} }{$row->[1]} = $row->[2];
     }
     foreach my $mg (keys %$data) {
         $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
@@ -1522,7 +1522,7 @@ sub get_org_md5 {
     my $sql = "SELECT DISTINCT j.job,a.name,j.md5s FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
     
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        my $mg = $self->_mg_map($row->[0]);
+        my $mg = $self->_mg_map->{$row->[0]};
         map { $data->{$mg}{$row->[1]}{$_} = 1 } @{ $row->[2] };
     }
     foreach my $mg (keys %$data) {
@@ -1560,7 +1560,7 @@ sub get_ontol_md5 {
     my $sql = "SELECT DISTINCT j.job,a.name,j.md5s FROM ".$self->_jtbl->{ontology}." j, ".$self->_atbl->{ontology}." a".$where;
     
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        my $mg = $self->_mg_map($row->[0]);
+        my $mg = $self->_mg_map->{$row->[0]};
         map { $data->{$mg}{$row->[1]}{$_} = 1 } @{ $row->[2] };
     }
     foreach my $mg (keys %$data) {
