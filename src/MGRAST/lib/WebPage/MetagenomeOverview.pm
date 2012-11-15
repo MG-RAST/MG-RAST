@@ -1597,7 +1597,7 @@ sub search_stuff {
   my $type = $self->application->cgi->param('type');
 
   my $colname = ($type eq 'org') ? 'Organism' : 'Function';
-  my $results = ($type eq 'org') ? $mgdb->search_organisms($text) : $mgdb->search_ontology($text);
+  my $results = ($type eq 'org') ? $mgdb->search_organisms($text) : $mgdb->search_functions($text);
 
   if (exists $results->{$mgid}) {
     my $data = [];
