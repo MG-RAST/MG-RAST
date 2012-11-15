@@ -66,9 +66,9 @@ $dbh->do("COPY (SELECT _id, name, type FROM sources) TO '$tmpdir/source_map' WIT
 $dbh->do("COPY (SELECT _id, name, ncbi_tax_id FROM organisms_ncbi) TO '$tmpdir/organism_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT _id, name FROM functions) TO '$tmpdir/function_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT _id, id, type FROM ontologies) TO '$tmpdir/ontology_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_protein) TO '$tmpdir/md5_protein_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_rna) TO '$tmpdir/md5_rna_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT DISTINCT m.md5, m.source, m.function, o._id FROM md5_ontology m, ontologies o WHERE m.id=o.id) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_protein ORDER BY md5) TO '$tmpdir/md5_protein_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_rna ORDER BY md5) TO '$tmpdir/md5_rna_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT m.md5, m.source, m.function, o._id FROM md5_ontology m, ontologies o WHERE m.id=o.id ORDER BY m.md5) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
 print STDERR "Done\n" if ($verbose);
 $dbh->disconnect;
 
