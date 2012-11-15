@@ -565,7 +565,7 @@ sub _search_annotations {
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", "a.name ~* ".$self->_dbh->quote($text)]);
     my $sql   = "SELECT DISTINCT j.job, j.source, a.name, j.abundance FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        push @{ $data->{ $self->_mg_map->{$row->[0]} } }, @$row[1,2,3];
+        push @{ $data->{ $self->_mg_map->{$row->[0]} } }, [ @$row[1,2,3] ];
     }
     foreach my $mg (keys %$data) {
         $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
@@ -1185,7 +1185,7 @@ sub get_organisms_for_md5s {
               "COALESCE(a.tax_species,'unassigned') AS txs,a.name";
     my $sql = "SELECT DISTINCT j.job,j.source,$tax,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
-
+    print STDERR $sql."\n"; 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->_mg_map($row->[0]);
@@ -1279,7 +1279,7 @@ sub get_ontology_for_md5s {
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,a.name,$level,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->_jtbl->{ontology}." j, ".$self->_atbl->{ontology}." a".$where;
-
+    print STDERR $sql."\n"; 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->_mg_map($row->[0]);
@@ -1351,7 +1351,7 @@ sub get_functions_for_md5s {
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,j.source,a.name,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->_jtbl->{function}." j, ".$self->_atbl->{function}." a".$where;        
-
+    print STDERR $sql."\n"; 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->_mg_map($row->[0]);
