@@ -44,7 +44,8 @@ CREATE TABLE job_md5s (
 -- COPY job_md5s (version,job,md5,abundance,evals,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,seek,length,is_protein) FROM 'FILE' WITH NULL AS '';
 CREATE INDEX job_md5s_vj ON job_md5s (version, job);
 CREATE INDEX job_md5s_md5 ON job_md5s (md5);
-CREATE INDEX job_md5s_job_lookup ON job_md5s (exp_avg, len_avg, ident_avg);
+CREATE INDEX job_md5s_lookup ON job_md5s (exp_avg, len_avg, ident_avg);
+CREATE INDEX job_md5s_index ON job_md5s (seek, length) WHERE seek IS NOT NULL AND length IS NOT NULL; 
 
 DROP TABLE IF EXISTS job_functions;
 CREATE TABLE job_functions (
