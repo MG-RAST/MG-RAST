@@ -81,6 +81,12 @@ sub init {
       }
     }
 
+    my $attr = $mgrast->JobAttributes->init({ job => $job, tag => 'deleted' });
+    if($attr) {
+      $self->app->add_message('warning', "Unable to view metagenome '$id' because it has been deleted.");
+      return 1;
+    }
+
     unless ($job->viewable) {
       $self->app->add_message('warning', "Unable to view metagenome '$id' because it is still processing.");
       return 1;
@@ -124,6 +130,12 @@ sub output {
     $self->application->add_message('info', 'Redirected from Metagenome Overview: No metagenome id given.');
     $self->application->do_redirect();
     exit;
+  }
+
+  my $non_ajax_action = $self->application->cgi->param('non_ajax_action') || '';
+  if($non_ajax_action eq 'delete_job') {
+    $self->delete_job();
+    return "";
   }
 
   my $job  = $self->data('job');
@@ -187,6 +199,20 @@ sub output {
   $html .= "<div style='clear: both; height: 10px'></div>";
   if ($user && $user->has_right(undef, 'edit', 'metagenome', $mgid)) {
     $html .= "<p><div class='quick_links'><ul>";
+
+    $self->{metagenome_id} = $mgid;
+
+    if (! $job->public) {
+	if($user->has_right(undef, 'delete', 'metagenome', $mgid)) {
+	    $html .= qq~<li><a style='cursor:pointer;' onclick='
+  if (document.getElementById("delete_div").style.display == "none") {
+    document.getElementById("delete_div").style.display = "inline";
+  } else {
+    document.getElementById("delete_div").style.display = "none";
+  }'>Delete</a></li>~;
+	}
+    }
+    
     $html .= "<li><a target=_blank href='?page=JobShare&metagenome=$mgid&job=".$job->job_id."'>Share</a></li>";
     $html .= qq~<li><a style='cursor:pointer;' onclick='
   if (document.getElementById("edit_name_div").style.display == "none") {
@@ -198,7 +224,14 @@ sub output {
     unless ($job->public) {
       $html .= "<li><a target=_blank href='?page=PublishGenome&metagenome=$mgid'>Make Public</a></li>";
     }
-    $html .= "</ul></div></p><p><div style='display:none;' id='edit_name_div'>".$self->edit_name_info($job)."</div></p>";
+
+    my $attr = $jobdbm->JobAttributes->init({ job => $job, tag => 'priority' });
+    if($attr->value eq 'never') {
+      $html .= "</ul></div></p><p><div style='display:none;' id='delete_div'>".$self->delete_info($job)."</div>";
+    } else {
+      $html .= "</ul></div></p><p><div style='display:none;' id='delete_div'><h3>Delete</h3><p>During job submission this job was marked to go public at some point in the future.  Thus, this job cannot be deleted.</p></div><br />";
+    }
+    $html .= "<div style='display:none;' id='edit_name_div'>".$self->edit_name_info($job)."</div></p>";
   }
 
   # get job stats
@@ -533,12 +566,8 @@ $drisee_boilerplate
   } else {
     document.getElementById("kmer_show").style.display = "none";
     this.innerHTML = "show";
-  }'>hide</Note that
-DRISEE is designed to examine sequencing error in raw whole genome
-shotgun sequence data. It assumes that adapter and/or barcode sequences have
-been removed, but that the sequence data have not been modified in
-any additional way. (e.g.) Assembly or merging , QC based triage or
-trimming will both reduce DRISEE's ability to provide an accurate assessment  of error by removing error before it is analyzed!   a></h3>
+  }'>hide</a></h3>
+<div id='kmer_show'>
 <a style='cursor:pointer;clear:both;padding-right:20px;' onclick='
     var new_type = document.getElementById("kmer_type").value;
     var new_size = document.getElementById("kmer_size").value;
@@ -553,10 +582,9 @@ trimming will both reduce DRISEE's ability to provide an accurate assessment  
   <option value='15'>15-mer</option>
   <option value='6'>6-mer</option>
 </select>
-<br><div id='kmer_show'>
   <img src='./Html/clear.gif' onload='execute_ajax("get_kmer_plot", "kmer_div", "metagenome=$mgid&job=$job_id&size=15&type=abundance");'>
   <div id='kmer_div'></div>
-</div>~;
+</div><br />~;
 
   # consensus plot
   if ($bp_consensus) {
@@ -868,7 +896,7 @@ sub edit_name_info {
   my $html = "<h3>Edit Metagenome Name</h3>";
   $html .= $self->start_form('edit_name', {metagenome => $job->metagenome_id, action => 'edit_name'});
   $html .= "Enter new metagenome name: <input type='text' name='new_name' style='width:250px;' value='".$job->name."' />";
-  $html .= "<span>&nbsp;&nbsp;&nbsp;</span><input type='submit' value='update'>".$self->end_form();
+  $html .= "<span>&nbsp;&nbsp;&nbsp;</span><input type='submit' value='update'>".$self->end_form()."<br />";
   return $html;
 }
 
@@ -903,6 +931,46 @@ sub edit_name {
   }
   return 1;
 }
+
+sub delete_info {
+  my ($self, $job) = @_;
+
+  my $html = "<h3>Delete</h3>";
+  $html .= $self->start_form('delete_job', {metagenome => $job->metagenome_id, non_ajax_action => 'delete_job'});
+  $html .= "<p><strong>To delete this job, type 'DELETE' into the textbox and click 'delete job'.<br /><div style='color:red;'>THIS WILL DELETE THE JOB AND ALL ASSOCIATED METADATA PERMANENTLY!</div></strong></p>";
+  $html .= "<input name='confirmation' type='text'>";
+  $html .= "&nbsp;&nbsp;&nbsp;<input type='submit' value='delete job'>".$self->end_form."<br />";
+  return $html;
+}
+
+sub delete_job {
+  my ($self) = @_;
+
+  my $application = $self->application;
+  my $user = $application->session->user;
+  my $cgi = $application->cgi;
+  my $jobdbm = $application->data_handle('MGRAST');
+  my $mgid = $cgi->param('metagenome');
+  my $job = $jobdbm->Job->init({ metagenome_id => $mgid });
+
+  my $conf = lc($cgi->param('confirmation'));
+  unless ($conf && $conf eq 'delete') {
+    $application->add_message('warning', "Unable to delete metagenome.");
+    return 1;
+  }
+
+  my ($status, $msg) = $job->user_delete($user);
+
+  if($status) {
+    $cgi->delete('metagenome_id');
+    $application->add_message('info', "Metagenome $mgid has been deleted");
+  } else {
+    $application->add_message('warning', $msg);
+  }
+
+  return 1;
+}
+
 
 sub get_summary_chart {
   # failed, unknown, unknown aa, ann aa, ann rna
