@@ -253,36 +253,36 @@ sub output {
                      <td width=250 style='vertical-align:middle;'>Converts selected sff files to fastq format.</td>
                      <td>
 		       <form style='margin:0;'>
-			 <div class="modal hide" id="mergeMatePairsModal" tabindex="-1" role="dialog" aria-labelledby="mergeMatePairsModalLabel" aria-hidden="true">
-			   <button style="display: none;" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Hidden merge mate-pairs button for enter key submission</button>
+			 <div class="modal hide" id="joinPairedEndsModal" tabindex="-1" role="dialog" aria-labelledby="joinPairedEndsModalLabel" aria-hidden="true">
+			   <button style="display: none;" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Hidden join paired-ends button for enter key submission</button>
 			   <div class="modal-header">
 			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-			     <h3 id="mergeMatePairsModalLabel">merge overlapping mate-pairs</h3>
+			     <h3 id="joinPairedEndsModalLabel">join paired-ends</h3>
 		           </div>
 			   <div class="modal-body">
-			     <p>Select file 1 of your mate-pairs:</p>
-			     <div id="mate_pair_one" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Select file 2 of your mate-pairs:</p>
-			     <div id="mate_pair_two" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Select the index (aka barcode) file of your mate-pairs (optional):</p>
-			     <div id="mate_pair_index" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Select if you would like to remove or retain non-overlapping mate-pairs:</p>
-			     <div id="mate_pair_select" style='margin: 10px 20px 0px 20px;'>
-                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="mate_pair_option" value="remove" checked><b> Remove</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - this is the default, non-overlapping mate-pairs will not appear in your output file.</td></tr></table>
-                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="mate_pair_option" value="retain"><b> Retain</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - non-overlapping mate-pairs will be retained in your output file as individual (non-merged) sequences.</td></tr></table><br>
+			     <p>Select file 1 of your paired-ends:</p>
+			     <div id="paired_end_one" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Select file 2 of your paired-ends:</p>
+			     <div id="paired_end_two" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Select the index (aka barcode) file of your paired-ends (optional):</p>
+			     <div id="paired_end_index" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Select if you would like to remove or retain non-overlapping paired-ends:</p>
+			     <div id="paired_end_select" style='margin: 10px 20px 0px 20px;'>
+                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="paired_end_option" value="remove" checked><b> Remove</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - this is the default, non-overlapping paired-ends will not appear in your output file.</td></tr></table>
+                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="paired_end_option" value="retain"><b> Retain</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - non-overlapping paired-ends will be retained in your output file as individual (non-joined) sequences.</td></tr></table><br>
                              </div>
-			     <p>Enter the desired name of your merge overlapping mate-pairs output file:</p>
-			     <div id="merge_mate_pairs_input" style='margin-top: 10px;'><input type="text" id="merge_output_filename" /></div>
+			     <p>Enter the desired name of your join paired-ends output file:</p>
+			     <div id="join_paired_ends_input" style='margin-top: 10px;'><input type="text" id="join_output_filename" /></div>
 		           </div>
 			   <div class="modal-footer">
 			     <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Merge Overlapping Mate-Pairs</button>
+			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Join Overlapping Paired-End Reads</button>
 		           </div>
 			 </div>
 		       </form>
-                       <input type="button" class="btn" style='width:130px;' value="merge overlapping" data-toggle="modal" href="#mergeMatePairsModal"">
+                       <input type="button" class="btn" style='width:130px;' value="join paired-ends" data-toggle="modal" href="#joinPairedEndsModal"">
                      </td>
-                     <td width=250 style='vertical-align:middle;'>Merges overlapping mate-pairs.</td>
+                     <td width=250 style='vertical-align:middle;'>Joins overlapping paired-end reads.</td>
                    </tr>
                  </table>
                  <br>
