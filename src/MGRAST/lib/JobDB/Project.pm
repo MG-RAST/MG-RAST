@@ -347,6 +347,10 @@ sub remove_job {
   if ($job->sample && ref($job->sample))   { $self->remove_collection( $job->sample ); }
   if ($job->library && ref($job->library)) { $self->remove_collection( $job->library ); }
 
+  my $dbh = $self->_master()->db_handle();
+  my $str = "UPDATE Job SET primary_project = NULL, _primary_project_db = NULL WHERE job_id = ".$job->job_id;
+  $dbh->do($str);
+
   return "success: job removed";
 }
 
