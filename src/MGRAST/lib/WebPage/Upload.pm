@@ -143,10 +143,9 @@ sub output {
         <div class="well" style='width: 240px; float: right;'>
 <h3>mini-faq</h3>
 <ul class="unstyled">
-<li><a href='http://blog.metagenomics.anl.gov/mg-rast-how-to-videos/#upload_single' target=_blank>Upload a single metagenome (Video)</a></li>
-<li><a href='http://blog.metagenomics.anl.gov/mg-rast-how-to-videos/#upload_multiple' target=_blank>Upload multiple metagenomes (Video)</a></li>
+<li><a href='http://metagenomics.anl.gov/metazen.cgi' target=_blank>Use MetaZen to create your metadata spreadsheet</a></li>
+<li><a href='http://www.youtube.com/watch?v=pAf19exJo4o&feature=youtu.be' target=_blank>Uploading a metagenome (Video)</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#inbox' target=_blank>Inbox explained</a></li>
-<li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Using cmd-line tools for submission</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#api_submission' target=_blank>Automated submission via our API</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#preparing_metadata' target=_blank>Preparing metadata</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#job_priority' target=_blank>Priority assignments explained</a></li>
@@ -883,7 +882,7 @@ sub validate_metadata {
 
   my ($is_valid, $data, $log) = MGRAST::Metadata->validate_metadata($md_file);
 
-  my $formatted_data = "<p>Your uploaded metadata did not pass validation. Please correct the file and upload again. The following errors were detected:</p>";
+  my $formatted_data = "<p>Your uploaded metadata did not pass validation. Please correct the file and upload again.  If you are having trouble creating a valid metadata spreadsheet, try out <a href='http://metagenomics.anl.gov/metazen.cgi' target=_blank>MetaZen</a>.  The following errors were detected:</p>";
   if ($is_valid) {
     $formatted_data = "<p>Your metadata file successfully passed validation.</p>";
     $project_name = $data->{data}->{project_name}->{value};
