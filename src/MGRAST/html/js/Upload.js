@@ -108,13 +108,13 @@ function update_inbox (data, files, action) {
         error_msg = DataStore['user_inbox'][user.login].computation_error_log[flist[i]];
       }
       if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
-	inbox_html += "<option style='color: red;'>(invalid seq file) "+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(invalid seq file) "+flist[i]+"</option>";
       } else if (isSeq && inf['Error']) {
-	inbox_html += "<option style='color: red;'>(seq stats error) "+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(seq stats error) "+flist[i]+"</option>";
       } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
-	inbox_html += "<option style='color: red;'>(non-unique seq IDs) "+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(non-unique seq IDs) "+flist[i]+"</option>";
       } else if (isSeq && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
-	inbox_html += "<option style='color: red;'>(seq file too small) "+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(seq file too small) "+flist[i]+"</option>";
       } else if (lock_msg != "") {
         inbox_html += "<option style='color: gray;' value='"+flist[i]+"'>("+lock_msg+") "+flist[i]+"</option>";
       } else if (error_msg != "") {
