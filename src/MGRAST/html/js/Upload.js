@@ -37,7 +37,7 @@ function update_inbox (data, files, action) {
     var dir_list_html = '<form><select id="dir_select">';
     dir_list_html += '  <option value="inbox">inbox (base directory)</option>';
     var delete_dir_list_html = '<form><select id="delete_dir_select">';
-    var mate_pair_file_list = "";
+    var paired_end_file_list = "";
     var inbox_html = '<select id="inbox_select" multiple style="width: 420px; height: 200px;">';
     var seq_dlist = [];
     var seqs_in_dir = false;
@@ -53,7 +53,7 @@ function update_inbox (data, files, action) {
       for (var h=0; h<DataStore['user_inbox'][user.login].fileinfo[dlist[i]].length; h++) {
 	var fn = DataStore['user_inbox'][user.login].fileinfo[dlist[i]][h];
         if(fn.match(/(fastq|fq)$/) && !(DataStore['user_inbox'][user.login].locks[dlist[i]+"/"+fn])) {
-          mate_pair_file_list += "  <option>"+dlist[i]+"/"+fn+"</option>";
+          paired_end_file_list += "  <option>"+dlist[i]+"/"+fn+"</option>";
         }
 	if (fn.match(is_a_sequence_file_ending)) {
 	  seq_dlist[dlist[i]] = 1;
@@ -69,13 +69,13 @@ function update_inbox (data, files, action) {
           error_msg = DataStore['user_inbox'][user.login].computation_error_log[dlist[i]+"/"+fn];
         }
 	if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(invalid seq file) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['Error']) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(seq stats error) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(non-unique seq IDs) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
-	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>"+fn+"</option>";
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(seq file too small) "+fn+"</option>";
 	} else if (lock_msg != "") {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: gray;' value='"+dlist[i]+"/"+fn+"'>("+lock_msg+") "+fn+"</option>";
 	} else if (error_msg != "") {
@@ -88,7 +88,7 @@ function update_inbox (data, files, action) {
     }
     for (var i=0; i<flist.length; i++) {
       if(flist[i].match(/(fastq|fq)$/) && !(DataStore['user_inbox'][user.login].locks[flist[i]])) {
-        mate_pair_file_list += "  <option>"+flist[i]+"</option>";
+        paired_end_file_list += "  <option>"+flist[i]+"</option>";
       }
       var isSeq = flist[i].match(is_a_sequence_file_ending);
       if (isSeq) {
@@ -108,13 +108,13 @@ function update_inbox (data, files, action) {
         error_msg = DataStore['user_inbox'][user.login].computation_error_log[flist[i]];
       }
       if ((seq_dlist[dlist[i]] == 1) && inf['file type'] && (inf['file type'] == 'malformed')) {
-	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;'>(invalid seq file) "+flist[i]+"</option>";
       } else if (isSeq && inf['Error']) {
-	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;'>(seq stats error) "+flist[i]+"</option>";
       } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
-	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;'>(non-unique seq IDs) "+flist[i]+"</option>";
       } else if (isSeq && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
-	inbox_html += "<option style='color: red;'>"+flist[i]+"</option>";
+	inbox_html += "<option style='color: red;'>(seq file too small) "+flist[i]+"</option>";
       } else if (lock_msg != "") {
         inbox_html += "<option style='color: gray;' value='"+flist[i]+"'>("+lock_msg+") "+flist[i]+"</option>";
       } else if (error_msg != "") {
@@ -124,10 +124,10 @@ function update_inbox (data, files, action) {
       }
     }
 
-    mate_pair_file_list += '</select></form>';
-    document.getElementById('mate_pair_one').innerHTML = '<form><select id="mate_pair_one_select">'+mate_pair_file_list;
-    document.getElementById('mate_pair_two').innerHTML = '<form><select id="mate_pair_two_select">'+mate_pair_file_list;
-    document.getElementById('mate_pair_index').innerHTML = '<form><select id="mate_pair_index_select"><option>none</option>'+mate_pair_file_list;
+    paired_end_file_list += '</select></form>';
+    document.getElementById('paired_end_one').innerHTML = '<form><select id="paired_end_one_select">'+paired_end_file_list;
+    document.getElementById('paired_end_two').innerHTML = '<form><select id="paired_end_two_select">'+paired_end_file_list;
+    document.getElementById('paired_end_index').innerHTML = '<form><select id="paired_end_index_select"><option>none</option>'+paired_end_file_list;
     dir_list_html += '</select></form>';
     document.getElementById('dir_list').innerHTML = dir_list_html;
     delete_dir_list_html += '</select></form>';
@@ -234,23 +234,23 @@ function update_inbox (data, files, action) {
       if (action == "del") {
 	loading_info += "Deleting file(s):";
       } else if (action == "convert") {
-	loading_info += "Converting sff file(s) to fastq. The resulting files will be processed for statistics. This will take a few minutes, depending on the file size.<br><br>";
+	loading_info += "Converting sff file(s) to fastq. The resulting files will be processed for statistics. This will take a few minutes, depending on the file size.<br>";
       } else if (action == "demultiplex") {
-	loading_info += "Submitting demultiplexing...<br><br>";
-      } else if (action == "merge_mate_pairs") {
-	loading_info += "Submitting mate-pair merging...<br><br>";
+	loading_info += "Submitting demultiplexing...<br>";
+      } else if (action == "join_paired_ends") {
+	loading_info += "Submitting paired-end joining...<br>";
+      } else if (action == "unpack") {
+	loading_info += "Unpacking file(s):";
       }
       for (var i=0; i<files.length; i++) {
 	params['query'][params['query'].length] = 'fn';
 	params['query'][params['query'].length] = files[i];
 	loading_info += "<br>"+files[i];
       }
-    }
-    if (document.getElementById('inbox_feedback').innerHTML != "") {
-      document.getElementById('inbox_feedback').innerHTML = "<img src='./Html/ajax-loader.gif'>"+loading_info;
+      loading_info += "<br>";
     }
 
-
+    document.getElementById('inbox_feedback').innerHTML = "<img src='./Html/ajax-loader.gif'>"+loading_info;
     get_objects('user_inbox', params, update_inbox, 1);    
   }
 }
@@ -296,25 +296,25 @@ function convert_files () {
   update_inbox(null, files, "convert");  
 }
 
-function merge_mate_pairs () {
-  var output_filename = document.getElementById('merge_output_filename').value;
+function join_paired_ends () {
+  var output_filename = document.getElementById('join_output_filename').value;
   var files = [];
-  files[0] = document.getElementById('mate_pair_one_select').value;
-  files[1] = document.getElementById('mate_pair_two_select').value;
-  files[2] = document.getElementById('mate_pair_index_select').value;
-  files[3] = $('input[@name="mate_pair_option"]:checked').val();
+  files[0] = document.getElementById('paired_end_one_select').value;
+  files[1] = document.getElementById('paired_end_two_select').value;
+  files[2] = document.getElementById('paired_end_index_select').value;
+  files[3] = $('input[@name="paired_end_option"]:checked').val();
 
   if (output_filename == "") {
-    alert("You need to enter an output filename to merge mate-pairs.");
+    alert("You need to enter an output filename to join paired-ends.");
     return false;
   } else if(files[0] == files[1]) {
     alert("You entered the same filename for both input files.  Your selection should include two different, paired fastq sequence files (.fq or .fastq)");
     return false;
   } else if(files[0] == files[2]) {
-    alert("You entered the same filename for mate pair file 1 and your index file.  These must be two different files (.fq or .fastq)");
+    alert("You entered the same filename for paired-end file 1 and your index file.  These must be two different files (.fq or .fastq)");
     return false;
   } else if(files[1] == files[2]) {
-    alert("You entered the same filename for mate pair file 2 and your index file.  These must be two different files (.fq or .fastq)");
+    alert("You entered the same filename for paired-end file 2 and your index file.  These must be two different files (.fq or .fastq)");
     return false;
   }
 
@@ -328,11 +328,11 @@ function merge_mate_pairs () {
     }
     if(seq_count1 == seq_count2) {
       if(seq_count3 != 0 && seq_count3 != seq_count1) {
-        alert("Your index (aka barcodes) file does not have the same number of sequence headers as your sequence files.  Merge mate-pairs cannot be run with this input.");
+        alert("Your index (aka barcodes) file does not have the same number of sequence headers as your sequence files.  Join paired-ends cannot be run with this input.");
         return false;
       }
     } else {
-      alert("Your input sequence files 1 and 2 do not have the same number of sequences in them.  Merge mate-pairs cannot be run with this input.");
+      alert("Your input sequence files 1 and 2 do not have the same number of sequences in them.  Join paired-ends cannot be run with this input.");
       return false;
     }
 
@@ -344,8 +344,8 @@ function merge_mate_pairs () {
       return false;
     }
     files[files.length] = output_filename;
-    alert("Your output file will be saved in your Inbox base directory as: "+output_filename+"\n\nThis might take some minutes, depending on filesize.  When the merging has finished, your inbox will update automatically.\n\n");
-    update_inbox(null, files, "merge_mate_pairs");
+    alert("Your output file will be saved in your Inbox base directory as: "+output_filename+"\n\nThis might take some minutes, depending on filesize.  When the joining has finished, your inbox will update automatically.\n\n");
+    update_inbox(null, files, "join_paired_ends");
   } else {
     alert("Your selection must include two input fastq sequence files (.fq or .fastq) and if an index file is included it must also be in fastq format.");
     return false;
