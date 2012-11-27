@@ -127,24 +127,69 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	
 	# decompress a list of files
 	if ($action eq 'unpack') {
+	    my @files_to_unpack = ();
+	    my %files_to_filetype = ();
+	    my %files_to_lockfiles = ();
+	    # We want to create ALL the lock files before doing any operations on the files.
 	    foreach my $file (@files) {
+		if (-f "$udir/$file") {
+		    # This if/else block is used to get the base filename but also records the
+		    # filetype so that the correct decompression can be called below and the
+		    # regex's and if/else logic only need to be maintined in one location (here).
+		    my $basename = $file;
+		    if ($basename =~ s/^(.*)\.(tar\.gz|tgz)$/$1/) {
+			$files_to_filetype{$file} = 'tar gzip';
+		    } elsif ($basename =~ s/^(.*)\.zip$/$1/) {
+			$files_to_filetype{$file} = 'zip';
+		    } elsif ($basename =~ s/^(.*)\.(tar\.bz2|tbz|tbz2|tb2)$/$1/) {
+			$files_to_filetype{$file} = 'tar bzip2';
+		    } elsif ($basename =~ s/^(.*)\.gz$/$1/) {
+			$files_to_filetype{$file} = 'gzip';
+		    } elsif ($basename =~ s/^(.*)\.bz2$/$1/) {
+			$files_to_filetype{$file} = 'bzip2';
+		    }
+
+                    my $lock_file1 = "$udir/$file.lock";
+                    my $lock_file2 = "$udir/$basename.lock";
+                    if (-f $lock_file1) {
+                	my $lock_msg = `cat $lock_file1`;
+                	chomp $lock_msg;
+			push(@{$data->[0]->{popup_messages}}, "Unable to decompress $file, currently running $lock_msg.");
+                    } elsif (-f $lock_file2) {
+                	my $lock_msg = `cat $lock_file2`;
+                	chomp $lock_msg;
+			push(@{$data->[0]->{popup_messages}}, "Unable to decompress $file to $basename, currently running $lock_msg.");
+                    } else {
+			`echo "decompressing" > $lock_file1`;
+			`echo "decompressing" > $lock_file2`;
+			push @files_to_unpack, $file;
+			push @{$files_to_lockfiles{$file}}, $lock_file1;
+			push @{$files_to_lockfiles{$file}}, $lock_file2;
+		    }
+		}
+	    }
+	    foreach my $file (@files_to_unpack) {
 		my @msg;
 		if (-f "$udir/$file") {
-		    if ($file =~ /\.(tar\.gz|tgz)$/) {
+		    if ($files_to_filetype{$file} eq 'tar gzip') {
 			@msg = `tar -xzf '$udir/$file' -C $udir 2>&1`;
-		    } elsif ($file =~ /\.zip$/) {
+		    } elsif ($files_to_filetype{$file} eq 'zip') {
 			@msg = `unzip -q -o -d $udir '$udir/$file' 2>&1`;
-		    } elsif ($file =~ /\.(tar\.bz2|tbz|tbz2|tb2)$/) {
+		    } elsif ($files_to_filetype{$file} eq 'tar bzip2') {
 			@msg = `tar -xjf '$udir/$file' -C $udir 2>&1`;
-		    } elsif ($file =~ /\.gz$/) {
+		    } elsif ($files_to_filetype{$file} eq 'gzip') {
 			@msg = `gunzip -d '$udir/$file' 2>&1`;
-		    } elsif ($file =~ /\.bz2$/) {
+		    } elsif ($files_to_filetype{$file} eq 'bzip2') {
 			@msg = `bunzip2 -d '$udir/$file' 2>&1`;
 		    }
 
                     if(@msg > 0) {
                         push(@{$data->[0]->{popup_messages}}, "Output from unpacking file $file:\n".join("\n",@msg));
                     }
+
+		    foreach my $lock_file (@{$files_to_lockfiles{$file}}) {
+			`rm $lock_file`;
+		    }
 		}
 	    }
 	}
@@ -167,16 +212,16 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    }
 	}
 
-        # merge_mate_pairs, there will be two paired-end fastq files
-        if ($action eq 'merge_mate_pairs') {
+        # join_paired_ends, there will be two paired-end fastq files
+        if ($action eq 'join_paired_ends') {
             # do stuff
-	    my $seqfile1; # mate-pair file 1
-	    my $seqfile2; # mate-pair file 2
+	    my $seqfile1; # paired-end file 1
+	    my $seqfile2; # paired-end file 2
 	    my $seqfile3; # index file
 	    my $filetype1;
 	    my $filetype2;
 	    my $filetype3;
-	    my $join_option; # option to include non-overlapping mate-pairs
+	    my $join_option; # option to include non-overlapping paired-ends
             my $joinfile; # output filename
 
 	    my $has_seqs = 0;
@@ -211,21 +256,21 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 if (-f $lock_file1) {
                     my $lock_msg = `cat $lock_file1`;
                     chomp $lock_msg;
-		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
+		    push(@{$data->[0]->{popup_messages}}, "Unable to join paired-ends on $seqfile1 and $seqfile2, currently running $lock_msg.");
                 } elsif (-f $lock_file2) {
                     my $lock_msg = `cat $lock_file2`;
                     chomp $lock_msg;
-		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
+		    push(@{$data->[0]->{popup_messages}}, "Unable to join paired-ends on $seqfile1 and $seqfile2, currently running $lock_msg.");
                 } elsif (-f $lock_file3) {
                     my $lock_msg = `cat $lock_file3`;
                     chomp $lock_msg;
-		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
+		    push(@{$data->[0]->{popup_messages}}, "Unable to join paired-ends on $seqfile1 and $seqfile2, currently running $lock_msg.");
                 } else {
 		    my $jobid = $user->{login};
 		    $jobid =~ s/\s/_/g;
-		    `echo "computing merge mate-pairs" > $lock_file1`;
-		    `echo "computing merge mate-pairs" > $lock_file2`;
-		    if($lock_file3 ne "") { `echo "computing merge mate-pairs" > $lock_file3`; }
+		    `echo "computing join paired-ends" > $lock_file1`;
+		    `echo "computing join paired-ends" > $lock_file2`;
+		    if($lock_file3 ne "") { `echo "computing join paired-ends" > $lock_file3`; }
 		    my $jnum = "";
                     my $command = "";
 		    if($join_option eq 'remove') {
@@ -249,7 +294,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 }
 	    }
 	    else {
-		push(@{$data->[0]->{popup_messages}}, "Unknown file types for merge mate-pairs, please select two .fastq or .fq input sequence files.  Also, if an index file is included, that file must also be in fastq format with an appropriate file extension.");
+		push(@{$data->[0]->{popup_messages}}, "Unknown file types for join paired-ends, please select two .fastq or .fq input sequence files.  Also, if an index file is included, that file must also be in fastq format with an appropriate file extension.");
 	    }
 	}
 	
@@ -443,6 +488,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	# create basic and extended file information if we do not yet have it and there is no lock file present
 	if (! $info_files->{$sequence_file} && ! -f $lock_file) {
+            `echo "computing sequence stats" > $lock_file`;
 	    `touch "$udir/$sequence_file.stats_info"`;
 	    my $file_type = &file_type($sequence_file, $udir);
 	    my @msg;
@@ -493,7 +539,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	    # call the extended information
 	    if ($file_type eq 'ASCII text') {
-                `echo "computing sequence stats" > $lock_file`;
 		my $jobid = $user->{login};
 		$jobid =~ s/\s/_/g;
 		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;

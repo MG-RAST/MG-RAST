@@ -1260,6 +1260,46 @@ sub get_timestamp {
 # delete methods
 #################
 
+sub user_delete {
+  my ($self, $user) = @_;
+
+  my $jobdbm = $self->_master();
+  my $mgid = $self->metagenome_id;
+
+  if ($self->public) {
+    return(0, "Unable to delete metagenome '$mgid' as it has been made public.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+  }
+
+  unless( $user and $user->has_right(undef, 'delete', 'metagenome', $mgid) ) {
+    return (0, "Unable to delete metagenome '$mgid'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+  }
+
+  unless ($self->viewable) {
+    return (0, "Unable to delete metagenome '$mgid' because it is still processing.");
+  }
+
+  if($self->primary_project) {
+    $self->primary_project->remove_job($self);
+  }
+
+  # using argument 0 does not work, argument 'null' sets viewable to 0
+  $self->viewable('null');
+
+  $jobdbm->JobAttributes->create({ job => $self, tag => 'deleted', value => 'deleted by ' . $user->login });
+
+  my $webappdb = DBMaster->new(-database => $Conf::webapplication_db,
+                               -backend  => $Conf::webapplication_backend,
+                               -host     => $Conf::webapplication_host,
+                               -user     => $Conf::webapplication_user);
+
+  my $job_rights = $webappdb->Rights->get_objects( { data_type => 'metagenome', data_id => $mgid  } );
+  foreach my $r (@$job_rights) {
+    $r->delete;
+  }
+
+  return (1, "");
+}
+
 sub delete {
   my ($self) = @_;
 

@@ -143,10 +143,9 @@ sub output {
         <div class="well" style='width: 240px; float: right;'>
 <h3>mini-faq</h3>
 <ul class="unstyled">
-<li><a href='http://blog.metagenomics.anl.gov/mg-rast-how-to-videos/#upload_single' target=_blank>Upload a single metagenome (Video)</a></li>
-<li><a href='http://blog.metagenomics.anl.gov/mg-rast-how-to-videos/#upload_multiple' target=_blank>Upload multiple metagenomes (Video)</a></li>
+<li><a href='http://metagenomics.anl.gov/metazen.cgi' target=_blank>Use MetaZen to create your metadata spreadsheet</a></li>
+<li><a href='http://www.youtube.com/watch?v=pAf19exJo4o&feature=youtu.be' target=_blank>Uploading a metagenome (Video)</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#inbox' target=_blank>Inbox explained</a></li>
-<li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Using cmd-line tools for submission</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#api_submission' target=_blank>Automated submission via our API</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#preparing_metadata' target=_blank>Preparing metadata</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#job_priority' target=_blank>Priority assignments explained</a></li>
@@ -253,36 +252,36 @@ sub output {
                      <td width=250 style='vertical-align:middle;'>Converts selected sff files to fastq format.</td>
                      <td>
 		       <form style='margin:0;'>
-			 <div class="modal hide" id="mergeMatePairsModal" tabindex="-1" role="dialog" aria-labelledby="mergeMatePairsModalLabel" aria-hidden="true">
-			   <button style="display: none;" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Hidden merge mate-pairs button for enter key submission</button>
+			 <div class="modal hide" id="joinPairedEndsModal" tabindex="-1" role="dialog" aria-labelledby="joinPairedEndsModalLabel" aria-hidden="true">
+			   <button style="display: none;" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Hidden join paired-ends button for enter key submission</button>
 			   <div class="modal-header">
 			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-			     <h3 id="mergeMatePairsModalLabel">merge overlapping mate-pairs</h3>
+			     <h3 id="joinPairedEndsModalLabel">join paired-ends</h3>
 		           </div>
 			   <div class="modal-body">
-			     <p>Select file 1 of your mate-pairs:</p>
-			     <div id="mate_pair_one" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Select file 2 of your mate-pairs:</p>
-			     <div id="mate_pair_two" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Select the index (aka barcode) file of your mate-pairs (optional):</p>
-			     <div id="mate_pair_index" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
-			     <p>Select if you would like to remove or retain non-overlapping mate-pairs:</p>
-			     <div id="mate_pair_select" style='margin: 10px 20px 0px 20px;'>
-                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="mate_pair_option" value="remove" checked><b> Remove</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - this is the default, non-overlapping mate-pairs will not appear in your output file.</td></tr></table>
-                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="mate_pair_option" value="retain"><b> Retain</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - non-overlapping mate-pairs will be retained in your output file as individual (non-merged) sequences.</td></tr></table><br>
+			     <p>Select file 1 of your paired-ends:</p>
+			     <div id="paired_end_one" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Select file 2 of your paired-ends:</p>
+			     <div id="paired_end_two" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Select the index (aka barcode) file of your paired-ends (optional):</p>
+			     <div id="paired_end_index" style='margin-top: 10px;'><br><br><img src="./Html/ajax-loader.gif"> loading...</div>
+			     <p>Select if you would like to remove or retain non-overlapping paired-ends:</p>
+			     <div id="paired_end_select" style='margin: 10px 20px 0px 20px;'>
+                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="paired_end_option" value="remove" checked><b> Remove</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - this is the default, non-overlapping paired-ends will not appear in your output file.</td></tr></table>
+                               <table style='margin: 0px;'><tr><td nowrap="nowrap"><input type="radio" name="paired_end_option" value="retain"><b> Retain</b>&nbsp;</td><td style='padding:4px 0px 0px 0px;'> - non-overlapping paired-ends will be retained in your output file as individual (non-joined) sequences.</td></tr></table><br>
                              </div>
-			     <p>Enter the desired name of your merge overlapping mate-pairs output file:</p>
-			     <div id="merge_mate_pairs_input" style='margin-top: 10px;'><input type="text" id="merge_output_filename" /></div>
+			     <p>Enter the desired name of your join paired-ends output file:</p>
+			     <div id="join_paired_ends_input" style='margin-top: 10px;'><input type="text" id="join_output_filename" /></div>
 		           </div>
 			   <div class="modal-footer">
 			     <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="merge_mate_pairs();" data-dismiss="modal" aria-hidden="true">Merge Overlapping Mate-Pairs</button>
+			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Join Overlapping Paired-End Reads</button>
 		           </div>
 			 </div>
 		       </form>
-                       <input type="button" class="btn" style='width:130px;' value="merge overlapping" data-toggle="modal" href="#mergeMatePairsModal"">
+                       <input type="button" class="btn" style='width:130px;' value="join paired-ends" data-toggle="modal" href="#joinPairedEndsModal"">
                      </td>
-                     <td width=250 style='vertical-align:middle;'>Merges overlapping mate-pairs.</td>
+                     <td width=250 style='vertical-align:middle;'>Joins overlapping paired-end reads.</td>
                    </tr>
                  </table>
                  <br>
@@ -883,7 +882,7 @@ sub validate_metadata {
 
   my ($is_valid, $data, $log) = MGRAST::Metadata->validate_metadata($md_file);
 
-  my $formatted_data = "<p>Your uploaded metadata did not pass validation. Please correct the file and upload again. The following errors were detected:</p>";
+  my $formatted_data = "<p>Your uploaded metadata did not pass validation. Please correct the file and upload again.  If you are having trouble creating a valid metadata spreadsheet, try out <a href='http://metagenomics.anl.gov/metazen.cgi' target=_blank>MetaZen</a>.  The following errors were detected:</p>";
   if ($is_valid) {
     $formatted_data = "<p>Your metadata file successfully passed validation.</p>";
     $project_name = $data->{data}->{project_name}->{value};
