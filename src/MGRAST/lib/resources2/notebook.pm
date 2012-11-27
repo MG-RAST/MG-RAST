@@ -114,15 +114,17 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
-    # clone node if requested
+    # clone node if requested (update shock attributes and ipynb metadata)
     if (@{$self->rest} > 1) {
-        my $attr = { type => $node->{attributes}{type},
-                     name => $node->{attributes}{name},
+        my $file = $self->json->decode( $self->get_shock_file($node->{id}) );
+        my $attr = { type => $node->{attributes}{type} || 'ipynb',
+                     name => $node->{attributes}{name} || '',
                      user => $uname || 'public',
                      uuid => $self->rest->[1],
                      created => strftime("%Y-%m-%dT%H:%M:%S", localtime)
                    };
-        my $clone = $self->create_virtual_shock_node($node->{id}, $attr);
+        $file->['metadata'] = $attr;
+        my $clone = $self->set_shock_node($node->{id}.'ipynb', $file, $attr);
         $data = $self->prepare_data( [$clone] );
     } else {
         $data = $self->prepare_data( [$node] );
@@ -169,7 +171,7 @@ sub prepare_data {
         my $url = $self->cgi->url;
         my $obj = {};
         $obj->{id}       = $node->{id};
-        $obj->{name}     = $node->{attributes}{name};
+        $obj->{name}     = $node->{attributes}{name} || '';
         $obj->{uuid}     = $node->{attributes}{uuid};
         $obj->{created}  = $node->{attributes}{created};
         $obj->{version}  = 1;
