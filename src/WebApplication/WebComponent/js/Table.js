@@ -212,8 +212,11 @@ function export_table (id, unfiltered, strip_html, hide_invisible_columns) {
     }
     data_string = data_string + curr_line.join("\t") + "\n";
   }
-  var noapo = new RegExp("'","g");
-  data_string = data_string.replace(noapo, "&#39;");
+  // If we're not stripping out HTML, then replace apostrophe with HTML apostrophe code.
+  if (! strip_html) {
+    var noapo = new RegExp("'","g");
+    data_string = data_string.replace(noapo, "&#39;");
+  }
   var dform = document.createElement("form");
   dform.setAttribute("method", "post");
   dform.setAttribute("action", dcgiPath());
