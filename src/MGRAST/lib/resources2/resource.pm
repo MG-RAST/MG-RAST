@@ -355,6 +355,23 @@ sub create_virtual_shock_node {
     }
 }
 
+sub set_shock_node {
+    my ($self, $name, $file, $attr) = @_;
+    
+    my $attr_str = $self->json->encode($attr);
+    my $file_str = $self->json->encode($file);
+    my $content  = [ attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str] ];
+    my $response = undef;
+    eval {
+        $response = $self->json->decode( $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data')->content );
+    };
+    if ($@ || (! ref($response)) || $response->{E}) {
+        return undef;
+    } else {
+        return $response->{D};
+    }
+}
+
 sub get_shock_node {
     my ($self, $id) = @_;
     
