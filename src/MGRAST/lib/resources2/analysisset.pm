@@ -1,4 +1,4 @@
-package resources2::sequenceset;
+package resources2::analysisset;
 
 use strict;
 use warnings;
@@ -15,8 +15,8 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name}       = "sequenceset";
-    $self->{attributes} = { "data" => [ 'file', 'requested sequence file' ] };
+    $self->{name}       = "analysisset";
+    $self->{attributes} = { "data" => [ 'file', 'requested analysis file' ] };
     return $self;
 }
 
@@ -26,7 +26,7 @@ sub info {
     my ($self)  = @_;
     my $content = { 'name' => $self->name,
 		    'url' => $self->cgi->url."/".$self->name,
-		    'description' => "A set / subset of genomic sequences of a metagenome from a specific stage in its analysis",
+		    'description' => "An analysis file from the processing of a metagenome from a specific stage in its analysis",
 		    'type' => 'object',
 		    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
@@ -36,8 +36,8 @@ sub info {
 				      'type'        => "synchronous" ,  
 				      'attributes'  => "self",
 				      'parameters'  => { 'options'     => {},
-							             'required'    => {},
-							             'body'        => {} } },
+							 'required'    => {},
+							 'body'        => {} } },
 				    { 'name'        => "instance",
 				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
 				      'description' => "Returns a single sequence file.",
@@ -45,19 +45,19 @@ sub info {
 				      'type'        => "synchronous" ,  
 				      'attributes'  => $self->attributes,
 				      'parameters'  => { 'options'     => {},
-							 'required'    => { "id" => [ "string", "unique sequence set identifier - to get a list of all identifiers for a metagenome, use the setlist request" ] },
+							 'required'    => { "id" => [ "string", "unique analysis set identifier - to get a list of all identifiers for a metagenome, use the setlist request" ] },
 							 'body'        => {} } },
 				    { 'name'        => "setlist",
 				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
 				      'description' => "Returns a list of sets of sequence files for the given id.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
-				      'attributes'  => { "stage_name" => [ "string", "name of the stage in processing of this sequence file" ],
-							 "file_name"  => [ "string", "name of the sequence file" ],
-							 "stage_type" => [ "string", "type of the sequence file within a stage, i.e. passed or removed for quality control steps" ],
-							 "id"         => [ "string", "unique identifier of the sequence file" ],
+				      'attributes'  => { "stage_name" => [ "string", "name of the stage in processing of this file" ],
+							 "file_name"  => [ "string", "name of the analysis file" ],
+							 "stage_type" => [ "string", "type of the analysis file within a stage, i.e. passed or removed for quality control steps" ],
+							 "id"         => [ "string", "unique identifier of the analysis file" ],
 							 "stage_id"   => [ "string", "three digit numerical identifier of the stage" ],
-							 "url"        => [ "string", "url for retrieving this sequence file" ] },
+							 "url"        => [ "string", "url for retrieving this analysis file" ] },
 				      'parameters'  => { 'options'     => {},
 							 'required'    => { "id" => [ "string", "unique metagenome identifier" ] },
 							 'body'        => {} } },
@@ -106,7 +106,7 @@ sub instance {
     my $prefix   = ($stageid eq "050") ? '' : $stageid;
     my $filename = '';
 	if (opendir(my $dh, $filedir)) {
-	    my @files = sort grep { /^$prefix.*(fna|fastq)(\.gz)?$/ && -f "$filedir/$_" } readdir($dh);
+	    my @files = sort grep { -f "$filedir/$_" } readdir($dh);
 	    closedir $dh;
 	    $filename = $files[$stagenum - 1];
 	} else {
@@ -124,17 +124,17 @@ sub setlist {
     my $stages = [];
     
     if (opendir(my $dh, $rdir)) {
-        my @rawfiles = sort grep { /^.*(fna|fastq)(\.gz)?$/ && -f "$rdir/$_" } readdir($dh);
+        my @rawfiles = sort grep { -f "$rdir/$_" } readdir($dh);
         closedir $dh;
         my $fnum = 1;
         foreach my $rf (@rawfiles) {
-            my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
-            push(@$stages, { id         => "mgm".$job->metagenome_id."-050-".$fnum,
-		                     url        => $self->cgi->url.'/sequenceset/'."mgm".$job->metagenome_id."-050-".$fnum,
-		                     stage_id   => "050",
-		                     stage_name => "upload",
-		                     stage_type => $ftype,
-		                     file_name  => $rf });
+	  my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
+	  push(@$stages, { id         => "mgm".$job->metagenome_id."-050-".$fnum,
+			   url        => $self->cgi->url.'/sequenceset/'."mgm".$job->metagenome_id."-050-".$fnum,
+			   stage_id   => "050",
+			   stage_name => "upload",
+			   stage_type => $ftype,
+			   file_name  => $rf });
             $fnum += 1;
         }
     } else {
@@ -142,30 +142,30 @@ sub setlist {
     }
     
     if (opendir(my $dh, $adir)) {
-        my @stagefiles = sort grep { /^.*(fna|faa)(\.gz)?$/ && -f "$adir/$_" } readdir($dh);
-        closedir $dh;
-        my $stagehash = {};
-        foreach my $sf (@stagefiles) {
-            my ($stageid, $stagename, $stageresult) = $sf =~ /^(\d+)\.([^\.]+)\.([^\.]+)\.(fna|faa)(\.gz)?$/;
-            next unless ($stageid && $stagename && $stageresult);
-            if (exists($stagehash->{$stageid})) {
-	            $stagehash->{$stageid}++;
-            } else {
-	            $stagehash->{$stageid} = 1;
-            }
-            push(@$stages, { id         => "mgm".$job->metagenome_id."-".$stageid."-".$stagehash->{$stageid},
-		                     url        => $self->cgi->url.'/sequenceset/'."mgm".$job->metagenome_id."-".$stageid."-".$stagehash->{$stageid},
-		                     stage_id   => $stageid,
-		                     stage_name => $stagename,
-		                     stage_type => $stageresult,
-		                     file_name  => $sf });
-        }
+      my @stagefiles = sort grep { -f "$adir/$_" } readdir($dh);
+      closedir $dh;
+      my $stagehash = {};
+      foreach my $sf (@stagefiles) {
+	my ($stageid, $stagename, $stageresult) = $sf =~ /^(\d+)\.([^\.]+)\.([^\.]+)\.(fna|faa)(\.gz)?$/;
+	next unless ($stageid && $stagename && $stageresult);
+	if (exists($stagehash->{$stageid})) {
+	  $stagehash->{$stageid}++;
+	} else {
+	  $stagehash->{$stageid} = 1;
+	}
+	push(@$stages, { id         => "mgm".$job->metagenome_id."-".$stageid."-".$stagehash->{$stageid},
+			 url        => $self->cgi->url.'/sequenceset/'."mgm".$job->metagenome_id."-".$stageid."-".$stagehash->{$stageid},
+			 stage_id   => $stageid,
+			 stage_name => $stagename,
+			 stage_type => $stageresult,
+			 file_name  => $sf });
+      }
     } else {
-        $self->return_data( {"ERROR" => "job directory could not be opened"}, 404 );
+      $self->return_data( {"ERROR" => "job directory could not be opened"}, 404 );
     }
     
     if (@$stages > 0) {
-        $self->return_data($stages);
+      $self->return_data($stages);
     } else {
         $self->return_data( {"ERROR" => "no stagefiles found"}, 404 );
     }
