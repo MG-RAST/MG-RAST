@@ -27,6 +27,8 @@ sub new {
                             "created"  => [ 'date',    'time the object was first created' ],
                             "version"  => [ 'integer', 'version of the object' ],
                             "url"      => [ 'uri',     'resource location of this object instance' ],
+                            "status"   => ['cv', [['public', 'object is public'],
+           										  ['private', 'object is private']]],
                             "sequence_type" => [ 'string', 'sequencing type' ]
                           };
     return $self;
@@ -188,6 +190,7 @@ sub prepare_data {
         my $obj = {};
         $obj->{id}      = "mgm".$job->{metagenome_id};
         $obj->{name}    = $job->{name};
+        $obj->{status}  = $job->{public} ? 'public' : 'private';
         $obj->{url}     = $url.'/metagenome/'.$obj->{id};
         $obj->{created} = $job->{created_on};
 
