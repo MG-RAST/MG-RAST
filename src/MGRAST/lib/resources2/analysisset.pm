@@ -69,51 +69,51 @@ sub info {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self) = @_;
-    
-    # check id format
-    my $show_list = 0;
-    my $rest = $self->rest;
-    my ($pref, $mgid, $stageid, $stagenum) = $rest->[0] =~ /^(mgm)?([\d\.]+)-(\d+)-(\d+)$/;
-    if (! $mgid && scalar(@$rest)) {
-        ($pref, $mgid) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
-        if (! $mgid) {
-            $self->return_data({"ERROR" => "invalid id format: ".$rest->[0] }, 400);
-        } else {
-            $show_list = 1;
-        }
-    }
-
-    # get database
-    my $master = $self->connect_to_datasource();
+  my ($self) = @_;
   
-    # get data
-    my $job = $master->Job->init( { metagenome_id => $mgid } );
-    unless ($job && ref($job)) {
-        $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
+  # check id format
+  my $show_list = 0;
+  my $rest = $self->rest;
+  my ($pref, $mgid, $stageid, $stagenum) = $rest->[0] =~ /^(mgm)?([\d\.]+)-(\d+)-(\d+)$/;
+  if (! $mgid && scalar(@$rest)) {
+    ($pref, $mgid) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
+    if (! $mgid) {
+      $self->return_data({"ERROR" => "invalid id format: ".$rest->[0] }, 400);
+    } else {
+      $show_list = 1;
     }
-    
-    # check rights
-    unless ($job->{public} || $self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id})) {
-        $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
-    }
-    
-    if ($show_list) {
-        $self->setlist($job);
-    }
-    
-    my $filedir  = ($stageid eq "050") ? $job->download_dir : $job->analysis_dir;
-    my $prefix   = ($stageid eq "050") ? '' : $stageid;
-    my $filename = '';
-	if (opendir(my $dh, $filedir)) {
-	    my @files = sort grep { -f "$filedir/$_" } readdir($dh);
-	    closedir $dh;
-	    $filename = $files[$stagenum - 1];
-	} else {
-	    $self->return_data( {"ERROR" => "could open job directory"}, 404 );
-	}
-	
-	$self->return_file($filedir, $filename);
+  }
+  
+  # get database
+  my $master = $self->connect_to_datasource();
+  
+  # get data
+  my $job = $master->Job->init( { metagenome_id => $mgid } );
+  unless ($job && ref($job)) {
+    $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
+  }
+  
+  # check rights
+  unless ($job->{public} || $self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id})) {
+    $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+  }
+  
+  if ($show_list) {
+    $self->setlist($job);
+  }
+  
+  my $filedir  = ($stageid eq "050") ? $job->download_dir : $job->analysis_dir;
+  my $prefix   = ($stageid eq "050") ? '' : $stageid;
+  my $filename = '';
+  if (opendir(my $dh, $filedir)) {
+    my @files = sort grep { /^$prefix/ && -f "$filedir/$_" } readdir($dh);
+    closedir $dh;
+    $filename = $files[$stagenum - 1];
+  } else {
+    $self->return_data( {"ERROR" => "could open job directory"}, 404 );
+  }
+  
+  $self->return_file($filedir, $filename);
 }
 
 sub setlist {
@@ -128,9 +128,9 @@ sub setlist {
         closedir $dh;
         my $fnum = 1;
         foreach my $rf (@rawfiles) {
-	  my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
+	  my ($jid, $ftype) = $rf =~ /^(\d+)\.([^\.]+)/;
 	  push(@$stages, { id         => "mgm".$job->metagenome_id."-050-".$fnum,
-			   url        => $self->cgi->url.'/sequenceset/'."mgm".$job->metagenome_id."-050-".$fnum,
+			   url        => $self->cgi->url.'/analysisset/'."mgm".$job->metagenome_id."-050-".$fnum,
 			   stage_id   => "050",
 			   stage_name => "upload",
 			   stage_type => $ftype,
@@ -146,7 +146,7 @@ sub setlist {
       closedir $dh;
       my $stagehash = {};
       foreach my $sf (@stagefiles) {
-	my ($stageid, $stagename, $stageresult) = $sf =~ /^(\d+)\.([^\.]+)\.([^\.]+)\.(fna|faa)(\.gz)?$/;
+	my ($stageid, $stagename, $stageresult) = $sf =~ /^(\d+)\.([^\.]+)\.([^\.]+)/;
 	next unless ($stageid && $stagename && $stageresult);
 	if (exists($stagehash->{$stageid})) {
 	  $stagehash->{$stageid}++;
@@ -154,7 +154,7 @@ sub setlist {
 	  $stagehash->{$stageid} = 1;
 	}
 	push(@$stages, { id         => "mgm".$job->metagenome_id."-".$stageid."-".$stagehash->{$stageid},
-			 url        => $self->cgi->url.'/sequenceset/'."mgm".$job->metagenome_id."-".$stageid."-".$stagehash->{$stageid},
+			 url        => $self->cgi->url.'/analysisset/'."mgm".$job->metagenome_id."-".$stageid."-".$stagehash->{$stageid},
 			 stage_id   => $stageid,
 			 stage_name => $stagename,
 			 stage_type => $stageresult,
