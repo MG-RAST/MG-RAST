@@ -1,3 +1,9 @@
+DROP TABLE IF EXISTS md5s;
+CREATE TABLE md5s (
+_id SERIAL PRIMARY KEY,
+md5 char(32) NOT NULL,
+is_protein boolean
+);
 
 DROP TABLE IF EXISTS md5_protein;
 CREATE TABLE md5_protein (
@@ -45,9 +51,9 @@ level integer
 
 DROP TABLE IF EXISTS md5_organism_unique;
 CREATE TABLE md5_organism_unique (
-md5 char(32) NOT NULL,
-organism text,
-source text
+md5 integer NOT NULL,
+organism integer NOT NULL,
+source integer NOT NULL
 );
 
 DROP TABLE IF EXISTS aliases_protein;
@@ -137,7 +143,7 @@ CREATE TABLE ontologies (
  level3 text,
  level4 text,
  id text,
- type text
+ source integer
 );
 
 DROP TABLE IF EXISTS sources;
