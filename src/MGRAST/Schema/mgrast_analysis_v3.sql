@@ -28,7 +28,7 @@ DROP TABLE IF EXISTS job_md5s;
 CREATE TABLE job_md5s (
  version smallint NOT NULL,
  job integer NOT NULL,
- md5 integer NOT NULL,
+ md5 integer REFERENCES md5s(_id),
  abundance integer NOT NULL,
  evals integer[5],
  exp_avg real,
@@ -51,7 +51,7 @@ DROP TABLE IF EXISTS job_functions;
 CREATE TABLE job_functions (
  version smallint NOT NULL,
  job integer NOT NULL,
- id integer NOT NULL,
+ id integer REFERENCES functions(_id),
  abundance integer NOT NULL,
  exp_avg real,
  exp_stdv real,
@@ -60,7 +60,7 @@ CREATE TABLE job_functions (
  ident_avg real,
  ident_stdv real,
  md5s integer[],
- source integer NOT NULL
+ source integer REFERENCES sources(_id)
 );
 -- COPY job_functions (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
 CREATE INDEX job_functions_vj ON job_functions (version, job);
@@ -72,7 +72,7 @@ DROP TABLE IF EXISTS job_organisms;
 CREATE TABLE job_organisms (
  version smallint NOT NULL,
  job integer NOT NULL,
- id integer NOT NULL,
+ id integer REFERENCES organisms_ncbi(_id),
  abundance integer NOT NULL,
  exp_avg real,
  exp_stdv real,
@@ -81,7 +81,7 @@ CREATE TABLE job_organisms (
  ident_avg real,
  ident_stdv real,
  md5s integer[],
- source integer NOT NULL
+ source integer REFERENCES sources(_id)
 );
 -- COPY job_organisms (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
 CREATE INDEX job_organisms_vj ON job_organisms (version, job);
@@ -93,7 +93,7 @@ DROP TABLE IF EXISTS job_rep_organisms;
 CREATE TABLE job_rep_organisms (
  version smallint NOT NULL,
  job integer NOT NULL,
- id integer NOT NULL,
+ id integer REFERENCES organisms_ncbi(_id),
  abundance integer NOT NULL,
  exp_avg real,
  exp_stdv real,
@@ -102,7 +102,7 @@ CREATE TABLE job_rep_organisms (
  ident_avg real,
  ident_stdv real,
  md5s integer[],
- source integer NOT NULL
+ source integer REFERENCES sources(_id)
 );
 CREATE INDEX job_rep_organisms_vj ON job_rep_organisms (version, job);
 CREATE INDEX job_rep_organisms_id ON job_rep_organisms (id);
@@ -113,7 +113,7 @@ DROP TABLE IF EXISTS job_ontologies;
 CREATE TABLE job_ontologies (
  version smallint NOT NULL,
  job integer NOT NULL,
- id integer NOT NULL,
+ id integer REFERENCES ontologies(_id),
  abundance integer NOT NULL,
  exp_avg real,
  exp_stdv real,
@@ -122,7 +122,7 @@ CREATE TABLE job_ontologies (
  ident_avg real,
  ident_stdv real,
  md5s integer[],
- source integer NOT NULL
+ source integer REFERENCES sources(_id)
 );
 -- COPY job_ontologies (version,job,id,abundance,exp_avg,exp_stdv,len_avg,len_stdv,ident_avg,ident_stdv,md5s,source) FROM 'FILE' WITH NULL AS '';
 CREATE INDEX job_ontologies_vj ON job_ontologies (version, job);
@@ -176,11 +176,12 @@ CREATE INDEX organisms_ncbi_tax_id ON organisms_ncbi (ncbi_tax_id);
 
 DROP TABLE IF EXISTS md5_organism_unique;
 CREATE TABLE md5_organism_unique (
-md5 integer NOT NULL,
-organism integer NOT NULL,
-source integer NOT NULL
+md5 integer REFERENCES md5s(_id),
+organism integer REFERENCES organisms_ncbi(_id),
+source integer REFERENCES sources(_id)
 );
 CREATE INDEX md5_organism_unique_md5 ON md5_organism_unique (md5);
+CREATE INDEX md5_organism_unique_organism ON md5_organism_unique (organism);
 CREATE INDEX md5_organism_unique_source ON md5_organism_unique (source);
 
 DROP TABLE IF EXISTS ontologies;
@@ -191,7 +192,7 @@ CREATE TABLE ontologies (
  level3 text,
  level4 text,
  name text,
- source integer
+ source integer REFERENCES sources(_id)
 );
 CREATE INDEX ontologies_name ON ontologies (name);
 CREATE INDEX ontologies_source ON ontologies (source);
@@ -205,11 +206,25 @@ type text NOT NULL
 CREATE INDEX sources_name ON sources (name);
 CREATE INDEX sources_type ON sources (type);
 
+DROP TABLE IF EXISTS md5_annotation;
+CREATE TABLE md5_annotation (
+md5 integer REFERENCES md5s(_id),
+id text NOT NULL,
+function integer REFERENCES functions(_id),
+organism integer REFERENCES organisms_ncbi(_id),
+source integer REFERENCES sources(_id),
+is_protein boolean
+);
+CREATE INDEX md5_annotation_md5 ON md5_annotation (md5);
+CREATE INDEX md5_annotation_function ON md5_annotation (function);
+CREATE INDEX md5_annotation_organism ON md5_annotation (organism);
+CREATE INDEX md5_annotation_source ON md5_annotation (source);
+
 DROP TABLE IF EXISTS md5s;
 CREATE TABLE md5s (
-_id SERIAL PRIMARY KEY,
+_id integer PRIMARY KEY,
 md5 char(32) NOT NULL,
 is_protein boolean
 );
 CREATE UNIQUE INDEX md5s_md5 ON md5s (md5);
-CREATE UNIQUE INDEX md5s_protein ON md5s (is_protein);
+CREATE INDEX md5s_protein ON md5s (is_protein);
