@@ -105,11 +105,12 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get data
-    my $job = $master->Job->init( {metagenome_id => $id} );
-    unless ($job && ref($job)) {
-        $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
     }
-    
+    $job = $job->[0];
+
     # check rights
     unless ($job->{public} || exists($self->rights->{$id})) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
