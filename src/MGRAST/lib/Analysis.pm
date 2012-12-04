@@ -185,7 +185,7 @@ sub _set_data {
     my %rev = reverse %{$self->{job_map}};
     $self->{mg_map} = \%rev;
     $self->{jobs} = values %{$self->{job_map}};
-    my $srcs = $self->_dbh->selectcol_arrayref("SELECT _id, name from sources");
+    my $srcs = $self->_dbh->selectall_arrayref("SELECT _id, name from sources");
     %{ $self->{id_src} } = map { $_->[0], $_->[1] } @$srcs;
     %{ $self->{src_id} } = map { $_->[1], $_->[0] } @$srcs;
 }
@@ -585,8 +585,8 @@ sub get_sources {
     my $where = $self->_get_where_str([$self->_qver, "job = ".$self->_job_map->{$mgid}]);
 
     if ($type && exists($self->_jtbl->{$type})) {
-        my $srcs  = $self->_dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$self->_jtbl->{$type}.$where." ORDER BY source");
-        @$srcs = map { $self->_id_src->{$_} } @$srcs;
+        my $srcs  = $self->_dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$self->_jtbl->{$type}.$where);
+        @$srcs = sort map { $self->_id_src->{$_} } @$srcs;
         return $srcs;
     } else {
         my $total = {};
