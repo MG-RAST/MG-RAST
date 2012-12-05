@@ -76,6 +76,8 @@ function update_inbox (data, files, action) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(non-unique seq IDs) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(seq file too small) "+fn+"</option>";
+	} else if ((seq_dlist[dlist[i]] == 1) && (inf['sequence content'] == 'protein' || inf['sequence content'] == 'sequence alignment')) {
+	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(seq file is not DNA) "+fn+"</option>";
 	} else if (lock_msg != "") {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: gray;' value='"+dlist[i]+"/"+fn+"'>("+lock_msg+") "+fn+"</option>";
 	} else if (error_msg != "") {
@@ -115,6 +117,8 @@ function update_inbox (data, files, action) {
 	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(non-unique seq IDs) "+flist[i]+"</option>";
       } else if (isSeq && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
 	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(seq file too small) "+flist[i]+"</option>";
+      } else if (isSeq && (inf['sequence content'] == 'protein' || inf['sequence content'] == 'sequence alignment')) {
+	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(seq file is not DNA) "+flist[i]+"</option>";
       } else if (lock_msg != "") {
         inbox_html += "<option style='color: gray;' value='"+flist[i]+"'>("+lock_msg+") "+flist[i]+"</option>";
       } else if (error_msg != "") {
@@ -195,6 +199,12 @@ function update_inbox (data, files, action) {
 	    }
 	    else if (inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>The unique id count does not match the sequence count. You will not be able to use this file for submission.</div>';
+	    }
+            else if ((seq_dlist[dlist[i]] == 1) && inf['sequence content'] == 'protein') {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file appears to contain protein sequence which cannot be submitted to MG-RAST.</div>';
+	    }
+            else if ((seq_dlist[dlist[i]] == 1) && inf['sequence content'] == 'sequence alignment') {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file appears to contain a sequence alignment which cannot be submitted to MG-RAST.</div>';
 	    }
             else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && inf['bp count'] <= BP_CUTOFF) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file is too small for submission, the minimum is 1MBp.</div>';
