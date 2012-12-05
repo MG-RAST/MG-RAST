@@ -514,14 +514,14 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    my $file_eol      = &file_eol($file_type);
 	    my ($file_suffix) = $sequence_file =~ /^.*\.(.+)$/;
 	    my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
-	    my $file_seq_type = ($file_format eq 'fastq') ? 'DNA' : &file_seq_type($sequence_file, $udir, $file_eol);
+	    my $sequence_content = ($file_format eq 'fastq') ? 'DNA' : &get_sequence_content($sequence_file, $udir, $file_eol);
 	    my ($file_md5)    = (`md5sum '$udir/$sequence_file'` =~ /^(\S+)/);
 	    my $file_size     = -s $udir."/".$sequence_file;
 	    
 	    my $info = { "type" => $file_type,
 			 "suffix" => $file_suffix,
 			 "file_type" => $file_format,
-			 "sequence_type" => $file_seq_type,
+			 "sequence_content" => $sequence_content,
 			 "file_checksum" => $file_md5,
 			 "file_size" => $file_size };
 	    
@@ -529,7 +529,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    print FH "type\t$file_type\n";
 	    print FH "suffix\t$file_suffix\n";
 	    print FH "file_type\t$file_format\n";
-	    print FH "sequence_type\t$file_seq_type\n";
+	    print FH "sequence_content\t$sequence_content\n";
 	    print FH "file_checksum\t$file_md5\n";
 	    print FH "file_size\t$file_size\n";
 	    close(FH);
@@ -680,7 +680,7 @@ sub file_type {
     return $file_type;
 }
 
-sub file_seq_type {
+sub get_sequence_content {
     my($file_name, $file_path, $file_eol) = @_;
 
     my $max_chars = 10000;
@@ -733,11 +733,15 @@ sub file_seq_type {
     my $n_char  = length($seq) - $char_count{n} - $char_count{x} - $char_count{'-'};
     my $fraction = $n_char ? $bp_char/$n_char : 0;
 
+    # A high fraction of dashes could indicate a sequence alignment file
+    my $dash_fraction = $char_count{'-'}/length($seq);
+
     if ( $fraction <= 0.6 ) {
 	return "protein";
-    }
-    else {
-	return 'DNA';
+    } elsif( $dash_fraction >= 0.05 ) {
+	return "sequence alignment";
+    } else {
+	return "DNA";
     }
 }
 
