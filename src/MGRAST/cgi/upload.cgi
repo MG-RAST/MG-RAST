@@ -188,7 +188,9 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                     }
 
 		    foreach my $lock_file (@{$files_to_lockfiles{$file}}) {
-			`rm $lock_file`;
+			if(-f $lock_file) {
+			    `rm $lock_file`;
+			}
 		    }
 		}
 	    }
@@ -578,10 +580,10 @@ my $buffer;
 
 # check if file already exists
 if (-f "$udir/".$filename && ! -f "$udir/$filename.part") {
-    `rm $udir/$filename`;
-    `rm $udir/$filename.lock`;
-    `rm $udir/$filename.stats_info`;
-    `rm $udir/$filename.error_log`;
+    if(-f "$udir/$filename") { `rm $udir/$filename`; }
+    if(-f "$udir/$filename.lock") { `rm $udir/$filename.lock`; }
+    if(-f "$udir/$filename.stats_info") { `rm $udir/$filename.stats_info`; }
+    if(-f "$udir/$filename.error_log") { `rm $udir/$filename.error_log`; }
 }
 
 my $lock_file = "$udir/$filename.lock";
@@ -601,8 +603,8 @@ print "Content-Type: text/plain\n\n";
 # if this is the last chunk, remove the partial file
 if ($cgi->param('last_chunk')) {
     print "file received";
-    `rm $udir/$filename.part`;
-    `rm $udir/$filename.lock`;
+    if(-f "$udir/$filename.part") { `rm $udir/$filename.part`;
+    if(-f "$udir/$filename.lock") { `rm $udir/$filename.lock`;
 } else {
     print "chunk received";
 }
