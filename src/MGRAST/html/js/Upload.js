@@ -153,7 +153,7 @@ function update_inbox (data, files, action) {
 	  if (fn.match(is_a_sequence_file_ending)) {
 	    var inf = DataStore['user_inbox'][user.login].fileinfo[i+'/'+fn];
 	    var lock_msg = DataStore['user_inbox'][user.login].locks[i+'/'+fn];
-	    if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error']) && inf['bp count'] > BP_CUTOFF && (! lock_msg)) {
+	    if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (inf['sequence content'] != 'protein' && inf['sequence content'] != 'sequence alignment') && (! inf['Error']) && inf['bp count'] > BP_CUTOFF && (! lock_msg)) {
 	      var trow = [ 0, i, fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
@@ -165,7 +165,7 @@ function update_inbox (data, files, action) {
 	  var fn = sequence_files[i];
 	  var inf = DataStore['user_inbox'][user.login].fileinfo[fn];
 	  var lock_msg = DataStore['user_inbox'][user.login].locks[fn];
-	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (! inf['Error']) && inf['bp count'] > BP_CUTOFF && (! lock_msg)) {
+	  if (inf && inf['bp count'] && (inf['file type'] != 'malformed') && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) && (inf['sequence content'] != 'protein' && inf['sequence content'] != 'sequence alignment') && (! inf['Error']) && inf['bp count'] > BP_CUTOFF && (! lock_msg)) {
 	    var trow = [ 0, "-", fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
 	  }
