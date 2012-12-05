@@ -110,11 +110,12 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get data
-    my $job = $master->Job->init( {metagenome_id => $id} );
-    unless ($job && ref($job)) {
-        $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
     }
-    
+    $job = $job->[0];
+
     # check rights
     unless ($job->{public} || exists($self->rights->{$id})) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
@@ -137,13 +138,16 @@ sub query {
     my $total  = 0;
 
     # check pagination
-    my $limit  = $self->cgi->param('limit')  || 10;
+    my $limit  = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
     if ($order eq 'id') {
         $order = 'metagenome_id';
     }
 
+    if ($limit == 0) {
+        $limit = 18446744073709551615;
+    }
     # get all items the user has access to
     if (exists $self->rights->{'*'}) {
         $total = $master->Job->count_all();
@@ -154,12 +158,13 @@ sub query {
         $total = scalar(@$public) + scalar(keys %{$self->rights});
         $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($list) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
     }
-
+    $limit = ($limit > scalar(@$jobs)) ? scalar(@$jobs) : $limit;
+    
     # prepare data to the correct output format
     my $data = $self->prepare_data($jobs);
 
     # check for pagination
-    $data = $self->check_pagination($data, $total);
+    $data = $self->check_pagination($data, $total, $limit);
 
     $self->return_data($data);
 }
