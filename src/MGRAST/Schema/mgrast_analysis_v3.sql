@@ -201,7 +201,9 @@ DROP TABLE IF EXISTS sources;
 CREATE TABLE sources (
 _id integer PRIMARY KEY,
 name text NOT NULL,
-type text NOT NULL
+type text NOT NULL,
+description text,
+link text,
 );
 CREATE INDEX sources_name ON sources (name);
 CREATE INDEX sources_type ON sources (type);
