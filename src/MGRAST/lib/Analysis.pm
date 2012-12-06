@@ -5,6 +5,7 @@ use warnings;
 no warnings('once');
 
 use List::Util qw(max min sum first);
+use List::MoreUtils qw(natatime);
 use Conf;
 use DBI;
 use Data::Dumper;
@@ -617,33 +618,45 @@ sub annotation_for_md5s {
     my ($self, $md5s, $srcs, $taxid) = @_;
     
     unless ($md5s && @$md5s) { return []; }
-    my $qsrcs = ($srcs && @$srcs) ? " AND a.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
-    my $tid = $taxid ? ", o.taxid" : "";
-    my $sql = "SELECT a.id, m.md5, f.name, o.name, a.source$tid FROM md5_annotation a ".
-              "LEFT INNER JOIN md5s m ON a.md5 = m._id ".
-              "LEFT OUTER JOIN functions f ON a.function = f._id ".
-              "LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id ".
-              "WHERE a.md5 IN (".join(",", @$md5s).")".$qsrcs;
+    
+    my $data = [];
+    my $qsrc = ($srcs && @$srcs) ? " AND a.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
+    my $tid  = $taxid ? ", o.ncbi_tax_id" : "";
+    my $size = 10000;
+    my $iter = natatime $size, @$md5s;
+    
+    while (my @curr = $iter->()) {
+        my $sql = "SELECT a.id, m.md5, f.name, o.name, a.source$tid FROM md5_annotation a ".
+                  "LEFT INNER JOIN md5s m ON a.md5 = m._id ".
+                  "LEFT OUTER JOIN functions f ON a.function = f._id ".
+                  "LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id ".
+                  "WHERE a.md5 IN (".join(",", @curr).")".$qsrc;
 
-    my $rows = $self->dbh->selectall_arrayref($sql);
-    if ($rows && (@$rows > 0)) {
-        map { $_->[4] = $self->_id_src->{$_->[4]} } @$rows;
-        return $rows;
-    } else {
-        return [];
+        my $rows = $self->dbh->selectall_arrayref($sql);
+        if ($rows && (@$rows > 0)) {
+            map { $_->[4] = $self->_id_src->{$_->[4]} } @$rows;
+            push @$data, @$rows;
+        }
     }
     # [ id, md5, function, organism, source ]
+    return $data;
 }
 
 sub decode_annotation {
     my ($self, $type, $ids) = @_;
+    
     unless ($ids && @$ids) { return {}; }
     my $data = {};
     my $col  = ($type eq 'md5') ? 'md5' : 'name';
-    my $sql  = "SELECT _id, $col FROM ".$self->_atbl->{$type}." WHERE _id IN (".join(',', @$ids).")";
-    my $rows = $self->dbh->selectall_arrayref($sql);
-    if ($rows && @$rows) {
-        %$data = map { $_->[0], $_->[1] } @$rows;
+    my $size = 10000;
+    my $iter = natatime $size, @$ids;
+    
+    while (my @curr = $iter->()) {
+        my $sql  = "SELECT _id, $col FROM ".$self->_atbl->{$type}." WHERE _id IN (".join(',', @$curr).")";
+        my $rows = $self->dbh->selectall_arrayref($sql);
+        if ($rows && @$rows) {
+            map { $data->{$_->[0]} = $_->[1] } @$rows;
+        }
     }
     return $data;
     # id => name
@@ -1266,14 +1279,14 @@ sub get_organisms_unique_for_source {
 }
 
 sub get_organisms_for_sources {
-    my ($self, $sources, $eval, $ident, $alen) = @_;
-    return $self->get_organisms_for_md5s([], $sources, $eval, $ident, $alen);
+    my ($self, $sources, $eval, $ident, $alen, $with_taxid) = @_;
+    return $self->get_organisms_for_md5s([], $sources, $eval, $ident, $alen, $with_taxid);
 }
 
 sub get_organisms_for_md5s {
-    my ($self, $md5s, $sources, $eval, $ident, $alen) = @_;
+    my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
 
-    my $cache_key = "org";
+    my $cache_key = "org".($with_taxid ? 'tid' : '');
     $cache_key .= defined($eval) ? $eval : ":";
     $cache_key .= defined($ident) ? $ident : ":";
     $cache_key .= defined($alen) ? $alen : ":";
@@ -1306,12 +1319,14 @@ sub get_organisms_for_md5s {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
+    my $ctax  = $with_taxid ? ',a.ncbi_tax_id' : '';
+    my $qtax  = $with_taxid ? "a.ncbi_tax_id IS NOT NULL";
     my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map { $self->_src_id->{$_} } @$sources) . ")" : "";
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $tax = "COALESCE(a.tax_domain,'unassigned') AS txd,COALESCE(a.tax_phylum,'unassigned') AS txp,COALESCE(a.tax_class,'unassigned') AS txc,".
               "COALESCE(a.tax_order,'unassigned') AS txo,COALESCE(a.tax_family,'unassigned') AS txf,COALESCE(a.tax_genus,'unassigned') AS txg,".
               "COALESCE(a.tax_species,'unassigned') AS txs,a.name";
-    my $sql = "SELECT DISTINCT j.job,j.source,$tax,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
+    my $sql = "SELECT DISTINCT j.job,j.source,$tax,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s$ctax FROM ".
               $self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
     print STDERR $sql."\n"; 
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
@@ -1324,7 +1339,9 @@ sub get_organisms_for_md5s {
 	    } else {
 	        $sub_abund = $row->[10];
 	    }
-	    push @{$data->{$mg}}, [ $mg, $self->_src_id->{$row->[1]}, @$row[2..10], $sub_abund, @$row[11..16], join(";", @{$row->[17]}) ];
+	    my $drow = [ $mg, $self->_src_id->{$row->[1]}, @$row[2..10], $sub_abund, @$row[11..16], join(";", @{$row->[17]}) ];
+	    if ($with_taxid) { push @$drow, $row->[18]; }
+	    push @{$data->{$mg}}, $drow;
 	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[17]};
     }
     unless ($qmd5s) {
