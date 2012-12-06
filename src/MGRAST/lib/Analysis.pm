@@ -652,7 +652,7 @@ sub decode_annotation {
     my $iter = natatime $size, @$ids;
     
     while (my @curr = $iter->()) {
-        my $sql  = "SELECT _id, $col FROM ".$self->_atbl->{$type}." WHERE _id IN (".join(',', @$curr).")";
+        my $sql  = "SELECT _id, $col FROM ".$self->_atbl->{$type}." WHERE _id IN (".join(',', @curr).")";
         my $rows = $self->dbh->selectall_arrayref($sql);
         if ($rows && @$rows) {
             map { $data->{$_->[0]} = $_->[1] } @$rows;
@@ -1320,7 +1320,7 @@ sub get_organisms_for_md5s {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
     my $ctax  = $with_taxid ? ',a.ncbi_tax_id' : '';
-    my $qtax  = $with_taxid ? "a.ncbi_tax_id IS NOT NULL";
+    my $qtax  = $with_taxid ? "a.ncbi_tax_id IS NOT NULL" : '';
     my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map { $self->_src_id->{$_} } @$sources) . ")" : "";
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $tax = "COALESCE(a.tax_domain,'unassigned') AS txd,COALESCE(a.tax_phylum,'unassigned') AS txp,COALESCE(a.tax_class,'unassigned') AS txc,".
@@ -1328,7 +1328,7 @@ sub get_organisms_for_md5s {
               "COALESCE(a.tax_species,'unassigned') AS txs,a.name";
     my $sql = "SELECT DISTINCT j.job,j.source,$tax,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s$ctax FROM ".
               $self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
-    print STDERR $sql."\n"; 
+
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->_mg_map->{$row->[0]};
