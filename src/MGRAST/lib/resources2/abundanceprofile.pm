@@ -142,14 +142,15 @@ sub prepare_data {
     # validate type / source
     my $all_srcs = {};
     if ($params->{type} eq 'organism') {
-        $all_srcs = { M5NR => 1, M5RNA => 1 };
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
     } elsif ($params->{type} eq 'function') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_ontology_sources};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('ontology')};
     } elsif ($params->{type} eq 'feature') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
+        delete $all_srcs->{M5NR};
+        delete $all_srcs->{M5RNA};
     } else {
         $self->return_data({"ERROR" => "Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']"}, 400);
     }
@@ -169,19 +170,17 @@ sub prepare_data {
     # get data
     if ($params->{type} eq 'organism') {
         $ttype = 'Taxon';
-        my $strain2tax = $mgdb->ach->map_organism_tax_id();
-        my ($md5_abund, $result) = $mgdb->get_organisms_for_sources([$params->{source}]);
-        # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+        my ($md5_abund, $result) = $mgdb->get_organisms_for_sources([$params->{source}], undef, undef, undef, 1);
+        # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
         foreach my $row (@$result) {
-            next unless (exists $strain2tax->{$row->[9]});
             my $tax_str = [ "k__".$row->[2], "p__".$row->[3], "c__".$row->[4], "o__".$row->[5], "f__".$row->[6], "g__".$row->[7], "s__".$row->[9] ];
-            push(@$rows, { "id" => $strain2tax->{$row->[9]}, "metadata" => { "taxonomy" => $tax_str }  });
+            push(@$rows, { "id" => $row->[19], "metadata" => { "taxonomy" => $tax_str }  });
             push(@$values, [ $self->toFloat($row->[10]), $self->toFloat($row->[12]), $self->toFloat($row->[14]), $self->toFloat($row->[16]) ]);
         }
     }
     elsif ($params->{type} eq 'function') {
         $ttype = 'Function';
-        my $function2ont = $mgdb->ach->get_all_ontology4source_hash($params->{source});
+        my $function2ont = $mgdb->get_hierarchy('ontology', $params->{source});
         my ($md5_abund, $result) = $mgdb->get_ontology_for_source($params->{source});
         # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
         foreach my $row (@$result) {
@@ -197,10 +196,12 @@ sub prepare_data {
         my $result = $mgdb->get_md5_data(undef, undef, undef, undef, 1);
         # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
         my @md5s = map { $_->[1] } @$result;
-        map { push @{$md52id->{$_->[1]}}, $_->[0] } @{ $mgdb->ach->md5s2ids4source(\@md5s, $params->{source}) };
+        my $mmap = $mgdb->decode_annotation('md5', \@md5s);
+        map { push @{$md52id->{$_->[1]}}, $_->[0] } @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) };
         foreach my $row (@$result) {
-            next unless (exists $md52id->{$row->[1]});
-            push(@$rows, { "id" => $row->[1], "metadata" => { $params->{source}." ID" => $md52id->{$row->[1]} } });
+            my $md5 = $mmap->{$row->[1]};
+            next unless (exists $md52id->{$md5});
+            push(@$rows, { "id" => $md5, "metadata" => { $params->{source}." ID" => $md52id->{$md5} } });
             push(@$values, [ $self->toFloat($row->[2]), $self->toFloat($row->[3]), $self->toFloat($row->[5]), $self->toFloat($row->[7]) ]);
         }
     }
