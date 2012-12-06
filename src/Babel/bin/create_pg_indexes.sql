@@ -1,4 +1,5 @@
 CREATE UNIQUE INDEX md5s_md5 ON md5s (md5);
+CREATE INDEX md5s_protein ON md5s (is_protein);
 
 CREATE INDEX md5_protein_id ON md5_protein (id);
 CREATE INDEX md5_protein_md5 ON md5_protein (md5);

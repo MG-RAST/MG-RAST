@@ -104,12 +104,13 @@ if ($load_db) {
   print STDERR "Done.\n" if ($verbose);
 
   print STDERR "Loading data to md5_organism_unique ... " if ($verbose);
-  $dbh->do("COPY md5_organism_unique FROM '$outfile'");
+  $dbh->do("COPY md5_organism_unique FROM '$outfile' WITH NULL AS ''");
   $dbh->commit;
   print STDERR "Done.\n" if ($verbose);
 
   print STDERR "Creating indexes for md5_organism_unique ... " if ($verbose);
   $dbh->do("CREATE INDEX md5_organism_unique_md5 ON md5_organism_unique (md5);");
+  $dbh->do("CREATE INDEX md5_organism_unique_organism ON md5_organism_unique (organism);");
   $dbh->do("CREATE INDEX md5_organism_unique_source ON md5_organism_unique (source);");
   $dbh->commit;
   print STDERR "Done.\n" if ($verbose);
