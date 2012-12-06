@@ -30,7 +30,7 @@ $usage   .= "md5_ontology file (sorted md5s):\tmd5, source, function, ontology\n
 $usage   .= "md5_protein file (sorted md5s):\t\tmd5, source, function, organism\n";
 $usage   .= "md5_rna file (sorted md5s):\t\tmd5, source, function, organism\n";
 $usage   .= "md5_lca file (unique md5s):\t\tmd5, domain, phylum, class, order, family, genus, species, name, level\n";
-$usage   .= "md5 file (unique md5s):\t\tinteger id, md5\n";
+$usage   .= "md5 file (unique md5s):\t\tinteger id, md5 - NOTE: this only adds to exisiting md5 objects\n";
 $usage   .= "annotation file:\t\tinteger id, text name, optional\n";
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit 1; }
@@ -61,7 +61,11 @@ if ($select eq 'md5') {
     chomp $line;
     $num += 1;
     my ($id, $md5) = split(/\t/, $line);
-    $mem_cache->set($md5.$memkey, { id => $id }, undef); # no experiation
+    my $data = $mem_cache->get($md5.$memkey);
+    if ($data) {
+        $data->{id} = $id;
+        $mem_cache->set($md5.$memkey, $data, undef); # no experiation
+    }
   }
   close MAPF;
   print STDERR "Done parsing / adding $num md5s\n" if ($verbose);
@@ -85,7 +89,7 @@ elsif ($select eq 'md5_lca') {
 elsif (($select eq 'md5_protein') || ($select eq 'md5_rna') || ($select eq 'md5_ontology')) {
   my $curr = '';
   my $data = {};
-  print STDERR "Parsing md5 file / adding to memcache ... " if ($verbose);
+  print STDERR "Parsing $select file / adding to memcache ... " if ($verbose);
   open(MD5F, "<$mapf") || die "Can't open file $mapf: $!\n";
   while (my $line = <MD5F>) {
     chomp $line;
@@ -108,7 +112,9 @@ elsif (($select eq 'md5_protein') || ($select eq 'md5_rna') || ($select eq 'md5_
     }
     # add data
     $data->{is_aa} = ($select eq 'md5_rna') ? 0 : 1;
-    $data->{ann}   = {};
+    unless (exists $data->{ann}) {
+        $data->{ann} = {};
+    }
     push @{ $data->{ann}->{$sid}->{$fid}->{$mtype} }, $oid;
   }
   close MD5F;

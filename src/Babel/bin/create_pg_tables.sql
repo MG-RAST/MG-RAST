@@ -8,36 +8,36 @@ is_protein boolean
 DROP TABLE IF EXISTS md5_protein;
 CREATE TABLE md5_protein (
 _id SERIAL PRIMARY KEY,
-md5 char(32) NOT NULL,
+md5 integer REFERENCES md5s(_id),
 id text NOT NULL,
-function integer,
-organism integer,
-source integer
+function integer REFERENCES functions(_id),
+organism integer REFERENCES organisms_ncbi(_id),
+source integer REFERENCES sources(_id)
 );
 
 DROP TABLE IF EXISTS md5_ontology;
 CREATE TABLE md5_ontology (
 _id SERIAL PRIMARY KEY,
-md5 char(32) NOT NULL,
+md5 integer REFERENCES md5s(_id),
 id text NOT NULL,
-function integer,
-source integer
+function integer REFERENCES functions(_id),
+source integer REFERENCES sources(_id)
 );
 
 DROP TABLE IF EXISTS md5_rna;
 CREATE TABLE md5_rna (
 _id SERIAL PRIMARY KEY,
-md5 char(32) NOT NULL,
+md5 integer REFERENCES md5s(_id),
 id text NOT NULL,
-function integer,
-organism integer,
+function integer REFERENCES functions(_id),
+organism integer REFERENCES organisms_ncbi(_id),
+source integer REFERENCES sources(_id),
 tax_rank integer,
-source integer
 );
 
 DROP TABLE IF EXISTS md5_lca;
 CREATE TABLE md5_lca (
-md5 char(32) PRIMARY KEY,
+md5 integer REFERENCES md5s(_id),
 tax_domain text,
 tax_phylum text,
 tax_class text,
@@ -51,9 +51,9 @@ level integer
 
 DROP TABLE IF EXISTS md5_organism_unique;
 CREATE TABLE md5_organism_unique (
-md5 integer NOT NULL,
-organism integer NOT NULL,
-source integer NOT NULL
+md5 integer REFERENCES md5s(_id),
+organism integer REFERENCES organisms_ncbi(_id),
+source integer REFERENCES sources(_id)
 );
 
 DROP TABLE IF EXISTS aliases_protein;
@@ -76,14 +76,14 @@ _id SERIAL PRIMARY KEY,
 name text NOT NULL,
 description text,
 length integer,
-organism integer
+organism integer REFERENCES organisms_ncbi(_id)
 );
 
 DROP TABLE IF EXISTS id2contig;
 CREATE TABLE id2contig (
 _id SERIAL PRIMARY KEY,
 id text NOT NULL,
-contig integer,
+contig integer REFERENCES contigs(_id),
 strand integer,
 low integer,
 high integer
@@ -143,7 +143,7 @@ CREATE TABLE ontologies (
  level3 text,
  level4 text,
  id text,
- source integer
+ source integer REFERENCES sources(_id)
 );
 
 DROP TABLE IF EXISTS sources;

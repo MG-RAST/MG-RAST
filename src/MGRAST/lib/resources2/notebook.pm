@@ -23,7 +23,9 @@ sub new {
                             "notebook" => [ 'object', 'notebook object in JSON format' ],
                             "created"  => [ 'date', 'time the object was first created' ],
                             "version"  => [ 'integer', 'version of the object' ],
-                            "url"      => [ 'uri', 'resource location of this object instance' ]
+                            "url"      => [ 'uri', 'resource location of this object instance' ],
+                            "status"   => ['cv', [['public', 'notebook is public'],
+           										  ['private', 'notebook is private']]]
                           };
     return $self;
 }
@@ -174,6 +176,7 @@ sub prepare_data {
         $obj->{name}     = $node->{attributes}{name} || '';
         $obj->{uuid}     = $node->{attributes}{uuid};
         $obj->{created}  = $node->{attributes}{created};
+	    $obj->{status}   = ($node->{attributes}{user} eq 'public') ? 'public' : 'private';
         $obj->{version}  = 1;
         $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
