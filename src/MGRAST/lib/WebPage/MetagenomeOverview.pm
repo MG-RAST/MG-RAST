@@ -1010,7 +1010,7 @@ sub get_source_chart {
     my $evalues   = ["-3 to -5", "-5 to -10", "-10 to -20", "-20 to -30", "-30 & less"];
     my $legend    = ["e-value (exponent)"];
     my $colors    = [ [[54,116,217], [128,176,255]], [[51,204,94], [128,255,164]], [[255,255,0], [255,252,150]], [[255,136,0], [255,187,110]], [[247,42,66], [255,193,200]] ];
-    my $sources   = $mgdb->ach->sources();
+    my $sources   = $mgdb->_sources();
     my $titles    = { protein => 'functional & organism', ontology => 'functional hierarchy', rna => 'ribosomal RNA genes' };
     my (@data, @desc, @srcs, %groups, @divs, @chart);
 
@@ -1163,7 +1163,7 @@ sub get_func_charts {
   my $mgid = $job->metagenome_id;
   my $jid  = $job->job_id;
   my $src_stats = $mgdb->get_source_stats($job->job_id);
-  my $sources   = $mgdb->ach->sources();
+  my $sources   = $mgdb->_sources();
   my $src_names = [];
   my $src_links = [];
   
@@ -1289,7 +1289,7 @@ sub draw_krona {
     my ($md5_data, $ont_data) = $mgdb->get_ontology_for_source($type);
     my @func_nums = map { [ @$_[1..3] ] } @$ont_data; # id, annotation, abundance
     if (@func_nums > 0) {
-      my $ontology = $mgdb->ach->get_all_ontology4source_hash($type);
+      my $ontology = $mgdb->get_hierarchy('ontology', $type);
       my $result   = [];
       foreach my $func (@func_nums) {
 	if (exists $ontology->{$func->[0]}) {
