@@ -627,7 +627,7 @@ sub annotation_for_md5s {
     
     while (my @curr = $iter->()) {
         my $sql = "SELECT a.id, m.md5, f.name, o.name, a.source$tid FROM md5_annotation a ".
-                  "LEFT INNER JOIN md5s m ON a.md5 = m._id ".
+                  "INNER JOIN md5s m ON a.md5 = m._id ".
                   "LEFT OUTER JOIN functions f ON a.function = f._id ".
                   "LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id ".
                   "WHERE a.md5 IN (".join(",", @curr).")".$qsrc;
