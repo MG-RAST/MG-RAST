@@ -51,6 +51,11 @@ sub new {
   }
   $dbh->{pg_expand_array} = 1;
 
+  # set sources
+  my $srcs  = $dbh->selectall_hashref("SELECT * FROM sources", "name");
+  my %idsrc = map { $srcs->{$_}{_id}, $_ } keys %$srcs;
+  my %srcid = map { $_, $srcs->{$_}{_id} } keys %$srcs;
+
   # create object
   my $self = { dbh     => $dbh,     # job data db_handle
 	           ach     => $ach,     # ach/babel object
@@ -59,9 +64,9 @@ sub new {
 	           jobs    => [],       # array: job_id	           
 	           job_map => {},       # hash: mg_id => job_id
 	           mg_map  => {},       # hash: job_id => mg_id
-	           id_src  => {},       # hash: source_id => source_name
-	           src_id  => {},       # hash: source_name => source_id
-	           sources => {},       # hash: source_name => { col => value }
+	           sources => $srcs,    # hash: source_name => { col => value }
+	           id_src  => \%idsrc,  # hash: source_id => source_name
+   	           src_id  => \%srcid,  # hash: source_name => source_id
 	           expire  => $Conf::web_memcache_expire || 172800, # use config or 48 hours
 	           version => $Conf::m5nr_annotation_version || 1,
 	           jtbl    => { md5          => 'job_md5s',
@@ -189,11 +194,7 @@ sub _set_data {
     my ($self) = @_;
     my %rev = reverse %{$self->{job_map}};
     $self->{mg_map} = \%rev;
-    $self->{jobs} = values %{$self->{job_map}}; 
-    my $srcs = $self->dbh->selectall_hashref("SELECT * FROM sources", "name");
-    $self->{sources} = $srcs;
-    %{ $self->{id_src} } = map { $srcs->{$_}{_id}, $_ } keys %$srcs;
-    %{ $self->{src_id} } = map { $_, $srcs->{$_}{_id} } keys %$srcs;
+    $self->{jobs} = values %{$self->{job_map}};
 }
 
 sub _get_jobid_map {
@@ -1407,7 +1408,7 @@ sub get_ontology_for_md5s {
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,a.name,$level,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->_jtbl->{ontology}." j, ".$self->_atbl->{ontology}." a".$where;
-    print STDERR $sql."\n"; 
+
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->_mg_map->{$row->[0]};
@@ -1479,7 +1480,7 @@ sub get_functions_for_md5s {
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,j.source,a.name,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->_jtbl->{function}." j, ".$self->_atbl->{function}." a".$where;        
-    print STDERR $sql."\n"; 
+
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->_mg_map->{$row->[0]};
