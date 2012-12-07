@@ -16,7 +16,7 @@ sub new {
     
     # Add name / attributes
     $self->{name}       = "metagenome_statistics";
-    $self->{attributes} = { "id" => [ 'string', 'unique metagenome id' ].
+    $self->{attributes} = { "id" => [ 'string', 'unique metagenome id' ],
 			    "basic" => [ 'hash', 'basic sequence information about the uploaded data' ],
 			    "consensus" => [ 'hash', 'consensus information' ],
 			    "drisee_info" => [ 'hash', 'basic drisee information' ],
@@ -82,9 +82,8 @@ sub instance {
   my ($self) = @_;
   
   # check id format
-  my $show_list = 0;
   my $rest = $self->rest;
-  ($pref, $mgid) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
+  my ($pref, $mgid) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
   if (! $mgid) {
     $self->return_data({"ERROR" => "invalid id format: ".$rest->[0] }, 400);
   }
@@ -128,13 +127,13 @@ sub instance {
 
   my $data = { id => $rest->[0] };
   foreach my $key (keys(%$structure)) {
-    $data->{$key} = {};
+    $data->{$key} = [];
     if (-f $job->analysis_dir."/".$structure->{$key} && open(FH, "<".$job->analysis_dir."/".$structure->{$key})) {
       while (<FH>) {
 	chomp;
 	my ($k, $v) = split /\t/;
 	if ($k && $v) {
-	  $data->{$key}->{$k} = $v;
+	  push(@{$data->{$key}}, [$k, $v]);
 	}
       }
       close FH;
@@ -145,11 +144,12 @@ sub instance {
     my @statfiles = grep { -f $job->download_dir."/$_" && $_ =~ /\.stats$/ } readdir($dh);
     closedir $dh;
     if (scalar(@statfiles) && -f $job->download_dir."/".$statfiles[0] && open(FH, "<".$job->download_dir."/".$statfiles[0])) {
+      $data->{basic} = [];
       while (<FH>) {
 	chomp;
 	my ($k, $v) = split /\t/;
 	if ($k && $v) {
-	  $data->{basic}->{$k} = $v;
+	  push(@{$data->{basic}}, [$k, $v]);
 	}
       }
       close FH;
