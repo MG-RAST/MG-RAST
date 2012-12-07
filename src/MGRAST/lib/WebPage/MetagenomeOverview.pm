@@ -220,13 +220,12 @@ sub output {
   } else {
     document.getElementById("edit_name_div").style.display = "none";
   }'>Edit Name</a></li>~;
-    #$html .= "<li><a target=_blank href='?page=MetaDataMG&metagenome=$mgid'>Edit Metadata</a></li>";
     unless ($job->public) {
       $html .= "<li><a target=_blank href='?page=PublishGenome&metagenome=$mgid'>Make Public</a></li>";
     }
 
-    my $attr = $jobdbm->JobAttributes->init({ job => $job, tag => 'priority' });
-    if($attr->value eq 'never') {
+    my $attr = $job->data();
+    if (exists($attr->{priority}) && $attr->{priority} eq 'never') {
       $html .= "</ul></div></p><p><div style='display:none;' id='delete_div'>".$self->delete_info($job)."</div>";
     } else {
       $html .= "</ul></div></p><p><div style='display:none;' id='delete_div'><h3>Delete</h3><p>During job submission this job was marked to go public at some point in the future.  Thus, this job cannot be deleted.</p></div><br />";
