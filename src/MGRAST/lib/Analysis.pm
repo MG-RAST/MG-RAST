@@ -194,7 +194,7 @@ sub _set_data {
     my ($self) = @_;
     my %rev = reverse %{$self->{job_map}};
     $self->{mg_map} = \%rev;
-    $self->{jobs} = values %{$self->{job_map}};
+    @{$self->{jobs}} = values %{$self->{job_map}};
 }
 
 sub _get_jobid_map {
