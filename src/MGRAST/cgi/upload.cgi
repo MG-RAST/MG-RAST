@@ -522,9 +522,8 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    } else {
         	`echo "computing sequence stats" > $lock_file`;
 		`touch "$udir/$sequence_file.stats_info"`;
-		my $file_eol      = &file_eol($file_type);
 		my $file_suffix = $sequence_file =~ /^.*\.(.+)$/;
-		my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
+		my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix);
 		my $file_size     = -s $udir."/".$sequence_file;
 	    
 		my $info = { "type" => $file_type,
@@ -543,7 +542,10 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		$data->[0]->{fileinfo}->{$sequence_file} = $info;
 
 		# call the extended information
-		if ($file_type eq 'ASCII text') {
+		# temporarily allowing file_type to be '' because that's what the current version
+		# of the file command we are running returns for certain fastq files.  When file
+		# is updated on our web server, we will only accept 'ASCII text' here.
+		if ($file_type eq 'ASCII text' || $file_type eq '') {
 		    my $jobid = $user->{login};
 		    $jobid =~ s/\s/_/g;
 		    my $jnum = `echo "$fix_file_str; $Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
@@ -700,30 +702,8 @@ sub verify_file_type {
     return ("binary or non-ASCII or invalid end of line characters", "ERROR: File '$file' is of unsupported file type '$file_type'.", "");
 }
 
-sub file_eol {
-    my($file_type) = @_;
-
-    my $file_eol;
-
-    if ($file_type eq 'ASCII text') {
-      $file_eol = $/;
-    } elsif ($file_type eq 'ASCII text, with CR line terminators') {
-      $file_eol = "\cM";
-    } elsif ($file_type eq 'ASCII text, with CRLF line terminators') {
-      $file_eol = "\cM\cJ";
-    } elsif ($file_type =~ /^ASCII/) {
-      # ASCII but unuseable
-      $file_eol = "ASCII file has mixed or no line terminators";
-    } else {
-      # none of the above? its binary or unicode
-      $file_eol = "binary or non-ASCII file";
-    }
-
-    return $file_eol;
-}
-
 sub file_format {
-    my($file_name, $file_path, $file_type, $file_suffix, $file_eol) = @_;
+    my($file_name, $file_path, $file_type, $file_suffix) = @_;
 
     if ( $file_name eq 'file_info' ) {
 	return 'info';
