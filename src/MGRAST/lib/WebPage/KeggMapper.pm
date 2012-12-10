@@ -241,7 +241,7 @@ sub get_kegg_data {
   $self->{mgdb}->set_jobs(\@metas);
 
   $result = $self->{mgdb}->get_ontology_for_source($source, $evalue, $identity, $alength);
-  my $id_map = $self->{mgdb}->ach->get_all_ontology4source_hash($source);
+  my $id_map = $self->{mgdb}->get_hierarchy('ontology', $source);
   my $funcs = {};
 
   foreach my $row (@$result) {

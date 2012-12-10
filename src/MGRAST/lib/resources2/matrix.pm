@@ -253,9 +253,8 @@ sub prepare_data {
         $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 500);
     }
     if ($type eq 'organism') {
-        $all_srcs = { M5NR => 1, M5RNA => 1 };
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
         if ( grep(/^$glvl$/, @org_hier) ) {
             $glvl = 'tax_'.$glvl;
             if ($glvl eq 'tax_strain') {
@@ -266,7 +265,7 @@ sub prepare_data {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @org_hier)."]"}, 500);
         }
     } elsif ($type eq 'function') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_ontology_sources};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('ontology')};
         if ( grep(/^$glvl$/, @func_hier) ) {
             if ($glvl eq 'function') {
   	            $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
@@ -278,8 +277,10 @@ sub prepare_data {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @func_hier)."]"}, 500);
         }
     } elsif ($type eq 'feature') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_protein_sources};
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->ach->get_rna_sources};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
+        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
+        delete $all_srcs->{M5NR};
+        delete $all_srcs->{M5RNA};
     }
     unless (exists $all_srcs->{$source}) {
         $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 500);
@@ -321,7 +322,8 @@ sub prepare_data {
         my $info = $mgdb->get_md5_data(undef, undef, undef, undef, 1);
         # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
         my %md5s = map { $_->[1], 1 } @$info;
-        map { push @{$md52id->{$_->[1]}}, $_->[0] } @{ $mgdb->ach->md5s2ids4source([keys %md5s], $source) };
+        my $mmap = $mgdb->decode_annotation('md5', [keys %md5s]);
+        map { push @{$md52id->{ $mmap->{$_->[1]} }}, $_->[0] } @{ $mgdb->annotation_for_md5s([keys %md5s], [$source]) };
         @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {exists $md52id->{$_->[1]}} @$info;
     }
 

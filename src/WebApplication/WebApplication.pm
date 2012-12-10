@@ -1388,18 +1388,6 @@ sub run {
     $page = $self->cgi->param('page');
   }
 
-  # ugly hack to get page variable for upload
-  # the java jumploader is refusing to pass CGI variables like it is supposed to, so we can not pass
-  # the page variable when it performs an upload. Test for the specific set of CGI variables used
-  # by jumploader and point to the 'CreateJob' page if they are found.
-  if ( $self->cgi->param('fileId') and
-       $self->cgi->param('fileLength') and
-       $self->cgi->param('fileName') and
-       $self->cgi->param('file') )
-  {
-      $page = 'CreateJob';
-  }
-
   # immediate redirect to maintenance page if 
   # file 'application_backend_name.disabled' is present in apache doc root
   $page = "Maintenance" if $self->check_for_maintenance();

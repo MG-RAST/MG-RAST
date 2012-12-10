@@ -153,7 +153,7 @@ relationships between functions (COG, NOG, SEED, subsystems, KEGG)
   my $wb_buffer_activators = "";
   my $wb_fasta_style = "display: none;";
   my $wb_select_opts = "";
-  my $protein_sources = $self->{mgdb}->ach->get_protein_sources();
+  my $protein_sources = $self->{mgdb}->sources_for_type('protein');
   if ($cgi->param('wbinit')) {
     $wb_inactive = 0;
     $started_inactive = 1;
@@ -826,8 +826,8 @@ sub metabolic_data {
   # mgid => md5 => abundance
   # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
   
-  my $links  = $self->{mgdb}->ach->get_source_links([$source]);
-  my $id_map = $self->{mgdb}->ach->get_all_ontology4source_hash($source);
+  my $link   = $self->{mgdb}->link_for_source($source);
+  my $id_map = $self->{mgdb}->get_hierarchy('ontology', $source);
   my $all    = [];
   foreach my $row (@$result) {
     if ( exists $id_map->{$row->[1]} ) {
@@ -852,8 +852,8 @@ sub metabolic_data {
 	push @$new, "-";
       }
       push(@$new, $row->[2]);
-      if ($links->{$source} && ($source ne 'Subsystems')) {
-	push(@$new, "<a target=_blank href='".$links->{$source}.$row->[1]."'>".$row->[1]."</a>");
+      if ($link && ($source ne 'Subsystems')) {
+	push(@$new, "<a target=_blank href='".$link.$row->[1]."'>".$row->[1]."</a>");
       }
       else {
 	push(@$new, $row->[1]);
@@ -1100,7 +1100,7 @@ sub recruitment_plot_data {
   my @data = ();
   my %uniq = ();
   my %md5_data = map { $_->[1], [ @$_[2..10] ] } @{ $mgdb->get_md5_data_for_organism_source($name, $source, $cutoff) };
-  my $link_map = $mgdb->ach->get_source_links([$source]);
+  my $link     = $mgdb->link_for_source($source);
 
   foreach ( @{ $mgdb->ach->org2contig_data($orgid, 1) } ) {
     my ($ctg, $md5, $id, $func, $low, $high, $strand, $clen) = @$_;
@@ -1110,7 +1110,7 @@ sub recruitment_plot_data {
       my @curr_data = @{ $md5_data{$md5} };
       my ($num, $seek, $len) = @curr_data[0,7,8];
       my $read_l = qq~<a style='cursor:pointer' onclick='execute_ajax("get_reads_table", "read_div$divid", "metagenome=$mgid&md5=$md5&seek=$seek&length=$len&type=protein");'>$num</a>~;
-      my $id_l   = $link_map->{$source} ? "<a target=_blank href='".$link_map->{$source}.$id."'>".$id."</a>" : $id;
+      my $id_l   = $link ? "<a target=_blank href='".$link.$id."'>".$id."</a>" : $id;
       push @data, [ $id_l, $func, $read_l, $low, $high, $strand, $ctg, $clen, @curr_data[1..6], $md5 ];
     }
   }
@@ -1341,26 +1341,27 @@ sub workbench_export {
   $self->{mgdb}->set_jobs(\@metas);
 
   my $md5_data = {};
-  my $seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s);
-  my $src_type = $self->{mgdb}->ach->sources->{$source}{type};
+  my $seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
+  my $src_type = $self->{mgdb}->_sources->{$source}{type};
+  my $md5_ann  = $self->{mgdb}->annotation_for_md5s(\@md5s, [$source]); # [ id, md5, function, organism, source ]
 
   # ontology has no organism annotation
   if ($src_type eq 'ontology') {
     # seperate id->role mapping for subsystems
     if ($source eq 'Subsystems') {
-      my $ss_map = $self->{mgdb}->ach->subsystem_hash;
-      foreach my $x ( @{$self->{mgdb}->ach->md5s2ids4source(\@md5s, $source)} ) {
-	next unless ($ss_map->{$x->[0]});
-	push @{ $md5_data->{$x->[1]} }, [ $ss_map->{$x->[0]}[2], $ss_map->{$x->[0]}[3] ];
+      my $ss_map = $self->{mgdb}->get_hierarchy('ontology', 'Subsystems');
+      foreach my $x (@$md5_ann) {
+	    next unless ($ss_map->{$x->[0]});
+	    push @{ $md5_data->{$x->[1]} }, [ $ss_map->{$x->[0]}[2], $ss_map->{$x->[0]}[3] ];
       }
     } else {
-      foreach my $x ( @{$self->{mgdb}->ach->md5s2sets4source(\@md5s, $source)} ) {
-	push @{ $md5_data->{$x->[1]} }, [ $x->[0], $x->[2] ];
+      foreach my $x (@$md5_ann) {
+	    push @{ $md5_data->{$x->[1]} }, [ $x->[0], $x->[2] ];
       }
     }
   }
   else {
-    foreach my $x ( @{$self->{mgdb}->ach->md5s2sets4source(\@md5s, $source)} ) {
+    foreach my $x (@$md5_ann) {
       push @{ $md5_data->{$x->[1]} }, [ $x->[0], $x->[2].($x->[3] ? " [".$x->[3]."]" : '') ];
     }
   }
@@ -1370,8 +1371,8 @@ sub workbench_export {
     if (exists $md5_data->{$s->{md5}}) {
       $s->{sequence} =~ s/(.{60})/$1\n/g;
       foreach my $data ( @{$md5_data->{$s->{md5}}} ) {
-	next unless ($data->[0]);
-	push @fastas, ">".$s->{id}."|".$source."|".$data->[0].($data->[1] ? " ".$data->[1] : '')."\n".$s->{sequence};
+	    next unless ($data->[0]);
+	    push @fastas, ">".$s->{id}."|".$source."|".$data->[0].($data->[1] ? " ".$data->[1] : '')."\n".$s->{sequence};
       }
     }
   }
@@ -1394,34 +1395,26 @@ sub workbench_blat_output {
   my @metas  = $cgi->param('comparison_metagenomes');
   my @md5s   = split(/\^/, $cgi->param('md5s'));
   my $tabnum = $cgi->param('tabnum') || 2;
-  my $sorc = $self->{mgdb}->ach->sources;
+  my $sorc = $self->{mgdb}->_sources;
   my $selected_source = $cgi->param('source') eq 'M5NR' ? "RefSeq" : $cgi->param('source');
   my $sources;
   @$sources = keys(%$sorc);
 
   $self->{mgdb}->set_jobs(\@metas);
 
-  my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s);
-  my $nr_seq_data = $self->{mgdb}->ach->md5s2sequences(\@md5s);
-  my $funcs = $self->{mgdb}->ach->md5s2idfunc4sources(\@md5s, $sources);
-  my $links = $self->{mgdb}->ach->md5s2sets(\@md5s);
-  my $links_hash = {};
-  foreach my $l (@$links) {
-    unless (exists($links_hash->{$l->[1]})) {
-      $links_hash->{$l->[1]} = {};
-    }
-    $links_hash->{$l->[1]}->{$l->[4]} = $l->[0];
-  }
-  my $orgs = $self->{mgdb}->ach->md5s2organisms(\@md5s);
-  my $ncbi_ids = {};
-  foreach my $org (@$orgs) {
-    my $ncbi_id = $self->{mgdb}->ach->get_organism_tax_id($org->[0]);
-    if ($ncbi_id) {
-      $ncbi_ids->{$org->[0]} = $ncbi_id;
-    }
-  }
-  my $orgshash = {};
-  %$orgshash = map { $_->[1] => $_->[0] } @$orgs;
+  my $links_hash = {};   # md5 => source => id
+  my $funcs      = {};   # md5 => [ source, id, function ]
+  my $orgshash   = {};   # md5 => organism
+  my $ncbi_ids   = {};   # organism => tax_id
+  my $md5_ann    = $self->{mgdb}->annotation_for_md5s(\@md5s, $sources, 1); # [ id, md5, function, organism, source, tax_id ]
+
+  map { $links_hash->{$_->[1]}{$_->[4]} = $_->[0] } @$md5_ann;
+  map { $funcs->{$_->[1]} = [ @$_[4,0,2] ] } grep { $_->[2] } @$md5_ann;
+  map { $orgshash->{$_->[1]} = $_->[3] } grep { $_->[3] } @$md5_ann;
+  map { $ncbi_ids->{$_->[3]} = $_->[5] } grep { $_->[3] && $_->[5] } @$md5_ann;
+  
+  my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
+  my $nr_seq_data = $self->{mgdb}->ach->md5s2sequences([keys %$funcs]); # fasta text
 
   my @fastas = ();
   foreach my $s (@$mg_seq_data) {
@@ -1508,7 +1501,7 @@ sub workbench_blat_output {
 	    $mainfunc .= "<div style='$sel' name='align' id='align_func_".$counter."_".$r->[0]."'>".$r->[2]."</div>";
 	    $main_source .= "<div style='$sel' name='align' id='align_source_".$counter."_".$r->[0]."'>".$r->[0]."</div>";
 
-	    my $id_link = ($sorc->{$r->[0]}{link} && $links_hash->{$id}{$r->[0]}) ? "<a target=_blank href='".$sorc->{$r->[0]}{link}.$links_hash->{$id}{$r->[0]}."'>".$links_hash->{$id}{$r->[0]}."</a>" : $links->[$counter]->[0];
+	    my $id_link = ($sorc->{$r->[0]}{link} && $links_hash->{$id}{$r->[0]}) ? "<a target=_blank href='".$sorc->{$r->[0]}{link}.$links_hash->{$id}{$r->[0]}."'>".$links_hash->{$id}{$r->[0]}."</a>" : $id;
         if ($id_link) {
 	      $main_id .= "<div style='$sel' name='align' id='align_id_".$counter."_".$r->[0]."'>".$id_link."</div>";
         }
@@ -1589,10 +1582,13 @@ sub workbench_hits_table {
 
   $self->{mgdb}->set_jobs(\@metas);
   my $analysis_data = $self->{mgdb}->get_md5_data(\@md5s);
-  my $source_info   = $self->{mgdb}->ach->sources();
-  my $source_data   = (@ach_srcs > 0) ? $self->{mgdb}->ach->md5s2idfunc4sources(\@md5s, \@ach_srcs) : {};
-  my $ss_map        = $has_ss ? $self->{mgdb}->ach->subsystem_hash : {};
-  my $md5_type      = $has_m5nr ? $self->{mgdb}->ach->md5s2type(\@md5s) : {};
+  my $source_info   = $self->{mgdb}->_sources;
+  my $ss_map        = $has_ss ? $self->{mgdb}->get_hierarchy('ontology', 'Subsystems') : {};
+  my $md5_type      = $has_m5nr ? $self->{mgdb}->type_for_md5s(\@md5s) : {};
+  my $source_data   = {};   # md5 => [ source, id, function ]
+  if (@ach_srcs > 0) {
+      map { $source_data->{$_->[1]} = [ @$_[4,0,2] ] } grep { $_->[2] } @{$self->{mgdb}->annotation_for_md5s(\@md5s, \@ach_srcs)};
+  }
 
   my $html = "<p>Hits for " . scalar(@md5s) . " unique sequences within ";
   foreach my $mg (@mglinks) {
@@ -1686,8 +1682,9 @@ sub get_read_align {
   my $html = '<br>';
   
   $self->{mgdb}->set_jobs([$mgid]);
-  my $seq_data = $self->{mgdb}->md5s_to_read_sequences([$md5]);
-  my @md5_seq  = split(/\n/, $self->{mgdb}->ach->md5s2sequences([$md5]));
+  my $md5_map  = $self->{mgdb}->decode_annotation('md5', [$md5]);
+  my $seq_data = $self->{mgdb}->md5s_to_read_sequences([$md5]); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
+  my @md5_seq  = split(/\n/, $self->{mgdb}->ach->md5s2sequences([ $md5_map->{$md5} ])); # fasta text
 
   if ((@md5_seq == 2) && ($md5_seq[0] =~ /$md5/)) {
     my $md5_fasta = $Conf::temp."/".$md5."_".time.".faa";
@@ -1821,13 +1818,7 @@ sub qiime_export_data {
     }
   }    
 
-  my $name_hier = {}; # name => [ hierarchy ]
-  if ($type eq 'organism') {
-    $name_hier = $self->{mgdb}->ach->get_taxonomy4orgs([keys %name_set]);
-  } else {
-    $name_hier = $self->{mgdb}->ach->get_ontology4source_hash([keys %name_set], $sources[0]);
-  }
-
+  my $name_hier = $self->{mgdb}->get_hierarchy($type, $sources[0]); # name => [ hierarchy ]
   my $md2pos = {};
   my $values = [];
   my $hier = [];
@@ -2689,6 +2680,8 @@ sub single_visual {
 	$content .= "'>";
 	close(D);
 	unlink $infile;
+
+	$cdata =~ s/'/ /g;
 
 	$content .= "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='$cdata'><input type='submit' value='download values used to generate this figure'></form>";
 
@@ -4301,7 +4294,7 @@ sub metabolism_visual {
     }
 
     #### do the pivoting
-    my $links = $self->{mgdb}->ach->get_source_links([$source]);
+    my $link  = $self->{mgdb}->link_for_source($source);
     my $dhash = {};
     my $colhashcount = {};
     my $newdata = [];
@@ -4350,10 +4343,10 @@ sub metabolism_visual {
       $d->[15 - $subt] = $hits;
       $d->[16 - $subt] = $subhit;
 
-      if (($source eq "Subsystems") && $links->{$source}) {
+      if (($source eq "Subsystems") && $link) {
 	my $link_term = $d->[3];
 	$link_term =~ s/\s+/_/g;
-	$d->[3] = "<a target=_blank href='".$links->{$source}.$link_term."'>".$d->[3]."</a>";
+	$d->[3] = "<a target=_blank href='".$link.$link_term."'>".$d->[3]."</a>";
       }
     }
 
@@ -5752,7 +5745,8 @@ sub recruitment_plot_visual {
   }
 
   $self->{mgdb}->set_jobs([$mgid]);
-  my $name = $self->{mgdb}->ach->get_organism_from_index($orgid);
+  my $name_map = $self->{mgdb}->decode_annotation('organism', [$orgid]);
+  my $name = $name_map->{$orgid} ? $name_map->{$orgid} : '';
 
   if ($cgi->param('vis_type') eq 'circle') {
     my ($file, $evals, $stats) = @{ $self->recruitment_plot_graph($name, $map) };
@@ -6305,25 +6299,24 @@ if (isNaN(alenNum) || (alenNum < 1)) {
 sub source_select {
   my ($self, $type, $presel, $single, $add_rna) = @_;
 
-  my $ach = $self->{mgdb}->ach;
   my @prev_vals = $self->application->cgi->param('source') || ();
   my %prev_val_hash = map { $_ => 1 } @prev_vals;
 
   my @sources = ();
   if ($type eq 'phylogeny') {
-    @sources = ( ['M5NR', 'Non-Redundant Multi-Source Protein Annotation Database'], @{$ach->get_protein_sources()} );
+    @sources = @{$self->{mgdb}->sources_for_type('protein')};
   }
   elsif ($type eq 'annotation') {
-    @sources = @{$ach->get_protein_sources()};
+    @sources = grep {$_->[0] ne 'M5NR'} @{$self->{mgdb}->sources_for_type('protein')};
   }
   elsif ($type eq 'metabolism') {
-    @sources = grep {$_->[0] !~ /^GO/} @{$ach->get_ontology_sources()};
+    @sources = grep {$_->[0] !~ /^GO/} @{$self->{mgdb}->sources_for_type('ontology')};
   }
 
   my $size = scalar @sources;
   my @rnas = ();
   if ($add_rna) {
-    @rnas = ( ['M5RNA', 'Non-Redundant Multi-Source Ribosomal RNA Annotation Database'], @{$ach->get_rna_sources()} );
+    @rnas = @{$self->{mgdb}->sources_for_type('rna')};
     $size += 2 + scalar(@rnas);
   }
   my $multiple = $single ? "" : " multiple='multiple'";
