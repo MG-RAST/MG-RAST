@@ -688,9 +688,9 @@ sub verify_file_type {
     }
 
     if ($file_type eq 'ASCII text, with CR line terminators') {
-	return ('ASCII text', "", "sed -i 's/\r/\n/g' '$dir/$file'");
+	return ('ASCII text', "", "sed -i 's/\\r/\\n/g' '$dir/$file'");
     } elsif($file_type eq 'ASCII text, with CRLF line terminators') {
-	return ('ASCII text', "", "sed -i 's/\r//g' '$dir/$file'");
+	return ('ASCII text', "", "sed -i 's/\\r//g' '$dir/$file'");
     } elsif($file_type eq 'ASCII text') {
 	return ($file_type, "", "");
     } elsif((-s "$dir/$file") == 0) {
