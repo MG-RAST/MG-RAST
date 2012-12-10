@@ -959,7 +959,7 @@ sub get_organism_abundance_for_source {
 
     my $data  = {};
     my $where = $self->_get_where_str([$self->_qver, $self->_qjobs, "source = ".$self->_src_id->{$src}]);
-    my $sql   = "SELECT id, SUM(abundance) FROM ".$self->_jtbl->{organism}.$where." GROUP BY id";
+    my $sql   = "SELECT id, abundance FROM ".$self->_jtbl->{organism}.$where;
     my $rows  = $self->_dbh->selectall_arrayref($sql);
     if ($rows && (@$rows > 0)) {
         %$data = map { $_->[0], $_->[1] } @$rows;
