@@ -684,12 +684,17 @@ sub type_for_md5s {
 }
 
 sub organisms_for_taxids {
-    my ($self, $tax_ids, $get_ids) = @_;
-    unless ($tax_ids && (@$tax_ids > 0)) { return []; }
-    my $key  = $get_ids ? '_id' : 'name';
+    my ($self, $tax_ids) = @_;
+
+    unless ($tax_ids && (@$tax_ids > 0)) { return {}; }
+    my $data = {};
     my $list = join(",", grep {$_ =~ /^\d+$/} @$tax_ids);
-    my $rows = $self->_dbh->selectcol_arrayref("SELECT $key FROM ".$self->_atbl->{organism}." WHERE ncbi_tax_id in ($list)");
-    return ($rows && (@$rows > 0)) ? $rows : [];
+    my $rows = $self->_dbh->selectcol_arrayref("SELECT _id, name FROM ".$self->_atbl->{organism}." WHERE ncbi_tax_id in ($list)");
+    if ($rows && @$rows) {
+        map { $data->{$_->[0]} = $_->[1] } @$rows;
+    }
+    return $data;
+    # org_id => org_name
 }
 
 sub sources_for_type {
