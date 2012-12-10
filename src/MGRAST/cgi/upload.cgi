@@ -268,12 +268,6 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                     chomp $lock_msg;
 		    push(@{$data->[0]->{popup_messages}}, "Unable to join paired-ends on $seqfile1 and $seqfile2, currently running $lock_msg.");
                 } else {
-		    my $jobid = $user->{login};
-		    $jobid =~ s/\s/_/g;
-		    `echo "computing join paired-ends" > $lock_file1`;
-		    `echo "computing join paired-ends" > $lock_file2`;
-		    if($lock_file3 ne "") { `echo "computing join paired-ends" > $lock_file3`; }
-
 		    my $fix_files_str = "";
 		    my $file_types_verify = 1;
 		    foreach my $input_file ($files[0], $files[1], $files[2], $files[4]) {
@@ -287,6 +281,12 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    }
 
 		    if($file_types_verify == 1) {
+			my $jobid = $user->{login};
+			$jobid =~ s/\s/_/g;
+			`echo "computing join paired-ends" > $lock_file1`;
+			`echo "computing join paired-ends" > $lock_file2`;
+			if($lock_file3 ne "") { `echo "computing join paired-ends" > $lock_file3`; }
+
 			my $jnum = "";
 			my $command = "";
 			if($join_option eq 'remove') {
@@ -339,59 +339,59 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                     $subdir =~ s/^(.*\/).*/$1/;
                 }
 
-		#  Check for lock files that already exist for output filenames and
-		#  add to array if they do already exist.
-		my %output_files = ();
-		my %output_files_locked = ();
-		open IN, "$udir/$midfile" || die "Cannot open file $udir/$midfile for reading.\n";
-		while(my $line=<IN>) {
-		    $line =~ s/\s+$//;
-		    my @array = split(/\t/, $line);
-		    my $output_file = "$array[1]";
-		    chomp $output_file;
-		    if($filetype eq 'fastq') {
-			$output_file .= '.fastq';
-		    } else {
-			$output_file .= '.fna';
+		my $fix_files_str = "";
+		my $file_types_verify = 1;
+		foreach my $input_file ($files[0], $files[1]) {
+		    my ($file_type, $err_msg, $fix_str) = &verify_file_type($input_file, $udir);
+		    if($err_msg ne "") {
+			push(@{$data->[0]->{popup_messages}}, $err_msg);
+			$file_types_verify = -1;
+		    } elsif($fix_str ne "") {
+			$fix_files_str .= "$fix_str; ";
 		    }
-		    my $output_lock_file = "$udir/$subdir/$output_file.lock";
-		    if(-f $output_lock_file) {
-			$output_files_locked{$output_file} = 1;
-		    }
-		    $output_files{$output_file} = 1;
 		}
-		close IN;
 
-                my $lock_file = "$udir/$seqfile.lock";
-                if (-f $lock_file) {
-                    my $lock_msg = `cat $lock_file`;
-                    chomp $lock_msg;
-		    push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex $seqfile, currently running $lock_msg.");
-		} elsif(keys %output_files_locked) {
-		    my $output_files_locked_str = join(" ", keys %output_files_locked);
-		    push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex into files: $output_files_locked_str, those files are currently undergoing other operations.");
-                } else {
-		    my $jobid = $user->{login};
-		    $jobid =~ s/\s/_/g;
-		    `echo "computing demultiplex" > $lock_file`;
-		    my $output_lock_files_str = "";
-		    foreach my $output_file (keys %output_files) {
-			`echo "computing demultiplex" > $udir/$subdir/$output_file.lock`;
-			$output_lock_files_str .= "$udir/$subdir/$output_file.lock ";
-		    }
-		    my $fix_files_str = "";
-		    my $file_types_verify = 1;
-		    foreach my $input_file ($files[0], $files[1]) {
-			my ($file_type, $err_msg, $fix_str) = &verify_file_type($input_file, $udir);
-			if($err_msg ne "") {
-			    push(@{$data->[0]->{popup_messages}}, $err_msg);
-			    $file_types_verify = -1;
-			} elsif($fix_str ne "") {
-			    $fix_files_str .= "$fix_str; ";
+		if($file_types_verify == 1) {
+		    #  Check for lock files that already exist for output filenames and
+		    #  add to array if they do already exist.
+		    my %output_files = ();
+		    my %output_files_locked = ();
+		    open IN, "$udir/$midfile" || die "Cannot open file $udir/$midfile for reading.\n";
+		    while(my $line=<IN>) {
+			$line =~ s/\s+$//;
+			my @array = split(/\t/, $line);
+			my $output_file = "$array[1]";
+			chomp $output_file;
+			if($filetype eq 'fastq') {
+			    $output_file .= '.fastq';
+			} else {
+			    $output_file .= '.fna';
 			}
+			my $output_lock_file = "$udir/$subdir/$output_file.lock";
+			if(-f $output_lock_file) {
+			    $output_files_locked{$output_file} = 1;
+			}
+			$output_files{$output_file} = 1;
 		    }
+		    close IN;
 
-		    if($file_types_verify == 1) {
+                    my $lock_file = "$udir/$seqfile.lock";
+                    if (-f $lock_file) {
+                	my $lock_msg = `cat $lock_file`;
+                	chomp $lock_msg;
+			push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex $seqfile, currently running $lock_msg.");
+		    } elsif(keys %output_files_locked) {
+			my $output_files_locked_str = join(" ", keys %output_files_locked);
+			push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex into files: $output_files_locked_str, those files are currently undergoing other operations.");
+                    } else {
+			my $jobid = $user->{login};
+			$jobid =~ s/\s/_/g;
+			`echo "computing demultiplex" > $lock_file`;
+			my $output_lock_files_str = "";
+			foreach my $output_file (keys %output_files) {
+			    `echo "computing demultiplex" > $udir/$subdir/$output_file.lock`;
+			    $output_lock_files_str .= "$udir/$subdir/$output_file.lock ";
+			}
 			my $jnum = `echo "$fix_files_str $Conf::demultiplex -f $filetype -b $udir/$midfile -i $udir/$seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file; rm $output_lock_files_str;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 			$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 			open(FH, ">>$udir/.tmp/jobs");
@@ -516,42 +516,42 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	# create basic and extended file information if we do not yet have it and there is no lock file present
 	if (! $info_files->{$sequence_file} && ! -f $lock_file) {
-            `echo "computing sequence stats" > $lock_file`;
-	    `touch "$udir/$sequence_file.stats_info"`;
 	    my ($file_type, $err_msg, $fix_file_str) = &verify_file_type($sequence_file, $udir);
 	    if($err_msg ne "") {
 		push(@{$data->[0]->{popup_messages}}, $err_msg);
-	    }
+	    } else {
+        	`echo "computing sequence stats" > $lock_file`;
+		`touch "$udir/$sequence_file.stats_info"`;
+		my $file_eol      = &file_eol($file_type);
+		my $file_suffix = $sequence_file =~ /^.*\.(.+)$/;
+		my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
+		my $file_size     = -s $udir."/".$sequence_file;
+	    
+		my $info = { "type" => $file_type,
+			     "suffix" => $file_suffix,
+			     "file_type" => $file_format,
+			     "file_size" => $file_size };
+	    
+		open(FH, ">$udir/$sequence_file.stats_info");
+		print FH "type\t$file_type\n";
+		print FH "suffix\t$file_suffix\n";
+		print FH "file_type\t$file_format\n";
+		print FH "file_size\t$file_size\n";
+		close(FH);
+		`chmod 666 $udir/$sequence_file.stats_info`;
+	    
+		$data->[0]->{fileinfo}->{$sequence_file} = $info;
 
-	    my $file_eol      = &file_eol($file_type);
-	    my $file_suffix = $sequence_file =~ /^.*\.(.+)$/;
-	    my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
-	    my $file_size     = -s $udir."/".$sequence_file;
-	    
-	    my $info = { "type" => $file_type,
-			 "suffix" => $file_suffix,
-			 "file_type" => $file_format,
-			 "file_size" => $file_size };
-	    
-	    open(FH, ">$udir/$sequence_file.stats_info");
-	    print FH "type\t$file_type\n";
-	    print FH "suffix\t$file_suffix\n";
-	    print FH "file_type\t$file_format\n";
-	    print FH "file_size\t$file_size\n";
-	    close(FH);
-	    `chmod 666 $udir/$sequence_file.stats_info`;
-	    
-	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
-
-	    # call the extended information
-	    if ($file_type eq 'ASCII text') {
-		my $jobid = $user->{login};
-		$jobid =~ s/\s/_/g;
-		my $jnum = `echo "$fix_file_str; $Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
-		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
-	      open(FH, ">>$udir/.tmp/jobs");
-	      print FH "$jnum";
-	      close FH;
+		# call the extended information
+		if ($file_type eq 'ASCII text') {
+		    my $jobid = $user->{login};
+		    $jobid =~ s/\s/_/g;
+		    my $jnum = `echo "$fix_file_str; $Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+		    open(FH, ">>$udir/.tmp/jobs");
+		    print FH "$jnum";
+		    close FH;
+		}
 	    }
 	}
     }
