@@ -538,6 +538,7 @@ function select_metadata_file () {
     var sel = document.getElementById('metadata_file_select');
     selected_metadata_file = sel.options[sel.selectedIndex].value;
     document.getElementById("sel_mdfile_div").innerHTML = "<p><img src='./Html/ajax-loader.gif'> please wait while your metadata file is being validated...</p>";
+    document.getElementById("sel_mdfile_info_div").style.display = "none";
     
     $.get("?page=Upload&action=validate_metadata&mdfn="+selected_metadata_file, function (data) {
 	var result = data.split(/\|\|/);
@@ -591,6 +592,7 @@ function unselect_metadata_file () {
   document.getElementById("icon_step_1").style.display = "none";
   document.getElementById("sel_project_pill").className = "pill_incomplete";
   document.getElementById("icon_step_2").style.display = "none";
+  document.getElementById("sel_mdfile_info_div").style.display = "";
   update_inbox();
   check_submitable();
 }
