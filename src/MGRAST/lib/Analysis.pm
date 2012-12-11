@@ -631,7 +631,8 @@ sub annotation_for_md5s {
     my $data = [];
     my $qsrc = ($srcs && @$srcs) ? " AND a.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
     my $tid  = $taxid ? ", o.ncbi_tax_id" : "";
-    my $iter = natatime $self->_chunk, @$md5s;
+    my %umd5 = map {$_, 1} @$md5s;
+    my $iter = natatime $self->_chunk, keys %umd5;
     
     while (my @curr = $iter->()) {
         my $sql = "SELECT a.id, m.md5, f.name, o.name, a.source$tid FROM md5_annotation a ".
@@ -656,7 +657,8 @@ sub decode_annotation {
     unless ($ids && @$ids) { return {}; }
     my $data = {};
     my $col  = ($type eq 'md5') ? 'md5' : 'name';
-    my $iter = natatime $self->_chunk, @$ids;
+    my %uids = map {$_, 1} @$ids;
+    my $iter = natatime $self->_chunk, keys %uids;
     
     while (my @curr = $iter->()) {
         my $sql  = "SELECT _id, $col FROM ".$self->_atbl->{$type}." WHERE _id IN (".join(',', @curr).")";
@@ -911,7 +913,8 @@ sub md5s_to_read_sequences {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
 
     my $seqs = [];
-    my $iter = natatime $self->_chunk, @$md5s;
+    my %umd5 = map {$_, 1} @$md5s;
+    my $iter = natatime $self->_chunk, keys %umd5;
 
     while (my @curr = $iter->()) {    
         my $w_md5s = "md5 IN (".join(",", map {"'$_'"} @curr).")";
@@ -1124,7 +1127,7 @@ sub _get_abundance_for_hierarchy {
     my $hier  = {};
     my $curr  = 0;
     my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $qsrcs]);
-    my $sql   = "SELECT DISTINCT job, id, md5s FROM ".$self->_jtbl->{organism}.$where." ORDER BY job";
+    my $sql   = "SELECT DISTINCT job, id, md5s FROM ".$self->_jtbl->{$type}.$where." ORDER BY job";
     my ($job, $id, $md5);
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         ($job, $id, $md5) = @$row;
@@ -1589,7 +1592,8 @@ sub get_md5_data {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
   
-    my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5 IN (" . join(",", map {"'$_'"} @$md5s) . ")" : "";
+    my %umd5s = ($md5s && (@$md5s > 0)) ? map {$_, 1} @$md5s : {};
+    my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5 IN (" . join(",", map {"'$_'"} keys %umd5s) . ")" : "";
     my $qseek = $ignore_sk ? "" : "j.seek IS NOT NULL AND j.length IS NOT NULL";
     my $qrep  = $rep_org_src ? "j.md5=r.md5 AND r.source=".$self->_src_id->{$rep_org_src} : "";
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", $qrep, $qmd5s, $eval, $ident, $alen, $qseek]);
@@ -1632,12 +1636,23 @@ sub get_md5_abundance {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
   
-    my $qmd5s = ($md5s && (@$md5s > 0)) ? "md5 IN (" . join(",", map {"'$_'"} @$md5s) . ")" : "";
-    my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $qmd5s, $eval, $ident, $alen]);
-    my $sql   = "SELECT DISTINCT job, md5, abundance FROM ".$self->_jtbl->{md5}.$where;
-
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        $data->{ $self->_mg_map->{$row->[0]} }{$row->[1]} = $row->[2];
+    if ($md5s && (@$md5s > 0)) {
+        my %umd5 = map {$_, 1} @$md5s;
+        my $iter = natatime $self->_chunk, keys %umd5;
+        while (my @curr = $iter->()) {
+            my $qmd5s = "md5 IN (".join(",", map {"'$_'"} @curr).")";
+            my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $qmd5s, $eval, $ident, $alen]);
+            my $sql   = "SELECT DISTINCT job, md5, abundance FROM ".$self->_jtbl->{md5}.$where;
+            foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
+                $data->{ $self->_mg_map->{$row->[0]} }{$row->[1]} = $row->[2];
+            }
+        }
+    } else {
+        my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $eval, $ident, $alen]);
+        my $sql   = "SELECT DISTINCT job, md5, abundance FROM ".$self->_jtbl->{md5}.$where;
+        foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
+            $data->{ $self->_mg_map->{$row->[0]} }{$row->[1]} = $row->[2];
+        }        
     }
     foreach my $mg (keys %$data) {
         $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
