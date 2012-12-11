@@ -541,6 +541,10 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    
 		$data->[0]->{fileinfo}->{$sequence_file} = $info;
 
+		if($fix_file_str ne "") {
+		    $fix_file_str .= ";";
+		}
+
 		# call the extended information
 		# temporarily allowing file_type to be '' because that's what the current version
 		# of the file command we are running returns for certain fastq files.  When file
@@ -548,7 +552,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		if ($file_type eq 'ASCII text' || $file_type eq '') {
 		    my $jobid = $user->{login};
 		    $jobid =~ s/\s/_/g;
-		    my $jnum = `echo "$fix_file_str; $Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    my $jnum = `echo "$fix_file_str $Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
 		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
 		    open(FH, ">>$udir/.tmp/jobs");
 		    print FH "$jnum";
