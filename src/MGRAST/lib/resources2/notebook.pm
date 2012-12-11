@@ -88,7 +88,8 @@ sub info {
              				               'type'        => "synchronous",  
              				               'attributes'  => $self->attributes,
              				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
-                          												                             ['full', 'returns notebook attributes and object']]]
+                          												                             ['full', 'returns notebook attributes and object']]],
+                          												      'name'      => ['string', "name of new cloned notebook"]
                           											        },
              							                      'required' => { "id"   => ["string", "unique shock object identifier"],
              							                                      "nbid" => ["string", "unique notebook object identifier"] },
@@ -119,13 +120,14 @@ sub instance {
     # clone node if requested (update shock attributes and ipynb metadata)
     if (@{$self->rest} > 1) {
         my $file = $self->json->decode( $self->get_shock_file($node->{id}) );
+        my $name = $self->cgi->param('name') || $node->{attributes}{name}.'_copy';
         my $attr = { type => $node->{attributes}{type} || 'ipynb',
-                     name => $node->{attributes}{name} || '',
+                     name => $name,
                      user => $uname || 'public',
                      uuid => $self->rest->[1],
                      created => strftime("%Y-%m-%dT%H:%M:%S", localtime)
                    };
-        $file->['metadata'] = $attr;
+        $file->{'metadata'} = $attr;
         my $clone = $self->set_shock_node($node->{id}.'ipynb', $file, $attr);
         $data = $self->prepare_data( [$clone] );
     } else {
