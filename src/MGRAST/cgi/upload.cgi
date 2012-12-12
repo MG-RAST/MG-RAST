@@ -127,24 +127,71 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	
 	# decompress a list of files
 	if ($action eq 'unpack') {
+	    my @files_to_unpack = ();
+	    my %files_to_filetype = ();
+	    my %files_to_lockfiles = ();
+	    # We want to create ALL the lock files before doing any operations on the files.
 	    foreach my $file (@files) {
+		if (-f "$udir/$file") {
+		    # This if/else block is used to get the base filename but also records the
+		    # filetype so that the correct decompression can be called below and the
+		    # regex's and if/else logic only need to be maintined in one location (here).
+		    my $basename = $file;
+		    if ($basename =~ s/^(.*)\.(tar\.gz|tgz)$/$1/) {
+			$files_to_filetype{$file} = 'tar gzip';
+		    } elsif ($basename =~ s/^(.*)\.zip$/$1/) {
+			$files_to_filetype{$file} = 'zip';
+		    } elsif ($basename =~ s/^(.*)\.(tar\.bz2|tbz|tbz2|tb2)$/$1/) {
+			$files_to_filetype{$file} = 'tar bzip2';
+		    } elsif ($basename =~ s/^(.*)\.gz$/$1/) {
+			$files_to_filetype{$file} = 'gzip';
+		    } elsif ($basename =~ s/^(.*)\.bz2$/$1/) {
+			$files_to_filetype{$file} = 'bzip2';
+		    }
+
+                    my $lock_file1 = "$udir/$file.lock";
+                    my $lock_file2 = "$udir/$basename.lock";
+                    if (-f $lock_file1) {
+                	my $lock_msg = `cat $lock_file1`;
+                	chomp $lock_msg;
+			push(@{$data->[0]->{popup_messages}}, "Unable to decompress $file, currently running $lock_msg.");
+                    } elsif (-f $lock_file2) {
+                	my $lock_msg = `cat $lock_file2`;
+                	chomp $lock_msg;
+			push(@{$data->[0]->{popup_messages}}, "Unable to decompress $file to $basename, currently running $lock_msg.");
+                    } else {
+			`echo "decompressing" > $lock_file1`;
+			`echo "decompressing" > $lock_file2`;
+			push @files_to_unpack, $file;
+			push @{$files_to_lockfiles{$file}}, $lock_file1;
+			push @{$files_to_lockfiles{$file}}, $lock_file2;
+		    }
+		}
+	    }
+	    foreach my $file (@files_to_unpack) {
 		my @msg;
 		if (-f "$udir/$file") {
-		    if ($file =~ /\.(tar\.gz|tgz)$/) {
+		    if ($files_to_filetype{$file} eq 'tar gzip') {
 			@msg = `tar -xzf '$udir/$file' -C $udir 2>&1`;
-		    } elsif ($file =~ /\.zip$/) {
+		    } elsif ($files_to_filetype{$file} eq 'zip') {
 			@msg = `unzip -q -o -d $udir '$udir/$file' 2>&1`;
-		    } elsif ($file =~ /\.(tar\.bz2|tbz|tbz2|tb2)$/) {
+		    } elsif ($files_to_filetype{$file} eq 'tar bzip2') {
 			@msg = `tar -xjf '$udir/$file' -C $udir 2>&1`;
-		    } elsif ($file =~ /\.gz$/) {
+		    } elsif ($files_to_filetype{$file} eq 'gzip') {
 			@msg = `gunzip -d '$udir/$file' 2>&1`;
-		    } elsif ($file =~ /\.bz2$/) {
+		    } elsif ($files_to_filetype{$file} eq 'bzip2') {
 			@msg = `bunzip2 -d '$udir/$file' 2>&1`;
 		    }
 
                     if(@msg > 0) {
                         push(@{$data->[0]->{popup_messages}}, "Output from unpacking file $file:\n".join("\n",@msg));
                     }
+
+		    foreach my $lock_file (@{$files_to_lockfiles{$file}}) {
+			if(-f $lock_file) {
+			    `rm $lock_file`;
+			}
+		    }
 		}
 	    }
 	}
@@ -167,16 +214,16 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    }
 	}
 
-        # merge_mate_pairs, there will be two paired-end fastq files
-        if ($action eq 'merge_mate_pairs') {
+        # join_paired_ends, there will be two paired-end fastq files
+        if ($action eq 'join_paired_ends') {
             # do stuff
-	    my $seqfile1; # mate-pair file 1
-	    my $seqfile2; # mate-pair file 2
+	    my $seqfile1; # paired-end file 1
+	    my $seqfile2; # paired-end file 2
 	    my $seqfile3; # index file
 	    my $filetype1;
 	    my $filetype2;
 	    my $filetype3;
-	    my $join_option; # option to include non-overlapping mate-pairs
+	    my $join_option; # option to include non-overlapping paired-ends
             my $joinfile; # output filename
 
 	    my $has_seqs = 0;
@@ -211,45 +258,59 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 if (-f $lock_file1) {
                     my $lock_msg = `cat $lock_file1`;
                     chomp $lock_msg;
-		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
+		    push(@{$data->[0]->{popup_messages}}, "Unable to join paired-ends on $seqfile1 and $seqfile2, currently running $lock_msg.");
                 } elsif (-f $lock_file2) {
                     my $lock_msg = `cat $lock_file2`;
                     chomp $lock_msg;
-		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
+		    push(@{$data->[0]->{popup_messages}}, "Unable to join paired-ends on $seqfile1 and $seqfile2, currently running $lock_msg.");
                 } elsif (-f $lock_file3) {
                     my $lock_msg = `cat $lock_file3`;
                     chomp $lock_msg;
-		    push(@{$data->[0]->{popup_messages}}, "Unable to merge mate-pairs on $seqfile1 and $seqfile2, currently running $lock_msg.");
+		    push(@{$data->[0]->{popup_messages}}, "Unable to join paired-ends on $seqfile1 and $seqfile2, currently running $lock_msg.");
                 } else {
-		    my $jobid = $user->{login};
-		    $jobid =~ s/\s/_/g;
-		    `echo "computing merge mate-pairs" > $lock_file1`;
-		    `echo "computing merge mate-pairs" > $lock_file2`;
-		    if($lock_file3 ne "") { `echo "computing merge mate-pairs" > $lock_file3`; }
-		    my $jnum = "";
-                    my $command = "";
-		    if($join_option eq 'remove') {
-		      if($seqfile3 eq "") {
-                        $command = "echo \"$Conf::pairend_join -j -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
-		      } else {
-			$command = "echo \"$Conf::pairend_join -j -r -i $seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
-		      }
-		    } else {
-		      if($seqfile3 eq "") {
-			$command = "echo \"$Conf::pairend_join -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
-		      } else {
-			$command = "echo \"$Conf::pairend_join -r -i $seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
-		      }
+		    my $fix_files_str = "";
+		    my $file_types_verify = 1;
+		    foreach my $input_file ($files[0], $files[1], $files[2], $files[4]) {
+			my ($file_type, $err_msg, $fix_str) = &verify_file_type($input_file, $udir);
+			if($err_msg ne "") {
+			    push(@{$data->[0]->{popup_messages}}, $err_msg);
+			    $file_types_verify = -1;
+			} elsif($fix_str ne "") {
+			    $fix_files_str .= "$fix_str; ";
+			}
 		    }
-                    $jnum = `$command`;
-		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
-		    open(FH, ">>$udir/.tmp/jobs");
-		    print FH "$jnum";
-		    close FH;
+
+		    if($file_types_verify == 1) {
+			my $jobid = $user->{login};
+			$jobid =~ s/\s/_/g;
+			`echo "computing join paired-ends" > $lock_file1`;
+			`echo "computing join paired-ends" > $lock_file2`;
+			if($lock_file3 ne "") { `echo "computing join paired-ends" > $lock_file3`; }
+
+			my $jnum = "";
+			my $command = "";
+			if($join_option eq 'remove') {
+			    if($seqfile3 eq "") {
+				$command = "echo \"$fix_files_str $Conf::pairend_join -j -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+			    } else {
+				$command = "echo \"$fix_files_str $Conf::pairend_join -j -r -i $seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+			    }
+			} else {
+			    if($seqfile3 eq "") {
+				$command = "echo \"$fix_files_str $Conf::pairend_join -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+			    } else {
+				$command = "echo \"$fix_files_str $Conf::pairend_join -r -i $seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+			    }
+			}
+			$jnum = `$command`;
+			$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+			open(FH, ">>$udir/.tmp/jobs");
+			print FH "$jnum";
+			close FH;
+		    }
                 }
-	    }
-	    else {
-		push(@{$data->[0]->{popup_messages}}, "Unknown file types for merge mate-pairs, please select two .fastq or .fq input sequence files.  Also, if an index file is included, that file must also be in fastq format with an appropriate file extension.");
+	    } else {
+		push(@{$data->[0]->{popup_messages}}, "Unknown file types for join paired-ends, please select two .fastq or .fq input sequence files.  Also, if an index file is included, that file must also be in fastq format with an appropriate file extension.");
 	    }
 	}
 	
@@ -278,59 +339,71 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                     $subdir =~ s/^(.*\/).*/$1/;
                 }
 
-		#  Check for lock files that already exist for output filenames and
-		#  add to array if they do already exist.
-		my %output_files = ();
-		my %output_files_locked = ();
-		open IN, "$udir/$midfile" || die "Cannot open file $udir/$midfile for reading.\n";
-		while(my $line=<IN>) {
-		    $line =~ s/\s+$//;
-		    my @array = split(/\t/, $line);
-		    my $output_file = "$array[1]";
-		    chomp $output_file;
-		    if($filetype eq 'fastq') {
-			$output_file .= '.fastq';
-		    } else {
-			$output_file .= '.fna';
+		my $fix_files_str = "";
+		my $file_types_verify = 1;
+		foreach my $input_file ($files[0], $files[1]) {
+		    my ($file_type, $err_msg, $fix_str) = &verify_file_type($input_file, $udir);
+		    if($err_msg ne "") {
+			push(@{$data->[0]->{popup_messages}}, $err_msg);
+			$file_types_verify = -1;
+		    } elsif($fix_str ne "") {
+			$fix_files_str .= "$fix_str; ";
 		    }
-		    my $output_lock_file = "$udir/$subdir/$output_file.lock";
-		    if(-f $output_lock_file) {
-			$output_files_locked{$output_file} = 1;
-		    }
-		    $output_files{$output_file} = 1;
 		}
-		close IN;
 
-                my $lock_file = "$udir/$seqfile.lock";
-                if (-f $lock_file) {
-                    my $lock_msg = `cat $lock_file`;
-                    chomp $lock_msg;
-		    push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex $seqfile, currently running $lock_msg.");
-		} elsif(keys %output_files_locked) {
-		    my $output_files_locked_str = join(" ", keys %output_files_locked);
-		    push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex into files: $output_files_locked_str, those files are currently undergoing other operations.");
-                } else {
-		    my $jobid = $user->{login};
-		    $jobid =~ s/\s/_/g;
-		    `echo "computing demultiplex" > $lock_file`;
-		    my $output_lock_files_str = "";
-		    foreach my $output_file (keys %output_files) {
-			`echo "computing demultiplex" > $udir/$subdir/$output_file.lock`;
-			$output_lock_files_str .= "$udir/$subdir/$output_file.lock ";
+		if($file_types_verify == 1) {
+		    #  Check for lock files that already exist for output filenames and
+		    #  add to array if they do already exist.
+		    my %output_files = ();
+		    my %output_files_locked = ();
+		    open IN, "$udir/$midfile" || die "Cannot open file $udir/$midfile for reading.\n";
+		    while(my $line=<IN>) {
+			$line =~ s/\s+$//;
+			my @array = split(/\t/, $line);
+			my $output_file = "$array[1]";
+			chomp $output_file;
+			if($filetype eq 'fastq') {
+			    $output_file .= '.fastq';
+			} else {
+			    $output_file .= '.fna';
+			}
+			my $output_lock_file = "$udir/$subdir/$output_file.lock";
+			if(-f $output_lock_file) {
+			    $output_files_locked{$output_file} = 1;
+			}
+			$output_files{$output_file} = 1;
 		    }
+		    close IN;
 
-		    my $jnum = `echo "$Conf::demultiplex -f $filetype -b $udir/$midfile -i $udir/$seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file; rm $output_lock_files_str;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
-		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
-		    open(FH, ">>$udir/.tmp/jobs");
-		    print FH "$jnum";
-		    close FH;
+                    my $lock_file = "$udir/$seqfile.lock";
+                    if (-f $lock_file) {
+                	my $lock_msg = `cat $lock_file`;
+                	chomp $lock_msg;
+			push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex $seqfile, currently running $lock_msg.");
+		    } elsif(keys %output_files_locked) {
+			my $output_files_locked_str = join(" ", keys %output_files_locked);
+			push(@{$data->[0]->{popup_messages}}, "Unable to demultiplex into files: $output_files_locked_str, those files are currently undergoing other operations.");
+                    } else {
+			my $jobid = $user->{login};
+			$jobid =~ s/\s/_/g;
+			`echo "computing demultiplex" > $lock_file`;
+			my $output_lock_files_str = "";
+			foreach my $output_file (keys %output_files) {
+			    `echo "computing demultiplex" > $udir/$subdir/$output_file.lock`;
+			    $output_lock_files_str .= "$udir/$subdir/$output_file.lock ";
+			}
+			my $jnum = `echo "$fix_files_str $Conf::demultiplex -f $filetype -b $udir/$midfile -i $udir/$seqfile -o $udir/$subdir 2> $udir/$seqfile.error_log; rm $lock_file; rm $output_lock_files_str;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+			$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+			open(FH, ">>$udir/.tmp/jobs");
+			print FH "$jnum";
+			close FH;
 
-		    my $bc_count = `wc $udir/$midfile | awk '{print \$1}'`;
-		    chomp $bc_count;
-		    push(@{$data->[0]->{popup_messages}}, "Sequence file $seqfile is queued to be demultiplexed using $bc_count barcodes.");
+			my $bc_count = `wc $udir/$midfile | awk '{print \$1}'`;
+			chomp $bc_count;
+			push(@{$data->[0]->{popup_messages}}, "Sequence file $seqfile is queued to be demultiplexed using $bc_count barcodes.");
+		    }
                 }
-	    }
-	    else {
+	    } else {
 		push(@{$data->[0]->{popup_messages}}, "Unknown file types for demultiplex, please select one sequence file and one barcode file.");
 	    }
 	}
@@ -443,64 +516,48 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 
 	# create basic and extended file information if we do not yet have it and there is no lock file present
 	if (! $info_files->{$sequence_file} && ! -f $lock_file) {
-	    `touch "$udir/$sequence_file.stats_info"`;
-	    my $file_type = &file_type($sequence_file, $udir);
-	    my @msg;
-
-	    if ($file_type eq 'ASCII text, with CR line terminators') {
-	      @msg = `sed -i 's/\r/\n/g' '$udir/$sequence_file'`;
-	      $file_type = 'ASCII text';
-	    } elsif ($file_type eq 'ASCII text, with CRLF line terminators') {
-	      @msg = `tr -d '\r' < '$udir/$sequence_file' > '$udir/$sequence_file.tmp'`;
-	      `mv '$udir/$sequence_file.tmp' '$udir/$sequence_file'`;
-	      $file_type = 'ASCII text';
-	    }
-	    unless ($file_type eq 'ASCII text') {
-              if((-s "$udir/$sequence_file") == 0) {
-	          $file_type = "empty file";
-	          push(@{$data->[0]->{popup_messages}}, "WARNING: The sequence file '$sequence_file' seems to be empty. You will not be able to use this file as a sequence file.");
-              } else {
-	          $file_type = "binary or non-ASCII or invalid end of line characters";
-	          push(@{$data->[0]->{popup_messages}}, "WARNING: The sequence file '$sequence_file' seems to be binary or non-ASCII or contain invalid end of line characters. You will not be able to use this file as a sequence file.");
-              }
-	    }
-
-	    my $file_eol      = &file_eol($file_type);
-	    my ($file_suffix) = $sequence_file =~ /^.*\.(.+)$/;
-	    my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix, $file_eol);
-	    my $file_seq_type = ($file_format eq 'fastq') ? 'DNA' : &file_seq_type($sequence_file, $udir, $file_eol);
-	    my ($file_md5)    = (`md5sum '$udir/$sequence_file'` =~ /^(\S+)/);
-	    my $file_size     = -s $udir."/".$sequence_file;
+	    my ($file_type, $err_msg, $fix_file_str) = &verify_file_type($sequence_file, $udir);
+	    if($err_msg ne "") {
+		push(@{$data->[0]->{popup_messages}}, $err_msg);
+	    } else {
+        	`echo "computing sequence stats" > $lock_file`;
+		`touch "$udir/$sequence_file.stats_info"`;
+		my $file_suffix = $sequence_file =~ /^.*\.(.+)$/;
+		my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix);
+		my $file_size     = -s $udir."/".$sequence_file;
 	    
-	    my $info = { "type" => $file_type,
-			 "suffix" => $file_suffix,
-			 "file_type" => $file_format,
-			 "sequence_type" => $file_seq_type,
-			 "file_checksum" => $file_md5,
-			 "file_size" => $file_size };
+		my $info = { "type" => $file_type,
+			     "suffix" => $file_suffix,
+			     "file_type" => $file_format,
+			     "file_size" => $file_size };
 	    
-	    open(FH, ">$udir/$sequence_file.stats_info");
-	    print FH "type\t$file_type\n";
-	    print FH "suffix\t$file_suffix\n";
-	    print FH "file_type\t$file_format\n";
-	    print FH "sequence_type\t$file_seq_type\n";
-	    print FH "file_checksum\t$file_md5\n";
-	    print FH "file_size\t$file_size\n";
-	    close(FH);
-	    `chmod 666 $udir/$sequence_file.stats_info`;
+		open(FH, ">$udir/$sequence_file.stats_info");
+		print FH "type\t$file_type\n";
+		print FH "suffix\t$file_suffix\n";
+		print FH "file_type\t$file_format\n";
+		print FH "file_size\t$file_size\n";
+		close(FH);
+		`chmod 666 $udir/$sequence_file.stats_info`;
 	    
-	    $data->[0]->{fileinfo}->{$sequence_file} = $info;
+		$data->[0]->{fileinfo}->{$sequence_file} = $info;
 
-	    # call the extended information
-	    if ($file_type eq 'ASCII text') {
-                `echo "computing sequence stats" > $lock_file`;
-		my $jobid = $user->{login};
-		$jobid =~ s/\s/_/g;
-		my $jnum = `echo "$Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
-		$jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
-	      open(FH, ">>$udir/.tmp/jobs");
-	      print FH "$jnum";
-	      close FH;
+		if($fix_file_str ne "") {
+		    $fix_file_str .= ";";
+		}
+
+		# call the extended information
+		# temporarily allowing file_type to be '' because that's what the current version
+		# of the file command we are running returns for certain fastq files.  When file
+		# is updated on our web server, we will only accept 'ASCII text' here.
+		if ($file_type eq 'ASCII text' || $file_type eq '') {
+		    my $jobid = $user->{login};
+		    $jobid =~ s/\s/_/g;
+		    my $jnum = `echo "$fix_file_str $Conf::sequence_statistics -file '$sequence_file' -dir $udir -file_format $file_format -tmp_dir $udir/.tmp 2> $udir/$sequence_file.error_log; rm $lock_file;" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp`;
+		    $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+		    open(FH, ">>$udir/.tmp/jobs");
+		    print FH "$jnum";
+		    close FH;
+		}
 	    }
 	}
     }
@@ -533,10 +590,10 @@ my $buffer;
 
 # check if file already exists
 if (-f "$udir/".$filename && ! -f "$udir/$filename.part") {
-    `rm $udir/$filename`;
-    `rm $udir/$filename.lock`;
-    `rm $udir/$filename.stats_info`;
-    `rm $udir/$filename.error_log`;
+    if(-f "$udir/$filename") { `rm $udir/$filename`; }
+    if(-f "$udir/$filename.lock") { `rm $udir/$filename.lock`; }
+    if(-f "$udir/$filename.stats_info") { `rm $udir/$filename.stats_info`; }
+    if(-f "$udir/$filename.error_log") { `rm $udir/$filename.error_log`; }
 }
 
 my $lock_file = "$udir/$filename.lock";
@@ -556,8 +613,8 @@ print "Content-Type: text/plain\n\n";
 # if this is the last chunk, remove the partial file
 if ($cgi->param('last_chunk')) {
     print "file received";
-    `rm $udir/$filename.part`;
-    `rm $udir/$filename.lock`;
+    if(-f "$udir/$filename.part") { `rm $udir/$filename.part`; }
+    if(-f "$udir/$filename.lock") { `rm $udir/$filename.lock`; }
 } else {
     print "chunk received";
 }
@@ -594,7 +651,11 @@ sub initialize_user_dir {
 # basic file information functions #
 ####################################
 
-sub file_type {
+# Good ASCII files return:	file_type = 'ASCII text', err_msg = "", fix_str = ""
+# Fixable ASCII files return:	file_type = 'ASCII text', err_msg = "", fix_str = "command to fix file"
+# Bad files return:		file_type = bad file type, err_msg = error message, fix_str = ""
+
+sub verify_file_type {
     my($file, $dir) = @_;
 
     # Need to do the 'safe-open' trick here since for now, file names might
@@ -606,120 +667,47 @@ sub file_type {
     chomp $file_type;
 
     if ( $file_type =~ m/\S/ ) {
-      $file_type =~ s/^\s+//;   #...trim leading whitespace
-      $file_type =~ s/\s+$//;   #...trim trailing whitespace
+	$file_type =~ s/^\s+//;   #...trim leading whitespace
+	$file_type =~ s/\s+$//;   #...trim trailing whitespace
     } else {
-      # file does not work for fastq -- craps out for lines beginning with '@' on mg-rast machine!
-      # check first 4 lines for fastq like format
-      my @lines = `cat -A '$dir/$file' 2>/dev/null | head -n4`;
-      chomp @lines;
+	# file does not work for fastq -- craps out for lines beginning with '@' on mg-rast machine!
+	# check first 4 lines for fastq like format
+	my @lines = `cat -A '$dir/$file' 2>/dev/null | head -n4`;
+	chomp @lines;
 
-      if ( ($lines[0] =~ /^\@/) && ($lines[0] =~ /\$$/) && ($lines[1] =~ /\$$/) &&
-	   ($lines[2] =~ /^\+/) && ($lines[2] =~ /\$$/) && ($lines[3] =~ /\$$/) ) {
-	$file_type = 'ASCII text';
-      } else {
-	$file_type = 'unknown file type, check end-of-line characters and (if fastq) fastq formatting';
-      }
+	if ( ($lines[0] =~ /^\@/) && ($lines[0] =~ /\$$/) && ($lines[1] =~ /\$$/) &&
+	     ($lines[2] =~ /^\+/) && ($lines[2] =~ /\$$/) && ($lines[3] =~ /\$$/) ) {
+	    $file_type = 'ASCII text';
+	} else {
+	    $file_type = 'unknown file type, check end-of-line characters and (if fastq) fastq formatting';
+	}
     }
 
     if ($file_type =~ /^ASCII/) {
-      # ignore some useless information and stuff that gets in when the file command guesses wrong
-      $file_type =~ s/, with very long lines//;
-      $file_type =~ s/C\+\+ program //;
-      $file_type =~ s/Java program //;
-      $file_type =~ s/English //;
+	# ignore some useless information and stuff that gets in when the file command guesses wrong
+	$file_type =~ s/, with very long lines//;
+	$file_type =~ s/C\+\+ program //;
+	$file_type =~ s/Java program //;
+	$file_type =~ s/English //;
     } else {
-      $file_type = "binary or non-ASCII file";
+	$file_type = "binary or non-ASCII file";
     }
 
-    return $file_type;
-}
-
-sub file_seq_type {
-    my($file_name, $file_path, $file_eol) = @_;
-
-    my $max_chars = 10000;
-
-    # read first $max_chars characters of sequence data to check for protein sequences
-    # this does NOT do validation of fasta format
-
-    my $old_eol = $/;
-    $/ = $file_eol;
-
-    my $seq = '';
-    my $line;
-    open(TMP, "<$file_path/$file_name") or die "could not open file '$file_path/$file_name': $!";
-    while ( defined($line = <TMP>) )
-    {
-	chomp $line;
-	if ( $line =~ /^\s*$/ or $line =~ /^>/ ) 
-	{
-	    next;
-	}
-	else
-	{
-	    $seq .= $line;
-	}
-
-	last if (length($seq) >= $max_chars);
-    }
-    close(TMP);
-
-    $/ = $old_eol;
-
-    $seq =~ tr/A-Z/a-z/;
-
-    my %char_count;
-    foreach my $char ( split('', $seq) )
-    {
-	$char_count{$char}++;
+    if ($file_type eq 'ASCII text, with CR line terminators') {
+	return ('ASCII text', "", "sed -i 's/\\r/\\n/g' '$dir/$file'");
+    } elsif($file_type eq 'ASCII text, with CRLF line terminators') {
+	return ('ASCII text', "", "sed -i 's/\\r//g' '$dir/$file'");
+    } elsif($file_type eq 'ASCII text') {
+	return ($file_type, "", "");
+    } elsif((-s "$dir/$file") == 0) {
+	return ("empty file", "ERROR: File '$file' is empty.", "");
     }
 
-    $char_count{a} ||= 0;
-    $char_count{c} ||= 0;
-    $char_count{g} ||= 0;
-    $char_count{t} ||= 0;
-    $char_count{n} ||= 0;
-    $char_count{x} ||= 0;
-    $char_count{'-'} ||= 0;
-    
-    # find fraction of a,c,g,t characters from total, not counting '-', 'N', 'X'
-    my $bp_char = $char_count{a} + $char_count{c} + $char_count{g} + $char_count{t};
-    my $n_char  = length($seq) - $char_count{n} - $char_count{x} - $char_count{'-'};
-    my $fraction = $n_char ? $bp_char/$n_char : 0;
-
-    if ( $fraction <= 0.6 ) {
-	return "protein";
-    }
-    else {
-	return 'DNA';
-    }
-}
-
-sub file_eol {
-    my($file_type) = @_;
-
-    my $file_eol;
-
-    if ($file_type eq 'ASCII text') {
-      $file_eol = $/;
-    } elsif ($file_type eq 'ASCII text, with CR line terminators') {
-      $file_eol = "\cM";
-    } elsif ($file_type eq 'ASCII text, with CRLF line terminators') {
-      $file_eol = "\cM\cJ";
-    } elsif ($file_type =~ /^ASCII/) {
-      # ASCII but unuseable
-      $file_eol = "ASCII file has mixed or no line terminators";
-    } else {
-      # none of the above? its binary or unicode
-      $file_eol = "binary or non-ASCII file";
-    }
-
-    return $file_eol;
+    return ("binary or non-ASCII or invalid end of line characters", "ERROR: File '$file' is of unsupported file type '$file_type'.", "");
 }
 
 sub file_format {
-    my($file_name, $file_path, $file_type, $file_suffix, $file_eol) = @_;
+    my($file_name, $file_path, $file_type, $file_suffix) = @_;
 
     if ( $file_name eq 'file_info' ) {
 	return 'info';
@@ -799,204 +787,6 @@ sub extract_fastq_from_sff {
     {
 	return (0, 'result files not found');
     }
-}
-
-##################
-# demultiplexing #
-##################
-sub split_fasta_by_mid_tag {
-    my($filename, $dir, $type, $mid_tags, $tagnames) = @_;
-
-    my $file_eol;
-    open(FH, "<$dir/$filename.stats_info") or die "could not open info file: '$dir/$filename.stats.info': $!";
-    while (<FH>) {
-	chomp;
-	my ($key, $val) = split /\t/;
-	if ($key eq 'type') {
-	    $file_eol = &file_eol($val);
-	    last;
-	}
-    }
-    close FH;
-    unless ($file_eol) {
-	die "could not determine end of line character for '$dir/$filename'";
-    }
-
-    # split a fasta file by the multiplex ID (MID) tag
-     my ($file_base, $ext) = $filename =~ /(.+)\.($seq_ext)$/;
-
-    # open file for each MID tag and one for unmatched sequences and store the filehandles in a hash
-    my %filehandle;
-    foreach my $file_ext ( @$mid_tags, 'no_MID_tag' ) {
-	my $file = $dir . '/' . $file_base . '_' . $file_ext . '.' . $type;
-	if ($tagnames->{$file_ext}) {
-	    $file = $dir . '/' . $tagnames->{$file_ext} . '.' . $type;
-	}
-	$filehandle{$file_ext} = &newopen($file);
-    }
-
-    my $rec;
-    my $old_eol = $/;
-    if ($type eq 'fasta') {
-	$/ = $file_eol . '>';
-    }
-
-    open(SEQ, "<$dir/$filename") or die "could not open file '$dir/$filename': $!";
-    while ( defined($rec = <SEQ>) ) {
-	chomp $rec;
-	my($id_line, @lines) = split($file_eol, $rec);
-	
-	my $seq;
-	my $plus;
-	my $qual;
-	if ($type eq 'fasta') {
-	    $seq = join('', @lines);
-	} else {
-	    $seq = <SEQ>;
-	    chomp $seq;
-	    $plus = <SEQ>;
-	    chomp $plus;
-	    $qual = <SEQ>;
-	    chomp $qual;
-	}
-
-	my $file_ext = '';	
-	# search for a MID tag
-	foreach my $mid_tag ( @$mid_tags ) {
-	    if ( $seq =~ /^$mid_tag/i ) {
-		$file_ext = $mid_tag;
-		
-		# trim off a segment same length as the MID tag
-		$seq = substr($seq, length($mid_tag));
-		if ($qual) {
-		    $qual = substr($qual, length($mid_tag));
-		}
-		last;
-	    }
-	}
-	
-	if ( ! $file_ext ) {
-	    $file_ext = 'no_MID_tag';
-	}
-
-	my $fh = $filehandle{$file_ext};
-
-	if ($type eq 'fasta') {
-	    my $formatted_seq = &fasta_formatted_sequence($seq, 60);
-	    print $fh ">$id_line\n$formatted_seq";
-	} else {
-	    print $fh $id_line."\n".$seq."\n".$plus."\n".$qual."\n";
-	}
-    }
-    close(SEQ);
-
-    $/ = $old_eol;
-
-    my @files = ();
-    # close all filehandles
-    foreach my $file_ext ( @$mid_tags, 'no_MID_tag' ) {
-	my $file = $dir . '/' . $file_base . '_' . $file_ext . '.' . $type;
-	if ($tagnames->{$file_ext}) {
-	    $file = $dir . '/' . $tagnames->{$file_ext} . '.' . $type;
-	}
-	my $fh = $filehandle{$file_ext};
-	close($fh);
-	chmod 0666, $file;
-	push @files, $file;
-    }
-
-    return \@files;
-}
-
-sub split_fasta_by_bc_length {
-    my ($filename, $dir, $type, $bc_length) = @_;
-
-    my $file_eol;
-    open(FH, "<$dir/$filename.stats_info") or die "could not open info file: '$dir/$filename.stats.info': $!";
-    while (<FH>) {
-	chomp;
-	my ($key, $val) = split /\t/;
-	if ($key eq 'type') {
-	    $file_eol = &file_eol($val);
-	    last;
-	}
-    }
-    close FH;
-    unless ($file_eol) {
-	die "could not determine end of line character for '$dir/$filename'";
-    }
-
-    # split a fasta file by the multiplex ID (MID) tag
-    my ($file_base, $ext) = $filename =~ /(.+)\.($seq_ext)$/;
-
-    # open file for each MID tag and one for unmatched sequences and store the filehandles in a hash
-    my %filehandle;
-
-    my $rec;
-    my $old_eol = $/;
-    if ($type eq 'fasta') {
-	$/ = $file_eol . '>';
-    }
-
-    my $mid_tags = [];
-
-    open(SEQ, "<$dir/$filename") or die "could not open file '$dir/$filename': $!";
-    while ( defined($rec = <SEQ>) ) {
-	chomp $rec;
-	my($id_line, @lines) = split($file_eol, $rec);
-	
-	my $seq;
-	my $qual;
-	my $plus;
-	if ($type eq 'fasta') {
-	    $seq = join('', @lines);
-	} else {
-	    $seq = <SEQ>;
-	    chomp $seq;
-	    $plus = <SEQ>;
-	    chomp $plus;
-	    $qual = <SEQ>;
-	    chomp $qual;
-	}
-	
-	my $file_ext = substr($seq, 0, $bc_length);
-
-	unless (exists($filehandle{$file_ext})) {
-	  my $file = $dir . '/' . $file_base . '_' . $file_ext . '.'.$type;
-	  $filehandle{$file_ext} = &newopen($file);
-	  push(@$mid_tags, $file_ext);
-	}
-		
-	# trim off a segment same length as the MID tag
-	$seq = substr($seq, $bc_length);
-	if ($qual) {
-	    $qual = substr($qual, $bc_length);
-	}
-		
-	my $fh = $filehandle{$file_ext};
-	
-	if ($type eq 'fasta') {
-	    my $formatted_seq = &fasta_formatted_sequence($seq, 60);
-	    print $fh ">$id_line\n$formatted_seq";
-	} else {
-	    print $fh $id_line."\n".$seq."\n".$plus."\n".$qual."\n";
-	}
-    }
-    close(SEQ) or die "oh noes: $@";
-
-    $/ = $old_eol;
-
-    my @files = ();
-    # close all filehandles
-    foreach my $file_ext ( @$mid_tags ) {
-	my $file = $dir . '/' . $file_base . '_' . $file_ext . '.' . $type;
-	my $fh   = $filehandle{$file_ext};
-	close($fh) or die "could not close file '$file': $!";
-	chmod 0666, $file;
-	push @files, $file;
-    }
-
-    return \@files;
 }
 
 ##################

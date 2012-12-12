@@ -46,7 +46,7 @@ my $dbh = DBI->connect("DBI:Pg:dbname=$dbname;host=$dbhost", $dbuser, '', {AutoC
 unless ($dbh) { print STDERR "Error: " . $DBI::errstr . "\n"; exit 1; }
 
 my @types = ('source', 'organism', 'function', 'ontology');
-my @md5s  = ('md5_protein', 'md5_rna', 'md5_ontology');
+my @md5s  = ('md5', 'md5_protein', 'md5_rna', 'md5_ontology', 'md5_lca');
 
 # get lca table
 my $has_lca = $dbh->selectcol_arrayref("SELECT COUNT(relname) FROM pg_class WHERE relname = 'md5_lca'");
@@ -65,11 +65,11 @@ print STDERR "Dumping table data ... " if ($verbose);
 $dbh->do("COPY (SELECT _id, name, type FROM sources) TO '$tmpdir/source_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT _id, name, ncbi_tax_id FROM organisms_ncbi) TO '$tmpdir/organism_map' WITH NULL AS ''");
 $dbh->do("COPY (SELECT _id, name FROM functions) TO '$tmpdir/function_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT _id, id, type FROM ontologies) TO '$tmpdir/ontology_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_protein) TO '$tmpdir/md5_protein_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_rna) TO '$tmpdir/md5_rna_map' WITH NULL AS ''");
-$dbh->do("COPY (SELECT DISTINCT m.md5, m.source, m.function, o._id FROM md5_ontology m, ontologies o WHERE m.id=o.id) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
-system("cat ".join(" ", map {"$tmpdir/${_}_map"} @md5s)." | sort -T $tmpdir > $tmpdir/md5_data_map");
+$dbh->do("COPY (SELECT _id, id, source FROM ontologies) TO '$tmpdir/ontology_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT _id, md5 FROM md5s) TO '$tmpdir/md5_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_protein ORDER BY md5) TO '$tmpdir/md5_protein_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT md5, source, function, organism FROM md5_rna ORDER BY md5) TO '$tmpdir/md5_rna_map' WITH NULL AS ''");
+$dbh->do("COPY (SELECT DISTINCT m.md5, m.source, m.function, o._id FROM md5_ontology m, ontologies o WHERE m.id=o.id ORDER BY m.md5) TO '$tmpdir/md5_ontology_map' WITH NULL AS ''");
 print STDERR "Done\n" if ($verbose);
 $dbh->disconnect;
 
@@ -79,6 +79,8 @@ unless ($fdump) {
     foreach my $t (@types) {
         system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --map $tmpdir/${t}_map --option $t");
     }
-    system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --md5 $tmpdir/md5_data_map --lca $tmpdir/md5_lca_map --option md5");
+    foreach my $m (@md5s) {
+        system("$bindir/md52memcache.pl --verbose --mem_host $memhost --mem_key $memkey --map $tmpdir/${m}_map --option $m");
+    }
     print STDERR "Done\n" if ($verbose);
 }

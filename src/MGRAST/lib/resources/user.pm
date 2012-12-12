@@ -39,12 +39,22 @@ sub request {
     exit 0;
   }
 
-  unless ($user->has_right(undef, 'edit', 'user', '*')) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 401,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: insufficient permissions for user call";
-    exit 0;
+  if ($rest && scalar(@$rest) == 1) {
+    unless ($user->has_right(undef, 'edit', 'user', $user->{_id})) {
+      print $cgi->header(-type => 'text/plain',
+			 -status => 401,
+			 -Access_Control_Allow_Origin => '*' );
+      print "ERROR: insufficient permissions for user call";
+      exit 0;
+    }
+  } else {
+    unless ($user->has_right(undef, 'edit', 'user', '*')) {
+      print $cgi->header(-type => 'text/plain',
+			 -status => 401,
+			 -Access_Control_Allow_Origin => '*' );
+      print "ERROR: insufficient permissions for user call";
+      exit 0;
+    }
   }
 
   use WebApplicationDBHandle;

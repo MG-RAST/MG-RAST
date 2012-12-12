@@ -65,7 +65,7 @@ sub init {
     $self->app->add_message('warning', "Unable to retrieve the metagenome analysis database.");
     return 1;
   }
-  
+
   my $type = [ ["function", "Function", ""],
 	       ["organism", "Organism", "taxon"],
 	       ["Subsystems", "SEED Subsystem", "hier2"],
@@ -513,6 +513,7 @@ sub get_simple_table {
   my $types = $self->app->cgi->param('type') || "metadata,function,organism";
   my $table = $self->application->component('sResult');
   my $jobs  = $self->data('jobs');
+  my $mgdb  = $self->data('mgdb');
   my $mgs   = [ keys %$jobs ];
 
   my %type_set = map {$_, 1} split(/,/, $types);
@@ -526,34 +527,40 @@ sub get_simple_table {
 
   if (exists $type_set{'function'}) {
     ### jobs function search
-    my $jd_func = $self->search_jobdata([['name',$text,0,1], ['type','function',1,1], ['source','M5NR',1,1]], $mgs);
+    my $ffuncs  = $self->search_annotation('function', [['name',$text,0,1]]);
+    my $fwhere  = $self->get_where_str(["id IN (".join(",", keys %$ffuncs).")", "source=".$mgdb->_src_id->{'M5NR'}], 1);
+    my $jd_func = $self->get_jobdata('function', $fwhere, $mgs, $ffuncs);
     foreach my $j ( keys %$jd_func ) {
       my $hits = {};
       foreach my $r ( @{$jd_func->{$j}} ) {
-	$hits->{ $r->{name} } = 1;
-	$uniq_hit->{function}{ $r->{name} } = 1;
+	    $hits->{ $ffuncs->{$r} } = 1;
+	    $uniq_hit->{function}{ $ffuncs->{$r} } = 1;
       }
       $uniq_job->{$j}{function} = scalar(keys %$hits);
     }
     ### jobs ontology search
-    my $jd_ont = $self->search_jobdata([['name',$text,0,1], ['type','ontology',1,1], ['source','M5NR',1,0]], $mgs);
+    my $ofuncs = $self->search_annotation('ontology', [['name',$text,0,1]]);
+    my $owhere = $self->get_where_str(["id IN (".join(",", keys %$ofuncs).")"], 1);
+    my $jd_ont = $self->get_jobdata('ontology', $owhere, $mgs, $ofuncs);
     foreach my $j ( keys %$jd_ont ) {
       my $hits = {};
       foreach my $r ( @{$jd_ont->{$j}} ) {
-	$hits->{ $r->{name} } = 1;
-	$uniq_hit->{function}{ $r->{name} } = 1;
+	    $hits->{ $ofuncs->{$r} } = 1;
+	    $uniq_hit->{function}{ $ofuncs->{$r} } = 1;
       }
       $uniq_job->{$j}{function} += scalar(keys %$hits);
     }
   }
   if (exists $type_set{'organism'}) {
     ### jobs organism search
-    my $jd_org = $self->search_jobdata([['name',$text,0,1], ['type','organism',1,1], ['source','M5NR',1,1]], $mgs);
+	my $orgs   = $self->search_annotation('organism', [['name',$text,0,1]]);
+	my $where  = $self->get_where_str(["id IN (".join(",", keys %$orgs).")", "source=".$mgdb->_src_id->{'M5NR'}], 1);
+    my $jd_org = $self->get_jobdata('organism', $where, $mgs, $orgs);
     foreach my $j ( keys %$jd_org ) {
       my $hits = {};
       foreach my $r ( @{$jd_org->{$j}} ) {
-	$hits->{ $r->{name} } = 1;
-	$uniq_hit->{organism}{ $r->{name} } = 1;
+	    $hits->{ $orgs->{$r} } = 1;
+	    $uniq_hit->{organism}{ $orgs->{$r} } = 1;
       }
       $uniq_job->{$j}{organism} = scalar(keys %$hits);
     }
@@ -662,6 +669,7 @@ sub get_advanced_table {
   my $qnum   = $cgi->param('qnum');
   my $show   = $cgi->param('show_match') || 0;
   my $jobs   = $self->data('jobs');
+  my $mgdb   = $self->data('mgdb');
   my $tomany = "<p><b style='color:red'>Your search request returned to many results.<br>Please try again with more specific criteria.</b></p>";
   my $empty  = "<p><b style='color:red'>No Metagenomes found for the above selected criteria.</b></p>";
   my $show_md = [['biome','feature','material','country','location','pi'], ['Biome','Feature','Material','Country','Location','PI']];
@@ -723,132 +731,127 @@ sub get_advanced_table {
   foreach my $type (keys %$searches) {
     if ($type eq 'metadata') {
       if (exists $searches->{$type}{all}) {
-	# search all metadata dbs using 'OR' matching
-	my $cat = $extra_map->{$type}{all} . " " . $type_map->{$type};
-	my $srch_info = $searches->{$type}{all};
-	my $to_search = $self->get_search_list({value => $srch_info});
-	my $md_data   = $self->search_metadata($to_search, $cur_mgs);
-	foreach my $j (keys %$md_data) {
-	  foreach my $r (@{$md_data->{$j}}) {
-	    my $name = $r->{cat} . ": " . $r->{tag};
-	    if ($max > $limit) { return $tomany; }
-	    $results->{$j}{$cat}{ "$name<br>" . $r->{value} } = 1;
-	    $max += 1;
-	  }
-	}
-	my %merge = map { $_, 1 } keys %$md_data;
-	foreach my $jc_item (('project', 'name', 'metagenome_id')) {
-	  $to_search  = $self->get_search_list({$jc_item => $srch_info});
-	  my $jc_data = $self->search_jobcache($to_search, $cur_mgs);
-	  foreach my $j (keys %$jc_data) {
-	    if ($max > $limit) { return $tomany; }
-	    $results->{$j}{$cat}{ "$jc_item<br>" . $jc_data->{$j}{$jc_item} } = 1;
-	    $max += 1;
-	    $merge{$j} = 1;
-	  }
-	}
-	@$cur_mgs = keys %merge;
-	unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
+	    # search all metadata dbs using 'OR' matching
+	    my $cat = $extra_map->{$type}{all} . " " . $type_map->{$type};
+	    my $srch_info = $searches->{$type}{all};
+	    my $to_search = $self->get_search_list({value => $srch_info});
+	    my $md_data   = $self->search_metadata($to_search, $cur_mgs);
+	    foreach my $j (keys %$md_data) {
+	      foreach my $r (@{$md_data->{$j}}) {
+	        my $name = $r->{cat} . ": " . $r->{tag};
+	        if ($max > $limit) { return $tomany; }
+	        $results->{$j}{$cat}{ "$name<br>" . $r->{value} } = 1;
+	        $max += 1;
+	      }
+	    }
+	    my %merge = map { $_, 1 } keys %$md_data;
+	    foreach my $jc_item (('project', 'name', 'metagenome_id')) {
+	      $to_search  = $self->get_search_list({$jc_item => $srch_info});
+	      my $jc_data = $self->search_jobcache($to_search, $cur_mgs);
+	      foreach my $j (keys %$jc_data) {
+	        if ($max > $limit) { return $tomany; }
+	        $results->{$j}{$cat}{ "$jc_item<br>" . $jc_data->{$j}{$jc_item} } = 1;
+	        $max += 1;
+	        $merge{$j} = 1;
+	      }
+	    }
+	    @$cur_mgs = keys %merge;
+	    unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
       }
       my %remaining = map { $_, $searches->{$type}{$_} } grep {$_ !~ /all/} keys %{$searches->{$type}};
       if (scalar(keys %remaining) > 0) {
-	my $to_search = $self->get_search_list($searches->{$type});
-	my %tag_set = map { $_->[0], 1 } @$to_search;
-	my $jdata = $self->search_jobcache($to_search, $cur_mgs);
-	foreach my $j (keys %$jdata) {
-	  foreach my $t (keys %tag_set) {
-	    next unless (exists($jdata->{$j}{$t}) && exists($extra_map->{$type}{$t}));
-	    my $cat = $extra_map->{$type}{$t};
-	    if ($max > $limit) { return $tomany; }
-	    $results->{$j}{$cat}{ $jdata->{$j}{$t} } = 1;
-	    $max += 1;
-	  }
-	}
-	@$cur_mgs = keys %$jdata;
-	unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
+	    my $to_search = $self->get_search_list($searches->{$type});
+	    my %tag_set = map { $_->[0], 1 } @$to_search;
+	    my $jdata = $self->search_jobcache($to_search, $cur_mgs);
+	    foreach my $j (keys %$jdata) {
+	      foreach my $t (keys %tag_set) {
+	        next unless (exists($jdata->{$j}{$t}) && exists($extra_map->{$type}{$t}));
+	        my $cat = $extra_map->{$type}{$t};
+	        if ($max > $limit) { return $tomany; }
+	        $results->{$j}{$cat}{ $jdata->{$j}{$t} } = 1;
+	        $max += 1;
+	      }
+	    }
+	    @$cur_mgs = keys %$jdata;
+	    unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
       }
     }
     elsif ($type eq "function") {
-      my $to_search = $self->get_search_list({name => $searches->{$type}{$type}});
-      push @$to_search, ( ['type',$type,1,1], ['source','M5NR',1,1] );
-      my $jdata = $self->search_jobdata($to_search, $cur_mgs);
+      my $to_search = $self->get_search_list({'name' => $searches->{$type}{$type}});
+	  my $funcs = $self->search_annotation($type, $to_search);
+  	  my $where = $self->get_where_str(["id IN (".join(",", keys %$funcs).")", "source=".$mgdb->_src_id->{'M5NR'}], 1);
+      my $jdata = $self->get_jobdata($type, $where, $cur_mgs);
       foreach my $j (keys %$jdata) {
-	foreach my $r (@{$jdata->{$j}}) {
-	  if ($max > $limit) { return $tomany; }
-	  $results->{$j}{ $type_map->{$type} }{ $r->{name} } = 1;
-	  $max += 1;
-	}
+	    foreach my $r (@{$jdata->{$j}}) {
+	      if ($max > $limit) { return $tomany; }
+	      $results->{$j}{ $type_map->{$type} }{ $funcs->{$r} } = 1;
+	      $max += 1;
+	    }
       }
       @$cur_mgs = keys %$jdata;
       unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
     }
     elsif ($type eq "organism") {
       foreach my $tax (keys %{$searches->{$type}}) {
-	my $to_search = [];
-	my $name_map  = {};
-	my $org_data  = {};
-	if ($tax eq 'name') {
-	  $to_search = $self->get_search_list({name => $searches->{$type}{$tax}});
-	  push @$to_search, ( ['type',$type,1,1], ['source','M5NR',1,1] );
-	  $org_data  = $self->search_jobdata($to_search, $cur_mgs);
-	}
-	elsif ($tax eq 'ncbi_tax_id') {
-	  my @taxs  = map { $_->[0] } @{$searches->{$type}{$tax}};
-	  my $orgs  = $self->data('mgdb')->ach->get_organisms4taxids(\@taxs);
-	  my $where = $self->get_where_str(["name IN (".join(",", map{"'".quotemeta($_)."'"} @$orgs).")", "type='$type'", "source='M5NR'"]);
-	  $org_data = $self->get_jobdata($where, $cur_mgs);
-	}
-	else {
-	  $to_search = $self->get_search_list({$tax => $searches->{$type}{$tax}});
-	  $name_map  = $self->search_taxonomy($to_search, $tax);
-	  if (scalar(keys %$name_map) > 0) {
-	    my $where = $self->get_where_str(["name IN (".join(",", map{"'".quotemeta($_)."'"} keys %$name_map).")", "type='$type'", "source='M5NR'"]);
-	    $org_data = $self->get_jobdata($where, $cur_mgs);
-	  }
-	}
-	my $cat = $type_map->{$type} . " : " . $extra_map->{$type}{$tax};
-	foreach my $j (keys %$org_data) {
-	  foreach my $r (@{$org_data->{$j}}) {
-	    my $org = exists($name_map->{$r->{name}}) ? $name_map->{$r->{name}} : $r->{name};
-	    if ($max > $limit) { return $tomany; }
-	    $results->{$j}{$cat}{$org} = 1;
-	    $max += 1;
-	  }
-	}
-	@$cur_mgs = keys %$org_data;
-	unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
+	    my $to_search = [];
+	    my $name_map  = {};
+	    my $org_data  = {};
+	    if ($tax eq 'name') {
+	      $to_search = $self->get_search_list({'name' => $searches->{$type}{$tax}});
+	      $name_map  = $self->search_annotation($type, $to_search);
+	    }
+	    elsif ($tax eq 'ncbi_tax_id') {
+	      my @taxs  = map { $_->[0] } @{$searches->{$type}{$tax}};
+	      $name_map = $self->data('mgdb')->organisms_for_taxids(\@taxs);
+	    }
+	    else {
+	      $to_search = $self->get_search_list({$tax => $searches->{$type}{$tax}});
+	      $name_map  = $self->search_taxonomy($to_search, $tax);
+	    }
+        if (scalar(keys %$name_map) > 0) {
+          my $cat    = $type_map->{$type} . " : " . $extra_map->{$type}{$tax};
+          my $where  = $self->get_where_str(["id IN (".join(",", keys %$name_map).")", "source=".$mgdb->_src_id->{'M5NR'}], 1);
+          $org_data  = $self->get_jobdata('organism', $where, $cur_mgs);
+	      foreach my $j (keys %$org_data) {
+	        foreach my $r (@{$org_data->{$j}}) {
+	          if ($max > $limit) { return $tomany; }
+	          $results->{$j}{$cat}{ $name_map->{$r} } = 1;
+	          $max += 1;
+	        }
+	      }
+        }
+	    @$cur_mgs = keys %$org_data;
+	    unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
       }
     }
     else {
       my $end = ($hier_map->{$type} eq 'hier2') ? "level4" : "level3";
       foreach my $lvl (keys %{$searches->{$type}}) {
-	my $to_search = [];
-	my $name_map  = {};
-	my $func_data = {};
-	if ($lvl eq $end) {
-	  $to_search = $self->get_search_list({name => $searches->{$type}{$lvl}});
-	  push @$to_search, ( ['type','ontology',1,1], ['source',$type,1,1] );
-	  $func_data = $self->search_jobdata($to_search, $cur_mgs);
-	}
-	else {
-	  $to_search = $self->get_search_list({$lvl => $searches->{$type}{$lvl}});
-	  $name_map  = $self->search_ontology($to_search, $lvl, $type);
-	  if (scalar(keys %$name_map) > 0) {
-	    my $where  = $self->get_where_str(["name IN (".join(",", map{"'".quotemeta($_)."'"} keys %$name_map).")", "type='ontology'", "source='$type'"]);
-	    $func_data = $self->get_jobdata($where, $cur_mgs);
-	  }
-	}
-	my $cat = $type_map->{$type} . " : " . $extra_map->{$type}{$lvl};
-	foreach my $j (keys %$func_data) {
-	  foreach my $r (@{$func_data->{$j}}) {
-	    my $txt = exists($name_map->{$r->{name}}) ? $name_map->{$r->{name}} : $r->{name};
-	    if ($max > $limit) { return $tomany; }
-	    $results->{$j}{$cat}{$txt} = 1;
-	    $max += 1;
-	  }
-	}
-	@$cur_mgs = keys %$func_data;
-	unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
+	    my $to_search = [];
+	    my $name_map  = {};
+	    my $func_data = {};
+	    if ($lvl eq $end) {
+	      $to_search = $self->get_search_list({'name' => $searches->{$type}{$lvl}});
+	      $name_map  = $self->search_annotation('ontology', $to_search);
+	    }
+	    else {
+	      $to_search = $self->get_search_list({$lvl => $searches->{$type}{$lvl}});
+	      $name_map  = $self->search_ontology($to_search, $lvl, $type);
+	    }
+	    if (scalar(keys %$name_map) > 0) {
+	      my $cat = $type_map->{$type} . " : " . $extra_map->{$type}{$lvl};
+	      my $where  = $self->get_where_str(["id IN (".join(",", keys %$name_map).")", "source=".$mgdb->_src_id->{$type}], 1);
+          $func_data = $self->get_jobdata('ontology', $where, $cur_mgs);
+	      foreach my $j (keys %$func_data) {
+	        foreach my $r (@{$func_data->{$j}}) {
+	          if ($max > $limit) { return $tomany; }
+	          $results->{$j}{$cat}{ $name_map->{$r} } = 1;
+	          $max += 1;
+	        }
+	      }
+        }
+	    @$cur_mgs = keys %$func_data;
+	    unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
       }
     }
   }
@@ -1163,39 +1166,47 @@ sub search_metadata {
   # hash: job_id => [ {tag=>'tag', value=>'value', cat=>'category'} ]
 }
 
-sub search_jobdata {
-  my ($self, $to_search, $jobs) = @_;
-
-  my $where = [];
-  if ($to_search && (@$to_search > 0)) {
-    @$where = map {$self->get_search_str('psql', $_->[0], $_->[1], $_->[2], $_->[3])} @$to_search;
-  }
-  my $where_str = $self->get_where_str($where);
-  return $self->get_jobdata($where_str, $jobs);
-}
-
 sub get_jobdata {
-  my ($self, $where, $jobs) = @_;
+  my ($self, $type, $where, $jobs) = @_;
 
   my $filter_jobs = 0;
+  my $mgdb = $self->data('mgdb');
+  my $max  = $self->data('max_results');
   my $data = {};
   my $jmap = {};
+      
   if ($jobs && (@$jobs > 0)) {
     $filter_jobs = 1;
     %$jmap = map {$_, 1} @$jobs;
   }
-  my $sql  = "SELECT jobs, name, type, source FROM data_summary" . $where;
-  my $rows = $self->data('mgdb')->dbh->selectall_arrayref($sql);
-  if ($rows && (@$rows > 0)) {
-    foreach my $r (@$rows) {
-      foreach my $j (@{$r->[0]}) {
-	if (($filter_jobs && exists($jmap->{$j})) || (! $filter_jobs)) {
-	  push @{ $data->{$j} }, {name => $r->[1], type => $r->[2], source => $r->[3]};
-	}
-      }
-    }
+
+  my $num = 0;
+  my $sql = "SELECT job, id FROM ".$mgdb->_jtbl->{$type}.$where." AND ".$mgdb->_qver;
+  foreach my $row (@{ $mgdb->_dbh->selectall_arrayref($sql) }) {
+    if ($filter_jobs && (! exists $jmap->{$row->[0]})) { next; }
+    if ($num >= $max) { last; }
+    push @{$data->{$row->[0]}}, $row->[1];
+    $num += 1;
   }
   return $data;
+}
+
+sub search_annotation {
+  my ($self, $type, $to_search) = @_;
+  
+  my $mgdb  = $self->data('mgdb');
+  my $data  = {};
+  my $where = [];
+  if ($to_search && (@$to_search > 0)) {
+    @$where = map {$self->get_search_str('psql', $_->[0], $_->[1], $_->[2], $_->[3])} @$to_search;
+  }
+  
+  my $sql  = "SELECT _id, name FROM ".$mgdb->_atbl->{$type}.$self->get_where_str($where);
+  my $rows = $mgdb->_dbh->selectall_arrayref($sql);
+  if ($rows && (@$rows > 0)) {
+    %$data = map { $_->[0], $_->[1] } @$rows;
+  }
+  return $data;  # ann_id => ann_name
 }
 
 sub search_taxonomy {
@@ -1208,12 +1219,12 @@ sub search_taxonomy {
   }
   push @$where, "ncbi_tax_id IS NOT NULL";
 
-  my $sql  = "SELECT name, $tax FROM organisms_ncbi" . $self->get_where_str($where);
-  my $rows = $self->data('mgdb')->ach->dbh->selectall_arrayref($sql);
+  my $sql  = "SELECT _id, $tax FROM organisms_ncbi".$self->get_where_str($where);
+  my $rows = $self->data('mgdb')->_dbh->selectall_arrayref($sql);
   if ($rows && (@$rows > 0)) {
     %$data = map { $_->[0], $_->[1] } @$rows;
   }
-  return $data;  # org_name => tax_level_name
+  return $data;  # org_id => tax_level_name
 }
 
 sub search_ontology {
@@ -1221,7 +1232,7 @@ sub search_ontology {
   
   my %data  = ();
   my ($idx) = $lvl =~ /(\d)$/;  ## index of level is level# - 1
-  my $ontol = $self->data('mgdb')->ach->get_all_ontology4source_hash($type);
+  my $ontol = $self->data('mgdb')->get_hierarchy('ontology', $type, undef, 1);
 
   foreach my $srch (@$to_search) {
     my ($lvl, $text, $eql, $has) = @$srch;
@@ -1229,13 +1240,13 @@ sub search_ontology {
       my $node = $ontol->{$id}->[$idx-1];  # index of level is level# - 1
       my $func = $ontol->{$id}->[-1];      # func name is last in list
       if    (($type eq 'Subsystems') && ($idx == 3))      { $text =~ s/\s+/_/g; }
-      if    ($eql     && $has     && ($node eq $text))    { $data{"$id : $func"} = $node; }
-      elsif ($eql     && (! $has) && ($node ne $text))    { $data{"$id : $func"} = $node; }
-      elsif ((! $eql) && $has     && ($node =~ /$text/i)) { $data{"$id : $func"} = $node; }
-      elsif ((! $eql) && (! $has) && ($node !~ /$text/i)) { $data{"$id : $func"} = $node; }
+      if    ($eql     && $has     && ($node eq $text))    { $data{$id} = $node; }
+      elsif ($eql     && (! $has) && ($node ne $text))    { $data{$id} = $node; }
+      elsif ((! $eql) && $has     && ($node =~ /$text/i)) { $data{$id} = $node; }
+      elsif ((! $eql) && (! $has) && ($node !~ /$text/i)) { $data{$id} = $node; }
     }
   }
-  return \%data;  # func => node_level_name
+  return \%data;  # func_id => node_level_name
 }
 
 ### helper functions
@@ -1275,7 +1286,7 @@ sub get_unique_job_info {
 }
 
 sub get_where_str {
-  my ($self, $items) = @_;
+  my ($self, $items, $no_max) = @_;
 
   my @text;
   unless ($items && (@$items > 0)) { return ""; }
@@ -1287,23 +1298,20 @@ sub get_where_str {
   my $max = " LIMIT " . $self->data('max_results');
 
   if (@text == 1) {
-    return " WHERE " . $text[0] . $max;
+    return " WHERE " . $text[0] . ($no_max ? '' : $max);
   } elsif (@text > 1) {
-    return " WHERE " . join(" AND ", @text) . $max;
+    return " WHERE " . join(" AND ", @text) . ($no_max ? '' : $max);
   } else {
-    return $max;
+    return $no_max ? '' : $max;
   }
 }
 
 sub get_search_str {
   my ($self, $db, $col, $txt, $eql, $has) = @_;
 
-  my $qtxt  = quotemeta($txt);
-  my $regex = '';
-  if    ($db eq 'mysql') { $regex = "LIKE"; }
-  elsif ($db eq 'psql')  { $regex = "ILIKE"; }
-
+  my $qtxt = quotemeta($txt);
   unless ($col && $txt) { return ""; }
+  
   if ($eql == 2) {
     my @rng = split(/_/, $txt);
     if (@rng != 2) { return ""; }
@@ -1312,8 +1320,8 @@ sub get_search_str {
   }
   elsif ($eql     && $has)     { return "$col = '$qtxt'"; }
   elsif ($eql     && (! $has)) { return "$col != '$qtxt'"; }
-  elsif ((! $eql) && $has)     { return "$col $regex '\%$qtxt\%'"; }
-  elsif ((! $eql) && (! $has)) { return "$col NOT $regex '\%$qtxt\%'"; }
+  elsif ((! $eql) && $has)     { return ($db eq 'psql') ? "$col ILIKE '$qtxt\%'" : "$col LIKE '\%$qtxt\%'"; }
+  elsif ((! $eql) && (! $has)) { return ($db eq 'psql') ? "$col NOT ILIKE '$qtxt\%'" : "$col NOT LIKE '\%$qtxt\%'"; }
 }
 
 sub get_advanced_search {

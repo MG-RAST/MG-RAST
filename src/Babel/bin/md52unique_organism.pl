@@ -40,14 +40,14 @@ foreach my $src_set ((['protein', $prot_src], ['rna', $rna_src])) {
   my ($type, $src_map) = @$src_set;
   print STDERR "Processing $type md5s.\n" if ($verbose);
   while ( my ($sid, $sname) = each %$src_map) {
-    print STDERR "\t$sname ... " if ($verbose);
+    print STDERR "\t$sname ($sid)... " if ($verbose);
     my $only_one = 0;
     my $has_max  = 0;
     my $random   = 0;
     my $no_taxid = 0;
     my $org_num = {};
     my $md5_org = {};
-    my $query   = "select distinct md5, organism from md5_$type".(($sname =~ /^M5(NR|RNA)$/) ? "" : " where source = $sid");
+    my $query   = "select distinct m._id, t.organism from md5_$type t, md5s m where t.md5=m.md5".(($sname =~ /^M5(NR|RNA)$/) ? "" : " and t.source = $sid");
     my $db_rows = $dbh->prepare($query);
     $db_rows->execute();
     
@@ -61,7 +61,7 @@ foreach my $src_set ((['protein', $prot_src], ['rna', $rna_src])) {
       if (scalar($orgs) == 1) {
 	    #my $oname = exists($ncbi_org->{$orgs->[0]}) ? $ncbi_org->{$orgs->[0]} : $other_org->{$orgs->[0]};
 	    #print OUTF join("\t", ($md5, $oname, $sname))."\n";
-	    print OUTF join("\t", ($md5, $orgs->[0], $sname))."\n";
+	    print OUTF join("\t", ($md5, $orgs->[0], $sid))."\n";
 	    $only_one += 1;
       }
       # get ncbi set or other set sorted by abundance
@@ -79,13 +79,13 @@ foreach my $src_set ((['protein', $prot_src], ['rna', $rna_src])) {
 	    my @top  = map { $_->[0] } grep { $_->[1] == $max } @org_set;
 	    # if we have a top one, use
 	    if (@top == 1) {
-	      print OUTF join("\t", ($md5, $top[0], $sname))."\n";
+	      print OUTF join("\t", ($md5, $top[0], $sid))."\n";
 	      $has_max += 1;
 	    }
 	    # randomly choose
 	    else {
 	      my $rand_index = int( rand(scalar(@top)) );
-	      print OUTF join("\t", ($md5, $top[$rand_index], $sname))."\n";
+	      print OUTF join("\t", ($md5, $top[$rand_index], $sid))."\n";
 	      $random += 1;
 	    }
       }
@@ -99,17 +99,19 @@ print STDERR "Done processing sources.\n" if ($verbose);
 if ($load_db) {
   print STDERR "Creating table md5_organism_unique ... " if ($verbose);
   $dbh->do("DROP TABLE IF EXISTS md5_organism_unique");
-  $dbh->do("CREATE TABLE md5_organism_unique (md5 char(32) NOT NULL, organism integer, source text);");
+  $dbh->do("CREATE TABLE md5_organism_unique (md5 integer NOT NULL, organism integer, source integer);");
   $dbh->commit;
   print STDERR "Done.\n" if ($verbose);
 
   print STDERR "Loading data to md5_organism_unique ... " if ($verbose);
-  $dbh->do("COPY md5_organism_unique FROM '$outfile'");
+  $dbh->do("COPY md5_organism_unique FROM '$outfile' WITH NULL AS ''");
   $dbh->commit;
   print STDERR "Done.\n" if ($verbose);
 
   print STDERR "Creating indexes for md5_organism_unique ... " if ($verbose);
-  $dbh->do("CREATE INDEX md5_organism_unique_key ON md5_organism_unique (md5, source);");
+  $dbh->do("CREATE INDEX md5_organism_unique_md5 ON md5_organism_unique (md5);");
+  $dbh->do("CREATE INDEX md5_organism_unique_organism ON md5_organism_unique (organism);");
+  $dbh->do("CREATE INDEX md5_organism_unique_source ON md5_organism_unique (source);");
   $dbh->commit;
   print STDERR "Done.\n" if ($verbose);
 }
@@ -141,7 +143,5 @@ sub get_source_maps {
       elsif ($r->[2] eq 'rna')  { $rnas->{$r->[0]} = $r->[1]; }
     }
   }
-  $prots->{M5NR} = 'M5NR';
-  $rnas->{M5RNA} = 'M5RNA';
   return ($prots, $rnas);
 }
