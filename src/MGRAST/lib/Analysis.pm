@@ -984,18 +984,23 @@ sub get_md5_evals_for_organism_source {
     my ($self, $org, $src) = @_;
 
     my $data  = {};
+    my $umd5  = {};
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "a.name=".$self->_dbh->quote($org), "j.source=".$self->_src_id->{$src}, "j.id = a._id"]);
     my $md5s  = $self->_dbh->selectcol_arrayref("SELECT j.md5s FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where);
     unless ($md5s && (@$md5s > 0)) {
         return $data;
     }
     foreach my $m (@$md5s) {
-        map { $data->{$_} = [] } @$m;
+        map { $umd5->{$_} = 1 } @$m;
     }
-    $where = $self->_get_where_str([$self->_qver, $self->_qjobs, "md5 IN (".join(",", keys %$data).")"]);
-    foreach my $row (@{ $self->_dbh->selectall_arrayref("SELECT md5, evals FROM ".$self->_jtbl->{md5}.$where) }) {
-        my ($md5, $evals) = @$row;
-        for (my $i=0; $i<@$evals; $i++) { $data->{$md5}->[$i] += $evals->[$i]; }
+
+    my $iter = natatime $self->_chunk, keys %$umd5;
+    while (my @curr = $iter->()) {
+        $where  = $self->_get_where_str([$self->_qver, $self->_qjobs, "md5 IN (".join(",", @curr).")"]);
+        my $sql = "SELECT md5, evals FROM ".$self->_jtbl->{md5}.$where;
+        foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
+            for (my $i=0; $i<@{$row->[1]}; $i++) { $data->{$row->[0]}->[$i] += $row->[1]->[$i]; }
+        }
     }
     # md5 => [ eval ]
     return $data;
@@ -1004,24 +1009,26 @@ sub get_md5_evals_for_organism_source {
 sub get_md5_data_for_organism_source {
     my ($self, $org, $src, $eval) = @_;
 
-    my $data  = {};
+    my $data  = [];
+    my $umd5  = {};
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "a.name=".$self->_dbh->quote($org), "j.source=".$self->_src_id->{$src}, "j.id = a._id"]);
-    my $md5s  = $self->_dbh->selectrow_arrayref("SELECT j.md5s FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where);
+    my $md5s  = $self->_dbh->selectcol_arrayref("SELECT j.md5s FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where);
     unless ($md5s && (@$md5s > 0)) {
         return [];
     }
     foreach my $m (@$md5s) {
-        map { $data->{$_} = 1 } @$m;
+        map { $umd5->{$_} = 1 } @$m;
     }
-    $where   = $self->_get_where_str([$self->_qver, $self->_qjobs, "md5 IN (".join(",", keys %$data).")", "seek IS NOT NULL", "length IS NOT NULL"]);
-    my $sql  = "SELECT DISTINCT job,md5,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv,seek,length FROM ".$self->_jtbl->{md5}.$where;
-    my $rows = $self->_dbh->selectall_arrayref($sql);
-    if ($rows && (@$rows > 0)) {
-        map { $_->[0] = $self->_mg_map->{$_->[0]} } @$rows;
-        return $rows;
-    } else {
-        return [];
+    
+    my $iter = natatime $self->_chunk, keys %$umd5;    
+    while (my @curr = $iter->()) {
+        $where  = $self->_get_where_str([$self->_qver, $self->_qjobs, "md5 IN (".join(",", @curr).")", "seek IS NOT NULL", "length IS NOT NULL"]);
+        my $sql = "SELECT DISTINCT job,md5,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv,seek,length FROM ".$self->_jtbl->{md5}.$where;
+        foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
+            push @$data, [ $self->_mg_map->{$row->[0]}, @$row[1..10] ];
+        }
     }
+    return $data;
     # [ mgid, md5, abund, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length ]
 }
 
@@ -1284,7 +1291,7 @@ sub get_organisms_unique_for_source {
               "COALESCE(tax_order,'unassigned') AS txo,COALESCE(tax_family,'unassigned') AS txf,COALESCE(tax_genus,'unassigned') AS txg,".
               "COALESCE(tax_species,'unassigned') AS txs,name FROM ".$self->_atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")";
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        my $oid = pop @$row;
+        my $oid = shift @$row;
         $tax->{$oid} = $row;
     }
     
@@ -1602,8 +1609,8 @@ sub get_md5_data {
     my $sql   = "SELECT DISTINCT j.job,j.md5,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv${cseek}${crep} FROM ".
                 $self->_jtbl->{md5}." j".($rep_org_src ? ", md5_organism_unique r" : "").$where.($ignore_sk ? "" : " ORDER BY job, seek");
     
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {        
-        my $j  = pop @$row;
+    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
+        my $j  = shift @$row;
         my $mg = $self->_mg_map->{$j};
         push @{ $data->{$mg} }, [ $mg, @$row ];
     }

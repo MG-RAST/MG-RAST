@@ -1099,8 +1099,8 @@ sub recruitment_plot_data {
 
   my @data = ();
   my %uniq = ();
+  my $link = $mgdb->link_for_source($source);
   my %md5_data = map { $_->[1], [ @$_[2..10] ] } @{ $mgdb->get_md5_data_for_organism_source($name, $source, $cutoff) };
-  my $link     = $mgdb->link_for_source($source);
 
   foreach ( @{ $mgdb->ach->org2contig_data($orgid, 1) } ) {
     my ($ctg, $md5, $id, $func, $low, $high, $strand, $clen) = @$_;
@@ -1135,7 +1135,7 @@ sub recruitment_plot_graph {
   @$evals  = @$evals[$cutoff..4];
   @$colors = @$colors[$cutoff..4];
 
-  my $unique_str     = join('_', ( join("_", values %{$mgdb->jobs}), $orgid, $eval, $log ));
+  my $unique_str     = join('_', ( join("_", @{$mgdb->_jobs}), $orgid, $eval, $log ));
   my $circos_file    = "circos_$unique_str";
   my $config_file    = "$Conf::temp/circos_$unique_str.conf";
   my $karyotype_file = "$Conf::temp/karyotype_$unique_str.txt";
@@ -1163,7 +1163,7 @@ sub recruitment_plot_graph {
   
   my @eval_sums = (0, 0, 0, 0, 0);
   @eval_sums = @eval_sums[$cutoff..4];
-
+  
   my $md5_evals = $mgdb->get_md5_evals_for_organism_source($name, $source);
   foreach my $md5 (keys %$md5_evals) {
     my @e = @{ $md5_evals->{$md5} };
@@ -1325,9 +1325,10 @@ units_nounit  = n
 ~;
   close CFG;
 
-  my $c = system($Conf::circos_path." -conf $config_file -silent");
+  my $cmd = $Conf::circos_path." -conf ".$config_file." -silent 2>&1";
+  my $msg = `$cmd`;
   for (my $j=0; $j<@eval_sums; $j++) { push @$eval_set, [ $evals->[$j], $eval_sums[$j], $colors->[$j] ]; }
-  return ($c == 0) ? [$circos_file, $eval_set, [$num_frag, $num_hit, $num_feat]] : ["Circos failed: $?",  []];
+  return $msg ? ["ERROR: $msg",  [], undef] : [$circos_file, $eval_set, [$num_frag, $num_hit, $num_feat]];
 }
 
 sub workbench_export {
