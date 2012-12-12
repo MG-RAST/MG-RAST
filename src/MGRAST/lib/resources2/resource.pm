@@ -431,7 +431,7 @@ sub toFloat {
 }
 
 sub toNum {
-    my ($x, $type) = @_;
+    my ($self, $x, $type) = @_;
     if ($type eq 'abundance') {
         return int($x);
     } else {
