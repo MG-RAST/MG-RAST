@@ -1,3 +1,5 @@
+CREATE UNIQUE INDEX md5s_md5 ON md5s (md5);
+CREATE INDEX md5s_protein ON md5s (is_protein);
 
 CREATE INDEX md5_protein_id ON md5_protein (id);
 CREATE INDEX md5_protein_md5 ON md5_protein (md5);
@@ -17,7 +19,8 @@ CREATE INDEX md5_rna_organism ON md5_rna (organism);
 CREATE INDEX md5_rna_tax_rank ON md5_rna (tax_rank);
 CREATE INDEX md5_rna_source ON md5_rna (source);
 
-CREATE INDEX md5_organism_unique_key ON md5_organism_unique (md5, source);
+CREATE INDEX md5_organism_unique_md5 ON md5_organism_unique (md5);
+CREATE INDEX md5_organism_unique_source ON md5_organism_unique (source);
 
 CREATE INDEX aliases_protein_id on aliases_protein (id);
 
@@ -39,7 +42,7 @@ CREATE INDEX ontology_eggnog_id ON ontology_eggnog (id);
 CREATE INDEX ontology_eggnog_type ON ontology_eggnog (type);
 
 CREATE INDEX ontologies_id ON ontologies (id);
-CREATE INDEX ontologies_type ON ontologies (type);
+CREATE INDEX ontologies_type ON ontologies (source);
 
 CREATE INDEX sources_name ON sources (name);
 CREATE INDEX sources_type ON sources (type);

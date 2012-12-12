@@ -111,8 +111,8 @@ if ($ENV{'REQUEST_METHOD'} eq "POST") {
 }
 
 # check for authentication in request header
-if ($cgi->http('user_auth')) {
-    $auth = $cgi->http('user_auth');
+if ($cgi->http('HTTP_AUTH')) {
+    $auth = $cgi->http('HTTP_AUTH');
 }
 
 # check authentication

@@ -3,6 +3,7 @@ package resources2::notebook;
 use strict;
 use warnings;
 no warnings('once');
+use POSIX qw(strftime);
 
 use Conf;
 use parent qw(resources2::resource);
@@ -22,7 +23,9 @@ sub new {
                             "notebook" => [ 'object', 'notebook object in JSON format' ],
                             "created"  => [ 'date', 'time the object was first created' ],
                             "version"  => [ 'integer', 'version of the object' ],
-                            "url"      => [ 'uri', 'resource location of this object instance' ]
+                            "url"      => [ 'uri', 'resource location of this object instance' ],
+                            "status"   => ['cv', [['public', 'notebook is public'],
+           										  ['private', 'notebook is private']]]
                           };
     return $self;
 }
@@ -58,9 +61,8 @@ sub info {
                        							              "limit"  => ["integer", "maximum number of data items returned, default is 10"],
                        							              "total_count" => ["integer", "total number of available data items"],
                        							              "offset" => ["integer", "zero based index of the first returned data item"] },
-            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns only minimal information'],
-                       												                                 ['verbose', 'returns all metadata'],
-                       												                                 ['full', 'returns all metadata and references']]],
+            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+                       												                                 ['full', 'returns notebook attributes and object']]],
                        									                      'limit'     => ['integer', 'maximum number of items requested'],
                        									                      'offset'    => ['integer', 'zero based index of the first data object to be returned'],
                        									                      'order'     => ['cv', [['id' , 'return data objects ordered by id'],
@@ -74,12 +76,24 @@ sub info {
             				               'method'      => "GET",
             				               'type'        => "synchronous",  
             				               'attributes'  => $self->attributes,
-            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns only minimal information'],
-                       												                                 ['verbose', 'returns all metadata'],
-                       												                                 ['full', 'returns all metadata and references']]]
+            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+                       												                                 ['full', 'returns notebook attributes and object']]]
                        												        },
-            							                      'required' => { "id" => ["string", "unique object identifier"] },
-            							                      'body'     => {} } },            							  
+            							                      'required' => { "id" => ["string", "unique shock object identifier"] },
+            							                      'body'     => {} } },
+            							 { 'name'        => "clone",
+             				               'request'     => $self->cgi->url."/".$self->name."/{ID}/{NBID}",
+             				               'description' => "Clones a data object with new notebook id and returns it.",
+             				               'method'      => "GET",
+             				               'type'        => "synchronous",  
+             				               'attributes'  => $self->attributes,
+             				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+                          												                             ['full', 'returns notebook attributes and object']]],
+                          												      'name'      => ['string', "name of new cloned notebook"]
+                          											        },
+             							                      'required' => { "id"   => ["string", "unique shock object identifier"],
+             							                                      "nbid" => ["string", "unique notebook object identifier"] },
+             							                      'body'     => {} } }
             						   ]
                   };
     $self->return_data($content);
@@ -90,6 +104,7 @@ sub instance {
     my ($self) = @_;
     
     # get data
+    my $data = [];
     my $id   = $self->rest->[0];
     my $node = $self->get_shock_node($id);
     unless ($node) {
@@ -102,10 +117,24 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
-    # prepare data
-    my $data = $self->prepare_data( [$node] );
+    # clone node if requested (update shock attributes and ipynb metadata)
+    if (@{$self->rest} > 1) {
+        my $file = $self->json->decode( $self->get_shock_file($node->{id}) );
+        my $name = $self->cgi->param('name') || $node->{attributes}{name}.'_copy';
+        my $attr = { type => $node->{attributes}{type} || 'ipynb',
+                     name => $name,
+                     user => $uname || 'public',
+                     uuid => $self->rest->[1],
+                     created => strftime("%Y-%m-%dT%H:%M:%S", localtime)
+                   };
+        $file->{'metadata'} = $attr;
+        my $clone = $self->set_shock_node($node->{id}.'ipynb', $file, $attr);
+        $data = $self->prepare_data( [$clone] );
+    } else {
+        $data = $self->prepare_data( [$node] );
+    }
+    
     $data = $data->[0];
-
     $self->return_data($data);
 }
 
@@ -121,17 +150,18 @@ sub query {
     my $total = scalar @$nodes;
  
     # check limit
-    my $limit  = $self->cgi->param('limit')  || 10;
+    my $limit  = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
     @$nodes = sort { $a->{$order} cmp $b->{$order} } @$nodes;
+    $limit  = (($limit == 0) || ($limit > scalar(@$nodes))) ? scalar(@$nodes) : $limit;
     @$nodes = @$nodes[$offset..($offset+$limit-1)];
- 
+
     # prepare data to the correct output format
     my $data = $self->prepare_data($nodes);
 
     # check for pagination
-    $data = $self->check_pagination($data, $total);
+    $data = $self->check_pagination($data, $total, $limit);
 
     $self->return_data($data);
 }
@@ -145,9 +175,10 @@ sub prepare_data {
         my $url = $self->cgi->url;
         my $obj = {};
         $obj->{id}       = $node->{id};
-        $obj->{name}     = $node->{attributes}{name};
+        $obj->{name}     = $node->{attributes}{name} || '';
         $obj->{uuid}     = $node->{attributes}{uuid};
         $obj->{created}  = $node->{attributes}{created};
+	    $obj->{status}   = ($node->{attributes}{user} eq 'public') ? 'public' : 'private';
         $obj->{version}  = 1;
         $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {

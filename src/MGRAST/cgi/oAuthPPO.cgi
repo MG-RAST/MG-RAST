@@ -29,6 +29,9 @@ if ($cookie) {
   if (scalar(@$sessions)) {
     $user = $sessions->[0]->user;
   }
+  $cookie = CGI::Cookie->new( -name    => 'WebSession',
+			      -value   => $cookie,
+			      -expires => "+2d" );
 }
 if ($cgi->param('logout')) {
     $cookie = CGI::Cookie->new( -name    => 'WebSession',
@@ -74,7 +77,7 @@ if ($cgi->param('login') && $cgi->param('pass')) {
 }
 
 unless ($cgi->param('action')) {
-  print $cgi->header();
+  print $cgi->header(-cookie => $cookie );
   print base_template();
 
   if (! $allow_application  && ! $allow_user) {
@@ -154,7 +157,7 @@ unless ($cgi->param('action')) {
 	      } else {
 		$url .= "?";
 	      }
-	      print $cgi->redirect( -uri => $url."code=".$secret );
+	      print $cgi->redirect( -uri => $url."code=".$secret, -cookie=>$cookie);
 	      exit 0;				
 	    } else {
 		$res = $dbh->selectrow_arrayref("SELECT application, token FROM accepts WHERE application='".$cgi->param("client_id")."' AND login='".$user->login."';");
@@ -169,7 +172,7 @@ unless ($cgi->param('action')) {
 		    } else {
 			$url .= "?";
 		    }
-		    print $cgi->redirect( -uri => $url."code=".$res->[1] );
+		    print $cgi->redirect( -uri => $url."code=".$res->[1], -cookie=>$cookie );
 		    exit 0;				
 		} else {
 		    auth_client_screen();
