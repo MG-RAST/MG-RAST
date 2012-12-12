@@ -1297,6 +1297,10 @@ sub user_delete {
     $r->delete;
   }
 
+  use MGRAST::Analysis;
+  my $analysisDB  = MGRAST::Analysis->new($self->_master->db_handle);
+  $analysisDB->delete_job;
+
   return (1, "");
 }
 
