@@ -231,7 +231,7 @@ sub editable_preferences {
 	   # 		 category => "Identity Management",
 	   # 		 type => "generator3",
 	   # 		 info => 'You can add accounts from google here, allowing you to log in with them.' },
-	   # }
+	   };
   }
 
   return { "ComparedRegionsDefaultNumRegions" => { value => 4,
