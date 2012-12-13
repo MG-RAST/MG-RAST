@@ -27,10 +27,10 @@ sub new {
   
   # connect to database
 
-  unless ($dbh){
+  unless ($dbh) {
     eval {
       my $dbms     = $Conf::mgrast_dbms;
-      my $host     = "kharkov-1.igsb.anl.gov"; ### hardocded !!! $Conf::mgrast_dbhost;
+      my $host     = $Conf::mgrast_dbhost;
       my $database = $Conf::mgrast_db;
       my $user     = $Conf::mgrast_dbuser;
       my $password = $Conf::mgrast_dbpass;
@@ -1345,7 +1345,8 @@ sub get_organisms_for_md5s {
             }
         }
     }
-  
+    unless (@$jobs) { return (\%mdata, [ map { @$_ } values %$data ]); }
+
     my %md5_set = map {$_, 1} @$md5s;
     my $mg_md5_abund = $self->get_md5_abundance();
   
@@ -1362,7 +1363,7 @@ sub get_organisms_for_md5s {
               "COALESCE(a.tax_species,'unassigned') AS txs,a.name";
     my $sql = "SELECT DISTINCT j.job,j.source,$tax,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s$ctax FROM ".
               $self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
-    print STDERR $sql."\n";
+
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->_mg_map->{$row->[0]};
@@ -1428,6 +1429,7 @@ sub get_ontology_for_md5s {
             }
         }
     }
+    unless (@$jobs) { return (\%mdata, [ map { @$_ } values %$data ]); }
 
     my %md5_set = map {$_, 1} @$md5s;
     my $mg_md5_abund = $self->get_md5_abundance();
