@@ -363,7 +363,7 @@ sub stage_download_info {
       next;
     }
     elsif (($suffix eq '.fna') || ($suffix eq '.fastq')) {
-      my $is_fastq = ($suffix eq '.fastq') ? 1 : 0
+      my $is_fastq = ($suffix eq '.fastq') ? 1 : 0;
       $type   = "DNA";
       $stats  = $self->read_stats($f, $type, $gz, $is_fastq);
       $count  = (@$stats > 0) ? format_number($stats->[1][1]) . " reads" : '';
