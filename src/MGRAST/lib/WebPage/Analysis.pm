@@ -1399,7 +1399,7 @@ sub workbench_blat_output {
   my $md5_ann    = $self->{mgdb}->annotation_for_md5s(\@md5s, $sources, 1); # [ id, md5, function, organism, source, tax_id ]
 
   map { $links_hash->{$_->[1]}{$_->[4]} = $_->[0] } @$md5_ann;
-  map { $funcs->{$_->[1]} = [ @$_[4,0,2] ] } grep { $_->[2] } @$md5_ann;
+  map { push @{$funcs->{$_->[1]}}, [ @$_[4,0,2] ] } grep { $_->[2] } @$md5_ann;
   map { $orgshash->{$_->[1]} = $_->[3] } grep { $_->[3] } @$md5_ann;
   map { $ncbi_ids->{$_->[3]} = $_->[5] } grep { $_->[3] && $_->[5] } @$md5_ann;
   
