@@ -225,13 +225,13 @@ sub editable_preferences {
 				  info => "<b>Note:</b> Creating a new key and clicking 'set preferences'<br>will render the previous key deprecated. Your key will be valid for a limited time only (see webkey termination date). You can generate a new key with a new termination date at any time." },
 	    "WebServiceKeyTdate" => { value => '',
 				      type => 'dependant',
-				      category => 'Web Services' },
-	    "oauth" => { value => "",
-			 description => "OAuth identities",
-			 category => "Identity Management",
-			 type => "generator3",
-			 info => 'You can add accounts from google here, allowing you to log in with them.' },
-	   }
+				      category => 'Web Services' }
+	   #  "oauth" => { value => "",
+	   # 		 description => "OAuth identities",
+	   # 		 category => "Identity Management",
+	   # 		 type => "generator3",
+	   # 		 info => 'You can add accounts from google here, allowing you to log in with them.' },
+	   };
   }
 
   return { "ComparedRegionsDefaultNumRegions" => { value => 4,

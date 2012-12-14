@@ -49,7 +49,7 @@ sub info {
 							 'body'        => {} } },
 				    { 'name'        => "setlist",
 				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
-				      'description' => "Returns a list of sets for the given id.",
+				      'description' => "Returns a list of sets of sequence files for the given id.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
 				      'attributes'  => { "stage_name" => [ "string", "name of the stage in processing of this sequence file" ],

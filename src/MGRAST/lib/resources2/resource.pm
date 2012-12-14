@@ -31,6 +31,7 @@ sub new {
     		              500 => "Internal Server Error",
     		              501 => "Not Implemented",
     		              503 => "Service Unavailable",
+    		              507 => "Storing object failed",
     		              -32602 => "Invalid params",
     		              -32603 => "Internal error"
     		              };
@@ -41,6 +42,8 @@ sub new {
         json          => $json,
         cgi           => $params->{cgi},
         rest          => $params->{rest_parameters} || [],
+        method        => $params->{method},
+        submethod     => $params->{submethod},
         user          => $params->{user},
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
         json_rpc_id   => ($params->{json_rpc} && exists($params->{json_rpc_id})) ? $params->{json_rpc_id} : undef,
@@ -69,6 +72,14 @@ sub cgi {
 sub rest {
     my ($self) = @_;
     return $self->{rest};
+}
+sub method {
+    my ($self) = @_;
+    return $self->{method};
+}
+sub submethod {
+    my ($self) = @_;
+    return $self->{submethod};
 }
 sub user {
     my ($self) = @_;
@@ -153,9 +164,8 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-    my ($self, $data, $total) = @_;
+    my ($self, $data, $total, $limit) = @_;
 
-    my $limit  = $self->cgi->param('limit')  || 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order')  || "id";
     my @params = $self->cgi->param;
@@ -329,6 +339,39 @@ sub get_sequence_sets {
     return $stages;
 }
 
+sub create_virtual_shock_node {
+    my ($self, $parent, $attr) = @_;
+
+    my $attr_str = $self->json->encode($attr);
+    my $content  = [ type => 'virtual', source => $parent, attributes => [undef, "$parent.json", Content => $attr_str] ];
+    my $response = undef;
+    eval {
+        $response = $self->json->decode( $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data')->content );
+    };
+    if ($@ || (! ref($response)) || $response->{E}) {
+        return undef;
+    } else {
+        return $response->{D};
+    }
+}
+
+sub set_shock_node {
+    my ($self, $name, $file, $attr) = @_;
+    
+    my $attr_str = $self->json->encode($attr);
+    my $file_str = $self->json->encode($file);
+    my $content  = [ attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str] ];
+    my $response = undef;
+    eval {
+        $response = $self->json->decode( $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data')->content );
+    };
+    if ($@ || (! ref($response)) || $response->{E}) {
+        return undef;
+    } else {
+        return $response->{D};
+    }
+}
+
 sub get_shock_node {
     my ($self, $id) = @_;
     
@@ -388,7 +431,7 @@ sub toFloat {
 }
 
 sub toNum {
-    my ($x, $type) = @_;
+    my ($self, $x, $type) = @_;
     if ($type eq 'abundance') {
         return int($x);
     } else {
