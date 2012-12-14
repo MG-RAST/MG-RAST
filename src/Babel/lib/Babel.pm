@@ -653,16 +653,18 @@ sub org2contig_data {
   my ($self, $org, $get_func) = @_;
 
   my $sql;
+  # org is index, return md5 as index
   if ($org =~ /^\d+$/) {
     if ($get_func) {
-      $sql = qq(select c.name, d.md5, d.id, f.name, ic.low, ic.high, ic.strand, c.length
-                from id2contig ic, contigs c, md5_protein d, functions f
-                where (ic.id=d.id) and (ic.contig=c._id) and (c.organism=$org) and (d.function=f._id) order by c.name, ic.low);
+      $sql = qq(select c.name, m._id, d.id, f.name, ic.low, ic.high, ic.strand, c.length
+                from id2contig ic, contigs c, md5_protein d, md5s m, functions f
+                where (ic.id=d.id) and (ic.contig=c._id) and (c.organism=$org) and (m.md5=d.md5) and (d.function=f._id) order by c.name, ic.low);
     } else {
-      $sql = qq(select c.name, d.md5, d.id, ic.low, ic.high, ic.strand, c.length
-                from id2contig ic, contigs c, md5_protein d
-                where (ic.id=d.id) and (ic.contig=c._id) and (c.organism=$org) order by c.name, ic.low);
+      $sql = qq(select c.name, m._id, d.id, ic.low, ic.high, ic.strand, c.length
+                from id2contig ic, contigs c, md5_protein d, md5s m
+                where (ic.id=d.id) and (ic.contig=c._id) and (c.organism=$org) and (m.md5=d.md5) order by c.name, ic.low);
     }
+  # org is text, return md5 as text
   } else {
     my $qorg = $self->dbh->quote($org);
     if ($get_func) {

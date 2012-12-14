@@ -587,10 +587,8 @@ sub single_data {
     }
 
     $self->{mgdb}->set_jobs(\@metas, 1);
-    my $rev = {};
-    %$rev = reverse %{$self->{mgdb}->jobs};
     foreach my $key (keys(%$collections)) {
-      $collections->{$rev->{$key}} = $collections->{$key};
+      $collections->{ $self->{mgdb}->_mg_map->{$key} } = $collections->{$key};
     }
   } else {
     $self->{mgdb}->set_jobs(\@metas);
@@ -644,9 +642,9 @@ sub phylogenetic_data {
     my $projects = [];
     foreach my $entry (@comparison_collections) {
       if ($entry =~ /^project\:/) {
-	push(@$projects, $entry);
+	    push(@$projects, $entry);
       } else {
-	push(@$collections_ary, $entry);
+	    push(@$collections_ary, $entry);
       }
     }
     if ($self->application->session->user) {
@@ -656,13 +654,13 @@ sub phylogenetic_data {
 										 user => $self->application->session->user,
 										 name => 'mgrast_collection' } );
       if (scalar(@$coll_prefs)) {
-	foreach my $collection_pref (@$coll_prefs) {
-	  my ($name, $val) = split(/\|/, $collection_pref->{value});
-	  if ($comp_cols->{$name}) {
-	    $collections->{$val} = $name;
-	    push(@metas, $val);
-	  }
-	}
+	    foreach my $collection_pref (@$coll_prefs) {
+	      my ($name, $val) = split(/\|/, $collection_pref->{value});
+	      if ($comp_cols->{$name}) {
+	        $collections->{$val} = $name;
+	        push(@metas, $val);
+	      }
+	    }
       }
     }
     foreach my $project (@$projects) {
@@ -670,16 +668,14 @@ sub phylogenetic_data {
       my $p = $mgrast->Project->init( { id => $pid } );
       my $pjs = $mgrast->ProjectJob->get_objects( { project => $p } );
       foreach my $pj (@$pjs) {
-	push(@metas, $pj->job->job_id);
-	$collections->{$pj->job->job_id} = $project;
+	    push(@metas, $pj->job->job_id);
+	    $collections->{$pj->job->job_id} = $project;
       }
     }
 
     $self->{mgdb}->set_jobs(\@metas, 1);
-    my $rev = {};
-    %$rev = reverse %{$self->{mgdb}->jobs};
     foreach my $key (keys(%$collections)) {
-      $collections->{$rev->{$key}} = $collections->{$key};
+      $collections->{ $self->{mgdb}->_mg_map->{$key} } = $collections->{$key};
     }
   } else {
     $self->{mgdb}->set_jobs(\@metas);
@@ -690,15 +686,14 @@ sub phylogenetic_data {
     my $mgid_curve = {};
     my $get_m5nr   = first {$_ =~ /^m5nr$/i} @sources;
     if ($get_m5nr) {
-      while (my ($mgid, $jobid) = each %{$self->{mgdb}->jobs}) {
-	my $jobj  = $mgrast->Job->init( {job_id => $jobid} );
-	my $alpha = $jobj->stats('alpha_diversity_shannon');
-	my $curve = $self->{mgdb}->get_rarefaction_coords($jobid);
-	if ($alpha)  { $mgid_alpha->{$mgid} = $alpha; }
-	if (@$curve) { $mgid_curve->{$mgid} = $curve; }
+      while (my ($mgid, $jobid) = each %{$self->{mgdb}->_job_map}) {
+	    my $jobj  = $mgrast->Job->init( {job_id => $jobid} );
+	    my $alpha = $jobj->stats('alpha_diversity_shannon');
+	    my $curve = $self->{mgdb}->get_rarefaction_coords($jobid);
+	    if ($alpha)  { $mgid_alpha->{$mgid} = $alpha; }
+	    if (@$curve) { $mgid_curve->{$mgid} = $curve; }
       }
-    }
-    else {
+    } else {
       $mgid_alpha = $self->{mgdb}->get_rarefaction_curve(\@sources, 1);
       $mgid_curve = $self->{mgdb}->get_rarefaction_curve(\@sources);
     }
@@ -807,10 +802,8 @@ sub metabolic_data {
     }
 
     $self->{mgdb}->set_jobs(\@metas, 1);
-    my $rev = {};
-    %$rev = reverse %{$self->{mgdb}->jobs};
     foreach my $key (keys(%$collections)) {
-      $collections->{$rev->{$key}} = $collections->{$key};
+      $collections->{ $self->{mgdb}->_mg_map->{$key} } = $collections->{$key};
     }
   } else {
     $self->{mgdb}->set_jobs(\@metas);
@@ -954,10 +947,8 @@ sub annotation_data {
     }
 
     $self->{mgdb}->set_jobs(\@metas, 1);
-    my $rev = {};
-    %$rev = reverse %{$self->{mgdb}->jobs};
     foreach my $key (keys(%$collections)) {
-      $collections->{$rev->{$key}} = $collections->{$key};
+      $collections->{ $self->{mgdb}->_mg_map->{$key} } = $collections->{$key};
     }
   } else {
     $self->{mgdb}->set_jobs(\@metas);
@@ -1049,10 +1040,8 @@ sub lca_data {
     }
 
     $self->{mgdb}->set_jobs(\@metas, 1);
-    my $rev = {};
-    %$rev = reverse %{$self->{mgdb}->jobs};
     foreach my $key (keys(%$collections)) {
-      $collections->{$rev->{$key}} = $collections->{$key};
+      $collections->{ $self->{mgdb}->_mg_map->{$key} } = $collections->{$key};
     }
   } else {
     $self->{mgdb}->set_jobs(\@metas);
@@ -1099,8 +1088,8 @@ sub recruitment_plot_data {
 
   my @data = ();
   my %uniq = ();
+  my $link = $mgdb->link_for_source($source);
   my %md5_data = map { $_->[1], [ @$_[2..10] ] } @{ $mgdb->get_md5_data_for_organism_source($name, $source, $cutoff) };
-  my $link     = $mgdb->link_for_source($source);
 
   foreach ( @{ $mgdb->ach->org2contig_data($orgid, 1) } ) {
     my ($ctg, $md5, $id, $func, $low, $high, $strand, $clen) = @$_;
@@ -1135,7 +1124,7 @@ sub recruitment_plot_graph {
   @$evals  = @$evals[$cutoff..4];
   @$colors = @$colors[$cutoff..4];
 
-  my $unique_str     = join('_', ( join("_", values %{$mgdb->jobs}), $orgid, $eval, $log ));
+  my $unique_str     = join('_', ( join("_", @{$mgdb->_jobs}), $orgid, $eval, $log ));
   my $circos_file    = "circos_$unique_str";
   my $config_file    = "$Conf::temp/circos_$unique_str.conf";
   my $karyotype_file = "$Conf::temp/karyotype_$unique_str.txt";
@@ -1163,7 +1152,7 @@ sub recruitment_plot_graph {
   
   my @eval_sums = (0, 0, 0, 0, 0);
   @eval_sums = @eval_sums[$cutoff..4];
-
+  
   my $md5_evals = $mgdb->get_md5_evals_for_organism_source($name, $source);
   foreach my $md5 (keys %$md5_evals) {
     my @e = @{ $md5_evals->{$md5} };
@@ -1325,9 +1314,10 @@ units_nounit  = n
 ~;
   close CFG;
 
-  my $c = system($Conf::circos_path." -conf $config_file -silent");
+  my $cmd = $Conf::circos_path." -conf ".$config_file." -silent 2>&1";
+  my $msg = `$cmd`;
   for (my $j=0; $j<@eval_sums; $j++) { push @$eval_set, [ $evals->[$j], $eval_sums[$j], $colors->[$j] ]; }
-  return ($c == 0) ? [$circos_file, $eval_set, [$num_frag, $num_hit, $num_feat]] : ["Circos failed: $?",  []];
+  return $msg ? ["ERROR: $msg",  [], undef] : [$circos_file, $eval_set, [$num_frag, $num_hit, $num_feat]];
 }
 
 sub workbench_export {
@@ -3770,8 +3760,8 @@ sub phylogeny_visual {
       my ($mgid, $coord, $alpha) = @{$data->[$i]};
       my $c_index = $i % scalar(@$colors);
       foreach (@$coord) {
-	push @allX, $_->[0];
-	push @allY, $_->[1];
+	    push @allX, $_->[0];
+	    push @allY, $_->[1];
       }
       push @$rare_data, $mgid . '~' . join('~', map { $_->[0] . ';;' . $_->[1] } @$coord);
       push @$alpha_data, [ "<div style='height:14px; width:56px; margin: 2 0 2 1; background-color:".$colors->[$i].";'></div>", $mgid, sprintf("%.2f", $alpha) ];
