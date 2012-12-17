@@ -14,6 +14,17 @@ $json = $json->utf8();
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
 my $request_method = $ENV{'REQUEST_METHOD'};
 
+if (lc($request_method) eq 'options') {
+  print $cgi->header(-Access_Control_Allow_Origin => '*',
+		     -status => 200,
+		     -type => 'text/plain',
+		     -Access_Control_Allow_Methods => 'POST, GET, OPTIONS',
+		     -Access_Control_Allow_Headers => 'AUTH'
+		    );
+  print "";
+  exit 0;
+}
+
 # get REST parameters
 my $abs = $cgi->url(-relative=>1);
 if ($abs !~ /\.cgi/) {
@@ -113,9 +124,9 @@ if ($json_rpc && ! $resource) {
 
 # check for authentication
 my $user;
-if ($cgi->http('HTTP_AUTH')) {
+if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
   use Auth;
-  $user = Auth::authenticate($cgi->http('HTTP_AUTH'));
+  $user = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
 }
 
 # if a resource is passed, call the resources module
@@ -134,14 +145,20 @@ if ($resource) {
         print "ERROR: resource '$resource' does not exist";
         exit 0;
     } else {
-        my $params= { 'rest_parameters' => \@rest_parameters,
-                      'method'          => $request_method,
-                      'user'            => $user,
-                      'json_rpc'        => $json_rpc,
-                      'json_rpc_id'     => $json_rpc_id,
-                      'submethod'       => $submethod,
-                      'cgi'             => $cgi
-                    };
+      # check for kbase ids
+      if (scalar(@rest_parameters)) {
+	$rest_parameters[0] =~ s/^kb\|[a..zA..Z]{3}(.+)$/$1/;
+      }
+
+      # create params hash
+      my $params= { 'rest_parameters' => \@rest_parameters,
+		    'method'          => $request_method,
+		    'user'            => $user,
+		    'json_rpc'        => $json_rpc,
+		    'json_rpc_id'     => $json_rpc_id,
+		    'submethod'       => $submethod,
+		    'cgi'             => $cgi
+		  };
         eval {
             my $resource_obj = $package->new($params);
             $resource_obj->request();
