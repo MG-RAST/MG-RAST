@@ -225,6 +225,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    my $filetype3;
 	    my $join_option; # option to include non-overlapping paired-ends
             my $joinfile; # output filename
+	    my @files_to_verify = ($files[0], $files[1]);
 
 	    my $has_seqs = 0;
 	    if (@files == 5 && $files[0] =~ /\.$seq_ext$/ && $files[1] =~ /\.$seq_ext$/ && ($files[2] eq "none" || $files[2] =~ /\.$seq_ext$/)) {
@@ -241,7 +242,12 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 my $ext3 = $files[2];
                 $ext3 =~ s/^\S+\.($seq_ext)$/$1/;
 		$filetype3 = ($ext3 =~ /^(fq|fastq)$/) ? 'fastq' : 'fasta';
-		$seqfile3 = ($files[2] eq "none") ? "" : $files[2];
+		if($files[2] eq "none") {
+		    $seqfile3 = "";
+		} else {
+		    $seqfile3 = $files[2];
+		    push @files_to_verify, $files[2];
+		}
 
                 if($filetype1 eq 'fastq' && $filetype2 eq 'fastq' && ($seqfile3 eq "" || $filetype3 eq 'fastq')) {
 		    $has_seqs = 1;
@@ -270,7 +276,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 } else {
 		    my $fix_files_str = "";
 		    my $file_types_verify = 1;
-		    foreach my $input_file ($files[0], $files[1], $files[2], $files[4]) {
+		    foreach my $input_file (@files_to_verify) {
 			my ($file_type, $err_msg, $fix_str) = &verify_file_type($input_file, $udir);
 			if($err_msg ne "") {
 			    push(@{$data->[0]->{popup_messages}}, $err_msg);
