@@ -4,6 +4,8 @@ use strict;
 use warnings;
 no warnings('once');
 
+use List::Util qw(first max min sum);
+use POSIX qw(strftime floor);
 use MGRAST::Analysis;
 use Conf;
 use parent qw(resources2::resource);
@@ -16,7 +18,8 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name}       = "metagenome_statistics";
+    $self->{name} = "metagenome_statistics";
+    $self->{mgdb} = undef;
     $self->{attributes} = { 
                 "id" => [ 'string', 'unique metagenome id' ],
                 "length_histogram" => {
@@ -28,10 +31,13 @@ sub new {
                     "post_qc"  => [ 'list', 'gc % distribution of post-qc sequences' ]
                 },
                 "qc" => {
-                    "drisee"     => [ 'list', 'drisee profile' ],
-                    "kmer_6"     => [ 'list', 'kmer 6 counts' ],
-                    "kmer_15"    => [ 'list', 'kmer 15 counts' ],
-                    "nucleotide" => [ 'list', 'nucleotide profile information' ]
+                    "kmer" => { "6_mer"  => {"columns" => ['list', 'names of columns'], "data" => ['list', 'kmer 6 counts']},
+                                "15_mer" => {"columns" => ['list', 'names of columns'], "data" => ['list', 'kmer 15 counts']} },
+                    "drisee" => { "counts"   => {"columns" => ['list', 'names of columns'], "data" => ['list', 'drisee count profile']},
+                                  "percents" => {"columns" => ['list', 'names of columns'], "data" => ['list', 'drisee percent profile']},
+                                  "summary"  => {"columns" => ['list', 'names of columns'], "data" => ['list', 'drisee summary stats']} },
+                    "bp_profile" => { "counts"   => {"columns" => ['list', 'names of columns'], "data" => ['list', 'nucleotide count profile']},
+                                      "percents" => {"columns" => ['list', 'names of columns'], "data" => ['list', 'nucleotide percent profile']} }
                 },
                 "sequence_stats" => [ 'hash', 'statistics on sequence files of all pipeline stages' ],
                 "taxonomy" => {
@@ -70,18 +76,21 @@ sub info {
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
 				      'attributes'  => "self",
-				      'parameters'  => { 'options'     => {},
-							 'required'    => {},
-							 'body'        => {} } },
+				      'parameters'  => { 'options'  => {},
+							             'required' => {},
+						                 'body'     => {} } },
 				    { 'name'        => "instance",
 				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
 				      'description' => "Returns a JSON structure of statistical information.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
 				      'attributes'  => $self->attributes,
-				      'parameters'  => { 'options'     => {},
-							 'required'    => { "id" => [ "string", "metagenome id" ] },
-							 'body'        => {} } }
+				      'parameters'  => { 'options' => { 'verbosity' => ['cv',
+                                                               [['minimal','returns only sequence statistics'],
+                                                                ['verbose','returns all but qc statistics'],
+                                                                ['full','returns all statistics']] ] },
+							             'required' => { "id" => [ "string", "metagenome id" ] },
+							             'body'     => {} } }
 				  ]
 		  };
 
@@ -113,14 +122,21 @@ sub instance {
   unless ($job->public || $self->user->has_right(undef, 'view', 'metagenome', $job->metagenome_id) || $self->user->has_star_right('view', 'metagenome')) {
     $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
   }
-  
+
+  my $jstats = $job->stats();
+  if ((! $self->cgi->param('verbosity')) || ($self->cgi->param('verbosity') eq 'minimal')) {
+      $jstats->{id} = $rest->[0];
+      return $self->return_data($jstats);
+  }
+
   # initialize analysis obj with mgid
   my $jid  = $job->job_id;
   my $mgdb = MGRAST::Analysis->new( $master->db_handle );
   unless (ref($mgdb)) {
       $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
   }
-  $mgdb->set_jobs([$mgid]);  
+  $mgdb->set_jobs([$mgid]);
+  $self->{mgdb} = $mgdb;
 
   my $object = {
       id => $rest->[0],
@@ -132,13 +148,7 @@ sub instance {
           "upload"  => $mgdb->get_histogram_nums($jid, 'gc', 'raw'),
           "post_qc" => $mgdb->get_histogram_nums($jid, 'gc', 'qc')
       },
-      qc => {
-          "drisee"     => $mgdb->get_qc_stats($jid, 'drisee'),
-          "kmer_6"     => $mgdb->get_qc_stats($jid, 'kmer.6'),
-          "kmer_15"    => $mgdb->get_qc_stats($jid, 'kmer.15'),
-          "nucleotide" => $mgdb->get_qc_stats($jid, 'consensus')
-      },
-      sequence_stats => $job->stats(),
+      sequence_stats => $jstats,
       taxonomy => {
           "species" => $mgdb->get_taxa_stats($jid, 'species'),
           "genus"   => $mgdb->get_taxa_stats($jid, 'genus'),
@@ -157,8 +167,102 @@ sub instance {
       source => $mgdb->get_source_stats($jid),
 	  rarefaction => $mgdb->get_rarefaction_coords($jid)
   };
-
+  
+  if ($self->cgi->param('verbosity') eq 'full') {
+      $object->{qc} = { "kmer" => { "6_mer" => $self->get_kmer($jid, '6'),
+                                    "15_mer" => $self->get_kmer($jid, '15'), },
+                        "drisee" => $self->get_drisee($jid, $jstats),
+                        "bp_profile" => $self->get_nucleo($jid)
+                      };
+  }
   $self->return_data($object);
+}
+
+sub get_drisee {
+    my ($self, $jid, $stats) = @_;
+    
+    my $bp_set = ['A', 'T', 'C', 'G', 'N', 'InDel'];
+    my $drisee = $self->{mgdb}->get_qc_stats($jid, 'drisee');
+    my $ccols  = ['Position'];
+    map { push @$ccols, $_.' match consensus sequence' } @$bp_set;
+    map { push @$ccols, $_.' not match consensus sequence' } @$bp_set;
+    my $data = { summary  => { columns => [@$bp_set, 'Total'], data => undef },
+                 counts   => { columns => $ccols, data => undef },
+                 percents => { columns => ['Position', @$bp_set, 'Total'], data => undef }
+               };
+    unless ($drisee && (@$drisee > 2) && ($drisee->[1][0] eq '#')) {
+        return $data;
+    }
+    for (my $i=0; $i<6; $i++) {
+        $data->{summary}{data}[$i] = $drisee->[1][$i+1] * 1.0;
+    }
+    $data->{summary}{data}[6] = $stats->{drisee_score_raw} ? $stats->{drisee_score_raw} * 1.0 : undef;
+    my $raw = [];
+    my $per = [];
+    foreach my $row (@$drisee) {
+        next if ($row->[0] =~ /\#/);
+	    @$row = map { int($_) } @$row;
+	    push @$raw, $row;
+	    if ($row->[0] > 50) {
+	        my $x = shift @$row;
+	        my $sum = sum @$row;
+	        my @tmp = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) * 1.0 } @$row;
+	        push @$per, [ $x, @tmp[6..11], sprintf("%.2f", sum(@tmp[6..11])) * 1.0 ];
+	    }        
+    }
+    $data->{counts}{data} = $raw;
+    $data->{percents}{data} = $per;
+    return $data;
+}
+
+sub get_nucleo {
+    my ($self, $jid) = @_;
+    
+    my $cols = ['Position', 'A', 'T', 'C', 'G', 'N', 'Total'];
+    my $nuc  = $self->{mgdb}->get_qc_stats($jid, 'consensus');
+    my $data = { counts   => { columns => $cols, data => undef },
+                 percents => { columns => [@$cols[0..5]], data => undef }
+               };
+    unless ($nuc && (@$nuc > 2)) {
+        return $data;
+    }
+    my $raw = [];
+    my $per = [];
+    foreach my $row (@$nuc) {
+        next if (($row->[0] eq '#') || (! $row->[6]));
+        @$row = map { int($_) } @$row;
+        push @$raw, [ $row->[0] + 1, $row->[1], $row->[4], $row->[2], $row->[3], $row->[5], $row->[6] ];
+        unless (($row->[0] > 100) && ($row->[6] < 1000)) {
+    	    my $sum = $row->[6];
+    	    my @tmp = map { floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
+    	    push @$per, [ $row->[0] + 1, $tmp[1], $tmp[4], $tmp[2], $tmp[3], $tmp[5] ];
+        }
+    }
+    $data->{counts}{data} = $raw;
+    $data->{percents}{data} = $per;
+    return $data;
+}
+
+sub get_kmer {
+    my ($self, $jid, $num) = @_;
+    
+    my $cols = [ 'count of identical kmers of size N',
+    			 'number of times count occures',
+    	         'product of column 1 and 2',
+    	         'reverse sum of column 2',
+    	         'reverse sum of column 3',
+    		     'ratio of column 5 to total sum column 3 (not reverse)'
+               ];
+    my $kmer = $self->{mgdb}->get_qc_stats($jid, 'kmer.'.$num);
+    my $data = { columns => $cols, data => undef };
+    unless ($kmer && (@$kmer > 1)) {
+        return $data;
+    }
+    foreach my $row (@$kmer) {
+        @$row = map { $_ * 1.0 } @$row;
+    }
+    $data->{data} = $kmer;
+    return $data;
 }
 
 1;
