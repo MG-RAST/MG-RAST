@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use MGRAST::Analysis;
 use Conf;
 use parent qw(resources2::resource);
 
@@ -16,31 +17,41 @@ sub new {
     
     # Add name / attributes
     $self->{name}       = "metagenome_statistics";
-    $self->{attributes} = { "id" => [ 'string', 'unique metagenome id' ],
-			    "basic" => [ 'hash', 'basic sequence information about the uploaded data' ],
-			    "consensus" => [ 'hash', 'consensus information' ],
-			    "drisee_info" => [ 'hash', 'basic drisee information' ],
-			    "drisee_stats" => [ 'hash', 'drisee statistics' ],
-			    "kmer_15" => [ 'hash', 'kmer 15 counts' ],
-			    "kmer_6" => [ 'hash', 'kmer 6 counts' ],
-			    "preprocess_passed" => [ 'hash', 'basic sequence information about the data that passed preprocessing' ],
-			    "preprocess_removed" => [ 'hash', 'basic sequence information about the data that was removed during preprocessing' ],
-			    "dereplication_passed" => [ 'hash', 'basic sequence information about the data that passed dereplication' ],
-			    "dereplication_removed" => [ 'hash', 'basic sequence information about the data that was removed during preprocessing' ],
-			    "species" => [ 'hash', 'species counts' ],
-			    "sims" => [ 'hash', 'sims counts' ],
-			    "rarefaction" => [ 'hash', 'rarefaction data' ],
-			    "COG" => [ 'hash', 'COG counts' ],
-			    "KO" => [ 'hash', 'KO counts' ],
-			    "NOG" => [ 'hash', 'NOG counts' ],
-			    "Subsystem" => [ 'hash', 'Subsystem counts' ],
-			    "class" => [ 'hash', 'class counts' ],
-			    "domain" => [ 'hash', 'domain counts' ],
-			    "family" => [ 'hash', 'family counts' ],
-			    "order" => [ 'hash', 'order counts' ],
-			    "genus" => [ 'hash', 'genus counts' ],
-			    "phylum" => [ 'hash', 'phylum counts' ]
-			  };
+    $self->{attributes} = { 
+                "id" => [ 'string', 'unique metagenome id' ],
+                "length_histogram" => {
+                    "upload"  => [ 'list', 'length distribution of uploaded sequences' ],
+                    "post_qc" => [ 'list', 'length distribution of post-qc sequences' ]
+                },
+                "gc_histogram" => {
+                    "upload"   => [ 'list', 'gc % distribution of uploaded sequences' ],
+                    "post_qc"  => [ 'list', 'gc % distribution of post-qc sequences' ]
+                },
+                "qc" => {
+                    "drisee"     => [ 'list', 'drisee profile' ],
+                    "kmer_6"     => [ 'list', 'kmer 6 counts' ],
+                    "kmer_15"    => [ 'list', 'kmer 15 counts' ],
+                    "nucleotide" => [ 'list', 'nucleotide profile information' ]
+                },
+                "sequence_stats" => [ 'hash', 'statistics on sequence files of all pipeline stages' ],
+                "taxonomy" => {
+                    "species" => [ 'list', 'species counts' ],
+                    "genus"   => [ 'list', 'genus counts' ],
+                    "family"  => [ 'list', 'family counts' ],
+                    "order"   => [ 'list', 'order counts' ],
+                    "class"   => [ 'list', 'class counts' ],
+                    "phylum"  => [ 'list', 'phylum counts' ],
+                    "domain"  => [ 'list', 'domain counts' ]
+                },
+                "ontology" => {
+                    "COG"       => [ 'list', 'COG counts' ],
+    			    "KO"        => [ 'list', 'KO counts' ],
+    			    "NOG"       => [ 'list', 'NOG counts' ],
+    			    "Subsystem" => [ 'list', 'Subsystem counts' ]
+                },
+                "source" => [ 'hash', 'evalue and % identity counts per source' ],
+			    "rarefaction" => [ 'list', 'rarefaction coordinate data' ]
+	};
     return $self;
 }
 
@@ -92,71 +103,62 @@ sub instance {
   my $master = $self->connect_to_datasource();
   
   # get data
-  my $job = $master->Job->init( { metagenome_id => $mgid } );
-  unless ($job && ref($job)) {
-    $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
+  my $job = $master->Job->get_objects( {metagenome_id => $mgid} );
+  unless ($job && @$job) {
+    $self->return_data( {"ERROR" => "id $mgid does not exist"}, 404 );
   }
+  $job = $job->[0];
   
   # check rights
-  unless ($job->{public} || $self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id})) {
+  unless ($job->public || $self->user->has_right(undef, 'view', 'metagenome', $job->metagenome_id) || $self->user->has_star_right('view', 'metagenome')) {
     $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
   }
   
-  my $structure = { consensus => "075.consensus.stats",
-		    drisee_info => "075.drisee.info",
-		    drisee_stats => "075.drisee.stats",
-		    kmer_15 => "075.kmer.15.stats",
-		    kmer_6 => "075.kmer.6.stats",
-		    preprocessed_passed => "100.preprocess.passed.fna.stats",
-		    preprocessed_removed => "100.preprocess.removed.fna.stats",
-		    dereplication_passed => "150.dereplication.passed.fna.stats",
-		    dereplication_removed => "150.dereplication.removed.fna.stats",
-		    species => "999.done.species.stats",
-		    sims => "999.done.sims.stats",
-		    rarefaction => "999.done.rarefaction.stats",
-		    COG => "999.done.COG.stats",
-		    KO => "999.done.KO.stats",
-		    NOG => "999.done.NOG.stats",
-		    Subsystems => "999.done.Subsystems.stats",
-		    class => "999.done.class.stats",
-		    domain => "999.done.domain.stats",
-		    family => "999.done.family.stats",
-		    order => "999.done.order.stats",
-		    genus => "999.done.genus.stats",
-		    phylum => "999.done.phylum.stats" };
-
-  my $data = { id => $rest->[0] };
-  foreach my $key (keys(%$structure)) {
-    $data->{$key} = [];
-    if (-f $job->analysis_dir."/".$structure->{$key} && open(FH, "<".$job->analysis_dir."/".$structure->{$key})) {
-      while (<FH>) {
-	chomp;
-	my ($k, $v) = split /\t/;
-	if ($k && $v) {
-	  push(@{$data->{$key}}, [$k, $v]);
-	}
-      }
-      close FH;
-    }
+  # initialize analysis obj with mgid
+  my $jid  = $job->job_id;
+  my $mgdb = MGRAST::Analysis->new( $master->db_handle );
+  unless (ref($mgdb)) {
+      $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
   }
+  $mgdb->set_jobs([$mgid]);  
 
-  if (opendir(my $dh, $job->download_dir)) {
-    my @statfiles = grep { -f $job->download_dir."/$_" && $_ =~ /\.stats$/ } readdir($dh);
-    closedir $dh;
-    if (scalar(@statfiles) && -f $job->download_dir."/".$statfiles[0] && open(FH, "<".$job->download_dir."/".$statfiles[0])) {
-      $data->{basic} = [];
-      while (<FH>) {
-	chomp;
-	my ($k, $v) = split /\t/;
-	if ($k && $v) {
-	  push(@{$data->{basic}}, [$k, $v]);
-	}
-      }
-      close FH;
-    }
-  }
+  my $object = {
+      id => $rest->[0],
+      length_histogram => {
+          "upload"  => $mgdb->get_histogram_nums($jid, 'len', 'raw'),
+          "post_qc" => $mgdb->get_histogram_nums($jid, 'len', 'qc')
+      },
+      gc_histogram => {
+          "upload"  => $mgdb->get_histogram_nums($jid, 'gc', 'raw'),
+          "post_qc" => $mgdb->get_histogram_nums($jid, 'gc', 'qc')
+      },
+      qc => {
+          "drisee"     => $mgdb->get_qc_stats($jid, 'drisee'),
+          "kmer_6"     => $mgdb->get_qc_stats($jid, 'kmer.6'),
+          "kmer_15"    => $mgdb->get_qc_stats($jid, 'kmer.15'),
+          "nucleotide" => $mgdb->get_qc_stats($jid, 'consensus')
+      },
+      sequence_stats => $job->stats(),
+      taxonomy => {
+          "species" => $mgdb->get_taxa_stats($jid, 'species'),
+          "genus"   => $mgdb->get_taxa_stats($jid, 'genus'),
+          "family"  => $mgdb->get_taxa_stats($jid, 'family'),
+          "order"   => $mgdb->get_taxa_stats($jid, 'order'),
+          "class"   => $mgdb->get_taxa_stats($jid, 'class'),
+          "phylum"  => $mgdb->get_taxa_stats($jid, 'phylum'),
+          "domain"  => $mgdb->get_taxa_stats($jid, 'domain')
+      },
+      ontology => {
+          "COG"       => $mgdb->get_ontology_stats($jid, 'COG'),
+		  "KO"        => $mgdb->get_ontology_stats($jid, 'KO'),
+		  "NOG"       => $mgdb->get_ontology_stats($jid, 'NOG'),
+		  "Subsystem" => $mgdb->get_ontology_stats($jid, 'Subsystem')
+      },
+      source => $mgdb->get_source_stats($jid),
+	  rarefaction => $mgdb->get_rarefaction_coords($jid)
+  };
 
-  $self->return_data($data);
+  $self->return_data($object);
 }
 
 1;
