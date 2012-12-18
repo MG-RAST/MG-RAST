@@ -17,7 +17,9 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
+    my %rights = $self->user ? map { $_, 1 } @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "abundanceprofile";
+    $self->{rights} = \%rights;
     $self->{attributes} = { "id"                  => [ 'string', 'unique object identifier' ],
     	                    "format"              => [ 'string', 'format specification name' ],
     	                    "format_url"          => [ 'string', 'url to the format specification' ],
