@@ -346,7 +346,7 @@ sub prepare_data {
         push @$bcols, { id => 'mgm'.$cid, metadata => $cmd };
     }
     
-    my $obj = { "id"                   => join(";", map { $_->{id} } @$bcols).'_'.$glvl.'_'.$source.'_'.$rtype,
+    my $obj = { "id"                   => join(";", sort map { $_->{id} } @$bcols).'_'.$glvl.'_'.$source.'_'.$rtype,
   		        "format"               => "Biological Observation Matrix 1.0",
   		        "format_url"           => "http://biom-format.org",
   		        "type"                 => $ttype." table",
