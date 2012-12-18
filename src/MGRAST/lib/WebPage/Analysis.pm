@@ -1574,7 +1574,7 @@ sub workbench_hits_table {
   my $analysis_data = $self->{mgdb}->get_md5_data(\@md5s);
   my $source_info   = $self->{mgdb}->_sources;
   my $ss_map        = $has_ss ? $self->{mgdb}->get_hierarchy('ontology', 'Subsystems') : {};
-  my $md5_type      = $has_m5nr ? $self->{mgdb}->type_for_md5s(\@md5s) : {};
+  my $md5_type      = $self->{mgdb}->type_for_md5s(\@md5s, 1);  # id => [md5, type]
   my $source_data   = {};   # md5 => [ source, id, function ]
   if (@ach_srcs > 0) {
       map { $source_data->{$_->[1]} = [ @$_[4,0,2] ] } grep { $_->[2] } @{$self->{mgdb}->annotation_for_md5s(\@md5s, \@ach_srcs)};
@@ -1608,26 +1608,27 @@ sub workbench_hits_table {
   my @table_data = ();
   foreach my $row ( @$analysis_data ) {
     my ($mg, $md5, $num, $seek, $len) = @$row[0,1,2,9,10];
-    if (exists $source_data->{$md5}) {
-      foreach my $set ( sort {($a->[0] cmp $b->[0]) || ($a->[1] cmp $b->[1])} @{$source_data->{$md5}} ) {
-	if (exists $source_info->{$set->[0]}) {
-	  my $id    = exists($ss_map->{$set->[1]}) ? $ss_map->{$set->[1]}[2] : $set->[1];
-	  my $type  = $source_info->{$set->[0]}{type};
-	  my $idl   = $source_info->{$set->[0]}{link} ? "<a target=_blank href='".$source_info->{$set->[0]}{link}.$id."'>".$id."</a>" : $set->[1];
-	  my $readl = $num;
-	  if ($type eq 'rna') {
-	    $readl = qq~<a style='cursor:pointer' onclick='execute_ajax("get_reads_table", "read_div", "metagenome=$mg&md5=$md5&seek=$seek&length=$len&type=$type");'>$num</a>~;
-	  } else {
-	    $readl = qq~<a style='cursor:pointer' onclick='execute_ajax("get_read_align", "read_div", "metagenome=$mg&md5=$md5&seek=$seek&length=$len&type=$type");'>$num</a>~;
-	  }
-	  push @table_data, [ $mg,  $set->[0], $idl, $set->[2], $readl, @$row[3..8], $md5 ];
-	}
+    my $md5sum = $md5_type->{$md5}[0];
+    if (exists $source_data->{$md5sum}) {
+      foreach my $set ( sort {($a->[0] cmp $b->[0]) || ($a->[1] cmp $b->[1])} @{$source_data->{$md5sum}} ) {
+	    if (exists $source_info->{$set->[0]}) {
+	      my $id    = exists($ss_map->{$set->[1]}) ? $ss_map->{$set->[1]}[2] : $set->[1];
+	      my $type  = $source_info->{$set->[0]}{type};
+	      my $idl   = $source_info->{$set->[0]}{link} ? "<a target=_blank href='".$source_info->{$set->[0]}{link}.$id."'>".$id."</a>" : $set->[1];
+	      my $readl = $num;
+	      if ($type eq 'rna') {
+	        $readl = qq~<a style='cursor:pointer' onclick='execute_ajax("get_reads_table", "read_div", "metagenome=$mg&md5=$md5sum&seek=$seek&length=$len&type=$type");'>$num</a>~;
+	      } else {
+	        $readl = qq~<a style='cursor:pointer' onclick='execute_ajax("get_read_align", "read_div", "metagenome=$mg&md5=$md5&seek=$seek&length=$len&type=$type");'>$num</a>~;
+	      }
+	      push @table_data, [ $mg,  $set->[0], $idl, $set->[2], $readl, @$row[3..8], $md5sum ];
+	    }
       }
     }
-    if ($has_m5nr && exists($md5_type->{$md5}) && ($md5_type->{$md5} eq 'protein')) {
-      my $md5l  = "<a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5'>$md5</a>";
+    if ($has_m5nr && ($md5_type->{$md5}[1] eq 'protein')) {
+      my $md5l  = "<a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5sum'>$md5sum</a>";
       my $readl = qq~<a style='cursor:pointer' onclick='execute_ajax("get_read_align", "read_div", "metagenome=$mg&md5=$md5&seek=$seek&length=$len&type=protein");'>$num</a>~;
-      push @table_data, [ $mg, 'M5NR', $md5l, '', $readl, @$row[3..8], $md5 ];
+      push @table_data, [ $mg, 'M5NR', $md5l, '', $readl, @$row[3..8], $md5sum ];
     }
   }
 
@@ -1748,10 +1749,10 @@ sub get_reads_table {
       ##
 
       if ( @{$sims->{$md5}} > 25 ) {
-	$table->show_top_browse(1);
-	$table->show_bottom_browse(1);
-	$table->items_per_page(25);
-	$table->show_select_items_per_page(1); 
+	    $table->show_top_browse(1);
+	    $table->show_bottom_browse(1);
+	    $table->items_per_page(25);
+	    $table->show_select_items_per_page(1); 
       }
       $table->show_column_select(1);
       $table->columns($columns);
@@ -1759,7 +1760,7 @@ sub get_reads_table {
       my $reads = scalar( @{$sims->{$md5}} );
       my $html  = "<p>Hit table for $reads read" . (($reads > 1) ? "s" : "") . " within metagenome " . $job->name() . " ($mgid)";
       if ($type ne 'rna') {
-	$html .= " against sequence <a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5'>$md5</a>";
+	    $html .= " against sequence <a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5'>$md5</a>";
       }
       $html .= "</p>" . $table->output();
 
