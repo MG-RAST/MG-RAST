@@ -53,7 +53,7 @@ sub new {
                     "COG"       => [ 'list', 'COG counts' ],
     			    "KO"        => [ 'list', 'KO counts' ],
     			    "NOG"       => [ 'list', 'NOG counts' ],
-    			    "Subsystem" => [ 'list', 'Subsystem counts' ]
+    			    "Subsystems" => [ 'list', 'Subsystem counts' ]
                 },
                 "source" => [ 'hash', 'evalue and % identity counts per source' ],
 			    "rarefaction" => [ 'list', 'rarefaction coordinate data' ]
@@ -162,7 +162,7 @@ sub instance {
           "COG"       => $mgdb->get_ontology_stats($jid, 'COG'),
 		  "KO"        => $mgdb->get_ontology_stats($jid, 'KO'),
 		  "NOG"       => $mgdb->get_ontology_stats($jid, 'NOG'),
-		  "Subsystem" => $mgdb->get_ontology_stats($jid, 'Subsystem')
+		  "Subsystems" => $mgdb->get_ontology_stats($jid, 'Subsystems')
       },
       source => $mgdb->get_source_stats($jid),
 	  rarefaction => $mgdb->get_rarefaction_coords($jid)

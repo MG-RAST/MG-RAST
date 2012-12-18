@@ -265,7 +265,7 @@ sub prepare_data {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @org_hier)."]"}, 500);
         }
     } elsif ($type eq 'function') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('ontology')};
+        map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
         if ( grep(/^$glvl$/, @func_hier) ) {
             if ($glvl eq 'function') {
   	            $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
@@ -346,7 +346,7 @@ sub prepare_data {
         push @$bcols, { id => 'mgm'.$cid, metadata => $cmd };
     }
     
-    my $obj = { "id"                   => join(";", map { $_->{id} } @$bcols),
+    my $obj = { "id"                   => join(";", map { $_->{id} } @$bcols).'_'.$glvl.'_'.$source.'_'.$rtype,
   		        "format"               => "Biological Observation Matrix 1.0",
   		        "format_url"           => "http://biom-format.org",
   		        "type"                 => $ttype." table",
