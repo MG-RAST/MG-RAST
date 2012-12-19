@@ -86,9 +86,9 @@ sub info {
 				      'type'        => "synchronous" ,  
 				      'attributes'  => $self->attributes,
 				      'parameters'  => { 'options' => { 'verbosity' => ['cv',
-                                                               [['minimal','returns only sequence statistics'],
-                                                                ['verbose','returns all but qc statistics'],
-                                                                ['full','returns all statistics']] ] },
+                                                               [['minimal','returns only sequence_stats attribute'],
+                                                                ['verbose','returns all but qc attribute'],
+                                                                ['full','returns all attributes']] ] },
 							             'required' => { "id" => [ "string", "metagenome id" ] },
 							             'body'     => {} } }
 				  ]
