@@ -1299,7 +1299,7 @@ sub user_delete {
 
   use MGRAST::Analysis;
   my $analysisDB  = MGRAST::Analysis->new($self->_master->db_handle);
-  $analysisDB->delete_job;
+  $analysisDB->delete_job($self->job_id);
 
   return (1, "");
 }
