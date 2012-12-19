@@ -729,7 +729,7 @@ sub delete_job {
     my $all = $self->_dbh->selectcol_arrayref("SELECT DISTINCT version FROM job_info WHERE job = ".$job);
     eval {
         $self->_dbh->do("DELETE FROM job_info WHERE job = ".$job);
-        foreach my $tbl (keys %{$self->_jtbl}) {
+        foreach my $tbl (values %{$self->_jtbl}) {
             $self->_dbh->do("DELETE FROM $tbl WHERE version IN (".join(",", @$all).") AND job = ".$job);
         }
     };
