@@ -367,9 +367,9 @@ sub prepare_data {
 sub get_hierarchy {
     my ($self, $mgdb, $type, $level, $src, $leaf_node) = @_;
     if ($type eq 'organism') {
-        return $leaf_node ? $self->{org2tax} : $mgdb->ach->get_taxonomy4level_full($level, 1);
+        return $leaf_node ? $self->{org2tax} : $mgdb->get_hierarchy('organism', undef, undef, undef, $level);
     } elsif ($type eq 'function') {
-        return $leaf_node ? $mgdb->ach->get_all_ontology4source_hash($src) : $mgdb->ach->get_level4ontology_full($src, $level, 1);
+        return $leaf_node ? $mgdb->get_hierarchy('ontology', $src) : $mgdb->get_hierarchy('ontology', $src, undef, undef, $level);
     } else {
         return {};
     }
