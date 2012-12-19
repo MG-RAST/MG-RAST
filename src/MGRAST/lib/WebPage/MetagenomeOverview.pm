@@ -132,13 +132,13 @@ sub output {
     exit;
   }
 
-  my $job  = $self->data('job');
   my $non_ajax_action = $self->application->cgi->param('non_ajax_action') || '';
   if($non_ajax_action eq 'delete_job') {
-    $self->delete_job($job->job_id);
+    $self->delete_job();
     return "";
   }
 
+  my $job  = $self->data('job');
   my $mgdb = $self->data('mgdb');
   my $mddb = $self->data('mddb');
   my $user = $self->application->session->user;
