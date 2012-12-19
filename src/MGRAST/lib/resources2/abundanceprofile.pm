@@ -17,7 +17,9 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
+    my %rights = $self->user ? map { $_, 1 } @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "abundanceprofile";
+    $self->{rights} = \%rights;
     $self->{attributes} = { "id"                  => [ 'string', 'unique object identifier' ],
     	                    "format"              => [ 'string', 'format specification name' ],
     	                    "format_url"          => [ 'string', 'url to the format specification' ],
@@ -145,7 +147,7 @@ sub prepare_data {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
     } elsif ($params->{type} eq 'function') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('ontology')};
+        map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
     } elsif ($params->{type} eq 'feature') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
@@ -206,7 +208,7 @@ sub prepare_data {
         }
     }
   
-    my $obj  = { "id"                  => "mgm".$id,
+    my $obj  = { "id"                  => "mgm".$id.'_'.$params->{type}.'_'.$params->{source},
 	             "format"              => "Biological Observation Matrix 1.0",
 	             "format_url"          => "http://biom-format.org",
 	             "type"                => $ttype." table",

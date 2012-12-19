@@ -672,17 +672,26 @@ sub decode_annotation {
 }
 
 sub type_for_md5s {
-    my ($self, $md5s) = @_;
+    my ($self, $md5s, $get_id) = @_;
     
     unless ($md5s && @$md5s) { return {}; }
     my $data = {};
-    my $sql  = "SELECT md5, is_protein FROM md5s WHERE _id IN (".join(',', @$md5s).")";
-    my $rows = $self->_dbh->selectall_arrayref($sql);
-    if ($rows && @$rows) {
-        map { $data->{$_->[0]} = $_->[1] ? 'protein' : 'rna' } @$rows;
+    my %umd5 = map {$_, 1} @$md5s;
+    my $iter = natatime $self->_chunk, keys %umd5;
+    
+    while (my @curr = $iter->()) {
+        my $sql  = "SELECT _id, md5, is_protein FROM md5s WHERE _id IN (".join(',', @curr).")";
+        my $rows = $self->_dbh->selectall_arrayref($sql);
+        if ($rows && @$rows) {
+            if ($get_id) {
+                map { $data->{$_->[0]} = [ $_->[1], $_->[2] ? 'protein' : 'rna' ] } @$rows;
+            } else {
+                map { $data->{$_->[1]} = $_->[2] ? 'protein' : 'rna' } @$rows;
+            }
+        }
     }
     return $data;
-    # md5 => 'protein'|'rna'
+    # md5 => 'protein'|'rna' OR _id => [md5, 'protein'|'rna']
 }
 
 sub organisms_for_taxids {
