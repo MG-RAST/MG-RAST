@@ -520,40 +520,47 @@ sub _gammaln {
 ####################
 
 sub get_hierarchy {
-    my ($self, $type, $src, $use_taxid, $get_ids) = @_;
+    my ($self, $type, $src, $use_taxid, $get_ids, $max_lvl) = @_;
     
     my $tbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
-    unless ($tbl) { return {}; }
+    my $col = $self->_get_table_cols($tbl);
+    unless ($tbl && @$col) { return {}; }
+    unless ($max_lvl) { $max_lvl = ''; }
+    if (($max_lvl eq 'level4') && ($src =~ /^[NC]OG$/)) { $max_lvl = 'level3'; }
     
+    my @cols = ();
     my $hier = {};
-    my $sql  = "";
-    if ($type eq 'ontology') {
-        my $key  = $get_ids ? '_id' : 'name';
-        $sql = "SELECT $key,level1,level2,level3,level4 FROM ".$self->_atbl->{$type};
-        if ($src) {
-            $sql .= " WHERE source = ".$self->_src_id->{$src};
+    my $key  = $get_ids ? '_id' : 'name';
+    my $pref = ($type eq 'ontology') ? 'level' : 'tax_';
+    
+    foreach my $c ( grep {$_ =~ /^$pref/} @$col ) {
+        next if ($c eq 'tax_kingdom');  # ncbi hack
+        next if (($c eq 'level4') && ($src =~ /^[NC]OG$/)); # n|cog hack
+        if ($c ne $max_lvl) {
+          push @cols, $c;
         }
-    } else {
-        $sql = "SELECT ncbi_tax_id,tax_domain,tax_phylum,tax_class,tax_order,tax_family,tax_genus,tax_species,name,_id FROM ".$self->_atbl->{$type};
+        else {
+          push @cols, $c;
+          $key = $c;
+          last;
+        }
     }
-    my $tmp = $self->_dbh->selectall_arrayref($sql);
-    unless ($tmp && @$tmp) { return {}; }
-    if ($type eq 'ontology') {
-        if ($tmp->[0][4]) {
-            map { $hier->{$_->[0]} = [ @$_[1..4] ] } @$tmp;
-        } else {
-            map { $hier->{$_->[0]} = [ @$_[1..3] ] } @$tmp;
-        }
-    } else {
-        if ($use_taxid) {
-            map { $hier->{$_->[0]} = [ @$_[1..8] ] } grep { $_->[0] } @$tmp;
-        } elsif ($get_ids) {
-            map { $hier->{$_->[9]} = [ @$_[1..7] ] } @$tmp;
-        } else {
-            map { $hier->{$_->[8]} = [ @$_[1..7] ] } @$tmp;
-        }
+    if (($type eq 'organism') && $use_taxid && (! $max_lvl)) {
+        $key = 'ncbi_tax_id';
+    }
+    push @cols, $key;
+    
+    my $sql = "SELECT DISTINCT ".join(", ", @cols)." FROM ".$self->_atbl->{$type};
+    if (($type eq 'ontology') && $src) {
+        $sql .= " WHERE source = ".$self->_src_id->{$src};
+    }
+    foreach my $row ( @{$self->_dbh->selectall_arrayref($sql)} ) {
+        my $id = pop @$row;
+        next unless ($id && ($id =~ /\S/));
+        $hier->{$id} = $row;
     }
     return $hier;
+    # { end_node => [ hierachy of node ] }
 }
 
 sub _get_annotation_map {
