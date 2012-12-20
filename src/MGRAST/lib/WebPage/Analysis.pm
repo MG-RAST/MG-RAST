@@ -1577,7 +1577,7 @@ sub workbench_hits_table {
   my $md5_type      = $self->{mgdb}->type_for_md5s(\@md5s, 1);  # id => [md5, type]
   my $source_data   = {};   # md5 => [ source, id, function ]
   if (@ach_srcs > 0) {
-      map { $source_data->{$_->[1]} = [ @$_[4,0,2] ] } grep { $_->[2] } @{$self->{mgdb}->annotation_for_md5s(\@md5s, \@ach_srcs)};
+      map { push @{$source_data->{$_->[1]}}, [ @$_[4,0,2] ] } grep { $_->[2] } @{$self->{mgdb}->annotation_for_md5s(\@md5s, \@ach_srcs)};
   }
 
   my $html = "<p>Hits for " . scalar(@md5s) . " unique sequences within ";
@@ -1604,7 +1604,7 @@ sub workbench_hits_table {
     $html .= "source ".$srcs[0];
   }
   $html .= "</p>";
-  
+
   my @table_data = ();
   foreach my $row ( @$analysis_data ) {
     my ($mg, $md5, $num, $seek, $len) = @$row[0,1,2,9,10];
