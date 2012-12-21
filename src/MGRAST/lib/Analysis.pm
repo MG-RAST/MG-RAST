@@ -563,6 +563,28 @@ sub get_hierarchy {
     # { end_node => [ hierachy of node ] }
 }
 
+sub get_hierarchy_slice {
+    my ($self, $type, $src, $pname, $plevel) = @_;
+    
+    my $tbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
+    my $col = $self->_get_table_cols($tbl);
+    unless ($tbl && @$col && $pname && $plevel && grep(/^$plevel$/, @$col)) {
+        return [];
+    }    
+    my $data  = [];
+    my $index = first { $col->[$_] eq $plevel } 0..$#{$col};
+    if ($plevel eq 'tax_domain') { $index += 1; } # ncbi hack
+    if ((! $index) || ($index == $#{$col})) {
+        return [];
+    }
+    my $sql = "SELECT DISTINCT ".$col->[$index+1]." FROM ".$self->_atbl->{$type}." WHERE ".$plevel." = ".$self->_dbh->quote($pname);
+    if (($type eq 'ontology') && $src) {
+        $sql .= " AND source = ".$self->_src_id->{$src};
+    }
+    my $cols = $self->_dbh->selectcol_arrayref($sql);
+    return ($cols && @$cols) ? $cols : [];
+}
+
 sub _get_annotation_map {
     my ($self, $type, $anns, $src) = @_;
     

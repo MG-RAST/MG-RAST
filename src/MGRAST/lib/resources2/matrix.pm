@@ -30,10 +30,10 @@ sub new {
 				                         ['class', 'organism taxanomic level'],
 				                         ['phylum', 'organism taxanomic level'],
 				                         ['domain', 'top organism taxanomic level'] ],
-				           ontology => [ ['function', 'bottom ontology level (function:default)'],
-                                         ['level3', 'function type level (function)' ],
-                                         ['level2', 'function type level (function)' ],
-                          	             ['level1', 'top function type level (function)'] ]
+				           ontology => [ ['function', 'bottom function ontology level'],
+                                         ['level3', 'function ontology level' ],
+                                         ['level2', 'function ontology level' ],
+                          	             ['level1', 'top function ontology level'] ]
                          };
     $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
     	                    "format"               => [ 'string', 'format specification name' ],
