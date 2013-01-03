@@ -564,22 +564,31 @@ sub get_hierarchy {
 }
 
 sub get_hierarchy_slice {
-    my ($self, $type, $src, $pname, $plevel) = @_;
+    my ($self, $type, $source, $parent_name, $child_level) = @_;
     
     my $tbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
     my $col = $self->_get_table_cols($tbl);
-    unless ($tbl && @$col && $pname && $plevel && grep(/^$plevel$/, @$col)) {
+    unless ($tbl && @$col && $parent_name && $child_level && grep(/^$child_level$/, @$col)) {
         return [];
     }    
-    my $data  = [];
-    my $index = first { $col->[$_] eq $plevel } 0..$#{$col};
-    if ($plevel eq 'tax_domain') { $index += 1; } # ncbi hack
-    if ((! $index) || ($index == $#{$col})) {
+    my $data = [];
+    my $child_index = first { $col->[$_] eq $child_level } 0..$#{$col};
+    # level does not exist
+    unless ($child_index) {
         return [];
     }
-    my $sql = "SELECT DISTINCT ".$col->[$index+1]." FROM ".$self->_atbl->{$type}." WHERE ".$plevel." = ".$self->_dbh->quote($pname);
-    if (($type eq 'ontology') && $src) {
-        $sql .= " AND source = ".$self->_src_id->{$src};
+    # no parent available
+    if (($child_level eq 'tax_domain') || ($child_level eq 'level1')) {
+        return [];
+    }
+    my $parent_index = $child_index - 1;
+    # ncbi hack
+    if ($child_level eq 'tax_phylum') {
+        $parent_index -= 1;
+    }
+    my $sql = "SELECT DISTINCT ".$col->[$child_index]." FROM ".$self->_atbl->{$type}." WHERE ".$col->[$parent_index]." = ".$self->_dbh->quote($parent_name);
+    if (($type eq 'ontology') && $source) {
+        $sql .= " AND source = ".$self->_src_id->{$source};
     }
     my $cols = $self->_dbh->selectcol_arrayref($sql);
     return ($cols && @$cols) ? $cols : [];
