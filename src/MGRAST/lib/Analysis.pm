@@ -65,6 +65,7 @@ sub new {
 	           jobs    => [],       # array: job_id	           
 	           job_map => {},       # hash: mg_id => job_id
 	           mg_map  => {},       # hash: job_id => mg_id
+	           name_map => {},      # hash: mg_id => job_name
 	           sources => $srcs,    # hash: source_name => { col => value }
 	           id_src  => \%idsrc,  # hash: source_id => source_name
    	           src_id  => \%srcid,  # hash: source_name => source_id
@@ -127,6 +128,10 @@ sub _mg_map {
   my ($self) = @_;
   return $self->{mg_map};
 }
+sub _name_map {
+  my ($self) = @_;
+  return $self->{name_map};
+}
 sub _id_src {
   my ($self) = @_;
   return $self->{id_src};
@@ -178,6 +183,7 @@ sub add_jobs {
 # set values for $self->{jobs} and $self->{jtbl} based on metagenome_id list
 sub set_jobs {
   my ($self, $mgids, $jids) = @_;
+  $self->{name_map} = {};
   if (defined($jids)) {
     $self->{job_map} = $self->_get_jobid_map($mgids, 1);
   } else {
@@ -203,7 +209,7 @@ sub _set_data {
 }
 
 sub _get_jobid_map {
-  my ($self, $mgids, $jids) = @_;
+  my ($self, $mgids, $jids, $no_names) = @_;
   unless ($mgids && scalar(@$mgids)) {
     return {};
   }
@@ -211,9 +217,12 @@ sub _get_jobid_map {
   my $list = join(",", map {"'$_'"} @$mgids);
   my $rows;
   if ($jids) {
-    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id FROM Job WHERE job_id IN ($list) AND viewable = 1");
+    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id, name FROM Job WHERE job_id IN ($list) AND viewable = 1");
   } else {
-    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id FROM Job WHERE metagenome_id IN ($list) AND viewable = 1");
+    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id, name FROM Job WHERE metagenome_id IN ($list) AND viewable = 1");
+  }
+  unless ($no_names) {
+      map { $self->{name_map}->{$_->[0]} = $_->[2] } @$rows;
   }
   if ($rows && (@$rows > 0)) {
     %$hash = map { $_->[0], $_->[1] } @$rows;
@@ -909,7 +918,7 @@ sub metagenome_search {
         return [];
     }
     # [ mgid ]
-    return [ keys %{$self->_get_jobid_map($rows, 1)} ];
+    return [ keys %{$self->_get_jobid_map($rows, 1, 1)} ];
 }
 
 ####################
