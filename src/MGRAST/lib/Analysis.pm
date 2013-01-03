@@ -65,6 +65,7 @@ sub new {
 	           jobs    => [],       # array: job_id	           
 	           job_map => {},       # hash: mg_id => job_id
 	           mg_map  => {},       # hash: job_id => mg_id
+	           name_map => {},      # hash: mg_id => job_name
 	           sources => $srcs,    # hash: source_name => { col => value }
 	           id_src  => \%idsrc,  # hash: source_id => source_name
    	           src_id  => \%srcid,  # hash: source_name => source_id
@@ -127,6 +128,10 @@ sub _mg_map {
   my ($self) = @_;
   return $self->{mg_map};
 }
+sub _name_map {
+  my ($self) = @_;
+  return $self->{name_map};
+}
 sub _id_src {
   my ($self) = @_;
   return $self->{id_src};
@@ -178,6 +183,7 @@ sub add_jobs {
 # set values for $self->{jobs} and $self->{jtbl} based on metagenome_id list
 sub set_jobs {
   my ($self, $mgids, $jids) = @_;
+  $self->{name_map} = {};
   if (defined($jids)) {
     $self->{job_map} = $self->_get_jobid_map($mgids, 1);
   } else {
@@ -203,7 +209,7 @@ sub _set_data {
 }
 
 sub _get_jobid_map {
-  my ($self, $mgids, $jids) = @_;
+  my ($self, $mgids, $jids, $no_names) = @_;
   unless ($mgids && scalar(@$mgids)) {
     return {};
   }
@@ -211,9 +217,12 @@ sub _get_jobid_map {
   my $list = join(",", map {"'$_'"} @$mgids);
   my $rows;
   if ($jids) {
-    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id FROM Job WHERE job_id IN ($list) AND viewable = 1");
+    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id, name FROM Job WHERE job_id IN ($list) AND viewable = 1");
   } else {
-    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id FROM Job WHERE metagenome_id IN ($list) AND viewable = 1");
+    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id, name FROM Job WHERE metagenome_id IN ($list) AND viewable = 1");
+  }
+  unless ($no_names) {
+      map { $self->{name_map}->{$_->[0]} = $_->[2] } @$rows;
   }
   if ($rows && (@$rows > 0)) {
     %$hash = map { $_->[0], $_->[1] } @$rows;
@@ -520,40 +529,78 @@ sub _gammaln {
 ####################
 
 sub get_hierarchy {
-    my ($self, $type, $src, $use_taxid, $get_ids) = @_;
+    my ($self, $type, $src, $use_taxid, $get_ids, $max_lvl) = @_;
     
     my $tbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
-    unless ($tbl) { return {}; }
+    my $col = $self->_get_table_cols($tbl);
+    unless ($tbl && @$col) { return {}; }
+    unless ($max_lvl) { $max_lvl = ''; }
+    if (($max_lvl eq 'level4') && ($src =~ /^[NC]OG$/)) { $max_lvl = 'level3'; }
     
+    my @cols = ();
     my $hier = {};
-    my $sql  = "";
-    if ($type eq 'ontology') {
-        my $key  = $get_ids ? '_id' : 'name';
-        $sql = "SELECT $key,level1,level2,level3,level4 FROM ".$self->_atbl->{$type};
-        if ($src) {
-            $sql .= " WHERE source = ".$self->_src_id->{$src};
+    my $key  = $get_ids ? '_id' : 'name';
+    my $pref = ($type eq 'ontology') ? 'level' : 'tax_';
+    
+    foreach my $c ( grep {$_ =~ /^$pref/} @$col ) {
+        next if ($c eq 'tax_kingdom');  # ncbi hack
+        next if (($c eq 'level4') && ($src =~ /^[NC]OG$/)); # n|cog hack
+        if ($c ne $max_lvl) {
+          push @cols, $c;
         }
-    } else {
-        $sql = "SELECT ncbi_tax_id,tax_domain,tax_phylum,tax_class,tax_order,tax_family,tax_genus,tax_species,name,_id FROM ".$self->_atbl->{$type};
+        else {
+          push @cols, $c;
+          $key = $c;
+          last;
+        }
     }
-    my $tmp = $self->_dbh->selectall_arrayref($sql);
-    unless ($tmp && @$tmp) { return {}; }
-    if ($type eq 'ontology') {
-        if ($tmp->[0][4]) {
-            map { $hier->{$_->[0]} = [ @$_[1..4] ] } @$tmp;
-        } else {
-            map { $hier->{$_->[0]} = [ @$_[1..3] ] } @$tmp;
-        }
-    } else {
-        if ($use_taxid) {
-            map { $hier->{$_->[0]} = [ @$_[1..8] ] } grep { $_->[0] } @$tmp;
-        } elsif ($get_ids) {
-            map { $hier->{$_->[9]} = [ @$_[1..7] ] } @$tmp;
-        } else {
-            map { $hier->{$_->[8]} = [ @$_[1..7] ] } @$tmp;
-        }
+    if (($type eq 'organism') && $use_taxid && (! $max_lvl)) {
+        $key = 'ncbi_tax_id';
+    }
+    push @cols, $key;
+    
+    my $sql = "SELECT DISTINCT ".join(", ", @cols)." FROM ".$self->_atbl->{$type};
+    if (($type eq 'ontology') && $src) {
+        $sql .= " WHERE source = ".$self->_src_id->{$src};
+    }
+    foreach my $row ( @{$self->_dbh->selectall_arrayref($sql)} ) {
+        my $id = pop @$row;
+        next unless ($id && ($id =~ /\S/));
+        $hier->{$id} = $row;
     }
     return $hier;
+    # { end_node => [ hierachy of node ] }
+}
+
+sub get_hierarchy_slice {
+    my ($self, $type, $source, $parent_name, $child_level) = @_;
+    
+    my $tbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
+    my $col = $self->_get_table_cols($tbl);
+    unless ($tbl && @$col && $parent_name && $child_level && grep(/^$child_level$/, @$col)) {
+        return [];
+    }    
+    my $data = [];
+    my $child_index = first { $col->[$_] eq $child_level } 0..$#{$col};
+    # level does not exist
+    unless ($child_index) {
+        return [];
+    }
+    # no parent available
+    if (($child_level eq 'tax_domain') || ($child_level eq 'level1')) {
+        return [];
+    }
+    my $parent_index = $child_index - 1;
+    # ncbi hack
+    if ($child_level eq 'tax_phylum') {
+        $parent_index -= 1;
+    }
+    my $sql = "SELECT DISTINCT ".$col->[$child_index]." FROM ".$self->_atbl->{$type}." WHERE ".$col->[$parent_index]." = ".$self->_dbh->quote($parent_name);
+    if (($type eq 'ontology') && $source) {
+        $sql .= " AND source = ".$self->_src_id->{$source};
+    }
+    my $cols = $self->_dbh->selectcol_arrayref($sql);
+    return ($cols && @$cols) ? $cols : [];
 }
 
 sub _get_annotation_map {
@@ -871,7 +918,7 @@ sub metagenome_search {
         return [];
     }
     # [ mgid ]
-    return [ keys %{$self->_get_jobid_map($rows, 1)} ];
+    return [ keys %{$self->_get_jobid_map($rows, 1, 1)} ];
 }
 
 ####################
