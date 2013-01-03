@@ -73,7 +73,6 @@ sub info {
                                                                                                  ['NOG', 'returns 3 level NOG ontology'],
                                                                                                  ['KO', 'returns 4 level KEGG-KO ontology' ]],
                                                                               'min_level' => ['cv', $self->{hierarchy}{ontology}],
-                                                                              'parent_level' => ['string', 'level of ontology group to retrieve children of'],
                                                                               'parent_name' => ['string', 'name of ontology group to retrieve children of']
                                                                              },
                                                               'required' => {},
@@ -86,7 +85,6 @@ sub info {
                                             'type'        => "synchronous",  
                                             'attributes'  => $self->attributes->{taxonomy},
                                             'parameters'  => { 'options'  => { 'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
-                                        				                       'parent_level' => ['string', 'level of taxanomy group to retrieve children of'],
                                         				                       'parent_name' => ['string', 'name of taxanomy group to retrieve children of']
                                                                               },
                                                                'required' => {},
@@ -131,7 +129,6 @@ sub static {
     }
     my $data  = [];
     my $pname = $self->cgi->param('parent_name') || '';
-    my $plvl  = $self->cgi->param('parent_level') || '';
         
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->{hierarchy}{ontology}};
@@ -144,24 +141,23 @@ sub static {
         } else {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/ontology: ".$min_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 500);
         }
-        unless ($pname && $plvl && grep(/^$plvl$/, @ont_hier)) {
-            @$data = values %{ $mgdb->get_hierarchy('ontology', $source, undef, undef, $min_lvl) };
+        if ($pname && ($min_lvl ne 'level1')) {
+            @$data = $mgdb->get_hierarchy_slice('ontology', $source, $pname, $min_lvl);
         } else {
-            @$data = $mgdb->get_hierarchy_slice('ontology', $source, $pname, $plvl);
+            @$data = values %{ $mgdb->get_hierarchy('ontology', $source, undef, undef, $min_lvl) };
         }
     } elsif ($type eq 'taxonomy') {
         my @tax_hier = map { $_->[0] } @{$self->{hierarchy}{taxonomy}};
-        my $min_lvl   = $self->cgi->param('min_level') || 'species';
+        my $min_lvl  = $self->cgi->param('min_level') || 'species';
         if ( grep(/^$min_lvl$/, @tax_hier) ) {
             $min_lvl = 'tax_'.$min_lvl;
         } else {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/taxonomy: ".$min_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 500);
         }
-        unless ($pname && $plvl && grep(/^$plvl$/, @tax_hier)) {
-            @$data = values %{ $mgdb->get_hierarchy('organism', undef, undef, undef, $min_lvl) };
+        if ($pname && ($min_lvl ne 'tax_domain')) {
+            @$data = $mgdb->get_hierarchy_slice('organism', undef, $pname, $min_lvl);
         } else {
-            $plvl  = 'tax_'.$plvl;
-            @$data = $mgdb->get_hierarchy_slice('organism', undef, $pname, $plvl);
+            @$data = values %{ $mgdb->get_hierarchy('organism', undef, undef, undef, $min_lvl) };
         }
     } elsif ($type eq 'sources') {
         $data = $mgdb->_sources();
