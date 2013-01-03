@@ -341,9 +341,11 @@ sub prepare_data {
     }
     my $mddb = MGRAST::Metadata->new();
     my $meta = $mddb->get_jobs_metadata_fast([keys %$col_ids], 1);
+    my $name = $mgdb->_name_map();
     foreach my $cid (sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids) {
         my $cmd = exists($meta->{$cid}) ? $meta->{$cid} : undef;
-        push @$bcols, { id => 'mgm'.$cid, metadata => $cmd };
+        my $cnm = exists($name->{$cid}) ? $name->{$cid} : undef;
+        push @$bcols, { id => 'mgm'.$cid, name => $cnm, metadata => $cmd };
     }
     
     my $obj = { "id"                   => join(";", sort map { $_->{id} } @$bcols).'_'.$glvl.'_'.$source.'_'.$rtype,
