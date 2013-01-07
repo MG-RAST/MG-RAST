@@ -142,7 +142,7 @@ sub static {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/ontology: ".$min_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 500);
         }
         if ($pname && ($min_lvl ne 'level1')) {
-            @$data = $mgdb->get_hierarchy_slice('ontology', $source, $pname, $min_lvl);
+            $data = $mgdb->get_hierarchy_slice('ontology', $source, $pname, $min_lvl);
         } else {
             @$data = values %{ $mgdb->get_hierarchy('ontology', $source, undef, undef, $min_lvl) };
         }
@@ -155,7 +155,7 @@ sub static {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/taxonomy: ".$min_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 500);
         }
         if ($pname && ($min_lvl ne 'tax_domain')) {
-            @$data = $mgdb->get_hierarchy_slice('organism', undef, $pname, $min_lvl);
+            $data = $mgdb->get_hierarchy_slice('organism', undef, $pname, $min_lvl);
         } else {
             @$data = values %{ $mgdb->get_hierarchy('organism', undef, undef, undef, $min_lvl) };
         }
