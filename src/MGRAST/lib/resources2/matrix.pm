@@ -340,7 +340,7 @@ sub prepare_data {
         push @$brows, { id => $rid, metadata => $rmd };
     }
     my $mddb = MGRAST::Metadata->new();
-    my $meta = $mddb->get_jobs_metadata_fast([keys %$col_ids], 1);
+    my $meta = $mddb->get_jobs_metadata_fast($data, 1);
     my $name = $mgdb->_name_map();
     foreach my $cid (sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids) {
         my $cmd = exists($meta->{$cid}) ? $meta->{$cid} : undef;
