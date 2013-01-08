@@ -30,10 +30,10 @@ sub new {
 				                         ['class', 'organism taxanomic level'],
 				                         ['phylum', 'organism taxanomic level'],
 				                         ['domain', 'top organism taxanomic level'] ],
-				           ontology => [ ['function', 'bottom ontology level (function:default)'],
-                                         ['level3', 'function type level (function)' ],
-                                         ['level2', 'function type level (function)' ],
-                          	             ['level1', 'top function type level (function)'] ]
+				           ontology => [ ['function', 'bottom function ontology level'],
+                                         ['level3', 'function ontology level' ],
+                                         ['level2', 'function ontology level' ],
+                          	             ['level1', 'top function ontology level'] ]
                          };
     $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
     	                    "format"               => [ 'string', 'format specification name' ],
@@ -340,10 +340,12 @@ sub prepare_data {
         push @$brows, { id => $rid, metadata => $rmd };
     }
     my $mddb = MGRAST::Metadata->new();
-    my $meta = $mddb->get_jobs_metadata_fast([keys %$col_ids], 1);
+    my $meta = $mddb->get_jobs_metadata_fast($data, 1);
+    my $name = $mgdb->_name_map();
     foreach my $cid (sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids) {
         my $cmd = exists($meta->{$cid}) ? $meta->{$cid} : undef;
-        push @$bcols, { id => 'mgm'.$cid, metadata => $cmd };
+        my $cnm = exists($name->{$cid}) ? $name->{$cid} : undef;
+        push @$bcols, { id => 'mgm'.$cid, name => $cnm, metadata => $cmd };
     }
     
     my $obj = { "id"                   => join(";", sort map { $_->{id} } @$bcols).'_'.$glvl.'_'.$source.'_'.$rtype,
@@ -367,9 +369,9 @@ sub prepare_data {
 sub get_hierarchy {
     my ($self, $mgdb, $type, $level, $src, $leaf_node) = @_;
     if ($type eq 'organism') {
-        return $leaf_node ? $self->{org2tax} : $mgdb->ach->get_taxonomy4level_full($level, 1);
+        return $leaf_node ? $self->{org2tax} : $mgdb->get_hierarchy('organism', undef, undef, undef, $level);
     } elsif ($type eq 'function') {
-        return $leaf_node ? $mgdb->ach->get_all_ontology4source_hash($src) : $mgdb->ach->get_level4ontology_full($src, $level, 1);
+        return $leaf_node ? $mgdb->get_hierarchy('ontology', $src) : $mgdb->get_hierarchy('ontology', $src, undef, undef, $level);
     } else {
         return {};
     }
