@@ -729,7 +729,7 @@ sub delete_job {
     my $all = $self->_dbh->selectcol_arrayref("SELECT DISTINCT version FROM job_info WHERE job = ".$job);
     eval {
         $self->_dbh->do("DELETE FROM job_info WHERE job = ".$job);
-        foreach my $tbl (keys %{$self->_jtbl}) {
+        foreach my $tbl (values %{$self->_jtbl}) {
             $self->_dbh->do("DELETE FROM $tbl WHERE version IN (".join(",", @$all).") AND job = ".$job);
         }
     };
@@ -1599,10 +1599,14 @@ sub get_md5_data {
 
     my $data = {};
     my $jobs = [];
-    while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        my $c = $self->_memd->get($mg.$cache_key);
-        if ($c) { $data->{$mg} = $c; }
-        else    { push @$jobs, $j; }
+    if ($md5s && (@$md5s > 0)) {
+        $jobs = $self->_jobs;
+    } else {
+        while ( my ($mg, $j) = each %{$self->_job_map} ) {
+            my $c = $self->_memd->get($mg.$cache_key);
+            if ($c) { $data->{$mg} = $c; }
+            else    { push @$jobs, $j; }
+        }
     }
     unless (@$jobs) { return [ map { @$_ } values %$data ]; }
 
@@ -1611,7 +1615,7 @@ sub get_md5_data {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
   
     my %umd5s = ($md5s && (@$md5s > 0)) ? map {$_, 1} @$md5s : {};
-    my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5 IN (" . join(",", map {"'$_'"} keys %umd5s) . ")" : "";
+    my $qmd5s = ($md5s && (@$md5s > 0)) ? "j.md5 IN (" . join(",", keys %umd5s) . ")" : "";
     my $qseek = $ignore_sk ? "" : "j.seek IS NOT NULL AND j.length IS NOT NULL";
     my $qrep  = $rep_org_src ? "j.md5=r.md5 AND r.source=".$self->_src_id->{$rep_org_src} : "";
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", $qrep, $qmd5s, $eval, $ident, $alen, $qseek]);
@@ -1643,10 +1647,14 @@ sub get_md5_abundance {
 
     my $data = {};
     my $jobs = [];
-    while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        my $c = $self->_memd->get($mg.$cache_key);
-        if ($c) { $data->{$mg} = $c; }
-        else    { push @$jobs, $j; }
+    if ($md5s && (@$md5s > 0)) {
+        $jobs = $self->_jobs;
+    } else {
+        while ( my ($mg, $j) = each %{$self->_job_map} ) {
+            my $c = $self->_memd->get($mg.$cache_key);
+            if ($c) { $data->{$mg} = $c; }
+            else    { push @$jobs, $j; }
+        }
     }
     unless (@$jobs) { return $data; }
 
