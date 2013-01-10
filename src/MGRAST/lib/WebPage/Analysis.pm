@@ -167,7 +167,7 @@ relationships between functions (COG, NOG, SEED, subsystems, KEGG)
       if ($type eq 'tax') {
 	if ($level eq 'none') {
 	  $desc = "organism";
-	  $md5s = $mgdb->get_md5s_for_organism( $cat );
+	  $md5s = $mgdb->get_md5s_for_organism( [$cat] );
 	} else {
 	  $desc = "taxonomic level";
 	  $md5s = $mgdb->get_md5s_for_tax_level( $level, [$cat] );
@@ -175,7 +175,7 @@ relationships between functions (COG, NOG, SEED, subsystems, KEGG)
       } else {
 	if ($level eq 'none') {
 	  $desc = "function";
-	  $md5s = $mgdb->get_md5s_for_ontology( $cat, $type );
+	  $md5s = $mgdb->get_md5s_for_ontology( [$cat], $type );
 	} else {
 	  $desc = "funtional category";
 	  $md5s = $mgdb->get_md5s_for_ontol_level( $type, $level, [$cat] );
