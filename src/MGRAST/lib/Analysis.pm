@@ -605,12 +605,13 @@ sub get_hierarchy_slice {
 
 sub _get_annotation_map {
     my ($self, $type, $anns, $src) = @_;
-    
+
     my $tbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
     unless ($tbl && $anns && @$anns) { return {}; }
+    my $col  = ($type eq 'md5') ? 'md5' : 'name';
     
     my $amap = {};
-    my $sql  = "SELECT _id, name FROM $tbl WHERE name IN (".join(",", map {$self->_dbh->quote($_)} @$anns).")";
+    my $sql  = "SELECT _id, $col FROM $tbl WHERE $col IN (".join(",", map {$self->_dbh->quote($_)} @$anns).")";
     if ($src && ($type eq 'ontology')) {
         $sql .= " AND source = ".$self->_src_id->{$src};
     }
@@ -618,6 +619,7 @@ sub _get_annotation_map {
     if ($tmp && @$tmp) {
         %$amap = map { $_->[0], $_->[1] } @$tmp;
     }
+    
     return $amap;
     # _id => name
 }
@@ -820,32 +822,35 @@ sub md5_abundance_for_annotations {
     my $amap = {};
     if ($anns && @$anns) {
         $amap = $self->_get_annotation_map($type, $anns);
-        if (scalar(keys %$amap)) { return {}; }
+        unless (scalar(keys %$amap)) { return {}; }
     }
   
     my $data  = {};
     my $qsrc  = ($srcs && @$srcs) ? "source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
     my $qids  = (scalar(keys %$amap) > 0) ? "id IN (".join(",", keys %$amap).")" : '';
     my $where = $self->_get_where_str([$self->_qver, "job = $job", $qsrc, $qids]);
-    my $mdata = $self->_dbh->selectcol_arrayref("SELECT DISTINCT id, md5s FROM ".$tbl.$where);
+    my $mdata = $self->_dbh->selectall_arrayref("SELECT id, md5s FROM ".$tbl.$where);
     unless ($mdata && (@$mdata > 0)) {
         return $data;
     }
+    my %unique_md5s = ();
     foreach my $m (@$mdata) {
+        map { $unique_md5s{$_} = 1 } @{$m->[1]};
         map { $data->{ $amap->{$m->[0]} }->{$_} = 0 } @{$m->[1]};
     }
-    $where   = $self->_get_where_str([$self->_qver, "job = $job", "md5 IN (".join(",", keys %$data).")"]);
-    my $sql  = "SELECT DISTINCT md5, abundance FROM ".$self->_jtbl->{md5}.$where;
+    $where   = $self->_get_where_str([$self->_qver, "job = $job", "md5 IN (".join(",", keys %unique_md5s).")"]);
+    my $sql  = "SELECT md5, abundance FROM ".$self->_jtbl->{md5}.$where;
+
     my %md5s = map { $_->[0], $_->[1] } @{ $self->_dbh->selectall_arrayref($sql) };
     foreach my $ann (keys %$data) {
         map { $data->{$ann}{$_} = $md5s{$_} } grep { exists $md5s{$_} } keys %{$data->{$ann}};
     }
-    # ann => md5 => abundance
+    # annotation_text => md5_integer => abundance
     return $data;
 }
 
 sub sequences_for_md5s {
-    my ($self, $mgid, $type, $md5s) = @_;
+    my ($self, $mgid, $type, $md5s, $return_read_id_flag) = @_;
 
     $self->set_jobs([$mgid]);
     my $data = {};
@@ -854,7 +859,11 @@ sub sequences_for_md5s {
 
     if ($type eq 'dna') {
         foreach my $set (@$seqs) {
-            push @{ $data->{$set->{md5}} }, $set->{sequence};
+            if($return_read_id_flag == 1) {
+		push @{ $data->{$set->{md5}} }, ["mgm".$set->{id}, $set->{sequence}];
+	    } else {
+		push @{ $data->{$set->{md5}} }, $set->{sequence};
+	    }
         }
     } elsif ($type eq 'protein') {
         my $fna = '';
@@ -864,11 +873,16 @@ sub sequences_for_md5s {
         my @seqs = split(/\n/, $faa);
         for (my $i=0; $i<@seqs; $i += 2) {
             if ($seqs[$i] =~ /^>(\S+)/) {
-	            my $id  = $1;
-	            my $seq = $seqs[$i+1];
-	            $id =~ /^(\w+)?\|/;
-	            my $md5 = $1;
-	            push @{ $data->{$md5} }, $seq;
+	        my $id  = $1;
+	        my $seq = $seqs[$i+1];
+	        $id =~ /^(\w+)?\|(.*)/;
+	        my $md5 = $1;
+		my $read_id = $2;
+		if($return_read_id_flag == 1) {
+		    push @{ $data->{$md5} }, ["mgm".$read_id, $seq];
+		} else {
+		    push @{ $data->{$md5} }, $seq;
+		}
             }
         }
     } else {
@@ -883,7 +897,7 @@ sub sequences_for_annotation {
 
     my $data = {};
     my $md5s = {};
-    my $ann  = $self->md5_abundance_for_annotations($mgid, $ann_type, $srcs, $anns);  # ann => md5 => abundance
+    my $ann = $self->md5_abundance_for_annotations($mgid, $ann_type, $srcs, $anns); # annotation_text => md5_integer => abundance
     foreach my $a (keys %$ann) {
         map { $md5s->{$_} = 1; } keys %{$ann->{$a}};
     }
@@ -891,11 +905,12 @@ sub sequences_for_annotation {
         return $data;
     }
   
-    my $seqs = $self->sequences_for_md5s($mgid, $seq_type, [keys %$md5s]);  # md5 => [ seq list ]
+    my $seqs = $self->sequences_for_md5s($mgid, $seq_type, [keys %$md5s], 1);
+    my $md5_ints_to_strings = $self->_get_annotation_map('md5', [keys %$seqs]);
     foreach my $a (keys %$ann) {
         foreach my $m (keys %{$ann->{$a}}) {
-            next unless (exists $seqs->{$m});
-            map { push @{$data->{$a}}, $_ } @{$seqs->{$m}};
+            next unless (exists $seqs->{$md5_ints_to_strings->{$m}});
+            map { push @{$data->{$a}}, $_ } @{$seqs->{$md5_ints_to_strings->{$m}}};
         }
     }
     # ann => [ seq list ]
@@ -1158,7 +1173,7 @@ sub get_rarefaction_curve {
 sub get_abundance_for_tax_level {
     my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
     my $name_map = $self->_get_annotations4level("organism", $level, undef, 1);
-    my $src_str  = @$srcs ? join("", @$srcs) : '';
+    my $src_str  = ($srcs && (@$srcs > 0)) ? join("", @$srcs) : '';
     return $self->_get_abundance_for_hierarchy($name_map, "organism", $level.$src_str, $srcs, $value, $md5s, $eval, $ident, $alen);
 }
 
@@ -1200,7 +1215,7 @@ sub _get_abundance_for_hierarchy {
     my %md5_set = $qmd5s ? map {$_, 1} @$md5s : ();
     my $hier  = {};
     my $curr  = 0;
-    my $qsrcs = (@$srcs > 0) ? "source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : "";
+    my $qsrcs = ($srcs && (@$srcs > 0)) ? "source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : "";
     my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $qsrcs, $eval, $ident, $alen]);
     my $sql   = "SELECT DISTINCT job, id, md5s FROM ".$self->_jtbl->{$type}.$where." ORDER BY job";
     my ($job, $id, $md5);

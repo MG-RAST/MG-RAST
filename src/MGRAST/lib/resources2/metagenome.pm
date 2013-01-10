@@ -23,12 +23,12 @@ sub new {
                             "library"  => [ 'reference library', 'reference to the related library object' ],
                             "sample"   => [ 'reference sample', 'reference to the related sample object' ],
                             "project"  => [ 'reference project', 'reference to the project object' ],
-                            "metadata" => [ 'hash',    'key value pairs describing metadata' ],
-                            "created"  => [ 'date',    'time the object was first created' ],
+                            "metadata" => [ 'hash', 'key value pairs describing metadata' ],
+                            "created"  => [ 'date', 'time the object was first created' ],
                             "version"  => [ 'integer', 'version of the object' ],
-                            "url"      => [ 'uri',     'resource location of this object instance' ],
-                            "status"   => ['cv', [['public', 'object is public'],
-           										  ['private', 'object is private']]],
+                            "url"      => [ 'uri', 'resource location of this object instance' ],
+                            "status"   => [ 'cv', [ ['public', 'object is public'],
+						    ['private', 'object is private'] ] ],
                             "sequence_type" => [ 'string', 'sequencing type' ]
                           };
     return $self;
@@ -119,7 +119,7 @@ sub instance {
     $job = $job->[0];
 
     # check rights
-    unless ($job->{public} || exists($self->rights->{$id})) {
+    unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_right(undef, 'view', 'metagenome', '*'))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
