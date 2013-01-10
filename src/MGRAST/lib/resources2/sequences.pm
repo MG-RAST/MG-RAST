@@ -138,20 +138,31 @@ sub prepare_data {
     unless (ref($mgdb)) {
         $self->return_data( {"ERROR" => "resource database offline"}, 503 );
     }
-  
+
+    my $url = $cgi->url."/sequences/mgm".$data->{metagenome_id}."?sequence_type=".$seq;
     my $content;
     if (scalar(@md5s) > 0) {
         my $md5_ints_to_strings = $mgdb->_get_annotation_map('md5', \@md5s);
-        $content = $mgdb->sequences_for_md5s($data->{metagenome_id}, $seq, [keys %$md5_ints_to_strings], 1);
+        if (scalar(keys %$md5_ints_to_strings) > 0) {
+          $content = $mgdb->sequences_for_md5s($data->{metagenome_id}, $seq, [keys %$md5_ints_to_strings], 1);
+          my %valid_md5s = map { $_ => 1} values %$md5_ints_to_strings; # uniquifying valid md5s
+          $url .= "&md5=".join("&md5=", keys %valid_md5s);
+        } else {
+          $self->return_data( {"ERROR" => "No valid md5 was entered.  For more information on how to use this resource, view the resource description here: ".$cgi->url."/sequences"}, 404 );
+        }
     } elsif (scalar(@anns) > 0) {
         $content = $mgdb->sequences_for_annotation($data->{metagenome_id}, $seq, $type, \@srcs, \@anns);
+        $url .= "&data_type=".$type."&annotation=".join("&annotation=", @anns);
+        if (scalar(@srcs) > 0) {
+            $url .= "&source=".join("&source=", @srcs);
+        }
     } else {
         $self->return_data( {"ERROR" => "To retrieve sequences, you must either enter an 'md5' or a 'data_type' and an 'annotation'.  The default 'data_type' is organism.  For more information on how to use this resource, view the resource description here: ".$cgi->url."/sequences"}, 404 );
     }
 
     my $object = { id      => "mgm".$data->{metagenome_id},
 		           data    => $content,
-		           url     => $cgi->url.'/sequences/'.$data->{metagenome_id},
+		           url     => $url,
 		           version => 1
 		         };
   
