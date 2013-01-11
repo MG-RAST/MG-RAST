@@ -22,6 +22,7 @@ sub new {
     # Add name / attributes
     $self->{name} = "matrix";
     $self->{org2tax} = {};
+    $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{hierarchy} = { organism => [ ['strain', 'bottom organism taxanomic level'],
 				                         ['species', 'organism type level'],
 				                         ['genus', 'organism taxanomic level'],
@@ -35,6 +36,25 @@ sub new {
                                          ['level2', 'function ontology level' ],
                           	             ['level1', 'top function ontology level'] ]
                          };
+    $self->{sources} = { organism => [ ["M5NR", "comprehensive protein database"],
+                                       ["RefSeq", "protein database"],
+		                               ["SwissProt", "protein database"],
+		                               ["GenBank", "protein database"],
+		                               ["IMG", "protein database"],
+		                               ["SEED", "protein database"],
+		                               ["TrEMBL", "protein database"],
+		                               ["PATRIC", "protein database"],
+		                               ["KEGG", "protein database"],
+		                               ["M5RNA", "comprehensive RNA database"],
+							           ["RDP", "RNA database"],
+							           ["Greengenes", "RNA database"],
+				                       ["LSU", "RNA database"],
+			                           ["SSU", "RNA database"] ],
+			             ontology => [ ["Subsystems", "ontology database, type function only"],
+		                               ["NOG", "ontology database, type function only"],
+					                   ["COG", "ontology database, type function only"],
+					                   ["KO", "ontology database, type function only"] ]
+			             };
     $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
     	                    "format"               => [ 'string', 'format specification name' ],
     	                    "format_url"           => [ 'string', 'url to the format specification' ],
@@ -79,26 +99,18 @@ sub info {
     				                  'method'      => "GET" ,
     				                  'type'        => "synchronous" ,  
     				                  'attributes'  => $self->attributes,
-    				                  'parameters'  => { 'options'  => { 'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+    				                  'parameters'  => { 'options'  => { 'evalue'   => ['int', 'exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+    				                                                     'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+    				                                                     'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+    				                                                     'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
                       						                                                       ['evalue', 'average e-value exponent of hits in annotation'],
                       						                                                       ['identity', 'average percent identity of hits in annotation'],
                       						                                                       ['length', 'average alignment length of hits in annotation']] ],
-    									                                 'source' => [ 'cv', [["M5NR", "comprehensive protein database"],
-    									                                                      ["RefSeq", "protein database"],
-    												                                          ["SwissProt", "protein database"],
-    												                                          ["GenBank", "protein database"],
-    												                                          ["IMG", "protein database"],
-    												                                          ["SEED", "protein database"],
-    												                                          ["TrEMBL", "protein database"],
-    												                                          ["PATRIC", "protein database"],
-    												                                          ["KEGG", "protein database"],
-    												                                          ["M5RNA", "comprehensive RNA database"],
-                          												                      ["RDP", "RNA database"],
-                          												                      ["Greengenes", "RNA database"],
-                          									                                  ["LSU", "RNA database"],
-                          								                                      ["SSU", "RNA database"]] ],
+    									                                 'source' => [ 'cv', $self->{sources}{organism} ],
     												                     'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
-                                                         				 'id' => [ "string", "one or more metagenome or project unique identifier" ] },
+    												                     'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
+    												                     'filter_source' => [ 'cv', $self->{sources}{ontology} ],
+                                                         				 'id' => [ 'string', 'one or more metagenome or project unique identifier' ] },
     						                             'required' => {},
     						                             'body'     => {} }
     						        },
@@ -108,16 +120,18 @@ sub info {
     				                  'method'      => "GET" ,
     				                  'type'        => "synchronous" ,  
     				                  'attributes'  => $self->attributes,
-    				                  'parameters'  => { 'options'  => { 'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+    				                  'parameters'  => { 'options'  => { 'evalue'   => ['int', 'exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+      				                                                     'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+      				                                                     'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+      				                                                     'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
                         						                                                   ['evalue', 'average e-value exponent of hits in annotation'],
                         						                                                   ['identity', 'average percent identity of hits in annotation'],
                         						                                                   ['length', 'average alignment length of hits in annotation']] ],
-    									                                 'source' => [ 'cv', [["Subsystems", "ontology database, type function only"],
-    									                                                      ["NOG", "ontology database, type function only"],
-    												                                          ["COG", "ontology database, type function only"],
-    												                                          ["KO", "ontology database, type function only"]] ],
+    									                                 'source' => [ 'cv', $self->{sources}{ontology} ],
     												                     'group_level' => [ 'cv', $self->{hierarchy}{ontology} ],
-    												                     'id' => [ "string", "one or more metagenome or project unique identifier" ] },
+    												                     'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
+    												                     'filter_source' => [ 'cv', $self->{sources}{organism} ],
+    												                     'id' => [ 'string', 'one or more metagenome or project unique identifier' ] },
     						                             'required' => {},
     						                             'body'     => {} }
     						        },
@@ -226,6 +240,11 @@ sub prepare_data {
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'M5NR' : (($type eq 'function') ? 'Subsystems': 'RefSeq'));
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
     my $glvl   = $cgi->param('group_level') ? $cgi->param('group_level') : (($type eq 'organism') ? 'strain' : 'function');
+    my $eval   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
+    my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
+    my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
+    my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'M5NR');
+    my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
     my $all_srcs  = {};
     my $leaf_node = 0;
 
@@ -236,6 +255,17 @@ sub prepare_data {
         $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
     }
     $mgdb->set_jobs($data);
+
+    # validate cutoffs
+    if (int($eval) < 1) {
+        $self->return_data({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 500);
+    }
+    if ((int($ident) < 0) || (int($ident) > 100)) {
+        $self->return_data({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 500);
+    }
+    if (int($alen) < 1) {
+        $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 500);
+    }
 
     # controlled vocabulary set
     my $result_idx = { abundance => {function => 3, organism => 10, feature => 2},
@@ -292,35 +322,51 @@ sub prepare_data {
     my $mtype   = '';
     my $matrix  = []; # [ row <annotation>, col <mgid>, value ]
     my $col_idx = $result_idx->{$rtype}{$type};
+    my $umd5s   = [];
 
     if ($type eq 'organism') {
         $ttype = 'Taxon';
         $mtype = 'taxonomy';
-        if ($leaf_node) {
-            my (undef, $info) = $mgdb->get_organisms_for_sources([$source]);
-            # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-            @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
-            map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
-        } else {
-            @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype})};
-            # mgid, hier_annotation, value
+        if (@filter > 0) {
+            $umd5s = $mgdb->get_md5s_for_ontology(\@filter, $fsrc);
+        }
+        unless ((@filter > 0) && (@$umd5s == 0)) {
+            if ($leaf_node) {
+                # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
+                my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen));
+                # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+                @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
+                map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
+            } else {
+                # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
+                @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
+                # mgid, hier_annotation, value
+            }
         }
     } elsif ($type eq 'function') {
         $ttype = 'Function';
         $mtype = 'ontology';
-        if ($leaf_node) {
-            my (undef, $info) = $mgdb->get_ontology_for_source($source);
-            # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-            @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
-        } else {
-            @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_ontol_level($glvl, undef, $source, $result_map->{$rtype})};
-            # mgid, hier_annotation, value
+        if (@filter > 0) {
+            $umd5s = $mgdb->get_md5s_for_organism(\@filter, $fsrc);
+        }
+        unless ((@filter > 0) && (@$umd5s == 0)) {
+            if ($leaf_node) {
+                # my ($self, $md5s, $source, $eval, $ident, $alen) = @_;
+                my (undef, $info) = $mgdb->get_ontology_for_md5s($umd5s, $source, int($eval), int($ident), int($alen));
+                # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+                @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
+            } else {
+                # my ($self, $level, $names, $src, $value, $md5s, $eval, $ident, $alen) = @_;
+                @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_ontol_level($glvl, undef, $source, $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
+                # mgid, hier_annotation, value
+            }
         }
     } elsif ($type eq 'feature') {
         $ttype = 'Gene';
         $mtype = $source.' ID';
-        my $info = $mgdb->get_md5_data(undef, undef, undef, undef, 1);
-        # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
+        # my ($self, $md5s, $eval, $ident, $alen, $ignore_sk, $rep_org_src) = @_;
+        my $info = $mgdb->get_md5_data(undef, int($eval), int($ident), int($alen), 1);
+        # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
         my %md5s = map { $_->[1], 1 } @$info;
         my $mmap = $mgdb->decode_annotation('md5', [keys %md5s]);
         map { push @{$md52id->{ $mmap->{$_->[1]} }}, $_->[0] } @{ $mgdb->annotation_for_md5s([keys %md5s], [$source]) };
