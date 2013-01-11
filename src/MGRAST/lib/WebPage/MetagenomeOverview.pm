@@ -225,7 +225,7 @@ sub output {
     }
 
     my $attr = $job->data();
-    if (exists($attr->{priority}) && $attr->{priority} eq 'never') {
+    if (!exists($attr->{priority}) || (exists($attr->{priority}) && $attr->{priority} eq 'never')) {
       $html .= "</ul></div></p><p><div style='display:none;' id='delete_div'>".$self->delete_info($job)."</div>";
     } else {
       $html .= "</ul></div></p><p><div style='display:none;' id='delete_div'><h3>Delete</h3><p>During job submission this job was marked to go public at some point in the future.  Thus, this job cannot be deleted.</p></div><br />";
