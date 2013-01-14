@@ -226,9 +226,17 @@ sub instance {
         $self->return_data( {"ERROR" => "no valid ids submitted and/or found: ".join(", ", @ids)}, 401 );
     }
 
+    # get cached if exists
+    my $cached = $self->memd->get($self->url_id);
+    if ($cached) {
+        # do a runaround on ->return_data
+        print $self->header;
+        print $cached;
+        exit 0;
+    }
     # prepare data
     my $data = $self->prepare_data([keys %$mgids], $type);
-    $self->return_data($data);
+    $self->return_data($data, undef, 1); # cache this!
 }
 
 # reformat the data into the requested output format
@@ -247,7 +255,7 @@ sub prepare_data {
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
     my $all_srcs  = {};
     my $leaf_node = 0;
-    my $matrix_id = join("_", sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen))
+    my $matrix_id = join("_", sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen));
     if (@filter > 0) {
         $matrix_id .= join("_", sort map { $_ =~ s/\s+/_/ } @filter)."_".$fsrc;
     }
