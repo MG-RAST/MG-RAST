@@ -21,6 +21,7 @@ sub new {
     my $agent = LWP::UserAgent->new;
     my $memd  = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
     my $json  = new JSON;
+    my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc});
     $json = $json->utf8();
     $json->max_size(0);
     $json->allow_nonref;
@@ -48,13 +49,14 @@ sub new {
         rest          => $params->{rest_parameters} || [],
         method        => $params->{method},
         submethod     => $params->{submethod},
+        resource      => $params->{resource},
         user          => $params->{user},
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
         json_rpc_id   => ($params->{json_rpc} && exists($params->{json_rpc_id})) ? $params->{json_rpc_id} : undef,
         html_messages => $html_messages,
         expire        => $Conf::web_memcache_expire || 172800, # use config or 48 hours
         name          => '',
-        url_id        => get_url_id($params->{cgi}, $params->{json_rpc}),
+        url_id        => $url_id,
         rights        => {},
         attributes    => {}
     };
@@ -64,9 +66,13 @@ sub new {
 
 ### make a unique id for each resource / option combination (no auth)
 sub get_url_id {
-    my ($cgi, $rpc) = @_;
-    my $rurl = $cgi->url(-relative=>1);
-    foreach my $p (sort $cgi->param) {
+    my ($cgi, $resource, $rest, $rpc) = @_;
+    my $rurl = $cgi->url(-relative=>1).$resource;
+    my @params = $cgi->param;    
+    foreach my $r (@$rest) {
+        $rurl .= $r;
+    }
+    foreach my $p (sort @params) {
         next if ($p eq 'auth');
         my @values = $cgi->param($p) || ();
         $rurl .= $p.join("", sort @values);
