@@ -247,6 +247,10 @@ sub prepare_data {
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
     my $all_srcs  = {};
     my $leaf_node = 0;
+    my $matrix_id = join("_", sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen))
+    if (@filter > 0) {
+        $matrix_id .= join("_", sort map { $_ =~ s/\s+/_/ } @filter)."_".$fsrc;
+    }
 
     # initialize analysis obj with mgids
     my $master = $self->connect_to_datasource();
@@ -394,7 +398,7 @@ sub prepare_data {
         push @$bcols, { id => 'mgm'.$cid, name => $cnm, metadata => $cmd };
     }
     
-    my $obj = { "id"                   => join(";", sort map { $_->{id} } @$bcols).'_'.$glvl.'_'.$source.'_'.$rtype,
+    my $obj = { "id"                   => $matrix_id,
   		        "format"               => "Biological Observation Matrix 1.0",
   		        "format_url"           => "http://biom-format.org",
   		        "type"                 => $ttype." table",
