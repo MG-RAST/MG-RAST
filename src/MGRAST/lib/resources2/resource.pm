@@ -9,6 +9,8 @@ use Data::Dumper;
 use CGI;
 use JSON;
 use LWP::UserAgent;
+use Cache::Memcached;
+use Digest::MD5 qw(md5_hex md5_base64);
 
 1;
 
@@ -17,6 +19,7 @@ sub new {
 
     # set variables
     my $agent = LWP::UserAgent->new;
+    my $memd  = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
     my $json  = new JSON;
     $json = $json->utf8();
     $json->max_size(0);
@@ -39,6 +42,7 @@ sub new {
     my $self = {
         format        => "application/json",
         agent         => $agent,
+        memd          => $memd,
         json          => $json,
         cgi           => $params->{cgi},
         rest          => $params->{rest_parameters} || [],
@@ -48,7 +52,9 @@ sub new {
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
         json_rpc_id   => ($params->{json_rpc} && exists($params->{json_rpc_id})) ? $params->{json_rpc_id} : undef,
         html_messages => $html_messages,
+        expire        => $Conf::web_memcache_expire || 172800, # use config or 48 hours
         name          => '',
+        url_id        => get_url_id($params->{cgi}, $params->{json_rpc}),
         rights        => {},
         attributes    => {}
     };
@@ -56,10 +62,29 @@ sub new {
     return $self;
 }
 
+### make a unique id for each resource / option combination (no auth)
+sub get_url_id {
+    my ($cgi, $rpc) = @_;
+    my $rurl = $cgi->url(-relative=>1);
+    foreach my $p (sort $cgi->param) {
+        next if ($p eq 'auth');
+        my @values = $cgi->param($p) || ();
+        $rurl .= $p.join("", sort @values);
+    }
+    if ($rpc) {
+        $rurl .= 'jsonrpc';
+    }
+    return md5_hex($rurl);
+}
+
 # get functions for class variables
 sub agent {
     my ($self) = @_;
     return $self->{agent};
+}
+sub memd {
+    my ($self) = @_;
+    return $self->{memd};
 }
 sub json {
     my ($self) = @_;
@@ -100,6 +125,10 @@ sub html_messages {
 sub name {
     my ($self) = @_;
     return $self->{name};
+}
+sub url_id {
+    my ($self) = @_;
+    return $self->{url_id};
 }
 sub rights {
     my ($self) = @_;
@@ -202,7 +231,7 @@ sub check_pagination {
 
 # print the actual data output
 sub return_data {
-    my ($self, $data, $error) = @_;
+    my ($self, $data, $error, $cache_me) = @_;
 
     # default status is OK
     my $status = 200;  
@@ -245,6 +274,10 @@ sub return_data {
 	        $data = { jsonrpc => "2.0",
 		              result  => $data,
 		              id      => $self->json_rpc_id };
+		    # cache this!
+            if ($cache_me) {
+                $self->memd->set($self->url_id, $self->json->encode($data), $self->{expire});
+            }
         }
         print $self->header;
         print $self->json->encode($data);
@@ -263,12 +296,16 @@ sub return_data {
         }
         # normal return
         else {
-            print $self->header;
             if ($self->format eq 'application/json') {
-	            print $self->json->encode($data);
-            } else {
-	            print $data;
+                $data = $self->json->encode($data);
             }
+            # cache this!
+            if ($cache_me) {
+                $self->memd->set($self->url_id, $data, $self->{expire});
+            }
+            # send it
+            print $self->header;
+            print $data;
             exit 0;
         }
     }
