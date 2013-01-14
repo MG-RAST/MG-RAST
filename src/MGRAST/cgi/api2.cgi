@@ -157,7 +157,8 @@ if ($resource) {
 		    'json_rpc'        => $json_rpc,
 		    'json_rpc_id'     => $json_rpc_id,
 		    'submethod'       => $submethod,
-		    'cgi'             => $cgi
+		    'cgi'             => $cgi,
+		    'resource'        => $resource
 		  };
         eval {
             my $resource_obj = $package->new($params);
