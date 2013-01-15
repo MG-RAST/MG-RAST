@@ -117,14 +117,9 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
-    # get cached if exists
-    my $cached = $self->memd->get($self->url_id);
-    if ($cached) {
-        # do a runaround on ->return_data
-        print $self->header;
-        print $cached;
-        exit 0;
-    }
+    # return cached if exists
+    $self->return_cached();
+    
     # prepare data
     my $data = $self->prepare_data( [$project] );
     $data = $data->[0];
