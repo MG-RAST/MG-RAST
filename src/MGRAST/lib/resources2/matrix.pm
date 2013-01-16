@@ -250,7 +250,7 @@ sub prepare_data {
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
     my $all_srcs  = {};
     my $leaf_node = 0;
-    my $matrix_id = join("_", sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen));
+    my $matrix_id = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen));
     if (@filter > 0) {
         $matrix_id .= join("_", sort map { $_ =~ s/\s+/_/g } @filter)."_".$fsrc;
     }
