@@ -235,6 +235,19 @@ sub check_pagination {
     }
 }
 
+# return cached data if exists
+sub return_cached {
+    my ($self) = @_;
+    
+    my $cached = $self->memd->get($self->url_id);
+    if ($cached) {
+        # do a runaround on ->return_data
+        print $self->header;
+        print $cached;
+        exit 0;
+    }
+}
+
 # print the actual data output
 sub return_data {
     my ($self, $data, $error, $cache_me) = @_;
@@ -466,6 +479,14 @@ sub get_shock_query {
     } else {
         return $shock->{D};
     }
+}
+
+# I can't find a perl library that gives me random UUID !
+sub uuidv4 {
+    my ($self) = @_;
+    my $uuid = `python -c "import uuid; print uuid.uuid4()"`;
+    chomp $uuid;
+    return $uuid;
 }
 
 sub toFloat {

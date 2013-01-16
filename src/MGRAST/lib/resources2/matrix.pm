@@ -226,14 +226,9 @@ sub instance {
         $self->return_data( {"ERROR" => "no valid ids submitted and/or found: ".join(", ", @ids)}, 401 );
     }
 
-    # get cached if exists
-    my $cached = $self->memd->get($self->url_id);
-    if ($cached) {
-        # do a runaround on ->return_data
-        print $self->header;
-        print $cached;
-        exit 0;
-    }
+    # return cached if exists
+    $self->return_cached();
+    
     # prepare data
     my $data = $self->prepare_data([keys %$mgids], $type);
     $self->return_data($data, undef, 1); # cache this!
@@ -257,7 +252,7 @@ sub prepare_data {
     my $leaf_node = 0;
     my $matrix_id = join("_", sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen));
     if (@filter > 0) {
-        $matrix_id .= join("_", sort map { $_ =~ s/\s+/_/ } @filter)."_".$fsrc;
+        $matrix_id .= join("_", sort map { $_ =~ s/\s+/_/g } @filter)."_".$fsrc;
     }
 
     # initialize analysis obj with mgids
