@@ -117,11 +117,13 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
+    # return cached if exists
+    $self->return_cached();
+    
     # prepare data
     my $data = $self->prepare_data( [$project] );
     $data = $data->[0];
-
-    $self->return_data($data)
+    $self->return_data($data, undef, 1); # cache this!
 }
 
 # the resource is called without an id parameter, but with at least one query parameter

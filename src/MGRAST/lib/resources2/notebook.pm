@@ -93,7 +93,16 @@ sub info {
                           											        },
              							                      'required' => { "id"   => ["string", "unique shock object identifier"],
              							                                      "nbid" => ["string", "unique notebook object identifier"] },
-             							                      'body'     => {} } }
+             							                      'body'     => {} } },
+             							 { 'name'        => "upload",
+             				               'request'     => $self->cgi->url."/".$self->name."/upload",
+             				               'description' => "Upload a notebook to shock.",
+             				               'method'      => "POST",
+             				               'type'        => "synchronous",  
+             				               'attributes'  => $self->attributes,
+             				               'parameters'  => { 'options'  => {},
+             							                      'required' => {},
+             							                      'body'     => { "ipynb" => ["file", ".pynb file in JSON format"] } } },
             						   ]
                   };
     $self->return_data($content);
@@ -102,6 +111,11 @@ sub info {
 # the resource is called with an id parameter
 sub instance {
     my ($self) = @_;
+
+    # possible upload
+    if (($self->rest->[0] eq 'upload') && ($self->method eq 'POST')) {
+        $self->upload_notebook();
+    }
     
     # get data
     my $data = [];
@@ -128,7 +142,7 @@ sub instance {
                      created => strftime("%Y-%m-%dT%H:%M:%S", localtime)
                    };
         $file->{'metadata'} = $attr;
-        my $clone = $self->set_shock_node($node->{id}.'ipynb', $file, $attr);
+        my $clone = $self->set_shock_node($node->{id}.'.ipynb', $file, $attr);
         $data = $self->prepare_data( [$clone] );
     } else {
         $data = $self->prepare_data( [$node] );
@@ -187,6 +201,54 @@ sub prepare_data {
         push @$objects, $obj;
     }
     return $objects;
+}
+
+# upload notebook file to shock / create metadata
+sub upload_notebook {
+    my ($self) = @_;
+    
+    # get notebook file
+    my $tmp_dir = "$Conf::temp";
+    my $fname   = $self->cgi->param('upload');
+    
+    # error check
+    unless ($fname) {
+        $self->return_data({"ERROR" => "Invalid parameters, requires filename and data"}, 400);
+    }
+    if ($fname =~ /\.\./) {
+        $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
+    }
+    if ($fname !~ /^[\w\d_\.]+$/) {
+        $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, . and number characters"}, 400);
+    }
+
+    my $fhdl = $self->cgi->upload('upload');
+    unless ($fhdl) {
+        $self->return_data({"ERROR" => "Storing object failed - could not obtain filehandle"}, 507);
+    }
+    my $nb_string = "";
+    my $io_handle = $fhdl->handle;
+    my ($bytesread, $buffer);
+    while ($bytesread = $io_handle->read($buffer,4096)) {
+	    $nb_string .= $buffer;
+	}
+
+    # get notebook object and attribute object
+    my $nb_obj  = $self->json->decode($nb_string);
+    my $nb_attr = { type => 'ipynb',
+                    name => $nb_obj->{metadata}{name} ? $nb_obj->{metadata}{name} : 'Untitled',
+                    user => $self->user ? $self->user->login : 'public',
+                    uuid => $self->uuidv4(),
+                    created => strftime("%Y-%m-%dT%H:%M:%S", localtime)
+                  };
+    $nb_obj->{'metadata'} = $nb_attr;
+    
+    # add to shock
+    my $name = $nb_attr->{name};
+    $name =~ s/\s+/_/g;
+    my $node = $self->set_shock_node($name.'.ipynb', $nb_obj, $nb_attr);
+    my $data = $self->prepare_data( [$node] );
+    $self->return_data($data->[0]);
 }
 
 1;
