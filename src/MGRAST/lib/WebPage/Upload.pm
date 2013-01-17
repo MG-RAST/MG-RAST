@@ -641,6 +641,8 @@ sub submit_to_mgrast {
 	}
 	$filename_ending = 'fna';
 	`mv '$udir/$seqfile' '$udir/$subdir$filename_base.$filename_ending'`;
+	`mv '$udir/$seqfile.error_log' '$udir/$subdir$filename_base.$filename_ending.error_log'`;
+	`mv '$udir/$seqfile.stats_info' '$udir/$subdir$filename_base.$filename_ending.stats_info'`;
 	$seqfile = "$subdir$filename_base.$filename_ending";
       }
       my $name = $filename_base;
