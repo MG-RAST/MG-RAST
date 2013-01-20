@@ -498,6 +498,31 @@ sub get_public_jobs {
   }
 }
 
+sub get_private_jobs {
+  my ($self, $user, $id_only, $edit) = @_;
+
+  unless ($user && ref($user)) { return []; }
+  my $ids = $edit ? $user->has_right_to(undef,'edit','metagenome') : $user->has_right_to(undef,'view','metagenome');
+  unless ($ids && (@$ids > 0)) { return []; }
+  
+  my $db = $self->_master();
+  if ($id_only) {
+    my $query  = "select metagenome_id from Job where viewable=1 and metagenome_id IN (".join(",", map {"'$_'"} @$ids).")";
+    my $result = $db->db_handle->selectcol_arrayref($query);
+    return ($result && @$result) ? $result : [];
+  }
+  else {
+    my $jobs = [];
+    foreach my $mg (@$ids) {
+      my $job = $db->Job->get_objects( {metagenome_id => $mg, viewable => 1} );
+      if ($job && @$job) {
+        push @$jobs, $job;
+      }
+    }
+    return $jobs;
+  }
+}
+
 sub count_all {
   my ($self) = @_;
  

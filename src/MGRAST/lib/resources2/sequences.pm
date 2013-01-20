@@ -105,7 +105,7 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get data
-    my $job = $master->Job->init( {metagenome_id => $id} );
+    my $job = $master->Job->init( {metagenome_id => $id, viewable => 1} );
     unless ($job && ref($job)) {
         $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
     }

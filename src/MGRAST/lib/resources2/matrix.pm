@@ -193,10 +193,12 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get user viewable
-    my %p_rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
-    my %m_rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
-    map { $p_rights{$_} = 1 } @{ $master->Project->get_public_projects(1) };
-    map { $m_rights{$_} = 1 } @{ $master->Job->get_public_jobs(1) };
+    my $m_private = $master->Job->get_private_jobs($self->user, 1);
+    my $m_public  = $master->Job->get_public_jobs(1);
+    my $p_private = $self->user ? $self->user->has_right_to(undef, 'view', 'project') : [];
+    my $p_public  = $master->Project->get_public_projects(1);
+    my %m_rights = map {$_, 1} (@$m_private, @$m_public);
+    my %p_rights = map {$_, 1} (@$p_private, @$p_public);
 
     # get unique list of mgids based on user rights and inputed ids
     foreach my $id (@ids) {
