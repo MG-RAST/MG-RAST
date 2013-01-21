@@ -234,6 +234,8 @@ sub instance {
     my $pid = fork();
     # child - get data and dump it
     if ($pid == 0) {
+	close STDERR;
+	close STDOUT;
         my $data = $self->prepare_data([keys %$mgids], $type);
         open(FILE, ">$fname");
         print FILE $self->json->encode($data);
@@ -242,7 +244,7 @@ sub instance {
     }
     # parent - end html session
     else {
-        $self->return_data({"file" => $fname, "url" => $Conf::temp_url.'/'.$self->url_id.'.biom'});
+        $self->return_data({"file" => $fname, "url" => $Conf::temp_url.'/matrix_'.$self->url_id.'.biom'});
     }
 }
 
