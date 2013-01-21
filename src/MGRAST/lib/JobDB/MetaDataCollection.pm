@@ -111,13 +111,13 @@ sub jobs {
 
   my $jobs = [];
   if ($self->type eq 'sample') {
-    $jobs = $self->_master->Job->get_objects({sample => $self});
+    $jobs = $self->_master->Job->get_objects({sample => $self, viewable => 1});
   }
   elsif ($self->type eq 'library') {
-    $jobs = $self->_master->Job->get_objects({library => $self});
+    $jobs = $self->_master->Job->get_objects({library => $self, viewable => 1});
   }
   elsif (($self->type eq 'ep') && $self->parent && ref($self->parent)) {
-    $jobs = $self->_master->Job->get_objects({sample => $self->parent});
+    $jobs = $self->_master->Job->get_objects({sample => $self->parent, viewable => 1});
   }
   return $jobs;
 }
@@ -201,7 +201,7 @@ sub xml {
 
     my $jobs = [];
     push @$jobs , $self->job if ($self->job) ;
-    push @$jobs , @{ $self->_master->Job->get_objects( {sample => $self} ) };
+    push @$jobs , @{ $self->_master->Job->get_objects( {sample => $self, viewable => 1} ) };
     
     my $pjs = {};
   

@@ -1,4 +1,4 @@
-package resources2::matrix;
+package resources2::matrix_dump;
 
 use strict;
 use warnings;
@@ -20,7 +20,7 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name} = "matrix";
+    $self->{name} = "matrix_dump";
     $self->{org2tax} = {};
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{hierarchy} = { organism => [ ['strain', 'bottom organism taxanomic level'],
@@ -204,21 +204,21 @@ sub instance {
     foreach my $id (@ids) {
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
-            if (exists($m_rights{'*'}) || exists($m_rights{$1})) {
+#            if (exists($m_rights{'*'}) || exists($m_rights{$1})) {
     	        $mgids->{$1} = 1;
-            } else {
-                $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
-            }
+#            } else {
+#                $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
+#            }
         } elsif ($id =~ /^mgp(\d+)$/) {
-            if (exists($p_rights{'*'}) || exists($p_rights{$1})) {
+#            if (exists($p_rights{'*'}) || exists($p_rights{$1})) {
     	        my $proj = $master->Project->init( {id => $1} );
     	        foreach my $mgid (@{ $proj->metagenomes(1) }) {
     	            next unless (exists($m_rights{'*'}) || exists($m_rights{$mgid}));
     	            $mgids->{$mgid} = 1;
     	        }
-            } else {
-                $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
-            }
+#            } else {
+#                $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
+#            }
         } else {
             $self->return_data( {"ERROR" => "unknown id in matrix call: ".$id}, 401 );
         }
@@ -228,12 +228,24 @@ sub instance {
         $self->return_data( {"ERROR" => "no valid ids submitted and/or found: ".join(", ", @ids)}, 401 );
     }
 
-    # return cached if exists
-    $self->return_cached();
+    # create unique filename   
+    my $fname = $Conf::temp.'/matrix_'.$self->url_id.'.biom';
     
-    # prepare data
-    my $data = $self->prepare_data([keys %$mgids], $type);
-    $self->return_data($data, undef, 1); # cache this!
+    my $pid = fork();
+    # child - get data and dump it
+    if ($pid == 0) {
+	close STDERR;
+	close STDOUT;
+        my $data = $self->prepare_data([keys %$mgids], $type);
+        open(FILE, ">$fname");
+        print FILE $self->json->encode($data);
+        close FILE;
+        exit 0;
+    }
+    # parent - end html session
+    else {
+        $self->return_data({"file" => $fname, "url" => $Conf::temp_url.'/matrix_'.$self->url_id.'.biom'});
+    }
 }
 
 # reformat the data into the requested output format

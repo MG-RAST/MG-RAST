@@ -214,13 +214,13 @@ sub metagenomes {
   
   my $db = $self->_master();
   if ($id_only) {
-    my $query  = "select distinct j.metagenome_id from ProjectJob p, Job j where p.project=".$self->_id." and j._id=p.job";
+    my $query  = "select distinct j.metagenome_id from ProjectJob p, Job j where p.project=".$self->_id." and j._id=p.job and j.viewable=1";
     my $result = $db->db_handle->selectcol_arrayref($query);
     return ($result && @$result) ? $result : [];
   }
   else {
     my $mgs = [];
-    foreach my $pjs ( @{ $db->ProjectJob->get_objects({project => $self}) } ) {
+    foreach my $pjs ( @{ $db->ProjectJob->get_objects({project => $self, viewable => 1}) } ) {
       push @$mgs, $pjs->job;
     }
     return $mgs;
@@ -230,7 +230,7 @@ sub metagenomes {
 # return all metagenome ids and names of this project
 sub metagenomes_id_name {
   my ($self) = @_ ;
-  my $query  = "select j.metagenome_id, j.name from ProjectJob p, Job j where p.project=".$self->_id." and j._id=p.job";
+  my $query  = "select j.metagenome_id, j.name from ProjectJob p, Job j where p.project=".$self->_id." and j._id=p.job and j.viewable=1";
   my $result = $self->_master->db_handle->selectall_arrayref($query);
   my %mgmap  = map { $_->[0] => $_->[1] } @$result;
   return \%mgmap;
@@ -403,7 +403,7 @@ sub sequence_types {
   my ($self) = @_;
   ## calculated takes precidence over inputed
   my $mddb    = MGRAST::Metadata->new();
-  my $query   = "select distinct j.sequence_type from Job j, ProjectJob p where p.project=".$self->_id." and p.job=j._id";
+  my $query   = "select distinct j.sequence_type from Job j, ProjectJob p where p.project=".$self->_id." and p.job=j._id and j.viewable=1";
   my $results = $self->_master->db_handle->selectcol_arrayref($query);
   unless ($results && @$results) {
     $results = [];
