@@ -175,7 +175,7 @@ relationships between functions (COG, NOG, SEED, subsystems, KEGG)
       } else {
 	if ($level eq 'none') {
 	  $desc = "function";
-	  $md5s = $mgdb->get_md5s_for_ontology( [$cat], $type );
+	  $md5s = $mgdb->get_md5s_for_function( [$cat], $type );
 	} else {
 	  $desc = "funtional category";
 	  $md5s = $mgdb->get_md5s_for_ontol_level( $type, $level, [$cat] );
