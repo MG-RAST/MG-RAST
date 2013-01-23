@@ -127,7 +127,7 @@ sub query {
     my $samples_hash = {};
     my $sample_map   = {};
     my $job_sam_map  = {};
-    my $job_sample   = $dbh->selectall_arrayref("SELECT sample, metagenome_id, public FROM Job");
+    my $job_sample   = $dbh->selectall_arrayref("SELECT sample, metagenome_id, public FROM Job WHERE viewable=1");
     map { $job_sam_map->{$_->[0]} = 1 } @$job_sample;
     map { $sample_map->{$_->[0]} = {id => $_->[1], name => $_->[2], entry_date => $_->[3]} } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='sample'")};
   
