@@ -193,6 +193,8 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get user viewable
+    my $m_star = ($self->user && $self->user->has_right(undef, 'view', 'metagenome', '*')) ? 1 : 0;
+    my $p_star = ($self->user && $self->user->has_right(undef, 'view', 'project', '*')) ? 1 : 0;
     my $m_private = $master->Job->get_private_jobs($self->user, 1);
     my $m_public  = $master->Job->get_public_jobs(1);
     my $p_private = $self->user ? $self->user->has_right_to(undef, 'view', 'project') : [];
@@ -204,16 +206,16 @@ sub instance {
     foreach my $id (@ids) {
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
-            if (exists($m_rights{'*'}) || exists($m_rights{$1})) {
+            if ($m_star || exists($m_rights{$1})) {
     	        $mgids->{$1} = 1;
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
         } elsif ($id =~ /^mgp(\d+)$/) {
-            if (exists($p_rights{'*'}) || exists($p_rights{$1})) {
+            if ($p_star || exists($p_rights{$1})) {
     	        my $proj = $master->Project->init( {id => $1} );
     	        foreach my $mgid (@{ $proj->metagenomes(1) }) {
-    	            next unless (exists($m_rights{'*'}) || exists($m_rights{$mgid}));
+    	            next unless ($m_star || exists($m_rights{$mgid}));
     	            $mgids->{$mgid} = 1;
     	        }
             } else {
