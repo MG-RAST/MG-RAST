@@ -1854,6 +1854,11 @@ sub get_md5s_for_ontology {
     return $self->_get_md5s_for_annotation('ontology', $names, $source);
 }
 
+sub get_md5s_for_function {
+    my ($self, $names, $source) = @_;
+    return $self->_get_md5s_for_annotation('function', $names, $source);
+}
+
 sub _get_md5s_for_annotation {
     my ($self, $type, $names, $src) = @_;
     
