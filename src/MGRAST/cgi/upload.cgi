@@ -65,9 +65,13 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	# delete a list of files
 	if ($action eq 'del') {
 	    foreach my $file (@files) {
+                my $lock_msg = "";
                 if (-f "$udir/$file.lock") {
-                    push(@{$data->[0]->{popup_messages}}, "File undergoing computation cannot be deleted: $file");
-                } else {
+		    $lock_msg = `cat $udir/$file.lock`;
+		    chomp $lock_msg;
+		}
+
+		if($lock_msg eq "" || $lock_msg eq "uploading") {
 		    if (-f "$udir/$file") {		    
 		        `rm '$udir/$file'`;
 		        if (-f "$udir/$file.stats_info") {
@@ -76,7 +80,12 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		        if (-f "$udir/$file.error_log") {
 			    `rm '$udir/$file.error_log'`;
                         }
+		        if (-f "$udir/$file.lock") {
+			    `rm '$udir/$file.lock'`;
+                        }
 		    }
+                } else {
+                    push(@{$data->[0]->{popup_messages}}, "File undergoing computation cannot be deleted: $file");
 		}
 	    }
 	}
@@ -127,9 +136,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	
 	# decompress a list of files
 	if ($action eq 'unpack') {
-	    my @files_to_unpack = ();
 	    my %files_to_filetype = ();
-	    my %files_to_lockfiles = ();
 	    # We want to create ALL the lock files before doing any operations on the files.
 	    foreach my $file (@files) {
 		if (-f "$udir/$file") {
@@ -160,37 +167,28 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
                 	chomp $lock_msg;
 			push(@{$data->[0]->{popup_messages}}, "Unable to decompress $file to $basename, currently running $lock_msg.");
                     } else {
+			my $jobid = $user->{login};
+                        $jobid =~ s/\s/_/g;
 			`echo "decompressing" > $lock_file1`;
 			`echo "decompressing" > $lock_file2`;
-			push @files_to_unpack, $file;
-			push @{$files_to_lockfiles{$file}}, $lock_file1;
-			push @{$files_to_lockfiles{$file}}, $lock_file2;
-		    }
-		}
-	    }
-	    foreach my $file (@files_to_unpack) {
-		my @msg;
-		if (-f "$udir/$file") {
-		    if ($files_to_filetype{$file} eq 'tar gzip') {
-			@msg = `tar -xzf '$udir/$file' -C $udir 2>&1`;
-		    } elsif ($files_to_filetype{$file} eq 'zip') {
-			@msg = `unzip -q -o -d $udir '$udir/$file' 2>&1`;
-		    } elsif ($files_to_filetype{$file} eq 'tar bzip2') {
-			@msg = `tar -xjf '$udir/$file' -C $udir 2>&1`;
-		    } elsif ($files_to_filetype{$file} eq 'gzip') {
-			@msg = `gunzip -d '$udir/$file' 2>&1`;
-		    } elsif ($files_to_filetype{$file} eq 'bzip2') {
-			@msg = `bunzip2 -d '$udir/$file' 2>&1`;
-		    }
 
-                    if(@msg > 0) {
-                        push(@{$data->[0]->{popup_messages}}, "Output from unpacking file $file:\n".join("\n",@msg));
-                    }
-
-		    foreach my $lock_file (@{$files_to_lockfiles{$file}}) {
-			if(-f $lock_file) {
-			    `rm $lock_file`;
+                        my $command = "";
+			if ($files_to_filetype{$file} eq 'tar gzip') {
+			    $command = "echo \"tar -xzf '$udir/$file' -C $udir &> $udir/$file.error_log; rm $lock_file1 $lock_file2;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+			} elsif ($files_to_filetype{$file} eq 'zip') {
+			    $command = "echo \"unzip -q -o -d $udir '$udir/$file' &> $udir/$file.error_log; rm $lock_file1 $lock_file2;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+			} elsif ($files_to_filetype{$file} eq 'tar bzip2') {
+			    $command = "echo \"tar -xjf '$udir/$file' -C $udir &> $udir/$file.error_log; rm $lock_file1 $lock_file2;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+			} elsif ($files_to_filetype{$file} eq 'gzip') {
+			    $command = "echo \"gunzip -d '$udir/$file' &> $udir/$file.error_log; rm $lock_file1 $lock_file2;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+			} elsif ($files_to_filetype{$file} eq 'bzip2') {
+			    $command = "echo \"bunzip2 -d '$udir/$file' &> $udir/$file.error_log; rm $lock_file1 $lock_file2;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 			}
+                        my $jnum = `$command`;
+                        $jnum =~ s/^(.*)\.mcs\.anl\.gov/$1/;
+                        open(FH, ">>$udir/.tmp/jobs");
+                        print FH "$jnum";
+                        close FH;
 		    }
 		}
 	    }

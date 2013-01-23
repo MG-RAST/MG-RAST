@@ -88,7 +88,7 @@ sub instance {
   my $master = $self->connect_to_datasource();
   
   # get data
-  my $job = $master->Job->init( { metagenome_id => $mgid } );
+  my $job = $master->Job->init( {metagenome_id => $mgid, viewable => 1} );
   unless ($job && ref($job)) {
     $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
   }

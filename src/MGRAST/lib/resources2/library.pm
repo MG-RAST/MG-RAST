@@ -124,7 +124,7 @@ sub query {
     my $libraries_hash = {};
     my $library_map    = {};
     my $job_lib_map    = {};
-    my $job_library    = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job");
+    my $job_library    = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job WHERE viewable=1");
     map { $job_lib_map->{$_->[0]} = 1 } @$job_library;
     map { $library_map->{$_->[0]} = {id => $_->[1], name => $_->[2], entry_date => $_->[3]} } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='library'")};
   

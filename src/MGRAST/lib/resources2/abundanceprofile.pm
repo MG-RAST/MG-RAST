@@ -17,7 +17,10 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
+    my %rights = $self->user ? map { $_, 1 } @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "abundanceprofile";
+    $self->{rights} = \%rights;
+    $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{attributes} = { "id"                  => [ 'string', 'unique object identifier' ],
     	                    "format"              => [ 'string', 'format specification name' ],
     	                    "format_url"          => [ 'string', 'url to the format specification' ],
@@ -61,6 +64,9 @@ sub info {
 				    'type'        => "synchronous" ,  
 				    'attributes'  => $self->attributes,
 				    'parameters'  => { 'options' => {
+				                      'evalue'   => ['int', 'exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+      				                  'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+      				                  'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
 									  'type' => [ 'cv', [ ['organism', 'return organism data'],
 											      ['function', 'return functional data'],
 											      ['feature', 'return feature data'] ] ],
@@ -105,14 +111,14 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get data
-    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    my $job = $master->Job->get_objects( {metagenome_id => $id, viewable => 1} );
     unless ($job && @$job) {
         $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
     }
     $job = $job->[0];
 
     # check rights
-    unless ($job->{public} || exists($self->rights->{$id})) {
+    unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_right(undef, 'view', 'metagenome', '*'))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
@@ -127,8 +133,11 @@ sub prepare_data {
 
     my $params = {};
     my $cgi = $self->cgi;
-    $params->{type}   = $cgi->param('type') ? $cgi->param('type') : 'organism';
-    $params->{source} = $cgi->param('source') ? $cgi->param('source') : (($params->{type} eq 'organism') ? 'M5NR' : (($params->{type} eq 'function') ? 'Subsystems': 'RefSeq'));
+    $params->{type}     = $cgi->param('type') ? $cgi->param('type') : 'organism';
+    $params->{source}   = $cgi->param('source') ? $cgi->param('source') : (($params->{type} eq 'organism') ? 'M5NR' : (($params->{type} eq 'function') ? 'Subsystems': 'RefSeq'));
+    $params->{evalue}   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
+    $params->{identity} = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
+    $params->{length}   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
   
     # get database
     my $master = $self->connect_to_datasource();
@@ -138,6 +147,17 @@ sub prepare_data {
     }
     my $id = $data->{metagenome_id};
     $mgdb->set_jobs([$id]);
+    
+    # validate cutoffs
+    if (int($params->{evalue}) < 1) {
+        $self->return_data({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 500);
+    }
+    if ((int($params->{identity}) < 0) || (int($params->{identity}) > 100)) {
+        $self->return_data({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 500);
+    }
+    if (int($params->{length}) < 1) {
+        $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 500);
+    }
   
     # validate type / source
     my $all_srcs = {};
@@ -145,7 +165,7 @@ sub prepare_data {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
     } elsif ($params->{type} eq 'function') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('ontology')};
+        map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
     } elsif ($params->{type} eq 'feature') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
@@ -170,10 +190,11 @@ sub prepare_data {
     # get data
     if ($params->{type} eq 'organism') {
         $ttype = 'Taxon';
-        my ($md5_abund, $result) = $mgdb->get_organisms_for_sources([$params->{source}], undef, undef, undef, 1);
+        # my ($self, $sources, $eval, $ident, $alen, $with_taxid) = @_;
+        my ($md5_abund, $result) = $mgdb->get_organisms_for_sources([$params->{source}], int($params->{evalue}), int($params->{identity}), int($params->{length}), 1);
         # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
         foreach my $row (@$result) {
-            my $tax_str = [ "k__".$row->[2], "p__".$row->[3], "c__".$row->[4], "o__".$row->[5], "f__".$row->[6], "g__".$row->[7], "s__".$row->[9] ];
+            my $tax_str = [ $row->[2], $row->[3], $row->[4], $row->[5], $row->[6], $row->[7], $row->[9] ];
             push(@$rows, { "id" => $row->[19], "metadata" => { "taxonomy" => $tax_str }  });
             push(@$values, [ $self->toFloat($row->[10]), $self->toFloat($row->[12]), $self->toFloat($row->[14]), $self->toFloat($row->[16]) ]);
         }
@@ -181,7 +202,8 @@ sub prepare_data {
     elsif ($params->{type} eq 'function') {
         $ttype = 'Function';
         my $function2ont = $mgdb->get_hierarchy('ontology', $params->{source});
-        my ($md5_abund, $result) = $mgdb->get_ontology_for_source($params->{source});
+        # my ($self, $source, $eval, $ident, $alen) = @_;
+        my ($md5_abund, $result) = $mgdb->get_ontology_for_source($params->{source}, int($params->{evalue}), int($params->{identity}), int($params->{length}));
         # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
         foreach my $row (@$result) {
             next unless (exists $function2ont->{$row->[1]});
@@ -206,7 +228,7 @@ sub prepare_data {
         }
     }
   
-    my $obj  = { "id"                  => "mgm".$id,
+    my $obj  = { "id"                  => "mgm".$id.'_'.$params->{type}.'_'.$params->{source},
 	             "format"              => "Biological Observation Matrix 1.0",
 	             "format_url"          => "http://biom-format.org",
 	             "type"                => $ttype." table",
