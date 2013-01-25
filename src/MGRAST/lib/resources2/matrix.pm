@@ -10,6 +10,7 @@ use MGRAST::Metadata;
 use MGRAST::Analysis;
 use Babel::lib::Babel;
 use Data::Dumper;
+use Digest::MD5 qw(md5_hex md5_base64);
 use parent qw(resources2::resource);
 
 # Override parent constructor
@@ -256,7 +257,7 @@ sub prepare_data {
     my $leaf_node = 0;
     my $matrix_id = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen));
     if (@filter > 0) {
-        $matrix_id .= join("_", sort map { $_ =~ s/\s+/_/g } @filter)."_".$fsrc;
+	$matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc;
     }
 
     # initialize analysis obj with mgids
