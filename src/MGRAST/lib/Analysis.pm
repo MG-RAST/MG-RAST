@@ -1491,12 +1491,15 @@ sub get_ontology_for_source {
 
 sub get_ontology_for_md5s {
     my ($self, $md5s, $source, $eval, $ident, $alen) = @_;
+
+    unless ($source) {
+        return ({}, [])
+    }
     
-    my $cache_key = "ontol";
+    my $cache_key = "ontol".$source;
     $cache_key .= defined($eval) ? $eval : ":";
     $cache_key .= defined($ident) ? $ident : ":";
     $cache_key .= defined($alen) ? $alen : ":";
-    $cache_key .= defined($source) ? $source : ":";
 
     my $data  = {};
     my $jobs  = [];
@@ -1527,11 +1530,11 @@ sub get_ontology_for_md5s {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
     my $level = "COALESCE(a.level4, a.level3) as annotation";
-    my $qsrcs = ($source) ? "j.source = ".$self->_src_id->{$source} : "";
+    my $qsrcs = "j.source = ".$self->_src_id->{$source};
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,a.name,$level,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->_jtbl->{ontology}." j, ".$self->_atbl->{ontology}." a".$where;
-
+    return (undef, $sql);
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $sub_abund = 0;
         my $mg = $self->_mg_map->{$row->[0]};

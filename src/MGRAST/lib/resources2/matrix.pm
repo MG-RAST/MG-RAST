@@ -311,8 +311,9 @@ sub prepare_data {
         if ( grep(/^$glvl$/, @func_hier) ) {
             if ($glvl eq 'function') {
   	            $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
+  	            $leaf_node = 1;
             }
-            if ( ($glvl eq 'level4') || (($source =~ /^[NC]OG$/) && ($glvl eq 'level3')) ) {
+            if ( ($source =~ /^[NC]OG$/) && ($glvl eq 'level3') ) {
   	            $leaf_node = 1;
             }
         } else {
