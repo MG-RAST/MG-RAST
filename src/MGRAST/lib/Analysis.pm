@@ -632,11 +632,12 @@ sub _get_annotations4level {
 
     my $key  = $get_ids ? '_id' : 'name';
     my $anns = {};
-    my $qsrc = ($src && ($type eq 'ontology')) ? " WHERE source = ".$self->_src_id->{$src} : "";
+    my $qsrc = ($src && ($type eq 'ontology')) ? "source = ".$self->_src_id->{$src} : "";
     my @cols = grep { $_ eq $level } @{ $self->_get_table_cols($tbl) };
 
     if (@cols == 1) {
-        my $rows = $self->_dbh->selectall_arrayref("SELECT DISTINCT $key, $level FROM ".$tbl.$qsrc);
+        my $where = $self->_get_where_str([$qsrc, "$level IS NOT NULL"]);
+        my $rows  = $self->_dbh->selectall_arrayref("SELECT DISTINCT $key, $level FROM ".$tbl.$where);
         if ($rows && (@$rows > 0)) {
             %$anns = map { $_->[0], $_->[1] } grep { $_->[1] && ($_->[1] =~ /\S/) } @$rows;
         }
