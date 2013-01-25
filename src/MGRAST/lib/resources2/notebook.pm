@@ -218,8 +218,8 @@ sub upload_notebook {
     if ($fname =~ /\.\./) {
         $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
     }
-    if ($fname !~ /^[\w\d_\.]+$/) {
-        $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, . and number characters"}, 400);
+    if ($fname !~ /^[\w\d_\.\-\:\, ]+$/) {
+        $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, dash, colon, comma, dot (.), space, and number characters"}, 400);
     }
 
     my $fhdl = $self->cgi->upload('upload');
