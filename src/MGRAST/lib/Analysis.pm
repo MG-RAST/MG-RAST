@@ -1436,7 +1436,7 @@ sub get_organisms_for_md5s {
     unless (@$jobs) { return (\%mdata, [ map { @$_ } values %$data ]); }
 
     my %md5_set = ($md5s && (@$md5s > 0)) ? map {$_, 1} @$md5s : ();
-    my $mg_md5_abund = $self->get_md5_abundance();
+    my $mg_md5_abund = $self->get_md5_abundance($eval, $ident, $alen);
   
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
@@ -1523,7 +1523,7 @@ sub get_ontology_for_md5s {
     unless (@$jobs) { return (\%mdata, [ map { @$_ } values %$data ]); }
 
     my %md5_set = $qmd5s ? map {$_, 1} @$md5s : ();
-    my $mg_md5_abund = $self->get_md5_abundance();
+    my $mg_md5_abund = $self->get_md5_abundance($eval, $ident, $alen);
   
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
@@ -1596,7 +1596,7 @@ sub get_functions_for_md5s {
     unless (@$jobs) { return [ map { @$_ } values %$data ]; }
 
     my %md5_set = $qmd5s ? map {$_, 1} @$md5s : ();
-    my $mg_md5_abund = $qmd5s ? $self->get_md5_abundance() : {};
+    my $mg_md5_abund = $qmd5s ? $self->get_md5_abundance($eval, $ident, $alen) : {};
     
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
