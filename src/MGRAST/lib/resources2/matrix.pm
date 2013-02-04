@@ -111,7 +111,8 @@ sub info {
     												                     'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
     												                     'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
     												                     'filter_source' => [ 'cv', $self->{sources}{ontology} ],
-                                                         				 'id' => [ 'string', 'one or more metagenome or project unique identifier' ] },
+                                                         				 'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
+                                                         				 'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ] },
     						                             'required' => {},
     						                             'body'     => {} }
     						        },
@@ -132,7 +133,8 @@ sub info {
     												                     'group_level' => [ 'cv', $self->{hierarchy}{ontology} ],
     												                     'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
     												                     'filter_source' => [ 'cv', $self->{sources}{organism} ],
-    												                     'id' => [ 'string', 'one or more metagenome or project unique identifier' ] },
+    												                     'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
+    												                     'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ] },
     						                             'required' => {},
     						                             'body'     => {} }
     						        },
@@ -158,7 +160,8 @@ sub info {
                                                      								          ["Greengenes", "RNA database"],
                                                      								          ["LSU", "RNA database"],
                                                      								          ["SSU", "RNA database"]] ],
-                               									         'id' => [ "string", "one or more metagenome or project unique identifier" ] },
+                               									         'id' => [ "string", "one or more metagenome or project unique identifier" ],
+                               									         'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ] },
     						                             'required' => {},
     						                             'body'     => {} } }
     				              ] };
@@ -253,11 +256,12 @@ sub prepare_data {
     my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'M5NR');
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
+    my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $all_srcs  = {};
     my $leaf_node = 0;
     my $matrix_id = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen));
     if (@filter > 0) {
-	$matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc;
+	    $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc;
     }
 
     # initialize analysis obj with mgids
@@ -399,7 +403,7 @@ sub prepare_data {
         push @$brows, { id => $rid, metadata => $rmd };
     }
     my $mddb = MGRAST::Metadata->new();
-    my $meta = $mddb->get_jobs_metadata_fast($data, 1);
+    my $meta = $hide_md ? {} : $mddb->get_jobs_metadata_fast($data, 1);
     my $name = $mgdb->_name_map();
     foreach my $cid (sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids) {
         my $cmd = exists($meta->{$cid}) ? $meta->{$cid} : undef;
