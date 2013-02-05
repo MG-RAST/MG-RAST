@@ -24,8 +24,10 @@ sub new {
                             "created"  => [ 'date', 'time the object was first created' ],
                             "version"  => [ 'integer', 'version of the object' ],
                             "url"      => [ 'uri', 'resource location of this object instance' ],
-                            "status"   => ['cv', [['public', 'notebook is public'],
-           										  ['private', 'notebook is private']]]
+                            "status"   => [ 'cv', [['public', 'notebook is public'],
+           										   ['private', 'notebook is private']] ],
+           					"permission" => [ 'cv', [['view', 'notebook is viewable only'],
+                                 					 ['edit', 'notebook is editable']] ]
                           };
     return $self;
 }
@@ -139,7 +141,8 @@ sub instance {
                      name => $name,
                      user => $uname || 'public',
                      uuid => $self->rest->[1],
-                     created => strftime("%Y-%m-%dT%H:%M:%S", localtime)
+                     created => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+                     permission => 'edit'
                    };
         $file->{'metadata'} = $attr;
         my $clone = $self->set_shock_node($node->{id}.'.ipynb', $file, $attr);
@@ -193,6 +196,7 @@ sub prepare_data {
         $obj->{uuid}     = $node->{attributes}{uuid};
         $obj->{created}  = $node->{attributes}{created};
 	    $obj->{status}   = ($node->{attributes}{user} eq 'public') ? 'public' : 'private';
+	    $obj->{permission} = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
         $obj->{version}  = 1;
         $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
@@ -235,11 +239,13 @@ sub upload_notebook {
 
     # get notebook object and attribute object
     my $nb_obj  = $self->json->decode($nb_string);
+    my $nb_user = $self->user ? $self->user->login : 'public';
     my $nb_attr = { type => 'ipynb',
                     name => $nb_obj->{metadata}{name} ? $nb_obj->{metadata}{name} : 'Untitled',
-                    user => $self->user ? $self->user->login : 'public',
+                    user => $nb_user,
                     uuid => $self->uuidv4(),
-                    created => strftime("%Y-%m-%dT%H:%M:%S", localtime)
+                    created => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+                    permission => ($nb_user eq 'public') ? 'view' : 'edit'
                   };
     $nb_obj->{'metadata'} = $nb_attr;
     
