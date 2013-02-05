@@ -15,13 +15,32 @@ sub authenticate {
   my $auth_value = $key;
 
   # this is kbase
-  if ($key =~ /globusonline/) {
-    $auth_source = 'kbase_user';
-    
-    my $validation_url = 'https://nexus.api.globusonline.org/goauth/keys/';
-
+  if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
     use JSON;
     my $json = new JSON;
+    use CGI;
+    my $cgi = new CGI;
+
+    $auth_source = 'kbase_user';
+    my $ustruct = "";
+    
+    if ($key =~ /^kbgo4711/) {
+      $key =~ s/^kbgo4711(.*)$/Basic $1/;
+      my $pre = `curl -s -H "Authorization: $key" -X POST "https://nexus.api.globusonline.org/goauth/token?grant_type=client_credentials"`;
+      eval {
+	$ustruct = $json->decode($pre);
+      };
+      if ($@) {
+	print STDERR "could not reach auth server: $@\n";
+	exit;
+      } else {
+	print $cgi->header();
+	print "{ token: '".$ustruct->{access_token}."' }";
+	exit;
+      }
+    }
+
+    my $validation_url = 'https://nexus.api.globusonline.org/goauth/keys/';    
 
     my ($user, $sig) = $key =~ /^un=([^\|]+)\|.+SigningSubject=([^\|]+)/;
     unless ($user && $sig) {
@@ -29,7 +48,6 @@ sub authenticate {
     }
     $sig =~ s/^.*\/([abcdef0123456789-]+)$/$1/;
     my $result = `curl -s -X GET "$validation_url$sig"`;
-    my $ustruct = "";
     eval {
       $ustruct = $json->decode($result);
     };
@@ -37,9 +55,7 @@ sub authenticate {
       die "could not reach auth server";
     } else {
       if ($ustruct->{valid}) {
-	$auth_value = $user;
-	use CGI;
-	my $cgi = new CGI;
+	$auth_value = $user;	
 	if ($cgi->param('webkey')) {
 	  my $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', value => $cgi->param('webkey') } );
 	  if (scalar(@$pref)) {
