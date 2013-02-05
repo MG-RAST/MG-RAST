@@ -34,7 +34,9 @@ sub authenticate {
 	print STDERR "could not reach auth server: $@\n";
 	exit;
       } else {
-	print $cgi->header();
+	print $cgi->header(-type => 'application/json',
+		       -status => 200,
+		       -Access_Control_Allow_Origin => '*' );
 	print "{ token: '".$ustruct->{access_token}."' }";
 	exit;
       }
