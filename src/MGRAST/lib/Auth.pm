@@ -37,7 +37,7 @@ sub authenticate {
 	print $cgi->header(-type => 'application/json',
 		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );
-	print "{ token: '".$ustruct->{access_token}."' }";
+	print '{ "token": "'.$ustruct->{access_token}.'" }';
 	exit;
       }
     }
