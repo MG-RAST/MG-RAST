@@ -4,6 +4,7 @@ use CGI;
 use JSON;
 use Conf;
 use Data::Dumper;
+use URI::Escape;
 
 # create cgi and json objects
 my $cgi  = new CGI;
@@ -147,7 +148,8 @@ if ($resource) {
     } else {
       # check for kbase ids
       if (scalar(@rest_parameters)) {
-	$rest_parameters[0] =~ s/^kb\|[a..zA..Z]{3}(.+)$/$1/;
+	$rest_parameters[0] = uri_unescape($rest_parameters[0]);
+	$rest_parameters[0] =~ s/^kb\|(.+)$/$1/;
       }
 
       # create params hash
