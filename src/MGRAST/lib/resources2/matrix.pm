@@ -25,52 +25,52 @@ sub new {
     $self->{org2tax} = {};
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{hierarchy} = { organism => [ ['strain', 'bottom organism taxanomic level'],
-				                         ['species', 'organism type level'],
-				                         ['genus', 'organism taxanomic level'],
-				                         ['family', 'organism taxanomic level'],
-				                         ['order', 'organism taxanomic level'],
-				                         ['class', 'organism taxanomic level'],
-				                         ['phylum', 'organism taxanomic level'],
-				                         ['domain', 'top organism taxanomic level'] ],
-				           ontology => [ ['function', 'bottom function ontology level'],
+                                                         ['species', 'organism type level'],
+                                                         ['genus', 'organism taxanomic level'],
+                                                         ['family', 'organism taxanomic level'],
+                                                         ['order', 'organism taxanomic level'],
+                                                         ['class', 'organism taxanomic level'],
+                                                         ['phylum', 'organism taxanomic level'],
+                                                         ['domain', 'top organism taxanomic level'] ],
+                                           ontology => [ ['function', 'bottom function ontology level'],
                                          ['level3', 'function ontology level' ],
                                          ['level2', 'function ontology level' ],
-                          	             ['level1', 'top function ontology level'] ]
+                                               ['level1', 'top function ontology level'] ]
                          };
     $self->{sources} = { organism => [ ["M5NR", "comprehensive protein database"],
                                        ["RefSeq", "protein database"],
-		                               ["SwissProt", "protein database"],
-		                               ["GenBank", "protein database"],
-		                               ["IMG", "protein database"],
-		                               ["SEED", "protein database"],
-		                               ["TrEMBL", "protein database"],
-		                               ["PATRIC", "protein database"],
-		                               ["KEGG", "protein database"],
-		                               ["M5RNA", "comprehensive RNA database"],
-							           ["RDP", "RNA database"],
-							           ["Greengenes", "RNA database"],
-				                       ["LSU", "RNA database"],
-			                           ["SSU", "RNA database"] ],
-			             ontology => [ ["Subsystems", "ontology database, type function only"],
-		                               ["NOG", "ontology database, type function only"],
-					                   ["COG", "ontology database, type function only"],
-					                   ["KO", "ontology database, type function only"] ]
-			             };
+                                               ["SwissProt", "protein database"],
+                                               ["GenBank", "protein database"],
+                                               ["IMG", "protein database"],
+                                               ["SEED", "protein database"],
+                                               ["TrEMBL", "protein database"],
+                                               ["PATRIC", "protein database"],
+                                               ["KEGG", "protein database"],
+                                               ["M5RNA", "comprehensive RNA database"],
+                                                                   ["RDP", "RNA database"],
+                                                                   ["Greengenes", "RNA database"],
+                                                       ["LSU", "RNA database"],
+                                                   ["SSU", "RNA database"] ],
+                                     ontology => [ ["Subsystems", "ontology database, type function only"],
+                                               ["NOG", "ontology database, type function only"],
+                                                           ["COG", "ontology database, type function only"],
+                                                           ["KO", "ontology database, type function only"] ]
+                                     };
     $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
-    	                    "format"               => [ 'string', 'format specification name' ],
-    	                    "format_url"           => [ 'string', 'url to the format specification' ],
-    	                    "type"                 => [ 'string', 'type of the data in the return table (taxon, function or gene)' ],
-    	                    "generated_by"         => [ 'string', 'identifier of the data generator' ],
-    	                    "date"                 => [ 'date', 'time the output data was generated' ],
-    	                    "matrix_type"          => [ 'string', 'type of the data encoding matrix (dense or sparse)' ],
-    	                    "matrix_element_type"  => [ 'string', 'data type of the elements in the return matrix' ],
-    	                    "matrix_element_value" => [ 'string', 'result_type of the elements in the return matrix' ],
-    	                    "shape"                => [ 'list', ['integer', 'list of the dimension sizes of the return matrix'] ],
-    	                    "rows"                 => [ 'list', ['object', [{'id'       => ['string', 'unique annotation text'],
-    						                                                 'metadata' => ['hash', 'key value pairs describing metadata']}, "rows object"]] ],
-    	                    "columns"              => [ 'list', ['object', [{'id'       => ['string', 'unique metagenome identifier'],
-    							                                             'metadata' => ['hash', 'key value pairs describing metadata']}, "columns object"]] ],
-    	                    "data"                 => [ 'list', ['list', ['float', 'the matrix values']] ]
+                                "format"               => [ 'string', 'format specification name' ],
+                                "format_url"           => [ 'string', 'url to the format specification' ],
+                                "type"                 => [ 'string', 'type of the data in the return table (taxon, function or gene)' ],
+                                "generated_by"         => [ 'string', 'identifier of the data generator' ],
+                                "date"                 => [ 'date', 'time the output data was generated' ],
+                                "matrix_type"          => [ 'string', 'type of the data encoding matrix (dense or sparse)' ],
+                                "matrix_element_type"  => [ 'string', 'data type of the elements in the return matrix' ],
+                                "matrix_element_value" => [ 'string', 'result_type of the elements in the return matrix' ],
+                                "shape"                => [ 'list', ['integer', 'list of the dimension sizes of the return matrix'] ],
+                                "rows"                 => [ 'list', ['object', [{'id'       => ['string', 'unique annotation text'],
+                                                                                                     'metadata' => ['hash', 'key value pairs describing metadata']}, "rows object"]] ],
+                                "columns"              => [ 'list', ['object', [{'id'       => ['string', 'unique metagenome identifier'],
+                                                                                                         'metadata' => ['hash', 'key value pairs describing metadata']}, "columns object"]] ],
+                                "data"                 => [ 'list', ['list', ['float', 'the matrix values']] ]
                           };
     return $self;
 }
@@ -80,91 +80,94 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-    		        'url' => $self->cgi->url."/".$self->name,
-    		        'description' => "A profile in biom format that contains abundance counts",
-    		        'type' => 'object',
-    		        'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
-    		        'requests' => [ { 'name'        => "info",
-    				                  'request'     => $self->cgi->url."/".$self->name,
-    				                  'description' => "Returns description of parameters and attributes.",
-    				                  'method'      => "GET" ,
-    				                  'type'        => "synchronous" ,  
-    				                  'attributes'  => "self",
-    				                  'parameters'  => { 'options'  => {},
-    						                             'required' => {},
-    						                             'body'     => {} }
-    						        },
-    						        { 'name'        => "organism",
-    				                  'request'     => $self->cgi->url."/".$self->name."/organism",
-    				                  'description' => "Returns a single data object.",
-    				                  'method'      => "GET" ,
-    				                  'type'        => "synchronous" ,  
-    				                  'attributes'  => $self->attributes,
-    				                  'parameters'  => { 'options'  => { 'evalue'   => ['int', 'exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-    				                                                     'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-    				                                                     'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-    				                                                     'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
-                      						                                                       ['evalue', 'average e-value exponent of hits in annotation'],
-                      						                                                       ['identity', 'average percent identity of hits in annotation'],
-                      						                                                       ['length', 'average alignment length of hits in annotation']] ],
-    									                                 'source' => [ 'cv', $self->{sources}{organism} ],
-    												                     'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
-    												                     'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
-    												                     'filter_source' => [ 'cv', $self->{sources}{ontology} ],
-                                                         				 'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
-                                                         				 'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ] },
-    						                             'required' => {},
-    						                             'body'     => {} }
-    						        },
-    						        { 'name'        => "function",
-    				                  'request'     => $self->cgi->url."/".$self->name."/function",
-    				                  'description' => "Returns a single data object.",
-    				                  'method'      => "GET" ,
-    				                  'type'        => "synchronous" ,  
-    				                  'attributes'  => $self->attributes,
-    				                  'parameters'  => { 'options'  => { 'evalue'   => ['int', 'exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-      				                                                     'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-      				                                                     'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-      				                                                     'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
-                        						                                                   ['evalue', 'average e-value exponent of hits in annotation'],
-                        						                                                   ['identity', 'average percent identity of hits in annotation'],
-                        						                                                   ['length', 'average alignment length of hits in annotation']] ],
-    									                                 'source' => [ 'cv', $self->{sources}{ontology} ],
-    												                     'group_level' => [ 'cv', $self->{hierarchy}{ontology} ],
-    												                     'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-    												                     'filter_source' => [ 'cv', $self->{sources}{organism} ],
-    												                     'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
-    												                     'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ] },
-    						                             'required' => {},
-    						                             'body'     => {} }
-    						        },
-    				                { 'name'        => "feature",
-    				                  'request'     => $self->cgi->url."/".$self->name."/feature",
-    				                  'description' => "Returns a single data object.",
-    				                  'method'      => "GET" ,
-    				                  'type'        => "synchronous" ,  
-    				                  'attributes'  => $self->attributes,
-    				                  'parameters'  => { 'options'  => { 'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
-                        						                                                   ['evalue', 'average e-value exponent of hits in annotation'],
-                        						                                                   ['identity', 'average percent identity of hits in annotation'],
-                        						                                                   ['length', 'average alignment length of hits in annotation']] ],
-    									                                 'source' => [ 'cv', [["RefSeq", "protein database"],
-    									                                                      ["SwissProt", "protein database"],
-                               											                      ["GenBank", "protein database"],
-                               										                          ["IMG", "protein database"],
-                               											                      ["SEED", "protein database"],
-                               								                                  ["TrEMBL", "protein database"],
-                               												                  ["PATRIC", "protein database"],
-                               									                              ["KEGG", "protein database"],
-                               									                              ["RDP", "RNA database"],
-                                                     								          ["Greengenes", "RNA database"],
-                                                     								          ["LSU", "RNA database"],
-                                                     								          ["SSU", "RNA database"]] ],
-                               									         'id' => [ "string", "one or more metagenome or project unique identifier" ],
-                               									         'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ] },
-    						                             'required' => {},
-    						                             'body'     => {} } }
-    				              ] };
+                            'url' => $self->cgi->url."/".$self->name,
+                            'description' => "A profile in biom format that contains abundance counts",
+                            'type' => 'object',
+                            'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+                            'requests' => [ { 'name'        => "info",
+                                                      'request'     => $self->cgi->url."/".$self->name,
+                                                      'description' => "Returns description of parameters and attributes.",
+                                                      'method'      => "GET" ,
+                                                      'type'        => "synchronous" ,  
+                                                      'attributes'  => "self",
+                                                      'parameters'  => { 'options'  => {},
+                                                                                 'required' => {},
+                                                                                 'body'     => {} }
+                                                            },
+                                                            { 'name'        => "organism",
+                                                      'request'     => $self->cgi->url."/".$self->name."/organism",
+                                                      'description' => "Returns a single data object.",
+                                                      'method'      => "GET" ,
+                                                      'type'        => "synchronous or asynchronous" ,  
+                                                      'attributes'  => $self->attributes,
+                                                      'parameters'  => { 'options'  => { 'evalue'   => ['int', 'exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                                                         'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                                                         'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                                                         'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+                                                                                                                   ['evalue', 'average e-value exponent of hits in annotation'],
+                                                                                                                   ['identity', 'average percent identity of hits in annotation'],
+                                                                                                                   ['length', 'average alignment length of hits in annotation']] ],
+                                                                                         'source' => [ 'cv', $self->{sources}{organism} ],
+                                                                                         'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
+                                                                                         'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
+                                                                                         'filter_source' => [ 'cv', $self->{sources}{ontology} ],
+                                                                                         'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
+                                                                                         'hide_metadata' => [ 'boolean', "if false, return metagenome metadata set in 'columns' object.  default is false." ],
+                                                                                         'asynchronous' => [ 'boolean', "if true, return token to query status resource for results.  default is false." ] },
+                                                                         'required' => {},
+                                                                         'body'     => {} }
+                                                            },
+                                                            { 'name'        => "function",
+                                                      'request'     => $self->cgi->url."/".$self->name."/function",
+                                                      'description' => "Returns a single data object.",
+                                                      'method'      => "GET" ,
+                                                      'type'        => "synchronous or asynchronous" ,  
+                                                      'attributes'  => $self->attributes,
+                                                      'parameters'  => { 'options'  => { 'evalue'   => ['int', 'exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                                                         'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                                                         'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                                                         'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+                                                                                                                   ['evalue', 'average e-value exponent of hits in annotation'],
+                                                                                                                   ['identity', 'average percent identity of hits in annotation'],
+                                                                                                                   ['length', 'average alignment length of hits in annotation']] ],
+                                                                                         'source' => [ 'cv', $self->{sources}{ontology} ],
+                                                                                         'group_level' => [ 'cv', $self->{hierarchy}{ontology} ],
+                                                                                         'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
+                                                                                         'filter_source' => [ 'cv', $self->{sources}{organism} ],
+                                                                                         'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
+                                                                                         'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
+                                                                                         'asynchronous' => [ 'boolean', "if true, return token to query status resource for results.  default is false." ] },
+                                                                         'required' => {},
+                                                                         'body'     => {} }
+                                                            },
+                                                    { 'name'        => "feature",
+                                                      'request'     => $self->cgi->url."/".$self->name."/feature",
+                                                      'description' => "Returns a single data object.",
+                                                      'method'      => "GET" ,
+                                                      'type'        => "synchronous or asynchronous" ,  
+                                                      'attributes'  => $self->attributes,
+                                                      'parameters'  => { 'options'  => { 'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+                                                                                                                   ['evalue', 'average e-value exponent of hits in annotation'],
+                                                                                                                   ['identity', 'average percent identity of hits in annotation'],
+                                                                                                                   ['length', 'average alignment length of hits in annotation']] ],
+                                                                                         'source' => [ 'cv', [["RefSeq", "protein database"],
+                                                                                                              ["SwissProt", "protein database"],
+                                                                                                              ["GenBank", "protein database"],
+                                                                                                              ["IMG", "protein database"],
+                                                                                                              ["SEED", "protein database"],
+                                                                                                              ["TrEMBL", "protein database"],
+                                                                                                              ["PATRIC", "protein database"],
+                                                                                                              ["KEGG", "protein database"],
+                                                                                                              ["RDP", "RNA database"],
+                                                                                                              ["Greengenes", "RNA database"],
+                                                                                                              ["LSU", "RNA database"],
+                                                                                                              ["SSU", "RNA database"]] ],
+                                                                                         'id' => [ "string", "one or more metagenome or project unique identifier" ],
+                                                                                         'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
+                                                                                         'asynchronous' => [ 'boolean', "if true, return token to query status resource for results.  default is false." ] },
+                                                                         'required' => {},
+                                                                         'body'     => {} } }
+                                                  ] };
     $self->return_data($content);
 }
 
@@ -211,17 +214,17 @@ sub instance {
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
             if ($m_star || exists($m_rights{$1})) {
-    	        $mgids->{$1} = 1;
+                    $mgids->{$1} = 1;
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
         } elsif ($id =~ /^mgp(\d+)$/) {
             if ($p_star || exists($p_rights{$1})) {
-    	        my $proj = $master->Project->init( {id => $1} );
-    	        foreach my $mgid (@{ $proj->metagenomes(1) }) {
-    	            next unless ($m_star || exists($m_rights{$mgid}));
-    	            $mgids->{$mgid} = 1;
-    	        }
+                    my $proj = $master->Project->init( {id => $1} );
+                    foreach my $mgid (@{ $proj->metagenomes(1) }) {
+                        next unless ($m_star || exists($m_rights{$mgid}));
+                        $mgids->{$mgid} = 1;
+                    }
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
@@ -237,9 +240,30 @@ sub instance {
     # return cached if exists
     $self->return_cached();
     
-    # prepare data
-    my $data = $self->prepare_data([keys %$mgids], $type);
-    $self->return_data($data, undef, 1); # cache this!
+    # if asynchronous call, fork the process and return the token (process id).  otherwise, prepare and return data.
+    if($self->cgi->param('asynchronous')) {
+        my $pid = fork();
+        # child - get data and dump it
+        if ($pid == 0) {
+            my $fname = $Conf::temp.'/'.$$.'.json';
+            close STDERR;
+            close STDOUT;
+            my $data = $self->prepare_data([keys %$mgids], $type);
+            open(FILE, ">$fname");
+            print FILE $self->json->encode($data);
+            close FILE;
+            exit 0;
+        }
+        # parent - end html session
+        else {
+            my $fname = $Conf::temp.'/'.$pid.'.json';
+            $self->return_data({"token" => $pid, "status_url" => $self->cgi->url."/status/".$pid});
+        }
+    } else {
+        # prepare data
+        my $data = $self->prepare_data([keys %$mgids], $type);
+        $self->return_data($data, undef, 1); # cache this!
+    }
 }
 
 # reformat the data into the requested output format
@@ -261,7 +285,7 @@ sub prepare_data {
     my $leaf_node = 0;
     my $matrix_id = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen));
     if (@filter > 0) {
-	    $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc;
+            $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc;
     }
 
     # initialize analysis obj with mgids
@@ -285,15 +309,15 @@ sub prepare_data {
 
     # controlled vocabulary set
     my $result_idx = { abundance => {function => 3, organism => 10, feature => 2},
-    		           evalue    => {function => 5, organism => 12, feature => 3},
-    		           length    => {function => 7, organism => 14, feature => 5},
-    		           identity  => {function => 9, organism => 16, feature => 7}
-    		         };
+                               evalue    => {function => 5, organism => 12, feature => 3},
+                               length    => {function => 7, organism => 14, feature => 5},
+                               identity  => {function => 9, organism => 16, feature => 7}
+                             };
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
     my @func_hier  = map { $_->[0] } @{$self->{hierarchy}{ontology}};
     my @org_hier   = map { $_->[0] } @{$self->{hierarchy}{organism}};
     my $type_set   = ["function", "organism", "feature"];
-    		         
+                             
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
         $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 500);
@@ -304,8 +328,8 @@ sub prepare_data {
         if ( grep(/^$glvl$/, @org_hier) ) {
             $glvl = 'tax_'.$glvl;
             if ($glvl eq 'tax_strain') {
-  	            $glvl = 'name';
-  	            $leaf_node = 1;
+                      $glvl = 'name';
+                      $leaf_node = 1;
             }
         } else {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @org_hier)."]"}, 500);
@@ -314,11 +338,11 @@ sub prepare_data {
         map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
         if ( grep(/^$glvl$/, @func_hier) ) {
             if ($glvl eq 'function') {
-  	            $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
-  	            $leaf_node = 1;
+                      $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
+                      $leaf_node = 1;
             }
             if ( ($source =~ /^[NC]OG$/) && ($glvl eq 'level3') ) {
-  	            $leaf_node = 1;
+                      $leaf_node = 1;
             }
         } else {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @func_hier)."]"}, 500);
@@ -412,20 +436,20 @@ sub prepare_data {
     }
     
     my $obj = { "id"                   => $matrix_id,
-  		        "format"               => "Biological Observation Matrix 1.0",
-  		        "format_url"           => "http://biom-format.org",
-  		        "type"                 => $ttype." table",
-  		        "generated_by"         => "MG-RAST revision ".$Conf::server_version,
-  		        "date"                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-  		        "matrix_type"          => "sparse",
-  		        "matrix_element_type"  => ($rtype eq 'abundance') ? "int" : "float",
-  		        "matrix_element_value" => $rtype,
-  		        "shape"                => [ scalar(keys %$row_ids), scalar(keys %$col_ids) ],
-  		        "rows"                 => $brows,
-  		        "columns"              => $bcols,
-  		        "data"                 => $self->index_sparse_matrix($matrix, $row_ids, $col_ids)
-  		      };
-  		      
+                          "format"               => "Biological Observation Matrix 1.0",
+                          "format_url"           => "http://biom-format.org",
+                          "type"                 => $ttype." table",
+                          "generated_by"         => "MG-RAST revision ".$Conf::server_version,
+                          "date"                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+                          "matrix_type"          => "sparse",
+                          "matrix_element_type"  => ($rtype eq 'abundance') ? "int" : "float",
+                          "matrix_element_value" => $rtype,
+                          "shape"                => [ scalar(keys %$row_ids), scalar(keys %$col_ids) ],
+                          "rows"                 => $brows,
+                          "columns"              => $bcols,
+                          "data"                 => $self->index_sparse_matrix($matrix, $row_ids, $col_ids)
+                        };
+                        
     return $obj;
 }
 
