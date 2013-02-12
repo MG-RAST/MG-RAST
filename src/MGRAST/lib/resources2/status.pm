@@ -50,37 +50,37 @@ sub info {
                                                                                  [['full','returns all connected metadata'],
                                                                                   ['minimal','returns only minimal information']]]
                                                                                },
-                                                                 'required' => { "token" => ["string","unique process token"] },
+                                                                 'required' => { "id" => ["string","unique process id"] },
                                                                  'body'     => {} }
                                             } ] };
     $self->return_data($content);
 }
 
-# the resource is called with a token parameter
+# the resource is called with an id parameter
 sub instance {
     my ($self) = @_;
     
-    # check token format
+    # check id format
     my $rest = $self->rest;
-    my ($token) = $rest->[0] =~ /^(\d+)$/;
-    if ((! $token) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid token format: " . $rest->[0]}, 400 );
+    my ($id) = $rest->[0] =~ /^(\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid process id format: " . $rest->[0]}, 400 );
     }
 
-    my $process_status = `/bin/ps --no-heading -p $token`;
+    my $process_status = `/bin/ps --no-heading -p $id`;
     chomp $process_status;
 
-    my $fname = $Conf::temp.'/'.$token.'.json';
+    my $fname = $Conf::temp.'/'.$id.'.json';
 
     if($process_status eq "" && !(-e $fname)) {
-        $self->return_data( {"ERROR" => "token $token does not exist"}, 404 );
+        $self->return_data( {"ERROR" => "process id $id does not exist"}, 404 );
     }
 
     # return cached if exists
     $self->return_cached();
 
     # prepare data
-    my $data = $self->prepare_data($token, $process_status, $fname);
+    my $data = $self->prepare_data($id, $process_status, $fname);
     if($data->{status} eq "Done") {
         $self->return_data($data, undef, 1); # cache this!
     } else {
@@ -90,18 +90,21 @@ sub instance {
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $token, $process_status, $fname) = @_;
+    my ($self, $id, $process_status, $fname) = @_;
 
     my $obj = {};
     if ($process_status ne "") {
-        $obj->{token} = $token;
+        $obj->{id} = $id;
         $obj->{status} = "Processing";
-    } elsif ($process_status eq "" && $self->cgi->param('verbosity') && ($self->cgi->param('verbosity') ne 'minimal')) {
-        $obj->{token} = $token;
+        $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
+    } elsif ($process_status eq "" && $self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'minimal')) {
+        $obj->{id} = $id;
         $obj->{status} = "Done";
+        $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
     } else {
-        $obj->{token} = $token;
+        $obj->{id} = $id;
         $obj->{status} = "Done";
+        $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
         local $/;
         open my $fh, "<", $fname;
         my $json = <$fh>;
