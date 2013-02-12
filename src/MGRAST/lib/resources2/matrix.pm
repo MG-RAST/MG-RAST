@@ -113,7 +113,7 @@ sub info {
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if false, return metagenome metadata set in 'columns' object.  default is false." ],
-                                                                                         'asynchronous' => [ 'boolean', "if true, return token to query status resource for results.  default is false." ] },
+                                                                                         'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
                                                                          'required' => {},
                                                                          'body'     => {} }
                                                             },
@@ -136,7 +136,7 @@ sub info {
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
-                                                                                         'asynchronous' => [ 'boolean', "if true, return token to query status resource for results.  default is false." ] },
+                                                                                         'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
                                                                          'required' => {},
                                                                          'body'     => {} }
                                                             },
@@ -164,7 +164,7 @@ sub info {
                                                                                                               ["SSU", "RNA database"]] ],
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
-                                                                                         'asynchronous' => [ 'boolean', "if true, return token to query status resource for results.  default is false." ] },
+                                                                                         'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
                                                                          'required' => {},
                                                                          'body'     => {} } }
                                                   ] };
@@ -240,7 +240,7 @@ sub instance {
     # return cached if exists
     $self->return_cached();
     
-    # if asynchronous call, fork the process and return the token (process id).  otherwise, prepare and return data.
+    # if asynchronous call, fork the process and return the process id.  otherwise, prepare and return data.
     if($self->cgi->param('asynchronous')) {
         my $pid = fork();
         # child - get data and dump it
@@ -257,7 +257,7 @@ sub instance {
         # parent - end html session
         else {
             my $fname = $Conf::temp.'/'.$pid.'.json';
-            $self->return_data({"token" => $pid, "status_url" => $self->cgi->url."/status/".$pid});
+            $self->return_data({"status" => "Submitted", "id" => $pid, "url" => $self->cgi->url."/status/".$pid});
         }
     } else {
         # prepare data
