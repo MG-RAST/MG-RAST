@@ -25,8 +25,8 @@ my $alen   = undef;
 my $fsrc   = "";
 my @filter = ();
 my $mgids  = "";
-
-my $usage = q(
+my $no_md  = 0;
+my $usage  = q(
                        "annot_type=s"    => \$type,
     		           "source:s"        => \$source,
     		           "result_type:s"   => \$rtype,
@@ -37,6 +37,7 @@ my $usage = q(
     		           "filter:s"        => \@filter,
     		           'filter_source:s' => \$fsrc,
     		           'mgids:s'         => \$mgids,
+	                   'no_metadata!'    => \$no_md,
     		           'output:s'        => \$output
 );
 
@@ -51,6 +52,7 @@ if ( ! GetOptions( "annot_type=s"    => \$type,
 		           "filter:s"        => \@filter,
 		           'filter_source:s' => \$fsrc,
 		           'mgids:s'         => \$mgids,
+		           'no_metadata!'    => \$no_md,
 		           'output:s'        => \$output
                  ) )
   { die "missing parameters"; }
@@ -72,6 +74,7 @@ $eval   = defined($eval) ? $eval : 5;
 $ident  = defined($ident) ? $ident : 60;
 $alen   = defined($alen) ? $alen : 15;
 $fsrc   = $fsrc ? $fsrc : (($type eq 'organism') ? 'Subsystems' : 'M5NR');
+$no_md  = $no_md ? 1 : 0;
 
 my $all_srcs  = {};
 my $leaf_node = 0;
@@ -245,7 +248,7 @@ foreach my $rid (sort {$row_ids->{$a} <=> $row_ids->{$b}} keys %$row_ids) {
     push @$brows, { id => $rid, metadata => $rmd };
 }
 my $mddb = MGRAST::Metadata->new();
-my $meta = $mddb->get_jobs_metadata_fast(\@data, 1);
+my $meta = $no_md ? {} : $mddb->get_jobs_metadata_fast(\@data, 1);
 my $name = $mgdb->_name_map();
 foreach my $cid (sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids) {
     my $cmd = exists($meta->{$cid}) ? $meta->{$cid} : undef;
