@@ -224,7 +224,20 @@ sub prepare_data {
             	if ($@) {
             	  $obj->{library} = undef;
             	}
-            } elsif ($self->cgi->param('verbosity') ne 'minimal') {
+            } elsif ($self->cgi->param('verbosity') eq 'migs') {
+	      my $md = $jobdata->{$job->{metagenome_id}};
+	      $obj->{project} = ($md->{project} && $md->{project}->{name}) ? $md->{project}->{name} : "-";
+	      $obj->{latitude} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{latitude}) ? $md->{sample}->{data}->{latitude} : "-";
+	      $obj->{longitude} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{longitude}) ? $md->{sample}->{data}->{longitude} : "-";
+	      $obj->{country} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{country}) ? $md->{sample}->{data}->{country} : "-";
+	      $obj->{location} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{location}) ? $md->{sample}->{data}->{location} : "-";
+	      $obj->{collection_date} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{collection_date}) ? $md->{sample}->{data}->{collection_date} : "-";
+	      $obj->{biome} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{biome}) ? $md->{sample}->{data}->{biome} : "-";
+	      $obj->{feature} =  ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{feature}) ? $md->{sample}->{data}->{feature} : "-";
+	      $obj->{material} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{material}) ? $md->{sample}->{data}->{material} : "-";
+	      $obj->{package} = ($md->{env_package} && $md->{env_package}->{name}) ? $md->{env_package}->{name} : "-";
+	      $obj->{seq_method} = ($md->{library} && $md->{library}->{data} && $md->{library}->{data}->{seq_meth}) ? $md->{library}->{data}->{seq_meth} : "-";
+	    } elsif ($self->cgi->param('verbosity') ne 'minimal') {
                 return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
             }
         }
