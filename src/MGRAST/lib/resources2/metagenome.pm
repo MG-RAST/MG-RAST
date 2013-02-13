@@ -237,6 +237,7 @@ sub prepare_data {
 	      $obj->{material} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{material}) ? $md->{sample}->{data}->{material} : "-";
 	      $obj->{package} = ($md->{env_package} && $md->{env_package}->{name}) ? $md->{env_package}->{name} : "-";
 	      $obj->{seq_method} = ($md->{library} && $md->{library}->{data} && $md->{library}->{data}->{seq_meth}) ? $md->{library}->{data}->{seq_meth} : "-";
+	      $obj->{sequence_type} = $job->{sequence_type};
 	    } elsif ($self->cgi->param('verbosity') ne 'minimal') {
                 return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
             }
