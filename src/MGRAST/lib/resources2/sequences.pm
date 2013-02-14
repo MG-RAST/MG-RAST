@@ -17,7 +17,7 @@ sub new {
     # Add name / attributes
     $self->{name}       = "sequences";
     $self->{attributes} = { "id"      => [ 'string', 'unique object identifier' ],
-    	                    "data"    => [ 'list',  [ 'hash', 'a hash of data_type to list of sequences' ] ],
+    	                    "data"    => [ 'hash', 'data type pointing at lists of sequences' ],
     	                    "version" => [ 'integer', 'version of the object' ],
     	                    "url"     => [ 'uri', 'resource location of this object instance' ] };
     return $self;
@@ -39,8 +39,8 @@ sub info {
 				      'type'        => "synchronous" ,  
 				      'attributes'  => "self",
 				      'parameters'  => { 'options'     => {},
-							             'required'    => {},
-							             'body'        => {} } },
+							 'required'    => {},
+							 'body'        => {} } },
 				    { 'name'        => "md5",
 				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
 				      'description' => "Returns a single data object.",
@@ -105,10 +105,12 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get data
-    my $job = $master->Job->init( {metagenome_id => $id, viewable => 1} );
-    unless ($job && ref($job)) {
+    my $job = $master->Job->get_objects( {metagenome_id => $id, viewable => 1} );
+    unless ($job && scalar(@$job)) {
         $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
-    }
+    } else {
+        $job = $job->[0];
+    }  
     
     # check rights
     unless ($job->{public} || $self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id})) {
