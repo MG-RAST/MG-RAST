@@ -587,6 +587,8 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 }
 
 # If we get here, this is an actual upload
+# Must be careful in handling the $filename variable since it may contain spaces or
+#  other funny characters because it isn't validated at this point yet.
 my $filename = $cgi->param('filename');
 my $fh = $cgi->upload('upload_file')->handle;
 my $bytesread;
@@ -594,21 +596,21 @@ my $buffer;
 
 # check if file already exists
 if (-f "$udir/".$filename && ! -f "$udir/$filename.part") {
-    if(-f "$udir/$filename") { `rm $udir/$filename`; }
-    if(-f "$udir/$filename.lock") { `rm $udir/$filename.lock`; }
-    if(-f "$udir/$filename.stats_info") { `rm $udir/$filename.stats_info`; }
-    if(-f "$udir/$filename.error_log") { `rm $udir/$filename.error_log`; }
+    if(-f "$udir/$filename") { `rm "$udir/$filename"`; }
+    if(-f "$udir/$filename.lock") { `rm "$udir/$filename.lock"`; }
+    if(-f "$udir/$filename.stats_info") { `rm "$udir/$filename.stats_info"`; }
+    if(-f "$udir/$filename.error_log") { `rm "$udir/$filename.error_log"`; }
 }
 
 my $lock_file = "$udir/$filename.lock";
-`echo "uploading" > $lock_file`;
+`echo "uploading" > "$lock_file"`;
 
 if (open(FH, ">>$udir/".$filename)) {
     while ($bytesread = $fh->read($buffer,1024)) {
         print FH $buffer;
     }
     close FH;
-    `touch $udir/$filename.part`;
+    `touch "$udir/$filename.part"`;
 }
 
 # return a message to the sender
@@ -617,8 +619,8 @@ print "Content-Type: text/plain\n\n";
 # if this is the last chunk, remove the partial file
 if ($cgi->param('last_chunk')) {
     print "file received";
-    if(-f "$udir/$filename.part") { `rm $udir/$filename.part`; }
-    if(-f "$udir/$filename.lock") { `rm $udir/$filename.lock`; }
+    if(-f "$udir/$filename.part") { `rm "$udir/$filename.part"`; }
+    if(-f "$udir/$filename.lock") { `rm "$udir/$filename.lock"`; }
 } else {
     print "chunk received";
 }
