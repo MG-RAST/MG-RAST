@@ -93,7 +93,7 @@ sub info {
 						       'body'        => {} } }
 				]
 		};
-    $self->return_data($content);
+  $self->return_data($content);
 }
 
 # the resource is called with an id parameter
