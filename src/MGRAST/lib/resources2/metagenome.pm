@@ -178,7 +178,7 @@ sub prepare_data {
     my ($self, $data) = @_;
 
     my $jobdata = {};
-    if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') ne 'minimal')) {
+    if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
         use MGRAST::Metadata;
         my $jids = [];
         @$jids   = map { $_->{metagenome_id} } @$data;
@@ -197,22 +197,53 @@ sub prepare_data {
         $obj->{created} = $job->{created_on};
 
         if ($self->cgi->param('verbosity')) {
-            if ($self->cgi->param('verbosity') eq 'full') {
-                $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
+            if (($self->cgi->param('verbosity') eq 'migs') || ($self->cgi->param('verbosity') eq 'full')) {
+                my $migs = {};
+		        $migs->{project} = '-';
+		        eval {
+		            $migs->{project} = $job->primary_project->{name};
+		        };
+	            my $lat_lon  = $job->lat_lon;
+	            my $country  = $job->country;
+	            my $location = $job->location;
+	            my $col_date = $job->collection_date;
+	            my $biome    = $job->biome;
+	            my $feature  = $job->feature;
+	            my $material = $job->material;
+	            my $package  = $job->env_package_type;
+	            my $seq_type = $job->seq_type;
+	            my $seq_method = $job->seq_method;
+	            $migs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "-";
+	            $migs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "-";
+	            $migs->{country} = $country ? $country : "-";
+	            $migs->{location} = $location ? $location : "-";
+	            $migs->{collection_date} = $col_date ? $col_date : "-";
+	            $migs->{biome} = $biome ? $biome : "-";
+	            $migs->{feature} =  $feature ? $feature : "-";
+	            $migs->{material} = $material ? $material : "-";
+	            $migs->{package} = $package ? $package : "-";
+	            $migs->{seq_method} = $seq_method ? $seq_method : "-";
+	            $migs->{sequence_type} = $seq_type ? $seq_type : "-";
+	            if ($self->cgi->param('verbosity') eq 'full') {
+	                $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
+	                $obj->{migs} = $migs;
+	            } else {
+	                @$obj{ keys %$migs } = values %$migs;
+	            }
             }
             if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full')) {
                 my $proj;
-		eval {
-		  $proj = $job->primary_project;
-		};
+		        eval {
+		            $proj = $job->primary_project;
+		        };
                 my $samp;
-		eval {
-		  $samp = $job->sample;
-		};
+		        eval {
+		            $samp = $job->sample;
+		        };
                 my $lib;
-		eval {
-		  $lib = $job->library;
-		};
+		        eval {
+		            $lib = $job->library;
+		        };
                 $obj->{sequence_type} = $job->{sequence_type};
                 $obj->{version} = 1;
                 $obj->{project} = $proj ? ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}] : undef;
@@ -224,22 +255,6 @@ sub prepare_data {
             	if ($@) {
             	  $obj->{library} = undef;
             	}
-            } elsif ($self->cgi->param('verbosity') eq 'migs') {
-	      my $md = $jobdata->{$job->{metagenome_id}};
-	      $obj->{project} = ($md->{project} && $md->{project}->{name}) ? $md->{project}->{name} : "-";
-	      $obj->{latitude} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{latitude}) ? $md->{sample}->{data}->{latitude} : "-";
-	      $obj->{longitude} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{longitude}) ? $md->{sample}->{data}->{longitude} : "-";
-	      $obj->{country} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{country}) ? $md->{sample}->{data}->{country} : "-";
-	      $obj->{location} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{location}) ? $md->{sample}->{data}->{location} : "-";
-	      $obj->{collection_date} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{collection_date}) ? $md->{sample}->{data}->{collection_date} : "-";
-	      $obj->{biome} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{biome}) ? $md->{sample}->{data}->{biome} : "-";
-	      $obj->{feature} =  ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{feature}) ? $md->{sample}->{data}->{feature} : "-";
-	      $obj->{material} = ($md->{sample} && $md->{sample}->{data} && $md->{sample}->{data}->{material}) ? $md->{sample}->{data}->{material} : "-";
-	      $obj->{package} = ($md->{env_package} && $md->{env_package}->{name}) ? $md->{env_package}->{name} : "-";
-	      $obj->{seq_method} = ($md->{library} && $md->{library}->{data} && $md->{library}->{data}->{seq_meth}) ? $md->{library}->{data}->{seq_meth} : "-";
-	      $obj->{sequence_type} = $job->{sequence_type};
-	    } elsif ($self->cgi->param('verbosity') ne 'minimal') {
-                return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
             }
         }
         push @$objects, $obj;
