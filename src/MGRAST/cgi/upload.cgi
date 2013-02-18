@@ -428,23 +428,11 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	foreach my $ufile (@ufiles) {
 
 	    # check for sane filenames
-	    if ($ufile !~ /^[\/\w\.\-]+$/) {
-		my $newfilename = $ufile;
-		$newfilename =~ s/[^\/\w\.\-]+/_/g;
-		my $count = 1;
-		while (-f "$udir/$newfilename") {
-		    if ($count == 1) {
-			$newfilename =~ s/^(.*)(\..*)$/$1$count$2/;
-		    } else {
-			my $oldcount = $count - 1;
-			$newfilename =~ s/^(.*)$oldcount(\..*)$/$1$count$2/;
-		    }
-		    $count++;
-		}
-		`mv '$udir/$ufile' '$udir/$newfilename'`;
-		push(@{$data->[0]->{popup_messages}}, "The file '$ufile' contained invalid characters. It has been renamed to '$newfilename'.\n\nWARNING\nIf this is a sequence file associated with a library in your metadata, you will have to adjust the library file_name or metagenome_name in the metadata file!");
-		$ufile = $newfilename;
-	    }
+            my $old_filename = $ufile;
+            $ufile = &sanitize_filename($ufile);
+            if($old_filename ne $ufile) {
+                push(@{$data->[0]->{popup_messages}}, "The file '$old_filename' contained invalid characters. It has been renamed to '$ufile'.\n\nWARNING\nIf this is a sequence file associated with a library in your metadata, you will have to adjust the library file_name or metagenome_name in the metadata file!");
+            }
 	    
 	    # check directories
 	    if (-d "$udir/$ufile") {
@@ -590,6 +578,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 # Must be careful in handling the $filename variable since it may contain spaces or
 #  other funny characters because it isn't validated at this point yet.
 my $filename = $cgi->param('filename');
+$filename = &sanitize_filename($filename);
 my $fh = $cgi->upload('upload_file')->handle;
 my $bytesread;
 my $buffer;
@@ -630,6 +619,31 @@ exit 0;
 ############################
 # start of methods section #
 ############################
+
+# return sanitized filenames
+sub sanitize_filename {
+  my($file) = @_;
+  if($file !~ /^[\/\w\.\-]+$/) {
+    my $newfilename = $file;
+    $newfilename =~ s/[^\/\w\.\-]+/_/g;
+    my $count = 1;
+    while (-f "$udir/$newfilename") {
+      if ($count == 1) {
+        $newfilename =~ s/^(.*)(\..*)$/$1$count$2/;
+      } else {
+        my $oldcount = $count - 1;
+        $newfilename =~ s/^(.*)$oldcount(\..*)$/$1$count$2/;
+      }
+        $count++;
+    }
+    # If the file already exists, it is moved.
+    if(-e "$udir/$file") {
+      rename("$udir/$file", "$udir/$newfilename");
+    }
+    $file = $newfilename;
+  }
+  return $file;
+}
 
 # check if the user directory exists, if not create it
 sub initialize_user_dir {
