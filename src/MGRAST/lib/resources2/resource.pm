@@ -68,14 +68,13 @@ sub new {
 sub get_url_id {
     my ($cgi, $resource, $rest, $rpc) = @_;
     my $rurl = $cgi->url(-relative=>1).$resource;
-    my @params = $cgi->param;    
+    my %params = map { $_ => [$cgi->param($_)] } $cgi->param;
     foreach my $r (@$rest) {
         $rurl .= $r;
     }
-    foreach my $p (sort @params) {
+    foreach my $p (sort keys %params) {
         next if ($p eq 'auth');
-        my @values = $cgi->param($p) || ();
-        $rurl .= $p.join("", sort @values);
+        $rurl .= $p.join("", sort @{$params{$p}});
     }
     if ($rpc) {
         $rurl .= 'jsonrpc';
