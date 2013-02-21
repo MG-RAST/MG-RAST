@@ -64,7 +64,7 @@ sub info {
 				    'type'        => "synchronous" ,  
 				    'attributes'  => $self->attributes,
 				    'parameters'  => { 'options' => {
-				                      'evalue'   => ['int', 'exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+				                      'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
       				                  'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
       				                  'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
 									  'type' => [ 'cv', [ ['organism', 'return organism data'],
@@ -93,7 +93,7 @@ sub info {
 						       'body'        => {} } }
 				]
 		};
-    $self->return_data($content);
+  $self->return_data($content);
 }
 
 # the resource is called with an id parameter
