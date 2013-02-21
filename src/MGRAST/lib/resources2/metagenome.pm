@@ -170,7 +170,10 @@ sub query {
     # check for pagination
     $data = $self->check_pagination($data, $total, $limit);
 
-    $self->return_data($data);
+    # return cached if exists
+    $self->return_cached();
+
+    $self->return_data($data, undef, 1);
 }
 
 # reformat the data into the requested output format
