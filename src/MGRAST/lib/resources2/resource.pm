@@ -21,7 +21,7 @@ sub new {
     my $agent = LWP::UserAgent->new;
     my $memd  = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
     my $json  = new JSON;
-    my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc});
+    my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
     $json = $json->utf8();
     $json->max_size(0);
     $json->allow_nonref;
@@ -66,7 +66,7 @@ sub new {
 
 ### make a unique id for each resource / option combination (no auth)
 sub get_url_id {
-    my ($cgi, $resource, $rest, $rpc) = @_;
+    my ($cgi, $resource, $rest, $rpc, $user) = @_;
     my $rurl = $cgi->url(-relative=>1).$resource;
     my %params = map { $_ => [$cgi->param($_)] } $cgi->param;
     foreach my $r (@$rest) {
@@ -78,6 +78,9 @@ sub get_url_id {
     }
     if ($rpc) {
         $rurl .= 'jsonrpc';
+    }
+    if ($user) {
+        $rurl .= $user->login;
     }
     return md5_hex($rurl);
 }
