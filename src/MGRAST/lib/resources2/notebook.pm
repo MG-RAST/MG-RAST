@@ -197,9 +197,9 @@ sub prepare_data {
         $obj->{name}     = $node->{attributes}{name} || '';
         $obj->{uuid}     = $node->{attributes}{uuid};
         $obj->{created}  = $node->{attributes}{created};
-	    $obj->{status}   = ($node->{attributes}{user} eq 'public') ? 'public' : 'private';
-	    $obj->{permission} = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
-	    $obj->{description} = $node->{attributes}{description} || ''
+	$obj->{status}   = ($node->{attributes}{user} eq 'public') ? 'public' : 'private';
+	$obj->{permission} = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
+	$obj->{description} = $node->{attributes}{description} || '';
         $obj->{version}  = 1;
         $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
