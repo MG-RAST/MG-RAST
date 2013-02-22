@@ -27,7 +27,8 @@ sub new {
                             "status"   => [ 'cv', [['public', 'notebook is public'],
            										   ['private', 'notebook is private']] ],
            					"permission" => [ 'cv', [['view', 'notebook is viewable only'],
-                                 					 ['edit', 'notebook is editable']] ]
+                                 					 ['edit', 'notebook is editable']] ],
+                            "description" => [ 'string', 'descriptive text about notebook' ],
                           };
     return $self;
 }
@@ -142,7 +143,8 @@ sub instance {
                      user => $uname || 'public',
                      uuid => $self->rest->[1],
                      created => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-                     permission => 'edit'
+                     permission => 'edit',
+                     description => $node->{attributes}{description} || ''
                    };
         $file->{'metadata'} = $attr;
         my $clone = $self->set_shock_node($node->{id}.'.ipynb', $file, $attr);
@@ -195,8 +197,9 @@ sub prepare_data {
         $obj->{name}     = $node->{attributes}{name} || '';
         $obj->{uuid}     = $node->{attributes}{uuid};
         $obj->{created}  = $node->{attributes}{created};
-	    $obj->{status}   = ($node->{attributes}{user} eq 'public') ? 'public' : 'private';
-	    $obj->{permission} = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
+	$obj->{status}   = ($node->{attributes}{user} eq 'public') ? 'public' : 'private';
+	$obj->{permission} = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
+	$obj->{description} = $node->{attributes}{description} || '';
         $obj->{version}  = 1;
         $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
@@ -240,12 +243,14 @@ sub upload_notebook {
     # get notebook object and attribute object
     my $nb_obj  = $self->json->decode($nb_string);
     my $nb_user = $self->user ? $self->user->login : 'public';
+    my $nb_perm = ($nb_user eq 'public') ? 'view' : 'edit';
     my $nb_attr = { type => 'ipynb',
-                    name => $nb_obj->{metadata}{name} ? $nb_obj->{metadata}{name} : 'Untitled',
-                    user => $nb_user,
-                    uuid => $self->uuidv4(),
+                    name => $nb_obj->{metadata}{name} || 'Untitled',
+                    user => $nb_obj->{metadata}{user} || $nb_user,
+                    uuid => $nb_obj->{metadata}{uuid} || $self->uuidv4(),
                     created => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-                    permission => ($nb_user eq 'public') ? 'view' : 'edit'
+                    permission => $nb_obj->{metadata}{permission} || $nb_perm,
+                    description => $nb_obj->{metadata}{description} || ''
                   };
     $nb_obj->{'metadata'} = $nb_attr;
     
