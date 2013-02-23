@@ -236,9 +236,12 @@ sub clone_notebook {
 sub delete_notebook {
     my ($self, $uuid) = @_;
     
-    my @nb_set = sort { $a->{attributes}{created} cmp $b->{attributes}{created} } @{ $self->get_shock_query({type => 'ipynb', uuid => $uuid}) };
+    my @nb_set = sort { $b->{attributes}{created} cmp $a->{attributes}{created} } @{ $self->get_shock_query({type => 'ipynb', uuid => $uuid}) };
     my $latest = $nb_set[0];
     if ($self->user && ($self->user->login ne $latest->{attributes}{user})) {
+        $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
+    }
+    if ($latest->{attributes}{permission} eq 'view') {
         $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
     }
     my $new  = $self->clone_notebook($latest, $latest->{attributes}{uuid}, $latest->{attributes}{name}, 1);
