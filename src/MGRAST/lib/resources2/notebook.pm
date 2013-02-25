@@ -27,7 +27,8 @@ sub new {
                             "status"   => [ 'cv', [['public', 'notebook is public'],
            										   ['private', 'notebook is private']] ],
            					"permission" => [ 'cv', [['view', 'notebook is viewable only'],
-                                 					 ['edit', 'notebook is editable']] ]
+                                 					 ['edit', 'notebook is editable']] ],
+                            "description" => [ 'string', 'descriptive text about notebook' ],
                           };
     return $self;
 }
@@ -96,6 +97,15 @@ sub info {
              							                      'required' => { "id"   => ["string", "unique shock object identifier"],
              							                                      "nbid" => ["string", "unique notebook object identifier"] },
              							                      'body'     => {} } },
+             							 { 'name'        => "delete",
+              				               'request'     => $self->cgi->url."/".$self->name."/delete/{NBID}",
+              				               'description' => "Flags notebook as deleted.",
+              				               'method'      => "GET",
+              				               'type'        => "synchronous",  
+              				               'attributes'  => $self->attributes,
+              				               'parameters'  => { 'options'  => {},
+              							                      'required' => { "id" => ["string", "unique notebook object identifier"] },
+              							                      'body'     => {} } },
              							 { 'name'        => "upload",
              				               'request'     => $self->cgi->url."/".$self->name."/upload",
              				               'description' => "Upload a notebook to shock.",
@@ -119,6 +129,11 @@ sub instance {
         $self->upload_notebook();
     }
     
+    # possible delete
+    if (($self->rest->[0] eq 'delete') && (@{$self->rest} > 1)) {
+        $self->delete_notebook($self->rest->[1]);
+    }
+    
     # get data
     my $data = [];
     my $id   = $self->rest->[0];
@@ -135,24 +150,13 @@ sub instance {
 
     # clone node if requested (update shock attributes and ipynb metadata)
     if (@{$self->rest} > 1) {
-        my $file = $self->json->decode( $self->get_shock_file($node->{id}) );
-        my $name = $self->cgi->param('name') || $node->{attributes}{name}.'_copy';
-        my $attr = { type => $node->{attributes}{type} || 'ipynb',
-                     name => $name,
-                     user => $uname || 'public',
-                     uuid => $self->rest->[1],
-                     created => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-                     permission => 'edit'
-                   };
-        $file->{'metadata'} = $attr;
-        my $clone = $self->set_shock_node($node->{id}.'.ipynb', $file, $attr);
+        my $clone = $self->clone_notebook($node, $self->rest->[1], $self->cgi->param('name'));
         $data = $self->prepare_data( [$clone] );
     } else {
         $data = $self->prepare_data( [$node] );
     }
     
-    $data = $data->[0];
-    $self->return_data($data);
+    $self->return_data($data->[0]);
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
@@ -195,8 +199,9 @@ sub prepare_data {
         $obj->{name}     = $node->{attributes}{name} || '';
         $obj->{uuid}     = $node->{attributes}{uuid};
         $obj->{created}  = $node->{attributes}{created};
-	    $obj->{status}   = ($node->{attributes}{user} eq 'public') ? 'public' : 'private';
+	    $obj->{status}   = (exists $node->{attributes}{deleted}) ? 'deleted' : (($node->{attributes}{user} eq 'public') ? 'public' : 'private');
 	    $obj->{permission} = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
+	    $obj->{description} = $node->{attributes}{description} || '';
         $obj->{version}  = 1;
         $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
@@ -205,6 +210,43 @@ sub prepare_data {
         push @$objects, $obj;
     }
     return $objects;
+}
+
+# copy given nb node / update attributes and metadata
+sub clone_notebook {
+    my ($self, $node, $uuid, $name, $delete) = @_;
+    
+    my $file = $self->json->decode( $self->get_shock_file($node->{id}) );
+    my $attr = { type => $node->{attributes}{type} || 'ipynb',
+                 name => $name || $node->{attributes}{name}.'_copy',
+                 user => $self->user ? $self->user->login : 'public',
+                 uuid => $uuid,
+                 created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
+                 permission => 'edit',
+                 description => $node->{attributes}{description} || ''
+               };
+    if ($delete) {
+        $attr->{deleted} = 1;
+    }
+    $file->{'metadata'} = $attr;
+    return $self->set_shock_node($node->{id}.'.ipynb', $file, $attr);
+}
+
+# delete notebook - we make a newer copy that we flag as deleted
+sub delete_notebook {
+    my ($self, $uuid) = @_;
+    
+    my @nb_set = sort { $b->{attributes}{created} cmp $a->{attributes}{created} } @{ $self->get_shock_query({type => 'ipynb', uuid => $uuid}) };
+    my $latest = $nb_set[0];
+    if ($self->user && ($self->user->login ne $latest->{attributes}{user})) {
+        $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
+    }
+    if ($latest->{attributes}{permission} eq 'view') {
+        $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
+    }
+    my $new  = $self->clone_notebook($latest, $latest->{attributes}{uuid}, $latest->{attributes}{name}, 1);
+    my $data = $self->prepare_data( [$new] );
+    $self->return_data($data->[0]);
 }
 
 # upload notebook file to shock / create metadata
@@ -240,12 +282,14 @@ sub upload_notebook {
     # get notebook object and attribute object
     my $nb_obj  = $self->json->decode($nb_string);
     my $nb_user = $self->user ? $self->user->login : 'public';
+    my $nb_perm = ($nb_user eq 'public') ? 'view' : 'edit';
     my $nb_attr = { type => 'ipynb',
-                    name => $nb_obj->{metadata}{name} ? $nb_obj->{metadata}{name} : 'Untitled',
-                    user => $nb_user,
-                    uuid => $self->uuidv4(),
-                    created => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-                    permission => ($nb_user eq 'public') ? 'view' : 'edit'
+                    name => $nb_obj->{metadata}{name} || 'Untitled',
+                    user => $nb_obj->{metadata}{user} || $nb_user,
+                    uuid => $nb_obj->{metadata}{uuid} || $self->uuidv4(),
+                    created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
+                    permission => $nb_obj->{metadata}{permission} || $nb_perm,
+                    description => $nb_obj->{metadata}{description} || ''
                   };
     $nb_obj->{'metadata'} = $nb_attr;
     
