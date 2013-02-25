@@ -221,7 +221,7 @@ sub clone_notebook {
                  name => $name || $node->{attributes}{name}.'_copy',
                  user => $self->user ? $self->user->login : 'public',
                  uuid => $uuid,
-                 created => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+                 created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                  permission => 'edit',
                  description => $node->{attributes}{description} || ''
                };
@@ -287,7 +287,7 @@ sub upload_notebook {
                     name => $nb_obj->{metadata}{name} || 'Untitled',
                     user => $nb_obj->{metadata}{user} || $nb_user,
                     uuid => $nb_obj->{metadata}{uuid} || $self->uuidv4(),
-                    created => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+                    created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                     permission => $nb_obj->{metadata}{permission} || $nb_perm,
                     description => $nb_obj->{metadata}{description} || ''
                   };

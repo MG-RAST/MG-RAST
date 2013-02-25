@@ -70,6 +70,10 @@ sub info {
                                                                                 [['minimal','returns only minimal information'],
                                                                                  ['verbose','returns a standard subselection of metadata'],
                                                                                  ['full','returns all connected metadata']] ],
+                                                                'status' => ['cv',
+                                                                             [['both','returns all data (public and private) user has access to view'],
+                                                                              ['public','returns all public data'],
+                                                                              ['private','returns private data user has access to view']] ],
                                                                 'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 'order'  => ['cv',
@@ -138,9 +142,7 @@ sub query {
 
     # get database
     my $master = $self->connect_to_datasource();
-    my $jobs   = [];
-    my $total  = 0;
-
+    
     # check pagination
     my $limit  = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') || 0;
@@ -152,16 +154,20 @@ sub query {
     if ($limit == 0) {
         $limit = 18446744073709551615;
     }
+    
     # get all items the user has access to
-    if (exists $self->rights->{'*'}) {
-        $total = $master->Job->count_all();
-        $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    my $status = $self->cgi->param('status') || "both";
+    my $mglist = [];
+    if ($status eq 'private') {
+        @$mglist = keys %{$self->rights};
+    } elsif ($status eq 'public') {
+        $mglist = $master->Job->get_public_jobs(1);
     } else {
-        my $public = $master->Job->get_public_jobs(1);
-        my $list   = join(',', (@$public, keys %{$self->rights}));
-        $total = scalar(@$public) + scalar(keys %{$self->rights});
-        $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($list) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+        @$mglist = ( @{$master->Job->get_public_jobs(1)}, keys %{$self->rights} );
     }
+    my $total = scalar(@$mglist);
+    my $mgstr = join(',', grep {$_ ne '*'} @$mglist);
+    my $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($mgstr) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
     $limit = ($limit > scalar(@$jobs)) ? scalar(@$jobs) : $limit;
     
     # prepare data to the correct output format
