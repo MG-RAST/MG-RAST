@@ -1406,12 +1406,12 @@ sub workbench_blat_output {
   my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
   my $nr_seq_data = $self->{mgdb}->ach->md5s2sequences([keys %$funcs]); # fasta text
 
-  my @fastas = ();
+  my %fastas = ();
   foreach my $s (@$mg_seq_data) {
     $s->{sequence} =~ s/(.{60})/$1\n/g;
-    push @fastas, ">".$s->{id}."\n".$s->{sequence};
+    $fastas{">".$s->{id}."\n".$s->{sequence}} = 1;
   }
-  my $fgs_infile_content = join("\n", @fastas);
+  my $fgs_infile_content = join("\n", keys %fastas);
 
   # Printing some error messages to inform users if this fails.
   foreach my $mg (@metas) {
