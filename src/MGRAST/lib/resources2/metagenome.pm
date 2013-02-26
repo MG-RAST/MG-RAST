@@ -156,17 +156,19 @@ sub query {
     }
     
     # get all items the user has access to
-    my $status = $self->cgi->param('status') || "both";
-    my $mglist = [];
+    my $status  = $self->cgi->param('status') || "both";
+    my %public  = map { $_, 1 } @{ $master->Job->get_public_jobs(1) };
+    my %private = map { $_, 1 } grep { ! exists($public{$_}) } keys %{ $self->rights };
+    my @mglist  = ();
     if ($status eq 'private') {
-        @$mglist = keys %{$self->rights};
+        @mglist = keys %private;
     } elsif ($status eq 'public') {
-        $mglist = $master->Job->get_public_jobs(1);
+        @mglist = keys %public;
     } else {
-        @$mglist = ( @{$master->Job->get_public_jobs(1)}, keys %{$self->rights} );
+        @mglist = ( keys %private, keys %public );
     }
-    my $total = scalar(@$mglist);
-    my $mgstr = join(',', grep {$_ ne '*'} @$mglist);
+    my $total = scalar(@mglist);
+    my $mgstr = join(',', grep {$_ ne '*'} @mglist);
     my $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($mgstr) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
     $limit = ($limit > scalar(@$jobs)) ? scalar(@$jobs) : $limit;
     
