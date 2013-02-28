@@ -70,6 +70,10 @@ sub info {
                                                                                 [['minimal','returns only minimal information'],
                                                                                  ['verbose','returns a standard subselection of metadata'],
                                                                                  ['full','returns all connected metadata']] ],
+                                                                'status' => ['cv',
+                                                                             [['both','returns all data (public and private) user has access to view'],
+                                                                              ['public','returns all public data'],
+                                                                              ['private','returns private data user has access to view']] ],
                                                                 'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 'order'  => ['cv',
@@ -138,9 +142,7 @@ sub query {
 
     # get database
     my $master = $self->connect_to_datasource();
-    my $jobs   = [];
-    my $total  = 0;
-
+    
     # check pagination
     my $limit  = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') || 0;
@@ -152,16 +154,22 @@ sub query {
     if ($limit == 0) {
         $limit = 18446744073709551615;
     }
+    
     # get all items the user has access to
-    if (exists $self->rights->{'*'}) {
-        $total = $master->Job->count_all();
-        $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    my $status  = $self->cgi->param('status') || "both";
+    my %public  = map { $_, 1 } @{ $master->Job->get_public_jobs(1) };
+    my %private = map { $_, 1 } grep { ! exists($public{$_}) } keys %{ $self->rights };
+    my @mglist  = ();
+    if ($status eq 'private') {
+        @mglist = keys %private;
+    } elsif ($status eq 'public') {
+        @mglist = keys %public;
     } else {
-        my $public = $master->Job->get_public_jobs(1);
-        my $list   = join(',', (@$public, keys %{$self->rights}));
-        $total = scalar(@$public) + scalar(keys %{$self->rights});
-        $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($list) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+        @mglist = ( keys %private, keys %public );
     }
+    my $total = scalar(@mglist);
+    my $mgstr = join(',', grep {$_ ne '*'} @mglist);
+    my $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($mgstr) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
     $limit = ($limit > scalar(@$jobs)) ? scalar(@$jobs) : $limit;
     
     # prepare data to the correct output format
@@ -170,7 +178,10 @@ sub query {
     # check for pagination
     $data = $self->check_pagination($data, $total, $limit);
 
-    $self->return_data($data);
+    # return cached if exists
+    $self->return_cached();
+
+    $self->return_data($data, undef, 1);
 }
 
 # reformat the data into the requested output format
@@ -178,7 +189,7 @@ sub prepare_data {
     my ($self, $data) = @_;
 
     my $jobdata = {};
-    if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') ne 'minimal')) {
+    if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
         use MGRAST::Metadata;
         my $jids = [];
         @$jids   = map { $_->{metagenome_id} } @$data;
@@ -197,22 +208,53 @@ sub prepare_data {
         $obj->{created} = $job->{created_on};
 
         if ($self->cgi->param('verbosity')) {
-            if ($self->cgi->param('verbosity') eq 'full') {
-                $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
+            if (($self->cgi->param('verbosity') eq 'migs') || ($self->cgi->param('verbosity') eq 'full')) {
+                my $migs = {};
+		        $migs->{project} = '-';
+		        eval {
+		            $migs->{project} = $job->primary_project->{name};
+		        };
+	            my $lat_lon  = $job->lat_lon;
+	            my $country  = $job->country;
+	            my $location = $job->location;
+	            my $col_date = $job->collection_date;
+	            my $biome    = $job->biome;
+	            my $feature  = $job->feature;
+	            my $material = $job->material;
+	            my $package  = $job->env_package_type;
+	            my $seq_type = $job->seq_type;
+	            my $seq_method = $job->seq_method;
+	            $migs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "-";
+	            $migs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "-";
+	            $migs->{country} = $country ? $country : "-";
+	            $migs->{location} = $location ? $location : "-";
+	            $migs->{collection_date} = $col_date ? $col_date : "-";
+	            $migs->{biome} = $biome ? $biome : "-";
+	            $migs->{feature} =  $feature ? $feature : "-";
+	            $migs->{material} = $material ? $material : "-";
+	            $migs->{package} = $package ? $package : "-";
+	            $migs->{seq_method} = $seq_method ? $seq_method : "-";
+	            $migs->{sequence_type} = $seq_type ? $seq_type : "-";
+	            if ($self->cgi->param('verbosity') eq 'full') {
+	                $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
+	                $obj->{migs} = $migs;
+	            } else {
+	                @$obj{ keys %$migs } = values %$migs;
+	            }
             }
             if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full')) {
                 my $proj;
-		eval {
-		  $proj = $job->primary_project;
-		};
+		        eval {
+		            $proj = $job->primary_project;
+		        };
                 my $samp;
-		eval {
-		  $samp = $job->sample;
-		};
+		        eval {
+		            $samp = $job->sample;
+		        };
                 my $lib;
-		eval {
-		  $lib = $job->library;
-		};
+		        eval {
+		            $lib = $job->library;
+		        };
                 $obj->{sequence_type} = $job->{sequence_type};
                 $obj->{version} = 1;
                 $obj->{project} = $proj ? ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}] : undef;
@@ -224,8 +266,6 @@ sub prepare_data {
             	if ($@) {
             	  $obj->{library} = undef;
             	}
-            } elsif ($self->cgi->param('verbosity') ne 'minimal') {
-                return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
             }
         }
         push @$objects, $obj;

@@ -632,11 +632,12 @@ sub _get_annotations4level {
 
     my $key  = $get_ids ? '_id' : 'name';
     my $anns = {};
-    my $qsrc = ($src && ($type eq 'ontology')) ? " WHERE source = ".$self->_src_id->{$src} : "";
+    my $qsrc = ($src && ($type eq 'ontology')) ? "source = ".$self->_src_id->{$src} : "";
     my @cols = grep { $_ eq $level } @{ $self->_get_table_cols($tbl) };
 
     if (@cols == 1) {
-        my $rows = $self->_dbh->selectall_arrayref("SELECT DISTINCT $key, $level FROM ".$tbl.$qsrc);
+        my $where = $self->_get_where_str([$qsrc, "$level IS NOT NULL"]);
+        my $rows  = $self->_dbh->selectall_arrayref("SELECT DISTINCT $key, $level FROM ".$tbl.$where);
         if ($rows && (@$rows > 0)) {
             %$anns = map { $_->[0], $_->[1] } grep { $_->[1] && ($_->[1] =~ /\S/) } @$rows;
         }
@@ -1435,7 +1436,7 @@ sub get_organisms_for_md5s {
     unless (@$jobs) { return (\%mdata, [ map { @$_ } values %$data ]); }
 
     my %md5_set = ($md5s && (@$md5s > 0)) ? map {$_, 1} @$md5s : ();
-    my $mg_md5_abund = $self->get_md5_abundance();
+    my $mg_md5_abund = $self->get_md5_abundance($eval, $ident, $alen);
   
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
@@ -1490,12 +1491,15 @@ sub get_ontology_for_source {
 
 sub get_ontology_for_md5s {
     my ($self, $md5s, $source, $eval, $ident, $alen) = @_;
+
+    unless ($source) {
+        return ({}, [])
+    }
     
-    my $cache_key = "ontol";
+    my $cache_key = "ontol".$source;
     $cache_key .= defined($eval) ? $eval : ":";
     $cache_key .= defined($ident) ? $ident : ":";
     $cache_key .= defined($alen) ? $alen : ":";
-    $cache_key .= defined($source) ? $source : ":";
 
     my $data  = {};
     my $jobs  = [];
@@ -1519,14 +1523,14 @@ sub get_ontology_for_md5s {
     unless (@$jobs) { return (\%mdata, [ map { @$_ } values %$data ]); }
 
     my %md5_set = $qmd5s ? map {$_, 1} @$md5s : ();
-    my $mg_md5_abund = $self->get_md5_abundance();
+    my $mg_md5_abund = $self->get_md5_abundance($eval, $ident, $alen);
   
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
     my $level = "COALESCE(a.level4, a.level3) as annotation";
-    my $qsrcs = ($source) ? "j.source = ".$self->_src_id->{$source} : "";
+    my $qsrcs = "a.source = ".$self->_src_id->{$source};
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,a.name,$level,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->_jtbl->{ontology}." j, ".$self->_atbl->{ontology}." a".$where;
@@ -1592,7 +1596,7 @@ sub get_functions_for_md5s {
     unless (@$jobs) { return [ map { @$_ } values %$data ]; }
 
     my %md5_set = $qmd5s ? map {$_, 1} @$md5s : ();
-    my $mg_md5_abund = $qmd5s ? $self->get_md5_abundance() : {};
+    my $mg_md5_abund = $qmd5s ? $self->get_md5_abundance($eval, $ident, $alen) : {};
     
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "j.exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";

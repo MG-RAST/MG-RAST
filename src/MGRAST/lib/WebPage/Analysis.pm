@@ -688,7 +688,7 @@ sub phylogenetic_data {
     if ($get_m5nr) {
       while (my ($mgid, $jobid) = each %{$self->{mgdb}->_job_map}) {
 	    my $jobj  = $mgrast->Job->init( {job_id => $jobid} );
-	    my $alpha = $jobj->stats('alpha_diversity_shannon');
+	    my $alpha = $jobj->stats('alpha_diversity_shannon')->{'alpha_diversity_shannon'};
 	    my $curve = $self->{mgdb}->get_rarefaction_coords($jobid);
 	    if ($alpha)  { $mgid_alpha->{$mgid} = $alpha; }
 	    if (@$curve) { $mgid_curve->{$mgid} = $curve; }
@@ -1406,12 +1406,12 @@ sub workbench_blat_output {
   my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
   my $nr_seq_data = $self->{mgdb}->ach->md5s2sequences([keys %$funcs]); # fasta text
 
-  my @fastas = ();
+  my %fastas = ();
   foreach my $s (@$mg_seq_data) {
     $s->{sequence} =~ s/(.{60})/$1\n/g;
-    push @fastas, ">".$s->{id}."\n".$s->{sequence};
+    $fastas{">".$s->{id}."\n".$s->{sequence}} = 1;
   }
-  my $fgs_infile_content = join("\n", @fastas);
+  my $fgs_infile_content = join("\n", keys %fastas);
 
   # Printing some error messages to inform users if this fails.
   foreach my $mg (@metas) {
