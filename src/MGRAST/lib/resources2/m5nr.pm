@@ -18,26 +18,26 @@ sub new {
     # Add name / attributes
     $self->{name} = "m5nr";
     $self->{hierarchy} = { taxonomy => [ ['species', 'taxonomy level'],
-				                         ['genus', 'taxonomy level'],
-				                         ['family', 'taxonomy level'],
-				                         ['order', ' taxonomy level'],
-				                         ['class', ' taxonomy level'],
-				                         ['phylum', 'taxonomy level'],
-				                         ['domain', 'top taxonomy level'] ],
-				           ontology => [ ['function', 'bottom ontology level'],
+					 ['genus', 'taxonomy level'],
+					 ['family', 'taxonomy level'],
+					 ['order', ' taxonomy level'],
+					 ['class', ' taxonomy level'],
+					 ['phylum', 'taxonomy level'],
+					 ['domain', 'top taxonomy level'] ],
+			   ontology => [ ['function', 'bottom ontology level'],
                                          ['level3', 'ontology level' ],
                                          ['level2', 'ontology level' ],
-                          	             ['level1', 'top ontology level'] ]
-                          };
+					 ['level1', 'top ontology level'] ]
+			 };
     $self->{attributes} = { taxonomy => [ 'list', ['list', 'requested taxonomy levels, from highest to lowest'] ],
                             ontology => [ 'list', ['list', 'requested ontology levels, from highest to lowest'] ],
                             sources  => [ 'hash', [['key',   ['string', 'source name']],
-                                                     ['value', ['object', [ { 'name'        => ['string', 'source name'],
-                                                                              'description' => ['string', 'description of source'],
-                                                                              'type'        => ['string', 'type of source'],
-                                                                              'link'        => ['string', 'link for source id'] },
-                                                                            'information about source' ]]]
-                                           ]]
+						   ['value', ['object', [ { 'name'        => ['string', 'source name'],
+									    'description' => ['string', 'description of source'],
+									    'type'        => ['string', 'type of source'],
+									    'link'        => ['string', 'link for source id'] },
+									  'information about source' ]]]
+						  ]]
                           };
     return $self;
 }
@@ -46,62 +46,62 @@ sub new {
 # resource is called without any parameters
 # this method must return a description of the resource
 sub info {
-    my ($self) = @_;
-    my $content = { 'name'          => $self->name,
-                    'url'           => $self->cgi->url."/".$self->name,
-                    'description'   => "M5NR provides data through a comprehensive non-redundant protein / rRNA database",
-                    'type'          => 'object',
-                    'documentation' => '',
-                    'requests'      => [ { 'name'        => "info",
-            				               'request'     => $self->cgi->url."/".$self->name,
-            				               'description' => "Returns description of parameters and attributes.",
-            				               'method'      => "GET",
-            				               'type'        => "synchronous",  
-            				               'attributes'  => "self",
-            				               'parameters'  => { 'options'  => {},
-            							                      'required' => {},
-            							                      'body'     => {} }
-            							 },
-                                         { 'name'        => "ontology",
-                                           'request'     => $self->cgi->url."/".$self->name."/ontology",
-                                           'description' => "",
-                                           'method'      => "GET",
-                                           'type'        => "synchronous",  
-                                           'attributes'  => $self->attributes->{ontology},
-                                           'parameters'  => { 'options'  => { 'source' => ['cv', ['Subsystems', 'returns 4 level SEED-Subsystems ontology' ],
-                                                                                                 ['COG', 'returns 3 level COG ontology'],
-                                                                                                 ['NOG', 'returns 3 level NOG ontology'],
-                                                                                                 ['KO', 'returns 4 level KEGG-KO ontology' ]],
-                                                                              'min_level' => ['cv', $self->{hierarchy}{ontology}],
-                                                                              'parent_name' => ['string', 'name of ontology group to retrieve children of']
-                                                                             },
-                                                              'required' => {},
-                                                              'body'     => {} }
-                                         },
-                                         { 'name'        => "taxonomy",
-                                            'request'     => $self->cgi->url."/".$self->name."/taxonomy",
-                                            'description' => "",
-                                            'method'      => "GET",
-                                            'type'        => "synchronous",  
-                                            'attributes'  => $self->attributes->{taxonomy},
-                                            'parameters'  => { 'options'  => { 'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
-                                        				                       'parent_name' => ['string', 'name of taxanomy group to retrieve children of']
-                                                                              },
-                                                               'required' => {},
-                                                               'body'     => {} }
-                                         },
-                                         { 'name'        => "sources",
-                                           'request'     => $self->cgi->url."/".$self->name."/sources",
-                                           'description' => "",
-                                           'method'      => "GET",
-                                           'type'        => "synchronous",  
-                                           'attributes'  => $self->attributes->{sources},
-                                           'parameters'  => { 'options'  => {},
-                                                              'required' => {},
-                                                              'body'     => {} }
-                                         } ]
-                };
-    $self->return_data($content);
+  my ($self) = @_;
+  my $content = { 'name'          => $self->name,
+		  'url'           => $self->cgi->url."/".$self->name,
+		  'description'   => "M5NR provides data through a comprehensive non-redundant protein / rRNA database",
+		  'type'          => 'object',
+		  'documentation' => '',
+		  'requests'      => [ { 'name'        => "info",
+					 'request'     => $self->cgi->url."/".$self->name,
+					 'description' => "Returns description of parameters and attributes.",
+					 'method'      => "GET",
+					 'type'        => "synchronous",  
+					 'attributes'  => "self",
+					 'parameters'  => { 'options'  => {},
+							    'required' => {},
+							    'body'     => {} }
+				       },
+				       { 'name'        => "ontology",
+					 'request'     => $self->cgi->url."/".$self->name."/ontology",
+					 'description' => "",
+					 'method'      => "GET",
+					 'type'        => "synchronous",  
+					 'attributes'  => $self->attributes->{ontology},
+					 'parameters'  => { 'options'  => { 'source' => ['cv', [ ['Subsystems', 'returns 4 level SEED-Subsystems ontology' ],
+												 ['COG', 'returns 3 level COG ontology'],
+												 ['NOG', 'returns 3 level NOG ontology'],
+												 ['KO', 'returns 4 level KEGG-KO ontology' ] ] ],
+									    'min_level' => ['cv', $self->{hierarchy}{ontology}],
+									    'parent_name' => ['string', 'name of ontology group to retrieve children of']
+									  },
+							    'required' => {},
+							    'body'     => {} }
+				       },
+				       { 'name'        => "taxonomy",
+					 'request'     => $self->cgi->url."/".$self->name."/taxonomy",
+					 'description' => "",
+					 'method'      => "GET",
+					 'type'        => "synchronous",  
+					 'attributes'  => $self->attributes->{taxonomy},
+					 'parameters'  => { 'options'  => { 'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
+									    'parent_name' => ['string', 'name of taxanomy group to retrieve children of']
+									  },
+							    'required' => {},
+							    'body'     => {} }
+				       },
+				       { 'name'        => "sources",
+					 'request'     => $self->cgi->url."/".$self->name."/sources",
+					 'description' => "",
+					 'method'      => "GET",
+					 'type'        => "synchronous",  
+					 'attributes'  => $self->attributes->{sources},
+					 'parameters'  => { 'options'  => {},
+							    'required' => {},
+							    'body'     => {} }
+				       } ]
+		};
+  $self->return_data($content);
 }
 
 # Override parent request function

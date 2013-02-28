@@ -528,41 +528,47 @@ sub get_simple_table {
   if (exists $type_set{'function'}) {
     ### jobs function search
     my $ffuncs  = $self->search_annotation('function', [['name',$text,0,1]]);
-    my $fwhere  = $self->get_where_str(["id IN (".join(",", keys %$ffuncs).")", "source=".$mgdb->_src_id->{'M5NR'}], 1);
-    my $jd_func = $self->get_jobdata('function', $fwhere, $mgs, $ffuncs);
-    foreach my $j ( keys %$jd_func ) {
-      my $hits = {};
-      foreach my $r ( @{$jd_func->{$j}} ) {
-	    $hits->{ $ffuncs->{$r} } = 1;
-	    $uniq_hit->{function}{ $ffuncs->{$r} } = 1;
+    if(scalar(keys %$ffuncs) > 0) {
+      my $fwhere  = $self->get_where_str(["id IN (".join(",", keys %$ffuncs).")"], 1);
+      my $jd_func = $self->get_jobdata('function', $fwhere, $mgs, $ffuncs);
+      foreach my $j ( keys %$jd_func ) {
+        my $hits = {};
+        foreach my $r ( @{$jd_func->{$j}} ) {
+          $hits->{ $ffuncs->{$r} } = 1;
+          $uniq_hit->{function}{ $ffuncs->{$r} } = 1;
+        }
+        $uniq_job->{$j}{function} = scalar(keys %$hits);
       }
-      $uniq_job->{$j}{function} = scalar(keys %$hits);
     }
     ### jobs ontology search
     my $ofuncs = $self->search_annotation('ontology', [['name',$text,0,1]]);
-    my $owhere = $self->get_where_str(["id IN (".join(",", keys %$ofuncs).")"], 1);
-    my $jd_ont = $self->get_jobdata('ontology', $owhere, $mgs, $ofuncs);
-    foreach my $j ( keys %$jd_ont ) {
-      my $hits = {};
-      foreach my $r ( @{$jd_ont->{$j}} ) {
-	    $hits->{ $ofuncs->{$r} } = 1;
-	    $uniq_hit->{function}{ $ofuncs->{$r} } = 1;
+    if(scalar(keys %$ofuncs) > 0) {
+      my $owhere = $self->get_where_str(["id IN (".join(",", keys %$ofuncs).")"], 1);
+      my $jd_ont = $self->get_jobdata('ontology', $owhere, $mgs, $ofuncs);
+      foreach my $j ( keys %$jd_ont ) {
+        my $hits = {};
+        foreach my $r ( @{$jd_ont->{$j}} ) {
+          $hits->{ $ofuncs->{$r} } = 1;
+          $uniq_hit->{function}{ $ofuncs->{$r} } = 1;
+        }
+        $uniq_job->{$j}{function} += scalar(keys %$hits);
       }
-      $uniq_job->{$j}{function} += scalar(keys %$hits);
     }
   }
   if (exists $type_set{'organism'}) {
     ### jobs organism search
-	my $orgs   = $self->search_annotation('organism', [['name',$text,0,1]]);
-	my $where  = $self->get_where_str(["id IN (".join(",", keys %$orgs).")", "source=".$mgdb->_src_id->{'M5NR'}], 1);
-    my $jd_org = $self->get_jobdata('organism', $where, $mgs, $orgs);
-    foreach my $j ( keys %$jd_org ) {
-      my $hits = {};
-      foreach my $r ( @{$jd_org->{$j}} ) {
-	    $hits->{ $orgs->{$r} } = 1;
-	    $uniq_hit->{organism}{ $orgs->{$r} } = 1;
+    my $orgs   = $self->search_annotation('organism', [['name',$text,0,1]]);
+    if(scalar(keys %$orgs) > 0) {
+      my $where  = $self->get_where_str(["id IN (".join(",", keys %$orgs).")", "source=".$mgdb->_src_id->{'M5NR'}], 1);
+      my $jd_org = $self->get_jobdata('organism', $where, $mgs, $orgs);
+      foreach my $j ( keys %$jd_org ) {
+        my $hits = {};
+        foreach my $r ( @{$jd_org->{$j}} ) {
+          $hits->{ $orgs->{$r} } = 1;
+          $uniq_hit->{organism}{ $orgs->{$r} } = 1;
+        }
+        $uniq_job->{$j}{organism} = scalar(keys %$hits);
       }
-      $uniq_job->{$j}{organism} = scalar(keys %$hits);
     }
   }
   if (exists $type_set{'metadata'}) {
@@ -778,18 +784,20 @@ sub get_advanced_table {
     }
     elsif ($type eq "function") {
       my $to_search = $self->get_search_list({'name' => $searches->{$type}{$type}});
-	  my $funcs = $self->search_annotation($type, $to_search);
-  	  my $where = $self->get_where_str(["id IN (".join(",", keys %$funcs).")", "source=".$mgdb->_src_id->{'M5NR'}], 1);
-      my $jdata = $self->get_jobdata($type, $where, $cur_mgs);
-      foreach my $j (keys %$jdata) {
-	    foreach my $r (@{$jdata->{$j}}) {
-	      if ($max > $limit) { return $tomany; }
-	      $results->{$j}{ $type_map->{$type} }{ $funcs->{$r} } = 1;
-	      $max += 1;
-	    }
+      my $funcs = $self->search_annotation($type, $to_search);
+      if(scalar(keys %$funcs) > 0) {
+        my $where = $self->get_where_str(["id IN (".join(",", keys %$funcs).")"], 1);
+        my $jdata = $self->get_jobdata($type, $where, $cur_mgs);
+        foreach my $j (keys %$jdata) {
+          foreach my $r (@{$jdata->{$j}}) {
+            if ($max > $limit) { return $tomany; }
+            $results->{$j}{ $type_map->{$type} }{ $funcs->{$r} } = 1;
+            $max += 1;
+          }
+        }
+        @$cur_mgs = keys %$jdata;
+        unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
       }
-      @$cur_mgs = keys %$jdata;
-      unless ($cur_mgs && (@$cur_mgs > 0)) { return $empty; }
     }
     elsif ($type eq "organism") {
       foreach my $tax (keys %{$searches->{$type}}) {
