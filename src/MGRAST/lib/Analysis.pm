@@ -1678,6 +1678,7 @@ sub get_md5_data {
     $cache_key .= defined($eval) ? $eval : ":";
     $cache_key .= defined($ident) ? $ident : ":";
     $cache_key .= defined($alen) ? $alen : ":";
+    $cache_key .= $rep_org_src ? $rep_org_src : ":";
 
     my $data = {};
     my $jobs = [];
