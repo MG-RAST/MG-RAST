@@ -5,6 +5,7 @@ use warnings;
 no warnings('once');
 
 use Conf;
+use Data::Dumper;
 use parent qw(resources2::resource);
 use WebApplicationDBHandle;
 use DBMaster;
@@ -73,9 +74,9 @@ sub instance {
     my $id = $rest->[0];
 
     if ($rest && scalar(@$rest) == 1) {
-      unless ($self->user && $self->user->has_right(undef, 'edit', 'user', $self->user->{_id})) {
-        $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 400 );
-      }
+        unless ($self->user && $self->user->has_right(undef, 'edit', 'user', $self->user->{_id})) {
+            $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 400 );
+        }
     }
 
     use WebApplicationDBHandle;
@@ -83,14 +84,14 @@ sub instance {
 
     my ($dbmaster, $error) = WebApplicationDBHandle->new();
     if ($error) {
-      $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 500 );
+        $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 500 );
     }
   
     # get data
     my $user = $dbmaster->User->get_objects( { "login" => $id } );
 
     unless (scalar(@$user)) {
-      $self->return_data( {"ERROR" => "login $id does not exists"}, 404 );
+        $self->return_data( {"ERROR" => "login $id does not exists"}, 404 );
     }
 
     # prepare data

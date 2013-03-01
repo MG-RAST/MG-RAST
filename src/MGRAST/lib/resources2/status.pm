@@ -17,6 +17,12 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "status";
+    $self->{attributes} = { "id"     => [ 'integer', 'process id' ],
+                            "status" => [ 'string', 'cv', [ ['processing', 'process is still computing'],
+                                                            ['done', 'process is done computing'] ] ],
+                            "url"    => [ 'url', 'resource location of this object instance'],
+                            "data"   => [ 'hash', 'if status is done, data holds the result, otherwise data is not present']
+                          };
     return $self;
 }
 
@@ -95,15 +101,15 @@ sub prepare_data {
     my $obj = {};
     if ($process_status ne "") {
         $obj->{id} = $id;
-        $obj->{status} = "Processing";
+        $obj->{status} = "processing";
         $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
     } elsif ($process_status eq "" && $self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'minimal')) {
         $obj->{id} = $id;
-        $obj->{status} = "Done";
+        $obj->{status} = "done";
         $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
     } else {
         $obj->{id} = $id;
-        $obj->{status} = "Done";
+        $obj->{status} = "done";
         $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
         local $/;
         open my $fh, "<", $fname;
