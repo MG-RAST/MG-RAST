@@ -510,6 +510,7 @@ sub prepare_data {
                 "matrix_type"          => "sparse",
                 "matrix_element_type"  => ($rtype eq 'abundance') ? "int" : "float",
                 "matrix_element_value" => $rtype,
+                "shape"                => [ scalar(keys %$row_ids), scalar(keys %$col_ids) ],
                 "rows"                 => $brows,
                 "columns"              => $bcols,
                 "data"                 => $self->index_sparse_matrix($matrix, $row_ids, $col_ids)
