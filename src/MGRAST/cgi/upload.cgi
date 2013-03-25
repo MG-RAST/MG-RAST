@@ -297,13 +297,13 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			    if($seqfile3 eq "") {
 				$command = "echo \"$fix_files_str $Conf::pairend_join -j -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 			    } else {
-				$command = "echo \"$fix_files_str $Conf::pairend_join -j -r -i $seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+				$command = "echo \"$fix_files_str $Conf::pairend_join -j -r -i $udir/$seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 			    }
 			} else {
 			    if($seqfile3 eq "") {
 				$command = "echo \"$fix_files_str $Conf::pairend_join -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 			    } else {
-				$command = "echo \"$fix_files_str $Conf::pairend_join -r -i $seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
+				$command = "echo \"$fix_files_str $Conf::pairend_join -r -i $udir/$seqfile3 -m 8 -p 10 -t $udir/.tmp -o $udir/$joinfile $udir/$seqfile1 $udir/$seqfile2 2>&1 | tee -a $udir/$seqfile1.error_log > $udir/$seqfile2.error_log; rm $lock_file1 $lock_file2 $lock_file3;\" | /usr/local/bin/qsub -q fast -j oe -N $jobid -l walltime=60:00:00 -m n -o $udir/.tmp";
 			    }
 			}
 			$jnum = `$command`;
