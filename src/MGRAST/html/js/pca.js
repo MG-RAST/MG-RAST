@@ -177,7 +177,17 @@ function min_max(items, c1, c2){
     c1_max = (c1_max && c1_max > items[i][c1]) ? c1_max : items[i][c1];
     c2_min = (c2_min && c2_min < items[i][c2]) ? c2_min : items[i][c2];
     c2_max = (c2_max && c2_max > items[i][c2]) ? c2_max : items[i][c2];
-  }  
+  }
+  // If min == max for either axis, we want to artificially create a gap between
+  //  them so that the axis has some span, otherwise the plot is messed up.
+  if(c1_min == c1_max) {
+    c1_min = c1_min - 0.5;
+    c1_max = c1_max + 0.5;
+  }
+  if(c2_min == c2_max) {
+    c2_min = c2_min - 0.5;
+    c2_max = c2_max + 0.5;
+  }
   var c1_diff = Math.abs(c1_min - c1_max);
   var c2_diff = Math.abs(c2_min - c2_max);
   return [(c1_min-(c1_diff*0.1)),(c1_max+(c1_diff*0.1)), Math.abs((c1_max+(c1_diff*0.1))-(c1_min-(c1_diff*0.1))),(c2_min-(c2_diff*0.1)),(c2_max+(c2_diff*0.1)), Math.abs((c2_max+(c2_diff*0.1))-(c2_min-(c2_diff*0.1)))];

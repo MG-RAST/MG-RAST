@@ -1914,17 +1914,9 @@ sub single_visual {
   } else {
     $mgs .= "metagenome ".$mgnames->[0];
   }
-  my $sorcs = "";
-  my @sources = $cgi->param('source');
-  foreach my $source (@sources) {
-    $settings_preserve .= "<input type='hidden' name='source' value='".$source."'>";
-  }
-  if (scalar(@sources) > 1) {
-    my $last = pop(@sources);
-    $sorcs = join(", ", @sources)." and $last";
-  } else {
-    $sorcs = $sources[0];
-  }
+  my $source = $cgi->param('source');
+  $settings_preserve .= "<input type='hidden' name='source' value='".$source."'>";
+
   my $cutoffs = "a maximum e-value of 1e-" . ($cgi->param('evalue') || '0') . ", ";
   $cutoffs   .= "a minimum identity of " . ($cgi->param('identity') || '0') . " %, ";
   $cutoffs   .= "and a minimum alignment length of " . ($cgi->param('alength') || '1') . ' measured in aa for protein and bp for RNA databases';
@@ -1946,7 +1938,7 @@ sub single_visual {
   $settings_preserve .= "<input type='hidden' name='alength' value='"  . ($cgi->param('alength') || '1')  . "'>";
   my $fid = $cgi->param('fid') || int(rand(1000000));
     
-  my $settings = "<i>This data was calculated for $mgs. The data was compared to $sorcs using $cutoffs.$pset</i><br/>";
+  my $settings = "<i>This data was calculated for $mgs. The data was compared to $source using $cutoffs.$pset</i><br/>";
 
   ## determine if any metagenomes missing from results
   my $missing_txt = "";
@@ -2014,7 +2006,7 @@ sub single_visual {
 		  { name => 'align len std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the alignment length of the hits' },
 		  { name => 'md5s', visible => 0 },
 		  { name => '# hits', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of unique hits in protein or rna database' },
-		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"18\", \"16\", \"0\", \"-\", \"9\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
+		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"18\", \"16\", \"0\", \"".$source."\", \"9\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
     
     #### do the pivoting
     unless (defined $cgi->param('group_by')) {
@@ -2297,7 +2289,7 @@ sub single_visual {
 	  }
 	}
       }
-      return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('single_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$sorcs phylogenetic\", \"".$cgi->param('single_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
+      return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('single_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$source phylogenetic\", \"".$cgi->param('single_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
     }
   }
   
