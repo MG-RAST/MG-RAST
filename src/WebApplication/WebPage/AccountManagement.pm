@@ -170,7 +170,7 @@ sub output {
     my $i=0;
     foreach my $request (@$user_requests) {
       my $request_text = $request->{user}->firstname() . " " . $request->{user}->lastname() . " is requesting access to the " . $request->{type} . " " . $request->{group}->name();
-      $html .= "<tr><td>$request_text<input type='hidden' name='group_$i' value='" . $request->{group}->name() . "'><input type='hidden' name='type_$i' value='" . $request->{type} . "'><input type='hidden' name='login_$i' value='".$request->{user}->login()."'></td><td><input type='Radio' name='handling_$i' value='accept'></td><td><input type='radio' name='handling_$i' value='reject'></td><td><input type='radio' name='handling_$i' value='defer' checked='checked'></td><td><input type='text' name='reason_$i' value='-'></td></tr>";
+      $html .= "<tr><td>$request_text<input type='hidden' name='group_$i' value='" . $request->{group}->name() . "'><input type='hidden' name='type_$i' value='" . $request->{type} . "'><input type='hidden' name='login_$i' value=\"".$request->{user}->login()."\"></td><td><input type='Radio' name='handling_$i' value='accept'></td><td><input type='radio' name='handling_$i' value='reject'></td><td><input type='radio' name='handling_$i' value='defer' checked='checked'></td><td><input type='text' name='reason_$i' value='-'></td></tr>";
       $i++;
     }
     $html .= "</table><input type='submit' value='submit'>";

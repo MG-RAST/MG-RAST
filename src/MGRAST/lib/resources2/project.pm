@@ -182,23 +182,23 @@ sub prepare_data {
     
         if ($self->cgi->param('verbosity')) {
             if ($self->cgi->param('verbosity') eq 'full') {
-	            my @jobs      = map { ["mgm".$_, $url.'/metagenome/mgm'.$_] } @{ $project->all_metagenome_ids };
-	            my @colls     = @{ $project->collections };
-	            my @samples   = map { ["mgs".$_->{ID}, $url."/sample/mgs".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
-	            my @libraries = map { ["mgl".$_->{ID}, $url."/library/mgl".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
-	            $obj->{analyzed}  = \@jobs;	
-	            $obj->{samples}   = \@samples;
-	            $obj->{libraries} = \@libraries;
+	        my @jobs      = map { ["mgm".$_, $url.'/metagenome/mgm'.$_] } @{ $project->all_metagenome_ids };
+	        my @colls     = @{ $project->collections };
+	        my @samples   = map { ["mgs".$_->{ID}, $url."/sample/mgs".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
+	        my @libraries = map { ["mgl".$_->{ID}, $url."/library/mgl".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
+	        $obj->{analyzed}  = \@jobs;	
+	        $obj->{samples}   = \@samples;
+	        $obj->{libraries} = \@libraries;
             }
             if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full')) {
-	            my $metadata  = $project->data();
-	            my $desc = $metadata->{project_description} || $metadata->{study_abstract} || " - ";
-	            my $fund = $metadata->{project_funding} || " - ";
-	            $obj->{metadata}       = $metadata;
-	            $obj->{description}    = $desc;
-	            $obj->{funding_source} = $fund;	
+	        my $metadata  = $project->data();
+	        my $desc = $metadata->{project_description} || $metadata->{study_abstract} || " - ";
+	        my $fund = $metadata->{project_funding} || " - ";
+	        $obj->{metadata}       = $metadata;
+	        $obj->{description}    = $desc;
+	        $obj->{funding_source} = $fund;	
             } elsif ($self->cgi->param('verbosity') ne 'minimal') {
-	            $self->return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
+	        $self->return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
             }
         }
         push @$objects, $obj;      

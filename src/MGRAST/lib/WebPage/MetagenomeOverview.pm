@@ -383,7 +383,18 @@ sub output {
   if ($source_chart) {
     $html .= "<li><a href='#source_ref'>Source Distribution</a></li>";
   }
-  $html .= "<li><a href='#len_ref'>Sequence Length Histogram</a></li>";
+
+  # sequence length histogram
+  my @len_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'raw') };
+  my @len_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'qc') };
+  my $len_min = (@len_raw_hist && @len_qc_hist) ? min($len_raw_hist[0][0], $len_qc_hist[0][0]) : (@len_raw_hist ? $len_raw_hist[0][0] : (@len_qc_hist ? $len_qc_hist[0][0] : 0));
+  my $len_max = (@len_raw_hist && @len_qc_hist) ? max($len_raw_hist[-1][0], $len_qc_hist[-1][0]) : (@len_raw_hist ? $len_raw_hist[-1][0] : (@len_qc_hist ? $len_qc_hist[-1][0] : 0));
+  my $len_raw_bins = @len_raw_hist ? &get_bin_set(\@len_raw_hist, $len_min, $len_max, $self->data('bin_size')) : [];
+  my $len_qc_bins  = @len_qc_hist  ? &get_bin_set(\@len_qc_hist, $len_min, $len_max, $self->data('bin_size')) : [];
+
+  unless($len_max == $len_min) {
+    $html .= "<li><a href='#len_ref'>Sequence Length Histogram</a></li>";
+  }
   $html .= "<li><a href='#gc_ref'>Sequence GC Distribution</a></li>";
   $html .= "</ul></ul></div></td></tr></table><br>";
   
@@ -666,15 +677,8 @@ $drisee_boilerplate
   <div id='alpha_div'></div>
 </div>~;
 
-  # sequence length histogram
-  my @len_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'raw') };
-  my @len_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'qc') };
-  my $len_min = (@len_raw_hist && @len_qc_hist) ? min($len_raw_hist[0][0], $len_qc_hist[0][0]) : (@len_raw_hist ? $len_raw_hist[0][0] : (@len_qc_hist ? $len_qc_hist[0][0] : 0));
-  my $len_max = (@len_raw_hist && @len_qc_hist) ? max($len_raw_hist[-1][0], $len_qc_hist[-1][0]) : (@len_raw_hist ? $len_raw_hist[-1][0] : (@len_qc_hist ? $len_qc_hist[-1][0] : 0));
-  my $len_raw_bins = @len_raw_hist ? &get_bin_set(\@len_raw_hist, $len_min, $len_max, $self->data('bin_size')) : [];
-  my $len_qc_bins  = @len_qc_hist  ? &get_bin_set(\@len_qc_hist, $len_min, $len_max, $self->data('bin_size')) : [];
-
-  $html .= qq~<a name='len_ref'></a>
+  unless($len_max == $len_min) {
+    $html .= qq~<a name='len_ref'></a>
 <h3>Sequence Length Histogram
 <a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='
   if (this.innerHTML=="show") {
@@ -687,10 +691,10 @@ $drisee_boilerplate
 <div id='len_show'>
 <p>The histograms below show the distribution of sequence lengths in basepairs for this metagenome. Each position represents the number of sequences within a length bp range.</p><p>The data used in these graphs are based on raw upload and post QC sequences.</p>~;
 
-  if (@$len_raw_bins > 1) {
-    my $len_raw_data = join("~", map { $_->[0] .";;" . $_->[1] } @$len_raw_bins);
-    my $len_raw_link = $self->chart_export_link($len_raw_bins, 'upload_len_hist');
-    $html .= qq~<p>$len_raw_link</p>
+    if (@$len_raw_bins > 1) {
+      my $len_raw_data = join("~", map { $_->[0] .";;" . $_->[1] } @$len_raw_bins);
+      my $len_raw_link = $self->chart_export_link($len_raw_bins, 'upload_len_hist');
+      $html .= qq~<p>$len_raw_link</p>
 <div id='static2'>
 The image is currently dynamic. To be able to right-click/save the image, please click the static button
 <input type='button' value='static' onclick='
@@ -710,13 +714,13 @@ The image is currently dynamic. To be able to right-click/save the image, please
 <div><div id='length_hist_raw'></div></div>
 <input type='hidden' id='len_data_raw' value='$len_raw_data'>
 <img src='./Html/clear.gif' onload='draw_histogram_plot("len_data_raw", "length_hist_raw", "bps", "Number of Reads Uploaded");'>~;
-  } else {
-    $html .= "<p><em>Raw sequence length histogram " . (@$len_raw_bins ? "has insufficient data" : "not yet computed") . ".</em></p>";
-  }
-  if (@$len_qc_bins > 1) {
-    my $len_qc_data = join("~", map { $_->[0] .";;" . $_->[1] } @$len_qc_bins);
-    my $len_qc_link = $self->chart_export_link($len_qc_bins, 'postqc_len_hist');
-    $html .= qq~<p>$len_qc_link</p>
+    } else {
+      $html .= "<p><em>Raw sequence length histogram " . (@$len_raw_bins ? "has insufficient data" : "not yet computed") . ".</em></p>";
+    }
+    if (@$len_qc_bins > 1) {
+      my $len_qc_data = join("~", map { $_->[0] .";;" . $_->[1] } @$len_qc_bins);
+      my $len_qc_link = $self->chart_export_link($len_qc_bins, 'postqc_len_hist');
+      $html .= qq~<p>$len_qc_link</p>
 <div id='static3'>
 The image is currently dynamic. To be able to right-click/save the image, please click the static button
 <input type='button' value='static' onclick='
@@ -736,10 +740,11 @@ The image is currently dynamic. To be able to right-click/save the image, please
 <div><div id='length_hist_qc'></div></div>
 <input type='hidden' id='len_data_qc' value='$len_qc_data'>
 <img src='./Html/clear.gif' onload='draw_histogram_plot("len_data_qc", "length_hist_qc", "bps", "Number of Reads Post QC");'>~;
-  } else {
-    $html .= "<p><em>QC sequence length histogram " . (@$len_qc_bins ? "has insufficient data" : "not yet computed") . ".</em></p>";
+    } else {
+      $html .= "<p><em>QC sequence length histogram " . (@$len_qc_bins ? "has insufficient data" : "not yet computed") . ".</em></p>";
+    }
+    $html .= "</div>";
   }
-  $html .= "</div>";
 
   # sequence gc distribution
   my @gc_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'gc', 'raw') };

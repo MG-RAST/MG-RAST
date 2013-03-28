@@ -8,8 +8,9 @@ use POSIX qw(strftime);
 use Conf;
 use MGRAST::Metadata;
 use MGRAST::Analysis;
-use Babel::lib::Babel;
 use Data::Dumper;
+use URI::Escape;
+use List::Util qw(max min sum first);
 use Digest::MD5 qw(md5_hex md5_base64);
 use parent qw(resources2::resource);
 
@@ -25,52 +26,53 @@ sub new {
     $self->{org2tax} = {};
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{hierarchy} = { organism => [ ['strain', 'bottom organism taxanomic level'],
-                                                         ['species', 'organism type level'],
-                                                         ['genus', 'organism taxanomic level'],
-                                                         ['family', 'organism taxanomic level'],
-                                                         ['order', 'organism taxanomic level'],
-                                                         ['class', 'organism taxanomic level'],
-                                                         ['phylum', 'organism taxanomic level'],
-                                                         ['domain', 'top organism taxanomic level'] ],
-                                           ontology => [ ['function', 'bottom function ontology level'],
+                                         ['species', 'organism type level'],
+                                         ['genus', 'organism taxanomic level'],
+                                         ['family', 'organism taxanomic level'],
+                                         ['order', 'organism taxanomic level'],
+                                         ['class', 'organism taxanomic level'],
+                                         ['phylum', 'organism taxanomic level'],
+                                         ['domain', 'top organism taxanomic level'] ],
+                           ontology => [ ['function', 'bottom function ontology level'],
                                          ['level3', 'function ontology level' ],
                                          ['level2', 'function ontology level' ],
-                                               ['level1', 'top function ontology level'] ]
+                                         ['level1', 'top function ontology level'] ]
                          };
     $self->{sources} = { organism => [ ["M5NR", "comprehensive protein database"],
                                        ["RefSeq", "protein database"],
-                                               ["SwissProt", "protein database"],
-                                               ["GenBank", "protein database"],
-                                               ["IMG", "protein database"],
-                                               ["SEED", "protein database"],
-                                               ["TrEMBL", "protein database"],
-                                               ["PATRIC", "protein database"],
-                                               ["KEGG", "protein database"],
-                                               ["M5RNA", "comprehensive RNA database"],
-                                                                   ["RDP", "RNA database"],
-                                                                   ["Greengenes", "RNA database"],
-                                                       ["LSU", "RNA database"],
-                                                   ["SSU", "RNA database"] ],
-                                     ontology => [ ["Subsystems", "ontology database, type function only"],
-                                               ["NOG", "ontology database, type function only"],
-                                                           ["COG", "ontology database, type function only"],
-                                                           ["KO", "ontology database, type function only"] ]
+                                       ["SwissProt", "protein database"],
+                                       ["GenBank", "protein database"],
+                                       ["IMG", "protein database"],
+                                       ["SEED", "protein database"],
+                                       ["TrEMBL", "protein database"],
+                                       ["PATRIC", "protein database"],
+                                       ["KEGG", "protein database"],
+                                       ["M5RNA", "comprehensive RNA database"],
+                                       ["RDP", "RNA database"],
+                                       ["Greengenes", "RNA database"],
+                                       ["LSU", "RNA database"],
+                                       ["SSU", "RNA database"] ],
+                         ontology => [ ["Subsystems", "ontology database, type function only"],
+                                       ["NOG", "ontology database, type function only"],
+                                       ["COG", "ontology database, type function only"],
+                                       ["KO", "ontology database, type function only"] ]
                                      };
     $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
-                                "format"               => [ 'string', 'format specification name' ],
-                                "format_url"           => [ 'string', 'url to the format specification' ],
-                                "type"                 => [ 'string', 'type of the data in the return table (taxon, function or gene)' ],
-                                "generated_by"         => [ 'string', 'identifier of the data generator' ],
-                                "date"                 => [ 'date', 'time the output data was generated' ],
-                                "matrix_type"          => [ 'string', 'type of the data encoding matrix (dense or sparse)' ],
-                                "matrix_element_type"  => [ 'string', 'data type of the elements in the return matrix' ],
-                                "matrix_element_value" => [ 'string', 'result_type of the elements in the return matrix' ],
-                                "shape"                => [ 'list', ['integer', 'list of the dimension sizes of the return matrix'] ],
-                                "rows"                 => [ 'list', ['object', [{'id'       => ['string', 'unique annotation text'],
-                                                                                                     'metadata' => ['hash', 'key value pairs describing metadata']}, "rows object"]] ],
-                                "columns"              => [ 'list', ['object', [{'id'       => ['string', 'unique metagenome identifier'],
-                                                                                                         'metadata' => ['hash', 'key value pairs describing metadata']}, "columns object"]] ],
-                                "data"                 => [ 'list', ['list', ['float', 'the matrix values']] ]
+                            "url"                  => [ 'uri', 'resource location of this object instance' ],
+                            "format"               => [ 'string', 'format specification name' ],
+                            "format_url"           => [ 'string', 'url to the format specification' ],
+                            "type"                 => [ 'string', 'type of the data in the return table (taxon, function or gene)' ],
+                            "generated_by"         => [ 'string', 'identifier of the data generator' ],
+                            "date"                 => [ 'date', 'time the output data was generated' ],
+                            "matrix_type"          => [ 'string', 'type of the data encoding matrix (dense or sparse)' ],
+                            "matrix_element_type"  => [ 'string', 'data type of the elements in the return matrix' ],
+                            "matrix_element_value" => [ 'string', 'result_type of the elements in the return matrix' ],
+                            "shape"                => [ 'list', ['integer', 'list of the dimension sizes of the return matrix'] ],
+                            "rows"                 => [ 'list', ['object', [{'id'       => ['string', 'unique annotation text'],
+                                                                             'metadata' => ['hash', 'key value pairs describing metadata']}, "rows object"]] ],
+                            "columns"              => [ 'list', ['object', [{'id'       => ['string', 'unique metagenome identifier'],
+                                                                             'metadata' => ['hash', 'key value pairs describing metadata']}, "columns object"]] ],
+                            "data"                 => [ 'list', ['list', ['float', 'the matrix values']] ]
                           };
     return $self;
 }
@@ -107,6 +109,9 @@ sub info {
                                                                                                                    ['evalue', 'average e-value exponent of hits in annotation'],
                                                                                                                    ['identity', 'average percent identity of hits in annotation'],
                                                                                                                    ['length', 'average alignment length of hits in annotation']] ],
+                                                                                         'hit_type' => [ 'cv', [['all', 'returns results based on all organisms that map to top hit per read-feature'],
+                                                                                                                ['single', 'returns results based on a single organism for top hit per read-feature'],
+                                                                                                                ['lca', 'returns results based on the Least Common Ancestor for all organisms (M5NR+M5RNA only) that map to hits from a read-feature']] ],
                                                                                          'source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
@@ -274,18 +279,27 @@ sub prepare_data {
     my $cgi = $self->cgi;
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'M5NR' : (($type eq 'function') ? 'Subsystems': 'RefSeq'));
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
+    my $htype  = $cgi->param('hit_type') ? $cgi->param('hit_type') : 'all';
     my $glvl   = $cgi->param('group_level') ? $cgi->param('group_level') : (($type eq 'organism') ? 'strain' : 'function');
     my $eval   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
     my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
     my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'M5NR');
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
-    my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
+    my $hide_md   = $cgi->param('hide_metadata') ? 1 : 0;
     my $all_srcs  = {};
     my $leaf_node = 0;
-    my $matrix_id = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $rtype, $eval, $ident, $alen));
+    my $group_level = $glvl;
+    my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
+    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.
+                     '&source='.$source.'&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen;
+    if ($hide_md) {
+        $matrix_id .= '_'.$hide_md;
+        $matrix_url .= '&hide_metadata='.$hide_md;
+    }
     if (@filter > 0) {
-            $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc;
+        $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc;
+        $matrix_url .= '&filter='.join('&filter=', sort map { uri_escape($_) } @filter).'&filter_source='.$fsrc;
     }
 
     # initialize analysis obj with mgids
@@ -308,11 +322,11 @@ sub prepare_data {
     }
 
     # controlled vocabulary set
-    my $result_idx = { abundance => {function => 3, organism => 10, feature => 2},
-                               evalue    => {function => 5, organism => 12, feature => 3},
-                               length    => {function => 7, organism => 14, feature => 5},
-                               identity  => {function => 9, organism => 16, feature => 7}
-                             };
+    my $result_idx = { abundance => {function => 3, organism => {all => 10, single => 9, lca => 9}, feature => 2},
+                       evalue    => {function => 5, organism => {all => 12, single => 10, lca => 10}, feature => 3},
+                       length    => {function => 7, organism => {all => 14, single => 12, lca => 12}, feature => 5},
+                       identity  => {function => 9, organism => {all => 16, single => 14, lca => 14}, feature => 7}
+                     };
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
     my @func_hier  = map { $_->[0] } @{$self->{hierarchy}{ontology}};
     my @org_hier   = map { $_->[0] } @{$self->{hierarchy}{organism}};
@@ -332,7 +346,7 @@ sub prepare_data {
                       $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @org_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @org_hier)."]"}, 500);
         }
     } elsif ($type eq 'function') {
         map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
@@ -345,7 +359,7 @@ sub prepare_data {
                       $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$glvl." - valid types are [".join(", ", @func_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @func_hier)."]"}, 500);
         }
     } elsif ($type eq 'feature') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
@@ -368,20 +382,71 @@ sub prepare_data {
     if ($type eq 'organism') {
         $ttype = 'Taxon';
         $mtype = 'taxonomy';
+        $col_idx = $result_idx->{$rtype}{$type}{$htype};
         if (@filter > 0) {
             $umd5s = $mgdb->get_md5s_for_ontology(\@filter, $fsrc);
         }
         unless ((@filter > 0) && (@$umd5s == 0)) {
-            if ($leaf_node) {
-                # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
-                my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen));
-                # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-                @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
-                map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
+            if ($htype eq 'all') {
+                if ($leaf_node) {
+                    # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
+                    my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen));
+                    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+                    @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[9] !~ /^(\-|unclassified)/} @$info;
+                    map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
+                } else {
+                    # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
+                    @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} grep {$_->[1] !~ /^(\-|unclassified)/} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
+                    # mgid, hier_annotation, value
+                }
+            } elsif ($htype eq 'single') {
+                # my ($self, $source, $eval, $ident, $alen) = @_;
+                my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen));
+                # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+                my @levels  = reverse @org_hier;
+                my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
+                $lvl_idx += 1;
+                my $merged = {};
+                foreach my $set (@$info) {
+                    next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
+                    if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
+                        $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
+                    } else {
+                        $merged->{$set->[0]}{$set->[$lvl_idx]}[0] += $self->toNum($set->[$col_idx], $rtype);
+                        $merged->{$set->[0]}{$set->[$lvl_idx]}[1] += 1;
+                    }
+                }
+                foreach my $m (keys %$merged) {
+                    foreach my $a (keys %{$merged->{$m}}) {
+                        my $val = ($rtype eq 'abundance') ? $merged->{$m}{$a}[0] : $merged->{$m}{$a}[0] / $merged->{$m}{$a}[1];
+                        push @$matrix, [ $a, $m, $val ];
+                    }
+                }
+            } elsif ($htype eq 'lca') {
+                # my ($self, $eval, $ident, $alen) = @_;
+                my $info = $mgdb->get_lca_data(int($eval), int($ident), int($alen));
+                # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
+                my @levels  = reverse @org_hier;
+                my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
+                $lvl_idx += 1;
+                my $merged = {};
+                foreach my $set (@$info) {
+                    next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
+                    if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
+                        $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
+                    } else {
+                        $merged->{$set->[0]}{$set->[$lvl_idx]}[0] += $self->toNum($set->[$col_idx], $rtype);
+                        $merged->{$set->[0]}{$set->[$lvl_idx]}[1] += 1;
+                    }
+                }
+                foreach my $m (keys %$merged) {
+                    foreach my $a (keys %{$merged->{$m}}) {
+                        my $val = ($rtype eq 'abundance') ? $merged->{$m}{$a}[0] : $merged->{$m}{$a}[0] / $merged->{$m}{$a}[1];
+                        push @$matrix, [ $a, $m, $val ];
+                    }
+                }
             } else {
-                # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
-                @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
-                # mgid, hier_annotation, value
+                $self->return_data({"ERROR" => "invalid hit_type for matrix call: ".$htype." - valid types are ['all', 'single', 'lca']"}, 500);
             }
         }
     } elsif ($type eq 'function') {
@@ -436,19 +501,20 @@ sub prepare_data {
     }
     
     my $obj = { "id"                   => $matrix_id,
-                          "format"               => "Biological Observation Matrix 1.0",
-                          "format_url"           => "http://biom-format.org",
-                          "type"                 => $ttype." table",
-                          "generated_by"         => "MG-RAST revision ".$Conf::server_version,
-                          "date"                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-                          "matrix_type"          => "sparse",
-                          "matrix_element_type"  => ($rtype eq 'abundance') ? "int" : "float",
-                          "matrix_element_value" => $rtype,
-                          "shape"                => [ scalar(keys %$row_ids), scalar(keys %$col_ids) ],
-                          "rows"                 => $brows,
-                          "columns"              => $bcols,
-                          "data"                 => $self->index_sparse_matrix($matrix, $row_ids, $col_ids)
-                        };
+                "url"                  => $matrix_url,
+                "format"               => "Biological Observation Matrix 1.0",
+                "format_url"           => "http://biom-format.org",
+                "type"                 => $ttype." table",
+                "generated_by"         => "MG-RAST revision ".$Conf::server_version,
+                "date"                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+                "matrix_type"          => "sparse",
+                "matrix_element_type"  => ($rtype eq 'abundance') ? "int" : "float",
+                "matrix_element_value" => $rtype,
+                "shape"                => [ scalar(keys %$row_ids), scalar(keys %$col_ids) ],
+                "rows"                 => $brows,
+                "columns"              => $bcols,
+                "data"                 => $self->index_sparse_matrix($matrix, $row_ids, $col_ids)
+              };
                         
     return $obj;
 }
