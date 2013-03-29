@@ -212,7 +212,7 @@ sub perform_registration {
   }
 
   # check if email address is valid
-  unless ($cgi->param('email') =~ /^[\d\w\.-\']+\@[\d\w\.-]+\.[\w+]$/) {
+  unless ($cgi->param('email') =~ /^[\d\w\.\'-]+\@[\d\w\.-]+\.[\w+]$/) {
     $application->add_message('warning', 'You must enter a valid eMail address.');
     return 0;
   }
