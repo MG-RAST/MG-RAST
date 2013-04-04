@@ -280,6 +280,10 @@ sub output {
     $unkn_aa_reads = 0;
     $ann_aa_reads  = 0;
     $unknown_all   = $raw_seqs - ($qc_fail_seqs + $ann_rna_reads);
+    if ($raw_seqs < ($qc_fail_seqs + $ann_rna_reads)) {
+	my $diff = ($qc_fail_seqs + $ann_rna_reads) - $raw_seqs;
+	$unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+    }
   } else {
       if ($unknown_all < 0) { $unknown_all = 0; }
       if ($raw_seqs < ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads)) {
@@ -506,7 +510,7 @@ sub output {
   my $fc_aa_colors  = [[$colors->[0],$colors->[1]], [$colors->[1],$colors->[4],$colors->[2]], [$colors->[2],$colors->[3]], [$colors->[3],$colors->[5]]];
   my $fc_rna_colors = [[$colors->[0],$colors->[1]], [$colors->[1],$colors->[4]]];
   my $fc_aa_data    = [[$raw_seqs,$qc_seqs], [$qc_seqs,$ann_rna_reads,$aa_reads], [$aa_feats,$aa_sims], [$aa_sims,$aa_ontol]];
-  my $fc_rna_data   = [[$raw_seqs,$qc_rna_seqs], [$qc_rna_seqs,$ann_rna_reads]];
+  my $fc_rna_data   = [[$raw_seqs,$qc_rna_seqs], [$qc_rna_seqs, ($ann_rna_reads > $qc_rna_seqs) ? $qc_rna_seqs : $ann_rna_reads]];
   
   my $fc_titles = $is_rna ? array2json($fc_rna_titles, 1) : array2json($fc_aa_titles, 1);
   my $fc_colors = $is_rna ? array2json($fc_rna_colors, 2) : array2json($fc_aa_colors, 2);
