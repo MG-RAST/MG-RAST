@@ -1345,8 +1345,12 @@ sub get_drisee_chart {
     my $x = shift @$row;
     next if (($x eq '#') || (int($x) < 51));
     my $sum = sum @$row;
-    my @per = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) } @$row;
-    push @$data, [ $x, @per[6..11], sum(@per[6..11]) ];
+    if ($sum == 0) {
+        push @$data, [ $x, 0, 0, 0, 0, 0, 0, 0 ];
+    } else {
+        my @per = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) } @$row;
+        push @$data, [ $x, @per[6..11], sprintf("%.2f", sum(@per[6..11])) * 1.0 ];
+    }
   }
   my @down_data = @$data;
   unshift @down_data, ['Position','A','T','C','G','N','InDel','Total'];
@@ -1454,8 +1458,12 @@ sub get_consensus_chart {
     next if (($row->[0] eq '#') || (! $row->[6]));
     next if (($row->[0] > 100) && ($row->[6] < 1000));
     my $sum = $row->[6];
-    my @per = map {  floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
-    push @$data, [ $row->[0] + 1, $per[5], $per[3], $per[2], $per[4], $per[1] ];
+    if ($sum == 0) {
+        push @$data, [ $row->[0] + 1, 0, 0, 0, 0, 0 ];
+    } else {
+        my @per = map {  floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
+        push @$data, [ $row->[0] + 1, $per[5], $per[3], $per[2], $per[4], $per[1] ];
+    }
   }
   my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
   my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
