@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, shutil, re, hashlib
+import os, sys, shutil, re, hashlib, json
 from optparse import OptionParser
 from multiprocessing import Pool
 from Bio import SeqIO
@@ -240,6 +240,7 @@ def format_factory(out_files):
                             strd = -1
                             beg  = feat.location.end.position
                             end  = feat.location.start.position
+                    """
                     # output GO ontology
                     if get_ont:
                         for gtype in go_types:
@@ -249,6 +250,7 @@ def format_factory(out_files):
                                     if go_m:
                                         desc = gb_go_rm.sub('', go_m.group(2))
                                         ont_f.write("\t".join([md5, go_m.group(1), desc, 'GO']) + "\n")
+                    """
                     seq_f.write("%s\t%s\n" %(md5, seq))
                     if get_ctg:
                         prot_f.write("\t".join([md5, fid, func, org, source, str(beg), str(end), str(strd), cid, cdesc, str(clen)]) + "\n")
@@ -272,12 +274,15 @@ def format_factory(out_files):
                 if len(rec.dbxrefs) > 0:
                     ref_str = rec.id
                     for ref in rec.dbxrefs:
+                        """
                         go_m = up_go_re.match(ref)
                         # output GO ontology
                         if go_m and get_ont:
                             ont_f.write("\t".join([md5, go_m.group(1), func, 'GO']) + "\n")
                         else:
                             ref_str += "\t" + ref
+                        """
+                        ref_str += "\t" + ref
                     ref_f.write(ref_str + "\n")
             elif get_ip and (len(rec.dbxrefs) > 0):
                 has_ip = 0
@@ -428,8 +433,11 @@ def process_file(infile):
             parse_format(rec)
     else:
         if fformat == 'nr': fformat = 'fasta'
-        for rec in SeqIO.parse(infile, fformat):
-            parse_format(rec)
+        try:
+            for rec in SeqIO.parse(infile, fformat):
+                parse_format(rec)
+        except:
+            pass
 
     for h in o_hdls: h.close()
     return os.path.join(params.outdir, fname)
@@ -455,12 +463,15 @@ def main(args):
     parser.add_option("-c", "--get_contig", dest="getcontig", action="store_true", default=False, help="Output contig info for organism genbank files [default is off]")
     parser.add_option("-t", "--get_tax", dest="gettax", action="store_true", default=False, help="Output taxonomy string for genbank files [default is off]")
     parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Wordy [default is off]")
+    parser.add_option("-s", "--sort_dir", dest="sortdir", metavar="DIR", default="/tmp", help="temp DIR to use for sorting [default is /tmp]")
     
     (opts, args) = parser.parse_args()
     if len(args) < 2:
         parser.error("Incorrect number of arguments")
     sfiles = filter(lambda x: os.path.isfile(x), args[1:])
     scount = len(sfiles)
+    if scount == 0:
+        parser.error("No valid input files found")
 
     params.source  = args[0]
     params.format  = opts.format
@@ -494,12 +505,14 @@ def main(args):
         for f in sfiles:
             r = process_file(f)
             rfiles.append(r)
-    else:
+    elif min_proc > 1:
         if params.verbose: sys.stdout.write("Parsing %d %s files using %d threades\n"%(scount, params.format, min_proc))
         pool   = Pool(processes=min_proc)
         rfiles = pool.map(process_file, sfiles, 1)
         pool.close()
         pool.join()
+    else:
+        parser.error("Invalid processer number: "+min_proc)
     if params.verbose: sys.stdout.write("Done\n")
 
     if params.verbose: sys.stdout.write("Merging %d files ... "%len(rfiles))
@@ -513,7 +526,7 @@ def main(args):
             shutil.copyfileobj( open(f, 'r'), out_tmp )
             os.remove(f)
         out_tmp.close()
-        os.system( "sort -u %s.tmp > %s"%(out_file, out_file) )        
+        os.system( "sort -T %s -u %s.tmp > %s"%(opts.sortdir, out_file, out_file) )
         os.remove(out_file+'.tmp')
         if os.path.isfile(out_file) and (os.path.getsize(out_file) == 0):
             os.remove(out_file)
