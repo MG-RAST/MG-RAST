@@ -1367,7 +1367,7 @@ sub workbench_export {
     }
   }
   my $content = join("\n", @fastas);
-  my $fname   = join("_", @metas) . "_" . scalar(@$seq_data) . "_sequences_annotated_by_$source.fna";
+  my $fname   = join("_", @metas) . "_" . scalar(@fastas) . "_sequences_annotated_by_$source.fna";
 
   print "Content-Type:application/x-download\n";  
   print "Content-Length: " . length($content) . "\n";
