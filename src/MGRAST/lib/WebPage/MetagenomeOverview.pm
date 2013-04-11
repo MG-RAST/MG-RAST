@@ -280,6 +280,10 @@ sub output {
     $unkn_aa_reads = 0;
     $ann_aa_reads  = 0;
     $unknown_all   = $raw_seqs - ($qc_fail_seqs + $ann_rna_reads);
+    if ($raw_seqs < ($qc_fail_seqs + $ann_rna_reads)) {
+	my $diff = ($qc_fail_seqs + $ann_rna_reads) - $raw_seqs;
+	$unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+    }
   } else {
       if ($unknown_all < 0) { $unknown_all = 0; }
       if ($raw_seqs < ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads)) {
@@ -506,7 +510,7 @@ sub output {
   my $fc_aa_colors  = [[$colors->[0],$colors->[1]], [$colors->[1],$colors->[4],$colors->[2]], [$colors->[2],$colors->[3]], [$colors->[3],$colors->[5]]];
   my $fc_rna_colors = [[$colors->[0],$colors->[1]], [$colors->[1],$colors->[4]]];
   my $fc_aa_data    = [[$raw_seqs,$qc_seqs], [$qc_seqs,$ann_rna_reads,$aa_reads], [$aa_feats,$aa_sims], [$aa_sims,$aa_ontol]];
-  my $fc_rna_data   = [[$raw_seqs,$qc_rna_seqs], [$qc_rna_seqs,$ann_rna_reads]];
+  my $fc_rna_data   = [[$raw_seqs,$qc_rna_seqs], [$qc_rna_seqs, ($ann_rna_reads > $qc_rna_seqs) ? $qc_rna_seqs : $ann_rna_reads]];
   
   my $fc_titles = $is_rna ? array2json($fc_rna_titles, 1) : array2json($fc_aa_titles, 1);
   my $fc_colors = $is_rna ? array2json($fc_rna_colors, 2) : array2json($fc_aa_colors, 2);
@@ -1341,8 +1345,12 @@ sub get_drisee_chart {
     my $x = shift @$row;
     next if (($x eq '#') || (int($x) < 51));
     my $sum = sum @$row;
-    my @per = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) } @$row;
-    push @$data, [ $x, @per[6..11], sum(@per[6..11]) ];
+    if ($sum == 0) {
+        push @$data, [ $x, 0, 0, 0, 0, 0, 0, 0 ];
+    } else {
+        my @per = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) } @$row;
+        push @$data, [ $x, @per[6..11], sprintf("%.2f", sum(@per[6..11])) * 1.0 ];
+    }
   }
   my @down_data = @$data;
   unshift @down_data, ['Position','A','T','C','G','N','InDel','Total'];
@@ -1450,8 +1458,12 @@ sub get_consensus_chart {
     next if (($row->[0] eq '#') || (! $row->[6]));
     next if (($row->[0] > 100) && ($row->[6] < 1000));
     my $sum = $row->[6];
-    my @per = map {  floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
-    push @$data, [ $row->[0] + 1, $per[5], $per[3], $per[2], $per[4], $per[1] ];
+    if ($sum == 0) {
+        push @$data, [ $row->[0] + 1, 0, 0, 0, 0, 0 ];
+    } else {
+        my @per = map {  floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
+        push @$data, [ $row->[0] + 1, $per[5], $per[3], $per[2], $per[4], $per[1] ];
+    }
   }
   my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
   my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);

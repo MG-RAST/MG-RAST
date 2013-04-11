@@ -206,9 +206,13 @@ sub get_drisee {
 	    if ($row->[0] > 50) {
 	        my $x = shift @$row;
 	        my $sum = sum @$row;
-	        my @tmp = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) * 1.0 } @$row;
-	        push @$per, [ $x, @tmp[6..11], sprintf("%.2f", sum(@tmp[6..11])) * 1.0 ];
-	    }        
+	        if ($sum == 0) {
+	            push @$per, [ $x, 0, 0, 0, 0, 0, 0, 0 ];
+	        } else {
+	            my @tmp = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) * 1.0 } @$row;
+	            push @$per, [ $x, @tmp[6..11], sprintf("%.2f", sum(@tmp[6..11])) * 1.0 ];
+            }
+	    }
     }
     $data->{counts}{data} = $raw;
     $data->{percents}{data} = $per;
@@ -234,8 +238,12 @@ sub get_nucleo {
         push @$raw, [ $row->[0] + 1, $row->[1], $row->[4], $row->[2], $row->[3], $row->[5], $row->[6] ];
         unless (($row->[0] > 100) && ($row->[6] < 1000)) {
     	    my $sum = $row->[6];
-    	    my @tmp = map { floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
-    	    push @$per, [ $row->[0] + 1, $tmp[1], $tmp[4], $tmp[2], $tmp[3], $tmp[5] ];
+    	    if ($sum == 0) {
+	            push @$per, [ $row->[0] + 1, 0, 0, 0, 0, 0 ];
+	        } else {
+    	        my @tmp = map { floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
+    	        push @$per, [ $row->[0] + 1, $tmp[1], $tmp[4], $tmp[2], $tmp[3], $tmp[5] ];
+	        }
         }
     }
     $data->{counts}{data} = $raw;
