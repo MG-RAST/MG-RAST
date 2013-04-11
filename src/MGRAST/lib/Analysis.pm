@@ -679,11 +679,11 @@ sub annotation_for_md5s {
     unless ($md5s && @$md5s) { return []; }
     
     my $data = [];
-    my $qsrc = ($srcs && @$srcs) ? " AND a.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
+    my $qsrc = ($srcs && @$srcs && !(@$srcs == 1 && $srcs->[0] eq 'M5NR')) ? " AND a.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
     my $tid  = $taxid ? ", o.ncbi_tax_id" : "";
     my %umd5 = map {$_, 1} @$md5s;
     my $iter = natatime $self->_chunk, keys %umd5;
-    
+
     while (my @curr = $iter->()) {
         my $sql = "SELECT a.id, m.md5, f.name, o.name, a.source$tid FROM md5_annotation a ".
                   "INNER JOIN md5s m ON a.md5 = m._id ".
