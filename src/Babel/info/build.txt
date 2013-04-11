@@ -1,4 +1,4 @@
-M5NR update (version X):
+# M5NR update (version X):
 
 X=[version number]
 BIN=[dir with build scripts]
@@ -50,7 +50,7 @@ $BIN/source2ach.py -v -a seed -f fasta -d parsed/SEED SEED raw/SEED/SEED.fasta
 
 mkdir parsed/Phantome
 gunzip raw/Phantome/phage_proteins_1317466802.fasta.gz
-$BIN/source2ach.py -v -a phantome -f fasta  -p 1 -d parsed/Phantome Phantome raw/Phantome/phage_proteins_1317466802.fasta
+$BIN/source2ach.py -v -a phantome -f fasta  -p 1 -d parsed/Phantome Phantome raw/Phantome/phage_proteins_1364814002.fasta
 
 mkdir parsed/KEGG
 mv raw/KEGG/genome raw/kegg.genome
