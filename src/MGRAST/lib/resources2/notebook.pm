@@ -4,6 +4,8 @@ use strict;
 use warnings;
 no warnings('once');
 use POSIX qw(strftime);
+use MIME::Base64;
+use Auth;
 
 use Conf;
 use parent qw(resources2::resource);
@@ -15,11 +17,19 @@ sub new {
     # Call the constructor of the parent class
     my $self = $class->SUPER::new(@args);
     
+    # get notebook admin token
+    my $nb_token = undef;
+    if ($Conf::nb_admin_user && $Conf::nb_admin_pswd) {
+        my $key = encode_base64($Conf::nb_admin_user.':'.$Conf::nb_admin_pswd);
+        $nb_token = Auth::globus_token($key)->{access_token};
+    }
+    
     # Add name / attributes
     $self->{name}       = "notebook";
+    $self->{nb_token}   = $nb_token;
     $self->{attributes} = { "id"       => [ 'string', 'unique shock identifier' ],
                             "name"     => [ 'string', 'human readable identifier' ],
-                            "uuid"     => [ 'string', 'ipynb identifier - stable across different versions'],
+                            "nbid"     => [ 'string', 'ipynb identifier - stable across different versions'],
                             "notebook" => [ 'object', 'notebook object in JSON format' ],
                             "created"  => [ 'date', 'time the object was first created' ],
                             "version"  => [ 'integer', 'version of the object' ],
@@ -64,7 +74,8 @@ sub info {
                        							              "limit"  => ["integer", "maximum number of data items returned, default is 10"],
                        							              "total_count" => ["integer", "total number of available data items"],
                        							              "offset" => ["integer", "zero based index of the first returned data item"] },
-            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+            				               'parameters'  => { 'options'  => { 'type' => ['string', 'notebook type'],
+            				                                                  'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                        												                                 ['full', 'returns notebook attributes and object']]],
                        									                      'limit'     => ['integer', 'maximum number of items requested'],
                        									                      'offset'    => ['integer', 'zero based index of the first data object to be returned'],
@@ -79,7 +90,8 @@ sub info {
             				               'method'      => "GET",
             				               'type'        => "synchronous",  
             				               'attributes'  => $self->attributes,
-            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+            				               'parameters'  => { 'options'  => { 'type' => ['string', 'notebook type'],
+            				                                                  'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                        												                                 ['full', 'returns notebook attributes and object']]]
                        												        },
             							                      'required' => { "id" => ["string", "unique shock object identifier"] },
@@ -137,15 +149,9 @@ sub instance {
     # get data
     my $data = [];
     my $id   = $self->rest->[0];
-    my $node = $self->get_shock_node($id);
+    my $node = $self->get_shock_node($id, $self->shock_auth());
     unless ($node) {
         $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
-    }
-
-    # check rights
-    my $uname = $self->user ? $self->user->login : '';
-    unless (($node->{attributes}{user} eq 'public') || ($node->{attributes}{user} eq $uname)) {
-        $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
     # clone node if requested (update shock attributes and ipynb metadata)
@@ -164,10 +170,11 @@ sub query {
     my ($self) = @_;
  
     # get all items the user has access to
-    my $uname = $self->user ? $self->user->login : '';
-    my $nodes = [];
-    map { push @$nodes, $_ } @{ $self->get_shock_query( {type => 'ipynb', user => $uname} ) };
-    map { push @$nodes, $_ } @{ $self->get_shock_query( {type => 'ipynb', user => 'public'} ) };
+    my $attr  = {};
+    if ($self->cgi->param('type')) {
+        $attr->{type} = $self->cgi->param('type');
+    }
+    my $nodes = $self->get_shock_query('ipynb', $attr, $self->shock_auth());
     my $total = scalar @$nodes;
  
     # check limit
@@ -195,17 +202,17 @@ sub prepare_data {
     foreach my $node (@$data) {
         my $url = $self->cgi->url;
         my $obj = {};
-        $obj->{id}       = $node->{id};
-        $obj->{name}     = $node->{attributes}{name} || '';
-        $obj->{uuid}     = $node->{attributes}{uuid};
-        $obj->{created}  = $node->{attributes}{created};
-	    $obj->{status}   = (exists $node->{attributes}{deleted}) ? 'deleted' : (($node->{attributes}{user} eq 'public') ? 'public' : 'private');
-	    $obj->{permission} = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
+        $obj->{id}   = $node->{id};
+        $obj->{url}  = $url.'/notebook/'.$obj->{id};
+        $obj->{name} = $node->{attributes}{name} || 'Untitled';
+        $obj->{nbid} = $node->{attributes}{nbid};
+        $obj->{version} = 1;
+        $obj->{created} = $node->{attributes}{created};
+	    $obj->{status}  = (exists $node->{attributes}{deleted}) ? 'deleted' : ($self->token ? 'private' : 'public');
+	    $obj->{permission}  = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
 	    $obj->{description} = $node->{attributes}{description} || '';
-        $obj->{version}  = 1;
-        $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
-            $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{id}) );
+            $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{id}, $self->shock_auth()) );
         }
         push @$objects, $obj;
     }
@@ -216,11 +223,10 @@ sub prepare_data {
 sub clone_notebook {
     my ($self, $node, $uuid, $name, $delete) = @_;
     
-    my $file = $self->json->decode( $self->get_shock_file($node->{id}) );
-    my $attr = { type => $node->{attributes}{type} || 'ipynb',
-                 name => $name || $node->{attributes}{name}.'_copy',
-                 user => $self->user ? $self->user->login : 'public',
-                 uuid => $uuid,
+    my $file = $self->json->decode( $self->get_shock_file($node->{id}, $self->shock_auth()) );
+    my $attr = { name => $name || $node->{attributes}{name}.'_copy',
+                 nbid => $uuid,
+                 type => $node->{attributes}{type} || 'generic',
                  created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                  permission => 'edit',
                  description => $node->{attributes}{description} || ''
@@ -229,18 +235,18 @@ sub clone_notebook {
         $attr->{deleted} = 1;
     }
     $file->{'metadata'} = $attr;
-    return $self->set_shock_node($node->{id}.'.ipynb', $file, $attr);
+    my $new_node = $self->set_shock_node($node->{id}.'.ipynb', $file, $attr, $self->shock_auth(1));
+    $self->shock_post_acl($new_node->{id});
+    return $new_node;
 }
 
 # delete notebook - we make a newer copy that we flag as deleted
 sub delete_notebook {
     my ($self, $uuid) = @_;
     
-    my @nb_set = sort { $b->{attributes}{created} cmp $a->{attributes}{created} } @{ $self->get_shock_query({type => 'ipynb', uuid => $uuid}) };
+    my $attr   = {nbid => $uuid};
+    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
     my $latest = $nb_set[0];
-    if ($self->user && ($self->user->login ne $latest->{attributes}{user})) {
-        $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
-    }
     if ($latest->{attributes}{permission} eq 'view') {
         $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
     }
@@ -281,14 +287,11 @@ sub upload_notebook {
 
     # get notebook object and attribute object
     my $nb_obj  = $self->json->decode($nb_string);
-    my $nb_user = $self->user ? $self->user->login : 'public';
-    my $nb_perm = ($nb_user eq 'public') ? 'view' : 'edit';
-    my $nb_attr = { type => 'ipynb',
-                    name => $nb_obj->{metadata}{name} || 'Untitled',
-                    user => $nb_obj->{metadata}{user} || $nb_user,
-                    uuid => $nb_obj->{metadata}{uuid} || $self->uuidv4(),
+    my $nb_attr = { name => $nb_obj->{metadata}{name} || 'Untitled',
+                    nbid => $nb_obj->{metadata}{nbid} || $self->uuidv4(),
+                    type => $nb_obj->{metadata}{type} || 'generic',
                     created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
-                    permission => $nb_obj->{metadata}{permission} || $nb_perm,
+                    permission => $nb_obj->{metadata}{permission} || 'edit',
                     description => $nb_obj->{metadata}{description} || ''
                   };
     $nb_obj->{'metadata'} = $nb_attr;
@@ -296,9 +299,37 @@ sub upload_notebook {
     # add to shock
     my $name = $nb_attr->{name};
     $name =~ s/\s+/_/g;
-    my $node = $self->set_shock_node($name.'.ipynb', $nb_obj, $nb_attr);
+    my $node = $self->set_shock_node($name.'.ipynb', $nb_obj, $nb_attr, $self->shock_auth(1));
+    $self->shock_post_acl($node->{id});
+    
     my $data = $self->prepare_data( [$node] );
     $self->return_data($data->[0]);
+}
+
+sub shock_post_acl {
+    my ($self, $id) = @_;
+    if ($self->{nb_token} && $self->token) {
+        # private
+        my $email = Auth::globus_info($self->token)->{email};
+        $self->add_shock_acl($id, $self->{nb_token}, $email, 'read');
+        $self->add_shock_acl($id, $self->{nb_token}, $email, 'write');
+    } elsif ($self->{nb_token}) {
+        # public
+        my $email = Auth::globus_info($self->{nb_token})->{email};
+        $self->delete_shock_acl($id, $self->{nb_token}, $email, 'read');
+    } else {
+        # missing config
+        print STDERR "Missing notebook config options\n";
+    }
+}
+
+sub shock_auth {
+    my ($self, $post) = @_;
+    if ($post) {
+        return $self->{nb_token} ? $self->{nb_token} : undef;
+    } else {
+        return $self->token ? $self->token : undef;
+    }
 }
 
 1;

@@ -51,6 +51,7 @@ sub new {
         submethod     => $params->{submethod},
         resource      => $params->{resource},
         user          => $params->{user},
+        token         => $params->{cgi}->http('HTTP_AUTH') || undef,
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
         json_rpc_id   => ($params->{json_rpc} && exists($params->{json_rpc_id})) ? $params->{json_rpc_id} : undef,
         html_messages => $html_messages,
@@ -117,6 +118,10 @@ sub submethod {
 sub user {
     my ($self) = @_;
     return $self->{user};
+}
+sub token {
+    my ($self) = @_;
+    return $self->{token};
 }
 sub json_rpc {
     my ($self) = @_;
@@ -397,62 +402,104 @@ sub get_sequence_sets {
     return $stages;
 }
 
-sub create_virtual_shock_node {
-    my ($self, $parent, $attr) = @_;
-
-    my $attr_str = $self->json->encode($attr);
-    my $content  = [ type => 'virtual', source => $parent, attributes => [undef, "$parent.json", Content => $attr_str] ];
+sub delete_shock_acl {
+    my ($self, $id, $auth, $email, $acl) = @_;
+    
     my $response = undef;
     eval {
-        $response = $self->json->decode( $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data')->content );
+        my $del = $self->agent->delete($Conf::shock_url.'/node/'.$id.'/acl?'.$acl.'='.$email, 'Authorization' => "OAuth $auth");
+        $response = $self->json->decode( $del->content );
     };
-    if ($@ || (! ref($response)) || $response->{E}) {
+    if ($@ || (! ref($response))) {
         return undef;
+    } elsif (exists($response->{E}) && $response->{E}) {
+        $self->return_data( {"ERROR" => $response->{E}}, 500 );
+    } else {
+        return $response->{D};
+    }
+}
+
+sub add_shock_acl {
+    my ($self, $id, $auth, $email, $acl) = @_;
+    
+    my $response = undef;
+    eval {
+        my $put = $self->agent->put($Conf::shock_url.'/node/'.$id.'/acl?'.$acl.'='.$email, 'Authorization' => "OAuth $auth");
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{E}) && $response->{E}) {
+        $self->return_data( {"ERROR" => $response->{E}}, 500 );
     } else {
         return $response->{D};
     }
 }
 
 sub set_shock_node {
-    my ($self, $name, $file, $attr) = @_;
+    my ($self, $name, $file, $attr, $auth) = @_;
     
     my $attr_str = $self->json->encode($attr);
     my $file_str = $self->json->encode($file);
     my $content  = [ attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str] ];
     my $response = undef;
     eval {
-        $response = $self->json->decode( $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data')->content );
+        my $post = undef;
+        if ($auth) {
+            $post = $self->agent->post($Conf::shock_url.'/node', 'Authorization' => "OAuth $auth", $content, Content_Type => 'form-data');
+        } else {
+            $post = $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data');
+        }
+        $response = $self->json->decode( $post->content );
     };
-    if ($@ || (! ref($response)) || $response->{E}) {
+    if ($@ || (! ref($response))) {
         return undef;
+    } elsif (exists($response->{E}) && $response->{E}) {
+        $self->return_data( {"ERROR" => $response->{E}}, 500 );
     } else {
         return $response->{D};
     }
 }
 
 sub get_shock_node {
-    my ($self, $id) = @_;
+    my ($self, $id, $auth) = @_;
     
     my $content = undef;
     eval {
-        $content = $self->json->decode( $self->agent->get($Conf::shock_url.'/node/'.$id)->content );
+        my $get = undef;
+        if ($auth) {
+            $get = $self->agent->get($Conf::shock_url.'/node/'.$id, 'Authorization' => "OAuth $auth");
+        } else {
+            $get = $self->agent->get($Conf::shock_url.'/node/'.$id);
+        }
+        $content = $self->json->decode( $get->content );
     };
-    if ($@ || (! ref($content)) || $content->{E}) {
+    if ($@ || (! ref($content))) {
         return undef;
+    } elsif (exists($content->{E}) && $content->{E}) {
+        $self->return_data( {"ERROR" => $content->{E}}, 500 );
     } else {
         return $content->{D};
     }
 }
 
 sub get_shock_file {
-    my ($self, $id, $file) = @_;
+    my ($self, $id, $file, $auth) = @_;
     
     my $content = undef;
     eval {
-        $content = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download')->content;
+        my $get = undef;
+        if ($auth) {
+            $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download', 'Authorization' => "OAuth $auth");
+        } else {
+            $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download');
+        }
+        $content = $get->content;
     };
     if ($@ || (! $content)) {
         return undef;
+    } elsif (exists($content->{E}) && $content->{E}) {
+        $self->return_data( {"ERROR" => $content->{E}}, 500 );
     } elsif ($file) {
         if (open(FILE, ">$file")) {
             print FILE $content;
@@ -467,17 +514,26 @@ sub get_shock_file {
 }
 
 sub get_shock_query {
-    my ($self, $params) = @_;
+    my ($self, $type, $params, $auth) = @_;
     
     my $shock = undef;
-    my $query = '?query';
-    map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
-    
+    my $query = '?querynode&type='.$type;
+    if ($params && (scalar(keys %$params) > 0)) {
+        map { $query .= '&attributes.'.$_.'='.$params->{$_} } keys %$params;
+    }
     eval {
-        $shock = $self->json->decode( $self->agent->get($Conf::shock_url.'/node'.$query)->content );
+        my $get = undef;
+        if ($auth) {
+            $get = $self->agent->get($Conf::shock_url.'/node'.$query, 'Authorization' => "OAuth $auth");
+        } else {
+            $get = $self->agent->get($Conf::shock_url.'/node'.$query);
+        }
+        $shock = $self->json->decode( $get->content );
     };
-    if ($@ || (! ref($shock)) || $shock->{E} || (! $shock->{D})) {
+    if ($@ || (! ref($shock))) {
         return [];
+    } elsif (exists($shock->{E}) && $shock->{E}) {
+        $self->return_data( {"ERROR" => $shock->{E}}, 500 );
     } else {
         return $shock->{D};
     }
