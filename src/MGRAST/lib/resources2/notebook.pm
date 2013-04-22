@@ -19,9 +19,10 @@ sub new {
     
     # get notebook admin token
     my $nb_token = undef;
-    if ($Conf::nb_admin_user && $Conf::nb_admin_pswd) {
-        my $key = encode_base64($Conf::nb_admin_user.':'.$Conf::nb_admin_pswd);
-        $nb_token = Auth::globus_token($key)->{access_token};
+    if ($Conf::nb_admin_name && $Conf::nb_admin_pswd) {
+        my $key = encode_base64($Conf::nb_admin_name.':'.$Conf::nb_admin_pswd);
+        my $rep = Auth::globus_token($key);
+        $nb_token = $rep ? $rep->{access_token} : undef;
     }
     
     # Add name / attributes
@@ -274,7 +275,7 @@ sub delete_notebook {
     if (($latest->{attributes}{permission} eq 'view') || ($self->{user_info} && ($latest->{attributes}{owner} ne $self->{user_info}{username}))) {
         $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
     }
-    my $new  = $self->clone_notebook($latest, $latest->{attributes}{uuid}, $latest->{attributes}{name}, 1);
+    my $new  = $self->clone_notebook($latest, $latest->{attributes}{nbid}, $latest->{attributes}{name}, 1);
     my $data = $self->prepare_data( [$new] );
     $self->return_data($data->[0]);
 }
