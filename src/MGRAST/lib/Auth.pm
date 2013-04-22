@@ -101,6 +101,9 @@ sub globus_token {
 
 sub globus_info {
     my ($token) = @_;
+    if (! $token) {
+        return undef;
+    }
     my $info = undef;
     if ($token =~ /^un=(\w+)?\|/) {
         my $name = $1;

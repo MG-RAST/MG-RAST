@@ -402,30 +402,21 @@ sub get_sequence_sets {
     return $stages;
 }
 
-sub delete_shock_acl {
-    my ($self, $id, $auth, $email, $acl) = @_;
+sub edit_shock_acl {
+    my ($self, $id, $auth, $email, $action, $acl) = @_;
     
     my $response = undef;
+    my $url = $Conf::shock_url.'/node/'.$id.'/acl?'.$acl.'='.$email;
     eval {
-        my $del = $self->agent->delete($Conf::shock_url.'/node/'.$id.'/acl?'.$acl.'='.$email, 'Authorization' => "OAuth $auth");
-        $response = $self->json->decode( $del->content );
-    };
-    if ($@ || (! ref($response))) {
-        return undef;
-    } elsif (exists($response->{E}) && $response->{E}) {
-        $self->return_data( {"ERROR" => $response->{E}}, 500 );
-    } else {
-        return $response->{D};
-    }
-}
-
-sub add_shock_acl {
-    my ($self, $id, $auth, $email, $acl) = @_;
-    
-    my $response = undef;
-    eval {
-        my $put = $self->agent->put($Conf::shock_url.'/node/'.$id.'/acl?'.$acl.'='.$email, 'Authorization' => "OAuth $auth");
-        $response = $self->json->decode( $put->content );
+        my $tmp = undef;
+        if ($action eq 'delete') {
+            $tmp = $self->agent->delete($url, 'Authorization' => "OAuth $auth");
+        } elsif ($action eq 'put') {
+            $tmp = $self->agent->put($url, 'Authorization' => "OAuth $auth");
+        } else {
+            $self->return_data( {"ERROR" => "Invalid Shock ACL action: $action"}, 500 );
+        }
+        $response = $self->json->decode( $tmp->content );
     };
     if ($@ || (! ref($response))) {
         return undef;
