@@ -421,7 +421,7 @@ sub edit_shock_acl {
     if ($@ || (! ref($response))) {
         return undef;
     } elsif (exists($response->{E}) && $response->{E}) {
-        $self->return_data( {"ERROR" => $response->{E}}, 500 );
+        $self->return_data( {"ERROR" => "Unable to $action ACL '$acl' to node $id in Shock: ".$response->{E}[0]}, 500 );
     } else {
         return $response->{D};
     }
@@ -432,12 +432,12 @@ sub set_shock_node {
     
     my $attr_str = $self->json->encode($attr);
     my $file_str = $self->json->encode($file);
-    my $content  = [ attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str] ];
+    my $content  = [datatype => 'ipynb', attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str]];
     my $response = undef;
     eval {
         my $post = undef;
         if ($auth) {
-            $post = $self->agent->post($Conf::shock_url.'/node', 'Authorization' => "OAuth $auth", $content, Content_Type => 'form-data');
+            $post = $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data', Authorization => "OAuth $auth");
         } else {
             $post = $self->agent->post($Conf::shock_url.'/node', $content, Content_Type => 'form-data');
         }
@@ -446,7 +446,7 @@ sub set_shock_node {
     if ($@ || (! ref($response))) {
         return undef;
     } elsif (exists($response->{E}) && $response->{E}) {
-        $self->return_data( {"ERROR" => $response->{E}}, 500 );
+        $self->return_data( {"ERROR" => "Unable to POST to Shock: ".$response->{E}[0]}, 500 );
     } else {
         return $response->{D};
     }
@@ -468,7 +468,7 @@ sub get_shock_node {
     if ($@ || (! ref($content))) {
         return undef;
     } elsif (exists($content->{E}) && $content->{E}) {
-        $self->return_data( {"ERROR" => $content->{E}}, 500 );
+        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$content->{E}[0]}, 500 );
     } else {
         return $content->{D};
     }
@@ -489,8 +489,8 @@ sub get_shock_file {
     };
     if ($@ || (! $content)) {
         return undef;
-    } elsif (exists($content->{E}) && $content->{E}) {
-        $self->return_data( {"ERROR" => $content->{E}}, 500 );
+    } elsif (ref($content) && exists($content->{E}) && $content->{E}) {
+        $self->return_data( {"ERROR" => "Unable to GET file $id from Shock: ".$content->{E}[0]}, 500 );
     } elsif ($file) {
         if (open(FILE, ">$file")) {
             print FILE $content;
@@ -524,7 +524,7 @@ sub get_shock_query {
     if ($@ || (! ref($shock))) {
         return [];
     } elsif (exists($shock->{E}) && $shock->{E}) {
-        $self->return_data( {"ERROR" => $shock->{E}}, 500 );
+        $self->return_data( {"ERROR" => "Unable to query Shock: ".$shock->{E}[0]}, 500 );
     } else {
         return $shock->{D};
     }
