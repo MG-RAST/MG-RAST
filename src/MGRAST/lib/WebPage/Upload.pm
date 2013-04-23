@@ -8,9 +8,11 @@ use Data::Dumper;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 use JSON;
 use Encode;
+use Number::Format qw(format_bytes);
 
 use Conf;
 use WebConfig;
+use Mail::Mailer;
 use MGRAST::Metadata;
 
 use base qw( WebPage );
@@ -792,8 +794,13 @@ sub check_for_duplicates {
       }
       next unless (exists $info->{file_checksum});
       my $dupe = $jobdbm->Job->has_checksum($info->{file_checksum}, $user);
+      my $file_size = "N/A";
+      if(exists $info->{file_size}) {
+        $file_size = format_bytes($info->{file_size});
+      }
+      $file_size .= "\t";
       if ($dupe) {
-	push @$dupes, [$dupe, $seqfile];
+	push @$dupes, [$dupe, $file_size, $seqfile];
       }
     }
   }
@@ -805,15 +812,70 @@ sub check_for_duplicates {
     print $cgi->header;
     print $output;
   } elsif (@$dupes > 0) {
-    $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tYour File\n---------------\t---------------\n";
+    $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tFile Size\t\tYour File\n---------------\t---------------\t---------------\n";
     map { $output .= join("\t", @$_)."\n" } @$dupes;
-    $output .= "\nDo you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
+    $output .= "\nResubmitting jobs that already exist in MG-RAST reduces our resources and can delay the processing of jobs for all MG-RAST users.  Do you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
     print $cgi->header;
     print $output;
   } else {
     print $cgi->header;
     print "unique";
   }
+  exit 0;
+}
+
+sub send_email_for_duplicate_submission {
+  my ($self) = @_;
+
+  my $application = $self->application;
+  my $user     = $self->application->session->user;
+  my $cgi      = $self->application->cgi;
+  my $jobdbm   = $self->application->data_handle('MGRAST');
+  my $seqfiles = [];
+  my $base_dir = "$Conf::incoming";
+  my $udir     = $base_dir."/".md5_hex($user->login);
+  my $msg      = '';
+
+  @$seqfiles = split(/\|/, $cgi->param('seqfiles'));
+
+  my $max_byte_size = 0;
+  my $dupes = [];
+  foreach my $seqfile (@$seqfiles) {
+    if (open(FH, "<$udir/$seqfile.stats_info")) {
+      my $info = {};
+      while (<FH>) {
+	chomp;
+	my ($key, $val) = split /\t/;
+	$info->{$key} = $val;
+      }
+      next unless (exists $info->{file_checksum});
+      my $dupe = $jobdbm->Job->has_checksum($info->{file_checksum}, $user);
+      my $file_size = "N/A";
+      if(exists $info->{file_size}) {
+        if($info->{file_size} > $max_byte_size) {
+          $max_byte_size = $info->{file_size};
+        }
+        $file_size = format_bytes($info->{file_size});
+      }
+      $file_size .= "\t";
+      if ($dupe) {
+	push @$dupes, [$dupe, $file_size, $seqfile];
+      }
+    }
+  }
+  if (@$dupes > 0 && $max_byte_size > $Conf::dup_job_notification_size_limit) {
+    $msg = "WARNING: The user \"".$user->login."\" submitted files that already exist in MG-RAST:\n\nExisting ID\tFile Size\t\tTheir File\n---------------\t---------------\t---------------\n";
+    map { $msg .= join("\t", @$_)."\n" } @$dupes;
+    my $mailer = Mail::Mailer->new();
+    $mailer->open({ From    => "mg-rast\@mcs.anl.gov",
+                    To      => "mg-rast\@mcs.anl.gov",
+                    Subject => "Duplicate Metagenome Submission From ".$user->login,
+                  })
+      or die "Can't open Mail::Mailer: $!\n";
+    print $mailer $msg;
+    $mailer->close();
+  }
+
   exit 0;
 }
 
