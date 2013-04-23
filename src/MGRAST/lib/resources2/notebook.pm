@@ -37,8 +37,7 @@ sub new {
                             "notebook" => [ 'object', 'notebook object in JSON format' ],
                             "version"  => [ 'integer', 'version of the object' ],
                             "created"  => [ 'date', 'time the object was first created' ],
-                            "type"     => [ 'cv', [['template', 'template, only used to create other notebooks'],
-           										   ['generic', 'no specific functionality'],
+                            "type"     => [ 'cv', [['generic', 'no specific functionality'],
            										   ['analysis', 'designed to run metagenome analysis'],
            										   ['workflow', 'designed to run AWE workflows']] ],
                             "status"   => [ 'cv', [['deleted', 'notebook is flagged as deleted'],
@@ -113,7 +112,8 @@ sub info {
              				               'attributes'  => $self->attributes,
              				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                           												                             ['full', 'returns notebook attributes and object']]],
-                          												      'name'      => ['string', "name of new cloned notebook"]
+                          												      'name'      => ['string', "name of new cloned notebook"],
+                          												      'type'      => ['string', 'notebook type'],
                           											        },
              							                      'required' => { "id"   => ["string", "unique shock object identifier"],
              							                                      "nbid" => ["string", "unique notebook object identifier"] },
@@ -246,10 +246,11 @@ sub prepare_data {
 sub clone_notebook {
     my ($self, $node, $uuid, $name, $delete) = @_;
     
+    my $type = $self->cgi->param('type') || undef;
     my $file = $self->json->decode( $self->get_shock_file($node->{id}, $self->shock_auth()) );
     my $attr = { name => $name || $node->{attributes}{name}.'_copy',
                  nbid => $uuid,
-                 type => $node->{attributes}{type} || 'generic',
+                 type => $type ? $type : ($node->{attributes}{type} ? $node->{attributes}{type} : 'generic'),
                  owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
                  access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
                  created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
