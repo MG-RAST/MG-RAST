@@ -630,6 +630,9 @@ function submit_job () {
         return false;
       } else {
 	  if ( confirm(result) ) {
+              // If the user allows a duplicate to be loaded into the system, we call a perl subroutine that
+              //   will e-mail mg-rast@mcs.anl.gov if the duplicate is over 1GB in size (or whatever limit is set in Conf.pm)
+              $.ajax({ async: false, type: "POST", url: "metagenomics.cgi", data: { page: "Upload", action: "send_email_for_duplicate_submission", seqfiles: seq_files } });
 	      document.forms.submission_form.submit();
 	  } else {
 	      document.getElementById("submit_job_button").disabled = false;
