@@ -1,5 +1,8 @@
 package Auth;
 
+use JSON;
+use CGI;
+
 sub authenticate {
   my ($key) = @_;
 
@@ -16,9 +19,7 @@ sub authenticate {
 
   # this is kbase
   if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
-    use JSON;
     my $json = new JSON;
-    use CGI;
     my $cgi = new CGI;
 
     $auth_source = 'kbase_user';
@@ -87,6 +88,7 @@ sub authenticate {
 sub globus_token {
     my ($key) = @_;
     my $token = undef;
+    my $json = new JSON;
     my $pre = `curl -s -H "Authorization: Basic $key" -X POST "https://nexus.api.globusonline.org/goauth/token?grant_type=client_credentials"`;
     eval {
 	    $token = $json->decode($pre);
@@ -101,9 +103,13 @@ sub globus_token {
 
 sub globus_info {
     my ($token) = @_;
+    if (! $token) {
+        return undef;
+    }
     my $info = undef;
     if ($token =~ /^un=(\w+)?\|/) {
         my $name = $1;
+        my $json = new JSON;
         my $pre = `curl -s -H "Authorization: Globus-Goauthtoken $token" -X GET "https://nexus.api.globusonline.org/users/$name"`;
         eval {
             $info = $json->decode($pre);

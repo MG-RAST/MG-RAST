@@ -19,23 +19,32 @@ sub new {
     
     # get notebook admin token
     my $nb_token = undef;
-    if ($Conf::nb_admin_user && $Conf::nb_admin_pswd) {
-        my $key = encode_base64($Conf::nb_admin_user.':'.$Conf::nb_admin_pswd);
-        $nb_token = Auth::globus_token($key)->{access_token};
+    if ($Conf::nb_admin_name && $Conf::nb_admin_pswd) {
+        my $key = encode_base64($Conf::nb_admin_name.':'.$Conf::nb_admin_pswd);
+        my $rep = Auth::globus_token($key);
+        $nb_token = $rep ? $rep->{access_token} : undef;
     }
     
     # Add name / attributes
     $self->{name}       = "notebook";
     $self->{nb_token}   = $nb_token;
+    $self->{nb_info}    = Auth::globus_info($nb_token);
+    $self->{user_info}  = Auth::globus_info($self->token);
     $self->{attributes} = { "id"       => [ 'string', 'unique shock identifier' ],
+                            "url"      => [ 'uri', 'resource location of this object instance' ],
                             "name"     => [ 'string', 'human readable identifier' ],
                             "nbid"     => [ 'string', 'ipynb identifier - stable across different versions'],
                             "notebook" => [ 'object', 'notebook object in JSON format' ],
-                            "created"  => [ 'date', 'time the object was first created' ],
                             "version"  => [ 'integer', 'version of the object' ],
-                            "url"      => [ 'uri', 'resource location of this object instance' ],
-                            "status"   => [ 'cv', [['public', 'notebook is public'],
-           										   ['private', 'notebook is private']] ],
+                            "created"  => [ 'date', 'time the object was first created' ],
+                            "type"     => [ 'cv', [['template', 'template, only used to create other notebooks'],
+           										   ['generic', 'no specific functionality'],
+           										   ['analysis', 'designed to run metagenome analysis'],
+           										   ['workflow', 'designed to run AWE workflows']] ],
+                            "status"   => [ 'cv', [['deleted', 'notebook is flagged as deleted'],
+           										   ['public', 'notebook is public'],
+           										   ['private', 'notebook is private and owned by user'],
+           										   ['shared', 'notebook is private and shared with user']] ],
            					"permission" => [ 'cv', [['view', 'notebook is viewable only'],
                                  					 ['edit', 'notebook is editable']] ],
                             "description" => [ 'string', 'descriptive text about notebook' ],
@@ -200,16 +209,30 @@ sub prepare_data {
     
     my $objects = [];
     foreach my $node (@$data) {
-        my $url = $self->cgi->url;
+        my $status = undef;
+        if (exists $node->{attributes}{deleted}) {
+            $status = 'deleted';
+        } elsif ($node->{attributes}{owner}) {
+            if ($node->{attributes}{owner} eq 'public') {
+                $status = 'public';
+            } elsif ($self->{user_info} && ($node->{attributes}{owner} eq $self->{user_info}{username})) {
+                $status = 'private';
+            } else {
+                $status = 'shared';
+            }
+        } else {
+            $status = 'public';
+        }
         my $obj = {};
         $obj->{id}   = $node->{id};
-        $obj->{url}  = $url.'/notebook/'.$obj->{id};
+        $obj->{url}  = $self->cgi->url.'/notebook/'.$obj->{id};
         $obj->{name} = $node->{attributes}{name} || 'Untitled';
         $obj->{nbid} = $node->{attributes}{nbid};
         $obj->{version} = 1;
-        $obj->{created} = $node->{attributes}{created};
-	    $obj->{status}  = (exists $node->{attributes}{deleted}) ? 'deleted' : ($self->token ? 'private' : 'public');
-	    $obj->{permission}  = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
+        $obj->{created} = $node->{attributes}{created} || strftime("%Y-%m-%dT%H:%M:%S", gmtime);
+        $obj->{type}    = $node->{attributes}{type} || 'generic';
+	    $obj->{status}  = $status;
+	    $obj->{permission}  = $node->{attributes}{permission} || 'edit';
 	    $obj->{description} = $node->{attributes}{description} || '';
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
             $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{id}, $self->shock_auth()) );
@@ -227,6 +250,8 @@ sub clone_notebook {
     my $attr = { name => $name || $node->{attributes}{name}.'_copy',
                  nbid => $uuid,
                  type => $node->{attributes}{type} || 'generic',
+                 owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
+                 access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
                  created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                  permission => 'edit',
                  description => $node->{attributes}{description} || ''
@@ -236,7 +261,7 @@ sub clone_notebook {
     }
     $file->{'metadata'} = $attr;
     my $new_node = $self->set_shock_node($node->{id}.'.ipynb', $file, $attr, $self->shock_auth(1));
-    $self->shock_post_acl($new_node->{id});
+    $self->shock_post_acl($new_node->{id}, $attr->{access});
     return $new_node;
 }
 
@@ -247,10 +272,10 @@ sub delete_notebook {
     my $attr   = {nbid => $uuid};
     my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
     my $latest = $nb_set[0];
-    if ($latest->{attributes}{permission} eq 'view') {
+    if (($latest->{attributes}{permission} eq 'view') || ($self->{user_info} && ($latest->{attributes}{owner} ne $self->{user_info}{username}))) {
         $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
     }
-    my $new  = $self->clone_notebook($latest, $latest->{attributes}{uuid}, $latest->{attributes}{name}, 1);
+    my $new  = $self->clone_notebook($latest, $latest->{attributes}{nbid}, $latest->{attributes}{name}, 1);
     my $data = $self->prepare_data( [$new] );
     $self->return_data($data->[0]);
 }
@@ -290,6 +315,8 @@ sub upload_notebook {
     my $nb_attr = { name => $nb_obj->{metadata}{name} || 'Untitled',
                     nbid => $nb_obj->{metadata}{nbid} || $self->uuidv4(),
                     type => $nb_obj->{metadata}{type} || 'generic',
+                    owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
+                    access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
                     created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                     permission => $nb_obj->{metadata}{permission} || 'edit',
                     description => $nb_obj->{metadata}{description} || ''
@@ -300,23 +327,20 @@ sub upload_notebook {
     my $name = $nb_attr->{name};
     $name =~ s/\s+/_/g;
     my $node = $self->set_shock_node($name.'.ipynb', $nb_obj, $nb_attr, $self->shock_auth(1));
-    $self->shock_post_acl($node->{id});
+    $self->shock_post_acl($node->{id}, $nb_attr->{access});
     
     my $data = $self->prepare_data( [$node] );
     $self->return_data($data->[0]);
 }
 
 sub shock_post_acl {
-    my ($self, $id) = @_;
-    if ($self->{nb_token} && $self->token) {
+    my ($self, $id, $access) = @_;
+    if ($self->{nb_token} && $self->{user_info} && (@$access > 0)) {
         # private
-        my $email = Auth::globus_info($self->token)->{email};
-        $self->add_shock_acl($id, $self->{nb_token}, $email, 'read');
-        $self->add_shock_acl($id, $self->{nb_token}, $email, 'write');
-    } elsif ($self->{nb_token}) {
+        map { $self->edit_shock_acl($id, $self->{nb_token}, $_, 'put', 'read') } @$access;
+    } elsif ($self->{nb_token} && $self->{nb_info} && (@$access == 0)) {
         # public
-        my $email = Auth::globus_info($self->{nb_token})->{email};
-        $self->delete_shock_acl($id, $self->{nb_token}, $email, 'read');
+        $self->edit_shock_acl($id, $self->{nb_token}, $self->{nb_info}{email}, 'delete', 'read');
     } else {
         # missing config
         print STDERR "Missing notebook config options\n";
