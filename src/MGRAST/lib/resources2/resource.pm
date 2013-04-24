@@ -20,7 +20,7 @@ sub new {
     # set variables
     my $agent = LWP::UserAgent->new;
     my $memd  = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
-    my $json  = new JSON;
+    my $json  = JSON->new;
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
     $json = $json->utf8();
     $json->max_size(0);
