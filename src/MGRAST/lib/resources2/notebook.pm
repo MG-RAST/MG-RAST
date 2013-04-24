@@ -6,6 +6,8 @@ no warnings('once');
 use POSIX qw(strftime);
 use MIME::Base64;
 use Auth;
+use utf8;
+use Encode qw( encode_utf8 );
 
 use Conf;
 use parent qw(resources2::resource);
@@ -235,7 +237,7 @@ sub prepare_data {
 	    $obj->{permission}  = $node->{attributes}{permission} || 'edit';
 	    $obj->{description} = $node->{attributes}{description} || '';
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
-            $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{id}, $self->shock_auth()) );
+            $obj->{notebook} = $self->json->decode( encode_utf8($self->get_shock_file($obj->{id}, undef, $self->shock_auth())) );
         }
         push @$objects, $obj;
     }
@@ -247,7 +249,7 @@ sub clone_notebook {
     my ($self, $node, $uuid, $name, $delete) = @_;
     
     my $type = $self->cgi->param('type') || undef;
-    my $file = $self->json->decode( $self->get_shock_file($node->{id}, $self->shock_auth()) );
+    my $file = $self->json->decode( encode_utf8($self->get_shock_file($node->{id}, undef, $self->shock_auth())) );
     my $attr = { name => $name || $node->{attributes}{name}.'_copy',
                  nbid => $uuid,
                  type => $type ? $type : ($node->{attributes}{type} ? $node->{attributes}{type} : 'generic'),
@@ -312,7 +314,7 @@ sub upload_notebook {
 	}
 
     # get notebook object and attribute object
-    my $nb_obj  = $self->json->decode($nb_string);
+    my $nb_obj  = $self->json->decode(encode_utf8($nb_string));
     my $nb_attr = { name => $nb_obj->{metadata}{name} || 'Untitled',
                     nbid => $nb_obj->{metadata}{nbid} || $self->uuidv4(),
                     type => $nb_obj->{metadata}{type} || 'generic',
