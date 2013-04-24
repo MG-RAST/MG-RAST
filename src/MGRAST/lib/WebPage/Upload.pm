@@ -46,6 +46,7 @@ sub init {
   $self->{icon} = "<img src='./Html/mg-upload.png' style='width: 20px; height: 20px; padding-right: 5px; position: relative; top: -3px;'>";
 
   $self->application->register_action($self, 'check_for_duplicates', 'check_for_duplicates');
+  $self->application->register_action($self, 'send_email_for_duplicate_submission', 'send_email_for_duplicate_submission');
   $self->application->register_action($self, 'check_project_name', 'check_project_name');
   $self->application->register_action($self, 'validate_metadata', 'validate_metadata');
   $self->application->register_action($self, 'submit_to_mgrast', 'submit_to_mgrast');
@@ -857,23 +858,27 @@ sub send_email_for_duplicate_submission {
         }
         $file_size = format_bytes($info->{file_size});
       }
-      $file_size .= "\t";
       if ($dupe) {
 	push @$dupes, [$dupe, $file_size, $seqfile];
       }
     }
   }
   if (@$dupes > 0 && $max_byte_size > $Conf::dup_job_notification_size_limit) {
-    $msg = "WARNING: The user \"".$user->login."\" submitted files that already exist in MG-RAST:\n\nExisting ID\tFile Size\t\tTheir File\n---------------\t---------------\t---------------\n";
-    map { $msg .= join("\t", @$_)."\n" } @$dupes;
+    $msg = "WARNING: The user \"".$user->login."\" submitted files that already exist in MG-RAST:\n\nExisting ID, File Size, Their File\n--------------------------------------------------------------------------------\n";
+    map { $msg .= join(", ", @$_)."\n" } @$dupes;
     my $mailer = Mail::Mailer->new();
     $mailer->open({ From    => "mg-rast\@mcs.anl.gov",
                     To      => "mg-rast\@mcs.anl.gov",
-                    Subject => "Duplicate Metagenome Submission From ".$user->login,
+                    Subject => "Duplicate Metagenome Submission From ".$user->login
                   })
       or die "Can't open Mail::Mailer: $!\n";
     print $mailer $msg;
     $mailer->close();
+    print $cgi->header;
+    print 1;
+  } else {
+    print $cgi->header;
+    print 0;
   }
 
   exit 0;
