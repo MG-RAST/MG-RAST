@@ -6,6 +6,8 @@ no warnings('once');
 use POSIX qw(strftime);
 use MIME::Base64;
 use Auth;
+use utf8;
+use Encode qw( encode_utf8 );
 
 use Conf;
 use parent qw(resources2::resource);
@@ -37,8 +39,7 @@ sub new {
                             "notebook" => [ 'object', 'notebook object in JSON format' ],
                             "version"  => [ 'integer', 'version of the object' ],
                             "created"  => [ 'date', 'time the object was first created' ],
-                            "type"     => [ 'cv', [['template', 'template, only used to create other notebooks'],
-           										   ['generic', 'no specific functionality'],
+                            "type"     => [ 'cv', [['generic', 'no specific functionality'],
            										   ['analysis', 'designed to run metagenome analysis'],
            										   ['workflow', 'designed to run AWE workflows']] ],
                             "status"   => [ 'cv', [['deleted', 'notebook is flagged as deleted'],
@@ -113,7 +114,8 @@ sub info {
              				               'attributes'  => $self->attributes,
              				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                           												                             ['full', 'returns notebook attributes and object']]],
-                          												      'name'      => ['string', "name of new cloned notebook"]
+                          												      'name'      => ['string', "name of new cloned notebook"],
+                          												      'type'      => ['string', 'notebook type'],
                           											        },
              							                      'required' => { "id"   => ["string", "unique shock object identifier"],
              							                                      "nbid" => ["string", "unique notebook object identifier"] },
@@ -235,7 +237,7 @@ sub prepare_data {
 	    $obj->{permission}  = $node->{attributes}{permission} || 'edit';
 	    $obj->{description} = $node->{attributes}{description} || '';
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
-            $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{id}, $self->shock_auth()) );
+            $obj->{notebook} = $self->json->decode( encode_utf8($self->get_shock_file($obj->{id}, undef, $self->shock_auth())) );
         }
         push @$objects, $obj;
     }
@@ -246,10 +248,11 @@ sub prepare_data {
 sub clone_notebook {
     my ($self, $node, $uuid, $name, $delete) = @_;
     
-    my $file = $self->json->decode( $self->get_shock_file($node->{id}, $self->shock_auth()) );
+    my $type = $self->cgi->param('type') || undef;
+    my $file = $self->json->decode( encode_utf8($self->get_shock_file($node->{id}, undef, $self->shock_auth())) );
     my $attr = { name => $name || $node->{attributes}{name}.'_copy',
                  nbid => $uuid,
-                 type => $node->{attributes}{type} || 'generic',
+                 type => $type ? $type : ($node->{attributes}{type} ? $node->{attributes}{type} : 'generic'),
                  owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
                  access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
                  created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
@@ -311,7 +314,7 @@ sub upload_notebook {
 	}
 
     # get notebook object and attribute object
-    my $nb_obj  = $self->json->decode($nb_string);
+    my $nb_obj  = $self->json->decode(encode_utf8($nb_string));
     my $nb_attr = { name => $nb_obj->{metadata}{name} || 'Untitled',
                     nbid => $nb_obj->{metadata}{nbid} || $self->uuidv4(),
                     type => $nb_obj->{metadata}{type} || 'generic',
