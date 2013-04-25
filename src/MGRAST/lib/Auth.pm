@@ -1,5 +1,8 @@
 package Auth;
 
+use JSON;
+use CGI;
+
 sub authenticate {
   my ($key) = @_;
 
@@ -16,29 +19,23 @@ sub authenticate {
 
   # this is kbase
   if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
-    use JSON;
     my $json = new JSON;
-    use CGI;
     my $cgi = new CGI;
 
     $auth_source = 'kbase_user';
     my $ustruct = "";
     
     if ($key =~ /^kbgo4711/) {
-      $key =~ s/^kbgo4711(.*)$/Basic $1/;
-      my $pre = `curl -s -H "Authorization: $key" -X POST "https://nexus.api.globusonline.org/goauth/token?grant_type=client_credentials"`;
-      eval {
-	$ustruct = $json->decode($pre);
-      };
-      if ($@) {
-	print STDERR "could not reach auth server: $@\n";
-	exit;
-      } else {
-	print $cgi->header(-type => 'application/json',
+      $key =~ s/^kbgo4711//;
+      $ustruct = globus_token($key);
+      if ($ustruct) {
+	      print $cgi->header(-type => 'application/json',
 		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );
-	print '{ "token": "'.$ustruct->{access_token}.'" }';
-	exit;
+	      print '{ "token": "'.$ustruct->{access_token}.'" }';
+	      exit;
+      } else {
+          return undef;
       }
     }
 
@@ -57,24 +54,24 @@ sub authenticate {
       die "could not reach auth server";
     } else {
       if ($ustruct->{valid}) {
-	$auth_value = $user;	
-	if ($cgi->param('webkey')) {
-	  my $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', value => $cgi->param('webkey') } );
-	  if (scalar(@$pref)) {
-	    my $u = $pref->[0]->user;
-	    $pref = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $u } );
-	    if (scalar(@$pref) && $pref->[0]->value > time) {
-	      my $existing = $master->Preferences->get_objects( { name => 'kbase_user', user => $u } );
-	      if (scalar(@$existing)) {
-		$existing->[0]->value($user);
-	      } else {
-		$master->Preferences->create( { name => 'kbase_user', user => $u, value => $user } );
+	      $auth_value = $user;	
+	      if ($cgi->param('webkey')) {
+	          my $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', value => $cgi->param('webkey') } );
+	          if (scalar(@$pref)) {
+	              my $u = $pref->[0]->user;
+	              $pref = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $u } );
+	              if (scalar(@$pref) && $pref->[0]->value > time) {
+	                  my $existing = $master->Preferences->get_objects( { name => 'kbase_user', user => $u } );
+	                  if (scalar(@$existing)) {
+		                  $existing->[0]->value($user);
+	                  } else {
+		                  $master->Preferences->create( { name => 'kbase_user', user => $u, value => $user } );
+	                  }
+	              }
+	          }
 	      }
-	    }
-	  }
-	}
       } else {
-	return undef;
+	      return undef;
       }
     }
   }
@@ -86,21 +83,47 @@ sub authenticate {
   }
 
   return undef;
+}
 
-  # use JSON;
-  # use LWP::UserAgent;
-  # my $json = new JSON;
-  # my $cgi = new CGI();
-  # my $ua = LWP::UserAgent->new;
+sub globus_token {
+    my ($key) = @_;
+    my $token = undef;
+    my $json = new JSON;
+    my $pre = `curl -s -H "Authorization: Basic $key" -X POST "https://nexus.api.globusonline.org/goauth/token?grant_type=client_credentials"`;
+    eval {
+	    $token = $json->decode($pre);
+    };
+    if ($@) {
+        print STDERR "could not reach auth server: $@\n";
+        return undef;
+    } else {
+        return $token;
+    }
+}
 
-  # my $call_url = "oAuth.cgi?action=data&access_token=" . $access_token;
-  # my $response = $ua->get($call_url)->content;
-  # my $data = $json->decode($response);
-  # my $login = $data->{login};
-  # my ($dbmaster, $error) = WebApplicationDBHandle->new();
-  # my $user = $dbmaster->User->init({ "login" => $login });
-  
-  # return $user;
+sub globus_info {
+    my ($token) = @_;
+    if (! $token) {
+        return undef;
+    }
+    my $info = undef;
+    if ($token =~ /^un=(\w+)?\|/) {
+        my $name = $1;
+        my $json = new JSON;
+        my $pre = `curl -s -H "Authorization: Globus-Goauthtoken $token" -X GET "https://nexus.api.globusonline.org/users/$name"`;
+        eval {
+            $info = $json->decode($pre);
+        };
+        if ($@) {
+            print STDERR "could not reach auth server: $@\n";
+            return undef;
+        } else {
+            return $info;
+        }
+    } else {
+        print STDERR "invalid token format\n";
+        return undef;
+    }
 }
 
 1;
