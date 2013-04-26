@@ -608,18 +608,21 @@ sub _get_annotation_map {
 
     my $tbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
     unless ($tbl && $anns && @$anns) { return {}; }
-    my $col  = ($type eq 'md5') ? 'md5' : 'name';
     
+    my $col  = ($type eq 'md5') ? 'md5' : 'name';    
     my $amap = {};
-    my $sql  = "SELECT _id, $col FROM $tbl WHERE $col IN (".join(",", map {$self->_dbh->quote($_)} @$anns).")";
-    if ($src && ($type eq 'ontology')) {
-        $sql .= " AND source = ".$self->_src_id->{$src};
-    }
-    my $tmp  = $self->_dbh->selectall_arrayref($sql);
-    if ($tmp && @$tmp) {
-        %$amap = map { $_->[0], $_->[1] } @$tmp;
-    }
+    my $iter = natatime $self->_chunk, @$anns;
     
+    while (my @curr = $iter->()) {
+        my $sql = "SELECT _id, $col FROM $tbl WHERE $col IN (".join(",", map {$self->_dbh->quote($_)} @curr).")";
+        if ($src && ($type eq 'ontology')) {
+            $sql .= " AND source = ".$self->_src_id->{$src};
+        }
+        my $rows = $self->_dbh->selectall_arrayref($sql);
+        if ($rows && (@$rows > 0)) {
+            map { $amap->{$_->[0]} = {$_->[1]} } @$rows;
+        }
+    }
     return $amap;
     # _id => name
 }
@@ -1779,6 +1782,11 @@ sub get_org_md5 {
 sub get_ontol_md5 {
     my ($self, $eval, $ident, $alen, $source) = @_;
     return $self->_get_annotation_md5('ontology', $eval, $ident, $alen, [$source]);
+}
+
+sub get_func_md5 {
+    my ($self, $eval, $ident, $alen, $sources) = @_;
+    return $self->_get_annotation_md5('function', $eval, $ident, $alen, $sources);
 }
 
 sub _get_annotation_md5 {
