@@ -493,7 +493,11 @@ sub parse_default_info {
 
   my $html = '';
   $html .= exists($info->{input}) ? "<p>".$info->{input}."</p>" : "";
-  $html .= exists($info->{description}) ? "<p>".$info->{description}."</p>" : "";
+  if (exists $info->{description}) {
+      $info->{description} =~ s/&lt;/</g;
+      $info->{description} =~ s/&gt;/>/g;
+      $html .= "<p>".$info->{description}."</p>"
+  }
   if (exists $info->{output}) {
     foreach my $out ( @{$info->{output}} ) {
       unless (exists $out->{file}) { next; }
