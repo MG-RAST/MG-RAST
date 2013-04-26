@@ -88,16 +88,17 @@ sub instance {
   my $master = $self->connect_to_datasource();
   
   # get data
-  my $job = $master->Job->init( {metagenome_id => $mgid, viewable => 1} );
+  my $job = $master->Job->get_objects( {metagenome_id => $mgid, viewable => 1} );
   unless ($job && ref($job)) {
-    $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
+      $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
   }
+  $job = $job->[0];
   
   # check rights
   unless ($job->{public} || $self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id})) {
-    $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+      $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
   }
-  
+
   if ($show_list) {
     $self->setlist($job);
   }
