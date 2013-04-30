@@ -68,7 +68,8 @@ sub info {
                                        									   [ "Subsystems", "ontology database, type ontology only" ],
                            												   [ "NOG", "ontology database, type ontology only" ],
                            												   [ "COG", "ontology database, type ontology only" ],
-                           												   [ "KO", "ontology database, type ontology only" ]] ] },
+                           												   [ "KO", "ontology database, type ontology only" ]] ],
+                           							  'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
 							              'body' => {} } }
 				  ]
 		  };
@@ -102,11 +103,34 @@ sub instance {
     unless ($job->{public} || $self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id})) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
-
-    # prepare data
-    my $data = $self->prepare_data($job);
     
-    $self->return_data($data);
+    # return cached if exists
+    $self->return_cached();
+    
+    # if asynchronous call, fork the process and return the process id.  otherwise, prepare and return data.
+    if($self->cgi->param('asynchronous')) {
+        my $pid = fork();
+        # child - get data and dump it
+        if ($pid == 0) {
+            my $fname = $Conf::temp.'/'.$$.'.json';
+            close STDERR;
+            close STDOUT;
+            my $data = $self->prepare_data($job);
+            open(FILE, ">$fname");
+            print FILE $self->json->encode($data);
+            close FILE;
+            exit 0;
+        }
+        # parent - end html session
+        else {
+            my $fname = $Conf::temp.'/'.$pid.'.json';
+            $self->return_data({"status" => "Submitted", "id" => $pid, "url" => $self->cgi->url."/status/".$pid});
+        }
+    } else {
+        # prepare data
+        my $data = $self->prepare_data($job);
+        $self->return_data($data, undef, 1); # cache this!
+    }
 }
 
 # reformat the data into the requested output format
