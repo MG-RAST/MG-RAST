@@ -28,7 +28,7 @@ sub info {
 		    'url' => $self->cgi->url."/".$self->name,
 		    'description' => "An analysis file from the processing of a metagenome from a specific stage in its analysis",
 		    'type' => 'object',
-		    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",

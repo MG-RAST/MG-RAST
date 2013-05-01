@@ -31,7 +31,7 @@ sub info {
 		    'url' => $self->cgi->url."/".$self->name,
 		    'description' => "A set of genomic sequences of a metagenome annotated by a specified source",
 		    'type' => 'object',
-		    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
