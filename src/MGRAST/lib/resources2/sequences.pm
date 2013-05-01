@@ -64,24 +64,22 @@ sub info {
 									    "sequence_type" => [ "cv", [ [ "dna", "return DNA sequences" ],
 													 [ "protein", "return protein sequences" ] ] ],
 									    "annotation" => [ "list", [ "string", "data_type to filter by" ] ],
-									    "source" => [ "cv", [  [  "RDP", "RNA database, type organism and feature only" ],
-												[ "Greengenes", "RNA database, type organism and feature only" ],
-												[ "LSU", "RNA database, type organism and feature only" ],
-												[ "SSU", "RNA database, type organism and feature only" ],
-												[ "SwissProt", "protein database, type organism and feature only" ],
-												[ "GenBank", "protein database, type organism and feature only" ],
-												[ "IMG", "protein database, type organism and feature only" ],
-												[ "SEED", "protein database, type organism and feature only" ],
-												[ "TrEMBL", "protein database, type organism and feature only" ],
-												[ "RefSeq", "protein database, type organism and feature only" ],
-												[ "PATRIC", "protein database, type organism and feature only" ],
-												[ "eggNOG", "protein database, type organism and feature only" ],
-												[ "KEGG", "protein database, type organism and feature only" ],
-												[ "NOG", "ontology database, type function only" ],
-												[ "COG", "ontology database, type function only" ],
-												[ "KO", "ontology database, type function only" ],
-												[ "GO", "ontology database, type function only" ],
-												[ "Subsystems", "ontology database, type function only" ] ] ] },
+									    "source" => [ "cv", [[ "RefSeq", "protein database, type organism and function only" ],
+               												 [ "GenBank", "protein database, type organism and function only" ],
+               												 [ "IMG", "protein database, type organism and function only" ],
+               												 [ "SEED", "protein database, type organism and function only" ],
+               												 [ "TrEMBL", "protein database, type organism and function only" ],
+               												 [ "SwissProt", "protein database, type organism and function only" ],
+               												 [ "PATRIC", "protein database, type organism and function only" ],
+               												 [ "KEGG", "protein database, type organism and function only" ],
+                           									 [ "RDP", "RNA database, type organism and function only" ],
+                           									 [ "Greengenes", "RNA database, type organism and function only" ],
+                           									 [ "LSU", "RNA database, type organism and function only" ],
+                           									 [ "SSU", "RNA database, type organism and function only" ],
+                           									 [ "Subsystems", "ontology database, type ontology only" ],
+               												 [ "NOG", "ontology database, type ontology only" ],
+               												 [ "COG", "ontology database, type ontology only" ],
+               												 [ "KO", "ontology database, type ontology only" ]] ] },
 							 'required'    => { "id" => [ "string", "unique metagenome identifier" ] },
 							 'body'        => { } } }
 				  ]
@@ -113,7 +111,7 @@ sub instance {
     }  
     
     # check rights
-    unless ($job->{public} || $self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id})) {
+    unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id}) || $self->user->has_star_right('view', 'metagenome')))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
