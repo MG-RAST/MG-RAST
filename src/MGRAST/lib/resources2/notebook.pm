@@ -62,7 +62,7 @@ sub info {
                     'url'           => $self->cgi->url."/".$self->name,
                     'description'   => "A notebook is a JSON structure describing the contents of an ipython session.",
                     'type'          => 'object',
-                    'documentation' => '',
+                    'documentation' => $cgi->url.'/api.html#'.$self->name,
                     'requests'      => [ { 'name'        => "info",
             				               'request'     => $self->cgi->url."/".$self->name,
             				               'description' => "Returns description of parameters and attributes.",

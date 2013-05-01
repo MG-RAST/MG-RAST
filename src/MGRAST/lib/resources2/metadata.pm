@@ -62,7 +62,7 @@ sub info {
                     'url'           => $self->cgi->url."/".$self->name,
                     'description'   => "Metagenomic metadata is data providing information about one or more aspects of a set sequences from a sample of some environment",
                     'type'          => 'object',
-                    'documentation' => '',
+                    'documentation' => $cgi->url.'/api.html#'.$self->name,
                     'requests'      => [ { 'name'        => "info",
             				               'request'     => $self->cgi->url."/".$self->name,
             				               'description' => "Returns description of parameters and attributes.",
