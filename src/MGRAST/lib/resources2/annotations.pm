@@ -32,7 +32,7 @@ sub info {
 		            'url' => $self->cgi->url."/".$self->name,
 		            'description' => "All annotations of a metagenome for a specific annotation type and source",
 		            'type' => 'object',
-		            'documentation' => $cgi->url.'/api.html#'.$self->name,
+		            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
 		            'requests' => [
 		            { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,

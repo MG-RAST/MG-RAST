@@ -28,7 +28,7 @@ sub info {
                     'url' => $self->cgi->url."/".$self->name,
                     'description' => "inbox receives user inbox data upload, requires authentication, see http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#api_submission for details",
                     'type' => 'object',
-                    'documentation' => $cgi->url.'/api.html#'.$self->name,
+                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
                     'requests' => [ { 'name'        => "info",
                                       'request'     => $self->cgi->url."/".$self->name,
                                       'description' => "Returns description of parameters and attributes.",
