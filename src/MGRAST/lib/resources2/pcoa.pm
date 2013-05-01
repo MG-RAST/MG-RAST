@@ -31,7 +31,7 @@ sub info {
 		    'url' => $self->cgi->url."/".$self->name,
 		    'description' => "Calculate a PCoA for given input data.",
 		    'type' => 'object',
-		    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+		    'documentation' => $cgi->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
