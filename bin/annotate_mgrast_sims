@@ -20,7 +20,6 @@ def errorMsg(err, exit=0):
         os._exit(1)
 
 def obj_from_url(url):
-    print url
     try:
         req = urllib2.Request(url, headers={'Accept': 'application/json'})
         res = urllib2.urlopen(req)
