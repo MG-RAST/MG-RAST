@@ -72,6 +72,7 @@ sub info {
 												 ['COG', 'returns 3 level COG ontology'],
 												 ['NOG', 'returns 3 level NOG ontology'],
 												 ['KO', 'returns 4 level KEGG-KO ontology' ] ] ],
+										'id_map' => ['boolean', 'if true overrides other options and returns a map { ontology ID: [ontology levels] }'],
 									    'min_level' => ['cv', $self->{hierarchy}{ontology}],
 									    'parent_name' => ['string', 'name of ontology group to retrieve children of']
 									  },
@@ -85,6 +86,8 @@ sub info {
 					 'type'        => "synchronous",  
 					 'attributes'  => $self->attributes->{taxonomy},
 					 'parameters'  => { 'options'  => { 'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
+					                    'id_map' => ['boolean', 'if true overrides other options and returns a map { NCBI tax ID: [taxonomy levels] }'],
+									    'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
 									    'parent_name' => ['string', 'name of taxanomy group to retrieve children of']
 									  },
 							    'required' => {},
@@ -141,7 +144,9 @@ sub static {
         } else {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/ontology: ".$min_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 500);
         }
-        if ($pname && ($min_lvl ne 'level1')) {
+        if ( $self->cgi->param('id_map') ) {
+            $data = $mgdb->get_hierarchy('ontology', $source);
+        } elsif ($pname && ($min_lvl ne 'level1')) {
             $data = $mgdb->get_hierarchy_slice('ontology', $source, $pname, $min_lvl);
         } else {
             @$data = values %{ $mgdb->get_hierarchy('ontology', $source, undef, undef, $min_lvl) };
@@ -154,7 +159,9 @@ sub static {
         } else {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/taxonomy: ".$min_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 500);
         }
-        if ($pname && ($min_lvl ne 'tax_domain')) {
+        if ( $self->cgi->param('id_map') ) {
+            $data = $mgdb->get_hierarchy('organism', undef, 1);
+        } elsif ($pname && ($min_lvl ne 'tax_domain')) {
             $data = $mgdb->get_hierarchy_slice('organism', undef, $pname, $min_lvl);
         } else {
             @$data = values %{ $mgdb->get_hierarchy('organism', undef, undef, undef, $min_lvl) };
@@ -163,7 +170,11 @@ sub static {
         $data = $mgdb->_sources();
         delete $data->{GO};
     }
-    $self->return_data($data);
+    
+    # return cached if exists
+    $self->return_cached();
+    # cache this!
+    $self->return_data($data, undef, 1);
 }
 
 1;

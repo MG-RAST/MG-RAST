@@ -115,11 +115,20 @@ sub info {
              				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                           												                             ['full', 'returns notebook attributes and object']]],
                           												      'name'      => ['string', "name of new cloned notebook"],
-                          												      'type'      => ['string', 'notebook type'],
+                          												      'type'      => ['string', 'notebook type']
                           											        },
              							                      'required' => { "id"   => ["string", "unique shock object identifier"],
              							                                      "nbid" => ["string", "unique notebook object identifier"] },
              							                      'body'     => {} } },
+             							 { 'name'        => "share",
+              				               'request'     => $self->cgi->url."/".$self->name."/share/{NBID}",
+              				               'description' => "Shares a private notebook (and its history) with provided user",
+              				               'method'      => "GET",
+              				               'type'        => "synchronous",  
+              				               'attributes'  => $self->attributes,
+              				               'parameters'  => { 'options'  => { 'email' => ['string', "email of user to share with"] },
+              							                      'required' => { "nbid" => ["string", "unique notebook object identifier"] },
+              							                      'body'     => {} } },
              							 { 'name'        => "delete",
               				               'request'     => $self->cgi->url."/".$self->name."/delete/{NBID}",
               				               'description' => "Flags notebook as deleted.",
@@ -127,7 +136,7 @@ sub info {
               				               'type'        => "synchronous",  
               				               'attributes'  => $self->attributes,
               				               'parameters'  => { 'options'  => {},
-              							                      'required' => { "id" => ["string", "unique notebook object identifier"] },
+              							                      'required' => { "nbid" => ["string", "unique notebook object identifier"] },
               							                      'body'     => {} } },
              							 { 'name'        => "upload",
              				               'request'     => $self->cgi->url."/".$self->name."/upload",
@@ -147,14 +156,17 @@ sub info {
 sub instance {
     my ($self) = @_;
 
-    # possible upload
-    if (($self->rest->[0] eq 'upload') && ($self->method eq 'POST')) {
-        $self->upload_notebook();
+    # possible share
+    if (($self->rest->[0] eq 'share') && (@{$self->rest} > 1)) {
+        $self->share_notebook($self->rest->[1]);
     }
-    
     # possible delete
     if (($self->rest->[0] eq 'delete') && (@{$self->rest} > 1)) {
         $self->delete_notebook($self->rest->[1]);
+    }
+    # possible upload
+    if (($self->rest->[0] eq 'upload') && ($self->method eq 'POST')) {
+        $self->upload_notebook();
     }
     
     # get data
@@ -268,6 +280,31 @@ sub clone_notebook {
     return $new_node;
 }
 
+# share notebook - we add inputted email to read ACLs
+sub share_notebook {
+    my ($self, $uuid) = @_;
+    
+    my $email = $self->cgi->param('type') || undef;
+    unless ($email) {
+        $self->return_data( {"ERROR" => "Missing email of user to share notebook $uuid with."}, 500 );
+    }
+    my $attr = {nbid => $uuid};
+    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
+    # test permissions
+    foreach my $n (@nb_set) {
+        my $a = $n->{attributes};
+        if ((! $self->{user_info}) || ($a->{permission} eq 'view') || ($a->{owner} eq 'public') || ($a->{owner} ne $self->{user_info}{username})) {
+            $self->return_data( {"ERROR" => "insufficient permissions to share this notebook"}, 401 );
+        }
+    }
+    # share all
+    foreach my $n (@nb_set) {
+        $self->edit_shock_acl($n->{id}, $self->{nb_token}, $email, 'put', 'read')
+    }
+    my $data = $self->prepare_data( \@nb_set );
+    $self->return_data($data);
+}
+
 # delete notebook - we make a newer copy that we flag as deleted
 sub delete_notebook {
     my ($self, $uuid) = @_;
@@ -276,7 +313,7 @@ sub delete_notebook {
     my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
     my $latest = $nb_set[0];
     if (($latest->{attributes}{permission} eq 'view') || ($self->{user_info} && ($latest->{attributes}{owner} ne $self->{user_info}{username}))) {
-        $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
+        $self->return_data( {"ERROR" => "insufficient permissions to delete this notebook"}, 401 );
     }
     my $new  = $self->clone_notebook($latest, $latest->{attributes}{nbid}, $latest->{attributes}{name}, 1);
     my $data = $self->prepare_data( [$new] );
