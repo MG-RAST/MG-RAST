@@ -16,36 +16,29 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    my %rights   = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
-    my $metadata = [ 'hash', [['key', ['string', 'metadata label']],
-                              ['value', ['object', [ { 'type'       => ['string', 'value type: text, int, float, select, ontology'],
-                                                       'definition' => ['string', 'definition of label'],
-                                                       'required'   => ['boolean', 'is a required label'],
-                                                       'mixs'       => ['boolean', 'is a MIxS label'],
-                                                       'aliases'    => ['list', ['string', 'alternative name for label']]
-                                                    }, 'information about metadata keyword' ]]] ]
-                   ];
-    $self->{name}       = "metadata";
-    $self->{rights}     = \%rights;
-    $self->{attributes} = { "template" => { "project" => [ 'hash', ['key', ['string', 'project type']],
-                                                                   ['value', ['object', [$metadata, 'available metadata for this project type']]] ],
-                                            "sample"  => [ 'hash', ['key', ['string', 'sample type']],
-                                                                   ['value', ['object', [$metadata, 'available metadata for this sample type']]] ],
-                                            "library" => [ 'hash', ['key', ['string', 'library type']],
-                                                                   ['value', ['object', [$metadata, 'available metadata for this library type']]] ],
-                                            "ep"      => [ 'hash', ['key', ['string', 'enviromental package type']],
-                                                                   ['value', ['object', [$metadata, 'available metadata for this ep type']]] ] },
-                            "cv"       => { "ontology" => [ 'hash', ['key', ['string', 'metadata label']],
-                                                                    ['value', ['int', 'bioportal ontology ID']] ],
-                                            "ont_id"   => [ 'hash', ['key', ['string', 'metadata label']],
-                                                                    ['value', ['int', 'bioportal term ID']] ],
-                                            "select"   => [ 'hash', ['key', ['string', 'metadata label']],
-                                                                    ['value', ['int', 'list of available CV terms']] ] },
-                            "export"   => { "id"        => [],
-                                            "name"      => [],
-                                            "samples"   => [],
-                                            "sampleNum" => [],
-                                            "data"      => [] },
+    my %rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
+    $self->{name} = "metadata";
+    $self->{rights} = \%rights;
+    $self->{attributes} = { "template" => { "project" => [ 'hash', [{'key' => ['string', 'project type'],
+                                                                     'value' => ['hash', 'hash of metadata objects by label']}, 'projects and their metadata'] ],
+                                            "sample"  => [ 'hash', [{'key' => ['string', 'sample type'],
+                                                                     'value' => ['hash', 'hash of metadata objects by label']}, 'samples and their metadata'] ],
+                                            "library" => [ 'hash', [{'key' => ['string', 'library type'],
+                                                                     'value' => ['hash', 'hash of metadata objects by label']}, 'libraries and their metadata'] ],
+                                            "ep"      => [ 'hash', [{'key' => ['string', 'enviromental package type'],
+                                                                     'value' => ['hash', 'hash of metadata objects by label']}, 'eps and their metadata'] ] },
+                            "cv"       => { "ontology" => [ 'hash', [{'key' => ['string', 'metadata label'],
+                                                                      'value' => ['int', 'bioportal ontology ID']}, 'ontology IDs for metadata'] ],
+                                            "ont_id"   => [ 'hash', [{'key' => ['string', 'metadata label'],
+                                                                      'value' => ['int', 'bioportal term ID']}, 'term IDs for metadata'] ],
+                                            "select"   => [ 'hash', [{'key' => ['string', 'metadata label'],
+                                                                      'value' => ['list', ['string', 'CV term']]}, 'list of CV terms for metadata'] ] },
+                            "export"   => { "id"        => [ 'string', 'unique object identifier' ],
+                                            "name"      => [ 'string', 'human readable identifier' ],
+                                            "samples"   => [ 'list', [ 'object', 'sample object containing sample metadata, sample libraries, sample envPackage' ] ],
+                                            "sampleNum" => [ 'int', 'number of samples in project' ],
+                                            "data"      => [ 'hash', [{'key' => ['string', 'metadata label'],
+                                                                       'value' => ['object', 'project metadata objects']}, 'hash of metadata by label'] ] },
                             "validate_post" => { 'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],
                                                  'metadata' => [ 'object', 'valid metadata object for project and its samples and libraries' ] },
                             "validate_get"  => { 'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],

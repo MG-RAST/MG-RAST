@@ -25,7 +25,7 @@ sub new {
                             "firstname"  => [ 'string', 'first name of user' ],
                             "lastname"   => [ 'string', 'last name of user' ],
                             "entry_date" => [ 'date', 'date of user creation' ],
-                            "active"     => [ 'boolean', '' ],
+                            "active"     => [ 'boolean', 'user is active' ],
                             "comment"    => [ 'string', 'any comment about the user account' ],
                             "url"        => [ 'uri', 'resource location of this object instance' ]
                           };

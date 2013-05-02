@@ -18,7 +18,9 @@ sub new {
     # Add name / attributes
     $self->{name}       = "sequences";
     $self->{attributes} = { "id"      => [ 'string', 'unique object identifier' ],
-    	                    "data"    => [ 'hash', 'annotations names pointing to list of md5s' ],
+    	                    "data"    => [ 'hash', [ { 'key' => ['string', 'annotation text'],
+    	                                               'value' => ['list', ['string', 'md5sum of hit protein']] },
+    	                                             'annotation to md5s' ]],
     	                    "version" => [ 'integer', 'version of the object' ],
     	                    "url"     => [ 'uri', 'resource location of this object instance' ] };
     return $self;
@@ -48,7 +50,7 @@ sub info {
 				      'description' => "Returns a single data object.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
-				      'attributes'  => $self->attributes,
+				      'attributes'  => $self->{attributes},
 				      'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
 				                         'options' => { "type" => [ "cv", [[ "organism", "return organism data" ],
 												                           [ "function", "return function data" ],
