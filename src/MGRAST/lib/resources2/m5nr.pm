@@ -29,16 +29,13 @@ sub new {
                                          ['level2', 'ontology level' ],
 					                     ['level1', 'top ontology level'] ]
 			              };
-	$self->{attributes} = { taxonomy => { id      => [ 'string', 'unique object identifier' ],
-             	                          data    => [ 'list', ['list', 'requested taxonomy levels, from highest to lowest'] ],
+	$self->{attributes} = { taxonomy => { data    => [ 'list', ['list', 'requested taxonomy levels, from highest to lowest'] ],
              	                          version => [ 'integer', 'version of the object' ],
              	                          url     => [ 'uri', 'resource location of this object instance' ] },
-             	            ontology => { id      => [ 'string', 'unique object identifier' ],
-                                          data    => [ 'list', ['list', 'requested ontology levels, from highest to lowest'] ],
+             	            ontology => { data    => [ 'list', ['list', 'requested ontology levels, from highest to lowest'] ],
                                           version => [ 'integer', 'version of the object' ],
                                           url     => [ 'uri', 'resource location of this object instance' ] },
-                           	sources  => { id      => [ 'string', 'unique object identifier' ],
-                                          data    => [ 'hash', [{'key' => ['string', 'source name'],
+                           	sources  => { data    => [ 'hash', [{'key' => ['string', 'source name'],
                                                                  'value' => ['object', 'source object']}, 'source object hash'] ],
                                           version => [ 'integer', 'version of the object' ],
                                           url     => [ 'uri', 'resource location of this object instance' ] }
@@ -89,7 +86,7 @@ sub info {
 					 'method'      => "GET",
 					 'type'        => "synchronous",  
 					 'attributes'  => $self->{attributes}{taxonomy},
-					 'parameters'  => { 'options'  => { 'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
+					 'parameters'  => { 'options'  => {
 					                    'id_map' => ['boolean', 'if true overrides other options and returns a map { NCBI tax ID: [taxonomy levels] }'],
 									    'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
 									    'parent_name' => ['string', 'name of taxanomy group to retrieve children of']
@@ -134,13 +131,15 @@ sub static {
     unless (ref($mgdb)) {
         $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
     }
-    my $data  = [];
+    my $url = $self->cgi->url.'/m5nr/'.$type;
+    my $data = [];
     my $pname = $self->cgi->param('parent_name') || '';
         
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->{hierarchy}{ontology}};
         my $source   = $self->cgi->param('source') || 'Subsystems';
         my $min_lvl  = $self->cgi->param('min_level') || 'function';
+        $url .= '?source='.$source.'&min_level='.$min_lvl;
         if ( grep(/^$min_lvl$/, @ont_hier) ) {
             if ($min_lvl eq 'function') {
   	            $min_lvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
@@ -149,6 +148,7 @@ sub static {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/ontology: ".$min_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 500);
         }
         if ( $self->cgi->param('id_map') ) {
+            $url .= '&id_map=1';
             $data = $mgdb->get_hierarchy('ontology', $source);
         } elsif ($pname && ($min_lvl ne 'level1')) {
             $data = $mgdb->get_hierarchy_slice('ontology', $source, $pname, $min_lvl);
@@ -158,12 +158,14 @@ sub static {
     } elsif ($type eq 'taxonomy') {
         my @tax_hier = map { $_->[0] } @{$self->{hierarchy}{taxonomy}};
         my $min_lvl  = $self->cgi->param('min_level') || 'species';
+        $url .= '?min_level='.$min_lvl;
         if ( grep(/^$min_lvl$/, @tax_hier) ) {
             $min_lvl = 'tax_'.$min_lvl;
         } else {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/taxonomy: ".$min_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 500);
         }
         if ( $self->cgi->param('id_map') ) {
+            $url .= '&id_map=1';
             $data = $mgdb->get_hierarchy('organism', undef, 1);
         } elsif ($pname && ($min_lvl ne 'tax_domain')) {
             $data = $mgdb->get_hierarchy_slice('organism', undef, $pname, $min_lvl);
@@ -174,6 +176,10 @@ sub static {
         $data = $mgdb->_sources();
         delete $data->{GO};
     }
+    
+    my $obj = { data    => $data,
+                version => 1,
+             	url     => $url };
     
     # return cached if exists
     $self->return_cached();
