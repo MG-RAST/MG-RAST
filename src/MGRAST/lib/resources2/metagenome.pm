@@ -208,11 +208,11 @@ sub prepare_data {
         $obj->{created} = $job->{created_on};
 
         if ($self->cgi->param('verbosity')) {
-            if (($self->cgi->param('verbosity') eq 'migs') || ($self->cgi->param('verbosity') eq 'full')) {
-                my $migs = {};
-		        $migs->{project} = '-';
+            if (($self->cgi->param('verbosity') eq 'mixs') || ($self->cgi->param('verbosity') eq 'full')) {
+                my $mixs = {};
+		        $mixs->{project} = '-';
 		        eval {
-		            $migs->{project} = $job->primary_project->{name};
+		            $mixs->{project} = $job->primary_project->{name};
 		        };
 	            my $lat_lon  = $job->lat_lon;
 	            my $country  = $job->country;
@@ -224,22 +224,22 @@ sub prepare_data {
 	            my $package  = $job->env_package_type;
 	            my $seq_type = $job->seq_type;
 	            my $seq_method = $job->seq_method;
-	            $migs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "-";
-	            $migs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "-";
-	            $migs->{country} = $country ? $country : "-";
-	            $migs->{location} = $location ? $location : "-";
-	            $migs->{collection_date} = $col_date ? $col_date : "-";
-	            $migs->{biome} = $biome ? $biome : "-";
-	            $migs->{feature} =  $feature ? $feature : "-";
-	            $migs->{material} = $material ? $material : "-";
-	            $migs->{package} = $package ? $package : "-";
-	            $migs->{seq_method} = $seq_method ? $seq_method : "-";
-	            $migs->{sequence_type} = $seq_type ? $seq_type : "-";
+	            $mixs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "-";
+	            $mixs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "-";
+	            $mixs->{country} = $country ? $country : "-";
+	            $mixs->{location} = $location ? $location : "-";
+	            $mixs->{collection_date} = $col_date ? $col_date : "-";
+	            $mixs->{biome} = $biome ? $biome : "-";
+	            $mixs->{feature} =  $feature ? $feature : "-";
+	            $mixs->{material} = $material ? $material : "-";
+	            $mixs->{package} = $package ? $package : "-";
+	            $mixs->{seq_method} = $seq_method ? $seq_method : "-";
+	            $mixs->{sequence_type} = $seq_type ? $seq_type : "-";
 	            if ($self->cgi->param('verbosity') eq 'full') {
 	                $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
-	                $obj->{migs} = $migs;
+	                $obj->{mixs} = $mixs;
 	            } else {
-	                @$obj{ keys %$migs } = values %$migs;
+	                @$obj{ keys %$mixs } = values %$mixs;
 	            }
             }
             if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full')) {
