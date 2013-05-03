@@ -67,7 +67,7 @@ purge:
 	rm -rf $(TARGET) bin/*.r 
 
 api-doc:
-	perl src/WebApplication/scripts/api2html.pl -url http://api.metagenomics.anl.gov -outfile site/CGI/Html/api.cgi
+	perl src/WebApplication/scripts/api2html.pl -url http://api.metagenomics.anl.gov -outfile site/CGI/Html/api.html
 
 ##
 # Targets to setup the expected directory structure for the
