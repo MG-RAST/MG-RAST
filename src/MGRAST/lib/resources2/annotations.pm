@@ -16,7 +16,7 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name}       = "sequences";
+    $self->{name}       = "annotations";
     $self->{attributes} = { "id"      => [ 'string', 'unique object identifier' ],
     	                    "data"    => [ 'hash', [ { 'key' => ['string', 'annotation text'],
     	                                               'value' => ['list', ['string', 'md5sum of hit protein']] },
