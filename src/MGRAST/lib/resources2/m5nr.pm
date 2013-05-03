@@ -18,27 +18,31 @@ sub new {
     # Add name / attributes
     $self->{name} = "m5nr";
     $self->{hierarchy} = { taxonomy => [ ['species', 'taxonomy level'],
-					 ['genus', 'taxonomy level'],
-					 ['family', 'taxonomy level'],
-					 ['order', ' taxonomy level'],
-					 ['class', ' taxonomy level'],
-					 ['phylum', 'taxonomy level'],
-					 ['domain', 'top taxonomy level'] ],
-			   ontology => [ ['function', 'bottom ontology level'],
+					                     ['genus', 'taxonomy level'],
+					                     ['family', 'taxonomy level'],
+					                     ['order', ' taxonomy level'],
+					                     ['class', ' taxonomy level'],
+					                     ['phylum', 'taxonomy level'],
+					                     ['domain', 'top taxonomy level'] ],
+			               ontology => [ ['function', 'bottom ontology level'],
                                          ['level3', 'ontology level' ],
                                          ['level2', 'ontology level' ],
-					 ['level1', 'top ontology level'] ]
-			 };
-    $self->{attributes} = { taxonomy => [ 'list', ['list', 'requested taxonomy levels, from highest to lowest'] ],
-                            ontology => [ 'list', ['list', 'requested ontology levels, from highest to lowest'] ],
-                            sources  => [ 'hash', [['key',   ['string', 'source name']],
-						   ['value', ['object', [ { 'name'        => ['string', 'source name'],
-									    'description' => ['string', 'description of source'],
-									    'type'        => ['string', 'type of source'],
-									    'link'        => ['string', 'link for source id'] },
-									  'information about source' ]]]
-						  ]]
-                          };
+					                     ['level1', 'top ontology level'] ]
+			              };
+	$self->{attributes} = { taxonomy => { id      => [ 'string', 'unique object identifier' ],
+             	                          data    => [ 'list', ['list', 'requested taxonomy levels, from highest to lowest'] ],
+             	                          version => [ 'integer', 'version of the object' ],
+             	                          url     => [ 'uri', 'resource location of this object instance' ] },
+             	            ontology => { id      => [ 'string', 'unique object identifier' ],
+                                          data    => [ 'list', ['list', 'requested ontology levels, from highest to lowest'] ],
+                                          version => [ 'integer', 'version of the object' ],
+                                          url     => [ 'uri', 'resource location of this object instance' ] },
+                           	sources  => { id      => [ 'string', 'unique object identifier' ],
+                                          data    => [ 'hash', [{'key' => ['string', 'source name'],
+                                                                 'value' => ['object', 'source object']}, 'source object hash'] ],
+                                          version => [ 'integer', 'version of the object' ],
+                                          url     => [ 'uri', 'resource location of this object instance' ] }
+             	          };
     return $self;
 }
 
@@ -67,7 +71,7 @@ sub info {
 					 'description' => "",
 					 'method'      => "GET",
 					 'type'        => "synchronous",  
-					 'attributes'  => $self->attributes->{ontology},
+					 'attributes'  => $self->{attributes}{ontology},
 					 'parameters'  => { 'options'  => { 'source' => ['cv', [ ['Subsystems', 'returns 4 level SEED-Subsystems ontology' ],
 												 ['COG', 'returns 3 level COG ontology'],
 												 ['NOG', 'returns 3 level NOG ontology'],
@@ -84,7 +88,7 @@ sub info {
 					 'description' => "",
 					 'method'      => "GET",
 					 'type'        => "synchronous",  
-					 'attributes'  => $self->attributes->{taxonomy},
+					 'attributes'  => $self->{attributes}{taxonomy},
 					 'parameters'  => { 'options'  => { 'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
 					                    'id_map' => ['boolean', 'if true overrides other options and returns a map { NCBI tax ID: [taxonomy levels] }'],
 									    'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
@@ -98,7 +102,7 @@ sub info {
 					 'description' => "",
 					 'method'      => "GET",
 					 'type'        => "synchronous",  
-					 'attributes'  => $self->attributes->{sources},
+					 'attributes'  => $self->{attributes}{sources},
 					 'parameters'  => { 'options'  => {},
 							    'required' => {},
 							    'body'     => {} }

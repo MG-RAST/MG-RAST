@@ -17,7 +17,9 @@ sub new {
     # Add name / attributes
     $self->{name}       = "sequences";
     $self->{attributes} = { "id"      => [ 'string', 'unique object identifier' ],
-    	                    "data"    => [ 'hash', 'data type pointing at lists of sequences' ],
+    	                    "data"    => [ 'hash', [ { 'key' => ['string', 'annotation or md5 text'],
+    	                                               'value' => ['list', ['tuple', 'read id and read sequence']] },
+    	                                             'data type pointing at lists of sequence info' ]],
     	                    "version" => [ 'integer', 'version of the object' ],
     	                    "url"     => [ 'uri', 'resource location of this object instance' ] };
     return $self;
