@@ -184,7 +184,7 @@ sub static {
     # return cached if exists
     $self->return_cached();
     # cache this!
-    $self->return_data($data, undef, 1);
+    $self->return_data($obj, undef, 1);
 }
 
 1;
