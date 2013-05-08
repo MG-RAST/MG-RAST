@@ -1,4 +1,4 @@
-package resources2::sequence;
+package resources2::annotation;
 
 use strict;
 use warnings;
@@ -15,7 +15,7 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name}       = "sequence";
+    $self->{name}       = "annotation";
     $self->{attributes} = { ann => { "id"      => [ 'string', 'unique object identifier' ],
     	                             "data"    => [ 'hash', [ { 'key' => ['string', 'annotation text'],
     	                                                        'value' => ['list', ['tuple', 'read id and read sequence']] },

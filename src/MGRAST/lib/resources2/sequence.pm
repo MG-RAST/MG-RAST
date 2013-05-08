@@ -1,4 +1,4 @@
-package resources2::annotation;
+package resources2::sequence;
 
 use strict;
 use warnings;
@@ -16,7 +16,7 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name} = "annotation";
+    $self->{name} = "sequence";
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{attributes} = { "streaming text" => [ 'object', [{ "col1" => ['string', 'sequence id'],
                                                                "col2" => ['string', 'm5nr id (md5sum)'],
