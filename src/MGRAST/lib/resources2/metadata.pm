@@ -222,16 +222,16 @@ sub validate {
         my $value = $self->cgi->param('value');
 
         unless ($group && exists($groups->{$group})) {
-            $self->return_data({"ERROR" => "Invalid / missing parameter 'group': ".$group." - valid types are [ '".join("', '", keys %$groups)."' ]"}, 400);
+            $self->return_data({"ERROR" => "Invalid / missing parameter 'group': ".$group." - valid types are [ '".join("', '", keys %$groups)."' ]"}, 404);
         }
         unless ($cat && exists($categories->{$cat})) {
-            $self->return_data({"ERROR" => "Invalid / missing parameter 'category': ".$cat." - valid types are [ '".join("', '", keys %$categories)."' ]"}, 400);
+            $self->return_data({"ERROR" => "Invalid / missing parameter 'category': ".$cat." - valid types are [ '".join("', '", keys %$categories)."' ]"}, 404);
         }
         unless ($label) {
-            $self->return_data({"ERROR" => "Missing parameter 'label'"}, 400);
+            $self->return_data({"ERROR" => "Missing parameter 'label'"}, 404);
         }
         unless ($value) {
-            $self->return_data({"ERROR" => "Missing parameter 'value'"}, 400);
+            $self->return_data({"ERROR" => "Missing parameter 'value'"}, 404);
         }
 
         # internal name
@@ -275,7 +275,7 @@ sub validate {
         my $fname   = $self->cgi->param('upload');
         
         unless ($fname) {
-            $self->return_data({"ERROR" => "Invalid parameters, requires filename and data"}, 400);
+            $self->return_data({"ERROR" => "Invalid parameters, requires filename and data"}, 404);
         }
         if ($fname =~ /\.\./) {
             $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
