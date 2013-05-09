@@ -1,4 +1,4 @@
-package resources2::sequence;
+package resources2::similarity;
 
 use strict;
 use warnings;
@@ -16,13 +16,22 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name} = "sequence";
+    $self->{name} = "similarity";
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
-    $self->{attributes} = { "streaming text" => [ 'object', [{ "col1" => ['string', 'sequence id'],
-                                                               "col2" => ['string', 'm5nr id (md5sum)'],
-                                                               "col3" => ['string', 'semicolon seperated list of annotations'],
-                                                               "col4" => ['string', 'dna sequence']
-                                                              }, "tab deliminted annotated sequence stream"] ] };
+    $self->{attributes} = { "streaming text" => [ 'object', [{ "col1" => ['string', 'query sequence id'],
+                                                               "col2" => ['string', 'hit m5nr id (md5sum)'],
+                                                               "col3" => ['float', 'percentage identity'],
+                                                               "col4" => ['int', 'alignment length,'],
+                                                               "col5" => ['int', 'number of mismatches'],
+                                                               "col6" => ['int', 'number of gap openings'],
+                                                               "col7" => ['int', 'query start'],
+                                                               "col8" => ['int', 'query end'],
+                                                               "col9" => ['int', 'hit start'],
+                                                               "col10" => ['int', 'hit end'],
+                                                               "col11" => ['float', 'e-value'],
+                                                               "col12" => ['float', 'bit score'],
+                                                               "col13" => ['string', 'semicolon seperated list of annotations']
+                                                              }, "tab deliminted blast m8 with annotation"] ] };
     return $self;
 }
 
@@ -47,7 +56,7 @@ sub info {
 						                 'body'     => {} } },
 				    { 'name'        => "instance",
 				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
-				      'description' => "tab deliminted annotated sequence stream",
+				      'description' => "tab deliminted blast m8 with annotation",
 				      'method'      => "GET",
 				      'type'        => "stream",  
 				      'attributes'  => $self->{attributes},
@@ -165,9 +174,7 @@ sub prepare_data {
         chomp $rec;
         foreach my $line ( split(/\n/, $rec) ) {
             my @tabs = split(/\t/, $line);
-            if (@tabs == 13) {
-                print join("\t", ('mgm'.$mgid."|".$tabs[0], $tabs[1], join(";", @$ann), $tabs[12]))."\n";
-            }
+            print join("\t", ('mgm'.$mgid."|".$tabs[0], @tabs[1..11], join(";", @$ann)))."\n";
         }
     }
     close FILE;
