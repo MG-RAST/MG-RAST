@@ -15,7 +15,8 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name}       = "annotation";
+    $self->{name} = "annotation";
+    $self->{types} = { "organism" => 1, "function" => 1, "ontology" => 1 };
     $self->{attributes} = { ann => { "id"      => [ 'string', 'unique object identifier' ],
     	                             "data"    => [ 'hash', [ { 'key' => ['string', 'annotation text'],
     	                                                        'value' => ['list', ['tuple', 'read id and read sequence']] },
@@ -139,7 +140,7 @@ sub prepare_data {
     my $cgi  = $self->cgi;
     my $type = $cgi->param('type') ? $cgi->param('type') : 'organism';
     my $seq  = $cgi->param('sequence') ? $cgi->param('sequence') : 'dna';
-    my @srcs = $cgi->param('source') ? $cgi->param('source') : ();
+    my $src  = $cgi->param('source') ? $cgi->param('source') : 'RefSeq';
     my @anns = $cgi->param('annotation') ? $cgi->param('annotation') : ();
     my @md5s = $cgi->param('md5') ? $cgi->param('md5') : ();
   
@@ -148,6 +149,12 @@ sub prepare_data {
     my $mgdb = MGRAST::Analysis->new( $master->db_handle );
     unless (ref($mgdb)) {
         $self->return_data( {"ERROR" => "resource database offline"}, 503 );
+    }
+    unless (exists $mgdb->_src_id->{$src}) {
+        $self->return_data({"ERROR" => "Invalid source was entered ($src). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
+    }
+    unless (exists $self->{types}{$type}) {
+        $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", keys %{$self->{types}})}, 404);
     }
 
     my $url = $cgi->url."/".$self->{name}."/mgm".$data->{metagenome_id}."?sequence=".$seq;
@@ -163,7 +170,7 @@ sub prepare_data {
         }
     } elsif (scalar(@anns) > 0) {
         if ($seq eq 'md5') {
-            $content = $mgdb->md5_abundance_for_annotations($data->{metagenome_id}, $type, \@srcs, \@anns); # annotation_text => md5_integer => abundance
+            $content = $mgdb->md5_abundance_for_annotations($data->{metagenome_id}, $type, [$src], \@anns); # annotation_text => md5_integer => abundance
             my $md5_ints = {};
             foreach my $a (keys %$content) {
                 map { $md5_ints->{$_} = 1 } keys %{$content->{$a}};
@@ -174,12 +181,9 @@ sub prepare_data {
                 $content->{$a} = \@md5s;
             }
         } else {
-            $content = $mgdb->sequences_for_annotation($data->{metagenome_id}, $seq, $type, \@srcs, \@anns);
+            $content = $mgdb->sequences_for_annotation($data->{metagenome_id}, $seq, $type, [$src], \@anns);
         }
-        $url .= "&type=".$type."&annotation=".join("&annotation=", @anns);
-        if (scalar(@srcs) > 0) {
-            $url .= "&source=".join("&source=", @srcs);
-        }
+        $url .= "&source=".$src."&type=".$type."&annotation=".join("&annotation=", @anns);
     } else {
         $self->return_data( {"ERROR" => "To retrieve sequences, you must either enter an 'md5' or a 'type' and an 'annotation'.  The default 'type' is organism.  For more information on how to use this resource, view the resource description here: ".$cgi->url."/sequences"}, 404 );
     }

@@ -17,6 +17,7 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "similarity";
+    $self->{types} = { "organism" => 1, "function" => 1, "ontology" => 1, "feature" => 1 };
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{attributes} = { "streaming text" => [ 'object', [{ "col1" => ['string', 'query sequence id'],
                                                                "col2" => ['string', 'hit m5nr id (md5sum)'],
@@ -143,7 +144,10 @@ sub prepare_data {
     $mgdb->set_jobs([$mgid]);
 
     unless (exists $mgdb->_src_id->{$source}) {
-        self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
+        $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
+    }
+    unless (exists $self->{types}{$type}) {
+        $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", keys %{$self->{types}})}, 404);
     }
 
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
