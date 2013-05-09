@@ -17,6 +17,10 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "m5nr";
+    $self->{sources} = [ ['Subsystems', 'returns 4 level SEED-Subsystems ontology' ],
+						 ['COG', 'returns 3 level COG ontology'],
+					     ['NOG', 'returns 3 level NOG ontology'],
+						 ['KO', 'returns 4 level KEGG-KO ontology' ] ];
     $self->{hierarchy} = { taxonomy => [ ['species', 'taxonomy level'],
 					                     ['genus', 'taxonomy level'],
 					                     ['family', 'taxonomy level'],
@@ -69,10 +73,7 @@ sub info {
 					 'method'      => "GET",
 					 'type'        => "synchronous",  
 					 'attributes'  => $self->{attributes}{ontology},
-					 'parameters'  => { 'options'  => { 'source' => ['cv', [ ['Subsystems', 'returns 4 level SEED-Subsystems ontology' ],
-												 ['COG', 'returns 3 level COG ontology'],
-												 ['NOG', 'returns 3 level NOG ontology'],
-												 ['KO', 'returns 4 level KEGG-KO ontology' ] ] ],
+					 'parameters'  => { 'options'  => { 'source' => ['cv', $self->{sources} ],
 										'id_map' => ['boolean', 'if true overrides other options and returns a map { ontology ID: [ontology levels] }'],
 									    'min_level' => ['cv', $self->{hierarchy}{ontology}],
 									    'parent_name' => ['string', 'name of ontology group to retrieve children of']
@@ -137,15 +138,19 @@ sub static {
         
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->{hierarchy}{ontology}};
+        my @src_map  = map { $_->[0] } @{$self->{sources}};
         my $source   = $self->cgi->param('source') || 'Subsystems';
         my $min_lvl  = $self->cgi->param('min_level') || 'function';
         $url .= '?source='.$source.'&min_level='.$min_lvl;
+        unless ( grep(/^$source$/, @src_map) ) {
+            $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", @src_map)}, 404);
+        }
         if ( grep(/^$min_lvl$/, @ont_hier) ) {
             if ($min_lvl eq 'function') {
   	            $min_lvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
             }
         } else {
-            $self->return_data({"ERROR" => "invalid min_level for m5nr/ontology: ".$min_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid min_level for m5nr/ontology: ".$min_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 404);
         }
         if ( $self->cgi->param('id_map') ) {
             $url .= '&id_map=1';
@@ -162,7 +167,7 @@ sub static {
         if ( grep(/^$min_lvl$/, @tax_hier) ) {
             $min_lvl = 'tax_'.$min_lvl;
         } else {
-            $self->return_data({"ERROR" => "invalid min_level for m5nr/taxonomy: ".$min_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid min_level for m5nr/taxonomy: ".$min_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 404);
         }
         if ( $self->cgi->param('id_map') ) {
             $url .= '&id_map=1';
@@ -175,6 +180,8 @@ sub static {
     } elsif ($type eq 'sources') {
         $data = $mgdb->_sources();
         delete $data->{GO};
+    } else {
+        $self->return_data({"ERROR" => "Invalid resource type was entered ($type)."}, 404);
     }
     
     my $obj = { data    => $data,
