@@ -90,7 +90,7 @@ foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) 
         $html .= "</p><h3>Parameters</h3><ul>";
         # iterate over paramaters
         foreach my $ptype (sort keys %param_types) {
-            foreach my $param (keys(%{$req->{parameters}->{$ptype}})) {
+            foreach my $param (sort keys(%{$req->{parameters}->{$ptype}})) {
                 my $pm = $req->{parameters}->{$ptype}->{$param};
                 $pm->[0] =~ s/cv/controlled vocabulary/;
                 $html .= "<li><b>$param</b> (".$pm->[0];
@@ -115,7 +115,7 @@ foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) 
         $html .= "</ul>";
         $html .= "<h3>Return Attributes</h3><ul>";
         # iterate over attributes
-        foreach my $param (keys(%{$req->{attributes}})) {
+        foreach my $param (sort keys(%{$req->{attributes}})) {
             my ($att_obj, $att_hash);
             my $att = $param;
             my $att_type = $req->{attributes}->{$param}->[0];
@@ -141,7 +141,7 @@ foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) 
                 $html .= "<li><b>$att</b> ($att_type)</li><p>";
                 if ($att_obj) {
 	                $html .= "This attribute has an object structure:</p><ul style='list-style: none;'>";
-	                foreach my $key (keys(%$att_obj)) {
+	                foreach my $key (sort keys(%$att_obj)) {
 	                    my $obj_type = $att_obj->{$key}->[0];
 	                    my $obj_att = $att_obj->{$key}->[1];
 	                    while (ref($obj_att) eq 'ARRAY') {
