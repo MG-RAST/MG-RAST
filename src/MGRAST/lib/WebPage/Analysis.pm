@@ -3520,7 +3520,7 @@ sub phylogeny_visual {
 	  $hm_level_select .= "<option value='".$l->[0]."'$sel>".$l->[1]."</option>";
 	}
 	$hm_level_select .= "</select>";
-	$content .= "<div><div>Organism Heatmap $tabnum</div><div>".clear_progress_image()."<form id='heat_drilldown$fid' onkeypress='return event.keyCode!=13'>$settings<br>The heatmap was clustered using ".($cgi->param('heatmap_clust_method') || 'ward')." with ".($cgi->param('heatmap_dist_method') || 'bray-curtis')." distance metric.<br>group heatmap by $hm_level_select <input type='hidden' name='vis_type' value='heatmap'><input type='hidden' id='tabnum2$fid' name='tabnum' value=''><br>";
+	$content .= "<div><div>Organism Heatmap $tabnum</div><div>".clear_progress_image()."<form id='heat_drilldown$fid' onkeypress='return event.keyCode!=13'>$settings<br>The heatmap was clustered using ".($cgi->param('heatmap_clust_method') || 'ward')." with ".($cgi->param('heatmap_dist_method') || 'bray-curtis')." distance metric.<br>group heatmap by $hm_level_select <input type='hidden' name='vis_type' value='heatmap'><input type='hidden' id='tabnum2$fid' name='tabnum' value='".($tabnum+1)."'><br>";
 
 	my $selnorm = "";
 	if ($cgi->param('raw')) {

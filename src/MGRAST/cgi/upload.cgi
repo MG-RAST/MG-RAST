@@ -627,7 +627,7 @@ sub sanitize_filename {
     my $newfilename = $file;
     $newfilename =~ s/[^\/\w\.\-]+/_/g;
     my $count = 1;
-    while (-f "$udir/$newfilename") {
+    while (-f "$udir/$newfilename" && ! -f "$udir/$newfilename.part") {
       if ($count == 1) {
         $newfilename =~ s/^(.*)(\..*)$/$1$count$2/;
       } else {
