@@ -566,6 +566,7 @@ sub get_hierarchy {
     foreach my $row ( @{$self->_dbh->selectall_arrayref($sql)} ) {
         my $id = pop @$row;
         next unless ($id && ($id =~ /\S/));
+        map { $_ = $_ ? $_ : "-" } @$row;
         $hier->{$id} = $row;
     }
     return $hier;
@@ -1775,8 +1776,8 @@ sub get_md5_abundance {
 }
 
 sub get_org_md5 {
-    my ($self, $eval, $ident, $alen, $sources) = @_;
-    return $self->_get_annotation_md5('organism', $eval, $ident, $alen, $sources);
+    my ($self, $eval, $ident, $alen, $sources, $use_taxid) = @_;
+    return $self->_get_annotation_md5('organism', $eval, $ident, $alen, $sources, $use_taxid);
 }
 
 sub get_ontol_md5 {
@@ -1790,13 +1791,14 @@ sub get_func_md5 {
 }
 
 sub _get_annotation_md5 {
-    my ($self, $type, $eval, $ident, $alen, $sources) = @_;
+    my ($self, $type, $eval, $ident, $alen, $sources, $use_taxid) = @_;
     
     my $cache_key = $type."md5";
     $cache_key .= defined($eval) ? $eval : ":";
     $cache_key .= defined($ident) ? $ident : ":";
     $cache_key .= defined($alen) ? $alen : ":";
     $cache_key .= defined($sources) ? join(";", @$sources) : ":";
+    $cache_key .= defined($use_taxid) ? ':1' : ":0";
 
     my $data = {};
     my $jobs = [];
@@ -1811,9 +1813,15 @@ sub _get_annotation_md5 {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
+    my $key = 'a.name';
+    my $tid = '';
+    if (($type eq 'organism') && $use_taxid) {
+        $key = 'a.ncbi_tax_id';
+        $tid = 'a.ncbi_tax_id IS NOT NULL';
+    }
     my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map { $self->_src_id->{$_} } @$sources) . ")" : "";
-    my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
-    my $sql = "SELECT DISTINCT j.job,a.name,j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen, $tid]);
+    my $sql   = "SELECT DISTINCT j.job,$key,j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
     
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $mg = $self->_mg_map->{$row->[0]};
