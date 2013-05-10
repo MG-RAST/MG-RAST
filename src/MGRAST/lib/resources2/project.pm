@@ -21,8 +21,8 @@ sub new {
     $self->{attributes} = { "id"             => [ 'string', 'unique object identifier' ],
     	                    "name"           => [ 'string', 'human readable identifier' ],
     	                    "libraries"      => [ 'list', [ 'reference library', 'a list of references to the related library objects' ] ],
-			    "samples"        => [ 'list', [ 'reference sample', 'a list of references to the related sample objects' ] ],
-			    "analyzed"       => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
+			                "samples"        => [ 'list', [ 'reference sample', 'a list of references to the related sample objects' ] ],
+			                "analyzed"       => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
     	                    "description"    => [ 'string', 'a short, comprehensive description of the project' ],
     	                    "funding_source" => [ 'string', 'the official name of the source of funding of this project' ],
     	                    "pi"             => [ 'string', 'the first and last name of the principal investigator of the project' ],
@@ -31,7 +31,7 @@ sub new {
     	                    "version"        => [ 'integer', 'version of the object' ],
     	                    "url"            => [ 'uri', 'resource location of this object instance' ],
     	                    "status"         => [ 'cv', [ ['public', 'object is public'],
-							  ['private', 'object is private'] ] ]
+							                              ['private', 'object is private'] ] ]
     	                  };
     return $self;
 }
@@ -44,7 +44,7 @@ sub info {
 		    'url' => $self->cgi->url."/".$self->name,
 		    'description' => "A project is a composition of samples, libraries and metagenomes being analyzed in a global context.",
 		    'type' => 'object',
-		    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",

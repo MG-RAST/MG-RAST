@@ -85,7 +85,7 @@ sub info {
                             'url' => $self->cgi->url."/".$self->name,
                             'description' => "A profile in biom format that contains abundance counts",
                             'type' => 'object',
-                            'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+                            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
                             'requests' => [ { 'name'        => "info",
                                                       'request'     => $self->cgi->url."/".$self->name,
                                                       'description' => "Returns description of parameters and attributes.",
@@ -312,13 +312,13 @@ sub prepare_data {
 
     # validate cutoffs
     if (int($eval) < 1) {
-        $self->return_data({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 500);
+        $self->return_data({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 404);
     }
     if ((int($ident) < 0) || (int($ident) > 100)) {
-        $self->return_data({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 500);
+        $self->return_data({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 404);
     }
     if (int($alen) < 1) {
-        $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 500);
+        $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 404);
     }
 
     # controlled vocabulary set
@@ -334,7 +334,7 @@ sub prepare_data {
                              
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
-        $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 500);
+        $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
     }
     if ($type eq 'organism') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
@@ -346,7 +346,7 @@ sub prepare_data {
                       $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @org_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @org_hier)."]"}, 404);
         }
     } elsif ($type eq 'function') {
         map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
@@ -359,16 +359,18 @@ sub prepare_data {
                       $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @func_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @func_hier)."]"}, 404);
         }
     } elsif ($type eq 'feature') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
         delete $all_srcs->{M5NR};
         delete $all_srcs->{M5RNA};
+    } else {
+        $self->return_data({"ERROR" => "Invalid resource type was entered ($type)."}, 404);
     }
     unless (exists $all_srcs->{$source}) {
-        $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 500);
+        $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 404);
     }
 
     # get data
@@ -446,7 +448,7 @@ sub prepare_data {
                     }
                 }
             } else {
-                $self->return_data({"ERROR" => "invalid hit_type for matrix call: ".$htype." - valid types are ['all', 'single', 'lca']"}, 500);
+                $self->return_data({"ERROR" => "invalid hit_type for matrix call: ".$htype." - valid types are ['all', 'single', 'lca']"}, 404);
             }
         }
     } elsif ($type eq 'function') {
