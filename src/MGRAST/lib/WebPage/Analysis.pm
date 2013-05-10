@@ -1788,58 +1788,60 @@ sub qiime_export_data {
   my %md5_names;  # md5 => [ name ]
   my %name_set;   # { names }
   
-  my $tbl_type   = "OTU table";
-  my $name_md5s  = {}; # mgid => name => { md5 }
-  my $mg_md5_abd = $self->{mgdb}->get_md5_abundance($evalue, $identity, $alength);       # mgid => md5 => abundance
+  my ($tbl_type, $md_type);
+  my $name_md5s  = {}; # mgid => name => { md5_int }
+  my $mg_md5_abd = $self->{mgdb}->get_md5_abundance($evalue, $identity, $alength); # mgid => md5_int => abundance
 
   if ($type eq 'organism') {
     $tbl_type  = "Taxon table";
-    $name_md5s = $self->{mgdb}->get_org_md5($evalue, $identity, $alength, \@sources);
+    $md_type   = 'taxonomy';
+    $name_md5s = $self->{mgdb}->get_org_md5($evalue, $identity, $alength, \@sources, 1); # mgid => name => { md5 }
   } else {
     $tbl_type  = "Function table";
-    $name_md5s = $self->{mgdb}->get_ontol_md5($evalue, $identity, $alength, $sources[0]);
+    $md_type   = 'ontology';
+    $type      = 'ontology';
+    $name_md5s = $self->{mgdb}->get_ontol_md5($evalue, $identity, $alength, $sources[0]); # mgid => name => { md5 }
   }
 
   foreach my $mg (keys %$name_md5s) {
     foreach my $name (keys %{$name_md5s->{$mg}}) {
       foreach my $md5 (keys %{$name_md5s->{$mg}{$name}}) {
-	push @{ $md5_names{$md5} }, $name;
+	    push @{ $md5_names{$md5} }, $name;
       }
       $name_set{$name} = 1;
     }
   }    
 
-  my $name_hier = $self->{mgdb}->get_hierarchy($type, $sources[0]); # name => [ hierarchy ]
+  my $name_hier = $self->{mgdb}->get_hierarchy($type, $sources[0], 1); # name => [ hierarchy ]
   my $md2pos = {};
   my $values = [];
   my $hier = [];
   my $pos = 0;
+
   foreach my $md5 (keys %md5_names) {
     my $counts = [];
     my $names  = $md5_names{$md5};
-
     foreach my $mg (@$mgs) {
       push @$counts, $mg_md5_abd->{$mg}->{$md5} ? $mg_md5_abd->{$mg}->{$md5} : 0;
     }
     if ((sum @$counts) == 0) { next; }
-    
     foreach my $n ( @{$md5_names{$md5}} ) {
-      if (exists $name_hier->{$n}) {
-	my @qiime = ($type eq 'organism') ? ("Root", @{$name_hier->{$n}}, $n) : ("Root", @{$name_hier->{$n}});
-	if (! $md2pos->{join(";", @qiime)}) {
-	  $md2pos->{join(";", @qiime)} = $pos;
-	  push(@$hier, { "id" => "id".$pos, "metadata" => { $type => \@qiime } });
-	  $pos++;
-	}
-	for (my $i=0; $i<scalar(@$mgs); $i++) {
-	  if ($mg_md5_abd->{$mgs->[$i]}->{$md5}) {
-	    push @$values, [ $md2pos->{join(";", @qiime)}, $i, int($mg_md5_abd->{$mgs->[$i]}->{$md5})];
-	  }
-	}
+      if (exists($name_hier->{$n}) && (@{$name_hier->{$n}} > 0)) {
+	    my @qiime = ($type eq 'organism') ? ("Root", @{$name_hier->{$n}}, $n) : @{$name_hier->{$n}};
+	    if (! $md2pos->{$n}) {
+	      $md2pos->{$n} = $pos;
+	      push(@$hier, { "id" => $n, "metadata" => { $md_type => \@qiime } });
+	      $pos++;
+	    }
+	    for (my $i=0; $i<scalar(@$mgs); $i++) {
+	      if ($mg_md5_abd->{$mgs->[$i]}->{$md5}) {
+	        push @$values, [ $md2pos->{$n}, $i, int($mg_md5_abd->{$mgs->[$i]}->{$md5})];
+	      }
+	    }
       }
     }
   }
-  
+
   use POSIX qw(strftime);
   my $data = { "id"                  => "",
 	       "format"              => "Biological Observation Matrix 0.9.1",
@@ -3398,7 +3400,7 @@ sub phylogeny_visual {
     }
 
     my $krona_button = "<input type='button' value='krona graph' onclick='generate_krona_data(\"".$cgi->param('group_by')."\", \"".$t->id."\", \"org\");'>";
-    
+
     my $qiime_button = ($cgi->param('mg_grp_sel') && ($cgi->param('mg_grp_sel') eq 'groups')) ? 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.' : "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>";
 
     my $plugin_container = '<table style="border: 2px solid rgb(143, 188, 63); text-align: center; float: right; border-spacing: 0px;"><tbody><tr><td colspan="2" style="cursor: pointer; text-align: left;" title="click to show available plugins" onclick="if(this.parentNode.nextSibling.style.display==\'none\'){this.parentNode.nextSibling.style.display=\'\';this.parentNode.nextSibling.nextSibling.style.display=\'\';}else{this.parentNode.nextSibling.style.display=\'none\';this.parentNode.nextSibling.nextSibling.style.display=\'none\';}"><img src="./Html/plugin.png" style="width: 20px; vertical-align: middle;"> available plugins</td></tr><tr><td style="border-top: 1px solid rgb(143, 188, 63); border-right: 1px solid rgb(143, 188, 63); padding: 2px;"><img src="./Html/krona.png" style="height: 50px; cursor: pointer;" onclick="window.open(&quot;http://sourceforge.net/p/krona/home/krona/&quot;);"></td><td style="border-top: 1px solid rgb(143, 188, 63);"><img onclick="window.open(&quot;http://www.qiime.org&quot;);" style="height: 50px; cursor: pointer;" src="./Html/qiime.png"></td></tr><tr><td style="vertical-align: middle; border-right: 1px solid rgb(143, 188, 63); padding: 2px;">'.$krona_button.'</td><td style="vertical-align: middle;">'.$qiime_button.'</td></tr></tbody></table>';
