@@ -22,39 +22,17 @@ sub new {
     $self->{mgdb} = undef;
     $self->{attributes} = { 
                 "id" => [ 'string', 'unique metagenome id' ],
-                "length_histogram" => {
-                    "upload"  => [ 'list', 'length distribution of uploaded sequences' ],
-                    "post_qc" => [ 'list', 'length distribution of post-qc sequences' ]
-                },
-                "gc_histogram" => {
-                    "upload"   => [ 'list', 'gc % distribution of uploaded sequences' ],
-                    "post_qc"  => [ 'list', 'gc % distribution of post-qc sequences' ]
-                },
-                "qc" => {
-                    "kmer" => { "6_mer"  => {"columns" => ['list', 'names of columns'], "data" => ['list', 'kmer 6 counts']},
-                                "15_mer" => {"columns" => ['list', 'names of columns'], "data" => ['list', 'kmer 15 counts']} },
-                    "drisee" => { "counts"   => {"columns" => ['list', 'names of columns'], "data" => ['list', 'drisee count profile']},
-                                  "percents" => {"columns" => ['list', 'names of columns'], "data" => ['list', 'drisee percent profile']},
-                                  "summary"  => {"columns" => ['list', 'names of columns'], "data" => ['list', 'drisee summary stats']} },
-                    "bp_profile" => { "counts"   => {"columns" => ['list', 'names of columns'], "data" => ['list', 'nucleotide count profile']},
-                                      "percents" => {"columns" => ['list', 'names of columns'], "data" => ['list', 'nucleotide percent profile']} }
-                },
+                "length_histogram" => [ 'hash', [{'key' => ['string', 'pipeline stage'],
+                                                  'value' => ['list', 'length distribution of sequences in pipeline stage']}, 'length histograms for pipeline stages'] ],
+                "gc_histogram" => [ 'hash', [{'key' => ['string', 'pipeline stage'],
+                                              'value' => ['list', 'gc % distribution of sequences in pipeline stage']}, 'gc % histograms for pipeline stages'] ],
+                "qc" => [ 'hash', [{'key' => ['string', 'QC type'],
+                                    'value' => ['object', 'QC statistics object']}, 'set of QC statistics'] ],
                 "sequence_stats" => [ 'hash', 'statistics on sequence files of all pipeline stages' ],
-                "taxonomy" => {
-                    "species" => [ 'list', 'species counts' ],
-                    "genus"   => [ 'list', 'genus counts' ],
-                    "family"  => [ 'list', 'family counts' ],
-                    "order"   => [ 'list', 'order counts' ],
-                    "class"   => [ 'list', 'class counts' ],
-                    "phylum"  => [ 'list', 'phylum counts' ],
-                    "domain"  => [ 'list', 'domain counts' ]
-                },
-                "ontology" => {
-                    "COG"       => [ 'list', 'COG counts' ],
-    			    "KO"        => [ 'list', 'KO counts' ],
-    			    "NOG"       => [ 'list', 'NOG counts' ],
-    			    "Subsystems" => [ 'list', 'Subsystem counts' ]
-                },
+                "taxonomy" => [ 'hash', [{'key' => ['string', 'taxonomic level'],
+                                          'value' => ['list', ['tuple', 'taxanomic name and abundance']]}, 'set of abundaces per taxonomic levels'] ],
+                "ontology" => [ 'hash', [{'key' => ['string', 'ontology source'],
+                                          'value' => ['list', ['tuple', 'ontology name and abundance']]}, 'set of abundaces per ontology group'] ],
                 "source" => [ 'hash', 'evalue and % identity counts per source' ],
 			    "rarefaction" => [ 'list', 'rarefaction coordinate data' ]
 	};
@@ -69,7 +47,7 @@ sub info {
 		    'url' => $self->cgi->url."/".$self->name,
 		    'description' => "An set of statistical information obtained during the analysis of a metagenomic sequence",
 		    'type' => 'object',
-		    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
@@ -84,7 +62,7 @@ sub info {
 				      'description' => "Returns a JSON structure of statistical information.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
-				      'attributes'  => $self->attributes,
+				      'attributes'  => $self->{attributes},
 				      'parameters'  => { 'options' => { 'verbosity' => ['cv',
                                                                [['minimal','returns only sequence_stats attribute'],
                                                                 ['verbose','returns all but qc attribute'],

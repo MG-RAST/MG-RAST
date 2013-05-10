@@ -1,8 +1,8 @@
 #!/bin/bash
 
 HELP=0
-LOAD=$HOME/ach
-DEPLOY=/mnt/ach
+LOAD=''
+DEPLOY='/scratch'
 VACH='1'
 MKEY='_ach'
 MHOST='localhost:11211'
@@ -23,7 +23,7 @@ done
 
 # help
 if [ $HELP -eq 1 ]; then
-    echo "Usage: load_memcache.sh [-h] -l <load script dir: $LOAD> -d <deploy dir: $DEPLOY> -v <ach version: $VACH> -k <memcache key: $MKEY> -m <memcache host: $MHOST>"
+    echo "Usage: load_memcache.sh [-h] -l <load script: $LOAD> -d <deploy dir: $DEPLOY> -v <ach version: $VACH> -k <memcache key: $MKEY> -m <memcache host: $MHOST>"
     exit
 fi
 
@@ -31,12 +31,14 @@ sudo mkdir $DEPLOY
 sudo chown ${USER}:${USER} $DEPLOY
 
 for T in "${TYPES[@]}"; do
+    echo `date`
     echo "downloading $T ..."
     wget -q -O ${DEPLOY}/${T}_map.gz ftp://ftp.metagenomics.anl.gov/data/MD5nr/memcached/v${VACH}/${T}_map.gz
     echo "gunzipping $T ..."
     gunzip -v ${DEPLOY}/${T}_map.gz
     echo "loading $T ..."
-    $LOAD/md52memcache.pl --verbose --mem_host $MHOST --mem_key $MKEY --map ${DEPLOY}/${T}_map --option $T
+    $LOAD --verbose --mem_host $MHOST --mem_key $MKEY --map ${DEPLOY}/${T}_map --option $T
 done
+echo `date`
 echo "Done loading memcache"
 
