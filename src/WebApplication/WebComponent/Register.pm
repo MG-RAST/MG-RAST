@@ -6,6 +6,7 @@ use strict;
 use warnings;
 
 use WebConfig;
+use HTML::Strip;
 
 use base qw( WebComponent );
 
@@ -204,6 +205,15 @@ sub perform_registration {
 
   my $application = $self->application;
   my $cgi = $application->cgi;
+
+  # not allowing potential html tags in these fields
+  foreach my $var ('email', 'login', 'firstname', 'lastname') {
+    my $cgi_var = $cgi->param($var);
+    if($cgi_var =~ />/ || $cgi_var =~ /</) {
+      $application->add_message('warning', 'The symbols > and < are not allowed in the \''.$var.'\' field');
+      return 0;
+    }
+  }
   
   # check for an email address
   unless ($cgi->param('email')) {
@@ -278,8 +288,9 @@ sub perform_registration {
   # check if we want a group
   my $group;
   if (defined($cgi->param('group')) && $cgi->param('group')) {
-    $group_name = $cgi->param('group');
-    my $possible_groups = $application->dbmaster->Scope->get_objects( { name => $cgi->param('group') } );
+    my $hs = HTML::Strip->new();
+    $group_name = $hs->parse($cgi->param('group'));
+    my $possible_groups = $application->dbmaster->Scope->get_objects( { name => $group_name } );
       if (scalar(@$possible_groups) == 1) {
 	unless ($possible_groups->[0]->application) {
 	  $group = $possible_groups->[0];
@@ -314,7 +325,8 @@ sub perform_registration {
       $application->add_message('warning', 'You must enter a last name.');
       return 0;
     }
-      
+
+    my $email = 
     # create the user in the db
     $user = $application->dbmaster->User->create( { email        => $cgi->param('email'),
 						    firstname    => $cgi->param('firstname'),
@@ -329,9 +341,20 @@ sub perform_registration {
   }
 
   # check for organization information
-  my $user_org = $cgi->param('organization') || "";
+  my $user_org = "";
   my $org_found = 0;
-  my $url = $cgi->param('lru') || "";
+  my $url = "";
+
+  if($cgi->param('organization')) {
+    my $hs = HTML::Strip->new();
+    $user_org = $hs->parse($cgi->param('organization'));
+  }
+
+  if($cgi->param('lru')) {
+    my $hs = HTML::Strip->new();
+    $url = $hs->parse($cgi->param('lru'));
+  }
+
   if ($user_org) {
       
     # check if we find this organization by name
@@ -370,7 +393,9 @@ sub perform_registration {
   $abody->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
   $abody->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
   $abody->param('URL', $url);
-  $abody->param('COUNTRY', $cgi->param('country'));
+  my $hs = HTML::Strip->new();
+  my $country = $hs->parse( $cgi->param('country') );
+  $abody->param('COUNTRY', $country);
   if ($user_org) {
     $abody->param('ORGANIZATION', $user_org);
     if ($org_found) {
