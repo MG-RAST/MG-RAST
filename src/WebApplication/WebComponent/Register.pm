@@ -208,8 +208,9 @@ sub perform_registration {
 
   # not allowing potential html tags in these fields
   foreach my $var ('email', 'login', 'firstname', 'lastname') {
-    if($var =~ />/ || $var =~ /</) {
-      $application->add_message('warning', 'The symbols > and < are not allowed in the \''.$var.'\' field');
+    my $cgi_var = $cgi->param($var);
+    if($cgi_var =~ />/ || $cgi_var =~ /</) {
+      $application->add_message('warning', 'The symbols > and < are not allowed in the \''.$cgi_var.'\' field');
       return 0;
     }
   }
