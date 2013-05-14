@@ -287,7 +287,7 @@ sub perform_registration {
   # check if we want a group
   my $group;
   if (defined($cgi->param('group')) && $cgi->param('group')) {
-    my $hs = HTML::String->new();
+    my $hs = HTML::Strip->new();
     $group_name = $hs->parse($cgi->param('group'));
     my $possible_groups = $application->dbmaster->Scope->get_objects( { name => $group_name } );
       if (scalar(@$possible_groups) == 1) {
@@ -345,12 +345,12 @@ sub perform_registration {
   my $url = "";
 
   if($cgi->param('organization')) {
-    my $hs = HTML::String->new();
+    my $hs = HTML::Strip->new();
     $user_org = $hs->parse($cgi->param('organization'));
   }
 
   if($cgi->param('lru')) {
-    my $hs = HTML::String->new();
+    my $hs = HTML::Strip->new();
     $url = $hs->parse($cgi->param('lru'));
   }
 
