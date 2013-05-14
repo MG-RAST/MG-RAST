@@ -210,7 +210,7 @@ sub perform_registration {
   foreach my $var ('email', 'login', 'firstname', 'lastname') {
     my $cgi_var = $cgi->param($var);
     if($cgi_var =~ />/ || $cgi_var =~ /</) {
-      $application->add_message('warning', 'The symbols > and < are not allowed in the \''.$cgi_var.'\' field');
+      $application->add_message('warning', 'The symbols > and < are not allowed in the \''.$var.'\' field');
       return 0;
     }
   }
