@@ -192,9 +192,9 @@ sub output {
   $html .= "<tr><td><b>Visibility</b></td><td>".($job->public ? 'Public' : 'Private')."</td></tr>";
   $html .= "<tr><td><b>Static Link</b></td><td><a href='$mg_link'>$mg_link</a></td></tr>";
   $html .= "</table></div><div style='float: right'><table>";
-  $html .= "<tr><td><b>NCBI Project ID</b></td><td>".($md_ext_ids->{ncbi} ? join(", ", map { "<a href='http://www.ncbi.nlm.nih.gov/genomeprj/".$_."' target=_blank>".$_."</a>" } split(/, /, $md_ext_ids->{ncbi})) : "-")."</td></tr>";
-  $html .= "<tr><td><b>GOLD ID</b></td><td>".($md_ext_ids->{gold} ? join(", ", map { "<a href='http://genomesonline.org/cgi-bin/GOLD/bin/GOLDCards.cgi?goldstamp=".$_."' target=_blank>".$_."</a>" } split(/, /, $md_ext_ids->{gold})) : "-")."</td></tr>";
-  $html .= "<tr><td><b>PubMed ID</b></td><td>".($md_ext_ids->{pubmed} ? join(", ", map { "<a href='http://www.ncbi.nlm.nih.gov/pubmed/".$_."' target=_blank>".$_."</a>" } split(/, /, $md_ext_ids->{pubmed})) : "-")."</td></tr>";
+  $html .= "<tr><td><b>NCBI Project ID</b></td><td>".($md_ext_ids->{ncbi} ? join(", ", map { "<a href='http://www.ncbi.nlm.nih.gov/genomeprj/".$_."' target=_blank>".$_."</a>" } grep {$_ =~ /^\d+$/} split(/, /, $md_ext_ids->{ncbi})) : "-")."</td></tr>";
+  $html .= "<tr><td><b>GOLD ID</b></td><td>".($md_ext_ids->{gold} ? join(", ", map { "<a href='http://genomesonline.org/cgi-bin/GOLD/bin/GOLDCards.cgi?goldstamp=".$_."' target=_blank>".$_."</a>" } grep {$_ =~ /^gm\d+$/i} split(/, /, $md_ext_ids->{gold})) : "-")."</td></tr>";
+  $html .= "<tr><td><b>PubMed ID</b></td><td>".($md_ext_ids->{pubmed} ? join(", ", map { "<a href='http://www.ncbi.nlm.nih.gov/pubmed/".$_."' target=_blank>".$_."</a>" } grep {$_ =~ /^\d+$/} split(/, /, $md_ext_ids->{pubmed})) : "-")."</td></tr>";
   $html .= "</table></div></div></p>";
   $html .= "<div style='clear: both; height: 10px'></div>";
   if ($user && $user->has_right(undef, 'edit', 'metagenome', $mgid)) {
@@ -883,14 +883,16 @@ The image is currently dynamic. To be able to right-click/save the image, please
   
   # pubmed abstracts
   if ($md_ext_ids->{pubmed}) {
-    my @ids = split(/, /, $md_ext_ids->{pubmed});
-    $html .= "<a name='pub_ref'></a><h3>Publication Abstracts";
-    $html .= "<span style='font-size:12px;padding-left:15px;'>[" . join(", ", map { "<a href='http://www.ncbi.nlm.nih.gov/pubmed/".$_."' target=_blank>".$_."</a>" } @ids) . "]</span>";
-    $html .= "<a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='if(this.innerHTML==\"show\"){this.innerHTML=\"hide\";document.getElementById(\"abstracts\").style.display=\"\";}else{document.getElementById(\"abstracts\").style.display=\"none\";this.innerHTML=\"show\"};'>show</a></h3><div id='abstracts' style='display: none;'>";
-    foreach my $id (@ids) {
-      $html .= $self->get_pubmed_abstract($id)."<br><br>";
+    my @ids = grep {$_ =~ /^\d+$/} split(/, /, $md_ext_ids->{pubmed});
+    if (@ids > 0) {
+        $html .= "<a name='pub_ref'></a><h3>Publication Abstracts";
+        $html .= "<span style='font-size:12px;padding-left:15px;'>[" . join(", ", map { "<a href='http://www.ncbi.nlm.nih.gov/pubmed/".$_."' target=_blank>".$_."</a>" } @ids) . "]</span>";
+        $html .= "<a style='cursor:pointer;clear:both;font-size:small;padding-left:10px;' onclick='if(this.innerHTML==\"show\"){this.innerHTML=\"hide\";document.getElementById(\"abstracts\").style.display=\"\";}else{document.getElementById(\"abstracts\").style.display=\"none\";this.innerHTML=\"show\"};'>show</a></h3><div id='abstracts' style='display: none;'>";
+        foreach my $id (@ids) {
+            $html .= $self->get_pubmed_abstract($id)."<br><br>";
+        }
+        $html .= "</div>";
     }
-    $html .= "</div>";
   }
 
   # bottom padding
