@@ -155,7 +155,6 @@ sub output {
       my $delete_div    = $project->public ? '' : "<div style='display:none;' id='delete_div'>".$self->delete_info()."</div>";
       my $share_html    = $self->share_info();
       my $edit_html     = $self->edit_info();
-      my $add_info_html = $self->add_info_info($project->id);
       my $add_md_html   = $editable_jobs ? $self->add_md_info($project->id) : '';
 
       $html .= "<p><div class='quick_links'><ul>";
@@ -195,13 +194,7 @@ sub output {
     document.getElementById("edit_div").style.display = "inline";
   } else {
     document.getElementById("edit_div").style.display = "none";
-  }'>Edit Project Data</a></li>
-<li><a style='cursor:pointer;' onclick='
-  if (document.getElementById("add_info_div").style.display == "none") {
-    document.getElementById("add_info_div").style.display = "inline";
-  } else {
-    document.getElementById("add_info_div").style.display = "none";
-  }'>Upload Info</a></li>~;
+  }'>Edit Project Data</a></li>~;
       if ($editable_jobs) {
 	$html .= qq~
 <li><a style='cursor:pointer;' onclick='
@@ -224,7 +217,6 @@ $delete_div
 <div style='display:none;' id='share_div'>$share_html</div>
 <div style='display:none;' id='add_job_div'></div>
 <div style='display:none;' id='edit_div'>$edit_html</div>
-<div style='display:none;' id='add_info_div'>$add_info_html</div>
 <img src='./Html/clear.gif' onload='execute_ajax("export_metadata", "export_md_div", "project=$id");'>
 <div style='display:none;' id='export_md_div'></div>~;
       $html .= $editable_jobs ? "<div style='display:none;' id='add_md_div'>$add_md_html</div>" : "";
@@ -671,17 +663,6 @@ sub add_md_info {
   $html .= $self->start_form('upload_form', {project => $pid, action => 'upload_md'});
   $html .= "Map metagenome to metadata by: <select name='map_type'><option value='name'>Metagenome Name</option><option value='id'>Metagenome ID</option></select>";
   $html .= "<br><br><input type='file' name='upload_md' size ='38'><span>&nbsp;&nbsp;&nbsp;</span><input type='submit' value='upload'>";
-  $html .= $self->end_form();
-  return $html;
-}
-
-sub add_info_info {
-  my ($self, $pid) = @_;
-
-  my $html = "<h3>Upload Info</h3>";
-  $html .= $self->start_form('upload_form', {project => $pid, action => 'upload_file'});
-  $html .= "<select name='upload_type'><option value='graphic'>graphic</option><option value='table'>table</option></select>";
-  $html .= "<input type='file' name='upload_file'><input type='submit' value='upload'>";
   $html .= $self->end_form();
   return $html;
 }

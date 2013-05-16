@@ -14,6 +14,7 @@ use Conf;
 use WebConfig;
 use Mail::Mailer;
 use MGRAST::Metadata;
+use HTML::Entities;
 
 use base qw( WebPage );
 
@@ -398,7 +399,7 @@ sub output {
               <div id="sel_project_div" class="well" style="display: none;"><h3>select a project</h3><p>You have to specify a project to upload a job to MG-RAST. If you have a metadata file, the project must be specified in that file. If you choose to not use a metadata file, you can select a project here. You can either select an existing project or you can choose a new project.</p><select name="project" style="width: 420px; margin-bottom: 20px;" onchange="if(this.selectedIndex>0){document.getElementById('new_project').value='';document.getElementById('new_project').disabled=true;}else{document.getElementById('new_project').disabled=false;}" id='project'><option value=''>- new -</option>~;
   foreach my $project (@$projects) {
     next unless ($project->{name});
-    $html .= "<option value='".$project->{id}."'>".$project->{name}."</option>";
+    $html .= "<option value='".$project->{id}."'>".encode_entities($project->{name})."</option>";
   }
   $html .= qq~</select> <input type='text' name='new_project' id='new_project' style='margin-bottom: 20px;'><br><input style='margin-bottom: 20px;' type='button' class='btn' value='select' onclick="check_project();">
 <p>Note: The projects listed are those that you have write access to. The owners of other projects can provide you with write access if you do not have it.</p>
