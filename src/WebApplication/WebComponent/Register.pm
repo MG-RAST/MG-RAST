@@ -216,21 +216,24 @@ sub perform_registration {
   my $application = $self->application;
   my $cgi = $application->cgi;
 
+  # DO NOT MOVE THIS TEST FOR ILLEGAL CHARACTERS DOWN!  THIS SHOULD BE THE FIRST TEST!!!
+  # not allowing potential, partial html tags in these fields
+  # note: complete html tags should be removed in WebApplication CGI
+  foreach my $var ('email', 'login', 'firstname', 'lastname') {
+    my $cgi_var = $cgi->param($var);
+    if($cgi_var =~ /[<>\'\"]/) {
+      $application->add_message('warning', 'Single or double quotes and the symbols > and < are not allowed in the \''.$var.'\' field');
+      $cgi->param(-name=>$var, -value=>'');
+      return 0;
+    }
+  }
+  
   # check recaptcha
   if (! &check_answer()) {
     $application->add_message('warning', 'reCAPTCHA incorrect, please retry.');
     return 0;
   }
 
-  # not allowing potential html tags in these fields
-  foreach my $var ('email', 'login', 'firstname', 'lastname') {
-    my $cgi_var = $cgi->param($var);
-    if($cgi_var =~ />/ || $cgi_var =~ /</) {
-      $application->add_message('warning', 'The symbols > and < are not allowed in the \''.$var.'\' field');
-      return 0;
-    }
-  }
-  
   # check for an email address
   unless ($cgi->param('email')) {
     $application->add_message('warning', 'You must enter an eMail address.');
