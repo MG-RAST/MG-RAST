@@ -10,7 +10,6 @@ use DBI;
 
 use HTML::Strip;
 
-1;
 
 
 =pod
@@ -50,14 +49,10 @@ class inherited from PPOBackend.
 
 =cut
 
-my $hs;
-
 sub new {
   my $class = shift;
   my %params = @_;
 
-  $hs = HTML::Strip->new();
-  
   # initialise the backend module
   my $backend = $params{-backend} || 'MySQL';
   my $package = "PPOBackend::$backend";
@@ -533,7 +528,11 @@ Returns the quoted I<value>.
 sub quote {
   my ($self, $value) = @_;
 
-  return $self->dbh->quote($hs->parse($value));
+  my $hs = HTML::Strip->new();
+  my $clean_text = $hs->parse($value);
+  $hs->eof;
+  
+  return $self->dbh->quote($clean_text);
 }
 
 
@@ -562,3 +561,4 @@ sub DESTROY {
   $_[0]->disconnect();
 }
 
+1;
