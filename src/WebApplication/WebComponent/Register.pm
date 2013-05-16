@@ -129,7 +129,7 @@ sub output {
   # normal registration form
   else {
   
-    if ($self->successful_request) {
+    if ($self->{successful_request}) {
       
       my $content = "<p style='width:800px;'>Your account request was successful. An administrator of this application will process your request at their earliest opportunity. Since this is a manual step, please allow some time for processing.</p><p>If you would like to request another account, please click <a href='?page=Register'>here.</a></p>";
       
