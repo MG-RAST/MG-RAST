@@ -12,6 +12,7 @@ use POSIX;
 use Data::Dumper;
 use DateTime;
 use Date::Parse;
+use HTML::Entities;
 use WebConfig;
 use WebComponent::WebGD;
 use GD;
@@ -186,7 +187,7 @@ sub output {
   $html .= "<div style='float: left'><table>";
   $html .= "<tr><td><b>Metagenome Name</b></td><td>".$job->name."</td></tr>";
   if ($self->{project}) {
-    $html .= "<tr><td><b>PI</b></td><td><a href='mailto:".($self->{meta_info}->{PI_email}||"")."'>".($self->{meta_info}->{PI_firstname}||"")." ".($self->{meta_info}->{PI_lastname}||"")."</a></td></tr>";
+    $html .= "<tr><td><b>PI</b></td><td>".($self->{meta_info}->{PI_firstname}||"")." ".($self->{meta_info}->{PI_lastname}||"").($self->{meta_info}->{PI_email} ? " (".$self->{meta_info}->{PI_email}.")": "")."</td></tr>";
     $html .= "<tr><td><b>Organization</b></td><td>".($self->{meta_info}->{PI_organization}||"")."</td></tr>";
   }
   $html .= "<tr><td><b>Visibility</b></td><td>".($job->public ? 'Public' : 'Private')."</td></tr>";
@@ -905,7 +906,7 @@ sub edit_name_info {
 
   my $html = "<h3>Edit Metagenome Name</h3>";
   $html .= $self->start_form('edit_name', {metagenome => $job->metagenome_id, action => 'edit_name'});
-  $html .= "Enter new metagenome name: <input type='text' name='new_name' style='width:250px;' value='".$job->name."' />";
+  $html .= "Enter new metagenome name: <input type='text' name='new_name' style='width:250px;' value='".encode_entities($job->name)."' />";
   $html .= "<span>&nbsp;&nbsp;&nbsp;</span><input type='submit' value='update'>".$self->end_form()."<br />";
   return $html;
 }
