@@ -3,7 +3,9 @@ package resources2::sequence;
 use strict;
 use warnings;
 no warnings('once');
+
 use Data::Dumper;
+use HTML::Strip;
 
 use Conf;
 use parent qw(resources2::resource);
@@ -152,6 +154,7 @@ sub prepare_data {
     open(FILE, "<" . $mgdb->_sim_file($data->{job_id})) || $self->return_data({"ERROR" => "resource database offline"}, 503);
     print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
 
+    my $hs = HTML::Strip->new();
     foreach my $row (@{ $mgdb->_dbh->selectall_arrayref($query) }) {
         my ($md5, $seek, $len) = @$row;
         my $ann = [];
@@ -170,7 +173,9 @@ sub prepare_data {
         foreach my $line ( split(/\n/, $rec) ) {
             my @tabs = split(/\t/, $line);
             if (@tabs == 13) {
-                print join("\t", ('mgm'.$mgid."|".$tabs[0], $tabs[1], join(";", @$ann), $tabs[12]))."\n";
+                my $rid = $hs->parse($tabs[0]);
+                $hs->eof;
+                print join("\t", ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]))."\n";
             }
         }
     }

@@ -11,6 +11,7 @@ use DBI;
 use Data::Dumper;
 use Babel::lib::Babel;
 
+use HTML::Strip;
 use Cache::Memcached;
 use File::Temp qw/ tempfile tempdir /;
 
@@ -470,8 +471,10 @@ sub get_histogram_nums {
 sub get_md5_sims {
   # $md5_seeks = [md5, seek, length]
   my ($self, $jobid, $md5_seeks) = @_;
-
+  
   my $sims = {};
+  my $hs = HTML::Strip->new();
+  
   if ($md5_seeks && (@$md5_seeks > 0)) {
     @$md5_seeks = sort { $a->[1] <=> $b->[1] } @$md5_seeks;
     open(FILE, "<" . $self->_sim_file($jobid)) || return {};
@@ -482,7 +485,8 @@ sub get_md5_sims {
       seek(FILE, $seek, 0);
       read(FILE, $rec, $length);
       chomp $rec;
-      
+      $rec = $hs->parse($rec);
+      $hs->eof;
       $sims->{$md5} = [ split(/\n/, $rec) ];
     }
     close FILE;
@@ -957,13 +961,17 @@ sub all_read_sequences {
     my ($self) = @_;
 
     my $seqs = [];
+    my $hs = HTML::Strip->new();
+    
     while ( my ($mg, $j) = each %{$self->_job_map} ) {
         open(FILE, "<" . $self->_sim_file($j)) || next;
         while (my $line = <FILE>) {
             chomp $line;
             my @tabs = split(/\t/, $line);
             if (@tabs == 13) {
-	            push @$seqs, { id => "$mg|$tabs[0]", sequence => $tabs[12] };
+                my $rid = $hs->parse($tabs[0]);
+                $hs->eof;
+	            push @$seqs, { id => "$mg|$rid", sequence => $tabs[12] };
             }
         }
         close FILE;
@@ -988,6 +996,7 @@ sub md5s_to_read_sequences {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
 
+    my $hs = HTML::Strip->new();
     my $seqs = [];
     my %umd5 = map {$_, 1} @$md5s;
     my $iter = natatime $self->_chunk, keys %umd5;
@@ -1012,7 +1021,9 @@ sub md5s_to_read_sequences {
 	            foreach my $line ( split(/\n/, $rec) ) {
 	                my @tabs = split(/\t/, $line);
 	                if (@tabs == 13) {
-	                    push @$seqs, { md5 => $tabs[1], id => $self->_mg_map->{$j}."|".$tabs[0], sequence => $tabs[12] };
+	                    my $rid = $hs->parse($tabs[0]);
+                        $hs->eof;
+	                    push @$seqs, { md5 => $tabs[1], id => $self->_mg_map->{$j}."|".$rid, sequence => $tabs[12] };
 	                }
 	            }
             }
