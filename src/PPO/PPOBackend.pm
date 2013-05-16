@@ -8,6 +8,8 @@ use strict;
 use warnings;
 use DBI;
 
+use HTML::Strip;
+
 1;
 
 
@@ -48,9 +50,13 @@ class inherited from PPOBackend.
 
 =cut
 
+my $hs;
+
 sub new {
   my $class = shift;
   my %params = @_;
+
+  $hs = HTML::Strip->new();
   
   # initialise the backend module
   my $backend = $params{-backend} || 'MySQL';
@@ -330,7 +336,7 @@ sub insert_row {
   my $statement = sprintf ("INSERT INTO %s (%s) VALUES (%s)",
 			   $table,
 			   (keys(%$data)) ? join (",", keys(%$data)) : '',
-			   (keys(%$data)) ? join (",", map { $self->dbh->quote($_) } values(%$data)) : '',
+			   (keys(%$data)) ? join (",", map { $self->quote($_) } values(%$data)) : '',
 			  );
 
   my $id;
@@ -416,7 +422,7 @@ sub update_row {
   my ($self, $table, $data, $conditions) = @_;
 
   my $statement = sprintf ("UPDATE %s SET %s%s", $table, 
-			   join(',', map { $_.'='.$self->dbh->quote($data->{$_}) } keys(%$data)), 
+			   join(',', map { $_.'='.$self->quote($data->{$_}) } keys(%$data)), 
 			   ($conditions) ? " WHERE $conditions" : '',
 			  );
   eval {
@@ -526,7 +532,8 @@ Returns the quoted I<value>.
 
 sub quote {
   my ($self, $value) = @_;
-  return $self->dbh->quote($value);
+
+  return $self->dbh->quote($hs->parse($value));
 }
 
 
