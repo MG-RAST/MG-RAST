@@ -8,6 +8,9 @@ use warnings;
 use WebConfig;
 use HTML::Strip;
 
+use LWP::UserAgent;
+use CGI;
+
 use base qw( WebComponent );
 
 1;
@@ -111,6 +114,9 @@ sub output {
     $iform .= "<tr><td>Organization</td><td><input type='text' name='organization'></td></tr>";
     $iform .= "<tr><td>URL</td><td>http://<input type='text' name='lru'></td></tr>";
     $iform .= "<tr><td>Country</td><td>" . $cgi->popup_menu( -name => 'country', -values => $country_values, -labels => $country_codes, -default => 'US' ) . "</td></tr>";
+
+    $iform .= &recaptcha();
+
     $iform .= "<td><input type='submit' class='button' value='Request'></td></tr>";
     $iform .= "</table>";
     
@@ -155,6 +161,8 @@ sub output {
       }
       $new_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $new_account .= "</table>";
+
+      $new_account .= &recaptcha();
       
       $new_account .= $self->application->page->end_form;
       
@@ -171,6 +179,8 @@ sub output {
       }
       $existing_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $existing_account .= "</table>";
+
+      $existing_account .= &recaptcha();
       
       $existing_account .= $self->application->page->end_form;
       
@@ -205,6 +215,12 @@ sub perform_registration {
 
   my $application = $self->application;
   my $cgi = $application->cgi;
+
+  # check recaptcha
+  if (! &check_answer()) {
+    $application->add_message('warning', 'reCAPTCHA incorrect, please retry.');
+    return 0;
+  }
 
   # not allowing potential html tags in these fields
   foreach my $var ('email', 'login', 'firstname', 'lastname') {
@@ -922,12 +938,34 @@ sub country_codes {
 	   'RO' => 'Romania' };
 }
 
-sub successful_request {
-  my ($self, $status) = @_;
+sub recaptcha {
+  return '<script type="text/javascript" src="http://www.google.com/recaptcha/api/challenge?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z"></script><noscript><iframe src="http://www.google.com/recaptcha/api/noscript?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z" height="300" width="500" frameborder="0"></iframe><br><textarea name="recaptcha_challenge_field" rows="3" cols="40"></textarea><input type="hidden" name="recaptcha_response_field" value="manual_challenge"></noscript>';
+}
 
-  if (defined($status)) {
-    $self->{successful_request} = $status;
+sub check_answer {
+  my $cgi = CGI->new();
+  my $ua = LWP::UserAgent->new();
+  $ua->env_proxy();
+
+  my $resp =  $ua->post( 'http://www.google.com/recaptcha/api/verify',
+    {
+      privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+      remoteip   => $ENV{'REMOTE_ADDR'},
+      challenge  => $cgi->param('recaptcha_challenge_field'),
+      response   => $cgi->param('recaptcha_response_field')
+    }
+  );
+
+  if ( $resp->is_success ) {
+    my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
+    if ( $answer =~ /true/ ) {
+      return 1;
+    }
+    else {
+      return 0;
+    }
   }
-
-  return $self->{successful_request};
+  else {
+    return 0;
+  }
 }
