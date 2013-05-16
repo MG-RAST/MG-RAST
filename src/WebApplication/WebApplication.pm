@@ -9,6 +9,7 @@ use FreezeThaw qw( freeze thaw );
 
 use CGI;
 use CGI::Cookie;
+use HTML::Strip;
 use DBMaster;
 
 # include default WebPages
@@ -121,6 +122,13 @@ sub new {
   my $layout       = $params->{'layout'};
   my $backend_name = $params->{'id'};
   my $cgi          = $params->{'cgi'} || CGI->new();
+
+  my $hs = HTML::Strip->new();
+  my @cgi_params = $cgi->param;
+  foreach my $p (@cgi_params) {
+    $cgi->param($p,  $hs->parse($cgi->param($p)));
+  }
+
   my $self = { cgi         => $cgi,
 	       menu        => $menu,
 	       menu_backup => freeze($menu),
