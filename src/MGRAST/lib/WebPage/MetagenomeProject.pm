@@ -8,6 +8,7 @@ use Data::Dumper;
 use IO::Handle;
 use File::Temp qw/ tempfile tempdir /;
 use JSON;
+use HTML::Entities;
 
 use Conf;
 use WebConfig;
@@ -405,39 +406,34 @@ sub general_info {
   my $meta_info = $self->{meta_info};
 
   my $content = "" ;
-  my $description = "";
-  my $funding = "";
-  my $admin = "";
-  my $tech = "";
+  my $description = $meta_info->{project_description} ||  $meta_info->{study_abstract} || " - ";
+  my $funding = $meta_info->{project_funding} || " - ";
+  my $admin = ($meta_info->{PI_firstname} || "")." ".($meta_info->{PI_lastname} || "");
+  my $tech = ($meta_info->{firstname} || "")." ".($meta_info->{lastname} || "");
 
-  $description = $meta_info->{project_description} ||  $meta_info->{study_abstract} || " - ";
-  $funding = $meta_info->{project_funding} || " - ";
   if ($meta_info->{PI_email}) {
-    $admin = "<a href='mailto:".$meta_info->{PI_email}."'>".($meta_info->{PI_firstname} || "")." ".($meta_info->{PI_lastname} || "")."</a>";
-  } else {
-    $admin = ($meta_info->{PI_firstname} || "")." ".($meta_info->{PI_lastname} || "");
+    $admin .= $meta_info->{PI_email} ? " (".$meta_info->{PI_email}.")": "";
   }
+  if ($meta_info->{email}) {
+    $tech .= $meta_info->{email} ? " (".$meta_info->{email}.")": "";
+  }
+
   if ($meta_info->{PI_organization}) {
     my $pi_org = $meta_info->{PI_organization};
     if ($meta_info->{PI_organization_url}) {
       $meta_info->{PI_organization_url} = ($meta_info->{PI_organization_url} =~ /^http:\/\//) ? $meta_info->{PI_organization_url} : "http://".$meta_info->{PI_organization_url};
-      $pi_org = "<a href='".$meta_info->{PI_organization_url}."'>".$meta_info->{PI_organization}."</a>";
+      $pi_org .= " (".$meta_info->{PI_organization_url}.")";
     }
-    $admin .= "($pi_org)<br>".($meta_info->{PI_organization_address} || "").", ".($meta_info->{PI_organization_country} || "");
+    $admin .= "<br>$pi_org<br>".($meta_info->{PI_organization_address} || "").", ".($meta_info->{PI_organization_country} || "");
   }
-  
-  if ($meta_info->{email}) {
-    $tech = "<a href='mailto:".$meta_info->{email}."'>".($meta_info->{firstname} || "")." ".($meta_info->{lastname} || "")."</a>";
-  } else {
-    $tech = ($meta_info->{firstname} || "")." ".($meta_info->{lastname} || "");
-  }
+
   if ($meta_info->{organization}) {
     my $tech_org = $meta_info->{organization};
     if ($meta_info->{organization_url}) {
       $meta_info->{organization_url} = ($meta_info->{organization_url} =~ /^http:\/\//) ? $meta_info->{organization_url} : "http://".$meta_info->{organization_url};
-      $tech_org = "<a href='".$meta_info->{organization_url}."'>".$meta_info->{organization}."</a>";
+      $tech_org .= " (".$meta_info->{organization_url}.")";
     }
-    $tech .= "($tech_org)<br>".($meta_info->{organization_address} || "").", ".($meta_info->{organization_country} || "");
+    $tech .= "<br>$tech_org<br>".($meta_info->{organization_address} || "").", ".($meta_info->{organization_country} || "");
   }
   
   my $predefined = { email => 1 ,
@@ -937,11 +933,11 @@ sub edit_info {
   my $content   = "<h3>Edit Project Data</h3>";
   
   $content .= $self->start_form('additional_info_form', { update => 1, project => $project->{id} });
-  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>name</span><br><input type='text' name='project_name' style='width:250px;' value='".$project->{name}."'><br><br>";
-  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>description</span><br><textarea name='project_description' style='width:250px;'>".($meta_info->{project_description} || $meta_info->{study_abstract} || " - ")."</textarea><br><br>";
-  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>funding source</span><br><input type='text' value='".($meta_info->{project_funding} || " - ")."' name='project_funding'><br><br>";
-  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>administrative contact</span><br><table><tr><th>eMail</th><td><input type='text' value='".($meta_info->{PI_email} || " - ")."' name='pi_email'></td></tr><tr><th>firstname</th><td><input type='text' value='".($meta_info->{PI_firstname} || " - ")."' name='pi_firstname'></td></tr><tr><th>lastname</th><td><input type='text' value='".($meta_info->{PI_lastname} || " - ")."' name='pi_lastname'></td></tr><tr><th>organization</th><td><input type='text' value='".($meta_info->{PI_organization} || " - ")."' name='pi_organization'></td></tr><tr><th>organization url</th><td><input type='text' value='".($meta_info->{PI_organization_url} || " - ")."' name='pi_organization_url'></td></tr><tr><th>organization address</th><td><input type='text' value='".($meta_info->{PI_organization_address} || " - ")."' name='pi_organization_address'></td></tr><tr><th>organization country</th><td><input type='text' value='".($meta_info->{PI_organization_country} || " - ")."' name='pi_organization_country'></td></tr></table><br>";
-  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>technical contact</span><br><table><tr><th>eMail</th><td><input type='text' value='".($meta_info->{email} || " - ")."' name='email'></td></tr><tr><th>firstname</th><td><input type='text' value='".($meta_info->{firstname} || " - ")."' name='firstname'></td></tr><tr><th>lastname</th><td><input type='text' value='".($meta_info->{lastname} || " - ")."' name='lastname'></td></tr><tr><th>organization</th><td><input type='text' value='".($meta_info->{organization} || " - ")."' name='organization'></td></tr><tr><th>organization url</th><td><input type='text' value='".($meta_info->{organization_url} || " - ")."' name='organization_url'></td></tr><tr><th>organization address</th><td><input type='text' value='".($meta_info->{organization_address} || " - ")."' name='organization_address'></td></tr><tr><th>organization country</th><td><input type='text' value='".($meta_info->{organization_country} || " - ")."' name='organization_country'></td></tr><tr><td colspan=2><input type='submit' value='update'></td><tr></table>";    
+  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>name</span><br><input type='text' name='project_name' style='width:250px;' value='".encode_entities($project->{name})."'><br><br>";
+  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>description</span><br><textarea name='project_description' style='width:250px;'>".encode_entities($meta_info->{project_description} || $meta_info->{study_abstract} || " - ")."</textarea><br><br>";
+  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>funding source</span><br><input type='text' value='".encode_entities($meta_info->{project_funding} || " - ")."' name='project_funding'><br><br>";
+  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>administrative contact</span><br><table><tr><th>eMail</th><td><input type='text' value='".encode_entities($meta_info->{PI_email} || " - ")."' name='pi_email'></td></tr><tr><th>firstname</th><td><input type='text' value='".encode_entities($meta_info->{PI_firstname} || " - ")."' name='pi_firstname'></td></tr><tr><th>lastname</th><td><input type='text' value='".encode_entities($meta_info->{PI_lastname} || " - ")."' name='pi_lastname'></td></tr><tr><th>organization</th><td><input type='text' value='".encode_entities($meta_info->{PI_organization} || " - ")."' name='pi_organization'></td></tr><tr><th>organization url</th><td><input type='text' value='".encode_entities($meta_info->{PI_organization_url} || " - ")."' name='pi_organization_url'></td></tr><tr><th>organization address</th><td><input type='text' value='".encode_entities($meta_info->{PI_organization_address} || " - ")."' name='pi_organization_address'></td></tr><tr><th>organization country</th><td><input type='text' value='".encode_entities($meta_info->{PI_organization_country} || " - ")."' name='pi_organization_country'></td></tr></table><br>";
+  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>technical contact</span><br><table><tr><th>eMail</th><td><input type='text' value='".encode_entities($meta_info->{email} || " - ")."' name='email'></td></tr><tr><th>firstname</th><td><input type='text' value='".encode_entities($meta_info->{firstname} || " - ")."' name='firstname'></td></tr><tr><th>lastname</th><td><input type='text' value='".encode_entities($meta_info->{lastname} || " - ")."' name='lastname'></td></tr><tr><th>organization</th><td><input type='text' value='".encode_entities($meta_info->{organization} || " - ")."' name='organization'></td></tr><tr><th>organization url</th><td><input type='text' value='".encode_entities($meta_info->{organization_url} || " - ")."' name='organization_url'></td></tr><tr><th>organization address</th><td><input type='text' value='".encode_entities($meta_info->{organization_address} || " - ")."' name='organization_address'></td></tr><tr><th>organization country</th><td><input type='text' value='".encode_entities($meta_info->{organization_country} || " - ")."' name='organization_country'></td></tr><tr><td colspan=2><input type='submit' value='update'></td><tr></table>";    
   $content .= $self->end_form;
 
   return $content;
@@ -978,7 +974,7 @@ sub share_info {
   my $content = "<h3>Share Project</h3>";
   $content .= $self->start_form('share_project', { project => $project->id,
 						   action  => 'share_project' });
-  $content .= "<p><strong>Enter an email address or group name:</strong> <input name='email' type='textbox' value='$email'><input type='checkbox' name='editable'> <span title='check to allow the user or group to edit this project'>editable</span>";
+  $content .= "<p><strong>Enter an email address or group name:</strong> <input name='email' type='textbox' value='".encode_entities($email)."'><input type='checkbox' name='editable'> <span title='check to allow the user or group to edit this project'>editable</span>";
   $content .= "&nbsp;&nbsp;&nbsp;<input type='submit' name='share_project' value=' Share project with this user or group '></p>";
   $content .= $self->end_form;
   
