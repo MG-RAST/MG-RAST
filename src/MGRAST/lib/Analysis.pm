@@ -11,7 +11,6 @@ use DBI;
 use Data::Dumper;
 use Babel::lib::Babel;
 
-use HTML::Strip;
 use Cache::Memcached;
 use File::Temp qw/ tempfile tempdir /;
 
@@ -471,10 +470,8 @@ sub get_histogram_nums {
 sub get_md5_sims {
   # $md5_seeks = [md5, seek, length]
   my ($self, $jobid, $md5_seeks) = @_;
-  
+
   my $sims = {};
-  my $hs = HTML::Strip->new();
-  
   if ($md5_seeks && (@$md5_seeks > 0)) {
     @$md5_seeks = sort { $a->[1] <=> $b->[1] } @$md5_seeks;
     open(FILE, "<" . $self->_sim_file($jobid)) || return {};
@@ -485,8 +482,7 @@ sub get_md5_sims {
       seek(FILE, $seek, 0);
       read(FILE, $rec, $length);
       chomp $rec;
-      $rec = $hs->parse($rec);
-      $hs->eof;
+      
       $sims->{$md5} = [ split(/\n/, $rec) ];
     }
     close FILE;
@@ -961,17 +957,13 @@ sub all_read_sequences {
     my ($self) = @_;
 
     my $seqs = [];
-    my $hs = HTML::Strip->new();
-    
     while ( my ($mg, $j) = each %{$self->_job_map} ) {
         open(FILE, "<" . $self->_sim_file($j)) || next;
         while (my $line = <FILE>) {
             chomp $line;
             my @tabs = split(/\t/, $line);
             if (@tabs == 13) {
-                my $rid = $hs->parse($tabs[0]);
-                $hs->eof;
-	            push @$seqs, { id => "$mg|$rid", sequence => $tabs[12] };
+	            push @$seqs, { id => "$mg|$tabs[0]", sequence => $tabs[12] };
             }
         }
         close FILE;
@@ -996,7 +988,6 @@ sub md5s_to_read_sequences {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
 
-    my $hs = HTML::Strip->new();
     my $seqs = [];
     my %umd5 = map {$_, 1} @$md5s;
     my $iter = natatime $self->_chunk, keys %umd5;
@@ -1021,9 +1012,7 @@ sub md5s_to_read_sequences {
 	            foreach my $line ( split(/\n/, $rec) ) {
 	                my @tabs = split(/\t/, $line);
 	                if (@tabs == 13) {
-	                    my $rid = $hs->parse($tabs[0]);
-                        $hs->eof;
-	                    push @$seqs, { md5 => $tabs[1], id => $self->_mg_map->{$j}."|".$rid, sequence => $tabs[12] };
+	                    push @$seqs, { md5 => $tabs[1], id => $self->_mg_map->{$j}."|".$tabs[0], sequence => $tabs[12] };
 	                }
 	            }
             }
@@ -1363,7 +1352,7 @@ sub search_organisms {
 }
 
 sub get_organisms_unique_for_source {
-    my ($self, $source, $eval, $ident, $alen) = @_;
+    my ($self, $source, $eval, $ident, $alen, $with_taxid) = @_;
 
     my $all_orgs    = {};
     my $mg_org_data = {};
@@ -1389,12 +1378,19 @@ sub get_organisms_unique_for_source {
         }
     }
 
+    my $ctax = $with_taxid ? ',ncbi_tax_id' : '';
+    my $qtax = $with_taxid ? " AND ncbi_tax_id IS NOT NULL" : '';
     my $tax = {};
+    my $tid = {};
     my $sql = "SELECT _id,COALESCE(tax_domain,'unassigned') AS txd,COALESCE(tax_phylum,'unassigned') AS txp,COALESCE(tax_class,'unassigned') AS txc,".
               "COALESCE(tax_order,'unassigned') AS txo,COALESCE(tax_family,'unassigned') AS txf,COALESCE(tax_genus,'unassigned') AS txg,".
-              "COALESCE(tax_species,'unassigned') AS txs,name FROM ".$self->_atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")";
+              "COALESCE(tax_species,'unassigned') AS txs,name$ctax FROM ".$self->_atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")$qtax";
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $oid = shift @$row;
+        if ($with_taxid) {
+            my $t = pop @$row;
+            $tid->{$oid} = $t;
+        }
         $tax->{$oid} = $row;
     }
     
@@ -1407,7 +1403,15 @@ sub get_organisms_unique_for_source {
             my $md5s  = $stats->[8];
             my ($ea, $es, $ia, $is, $la, $ls) = (($stats->[2] / $total),($stats->[3] / $total),($stats->[4] / $total),($stats->[5] / $total),($stats->[6] / $total),($stats->[7] / $total));
             if (exists $tax->{$oid}) {
-	            push @$result, [ $mgid, @{$tax->{$oid}}, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+                my $data = [ $mgid, @{$tax->{$oid}}, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+                if ($with_taxid) {
+                    if (exists $tid->{$oid}) {
+                        push @$data, $tid->{$oid};
+                    } else {
+                        next;
+                    }
+                }
+	            push @$result, $data;
             }
         }
     }
