@@ -26,8 +26,13 @@ my $cgi = new CGI();
 my $hs = HTML::Strip->new();
 my @cgi_params = $cgi->param;
 foreach my $p (@cgi_params) {
-    $cgi->param($p,  $hs->parse($cgi->param($p)));
+    my @plist = $cgi->param($p);
+    foreach my $p1 (@plist) {
+	$p1 = $hs->parse($p1);
+    }
+    $cgi->param($p, @plist);
 }
+$hs->eof;
 
 my $cookie = $cgi->cookie('WebSession');
 my $user = "";
