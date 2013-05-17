@@ -292,9 +292,9 @@ sub prepare_data {
     my $all_srcs  = {};
     my $leaf_node = 0;
     my $group_level = $glvl;
-    my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
-    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.
-                     '&source='.$source.'&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen;
+    my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen, $taxid));
+    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.'&source='.$source.
+                     '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen.'&taxid='.$taxid;
     if ($hide_md) {
         $matrix_id .= '_'.$hide_md;
         $matrix_url .= '&hide_metadata='.$hide_md;
@@ -392,42 +392,45 @@ sub prepare_data {
         }
         unless ((@filter > 0) && (@$umd5s == 0)) {
             if ($htype eq 'all') {
+                my $opos = $taxid ? 19 : 9;
                 if ($leaf_node) {
                     # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
                     my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen), 1);
                     # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
-                    @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[9] !~ /^(\-|unclassified)/} @$info;
-                    if ($taxid) {
-                        map { $self->{org2tax}->{$_->[19]} = [ @$_[2..9] ] } @$info;
-                    } else {
-                        map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
-                    }
+                    @$matrix = map {[ $_->[$opos], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[9] !~ /^(\-|unclassified)/} @$info;
+                    map { $self->{org2tax}->{$_->[$opos]} = [ @$_[2..9] ] } @$info;
                 } else {
                     # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
                     @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} grep {$_->[1] !~ /^(\-|unclassified)/} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
                     # mgid, hier_annotation, value
                 }
             } elsif ($htype eq 'single') {
+                my $opos = $taxid ? 17 : 8;
                 # my ($self, $source, $eval, $ident, $alen) = @_;
-                my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen));
-                # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-                my @levels  = reverse @org_hier;
-                my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
-                $lvl_idx += 1;
-                my $merged = {};
-                foreach my $set (@$info) {
-                    next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
-                    if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
-                        $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
-                    } else {
-                        $merged->{$set->[0]}{$set->[$lvl_idx]}[0] += $self->toNum($set->[$col_idx], $rtype);
-                        $merged->{$set->[0]}{$set->[$lvl_idx]}[1] += 1;
+                my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen), 1);
+                # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
+                if ($leaf_node) {
+                    @$matrix = map {[ $_->[$opos], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[8] !~ /^(\-|unclassified)/} @$info;
+                    map { $self->{org2tax}->{$_->[$opos]} = [ @$_[1..8] ] } @$info;
+                } else {
+                    my @levels  = reverse @org_hier;
+                    my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
+                    $lvl_idx += 1;
+                    my $merged = {};
+                    foreach my $set (@$info) {
+                        next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
+                        if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
+                            $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
+                        } else {
+                            $merged->{$set->[0]}{$set->[$lvl_idx]}[0] += $self->toNum($set->[$col_idx], $rtype);
+                            $merged->{$set->[0]}{$set->[$lvl_idx]}[1] += 1;
+                        }
                     }
-                }
-                foreach my $m (keys %$merged) {
-                    foreach my $a (keys %{$merged->{$m}}) {
-                        my $val = ($rtype eq 'abundance') ? $merged->{$m}{$a}[0] : $merged->{$m}{$a}[0] / $merged->{$m}{$a}[1];
-                        push @$matrix, [ $a, $m, $val ];
+                    foreach my $m (keys %$merged) {
+                        foreach my $a (keys %{$merged->{$m}}) {
+                            my $val = ($rtype eq 'abundance') ? $merged->{$m}{$a}[0] : $merged->{$m}{$a}[0] / $merged->{$m}{$a}[1];
+                            push @$matrix, [ $a, $m, $val ];
+                        }
                     }
                 }
             } elsif ($htype eq 'lca') {
@@ -530,7 +533,7 @@ sub prepare_data {
 sub get_hierarchy {
     my ($self, $mgdb, $type, $level, $src, $leaf_node) = @_;
     if ($type eq 'organism') {
-        return $leaf_node ? $self->{org2tax} : $mgdb->get_hierarchy('organism', undef, undef, undef, $level);
+        return ($leaf_node && (scalar(keys %{$self->{org2tax}}) > 0)) ? $self->{org2tax} : $mgdb->get_hierarchy('organism', undef, undef, undef, $level);
     } elsif ($type eq 'function') {
         return $leaf_node ? $mgdb->get_hierarchy('ontology', $src) : $mgdb->get_hierarchy('ontology', $src, undef, undef, $level);
     } else {

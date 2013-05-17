@@ -1378,8 +1378,8 @@ sub get_organisms_unique_for_source {
         }
     }
 
-    my $ctax = $with_taxid ? ',a.ncbi_tax_id' : '';
-    my $qtax = $with_taxid ? " AND a.ncbi_tax_id IS NOT NULL" : '';
+    my $ctax = $with_taxid ? ',ncbi_tax_id' : '';
+    my $qtax = $with_taxid ? " AND ncbi_tax_id IS NOT NULL" : '';
     my $tax = {};
     my $tid = {};
     my $sql = "SELECT _id,COALESCE(tax_domain,'unassigned') AS txd,COALESCE(tax_phylum,'unassigned') AS txp,COALESCE(tax_class,'unassigned') AS txc,".
