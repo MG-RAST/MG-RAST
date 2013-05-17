@@ -112,6 +112,7 @@ sub info {
                                                                                          'hit_type' => [ 'cv', [['all', 'returns results based on all organisms that map to top hit per read-feature'],
                                                                                                                 ['single', 'returns results based on a single organism for top hit per read-feature'],
                                                                                                                 ['lca', 'returns results based on the Least Common Ancestor for all organisms (M5NR+M5RNA only) that map to hits from a read-feature']] ],
+                                                                                         'taxid' => [ 'boolean', "if true, return annotation ID as NCBI tax id. Only for group_levels with a tax_id" ],
                                                                                          'source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
@@ -277,6 +278,7 @@ sub prepare_data {
     
     # get optional params
     my $cgi = $self->cgi;
+    my $taxid  = $cgi->param('taxid') ? 1 : 0;
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'M5NR' : (($type eq 'function') ? 'Subsystems': 'RefSeq'));
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
     my $htype  = $cgi->param('hit_type') ? $cgi->param('hit_type') : 'all';
@@ -392,10 +394,14 @@ sub prepare_data {
             if ($htype eq 'all') {
                 if ($leaf_node) {
                     # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
-                    my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen));
-                    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+                    my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen), 1);
+                    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
                     @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[9] !~ /^(\-|unclassified)/} @$info;
-                    map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
+                    if ($taxid) {
+                        map { $self->{org2tax}->{$_->[19]} = [ @$_[2..9] ] } @$info;
+                    } else {
+                        map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
+                    }
                 } else {
                     # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
                     @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} grep {$_->[1] !~ /^(\-|unclassified)/} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
