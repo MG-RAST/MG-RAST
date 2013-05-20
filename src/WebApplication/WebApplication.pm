@@ -815,7 +815,7 @@ sub redirect {
   if ($params) {
     if (ref($params) eq 'HASH') {
       $self->{redirect} = $params;
-      unless (defined($params->{page})) {
+      unless (defined($params->{page}) && scalar($params->{page})) {
 	$self->{redirect}->{page} = $self->default;
       }
     } else {
