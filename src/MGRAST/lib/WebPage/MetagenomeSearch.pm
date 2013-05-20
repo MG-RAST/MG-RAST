@@ -1331,6 +1331,7 @@ sub get_search_str {
   } else {
       return "";
   }
+  if (length($qtxt)) { $qtxt = substr($qtxt, 1, length($qtxt) - 2); }
   
   if ($eql == 2) {
     my @rng = split(/_/, $txt);
