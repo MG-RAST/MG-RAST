@@ -530,6 +530,7 @@ sub quote {
 
   my $hs = HTML::Strip->new();
   my $clean_text = $hs->parse($value);
+  $clean_text =~ s/\n//g;
   $hs->eof;
   
   return $self->dbh->quote($clean_text);
