@@ -1352,7 +1352,7 @@ sub search_organisms {
 }
 
 sub get_organisms_unique_for_source {
-    my ($self, $source, $eval, $ident, $alen) = @_;
+    my ($self, $source, $eval, $ident, $alen, $with_taxid) = @_;
 
     my $all_orgs    = {};
     my $mg_org_data = {};
@@ -1378,12 +1378,19 @@ sub get_organisms_unique_for_source {
         }
     }
 
+    my $ctax = $with_taxid ? ',ncbi_tax_id' : '';
+    my $qtax = $with_taxid ? " AND ncbi_tax_id IS NOT NULL" : '';
     my $tax = {};
+    my $tid = {};
     my $sql = "SELECT _id,COALESCE(tax_domain,'unassigned') AS txd,COALESCE(tax_phylum,'unassigned') AS txp,COALESCE(tax_class,'unassigned') AS txc,".
               "COALESCE(tax_order,'unassigned') AS txo,COALESCE(tax_family,'unassigned') AS txf,COALESCE(tax_genus,'unassigned') AS txg,".
-              "COALESCE(tax_species,'unassigned') AS txs,name FROM ".$self->_atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")";
+              "COALESCE(tax_species,'unassigned') AS txs,name$ctax FROM ".$self->_atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")$qtax";
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $oid = shift @$row;
+        if ($with_taxid) {
+            my $t = pop @$row;
+            $tid->{$oid} = $t;
+        }
         $tax->{$oid} = $row;
     }
     
@@ -1396,7 +1403,15 @@ sub get_organisms_unique_for_source {
             my $md5s  = $stats->[8];
             my ($ea, $es, $ia, $is, $la, $ls) = (($stats->[2] / $total),($stats->[3] / $total),($stats->[4] / $total),($stats->[5] / $total),($stats->[6] / $total),($stats->[7] / $total));
             if (exists $tax->{$oid}) {
-	            push @$result, [ $mgid, @{$tax->{$oid}}, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+                my $data = [ $mgid, @{$tax->{$oid}}, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+                if ($with_taxid) {
+                    if (exists $tid->{$oid}) {
+                        push @$data, $tid->{$oid};
+                    } else {
+                        next;
+                    }
+                }
+	            push @$result, $data;
             }
         }
     }
