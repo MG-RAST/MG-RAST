@@ -8,6 +8,9 @@ use warnings;
 use WebConfig;
 use HTML::Strip;
 
+use LWP::UserAgent;
+use CGI;
+
 use base qw( WebComponent );
 
 1;
@@ -111,6 +114,9 @@ sub output {
     $iform .= "<tr><td>Organization</td><td><input type='text' name='organization'></td></tr>";
     $iform .= "<tr><td>URL</td><td>http://<input type='text' name='lru'></td></tr>";
     $iform .= "<tr><td>Country</td><td>" . $cgi->popup_menu( -name => 'country', -values => $country_values, -labels => $country_codes, -default => 'US' ) . "</td></tr>";
+
+    $iform .= &recaptcha();
+
     $iform .= "<td><input type='submit' class='button' value='Request'></td></tr>";
     $iform .= "</table>";
     
@@ -123,7 +129,7 @@ sub output {
   # normal registration form
   else {
   
-    if ($self->successful_request) {
+    if ($self->{successful_request}) {
       
       my $content = "<p style='width:800px;'>Your account request was successful. An administrator of this application will process your request at their earliest opportunity. Since this is a manual step, please allow some time for processing.</p><p>If you would like to request another account, please click <a href='?page=Register'>here.</a></p>";
       
@@ -155,6 +161,8 @@ sub output {
       }
       $new_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $new_account .= "</table>";
+
+      $new_account .= &recaptcha();
       
       $new_account .= $self->application->page->end_form;
       
@@ -171,6 +179,8 @@ sub output {
       }
       $existing_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $existing_account .= "</table>";
+
+      $existing_account .= &recaptcha();
       
       $existing_account .= $self->application->page->end_form;
       
@@ -206,15 +216,24 @@ sub perform_registration {
   my $application = $self->application;
   my $cgi = $application->cgi;
 
-  # not allowing potential html tags in these fields
+  # DO NOT MOVE THIS TEST FOR ILLEGAL CHARACTERS DOWN!  THIS SHOULD BE THE FIRST TEST!!!
+  # not allowing potential, partial html tags in these fields
+  # note: complete html tags should be removed in WebApplication CGI
   foreach my $var ('email', 'login', 'firstname', 'lastname') {
     my $cgi_var = $cgi->param($var);
-    if($cgi_var =~ />/ || $cgi_var =~ /</) {
-      $application->add_message('warning', 'The symbols > and < are not allowed in the \''.$var.'\' field');
+    if($cgi_var =~ /[<>\'\"]/) {
+      $application->add_message('warning', 'Single or double quotes and the symbols > and < are not allowed in the \''.$var.'\' field');
+      $cgi->param(-name=>$var, -value=>'');
       return 0;
     }
   }
   
+  # check recaptcha
+  if (! &check_answer()) {
+    $application->add_message('warning', 'reCAPTCHA incorrect, please retry.');
+    return 0;
+  }
+
   # check for an email address
   unless ($cgi->param('email')) {
     $application->add_message('warning', 'You must enter an eMail address.');
@@ -922,12 +941,34 @@ sub country_codes {
 	   'RO' => 'Romania' };
 }
 
-sub successful_request {
-  my ($self, $status) = @_;
+sub recaptcha {
+  return '<script type="text/javascript" src="http://www.google.com/recaptcha/api/challenge?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z"></script><noscript><iframe src="http://www.google.com/recaptcha/api/noscript?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z" height="300" width="500" frameborder="0"></iframe><br><textarea name="recaptcha_challenge_field" rows="3" cols="40"></textarea><input type="hidden" name="recaptcha_response_field" value="manual_challenge"></noscript>';
+}
 
-  if (defined($status)) {
-    $self->{successful_request} = $status;
+sub check_answer {
+  my $cgi = CGI->new();
+  my $ua = LWP::UserAgent->new();
+  $ua->env_proxy();
+
+  my $resp =  $ua->post( 'http://www.google.com/recaptcha/api/verify',
+    {
+      privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+      remoteip   => $ENV{'REMOTE_ADDR'},
+      challenge  => $cgi->param('recaptcha_challenge_field'),
+      response   => $cgi->param('recaptcha_response_field')
+    }
+  );
+
+  if ( $resp->is_success ) {
+    my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
+    if ( $answer =~ /true/ ) {
+      return 1;
+    }
+    else {
+      return 0;
+    }
   }
-
-  return $self->{successful_request};
+  else {
+    return 0;
+  }
 }

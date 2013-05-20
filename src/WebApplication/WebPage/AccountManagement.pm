@@ -9,6 +9,8 @@ use warnings;
 
 use Conf;
 
+use HTML::Entities;
+
 =pod
 
 =head1 NAME
@@ -123,10 +125,10 @@ sub output {
   $html .= "<h2>Personal Information</h2>";
   $html .= $self->start_form('user_form', { action => 'change_user_details' } );
   $html .= "<table>";
-  $html .= "<tr><th>first name</th><td><input type='text' name='firstname' value='" . $user->firstname() . "'></td></tr>";
-  $html .= "<tr><th>last name</th><td><input type='text' name='lastname' value='" . $user->lastname() . "'></td></tr>";
-  $html .= "<tr><th>eMail</th><td><input type='text' name='email' value='" . $user->email() . "'></td></tr>";
-  $html .= "<tr><th>login</th><td>" . $user->login() . "</td></tr>";
+  $html .= "<tr><th> name</th><td><input type='text' name='firstname' value='" . encode_entities($user->firstname()) . "'></td></tr>";
+  $html .= "<tr><th>last name</th><td><input type='text' name='lastname' value='" . encode_entities($user->lastname()) . "'></td></tr>";
+  $html .= "<tr><th>eMail</th><td><input type='text' name='email' value='" . encode_entities($user->email()) . "'></td></tr>";
+  $html .= "<tr><th>login</th><td>" . encode_entities($user->login()) . "</td></tr>";
   $html .= "<tr><th>password</th><td><input type='password' name='password'></td></tr>";
   $html .= "<tr><th>confirm password</th><td><input type='password' name='confirm_password'></td></tr>";
   $html .= "</table>";

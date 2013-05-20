@@ -7,6 +7,7 @@ use CGI::Cookie;
 use Digest::MD5;
 use Time::Local;
 use DBI;
+use HTML::Strip;
 
 use Conf;
 
@@ -20,6 +21,18 @@ if ($error) {
 
 my $dbh = dbh();
 my $cgi = new CGI();
+
+# strip out HTML
+my $hs = HTML::Strip->new();
+my @cgi_params = $cgi->param;
+foreach my $p (@cgi_params) {
+    my @plist = $cgi->param($p);
+    foreach my $p1 (@plist) {
+	$p1 = $hs->parse($p1);
+    }
+    $cgi->param($p, @plist);
+}
+$hs->eof;
 
 my $cookie = $cgi->cookie('WebSession');
 my $user = "";
@@ -107,7 +120,7 @@ unless ($cgi->param('action')) {
 } else {
   if ($cgi->param("action") eq "register_application") {
     if ($cgi->param("application") && $cgi->param("url")) {
-      my $res = $dbh->selectrow_arrayref("SELECT application FROM apps WHERE application ='".$cgi->param("application")."';");
+      my $res = $dbh->selectrow_arrayref("SELECT application FROM apps WHERE application =".$dbh->quote($cgi->param("application")).";");
       if ($dbh->err()) {
 	warning_message($DBI::errstr);
 	exit 0;
@@ -116,7 +129,7 @@ unless ($cgi->param('action')) {
 	warning_message("This application is already registered.");
       } else {
 	my $secret = secret();
-	$dbh->do("INSERT INTO apps (application, url, secret) VALUES ('".$cgi->param("application")."', '".$cgi->param("url")."', '".$secret."');");
+	$dbh->do("INSERT INTO apps (application, url, secret) VALUES (".$dbh->quote($cgi->param("application")).", ".$dbh->quote($cgi->param("url")).", '".$secret."');");
 	$dbh->commit();
 	if ($dbh->err()) {
 	  warning_message($DBI::errstr);
@@ -131,7 +144,7 @@ unless ($cgi->param('action')) {
     }
   } elsif ($cgi->param("action") eq "dialog") {
       if ($cgi->param("client_id") && $cgi->param("redirect_url")) {
-	my $res = $dbh->selectrow_arrayref("SELECT application FROM apps WHERE application='".$cgi->param("client_id")."' AND url='".$cgi->param('redirect_url')."';");
+	my $res = $dbh->selectrow_arrayref("SELECT application FROM apps WHERE application=".$dbh->quote($cgi->param("client_id"))." AND url=".$dbh->quote($cgi->param('redirect_url')).";");
 	if ($dbh->err()) {
 	  warning_message($DBI::errstr);
 	  exit 0;
@@ -160,7 +173,7 @@ unless ($cgi->param('action')) {
 	      print $cgi->redirect( -uri => $url."code=".$secret, -cookie=>$cookie);
 	      exit 0;				
 	    } else {
-		$res = $dbh->selectrow_arrayref("SELECT application, token FROM accepts WHERE application='".$cgi->param("client_id")."' AND login='".$user->login."';");
+		$res = $dbh->selectrow_arrayref("SELECT application, token FROM accepts WHERE application=".$dbh->quote($cgi->param("client_id"))." AND login='".$user->login."';");
 		if ($dbh->err()) {
 		    warning_message($DBI::errstr);
 		    exit 0;
@@ -194,7 +207,7 @@ unless ($cgi->param('action')) {
       }
     } elsif ($cgi->param("action") eq "token") {
       if ($cgi->param("client_id") && $cgi->param("client_secret") && $cgi->param("code")) {
-	my $res = $dbh->selectrow_arrayref("SELECT accepts.login FROM apps, accepts WHERE apps.application='".$cgi->param("client_id")."' AND apps.secret='".$cgi->param('client_secret')."' AND apps.application=accepts.application and accepts.token='".$cgi->param('code')."';");
+	my $res = $dbh->selectrow_arrayref("SELECT accepts.login FROM apps, accepts WHERE apps.application=".$dbh->quote($cgi->param("client_id"))." AND apps.secret=".$dbh->quote($cgi->param('client_secret'))." AND apps.application=accepts.application and accepts.token=".$dbh->quote($cgi->param('code')).";");
 	if ($dbh->err()) {
 	  warning_message($DBI::errstr);
 	  exit 0;
