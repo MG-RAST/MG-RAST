@@ -194,7 +194,7 @@ sub instance {
     }
 
     # check rights
-    unless ($project->{public} || exists($self->rights->{$id})) {
+    unless ($project->{public} || exists($self->rights->{$id}) || exists($self->rights->{'*'})) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 

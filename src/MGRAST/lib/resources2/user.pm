@@ -53,7 +53,7 @@ sub info {
                                     { 'name'        => "instance",
                                       'request'     => $self->cgi->url."/".$self->name."/{ID}",
                                       'description' => "Returns a single user object.",
-                                      'method'      => "GET" ,
+                                      'method'      => "GET",
                                       'type'        => "synchronous" ,  
                                       'attributes'  => $self->attributes,
                                       'parameters'  => { 'options'     => {},
@@ -74,7 +74,7 @@ sub instance {
     my $id = $rest->[0];
 
     if ($rest && scalar(@$rest) == 1) {
-        unless ($self->user && $self->user->has_right(undef, 'edit', 'user', $self->user->{_id})) {
+        unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $self->user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
             $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 400 );
         }
     }
