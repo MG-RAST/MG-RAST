@@ -133,6 +133,10 @@ function cancel_upload () {
 
 function uploadComplete (evt) {
     var md5 = this.responseText;
+    var old = document.getElementById("md5check");
+    if (old) {
+	jQuery('#md5check').remove();
+    }
     var msg = document.createElement('div');
     msg.setAttribute('id', 'md5_check');
     msg.innerHTML = '\
@@ -159,7 +163,6 @@ function checkmd5 (md5) {
     if (md5 == document.getElementById("usermd5").value) {
 	jQuery('#md5check').modal('hide');
 	alert('you uploaded file is OK');
-	document.getElementById("usermd5").value = "";
     } else {
 	alert('WARNING: md5sum does not match, your file is probably corrupted!');
     }
