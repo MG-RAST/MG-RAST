@@ -123,7 +123,7 @@ sub instance {
     $job = $job->[0];
 
     # check rights
-    unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_right(undef, 'view', 'metagenome', '*'))) {
+    unless ($job->{public} || exists($self->rights->{$id}) || exists($self->rights->{'*'})) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
@@ -156,20 +156,33 @@ sub query {
     }
     
     # get all items the user has access to
-    my $status  = $self->cgi->param('status') || "both";
-    my %public  = map { $_, 1 } @{ $master->Job->get_public_jobs(1) };
-    my %private = map { $_, 1 } grep { ! exists($public{$_}) } keys %{ $self->rights };
-    my @mglist  = ();
-    if ($status eq 'private') {
-        @mglist = keys %private;
-    } elsif ($status eq 'public') {
-        @mglist = keys %public;
+    my $status = $self->cgi->param('status') || "both";
+    my $total = 0;
+    my $query = "";
+    my $job_pub = $master->Job->count_public();
+    if ($status eq 'public') {
+        $total = $job_pub;
+        $query = "viewable=1 AND public=1 ORDER BY $order LIMIT $limit OFFSET $offset";
+    } elsif (exists $self->rights->{'*'}) {
+        my $job_all = $master->Job->count_all();
+        if ($status eq 'private') {
+            $total = $job_all - $job_pub;
+            $query = "viewable=1 AND (public IS NULL OR public=0) ORDER BY $order LIMIT $limit OFFSET $offset";
+        } else {
+            $total = $job_all;
+            $query = "viewable=1 ORDER BY $order LIMIT $limit OFFSET $offset";
+        }
     } else {
-        @mglist = ( keys %private, keys %public );
+        my $private = $master->Job->get_private_jobs($self->user, 1);
+        if ($status eq 'private') {
+            $total = scalar(@$private);
+            $query = "viewable=1 AND metagenome_id IN (".join(',', @$private).") ORDER BY $order LIMIT $limit OFFSET $offset";
+        } else {
+            $total = scalar(@$private) + $job_pub;
+            $query = "viewable=1 AND (public=1 OR metagenome_id IN (".join(',', @$private).")) ORDER BY $order LIMIT $limit OFFSET $offset";
+        }
     }
-    my $total = scalar(@mglist);
-    my $mgstr = join(',', grep {$_ ne '*'} @mglist);
-    my $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($mgstr) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    my $jobs  = $master->Job->get_objects( {$order => [undef, $query]} );
     $limit = ($limit > scalar(@$jobs)) ? scalar(@$jobs) : $limit;
     
     # prepare data to the correct output format
