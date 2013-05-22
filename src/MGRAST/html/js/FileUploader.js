@@ -132,7 +132,40 @@ function cancel_upload () {
 }
 
 function uploadComplete (evt) {
-  start_upload();
+    var md5 = this.responseText;
+    var old = document.getElementById("md5check");
+    if (old) {
+	jQuery('#md5check').remove();
+    }
+    var msg = document.createElement('div');
+    msg.setAttribute('id', 'md5_check');
+    msg.innerHTML = '\
+<div id="md5check" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="md5checklabel" aria-hidden="true">\
+<div class="modal-header">\
+<button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>\
+<h1 id="md5checklabel">md5 check</h1>\
+</div>\
+<div class="modal-body">\
+<p>To check the integrity of your uploaded file, paste its md5 sum into the box below and click <b>\'check\'</b>.</p>\
+<input type="text" class="span3" id="usermd5"><input type="text" disabled value="'+md5+'" class="span3">\
+</div>\
+<div class="modal-footer">\
+<button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>\
+<button class="btn btn-success" onclick="checkmd5(\''+md5+'\');">check</button>\
+</div>\
+</div>';
+    document.body.appendChild(msg);
+    jQuery('#md5check').modal('show');
+    start_upload();
+}
+
+function checkmd5 (md5) {
+    if (md5 == document.getElementById("usermd5").value) {
+	jQuery('#md5check').modal('hide');
+	alert('you uploaded file is OK');
+    } else {
+	alert('WARNING: md5sum does not match, your file is probably corrupted!');
+    }
 }
 
 function uploadFailed (evt) {
