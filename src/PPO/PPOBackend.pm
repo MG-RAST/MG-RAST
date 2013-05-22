@@ -528,6 +528,8 @@ Returns the quoted I<value>.
 sub quote {
   my ($self, $value) = @_;
 
+  unless ($value) { return ""; }
+
   my $hs = HTML::Strip->new();
   my $clean_text = $hs->parse($value);
   $clean_text =~ s/\n//g;

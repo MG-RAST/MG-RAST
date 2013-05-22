@@ -128,7 +128,9 @@ sub new {
   foreach my $p (@cgi_params) {
     my @plist = $cgi->param($p);
     foreach my $p1 (@plist) {
-      $p1 = $hs->parse($p1);
+      if ($p1) {
+        $p1 = $hs->parse($p1);
+      }
     }
     $cgi->param($p, @plist);
   }
