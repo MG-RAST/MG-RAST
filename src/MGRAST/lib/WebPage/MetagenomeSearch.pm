@@ -511,7 +511,10 @@ sub get_simple_table {
   my ($self) = @_;
 
   my $hs = HTML::Strip->new();
-  my $text  = $hs->parse( uri_unescape($self->app->cgi->param('text')) );
+  my $text = uri_unescape($self->app->cgi->param('text'));
+  if ($text) {
+      $text = $hs->parse($text);
+  }
   my $types = $self->app->cgi->param('type') || "metadata,function,organism";
   my $table = $self->application->component('sResult');
   my $jobs  = $self->data('jobs');
@@ -703,7 +706,10 @@ sub get_advanced_table {
 
   foreach my $i (1..$qnum) {
     my $type  = $cgi->param("type_q$i");
-    my $input = $hs->parse( uri_unescape($cgi->param("input_q$i")) );
+    my $input = uri_unescape($cgi->param("input_q$i"));
+    if ($input) {
+        $input = $hs->parse($input);
+    }
     my $extra = $cgi->param("extra_q$i") || $type;
     my ($eql, $has) = split(/_/, $cgi->param("match_q$i"));
     $hs->eof;

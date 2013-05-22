@@ -172,7 +172,7 @@ sub prepare_data {
         chomp $rec;
         foreach my $line ( split(/\n/, $rec) ) {
             my @tabs = split(/\t/, $line);
-            if (@tabs == 13) {
+            if ((@tabs == 13) && $tabs[0]) {
                 my $rid = $hs->parse($tabs[0]);
                 $hs->eof;
                 print join("\t", ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]))."\n";

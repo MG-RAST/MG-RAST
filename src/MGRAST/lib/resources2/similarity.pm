@@ -181,9 +181,11 @@ sub prepare_data {
         chomp $rec;
         foreach my $line ( split(/\n/, $rec) ) {
             my @tabs = split(/\t/, $line);
-            my $rid  = $hs->parse($tabs[0]);
-            $hs->eof;
-            print join("\t", ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann)))."\n";
+            if ($tabs[0]) {
+                my $rid  = $hs->parse($tabs[0]);
+                $hs->eof;
+                print join("\t", ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann)))."\n";
+            }
         }
     }
     close FILE;
