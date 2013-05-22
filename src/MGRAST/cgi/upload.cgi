@@ -613,7 +613,6 @@ if ($cgi->param('last_chunk')) {
     $md5 =~ s/^([^\s]+).*$/$1/;
     chomp $md5;
     print $md5;
-#    print "file received";
 } else {
     print "chunk received";
 }
