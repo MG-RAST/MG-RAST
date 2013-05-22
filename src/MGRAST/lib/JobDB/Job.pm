@@ -507,7 +507,7 @@ sub get_private_jobs {
   
   my $db = $self->_master();
   if ($id_only) {
-    my $query  = "select metagenome_id from Job where viewable=1 and metagenome_id IN (".join(",", map {"'$_'"} @$ids).")";
+    my $query  = "select metagenome_id from Job where viewable=1 and (public is null or public=0) and metagenome_id IN (".join(",", map {"'$_'"} @$ids).")";
     my $result = $db->db_handle->selectcol_arrayref($query);
     return ($result && @$result) ? $result : [];
   }

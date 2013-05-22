@@ -15,11 +15,8 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    my %rights = $self->{user} ? map {$_, 1} @{$self->{user}->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "pcoa";
-    $self->{rights} = \%rights;
-    $self->{attributes} = { "data" => [ 'object', 'return data' ],
-                          };
+    $self->{attributes} = { "data" => [ 'object', 'return data' ] };
     return $self;
 }
 

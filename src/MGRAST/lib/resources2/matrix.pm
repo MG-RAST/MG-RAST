@@ -206,8 +206,8 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get user viewable
-    my $m_star = ($self->user && $self->user->has_right(undef, 'view', 'metagenome', '*')) ? 1 : 0;
-    my $p_star = ($self->user && $self->user->has_right(undef, 'view', 'project', '*')) ? 1 : 0;
+    my $m_star = ($self->user && $self->user->has_star_right('view', 'metagenome')) ? 1 : 0;
+    my $p_star = ($self->user && $self->user->has_star_right('view', 'project')) ? 1 : 0;
     my $m_private = $master->Job->get_private_jobs($self->user, 1);
     my $m_public  = $master->Job->get_public_jobs(1);
     my $p_private = $self->user ? $self->user->has_right_to(undef, 'view', 'project') : [];
@@ -220,17 +220,17 @@ sub instance {
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
             if ($m_star || exists($m_rights{$1})) {
-                    $mgids->{$1} = 1;
+                $mgids->{$1} = 1;
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
         } elsif ($id =~ /^mgp(\d+)$/) {
             if ($p_star || exists($p_rights{$1})) {
-                    my $proj = $master->Project->init( {id => $1} );
-                    foreach my $mgid (@{ $proj->metagenomes(1) }) {
-                        next unless ($m_star || exists($m_rights{$mgid}));
-                        $mgids->{$mgid} = 1;
-                    }
+                my $proj = $master->Project->init( {id => $1} );
+                foreach my $mgid (@{ $proj->metagenomes(1) }) {
+                    next unless ($m_star || exists($m_rights{$mgid}));
+                    $mgids->{$mgid} = 1;
+                }
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
@@ -384,6 +384,7 @@ sub prepare_data {
     my $umd5s   = [];
 
     if ($type eq 'organism') {
+        my $seen = {};
         $ttype = 'Taxon';
         $mtype = 'taxonomy';
         $col_idx = $result_idx->{$rtype}{$type}{$htype};
@@ -397,8 +398,12 @@ sub prepare_data {
                     # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
                     my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen), 1);
                     # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
-                    @$matrix = map {[ $_->[$opos], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[9] !~ /^(\-|unclassified)/} @$info;
-                    map { $self->{org2tax}->{$_->[$opos]} = [ @$_[2..9] ] } @$info;
+                    foreach (grep {$_->[9] !~ /^(\-|unclassified)/} @$info) {
+                        next if (exists $seen->{$_->[$opos]});
+                        push @$matrix, [ $_->[$opos], $_->[0], $self->toNum($_->[$col_idx], $rtype) ];
+                        $self->{org2tax}->{$_->[$opos]} = [ @$_[2..9] ];
+                        $seen->{$_->[$opos]} = 1;
+                    }
                 } else {
                     # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
                     @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} grep {$_->[1] !~ /^(\-|unclassified)/} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
@@ -410,8 +415,12 @@ sub prepare_data {
                 my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen), 1);
                 # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
                 if ($leaf_node) {
-                    @$matrix = map {[ $_->[$opos], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[8] !~ /^(\-|unclassified)/} @$info;
-                    map { $self->{org2tax}->{$_->[$opos]} = [ @$_[1..8] ] } @$info;
+                    foreach (grep {$_->[8] !~ /^(\-|unclassified)/} @$info) {
+                        next if (exists $seen->{$_->[$opos]});
+                        push @$matrix, [ $_->[$opos], $_->[0], $self->toNum($_->[$col_idx], $rtype) ];
+                        $self->{org2tax}->{$_->[$opos]} = [ @$_[1..8] ];
+                        $seen->{$_->[$opos]} = 1;
+                    }
                 } else {
                     my @levels  = reverse @org_hier;
                     my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
