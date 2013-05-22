@@ -182,6 +182,7 @@ sub query {
             $query = "viewable=1 AND (public=1 OR metagenome_id IN (".join(',', @$private).")) ORDER BY $order LIMIT $limit OFFSET $offset";
         }
     }
+    print STDERR $query."\n";
     my $jobs  = $master->Job->get_objects( {$order => [undef, $query]} );
     $limit = ($limit > scalar(@$jobs)) ? scalar(@$jobs) : $limit;
     
