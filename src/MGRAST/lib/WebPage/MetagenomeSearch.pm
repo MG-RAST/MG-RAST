@@ -1323,6 +1323,8 @@ sub get_search_str {
 
   unless ($col && $txt) { return ""; }
 
+  $txt =~ s/\\//g;
+
   my $qtxt = '';
   if ($db eq 'psql') {
       $qtxt = $self->data('mgdb')->_dbh->quote($txt);
@@ -1331,6 +1333,7 @@ sub get_search_str {
   } else {
       return "";
   }
+  if (length($qtxt)) { $qtxt = substr($qtxt, 1, length($qtxt) - 2); }
   
   if ($eql == 2) {
     my @rng = split(/_/, $txt);
