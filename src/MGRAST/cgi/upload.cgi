@@ -607,9 +607,13 @@ print "Content-Type: text/plain\n\n";
 
 # if this is the last chunk, remove the partial file
 if ($cgi->param('last_chunk')) {
-    print "file received";
     if(-f "$udir/$filename.part") { `rm "$udir/$filename.part"`; }
     if(-f "$udir/$filename.lock") { `rm "$udir/$filename.lock"`; }
+    my $md5 = `md5sum $udir/$filename`;
+    $md5 =~ s/^([^\s]+).*$/$1/;
+    chomp $md5;
+    print $md5;
+#    print "file received";
 } else {
     print "chunk received";
 }
