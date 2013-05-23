@@ -1123,9 +1123,7 @@ sub ids2sets {
   } else {
     $sql .= " and d.id in (" . join(",", map {$self->dbh->quote($_)} @$ids) . ")";
   }
-  print STDERR $sql ;
   my $rows = $self->dbh->selectall_arrayref($sql);
-  print STDERR Dumper $rows ; 
   return ($rows && ref($rows)) ? $rows : [];
 }
 
