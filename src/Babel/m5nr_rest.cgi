@@ -21,10 +21,18 @@ my $dbh  = DBI->connect("DBI:$Conf::babel_dbtype:dbname=$Conf::babel_db;host=$Co
 #my $ach  = Babel::lib::Babel->new($dbh);
 my $ach  = M5NR->new($dbh);
 
-# our $memcache_host = "kursk-1.mcs.anl.gov:11211";
-# our $memcache_key  = "_ach";
+my $query_memcache_host = $Conf::web_memcache ;
 
-my $memd  = new Cache::Memcached {'servers' => [$Conf::ach_memcache || "kursk-1.mcs.anl.gov:11211"], 'debug' => 0, 'compress_thresh
+unless($query_memcache_host){
+
+    my $msg =  "No Memcache Server configured!\n";
+    print $cgi->header('text/plain');
+    print "ERROR: $msg";
+    print STDERR $msg ;
+    exit 0;
+}
+
+my $memd  = new Cache::Memcached {'servers' => [$query_memcache_host], 'debug' => 0, 'compress_thresh
 old' => 10_000};
 my $md5 = Digest::MD5->new;
 
@@ -87,7 +95,7 @@ my $status =  {
 
 
 # create token, ignores cgi params
-$md5->add($rest);
+$md5->add($rest.$get_seq.$format);
 my $digest = $md5->b64digest;
 
 my $cached = $memd->get($digest);
@@ -111,12 +119,7 @@ else{
 	eta       => '',
     };
 
-    $memd->set($digest, $json->encode($status), 60 );
-
-    # print status
-    # print $cgi->header;
-    # print $json->encode($status);
-  
+    $memd->set($digest, $json->encode($status), 300 );  
 }
 
 
