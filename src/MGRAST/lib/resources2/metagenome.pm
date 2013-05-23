@@ -28,7 +28,7 @@ sub new {
                             "version"  => [ 'integer', 'version of the object' ],
                             "url"      => [ 'uri', 'resource location of this object instance' ],
                             "status"   => [ 'cv', [ ['public', 'object is public'],
-						    ['private', 'object is private'] ] ],
+						                            ['private', 'object is private'] ] ],
                             "sequence_type" => [ 'string', 'sequencing type' ]
                           };
     return $self;
@@ -42,7 +42,7 @@ sub info {
                     'url'           => $self->cgi->url."/".$self->name,
                     'description'   => "A metagenome is an analyzed set sequences from a sample of some environment",
                     'type'          => 'object',
-                    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
                     'requests'      => [{ 'name'        => "info",
                                           'request'     => $self->cgi->url."/".$self->name,
                                           'description' => "Returns description of parameters and attributes.",
@@ -123,7 +123,7 @@ sub instance {
     $job = $job->[0];
 
     # check rights
-    unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_right(undef, 'view', 'metagenome', '*'))) {
+    unless ($job->{public} || exists($self->rights->{$id}) || exists($self->rights->{'*'})) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
@@ -156,20 +156,33 @@ sub query {
     }
     
     # get all items the user has access to
-    my $status  = $self->cgi->param('status') || "both";
-    my %public  = map { $_, 1 } @{ $master->Job->get_public_jobs(1) };
-    my %private = map { $_, 1 } grep { ! exists($public{$_}) } keys %{ $self->rights };
-    my @mglist  = ();
-    if ($status eq 'private') {
-        @mglist = keys %private;
-    } elsif ($status eq 'public') {
-        @mglist = keys %public;
+    my $status = $self->cgi->param('status') || "both";
+    my $total = 0;
+    my $query = "";
+    my $job_pub = $master->Job->count_public();
+    if ($status eq 'public') {
+        $total = $job_pub;
+        $query = "viewable=1 AND public=1 ORDER BY $order LIMIT $limit OFFSET $offset";
+    } elsif (exists $self->rights->{'*'}) {
+        my $job_all = $master->Job->count_all();
+        if ($status eq 'private') {
+            $total = $job_all - $job_pub;
+            $query = "viewable=1 AND (public IS NULL OR public=0) ORDER BY $order LIMIT $limit OFFSET $offset";
+        } else {
+            $total = $job_all;
+            $query = "viewable=1 ORDER BY $order LIMIT $limit OFFSET $offset";
+        }
     } else {
-        @mglist = ( keys %private, keys %public );
+        my $private = $master->Job->get_private_jobs($self->user, 1);
+        if ($status eq 'private') {
+            $total = scalar(@$private);
+            $query = "viewable=1 AND metagenome_id IN (".join(',', @$private).") ORDER BY $order LIMIT $limit OFFSET $offset";
+        } else {
+            $total = scalar(@$private) + $job_pub;
+            $query = "viewable=1 AND (public=1 OR metagenome_id IN (".join(',', @$private).")) ORDER BY $order LIMIT $limit OFFSET $offset";
+        }
     }
-    my $total = scalar(@mglist);
-    my $mgstr = join(',', grep {$_ ne '*'} @mglist);
-    my $jobs  = $master->Job->get_objects( {$order => [undef, "viewable=1 AND metagenome_id IN ($mgstr) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    my $jobs  = $master->Job->get_objects( {$order => [undef, $query]} );
     $limit = ($limit > scalar(@$jobs)) ? scalar(@$jobs) : $limit;
     
     # prepare data to the correct output format
@@ -208,11 +221,11 @@ sub prepare_data {
         $obj->{created} = $job->{created_on};
 
         if ($self->cgi->param('verbosity')) {
-            if (($self->cgi->param('verbosity') eq 'migs') || ($self->cgi->param('verbosity') eq 'full')) {
-                my $migs = {};
-		        $migs->{project} = '-';
+            if (($self->cgi->param('verbosity') eq 'mixs') || ($self->cgi->param('verbosity') eq 'full')) {
+                my $mixs = {};
+		        $mixs->{project} = '-';
 		        eval {
-		            $migs->{project} = $job->primary_project->{name};
+		            $mixs->{project} = $job->primary_project->{name};
 		        };
 	            my $lat_lon  = $job->lat_lon;
 	            my $country  = $job->country;
@@ -224,22 +237,22 @@ sub prepare_data {
 	            my $package  = $job->env_package_type;
 	            my $seq_type = $job->seq_type;
 	            my $seq_method = $job->seq_method;
-	            $migs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "-";
-	            $migs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "-";
-	            $migs->{country} = $country ? $country : "-";
-	            $migs->{location} = $location ? $location : "-";
-	            $migs->{collection_date} = $col_date ? $col_date : "-";
-	            $migs->{biome} = $biome ? $biome : "-";
-	            $migs->{feature} =  $feature ? $feature : "-";
-	            $migs->{material} = $material ? $material : "-";
-	            $migs->{package} = $package ? $package : "-";
-	            $migs->{seq_method} = $seq_method ? $seq_method : "-";
-	            $migs->{sequence_type} = $seq_type ? $seq_type : "-";
+	            $mixs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "-";
+	            $mixs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "-";
+	            $mixs->{country} = $country ? $country : "-";
+	            $mixs->{location} = $location ? $location : "-";
+	            $mixs->{collection_date} = $col_date ? $col_date : "-";
+	            $mixs->{biome} = $biome ? $biome : "-";
+	            $mixs->{feature} =  $feature ? $feature : "-";
+	            $mixs->{material} = $material ? $material : "-";
+	            $mixs->{package} = $package ? $package : "-";
+	            $mixs->{seq_method} = $seq_method ? $seq_method : "-";
+	            $mixs->{sequence_type} = $seq_type ? $seq_type : "-";
 	            if ($self->cgi->param('verbosity') eq 'full') {
 	                $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
-	                $obj->{migs} = $migs;
+	                $obj->{mixs} = $mixs;
 	            } else {
-	                @$obj{ keys %$migs } = values %$migs;
+	                @$obj{ keys %$mixs } = values %$mixs;
 	            }
             }
             if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full')) {

@@ -8,7 +8,8 @@ use strict;
 use warnings;
 use DBI;
 
-1;
+use HTML::Strip;
+
 
 
 =pod
@@ -51,7 +52,7 @@ class inherited from PPOBackend.
 sub new {
   my $class = shift;
   my %params = @_;
-  
+
   # initialise the backend module
   my $backend = $params{-backend} || 'MySQL';
   my $package = "PPOBackend::$backend";
@@ -330,7 +331,7 @@ sub insert_row {
   my $statement = sprintf ("INSERT INTO %s (%s) VALUES (%s)",
 			   $table,
 			   (keys(%$data)) ? join (",", keys(%$data)) : '',
-			   (keys(%$data)) ? join (",", map { $self->dbh->quote($_) } values(%$data)) : '',
+			   (keys(%$data)) ? join (",", map { $self->quote($_) } values(%$data)) : '',
 			  );
 
   my $id;
@@ -416,7 +417,7 @@ sub update_row {
   my ($self, $table, $data, $conditions) = @_;
 
   my $statement = sprintf ("UPDATE %s SET %s%s", $table, 
-			   join(',', map { $_.'='.$self->dbh->quote($data->{$_}) } keys(%$data)), 
+			   join(',', map { $_.'='.$self->quote($data->{$_}) } keys(%$data)), 
 			   ($conditions) ? " WHERE $conditions" : '',
 			  );
   eval {
@@ -526,7 +527,15 @@ Returns the quoted I<value>.
 
 sub quote {
   my ($self, $value) = @_;
-  return $self->dbh->quote($value);
+
+  unless ($value) { return ""; }
+
+  my $hs = HTML::Strip->new();
+  my $clean_text = $hs->parse($value);
+  $clean_text =~ s/\n//g;
+  $hs->eof;
+  
+  return $self->dbh->quote($clean_text);
 }
 
 
@@ -555,3 +564,4 @@ sub DESTROY {
   $_[0]->disconnect();
 }
 
+1;

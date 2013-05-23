@@ -15,11 +15,8 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    my %rights = $self->{user} ? map {$_, 1} @{$self->{user}->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "pcoa";
-    $self->{rights} = \%rights;
-    $self->{attributes} = { "data" => [ 'object', 'return data' ],
-                          };
+    $self->{attributes} = { "data" => [ 'object', 'return data' ] };
     return $self;
 }
 
@@ -31,7 +28,7 @@ sub info {
 		    'url' => $self->cgi->url."/".$self->name,
 		    'description' => "Calculate a PCoA for given input data.",
 		    'type' => 'object',
-		    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",

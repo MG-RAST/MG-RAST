@@ -8,10 +8,13 @@ use Data::Dumper;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 use JSON;
 use Encode;
+use Number::Format qw(format_bytes);
 
 use Conf;
 use WebConfig;
+use Mail::Mailer;
 use MGRAST::Metadata;
+use HTML::Entities;
 
 use base qw( WebPage );
 
@@ -44,6 +47,7 @@ sub init {
   $self->{icon} = "<img src='./Html/mg-upload.png' style='width: 20px; height: 20px; padding-right: 5px; position: relative; top: -3px;'>";
 
   $self->application->register_action($self, 'check_for_duplicates', 'check_for_duplicates');
+  $self->application->register_action($self, 'send_email_for_duplicate_submission', 'send_email_for_duplicate_submission');
   $self->application->register_action($self, 'check_project_name', 'check_project_name');
   $self->application->register_action($self, 'validate_metadata', 'validate_metadata');
   $self->application->register_action($self, 'submit_to_mgrast', 'submit_to_mgrast');
@@ -395,7 +399,7 @@ sub output {
               <div id="sel_project_div" class="well" style="display: none;"><h3>select a project</h3><p>You have to specify a project to upload a job to MG-RAST. If you have a metadata file, the project must be specified in that file. If you choose to not use a metadata file, you can select a project here. You can either select an existing project or you can choose a new project.</p><select name="project" style="width: 420px; margin-bottom: 20px;" onchange="if(this.selectedIndex>0){document.getElementById('new_project').value='';document.getElementById('new_project').disabled=true;}else{document.getElementById('new_project').disabled=false;}" id='project'><option value=''>- new -</option>~;
   foreach my $project (@$projects) {
     next unless ($project->{name});
-    $html .= "<option value='".$project->{id}."'>".$project->{name}."</option>";
+    $html .= "<option value='".$project->{id}."'>".encode_entities($project->{name})."</option>";
   }
   $html .= qq~</select> <input type='text' name='new_project' id='new_project' style='margin-bottom: 20px;'><br><input style='margin-bottom: 20px;' type='button' class='btn' value='select' onclick="check_project();">
 <p>Note: The projects listed are those that you have write access to. The owners of other projects can provide you with write access if you do not have it.</p>
@@ -792,8 +796,13 @@ sub check_for_duplicates {
       }
       next unless (exists $info->{file_checksum});
       my $dupe = $jobdbm->Job->has_checksum($info->{file_checksum}, $user);
+      my $file_size = "N/A";
+      if(exists $info->{file_size}) {
+        $file_size = format_bytes($info->{file_size});
+      }
+      $file_size .= "\t";
       if ($dupe) {
-	push @$dupes, [$dupe, $seqfile];
+	push @$dupes, [$dupe, $file_size, $seqfile];
       }
     }
   }
@@ -805,15 +814,74 @@ sub check_for_duplicates {
     print $cgi->header;
     print $output;
   } elsif (@$dupes > 0) {
-    $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tYour File\n---------------\t---------------\n";
+    $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tFile Size\t\tYour File\n---------------\t---------------\t---------------\n";
     map { $output .= join("\t", @$_)."\n" } @$dupes;
-    $output .= "\nDo you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
+    $output .= "\nResubmitting jobs that already exist in MG-RAST reduces our resources and can delay the processing of jobs for all MG-RAST users.  Do you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
     print $cgi->header;
     print $output;
   } else {
     print $cgi->header;
     print "unique";
   }
+  exit 0;
+}
+
+sub send_email_for_duplicate_submission {
+  my ($self) = @_;
+
+  my $application = $self->application;
+  my $user     = $self->application->session->user;
+  my $cgi      = $self->application->cgi;
+  my $jobdbm   = $self->application->data_handle('MGRAST');
+  my $seqfiles = [];
+  my $base_dir = "$Conf::incoming";
+  my $udir     = $base_dir."/".md5_hex($user->login);
+  my $msg      = '';
+
+  @$seqfiles = split(/\|/, $cgi->param('seqfiles'));
+
+  my $max_byte_size = 0;
+  my $dupes = [];
+  foreach my $seqfile (@$seqfiles) {
+    if (open(FH, "<$udir/$seqfile.stats_info")) {
+      my $info = {};
+      while (<FH>) {
+	chomp;
+	my ($key, $val) = split /\t/;
+	$info->{$key} = $val;
+      }
+      next unless (exists $info->{file_checksum});
+      my $dupe = $jobdbm->Job->has_checksum($info->{file_checksum}, $user);
+      my $file_size = "N/A";
+      if(exists $info->{file_size}) {
+        if($info->{file_size} > $max_byte_size) {
+          $max_byte_size = $info->{file_size};
+        }
+        $file_size = format_bytes($info->{file_size});
+      }
+      if ($dupe) {
+	push @$dupes, [$dupe, $file_size, $seqfile];
+      }
+    }
+  }
+  if (@$dupes > 0 && $max_byte_size > $Conf::dup_job_notification_size_limit) {
+    $msg = "WARNING: The user \"".$user->login."\" submitted files that already exist in MG-RAST:\n\nExisting ID, File Size, Their File\n--------------------------------------------------------------------------------\n";
+    map { $msg .= join(", ", @$_)."\n" } @$dupes;
+    my $mailer = Mail::Mailer->new();
+    $mailer->open({ From    => "mg-rast\@mcs.anl.gov",
+                    To      => "mg-rast\@mcs.anl.gov",
+                    Subject => "Duplicate Metagenome Submission From ".$user->login
+                  })
+      or die "Can't open Mail::Mailer: $!\n";
+    print $mailer $msg;
+    $mailer->close();
+    print $cgi->header;
+    print 1;
+  } else {
+    print $cgi->header;
+    print 0;
+  }
+
   exit 0;
 }
 

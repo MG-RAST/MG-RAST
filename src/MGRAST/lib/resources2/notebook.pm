@@ -4,6 +4,10 @@ use strict;
 use warnings;
 no warnings('once');
 use POSIX qw(strftime);
+use MIME::Base64;
+use Auth;
+use utf8;
+use Encode qw( encode_utf8 );
 
 use Conf;
 use parent qw(resources2::resource);
@@ -15,17 +19,33 @@ sub new {
     # Call the constructor of the parent class
     my $self = $class->SUPER::new(@args);
     
+    # get notebook admin token
+    my $nb_token = undef;
+    if ($Conf::nb_admin_name && $Conf::nb_admin_pswd) {
+        my $key = encode_base64($Conf::nb_admin_name.':'.$Conf::nb_admin_pswd);
+        my $rep = Auth::globus_token($key);
+        $nb_token = $rep ? $rep->{access_token} : undef;
+    }
+    
     # Add name / attributes
     $self->{name}       = "notebook";
+    $self->{nb_token}   = $nb_token;
+    $self->{nb_info}    = Auth::globus_info($nb_token);
+    $self->{user_info}  = Auth::globus_info($self->token);
     $self->{attributes} = { "id"       => [ 'string', 'unique shock identifier' ],
-                            "name"     => [ 'string', 'human readable identifier' ],
-                            "uuid"     => [ 'string', 'ipynb identifier - stable across different versions'],
-                            "notebook" => [ 'object', 'notebook object in JSON format' ],
-                            "created"  => [ 'date', 'time the object was first created' ],
-                            "version"  => [ 'integer', 'version of the object' ],
                             "url"      => [ 'uri', 'resource location of this object instance' ],
-                            "status"   => [ 'cv', [['public', 'notebook is public'],
-           										   ['private', 'notebook is private']] ],
+                            "name"     => [ 'string', 'human readable identifier' ],
+                            "nbid"     => [ 'string', 'ipynb identifier - stable across different versions'],
+                            "notebook" => [ 'object', 'notebook object in JSON format' ],
+                            "version"  => [ 'integer', 'version of the object' ],
+                            "created"  => [ 'date', 'time the object was first created' ],
+                            "type"     => [ 'cv', [['generic', 'no specific functionality'],
+           										   ['analysis', 'designed to run metagenome analysis'],
+           										   ['workflow', 'designed to run AWE workflows']] ],
+                            "status"   => [ 'cv', [['deleted', 'notebook is flagged as deleted'],
+           										   ['public', 'notebook is public'],
+           										   ['private', 'notebook is private and owned by user'],
+           										   ['shared', 'notebook is private and shared with user']] ],
            					"permission" => [ 'cv', [['view', 'notebook is viewable only'],
                                  					 ['edit', 'notebook is editable']] ],
                             "description" => [ 'string', 'descriptive text about notebook' ],
@@ -42,7 +62,7 @@ sub info {
                     'url'           => $self->cgi->url."/".$self->name,
                     'description'   => "A notebook is a JSON structure describing the contents of an ipython session.",
                     'type'          => 'object',
-                    'documentation' => '',
+                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
                     'requests'      => [ { 'name'        => "info",
             				               'request'     => $self->cgi->url."/".$self->name,
             				               'description' => "Returns description of parameters and attributes.",
@@ -64,7 +84,8 @@ sub info {
                        							              "limit"  => ["integer", "maximum number of data items returned, default is 10"],
                        							              "total_count" => ["integer", "total number of available data items"],
                        							              "offset" => ["integer", "zero based index of the first returned data item"] },
-            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+            				               'parameters'  => { 'options'  => { 'type' => ['string', 'notebook type'],
+            				                                                  'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                        												                                 ['full', 'returns notebook attributes and object']]],
                        									                      'limit'     => ['integer', 'maximum number of items requested'],
                        									                      'offset'    => ['integer', 'zero based index of the first data object to be returned'],
@@ -79,7 +100,8 @@ sub info {
             				               'method'      => "GET",
             				               'type'        => "synchronous",  
             				               'attributes'  => $self->attributes,
-            				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
+            				               'parameters'  => { 'options'  => { 'type' => ['string', 'notebook type'],
+            				                                                  'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                        												                                 ['full', 'returns notebook attributes and object']]]
                        												        },
             							                      'required' => { "id" => ["string", "unique shock object identifier"] },
@@ -92,11 +114,21 @@ sub info {
              				               'attributes'  => $self->attributes,
              				               'parameters'  => { 'options'  => { 'verbosity' => ['cv', [['minimal', 'returns notebook attributes'],
                           												                             ['full', 'returns notebook attributes and object']]],
-                          												      'name'      => ['string', "name of new cloned notebook"]
+                          												      'name'      => ['string', "name of new cloned notebook"],
+                          												      'type'      => ['string', 'notebook type']
                           											        },
              							                      'required' => { "id"   => ["string", "unique shock object identifier"],
              							                                      "nbid" => ["string", "unique notebook object identifier"] },
              							                      'body'     => {} } },
+             							 { 'name'        => "share",
+              				               'request'     => $self->cgi->url."/".$self->name."/share/{NBID}",
+              				               'description' => "Shares a private notebook (and its history) with provided user",
+              				               'method'      => "GET",
+              				               'type'        => "synchronous",  
+              				               'attributes'  => $self->attributes,
+              				               'parameters'  => { 'options'  => { 'email' => ['string', "email of user to share with"] },
+              							                      'required' => { "nbid" => ["string", "unique notebook object identifier"] },
+              							                      'body'     => {} } },
              							 { 'name'        => "delete",
               				               'request'     => $self->cgi->url."/".$self->name."/delete/{NBID}",
               				               'description' => "Flags notebook as deleted.",
@@ -104,7 +136,7 @@ sub info {
               				               'type'        => "synchronous",  
               				               'attributes'  => $self->attributes,
               				               'parameters'  => { 'options'  => {},
-              							                      'required' => { "id" => ["string", "unique notebook object identifier"] },
+              							                      'required' => { "nbid" => ["string", "unique notebook object identifier"] },
               							                      'body'     => {} } },
              							 { 'name'        => "upload",
              				               'request'     => $self->cgi->url."/".$self->name."/upload",
@@ -124,28 +156,25 @@ sub info {
 sub instance {
     my ($self) = @_;
 
+    # possible share
+    if (($self->rest->[0] eq 'share') && (@{$self->rest} > 1)) {
+        $self->share_notebook($self->rest->[1]);
+    }
+    # possible delete
+    if (($self->rest->[0] eq 'delete') && (@{$self->rest} > 1)) {
+        $self->delete_notebook($self->rest->[1]);
+    }
     # possible upload
     if (($self->rest->[0] eq 'upload') && ($self->method eq 'POST')) {
         $self->upload_notebook();
     }
     
-    # possible delete
-    if (($self->rest->[0] eq 'delete') && (@{$self->rest} > 1)) {
-        $self->delete_notebook($self->rest->[1]);
-    }
-    
     # get data
     my $data = [];
     my $id   = $self->rest->[0];
-    my $node = $self->get_shock_node($id);
+    my $node = $self->get_shock_node($id, $self->shock_auth());
     unless ($node) {
         $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
-    }
-
-    # check rights
-    my $uname = $self->user ? $self->user->login : '';
-    unless (($node->{attributes}{user} eq 'public') || ($node->{attributes}{user} eq $uname)) {
-        $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
     # clone node if requested (update shock attributes and ipynb metadata)
@@ -164,10 +193,11 @@ sub query {
     my ($self) = @_;
  
     # get all items the user has access to
-    my $uname = $self->user ? $self->user->login : '';
-    my $nodes = [];
-    map { push @$nodes, $_ } @{ $self->get_shock_query( {type => 'ipynb', user => $uname} ) };
-    map { push @$nodes, $_ } @{ $self->get_shock_query( {type => 'ipynb', user => 'public'} ) };
+    my $attr  = {};
+    if ($self->cgi->param('type')) {
+        $attr->{type} = $self->cgi->param('type');
+    }
+    my $nodes = $self->get_shock_query('ipynb', $attr, $self->shock_auth());
     my $total = scalar @$nodes;
  
     # check limit
@@ -193,19 +223,33 @@ sub prepare_data {
     
     my $objects = [];
     foreach my $node (@$data) {
-        my $url = $self->cgi->url;
+        my $status = undef;
+        if (exists $node->{attributes}{deleted}) {
+            $status = 'deleted';
+        } elsif ($node->{attributes}{owner}) {
+            if ($node->{attributes}{owner} eq 'public') {
+                $status = 'public';
+            } elsif ($self->{user_info} && ($node->{attributes}{owner} eq $self->{user_info}{username})) {
+                $status = 'private';
+            } else {
+                $status = 'shared';
+            }
+        } else {
+            $status = 'public';
+        }
         my $obj = {};
-        $obj->{id}       = $node->{id};
-        $obj->{name}     = $node->{attributes}{name} || '';
-        $obj->{uuid}     = $node->{attributes}{uuid};
-        $obj->{created}  = $node->{attributes}{created};
-	    $obj->{status}   = (exists $node->{attributes}{deleted}) ? 'deleted' : (($node->{attributes}{user} eq 'public') ? 'public' : 'private');
-	    $obj->{permission} = $node->{attributes}{permission} ? $node->{attributes}{permission} : 'edit';
+        $obj->{id}   = $node->{id};
+        $obj->{url}  = $self->cgi->url.'/notebook/'.$obj->{id};
+        $obj->{name} = $node->{attributes}{name} || 'Untitled';
+        $obj->{nbid} = $node->{attributes}{nbid};
+        $obj->{version} = 1;
+        $obj->{created} = $node->{attributes}{created} || strftime("%Y-%m-%dT%H:%M:%S", gmtime);
+        $obj->{type}    = $node->{attributes}{type} || 'generic';
+	    $obj->{status}  = $status;
+	    $obj->{permission}  = $node->{attributes}{permission} || 'edit';
 	    $obj->{description} = $node->{attributes}{description} || '';
-        $obj->{version}  = 1;
-        $obj->{url}      = $url.'/notebook/'.$obj->{id};
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
-            $obj->{notebook} = $self->json->decode( $self->get_shock_file($obj->{id}) );
+            $obj->{notebook} = $self->json->decode( encode_utf8($self->get_shock_file($obj->{id}, undef, $self->shock_auth())) );
         }
         push @$objects, $obj;
     }
@@ -216,11 +260,13 @@ sub prepare_data {
 sub clone_notebook {
     my ($self, $node, $uuid, $name, $delete) = @_;
     
-    my $file = $self->json->decode( $self->get_shock_file($node->{id}) );
-    my $attr = { type => $node->{attributes}{type} || 'ipynb',
-                 name => $name || $node->{attributes}{name}.'_copy',
-                 user => $self->user ? $self->user->login : 'public',
-                 uuid => $uuid,
+    my $type = $self->cgi->param('type') || undef;
+    my $file = $self->json->decode( encode_utf8($self->get_shock_file($node->{id}, undef, $self->shock_auth())) );
+    my $attr = { name => $name || $node->{attributes}{name}.'_copy',
+                 nbid => $uuid,
+                 type => $type ? $type : ($node->{attributes}{type} ? $node->{attributes}{type} : 'generic'),
+                 owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
+                 access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
                  created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                  permission => 'edit',
                  description => $node->{attributes}{description} || ''
@@ -229,22 +275,47 @@ sub clone_notebook {
         $attr->{deleted} = 1;
     }
     $file->{'metadata'} = $attr;
-    return $self->set_shock_node($node->{id}.'.ipynb', $file, $attr);
+    my $new_node = $self->set_shock_node($node->{id}.'.ipynb', $file, $attr, $self->shock_auth(1));
+    $self->shock_post_acl($new_node->{id}, $attr->{access});
+    return $new_node;
+}
+
+# share notebook - we add inputted email to read ACLs
+sub share_notebook {
+    my ($self, $uuid) = @_;
+    
+    my $email = $self->cgi->param('type') || undef;
+    unless ($email) {
+        $self->return_data( {"ERROR" => "Missing email of user to share notebook $uuid with."}, 500 );
+    }
+    my $attr = {nbid => $uuid};
+    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
+    # test permissions
+    foreach my $n (@nb_set) {
+        my $a = $n->{attributes};
+        if ((! $self->{user_info}) || ($a->{permission} eq 'view') || ($a->{owner} eq 'public') || ($a->{owner} ne $self->{user_info}{username})) {
+            $self->return_data( {"ERROR" => "insufficient permissions to share this notebook"}, 401 );
+        }
+    }
+    # share all
+    foreach my $n (@nb_set) {
+        $self->edit_shock_acl($n->{id}, $self->{nb_token}, $email, 'put', 'read')
+    }
+    my $data = $self->prepare_data( \@nb_set );
+    $self->return_data($data);
 }
 
 # delete notebook - we make a newer copy that we flag as deleted
 sub delete_notebook {
     my ($self, $uuid) = @_;
     
-    my @nb_set = sort { $b->{attributes}{created} cmp $a->{attributes}{created} } @{ $self->get_shock_query({type => 'ipynb', uuid => $uuid}) };
+    my $attr   = {nbid => $uuid};
+    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
     my $latest = $nb_set[0];
-    if ($self->user && ($self->user->login ne $latest->{attributes}{user})) {
-        $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
+    if (($latest->{attributes}{permission} eq 'view') || ($self->{user_info} && ($latest->{attributes}{owner} ne $self->{user_info}{username}))) {
+        $self->return_data( {"ERROR" => "insufficient permissions to delete this notebook"}, 401 );
     }
-    if ($latest->{attributes}{permission} eq 'view') {
-        $self->return_data( {"ERROR" => "insufficient permissions to delete this data"}, 401 );
-    }
-    my $new  = $self->clone_notebook($latest, $latest->{attributes}{uuid}, $latest->{attributes}{name}, 1);
+    my $new  = $self->clone_notebook($latest, $latest->{attributes}{nbid}, $latest->{attributes}{name}, 1);
     my $data = $self->prepare_data( [$new] );
     $self->return_data($data->[0]);
 }
@@ -280,15 +351,14 @@ sub upload_notebook {
 	}
 
     # get notebook object and attribute object
-    my $nb_obj  = $self->json->decode($nb_string);
-    my $nb_user = $self->user ? $self->user->login : 'public';
-    my $nb_perm = ($nb_user eq 'public') ? 'view' : 'edit';
-    my $nb_attr = { type => 'ipynb',
-                    name => $nb_obj->{metadata}{name} || 'Untitled',
-                    user => $nb_obj->{metadata}{user} || $nb_user,
-                    uuid => $nb_obj->{metadata}{uuid} || $self->uuidv4(),
+    my $nb_obj  = $self->json->decode(encode_utf8($nb_string));
+    my $nb_attr = { name => $nb_obj->{metadata}{name} || 'Untitled',
+                    nbid => $nb_obj->{metadata}{nbid} || $self->uuidv4(),
+                    type => $nb_obj->{metadata}{type} || 'generic',
+                    owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
+                    access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
                     created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
-                    permission => $nb_obj->{metadata}{permission} || $nb_perm,
+                    permission => $nb_obj->{metadata}{permission} || 'edit',
                     description => $nb_obj->{metadata}{description} || ''
                   };
     $nb_obj->{'metadata'} = $nb_attr;
@@ -296,9 +366,34 @@ sub upload_notebook {
     # add to shock
     my $name = $nb_attr->{name};
     $name =~ s/\s+/_/g;
-    my $node = $self->set_shock_node($name.'.ipynb', $nb_obj, $nb_attr);
+    my $node = $self->set_shock_node($name.'.ipynb', $nb_obj, $nb_attr, $self->shock_auth(1));
+    $self->shock_post_acl($node->{id}, $nb_attr->{access});
+    
     my $data = $self->prepare_data( [$node] );
     $self->return_data($data->[0]);
+}
+
+sub shock_post_acl {
+    my ($self, $id, $access) = @_;
+    if ($self->{nb_token} && $self->{user_info} && (@$access > 0)) {
+        # private
+        map { $self->edit_shock_acl($id, $self->{nb_token}, $_, 'put', 'read') } @$access;
+    } elsif ($self->{nb_token} && $self->{nb_info} && (@$access == 0)) {
+        # public
+        $self->edit_shock_acl($id, $self->{nb_token}, $self->{nb_info}{email}, 'delete', 'read');
+    } else {
+        # missing config
+        print STDERR "Missing notebook config options\n";
+    }
+}
+
+sub shock_auth {
+    my ($self, $post) = @_;
+    if ($post) {
+        return $self->{nb_token} ? $self->{nb_token} : undef;
+    } else {
+        return $self->token ? $self->token : undef;
+    }
 }
 
 1;

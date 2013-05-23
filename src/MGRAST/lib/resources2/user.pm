@@ -25,7 +25,7 @@ sub new {
                             "firstname"  => [ 'string', 'first name of user' ],
                             "lastname"   => [ 'string', 'last name of user' ],
                             "entry_date" => [ 'date', 'date of user creation' ],
-                            "active"     => [ 'boolean', '' ],
+                            "active"     => [ 'boolean', 'user is active' ],
                             "comment"    => [ 'string', 'any comment about the user account' ],
                             "url"        => [ 'uri', 'resource location of this object instance' ]
                           };
@@ -40,7 +40,7 @@ sub info {
                     'url' => $self->cgi->url."/".$self->name,
                     'description' => "The user resource returns information about a user.",
                     'type' => 'object',
-                    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
                     'requests' => [ { 'name'        => "info",
                                       'request'     => $self->cgi->url."/".$self->name,
                                       'description' => "Returns description of parameters and attributes.",
@@ -53,7 +53,7 @@ sub info {
                                     { 'name'        => "instance",
                                       'request'     => $self->cgi->url."/".$self->name."/{ID}",
                                       'description' => "Returns a single user object.",
-                                      'method'      => "GET" ,
+                                      'method'      => "GET",
                                       'type'        => "synchronous" ,  
                                       'attributes'  => $self->attributes,
                                       'parameters'  => { 'options'     => {},
@@ -74,7 +74,7 @@ sub instance {
     my $id = $rest->[0];
 
     if ($rest && scalar(@$rest) == 1) {
-        unless ($self->user && $self->user->has_right(undef, 'edit', 'user', $self->user->{_id})) {
+        unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $self->user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
             $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 400 );
         }
     }

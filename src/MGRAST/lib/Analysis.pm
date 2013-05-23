@@ -566,6 +566,7 @@ sub get_hierarchy {
     foreach my $row ( @{$self->_dbh->selectall_arrayref($sql)} ) {
         my $id = pop @$row;
         next unless ($id && ($id =~ /\S/));
+        map { $_ = $_ ? $_ : "-" } @$row;
         $hier->{$id} = $row;
     }
     return $hier;
@@ -608,18 +609,21 @@ sub _get_annotation_map {
 
     my $tbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
     unless ($tbl && $anns && @$anns) { return {}; }
-    my $col  = ($type eq 'md5') ? 'md5' : 'name';
     
+    my $col  = ($type eq 'md5') ? 'md5' : 'name';    
     my $amap = {};
-    my $sql  = "SELECT _id, $col FROM $tbl WHERE $col IN (".join(",", map {$self->_dbh->quote($_)} @$anns).")";
-    if ($src && ($type eq 'ontology')) {
-        $sql .= " AND source = ".$self->_src_id->{$src};
-    }
-    my $tmp  = $self->_dbh->selectall_arrayref($sql);
-    if ($tmp && @$tmp) {
-        %$amap = map { $_->[0], $_->[1] } @$tmp;
-    }
+    my $iter = natatime $self->_chunk, @$anns;
     
+    while (my @curr = $iter->()) {
+        my $sql = "SELECT _id, $col FROM $tbl WHERE $col IN (".join(",", map {$self->_dbh->quote($_)} @curr).")";
+        if ($src && ($type eq 'ontology')) {
+            $sql .= " AND source = ".$self->_src_id->{$src};
+        }
+        my $rows = $self->_dbh->selectall_arrayref($sql);
+        if ($rows && (@$rows > 0)) {
+            map { $amap->{$_->[0]} = {$_->[1]} } @$rows;
+        }
+    }
     return $amap;
     # _id => name
 }
@@ -679,11 +683,11 @@ sub annotation_for_md5s {
     unless ($md5s && @$md5s) { return []; }
     
     my $data = [];
-    my $qsrc = ($srcs && @$srcs) ? " AND a.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
+    my $qsrc = ($srcs && @$srcs && !(@$srcs == 1 && $srcs->[0] eq 'M5NR')) ? " AND a.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
     my $tid  = $taxid ? ", o.ncbi_tax_id" : "";
     my %umd5 = map {$_, 1} @$md5s;
     my $iter = natatime $self->_chunk, keys %umd5;
-    
+
     while (my @curr = $iter->()) {
         my $sql = "SELECT a.id, m.md5, f.name, o.name, a.source$tid FROM md5_annotation a ".
                   "INNER JOIN md5s m ON a.md5 = m._id ".
@@ -1348,7 +1352,7 @@ sub search_organisms {
 }
 
 sub get_organisms_unique_for_source {
-    my ($self, $source, $eval, $ident, $alen) = @_;
+    my ($self, $source, $eval, $ident, $alen, $with_taxid) = @_;
 
     my $all_orgs    = {};
     my $mg_org_data = {};
@@ -1374,12 +1378,19 @@ sub get_organisms_unique_for_source {
         }
     }
 
+    my $ctax = $with_taxid ? ',ncbi_tax_id' : '';
+    my $qtax = $with_taxid ? " AND ncbi_tax_id IS NOT NULL" : '';
     my $tax = {};
+    my $tid = {};
     my $sql = "SELECT _id,COALESCE(tax_domain,'unassigned') AS txd,COALESCE(tax_phylum,'unassigned') AS txp,COALESCE(tax_class,'unassigned') AS txc,".
               "COALESCE(tax_order,'unassigned') AS txo,COALESCE(tax_family,'unassigned') AS txf,COALESCE(tax_genus,'unassigned') AS txg,".
-              "COALESCE(tax_species,'unassigned') AS txs,name FROM ".$self->_atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")";
+              "COALESCE(tax_species,'unassigned') AS txs,name$ctax FROM ".$self->_atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")$qtax";
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $oid = shift @$row;
+        if ($with_taxid) {
+            my $t = pop @$row;
+            $tid->{$oid} = $t;
+        }
         $tax->{$oid} = $row;
     }
     
@@ -1392,7 +1403,15 @@ sub get_organisms_unique_for_source {
             my $md5s  = $stats->[8];
             my ($ea, $es, $ia, $is, $la, $ls) = (($stats->[2] / $total),($stats->[3] / $total),($stats->[4] / $total),($stats->[5] / $total),($stats->[6] / $total),($stats->[7] / $total));
             if (exists $tax->{$oid}) {
-	            push @$result, [ $mgid, @{$tax->{$oid}}, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+                my $data = [ $mgid, @{$tax->{$oid}}, $abund, $ea, $es, $ia, $is, $la, $ls, $md5s ];
+                if ($with_taxid) {
+                    if (exists $tid->{$oid}) {
+                        push @$data, $tid->{$oid};
+                    } else {
+                        next;
+                    }
+                }
+	            push @$result, $data;
             }
         }
     }
@@ -1772,8 +1791,8 @@ sub get_md5_abundance {
 }
 
 sub get_org_md5 {
-    my ($self, $eval, $ident, $alen, $sources) = @_;
-    return $self->_get_annotation_md5('organism', $eval, $ident, $alen, $sources);
+    my ($self, $eval, $ident, $alen, $sources, $use_taxid) = @_;
+    return $self->_get_annotation_md5('organism', $eval, $ident, $alen, $sources, $use_taxid);
 }
 
 sub get_ontol_md5 {
@@ -1781,14 +1800,20 @@ sub get_ontol_md5 {
     return $self->_get_annotation_md5('ontology', $eval, $ident, $alen, [$source]);
 }
 
+sub get_func_md5 {
+    my ($self, $eval, $ident, $alen, $sources) = @_;
+    return $self->_get_annotation_md5('function', $eval, $ident, $alen, $sources);
+}
+
 sub _get_annotation_md5 {
-    my ($self, $type, $eval, $ident, $alen, $sources) = @_;
+    my ($self, $type, $eval, $ident, $alen, $sources, $use_taxid) = @_;
     
     my $cache_key = $type."md5";
     $cache_key .= defined($eval) ? $eval : ":";
     $cache_key .= defined($ident) ? $ident : ":";
     $cache_key .= defined($alen) ? $alen : ":";
     $cache_key .= defined($sources) ? join(";", @$sources) : ":";
+    $cache_key .= defined($use_taxid) ? ':1' : ":0";
 
     my $data = {};
     my $jobs = [];
@@ -1803,9 +1828,15 @@ sub _get_annotation_md5 {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
+    my $key = 'a.name';
+    my $tid = '';
+    if (($type eq 'organism') && $use_taxid) {
+        $key = 'a.ncbi_tax_id';
+        $tid = 'a.ncbi_tax_id IS NOT NULL';
+    }
     my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map { $self->_src_id->{$_} } @$sources) . ")" : "";
-    my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
-    my $sql = "SELECT DISTINCT j.job,a.name,j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen, $tid]);
+    my $sql   = "SELECT DISTINCT j.job,$key,j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
     
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $mg = $self->_mg_map->{$row->[0]};

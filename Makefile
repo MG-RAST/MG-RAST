@@ -53,7 +53,7 @@ OVERRIDES = \
 # if you change all: make sure all: in standard.mk is consistent.
 
 all: installdirs $(TOOL_HDR) lib 
-	
+
 # Use the PACKAGES macro to transform lib, bin, etc., targets
 # into package level dependencies, e.g., lib -> PkgA.lib, PkgB.lib
 # Rules below then cause PkgA.lib to do a make in PkgaA on lib:
@@ -66,6 +66,8 @@ clean: Makefile purge
 purge: 
 	rm -rf $(TARGET) bin/*.r 
 
+api-doc:
+	perl src/WebApplication/scripts/api2html.pl -url http://api.metagenomics.anl.gov -outfile site/CGI/Html/api.html
 
 ##
 # Targets to setup the expected directory structure for the
@@ -93,7 +95,7 @@ $(libdir)/%.installdirs:
 $(tmpdir): 
 	- mkdir -p $(tmpdir)
 	- chmod a+w $(tmpdir)
-	
+
 $(bindir): 
 	- mkdir -p $(bindir)
 

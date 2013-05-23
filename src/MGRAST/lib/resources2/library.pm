@@ -40,7 +40,7 @@ sub info {
 		    'url' => $self->cgi->url."/".$self->name,
 		    'description' => "A library of metagenomic samples from some environment",
 		    'type' => 'object',
-		    'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",

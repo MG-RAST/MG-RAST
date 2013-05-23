@@ -607,9 +607,12 @@ print "Content-Type: text/plain\n\n";
 
 # if this is the last chunk, remove the partial file
 if ($cgi->param('last_chunk')) {
-    print "file received";
     if(-f "$udir/$filename.part") { `rm "$udir/$filename.part"`; }
     if(-f "$udir/$filename.lock") { `rm "$udir/$filename.lock"`; }
+    my $md5 = `md5sum $udir/$filename`;
+    $md5 =~ s/^([^\s]+).*$/$1/;
+    chomp $md5;
+    print $md5;
 } else {
     print "chunk received";
 }
@@ -627,7 +630,7 @@ sub sanitize_filename {
     my $newfilename = $file;
     $newfilename =~ s/[^\/\w\.\-]+/_/g;
     my $count = 1;
-    while (-f "$udir/$newfilename") {
+    while (-f "$udir/$newfilename" && ! -f "$udir/$newfilename.part") {
       if ($count == 1) {
         $newfilename =~ s/^(.*)(\..*)$/$1$count$2/;
       } else {

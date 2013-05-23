@@ -9,6 +9,7 @@ use FreezeThaw qw( freeze thaw );
 
 use CGI;
 use CGI::Cookie;
+use HTML::Strip;
 use DBMaster;
 
 # include default WebPages
@@ -121,6 +122,20 @@ sub new {
   my $layout       = $params->{'layout'};
   my $backend_name = $params->{'id'};
   my $cgi          = $params->{'cgi'} || CGI->new();
+
+  my $hs = HTML::Strip->new();
+  my @cgi_params = $cgi->param;
+  foreach my $p (@cgi_params) {
+    my @plist = $cgi->param($p);
+    foreach my $p1 (@plist) {
+      if ($p1) {
+        $p1 = $hs->parse($p1);
+      }
+    }
+    $cgi->param($p, @plist);
+  }
+  $hs->eof;
+
   my $self = { cgi         => $cgi,
 	       menu        => $menu,
 	       menu_backup => freeze($menu),
@@ -802,7 +817,7 @@ sub redirect {
   if ($params) {
     if (ref($params) eq 'HASH') {
       $self->{redirect} = $params;
-      unless (defined($params->{page})) {
+      unless (defined($params->{page}) && length($params->{page})) {
 	$self->{redirect}->{page} = $self->default;
       }
     } else {

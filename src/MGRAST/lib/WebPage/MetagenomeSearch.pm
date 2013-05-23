@@ -7,6 +7,7 @@ use warnings;
 
 use URI::Escape;
 use Data::Dumper;
+use HTML::Strip;
 
 use Conf;
 use MGRAST::Analysis;
@@ -509,7 +510,11 @@ sub output {
 sub get_simple_table {
   my ($self) = @_;
 
-  my $text  = uri_unescape( $self->app->cgi->param('text') );
+  my $hs = HTML::Strip->new();
+  my $text = uri_unescape($self->app->cgi->param('text'));
+  if ($text) {
+      $text = $hs->parse($text);
+  }
   my $types = $self->app->cgi->param('type') || "metadata,function,organism";
   my $table = $self->application->component('sResult');
   my $jobs  = $self->data('jobs');
@@ -670,14 +675,15 @@ sub get_simple_table {
 sub get_advanced_table {
   my ($self) = @_;
 
-  my $cgi    = $self->app->cgi;
-  my $table  = $self->application->component('sResult');
-  my $qnum   = $cgi->param('qnum');
-  my $show   = $cgi->param('show_match') || 0;
-  my $jobs   = $self->data('jobs');
-  my $mgdb   = $self->data('mgdb');
-  my $tomany = "<p><b style='color:red'>Your search request returned to many results.<br>Please try again with more specific criteria.</b></p>";
-  my $empty  = "<p><b style='color:red'>No Metagenomes found for the above selected criteria.</b></p>";
+  my $hs  = HTML::Strip->new();
+  my $cgi = $self->app->cgi;
+  my $table = $self->application->component('sResult');
+  my $qnum  = $cgi->param('qnum');
+  my $show  = $cgi->param('show_match') || 0;
+  my $jobs  = $self->data('jobs');
+  my $mgdb  = $self->data('mgdb');
+  my $tomany  = "<p><b style='color:red'>Your search request returned to many results.<br>Please try again with more specific criteria.</b></p>";
+  my $empty   = "<p><b style='color:red'>No Metagenomes found for the above selected criteria.</b></p>";
   my $show_md = [['biome','feature','material','country','location','pi'], ['Biome','Feature','Material','Country','Location','PI']];
   my $max     = 0;
   my $limit   = $self->data('max_results');
@@ -700,16 +706,20 @@ sub get_advanced_table {
 
   foreach my $i (1..$qnum) {
     my $type  = $cgi->param("type_q$i");
-    my $input = uri_unescape( $cgi->param("input_q$i") );
+    my $input = uri_unescape($cgi->param("input_q$i"));
+    if ($input) {
+        $input = $hs->parse($input);
+    }
     my $extra = $cgi->param("extra_q$i") || $type;
     my ($eql, $has) = split(/_/, $cgi->param("match_q$i"));
+    $hs->eof;
     
     if ($type eq "metadata") {
       if ($extra eq "all") {
-	push @$c_order, $extra_map->{$type}{all} . " " . $type_map->{$type};
+	      push @$c_order, $extra_map->{$type}{all} . " " . $type_map->{$type};
       }
       else {
-	push @$c_order, $extra_map->{$type}{$extra};
+	      push @$c_order, $extra_map->{$type}{$extra};
       }
     }
     elsif ($type eq "function") {
@@ -1317,8 +1327,19 @@ sub get_where_str {
 sub get_search_str {
   my ($self, $db, $col, $txt, $eql, $has) = @_;
 
-  my $qtxt = quotemeta($txt);
   unless ($col && $txt) { return ""; }
+
+  $txt =~ s/\\//g;
+
+  my $qtxt = '';
+  if ($db eq 'psql') {
+      $qtxt = $self->data('mgdb')->_dbh->quote($txt);
+  } elsif ($db eq 'mysql') {
+      $qtxt = $self->data('mgdb')->_jcache->quote($txt);
+  } else {
+      return "";
+  }
+  if (length($qtxt)) { $qtxt = substr($qtxt, 1, length($qtxt) - 2); }
   
   if ($eql == 2) {
     my @rng = split(/_/, $txt);

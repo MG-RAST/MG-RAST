@@ -6,6 +6,10 @@ use strict;
 use warnings;
 
 use WebConfig;
+use HTML::Strip;
+
+use LWP::UserAgent;
+use CGI;
 
 use base qw( WebComponent );
 
@@ -110,6 +114,9 @@ sub output {
     $iform .= "<tr><td>Organization</td><td><input type='text' name='organization'></td></tr>";
     $iform .= "<tr><td>URL</td><td>http://<input type='text' name='lru'></td></tr>";
     $iform .= "<tr><td>Country</td><td>" . $cgi->popup_menu( -name => 'country', -values => $country_values, -labels => $country_codes, -default => 'US' ) . "</td></tr>";
+
+    $iform .= &recaptcha();
+
     $iform .= "<td><input type='submit' class='button' value='Request'></td></tr>";
     $iform .= "</table>";
     
@@ -122,7 +129,7 @@ sub output {
   # normal registration form
   else {
   
-    if ($self->successful_request) {
+    if ($self->{successful_request}) {
       
       my $content = "<p style='width:800px;'>Your account request was successful. An administrator of this application will process your request at their earliest opportunity. Since this is a manual step, please allow some time for processing.</p><p>If you would like to request another account, please click <a href='?page=Register'>here.</a></p>";
       
@@ -154,6 +161,8 @@ sub output {
       }
       $new_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $new_account .= "</table>";
+
+      $new_account .= &recaptcha();
       
       $new_account .= $self->application->page->end_form;
       
@@ -170,6 +179,8 @@ sub output {
       }
       $existing_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $existing_account .= "</table>";
+
+      $existing_account .= &recaptcha();
       
       $existing_account .= $self->application->page->end_form;
       
@@ -204,7 +215,25 @@ sub perform_registration {
 
   my $application = $self->application;
   my $cgi = $application->cgi;
+
+  # DO NOT MOVE THIS TEST FOR ILLEGAL CHARACTERS DOWN!  THIS SHOULD BE THE FIRST TEST!!!
+  # not allowing potential, partial html tags in these fields
+  # note: complete html tags should be removed in WebApplication CGI
+  foreach my $var ('email', 'login', 'firstname', 'lastname') {
+    my $cgi_var = $cgi->param($var);
+    if($cgi_var =~ /[<>\'\"]/) {
+      $application->add_message('warning', 'Single or double quotes and the symbols > and < are not allowed in the \''.$var.'\' field');
+      $cgi->param(-name=>$var, -value=>'');
+      return 0;
+    }
+  }
   
+  # check recaptcha
+  if (! &check_answer()) {
+    $application->add_message('warning', 'reCAPTCHA incorrect, please retry.');
+    return 0;
+  }
+
   # check for an email address
   unless ($cgi->param('email')) {
     $application->add_message('warning', 'You must enter an eMail address.');
@@ -278,8 +307,9 @@ sub perform_registration {
   # check if we want a group
   my $group;
   if (defined($cgi->param('group')) && $cgi->param('group')) {
-    $group_name = $cgi->param('group');
-    my $possible_groups = $application->dbmaster->Scope->get_objects( { name => $cgi->param('group') } );
+    my $hs = HTML::Strip->new();
+    $group_name = $hs->parse($cgi->param('group'));
+    my $possible_groups = $application->dbmaster->Scope->get_objects( { name => $group_name } );
       if (scalar(@$possible_groups) == 1) {
 	unless ($possible_groups->[0]->application) {
 	  $group = $possible_groups->[0];
@@ -314,7 +344,8 @@ sub perform_registration {
       $application->add_message('warning', 'You must enter a last name.');
       return 0;
     }
-      
+
+    my $email = 
     # create the user in the db
     $user = $application->dbmaster->User->create( { email        => $cgi->param('email'),
 						    firstname    => $cgi->param('firstname'),
@@ -329,9 +360,20 @@ sub perform_registration {
   }
 
   # check for organization information
-  my $user_org = $cgi->param('organization') || "";
+  my $user_org = "";
   my $org_found = 0;
-  my $url = $cgi->param('lru') || "";
+  my $url = "";
+
+  if($cgi->param('organization')) {
+    my $hs = HTML::Strip->new();
+    $user_org = $hs->parse($cgi->param('organization'));
+  }
+
+  if($cgi->param('lru')) {
+    my $hs = HTML::Strip->new();
+    $url = $hs->parse($cgi->param('lru'));
+  }
+
   if ($user_org) {
       
     # check if we find this organization by name
@@ -370,7 +412,10 @@ sub perform_registration {
   $abody->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
   $abody->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
   $abody->param('URL', $url);
-  $abody->param('COUNTRY', $cgi->param('country'));
+  if ($cgi->param('country')) {
+      my $hs = HTML::Strip->new();
+      my $country = $hs->parse( $cgi->param('country') );
+      $abody->param('COUNTRY', $country);
   if ($user_org) {
     $abody->param('ORGANIZATION', $user_org);
     if ($org_found) {
@@ -897,12 +942,34 @@ sub country_codes {
 	   'RO' => 'Romania' };
 }
 
-sub successful_request {
-  my ($self, $status) = @_;
+sub recaptcha {
+  return '<script type="text/javascript" src="http://www.google.com/recaptcha/api/challenge?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z"></script><noscript><iframe src="http://www.google.com/recaptcha/api/noscript?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z" height="300" width="500" frameborder="0"></iframe><br><textarea name="recaptcha_challenge_field" rows="3" cols="40"></textarea><input type="hidden" name="recaptcha_response_field" value="manual_challenge"></noscript>';
+}
 
-  if (defined($status)) {
-    $self->{successful_request} = $status;
+sub check_answer {
+  my $cgi = CGI->new();
+  my $ua = LWP::UserAgent->new();
+  $ua->env_proxy();
+
+  my $resp =  $ua->post( 'http://www.google.com/recaptcha/api/verify',
+    {
+      privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+      remoteip   => $ENV{'REMOTE_ADDR'},
+      challenge  => $cgi->param('recaptcha_challenge_field'),
+      response   => $cgi->param('recaptcha_response_field')
+    }
+  );
+
+  if ( $resp->is_success ) {
+    my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
+    if ( $answer =~ /true/ ) {
+      return 1;
+    }
+    else {
+      return 0;
+    }
   }
-
-  return $self->{successful_request};
+  else {
+    return 0;
+  }
 }

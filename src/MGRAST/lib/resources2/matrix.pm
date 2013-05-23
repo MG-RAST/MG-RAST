@@ -24,6 +24,7 @@ sub new {
     # Add name / attributes
     $self->{name} = "matrix";
     $self->{org2tax} = {};
+    $self->{org2tid} = {};
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{hierarchy} = { organism => [ ['strain', 'bottom organism taxanomic level'],
                                          ['species', 'organism type level'],
@@ -85,7 +86,7 @@ sub info {
                             'url' => $self->cgi->url."/".$self->name,
                             'description' => "A profile in biom format that contains abundance counts",
                             'type' => 'object',
-                            'documentation' => $Conf::cgi_url.'/Html/api.html#'.$self->name,
+                            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
                             'requests' => [ { 'name'        => "info",
                                                       'request'     => $self->cgi->url."/".$self->name,
                                                       'description' => "Returns description of parameters and attributes.",
@@ -112,6 +113,7 @@ sub info {
                                                                                          'hit_type' => [ 'cv', [['all', 'returns results based on all organisms that map to top hit per read-feature'],
                                                                                                                 ['single', 'returns results based on a single organism for top hit per read-feature'],
                                                                                                                 ['lca', 'returns results based on the Least Common Ancestor for all organisms (M5NR+M5RNA only) that map to hits from a read-feature']] ],
+                                                                                         'taxid' => [ 'boolean', "if true, return annotation ID as NCBI tax id. Only for group_levels with a tax_id" ],
                                                                                          'source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
@@ -205,8 +207,8 @@ sub instance {
     my $master = $self->connect_to_datasource();
 
     # get user viewable
-    my $m_star = ($self->user && $self->user->has_right(undef, 'view', 'metagenome', '*')) ? 1 : 0;
-    my $p_star = ($self->user && $self->user->has_right(undef, 'view', 'project', '*')) ? 1 : 0;
+    my $m_star = ($self->user && $self->user->has_star_right('view', 'metagenome')) ? 1 : 0;
+    my $p_star = ($self->user && $self->user->has_star_right('view', 'project')) ? 1 : 0;
     my $m_private = $master->Job->get_private_jobs($self->user, 1);
     my $m_public  = $master->Job->get_public_jobs(1);
     my $p_private = $self->user ? $self->user->has_right_to(undef, 'view', 'project') : [];
@@ -219,17 +221,17 @@ sub instance {
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
             if ($m_star || exists($m_rights{$1})) {
-                    $mgids->{$1} = 1;
+                $mgids->{$1} = 1;
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
         } elsif ($id =~ /^mgp(\d+)$/) {
             if ($p_star || exists($p_rights{$1})) {
-                    my $proj = $master->Project->init( {id => $1} );
-                    foreach my $mgid (@{ $proj->metagenomes(1) }) {
-                        next unless ($m_star || exists($m_rights{$mgid}));
-                        $mgids->{$mgid} = 1;
-                    }
+                my $proj = $master->Project->init( {id => $1} );
+                foreach my $mgid (@{ $proj->metagenomes(1) }) {
+                    next unless ($m_star || exists($m_rights{$mgid}));
+                    $mgids->{$mgid} = 1;
+                }
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
@@ -277,6 +279,7 @@ sub prepare_data {
     
     # get optional params
     my $cgi = $self->cgi;
+    my $taxid  = $cgi->param('taxid') ? 1 : 0;
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'M5NR' : (($type eq 'function') ? 'Subsystems': 'RefSeq'));
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
     my $htype  = $cgi->param('hit_type') ? $cgi->param('hit_type') : 'all';
@@ -290,9 +293,9 @@ sub prepare_data {
     my $all_srcs  = {};
     my $leaf_node = 0;
     my $group_level = $glvl;
-    my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
-    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.
-                     '&source='.$source.'&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen;
+    my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen, $taxid));
+    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.'&source='.$source.
+                     '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen.'&taxid='.$taxid;
     if ($hide_md) {
         $matrix_id .= '_'.$hide_md;
         $matrix_url .= '&hide_metadata='.$hide_md;
@@ -312,13 +315,13 @@ sub prepare_data {
 
     # validate cutoffs
     if (int($eval) < 1) {
-        $self->return_data({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 500);
+        $self->return_data({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 404);
     }
     if ((int($ident) < 0) || (int($ident) > 100)) {
-        $self->return_data({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 500);
+        $self->return_data({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 404);
     }
     if (int($alen) < 1) {
-        $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 500);
+        $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 404);
     }
 
     # controlled vocabulary set
@@ -334,7 +337,7 @@ sub prepare_data {
                              
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
-        $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 500);
+        $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
     }
     if ($type eq 'organism') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
@@ -346,7 +349,7 @@ sub prepare_data {
                       $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @org_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @org_hier)."]"}, 404);
         }
     } elsif ($type eq 'function') {
         map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
@@ -359,16 +362,18 @@ sub prepare_data {
                       $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @func_hier)."]"}, 500);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @func_hier)."]"}, 404);
         }
     } elsif ($type eq 'feature') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
         delete $all_srcs->{M5NR};
         delete $all_srcs->{M5RNA};
+    } else {
+        $self->return_data({"ERROR" => "Invalid resource type was entered ($type)."}, 404);
     }
     unless (exists $all_srcs->{$source}) {
-        $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 500);
+        $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 404);
     }
 
     # get data
@@ -380,6 +385,7 @@ sub prepare_data {
     my $umd5s   = [];
 
     if ($type eq 'organism') {
+        my $seen = {};
         $ttype = 'Taxon';
         $mtype = 'taxonomy';
         $col_idx = $result_idx->{$rtype}{$type}{$htype};
@@ -390,10 +396,11 @@ sub prepare_data {
             if ($htype eq 'all') {
                 if ($leaf_node) {
                     # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
-                    my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen));
-                    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+                    my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen), 1);
+                    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
                     @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[9] !~ /^(\-|unclassified)/} @$info;
                     map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
+                    map { $self->{org2tid}->{$_->[9]} = $_->[19] } @$info;
                 } else {
                     # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
                     @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} grep {$_->[1] !~ /^(\-|unclassified)/} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
@@ -401,25 +408,31 @@ sub prepare_data {
                 }
             } elsif ($htype eq 'single') {
                 # my ($self, $source, $eval, $ident, $alen) = @_;
-                my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen));
-                # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-                my @levels  = reverse @org_hier;
-                my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
-                $lvl_idx += 1;
-                my $merged = {};
-                foreach my $set (@$info) {
-                    next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
-                    if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
-                        $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
-                    } else {
-                        $merged->{$set->[0]}{$set->[$lvl_idx]}[0] += $self->toNum($set->[$col_idx], $rtype);
-                        $merged->{$set->[0]}{$set->[$lvl_idx]}[1] += 1;
+                my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen), 1);
+                # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
+                if ($leaf_node) {
+                    @$matrix = map {[ $_->[8], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[8] !~ /^(\-|unclassified)/} @$info;
+                    map { $self->{org2tax}->{$_->[8]} = [ @$_[1..8] ] } @$info;
+                    map { $self->{org2tid}->{$_->[8]} = $_->[17] } @$info;
+                } else {
+                    my @levels  = reverse @org_hier;
+                    my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
+                    $lvl_idx += 1;
+                    my $merged = {};
+                    foreach my $set (@$info) {
+                        next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
+                        if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
+                            $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
+                        } else {
+                            $merged->{$set->[0]}{$set->[$lvl_idx]}[0] += $self->toNum($set->[$col_idx], $rtype);
+                            $merged->{$set->[0]}{$set->[$lvl_idx]}[1] += 1;
+                        }
                     }
-                }
-                foreach my $m (keys %$merged) {
-                    foreach my $a (keys %{$merged->{$m}}) {
-                        my $val = ($rtype eq 'abundance') ? $merged->{$m}{$a}[0] : $merged->{$m}{$a}[0] / $merged->{$m}{$a}[1];
-                        push @$matrix, [ $a, $m, $val ];
+                    foreach my $m (keys %$merged) {
+                        foreach my $a (keys %{$merged->{$m}}) {
+                            my $val = ($rtype eq 'abundance') ? $merged->{$m}{$a}[0] : $merged->{$m}{$a}[0] / $merged->{$m}{$a}[1];
+                            push @$matrix, [ $a, $m, $val ];
+                        }
                     }
                 }
             } elsif ($htype eq 'lca') {
@@ -446,7 +459,7 @@ sub prepare_data {
                     }
                 }
             } else {
-                $self->return_data({"ERROR" => "invalid hit_type for matrix call: ".$htype." - valid types are ['all', 'single', 'lca']"}, 500);
+                $self->return_data({"ERROR" => "invalid hit_type for matrix call: ".$htype." - valid types are ['all', 'single', 'lca']"}, 404);
             }
         }
     } elsif ($type eq 'function') {
@@ -489,7 +502,11 @@ sub prepare_data {
     my $r_map = ($type eq 'feature') ? $md52id : $self->get_hierarchy($mgdb, $type, $glvl, $source, $leaf_node);
     foreach my $rid (sort {$row_ids->{$a} <=> $row_ids->{$b}} keys %$row_ids) {
         my $rmd = exists($r_map->{$rid}) ? { $mtype => $r_map->{$rid} } : undef;
-        push @$brows, { id => $rid, metadata => $rmd };
+        if ($leaf_node && ($type eq 'organism') && exists($self->{org2tid}{$rid})) {
+            push @$brows, { id => $self->{org2tid}{$rid}, metadata => $rmd };
+        } else {
+            push @$brows, { id => $rid, metadata => $rmd };
+        }
     }
     my $mddb = MGRAST::Metadata->new();
     my $meta = $hide_md ? {} : $mddb->get_jobs_metadata_fast($data, 1);
@@ -522,7 +539,7 @@ sub prepare_data {
 sub get_hierarchy {
     my ($self, $mgdb, $type, $level, $src, $leaf_node) = @_;
     if ($type eq 'organism') {
-        return $leaf_node ? $self->{org2tax} : $mgdb->get_hierarchy('organism', undef, undef, undef, $level);
+        return ($leaf_node && (scalar(keys %{$self->{org2tax}}) > 0)) ? $self->{org2tax} : $mgdb->get_hierarchy('organism', undef, undef, undef, $level);
     } elsif ($type eq 'function') {
         return $leaf_node ? $mgdb->get_hierarchy('ontology', $src) : $mgdb->get_hierarchy('ontology', $src, undef, undef, $level);
     } else {
