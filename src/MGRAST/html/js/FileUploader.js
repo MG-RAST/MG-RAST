@@ -134,15 +134,16 @@ function cancel_upload () {
 
 function uploadComplete (evt) {
     var md5 = this.responseText;
-    fu_md5s[fu_curr_file] = md5;
-    if (fu_curr_files.length == (fu_curr_file + 1)) {
-	var old = document.getElementById("md5check");
-	if (old) {
-	    jQuery('#md5check').remove();
-	}
-	var msg = document.createElement('div');
-	msg.setAttribute('id', 'md5_check');
-	var msg_html = '\
+    if (md5 != 'chunk received') {
+	fu_md5s[fu_curr_file] = md5;
+	if (fu_curr_files.length == (fu_curr_file + 1)) {
+	    var old = document.getElementById("md5check");
+	    if (old) {
+		jQuery('#md5check').remove();
+	    }
+	    var msg = document.createElement('div');
+	    msg.setAttribute('id', 'md5_check');
+	    var msg_html = '\
 <div id="md5check" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="md5checklabel" aria-hidden="true">\
 <div class="modal-header">\
 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>\
@@ -150,18 +151,19 @@ function uploadComplete (evt) {
 </div>\
 <div class="modal-body">\
 <p>To check the integrity of your uploaded files, paste their md5 sum into the boxes below and click <b>\'check\'</b>.</p>';
-	for (i=0;i<fu_curr_files.length;i++) {
-	    msg_html += '<b>'+fu_curr_files[i].name+'</b><br>';
-	    msg_html += '<input type="text" style="width: 230px;" id="usermd5'+i+'"><input type="text" disabled value="'+fu_md5s[i]+'" style="width:230px;"><button class="btn" onclick="checkmd5(this, \''+i+'\');">check</button><br>';
-	}
-	msg_html += '</div>\
+	    for (i=0;i<fu_curr_files.length;i++) {
+		msg_html += '<b>'+fu_curr_files[i].name+'</b><br>';
+		msg_html += '<input type="text" style="width: 230px;" id="usermd5'+i+'"><input type="text" disabled value="'+fu_md5s[i]+'" style="width:230px;"><button class="btn" onclick="checkmd5(this, \''+i+'\');">check</button><br>';
+	    }
+	    msg_html += '</div>\
 <div class="modal-footer">\
 <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>\
 </div>\
 </div>';
-	msg.innerHTML = msg_html;
-	document.body.appendChild(msg);
-	jQuery('#md5check').modal('show');
+	    msg.innerHTML = msg_html;
+	    document.body.appendChild(msg);
+	    jQuery('#md5check').modal('show');
+	}
     }
     start_upload();
 }
