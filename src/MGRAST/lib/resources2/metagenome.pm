@@ -160,7 +160,7 @@ sub query {
     my $total = 0;
     my $query = "";
     my $job_pub = $master->Job->count_public();
-    if ($status eq 'public') {
+    if (($status eq 'public') || (! $self->user)) {
         $total = $job_pub;
         $query = "viewable=1 AND public=1 ORDER BY $order LIMIT $limit OFFSET $offset";
     } elsif (exists $self->rights->{'*'}) {
@@ -176,10 +176,18 @@ sub query {
         my $private = $master->Job->get_private_jobs($self->user, 1);
         if ($status eq 'private') {
             $total = scalar(@$private);
-            $query = "viewable=1 AND metagenome_id IN (".join(',', @$private).") ORDER BY $order LIMIT $limit OFFSET $offset";
+	    if (@$private > 0) {
+		$query = "viewable=1 AND metagenome_id IN (".join(',', @$private).") ORDER BY $order LIMIT $limit OFFSET $offset";
+	    } else {
+		$self->return_data($self->check_pagination([], $total, $limit));
+	    }
         } else {
             $total = scalar(@$private) + $job_pub;
-            $query = "viewable=1 AND (public=1 OR metagenome_id IN (".join(',', @$private).")) ORDER BY $order LIMIT $limit OFFSET $offset";
+	    if (@$private > 0) {
+		$query = "viewable=1 AND (public=1 OR metagenome_id IN (".join(',', @$private).")) ORDER BY $order LIMIT $limit OFFSET $offset";
+	    } else {
+		$query = "viewable=1 AND public=1 ORDER BY $order LIMIT $limit OFFSET $offset";
+	    }
         }
     }
     my $jobs  = $master->Job->get_objects( {$order => [undef, $query]} );
