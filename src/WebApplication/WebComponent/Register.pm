@@ -412,9 +412,10 @@ sub perform_registration {
   $abody->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
   $abody->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
   $abody->param('URL', $url);
-  my $hs = HTML::Strip->new();
-  my $country = $hs->parse( $cgi->param('country') );
-  $abody->param('COUNTRY', $country);
+  if ($cgi->param('country')) {
+      my $hs = HTML::Strip->new();
+      my $country = $hs->parse( $cgi->param('country') );
+      $abody->param('COUNTRY', $country);
   if ($user_org) {
     $abody->param('ORGANIZATION', $user_org);
     if ($org_found) {

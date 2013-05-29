@@ -9,8 +9,7 @@ use warnings;
 use DBI;
 
 use HTML::Strip;
-
-
+use Scalar::Util qw(looks_like_number);
 
 =pod
 
@@ -528,11 +527,14 @@ Returns the quoted I<value>.
 sub quote {
   my ($self, $value) = @_;
 
-  my $hs = HTML::Strip->new();
-  my $clean_text = $hs->parse($value);
-  $clean_text =~ s/\n//g;
-  $hs->eof;
-  
+  my $clean_text = $value;
+  if(defined $value && !looks_like_number($value)) {
+    my $hs = HTML::Strip->new();
+    my $clean_text = $hs->parse($value);
+    $clean_text =~ s/\n//g;
+    $hs->eof;
+  }
+
   return $self->dbh->quote($clean_text);
 }
 
