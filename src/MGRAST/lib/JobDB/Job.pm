@@ -120,11 +120,6 @@ sub initialize {
   if (exists $params->{'sequence type'}) {
     delete $params->{'sequence type'};
   }
-  # replace whitespace
-  foreach my $key (keys %$params) {
-    $key =~ s/\s+/_/g;
-    $params->{$key} =~ s/\s+/_/g;
-  }
   # sequence_type is currently a guess, add it
   if (exists $params->{sequence_type}) {
     $params->{sequence_type_guess} = $params->{sequence_type};
@@ -194,7 +189,9 @@ sub initialize {
   
   foreach my $key (keys %$params) {
     next if (exists $used_keys->{$key});
-    $master->JobAttributes->create({ job => $job, tag => $key, value => $params->{$key} });
+    my $value = $params->{$key};
+    $value =~ s/\s+/_/g;
+    $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
   }
   $job->set_filter_options();
 
