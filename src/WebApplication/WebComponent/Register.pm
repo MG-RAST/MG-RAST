@@ -416,6 +416,7 @@ sub perform_registration {
       my $hs = HTML::Strip->new();
       my $country = $hs->parse( $cgi->param('country') );
       $abody->param('COUNTRY', $country);
+  }
   if ($user_org) {
     $abody->param('ORGANIZATION', $user_org);
     if ($org_found) {
@@ -511,7 +512,7 @@ sub perform_registration {
   $application->add_message('info', 'Your registration request has been sent. You will be notified as soon as your request has been processed.');
   
   # set success flag
-  $self->successful_request(1);
+  $self->{successful_request} = 1;
 
   return 1;
 }
