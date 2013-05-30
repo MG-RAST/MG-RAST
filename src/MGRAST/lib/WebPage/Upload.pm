@@ -713,6 +713,28 @@ sub submit_to_mgrast {
   # create metadata collections
   if ($mdata) {
     ($successfully_created_jobs, $err_msgs) = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
+    if(@$err_msgs != 0) {
+      my $msg = "WARNING: The user \"".$user->login."\" submitted jobs that failed. The following errors were generated:\n";      
+      foreach my $err (@$err_msgs) {
+        $msg .= $err."\n";
+      }
+      $msg .= "\nThe following jobs were partially created before this submission failed:\n";
+      foreach my $job (@$jobs) {
+        $msg .= $job->{job_id}."\n";
+      }
+
+      my $mailer = Mail::Mailer->new();
+      $mailer->open({ From    => "mg-rast\@mcs.anl.gov",
+                      To      => "mg-rast\@mcs.anl.gov",
+                      Subject => "Failed Job Creation Submitted By ".$user->login
+                    })
+        or die "Can't open Mail::Mailer: $!\n";
+      print $mailer $msg;
+      $mailer->close();
+
+      $self->application->add_message('warning', "Unable to successfully create your jobs!  Please contact MG-RAST at mg-rast\@mcs.anl.gov for more information.");
+      return undef;
+    }
   }
   # else just add to project
   elsif ($project_obj) {
