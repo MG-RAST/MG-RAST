@@ -325,12 +325,12 @@ sub md5s2sets4source {
 sub md52sequence {
   my ($self, $md5) = @_;
 
-  my $nr   = $self->nr;
-  my $seq  = '';
-  my @recs = `fastacmd -d $nr -s \"lcl|$md5\" -l 0 2>&1`;
+  my $nr = $self->nr;
+  my @recs = `$Conf::fastacmd -d $nr -s \"lcl|$md5\" -l 0 2>&1`;
   if ((@recs < 2) || (! $recs[0]) || ($recs[0] =~ /^\s+$/) || ($recs[0] =~ /^\[fastacmd\]/)) {
     return "";
   }
+  $recs[1] =~ s/\s+//;
   return $recs[1];
 }
 
@@ -340,7 +340,7 @@ sub md5s2sequences {
   my $nr   = $self->nr;
   my $seqs = '';
   my $list = join(",", map { (/^\d+$/) ? "lcl|$_" : $_ } @$md5s);
-  my @recs = `fastacmd -d $nr -s \"$list\" -l 0 2>&1`;
+  my @recs = `$Conf::fastacmd -d $nr -s \"$list\" -l 0 2>&1`;
 
   foreach (@recs) {
     if ((! $_) || ($_ =~ /^\s+$/) || ($_ =~ /^\[fastacmd\]/)) { next; }
@@ -1017,15 +1017,12 @@ sub id2org {
 sub id2md5 {
   my ($self, $id, $regexp) = @_;
  
-  $id =~ s/'/\\'/g;
   my $statement = "select md5, id from md5_protein";
- 
   if ($regexp) {
-    $id =~ s/\|/\\\\\|/g;
-    $statement .= " where id ~* '$id'";
+    $statement .= " where id ~* ".$self->dbh->quote($id);;
   }
   else {
-    $statement .= " where id = '$id'";
+    $statement .= " where id = ".$self->dbh->quote($id);;
   }
   my $rows = $self->dbh->selectall_arrayref($statement);
   return ($rows && (@$rows > 0)) ? $rows : [];
@@ -1099,14 +1096,13 @@ sub id {
 sub id2set {
   my ($self, $id, $regexp) = @_;
 
-  $id =~ s/'/\\'/g;
   my $sql = qq(select d.id, d.md5, f.name, o.name, s.name
                from md5_protein d, functions f, organisms_ncbi o, sources s
                where d.function = f._id and d.organism = o._id and d.source = s._id);
   if ($regexp) {
-    $sql .= " and d.id ~* '$id'";
+    $sql .= " and d.id ~* ".$self->dbh->quote($id);
   } else {
-    $sql .= " and d.id = '$id'";
+    $sql .= " and d.id = ".$self->dbh->quote($id);
   }
   my $rows = $self->dbh->selectall_arrayref($sql);
   return ($rows && ref($rows)) ? $rows : [];
