@@ -123,7 +123,7 @@ sub info {
    					     'description' => "Return annotation or sequence of given source protein ID",
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
-   					     'attributes'  => {sequence => $self->{attributes}{sequence}, annotation => $self->{attributes}{annotation}},
+   					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ] },
    							                'required' => { "id" => ["string", "unique identifier from protein DB"] },
    							                'body'     => {} }
@@ -133,7 +133,7 @@ sub info {
    					     'description' => "Return annotation(s) or sequence of given md5sum (M5NR ID)",
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
-   					     'attributes'  => {sequence => $self->{attributes}{sequence}, annotation => $self->{attributes}{annotation}},
+   					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ] },
    							                'required' => { "id" => ["string", "unique identifier in form of md5 checksum"] },
    							                'body'     => {} }
