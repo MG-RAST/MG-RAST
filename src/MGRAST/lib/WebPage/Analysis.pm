@@ -4145,7 +4145,7 @@ sub metabolism_visual {
 	    $other = $exp_hash->{$row->[4]}->[6];
 	    delete $exp_hash->{$row->[4]};
 	  }
-	  if ($row->[5] + $other > 0) {
+	  if ($row->[6] + $other > 0) {
 	    if ($has_three) {
 	      push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[3], $row->[4], [ $row->[6], $other ] ] );
 	    } else {
@@ -4217,9 +4217,11 @@ sub metabolism_visual {
       $ptout = "<table><tr><td>".$pt->legend."</td><td>".$ptout."</td></tr></table>";
     }
     
-    my $opts = [ [ 0, 'Level 1' ],
-		 [ 1, 'Level 2' ],
-		 [ 2, 'Level 3' ] ];
+    my $opts = [ [ 1, 'Level 1' ],
+		 [ 2, 'Level 2' ],
+		 [ 3, 'Level 3' ],
+		 [ 4, 'Level 4' ],
+		 [ 5, 'Level 5' ] ];
     my $explain = "Color shading of the ".$opts->[$pt->depth - 1]->[1]." names indicates category membership.";
     $explain .= " Click on a node to get distributions of the entire hierarchy of this node. If you have selected a node, you can reroot the tree by checking the reroot checkbox and clicking the 'change' button. Clicking the change button with the reroot checkbox unchecked will draw the entire tree.";
     my $change_settings_form = "<form id='pt_form$newid'>$settings_preserve<input type='hidden' name='vis_type' value='tree'><input type='hidden' name='recalc' value='1'><input type='hidden' name='oldid' value='$newid'>";
@@ -4233,7 +4235,7 @@ sub metabolism_visual {
     $change_settings_form .= "<b>maximum level</b>&nbsp;&nbsp;<select name='depth'>";
     foreach my $row (@$opts) {
       my $sel = "";
-      if ($row->[0] == $pt->depth) {
+      if ($row->[0] == $pt->depth + 1) {
 	$sel = " selected=selected";
       }
       $change_settings_form .= "<option value='".$row->[0]."'$sel>".$row->[1]."</option>";
