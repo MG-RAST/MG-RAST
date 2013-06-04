@@ -284,7 +284,7 @@ sub clone_notebook {
 sub share_notebook {
     my ($self, $uuid) = @_;
     
-    my $email = $self->cgi->param('type') || undef;
+    my $email = $self->cgi->param('email') || undef;
     unless ($email) {
         $self->return_data( {"ERROR" => "Missing email of user to share notebook $uuid with."}, 500 );
     }
