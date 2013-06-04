@@ -974,9 +974,15 @@ sub share_info {
   my $content = "<h3>Share Project</h3>";
   $content .= $self->start_form('share_project', { project => $project->id,
 						   action  => 'share_project' });
-  $content .= "<p><strong>Enter an email address or group name:</strong> <input name='email' type='textbox' value='".encode_entities($email)."'><input type='checkbox' name='editable'> <span title='check to allow the user or group to edit this project'>editable</span>";
-  $content .= "&nbsp;&nbsp;&nbsp;<input type='submit' name='share_project' value=' Share project with this user or group '></p>";
+  $content .= "<p><strong>Enter an email address:</strong> <input name='email' type='textbox' value='".encode_entities($email)."'><input type='checkbox' name='editable'> <span title='check to allow the user to edit this project'>editable</span>";
+  $content .= "&nbsp;&nbsp;&nbsp;<input type='submit' name='share_project' value=' Share project with this user '></p>";
   $content .= $self->end_form;
+
+  $content .= $self->start_form('reviewer_access', { project => $project->id,
+						     reviewer => 1,
+						     action  => 'share_project' });
+  $content .= "<p><input type='submit' value=' Create a Reviewer Access Token '></p>";
+  $content .= $self->end_form();
   
   # show people who can see this project at the moment
   $content .= "<p id='section_bar'><strong>This project is currently available to:</strong></p>";
@@ -1032,11 +1038,16 @@ sub share_info {
     $content .= "<p id='section_bar'><img src='./Html/rast-info.png'/>invitations which have not been claimed yet:</p>";
     $content .= "<table>";
     foreach my $token (@$tokens) {
-      my ($uid, $date, $email) = $token->description =~ /^token_scope\|from_user\:(\d+)\|init_date:(\d+)\|email\:(.+)/;
-      my $u = $self->application->dbmaster->User->get_objects( { _id => $uid } )->[0];
-      my $t = localtime($date);
       my ($token_id) = $token->name =~ /^token\:(.+)$/;
-      $content .= "<tr><td>sent by ".$u->firstname." ".$u->lastname." to $email on $t <input type='button' onclick='window.top.location=\"metagenomics.cgi?page=MetagenomeProject&project=".$project->id."&action=cancel_token&token=$token_id\"' value='cancel'></td></tr>";
+      if ($token->description =~ /^Reviewer_/) {
+	my $num = scalar(@{$self->application->dbmaster->UserHasScope->get_objects({ scope => $token })});
+	$content .= "<tr><td>Reviewer Token <b>".$WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project</b> - currently registered by $num reviewers. <input type='button' onclick='window.top.location=\"metagenomics.cgi?page=MetagenomeProject&project=".$project->id."&action=cancel_token&token=$token_id\"' value='cancel'></td></tr>";
+      } else {
+	my ($uid, $date, $email) = $token->description =~ /^token_scope\|from_user\:(\d+)\|init_date:(\d+)\|email\:(.+)/;
+	my $u = $self->application->dbmaster->User->get_objects( { _id => $uid } )->[0];
+	my $t = localtime($date);
+	$content .= "<tr><td>sent by ".$u->firstname." ".$u->lastname." to $email on $t <input type='button' onclick='window.top.location=\"metagenomics.cgi?page=MetagenomeProject&project=".$project->id."&action=cancel_token&token=$token_id\"' value='cancel'></td></tr>";
+      }
     }
     $content .= "</table>";
   }
@@ -1147,6 +1158,11 @@ sub cancel_token {
   unless (scalar(@$scope)) {
     $application->add_message('warning', "token not found, aborting");
     return 0;
+  }
+
+  my $uhs = $master->UserHasScope->get_objects( { scope => $scope->[0] } );
+  foreach my $u (@$uhs) {
+    $u->delete();
   }
 
   my $rights = $master->Rights->get_objects( { scope => $scope->[0] } );
@@ -1335,144 +1351,174 @@ sub share_project {
   my $project_name = $project->name;
   my $project_id = $project->id;
   my $dbm = $application->dbmaster;
-
-  # check email format
-  my $email = $cgi->param('email');
-  $email =~ s/^\s+(.*)$/$1/;
-  unless ($email =~ /^[\w\-\.]+\@[\.a-zA-Z\-0-9]+\.[a-zA-Z]+$/) {
-    $self->application->add_message('warning', 'Please enter a valid email address.');
-    return 0;
-  }
-
-  # check if have a user with that email
-  my $master = $self->application->dbmaster;  
-  my $user = $master->User->init({ email => $email });
-  if (ref $user) {
-    
-    # send email
-    my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobGranted.tmpl',
-				    die_on_bad_params => 0);
-    $ubody->param('FIRSTNAME', $user->firstname);
-    $ubody->param('LASTNAME', $user->lastname);
-    $ubody->param('WHAT', "the metagenome project $project_name");
-    $ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
-    $ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=MetagenomeProject&project=$project_id");
-    $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
-    
-    $user->send_email( $WebConfig::ADMIN_EMAIL,
-		       $WebConfig::APPLICATION_NAME.' - new data available',
-		       $ubody->output
-		     );
-
-
-    # grant rights if necessary
-    my $rights = [ 'view' ];
-    if ($cgi->param('editable')) {
-      push(@$rights, 'edit');
-    }
-    foreach my $name (@$rights) {
-      unless(scalar(@{$master->Rights->get_objects( { name => $name,
-						      data_type => 'project',
-						      data_id => $project_id,
-						      scope => $user->get_user_scope } )})) {
-	my $right = $master->Rights->create( { granted => 1,
-					       name => $name,
-					       data_type => 'project',
-					       data_id => $project_id,
-					       scope => $user->get_user_scope,
-					       delegated => 1, } );
-
-	unless (ref $right) {
-	  $self->app->add_message('warning', 'Failed to create the right in the user database, aborting.');
-	  return 0;
-	}
-      }
-    }
-    my $pscope = $dbm->Scope->init( { application => undef,
-				      name => 'MGRAST_project_'.$project_id } );
-    if ($pscope) {
-      my $uhs = $dbm->UserHasScope->get_objects( { user => $user, scope => $pscope } );
-      unless (scalar(@$uhs)) {
-	$dbm->UserHasScope->create( { user => $user, scope => $pscope, granted => 1 } );
-      }
-    }
-
-    $self->app->add_message('info', "Granted the right to view this project to ".$user->firstname." ".$user->lastname.".");
-    return 1;
-
-  } else {
-    
-    # create a claim token
-    my $description = "token_scope|from_user:".$application->session->user->{_id}."|init_date:".time."|email:".$email;
+  
+  if ($cgi->param('reviewer')) {
+    # create a reviewer token
+    my $description = "Reviewer_".$project_id;
     my @chars=('a'..'z','A'..'Z','0'..'9','_');
     my $token = "";
     foreach (1..50) {
       $token.=$chars[rand @chars];
     }
-    
+      
     # create scope for token
     my $token_scope = $master->Scope->create( { name => "token:".$token, description => $description } );
     unless (ref($token_scope)) {
       $self->application->add_message('warning', "failed to create token");
       return 0;
     }
-
-    # add rights to scope
-    my $rights = [ 'view' ];
-    if ($cgi->param('editable')) {
-      push(@$rights, 'edit');
+      
+    # add right to scope
+    my $right = $master->Rights->create( { granted => 1,
+					   name => $name,
+					   data_type => 'project',
+					   data_id => $project_id,
+					   scope => $token_scope,
+					   delegated => 1, } );
+    unless (ref $right) {
+      $self->application->add_message('warning', "failed to create right for token");
+      return 0;
     }
-    my $rsave = [];
-    foreach my $name (@$rights) {
-      my $right = $master->Rights->create( { granted => 1,
-					     name => $name,
-					     data_type => 'project',
-					     data_id => $project_id,
-					     scope => $token_scope,
-					     delegated => 1, } );
-      unless (ref $right) {
-	$self->app->add_message('warning', 'Failed to create the right in the user database, aborting.');
+
+    $self->application->add_message('info', "Reviewer Access Token created. The following link will grant view access:<br>".$WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
+    return 1;
+  } else {
+    # check email format
+    my $email = $cgi->param('email');
+    $email =~ s/^\s+(.*)$/$1/;
+    unless ($email =~ /^[\w\-\.]+\@[\.a-zA-Z\-0-9]+\.[a-zA-Z]+$/) {
+      $self->application->add_message('warning', 'Please enter a valid email address.');
+      return 0;
+    }
+    
+    # check if have a user with that email
+    my $master = $self->application->dbmaster;  
+    my $user = $master->User->init({ email => $email });
+    if (ref $user) {
+      
+      # send email
+      my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobGranted.tmpl',
+				      die_on_bad_params => 0);
+      $ubody->param('FIRSTNAME', $user->firstname);
+      $ubody->param('LASTNAME', $user->lastname);
+      $ubody->param('WHAT', "the metagenome project $project_name");
+      $ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
+      $ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=MetagenomeProject&project=$project_id");
+      $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
+      
+      $user->send_email( $WebConfig::ADMIN_EMAIL,
+			 $WebConfig::APPLICATION_NAME.' - new data available',
+			 $ubody->output
+		       );
+      
+      # grant rights if necessary
+      my $rights = [ 'view' ];
+      if ($cgi->param('editable')) {
+	push(@$rights, 'edit');
+      }
+      foreach my $name (@$rights) {
+	unless(scalar(@{$master->Rights->get_objects( { name => $name,
+							data_type => 'project',
+							data_id => $project_id,
+							scope => $user->get_user_scope } )})) {
+	  my $right = $master->Rights->create( { granted => 1,
+						 name => $name,
+						 data_type => 'project',
+						 data_id => $project_id,
+						 scope => $user->get_user_scope,
+						 delegated => 1, } );
+	  
+	  unless (ref $right) {
+	    $self->app->add_message('warning', 'Failed to create the right in the user database, aborting.');
+	    return 0;
+	  }
+	}
+      }
+      my $pscope = $dbm->Scope->init( { application => undef,
+					name => 'MGRAST_project_'.$project_id } );
+      if ($pscope) {
+	my $uhs = $dbm->UserHasScope->get_objects( { user => $user, scope => $pscope } );
+	unless (scalar(@$uhs)) {
+	  $dbm->UserHasScope->create( { user => $user, scope => $pscope, granted => 1 } );
+	}
+      }
+      
+      $self->app->add_message('info', "Granted the right to view this project to ".$user->firstname." ".$user->lastname.".");
+      return 1;
+      
+    } else {
+      
+      # create a claim token
+      my $description = "token_scope|from_user:".$application->session->user->{_id}."|init_date:".time."|email:".$email;
+      my @chars=('a'..'z','A'..'Z','0'..'9','_');
+      my $token = "";
+      foreach (1..50) {
+	$token.=$chars[rand @chars];
+      }
+      
+      # create scope for token
+      my $token_scope = $master->Scope->create( { name => "token:".$token, description => $description } );
+      unless (ref($token_scope)) {
+	$self->application->add_message('warning', "failed to create token");
+	return 0;
+      }
+      
+      # add rights to scope
+      my $rights = [ 'view' ];
+      if ($cgi->param('editable')) {
+	push(@$rights, 'edit');
+      }
+      my $rsave = [];
+      foreach my $name (@$rights) {
+	my $right = $master->Rights->create( { granted => 1,
+					       name => $name,
+					       data_type => 'project',
+					       data_id => $project_id,
+					       scope => $token_scope,
+					       delegated => 1, } );
+	unless (ref $right) {
+	  $self->app->add_message('warning', 'Failed to create the right in the user database, aborting.');
+	  $token_scope->delete();
+	  foreach my $r (@$rsave) {
+	    $r->delete();
+	  }
+	  return 0;
+	}
+	
+	push(@$rsave, $right);
+      }
+      
+      # send token mail
+      my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobToken.tmpl',
+				      die_on_bad_params => 0);
+      $ubody->param('WHAT', "the metagenome project $project_name");
+      $ubody->param('REGISTER', $WebConfig::APPLICATION_URL."?page=Register");
+      $ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
+      $ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
+      $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
+      
+      my $mailer = Mail::Mailer->new();
+      if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
+			  To      => $email,
+			  Subject => $WebConfig::APPLICATION_NAME.' - new data available',
+			})) {
+	print $mailer $ubody->output;
+	$mailer->close();
+	$application->add_message('info', "invitation sent successfully");
+      } else {
 	$token_scope->delete();
 	foreach my $r (@$rsave) {
 	  $r->delete();
 	}
+	$application->add_message('warning', "Could not send invitation mail, aborting.");
 	return 0;
       }
-
-      push(@$rsave, $right);
+      
+      return 1;
     }
-
-    # send token mail
-    my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobToken.tmpl',
-				    die_on_bad_params => 0);
-    $ubody->param('WHAT', "the metagenome project $project_name");
-    $ubody->param('REGISTER', $WebConfig::APPLICATION_URL."?page=Register");
-    $ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
-    $ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
-    $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
-    
-
-    my $mailer = Mail::Mailer->new();
-    if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
-			To      => $email,
-			Subject => $WebConfig::APPLICATION_NAME.' - new data available',
-		      })) {
-      print $mailer $ubody->output;
-      $mailer->close();
-      $application->add_message('info', "invitation sent successfully");
-    } else {
-      $token_scope->delete();
-      foreach my $r (@$rsave) {
-	$r->delete();
-      }
-      $application->add_message('warning', "Could not send invitation mail, aborting.");
-      return 0;
-    }
-
-    return 1;
   }
-
-  return ;
+  
+  return;
 }
 
 
