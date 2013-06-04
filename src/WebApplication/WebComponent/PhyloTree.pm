@@ -78,6 +78,7 @@ sub new {
   $self->{reroot_field} = undef;
   $self->{legend} = "";
   $self->{style} = "";
+  $self->{show_sample_colors} = 1;
 
   $self->{show_tooltip} = 1;
 
@@ -385,7 +386,7 @@ sub output {
 	  $info .= "</tr>";
 	  my $ii = 0;
 	  foreach my $n (@{$leaf->{children}}) {
-	    $info .= "<tr><td style='background-color: rgb(".$pie->color_set->[$ii + 6]->[0].",".$pie->color_set->[$ii + 6]->[1].",".$pie->color_set->[$ii + 6]->[2].");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td>";
+	    $info .= "<tr><td style='background-color: rgb(".($pie->color_set->[$ii + 6]->[0]||0).",".($pie->color_set->[$ii + 6]->[1]||0).",".($pie->color_set->[$ii + 6]->[2]||0).");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td>";
 	    for (my $hh=0; $hh<scalar(@{$self->sample_names}); $hh++) {
 	      my $percent = "0";
 	      if ($self->{nodes}->{$n}->{value}->[$hh]) {
@@ -537,7 +538,7 @@ sub output {
 	    $info .= "</tr>";
 	    my $ii = 0;
 	    foreach my $n (@{$node->{children}}) {
-	      $info .= "<tr><td style='background-color: rgb(".$pie->color_set->[$ii + 6]->[0].",".$pie->color_set->[$ii + 6]->[1].",".$pie->color_set->[$ii + 6]->[2].");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td>";
+	      $info .= "<tr><td style='background-color: rgb(".($pie->color_set->[$ii + 6]->[0]||0).",".($pie->color_set->[$ii + 6]->[1]||0).",".($pie->color_set->[$ii + 6]->[2]||0).");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td>";
 	      for (my $hh=0; $hh<scalar(@{$self->sample_names}); $hh++) {
 		my $percent = "0";
 		if ($self->{nodes}->{$n}->{value}->[$hh]) {
@@ -730,6 +731,19 @@ sub output {
 	}
       }
       $curr_num_nodes++;
+    }
+  }
+
+  # sample color legend
+  if ($self->{show_sample_colors}) {
+    my $mid = $self->{size};
+    my $left = $mid - 50;
+    my $num_samples = scalar(@$sample_names);
+    my $top = $mid - ($num_samples * 15);
+    for (my $ii=0;$ii<$num_samples;$ii++) {
+      $self->image->filledRectangle($left,$top - 20,$left+20,$top, $self->leaf_colors->[$ii]);
+      $self->image->stringFT($self->colors->[1],$courier,$self->font_size,0,$left + 25,$top,$sample_names->[$ii]);
+      $top += 30;
     }
   }
 
@@ -1436,4 +1450,14 @@ sub style {
   }
 
   return $self->{style};
+}
+
+sub show_sample_colors {
+  my ($self, $show) = @_;
+
+  if (defined($show)) {
+    $self->{show_sample_colors} = $show;
+  }
+
+  return $self->{show_sample_colors};
 }

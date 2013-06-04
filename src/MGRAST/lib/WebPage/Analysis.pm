@@ -2379,14 +2379,14 @@ sub single_visual {
     if ($cgi->param('high_res')) {
       print $cgi->header();
       print $cgi->start_html();
-      $pt->size(5000);
-      $pt->level_distance(200);
-      $pt->leaf_weight_space(300);
+      $pt->size(2500);
+      $pt->level_distance(100);
+      $pt->leaf_weight_space(150);
       $pt->enable_click(0);
-      $pt->title_space(1500);
-      $pt->font_size($cgi->param('pts') || 40);
-      $pt->{thick2} = 10;
-      $pt->{thick} = 30;
+      $pt->title_space(750);
+      $pt->font_size($cgi->param('pts') || 20);
+      $pt->{thick2} = 5;
+      $pt->{thick} = 15;
       $pt->{style} = "width: 800; height: 800;";
       print $pt->output();
       print $cgi->end_html();
@@ -3199,14 +3199,14 @@ sub phylogeny_visual {
     if ($cgi->param('high_res')) {
       print $cgi->header();
       print $cgi->start_html();
-      $pt->size(10000);
-      $pt->level_distance(400);
-      $pt->leaf_weight_space(600);
+      $pt->size(2500);
+      $pt->level_distance(100);
+      $pt->leaf_weight_space(150);
       $pt->enable_click(0);
-      $pt->title_space(3000);
-      $pt->font_size($cgi->param('pts') || 40);
-      $pt->{thick2} = 10;
-      $pt->{thick} = 30;
+      $pt->title_space(750);
+      $pt->font_size($cgi->param('pts') || 20);
+      $pt->{thick2} = 5;
+      $pt->{thick} = 15;
       $pt->{style} = "width: 800; height: 800;";
       print $pt->output();
       print $cgi->end_html();
@@ -4108,11 +4108,15 @@ sub metabolism_visual {
     my $pt = $self->application->component('tree1');
     ## nasty id manipulation to allow for multiple trees
     my $newid = int(rand(100000));
+    if ($cgi->param('oldid')) {
+      $newid = $cgi->param('oldid');
+    }
     $self->application->component('PhyloTreeHoverComponent'.$pt->id)->id($newid);
     $self->application->{component_index}->{'PhyloTreeHoverComponent'.$newid} = $self->application->component('PhyloTreeHoverComponent'.$pt->id);
     $self->application->component('HoverPie'.$pt->id)->id($newid);
     $self->application->{component_index}->{'HoverPie'.$newid} = $self->application->component('HoverPie'.$pt->id);
     $pt->id($newid);
+    $pt->leaf_weight_type($cgi->param('lwt') || 'stack');
     $pt->sample_names( [ $comp_mgs[0] ] );
     $pt->show_tooltip(0);
     ##
@@ -4141,7 +4145,7 @@ sub metabolism_visual {
 	    $other = $exp_hash->{$row->[4]}->[6];
 	    delete $exp_hash->{$row->[4]};
 	  }
-	  if ($row->[5] + $other > 0) {
+	  if ($row->[6] + $other > 0) {
 	    if ($has_three) {
 	      push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[3], $row->[4], [ $row->[6], $other ] ] );
 	    } else {
@@ -4173,33 +4177,84 @@ sub metabolism_visual {
 	}
       }
     }
+
     $pt->data($expanded_data);
     $pt->show_leaf_weight(1);
-    $pt->show_arcs(0);
     $pt->show_titles(1);
-    $pt->shade_titles(2);
-    $pt->title_space(450);
+    $pt->shade_titles($cgi->param('title_level') || 2);
     $pt->enable_click(1);
     $pt->size(1000);
-    $pt->depth(3);
+    $pt->depth($cgi->param('depth') || 3);
     $pt->level_distance(40);
     $pt->leaf_weight_space(60);
     $pt->color_leafs_only(1);
     $pt->reroot_field("reroot$tabnum");
+    $pt->show_arcs(0);
     if ($self->application->cgi->param('reroot') && $self->application->cgi->param('do_reroot')) {
       $pt->reroot_id($self->application->cgi->param('reroot'));
     }
-    my $explain = "Color shading of the branches and leafs indicates abundance on a logarythmic scale from light (low abundance) to dark (high abundance). ";
-    $explain .= " Hover over a node to view the distributions of the children of the node. Click on a node to get distributions of the entire hierarchy of this node.";
 
+    if ($cgi->param('high_res')) {
+      print $cgi->header();
+      print $cgi->start_html();
+      $pt->size(2500);
+      $pt->level_distance(100);
+      $pt->leaf_weight_space(150);
+      $pt->enable_click(0);
+      $pt->title_space(750);
+      $pt->font_size($cgi->param('pts') || 20);
+      $pt->{thick2} = 5;
+      $pt->{thick} = 15;
+      $pt->{style} = "width: 800; height: 800;";
+      print $pt->output();
+      print $cgi->end_html();
+      exit;
+    }
+    
     my $ptout = "<p>no data matched your query criteria</p>";
     if (scalar(@$expanded_data)) {
       $ptout = $pt->output();
       $ptout = "<table><tr><td>".$pt->legend."</td><td>".$ptout."</td></tr></table>";
     }
-
-    $content .= "<div><div>Functional tree $tabnum</div><div>".clear_progress_image()."$settings<p style='width: 800px;'>$explain</p>".$ptout."<input type='hidden' name='reroot' value='".($self->application->cgi->param('reroot')||"")."' id='reroot$tabnum'></div></div>";
-    $tabnum++;
+    
+    my $opts = [ [ 1, 'Level 1' ],
+		 [ 2, 'Level 2' ],
+		 [ 3, 'Level 3' ],
+		 [ 4, 'Level 4' ],
+		 [ 5, 'Level 5' ] ];
+    my $explain = "Color shading of the ".$opts->[$pt->depth - 1]->[1]." names indicates category membership.";
+    $explain .= " Click on a node to get distributions of the entire hierarchy of this node. If you have selected a node, you can reroot the tree by checking the reroot checkbox and clicking the 'change' button. Clicking the change button with the reroot checkbox unchecked will draw the entire tree.";
+    my $change_settings_form = "<form id='pt_form$newid'>$settings_preserve<input type='hidden' name='vis_type' value='tree'><input type='hidden' name='recalc' value='1'><input type='hidden' name='oldid' value='$newid'>";
+    my $check1 = ' checked=checked';
+    my $check2 = '';
+    if ($cgi->param('lwt') && $cgi->param('lwt') eq 'bar') {
+      $check2 = ' checked=checked';
+      $check1 = '';
+    }
+    $change_settings_form .= "<b>display leaf weights as</b> <input type='radio' name='lwt' value='stack'$check1> stacked bar <input type='radio' name='lwt' value='bar'$check2> barchart<br>";
+    $change_settings_form .= "<b>maximum level</b>&nbsp;&nbsp;<select name='depth'>";
+    foreach my $row (@$opts) {
+      my $sel = "";
+      if ($row->[0] == $pt->depth + 1) {
+	$sel = " selected=selected";
+      }
+      $change_settings_form .= "<option value='".$row->[0]."'$sel>".$row->[1]."</option>";
+    }
+    $change_settings_form .= "</select>&nbsp;&nbsp;<b>color by</b> <select name='title_level'>";
+    foreach my $row (@$opts) {
+      my $sel = "";
+      if ($row->[0] == $pt->shade_titles) {
+	$sel = " selected=selected";
+      }
+      $change_settings_form .= "<option value='".$row->[0]."'$sel>".$row->[1]."</option>";
+    }
+    $change_settings_form .= "</select> <input type='hidden' name='reroot' value='".($self->application->cgi->param('reroot')||"")."' id='reroot$tabnum'> <input type='checkbox' name='do_reroot'> reroot at selected node <input type='button' onclick='execute_ajax(\"metabolism_visual\", \"pt$newid\", \"pt_form$newid\");' value='change'></form>";
+    if ($cgi->param('recalc')) {
+      return "$settings<p style='width: 800px;'>$explain</p>".$change_settings_form.$ptout;
+    } else {
+      $content .= "<div><div>Functional tree $tabnum</div><div><div id='pt$newid'>".clear_progress_image()."$settings<p style='width: 800px;'>$explain</p>".$change_settings_form.$ptout."<input type='hidden' name='reroot' value='".($self->application->cgi->param('reroot')||"")."' id='reroot$tabnum'></div></div></div>";
+      $tabnum++;
+    }
   }
 
   if ($cgi->param('vis_type') eq 'table') {
@@ -5215,6 +5270,24 @@ sub lca_visual {
     if ($self->application->cgi->param('reroot') && $self->application->cgi->param('do_reroot')) {
       $pt->reroot_id($self->application->cgi->param('reroot'));
     }
+
+    if ($cgi->param('high_res')) {
+      print $cgi->header();
+      print $cgi->start_html();
+      $pt->size(2500);
+      $pt->level_distance(100);
+      $pt->leaf_weight_space(150);
+      $pt->enable_click(0);
+      $pt->title_space(750);
+      $pt->font_size($cgi->param('pts') || 20);
+      $pt->{thick2} = 5;
+      $pt->{thick} = 15;
+      $pt->{style} = "width: 800; height: 800;";
+      print $pt->output();
+      print $cgi->end_html();
+      exit;
+    }
+
     my $pt_out;
     eval {
       $pt_out = $pt->output();
@@ -5230,7 +5303,7 @@ sub lca_visual {
 		 [ 7, 'species' ],
 		 [ 8, 'strain' ] ];
     my $explain = "Color shading of the ".$opts->[$pt->depth - 1]->[1]." names indicates ".$opts->[$pt->shade_titles - 1]->[1]." membership.";
-    $explain .= " Hover over a node to view the distributions of the children of the node. Click on a node to get distributions of the entire hierarchy of this node. If you have selected a node, you can reroot the tree by checking the reroot checkbox and clicking the 'change' button. Clicking the change button with the reroot checkbox unchecked will draw the entire tree.";
+    $explain .= " Click on a node to get distributions of the entire hierarchy of this node. If you have selected a node, you can reroot the tree by checking the reroot checkbox and clicking the 'change' button. Clicking the change button with the reroot checkbox unchecked will draw the entire tree.";
     my $change_settings_form = "<form id='pt_form$newid'>$settings_preserve<input type='hidden' name='vis_type' value='tree'><input type='hidden' name='recalc' value='1'><input type='hidden' name='oldid' value='$newid'>";
     my $check1 = ' checked=checked';
     my $check2 = '';
