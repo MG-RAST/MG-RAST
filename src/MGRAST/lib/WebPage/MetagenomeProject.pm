@@ -1362,19 +1362,19 @@ sub share_project {
     }
       
     # create scope for token
-    my $token_scope = $master->Scope->create( { name => "token:".$token, description => $description } );
+    my $token_scope = $dbm->Scope->create( { name => "token:".$token, description => $description } );
     unless (ref($token_scope)) {
       $self->application->add_message('warning', "failed to create token");
       return 0;
     }
       
     # add right to scope
-    my $right = $master->Rights->create( { granted => 1,
-					   name => $name,
-					   data_type => 'project',
-					   data_id => $project_id,
-					   scope => $token_scope,
-					   delegated => 1, } );
+    my $right = $dbm->Rights->create( { granted => 1,
+					name => 'view',
+					data_type => 'project',
+					data_id => $project_id,
+					scope => $token_scope,
+					delegated => 1, } );
     unless (ref $right) {
       $self->application->add_message('warning', "failed to create right for token");
       return 0;
