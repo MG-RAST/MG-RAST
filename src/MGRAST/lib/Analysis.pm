@@ -1791,28 +1791,29 @@ sub get_md5_abundance {
 }
 
 sub get_org_md5 {
-    my ($self, $eval, $ident, $alen, $sources, $use_taxid) = @_;
-    return $self->_get_annotation_md5('organism', $eval, $ident, $alen, $sources, $use_taxid);
+    my ($self, $eval, $ident, $alen, $sources, $use_id, $use_taxid) = @_;
+    return $self->_get_annotation_md5('organism', $eval, $ident, $alen, $sources, $use_id, $use_taxid);
 }
 
 sub get_ontol_md5 {
-    my ($self, $eval, $ident, $alen, $source) = @_;
-    return $self->_get_annotation_md5('ontology', $eval, $ident, $alen, [$source]);
+    my ($self, $eval, $ident, $alen, $source, $use_id) = @_;
+    return $self->_get_annotation_md5('ontology', $eval, $ident, $alen, [$source], $use_id);
 }
 
 sub get_func_md5 {
-    my ($self, $eval, $ident, $alen, $sources) = @_;
-    return $self->_get_annotation_md5('function', $eval, $ident, $alen, $sources);
+    my ($self, $eval, $ident, $alen, $sources, $use_id) = @_;
+    return $self->_get_annotation_md5('function', $eval, $ident, $alen, $sources, $use_id);
 }
 
 sub _get_annotation_md5 {
-    my ($self, $type, $eval, $ident, $alen, $sources, $use_taxid) = @_;
+    my ($self, $type, $eval, $ident, $alen, $sources, $use_id, $use_taxid) = @_;
     
     my $cache_key = $type."md5";
     $cache_key .= defined($eval) ? $eval : ":";
     $cache_key .= defined($ident) ? $ident : ":";
     $cache_key .= defined($alen) ? $alen : ":";
     $cache_key .= defined($sources) ? join(";", @$sources) : ":";
+    $cache_key .= defined($use_id) ? ':1' : ":0";
     $cache_key .= defined($use_taxid) ? ':1' : ":0";
 
     my $data = {};
@@ -1828,15 +1829,21 @@ sub _get_annotation_md5 {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "j.ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "j.len_avg >= $alen"    : "";
 
-    my $key = 'a.name';
+    my $key = $use_id ? 'j.id' : 'a.name';
     my $tid = '';
     if (($type eq 'organism') && $use_taxid) {
         $key = 'a.ncbi_tax_id';
         $tid = 'a.ncbi_tax_id IS NOT NULL';
     }
     my $qsrcs = ($sources && (@$sources > 0)) ? "j.source IN (" . join(",", map { $self->_src_id->{$_} } @$sources) . ")" : "";
-    my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen, $tid]);
-    my $sql   = "SELECT DISTINCT j.job,$key,j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    my $sql;
+    if ($use_id && (! $use_taxid)) {
+        my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", $qsrcs, $eval, $ident, $alen]);
+        $sql = "SELECT DISTINCT j.job,$key,j.md5s FROM ".$self->_jtbl->{$type}." j".$where;
+    } else {
+        my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen, $tid]);
+        $sql = "SELECT DISTINCT j.job,$key,j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    }
     
     foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
         my $mg = $self->_mg_map->{$row->[0]};
@@ -1847,7 +1854,7 @@ sub _get_annotation_md5 {
     }
 
     return $data;
-    # mgid => annotation => { md5 }
+    # mgid => annotation/id => { md5 }
 }
 
 sub get_md5s_for_tax_level {
