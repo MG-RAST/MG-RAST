@@ -1785,8 +1785,6 @@ sub qiime_export_data {
   my $alength  = $cgi->param('alength')  || undef;
   
   $self->{mgdb}->set_jobs($mgs);
-  my %md5_names;  # md5 => [ name ]
-  my %name_set;   # { names }
   
   my ($tbl_type, $md_type);
   my $name_md5s  = {}; # mgid => name => { md5_int }
@@ -1795,24 +1793,24 @@ sub qiime_export_data {
   if ($type eq 'organism') {
     $tbl_type  = "Taxon table";
     $md_type   = 'taxonomy';
-    $name_md5s = $self->{mgdb}->get_org_md5($evalue, $identity, $alength, \@sources, 1); # mgid => name => { md5 }
+    $name_md5s = $self->{mgdb}->get_org_md5($evalue, $identity, $alength, \@sources, 1); # mgid => annot_id => { md5_int }
   } else {
     $tbl_type  = "Function table";
     $md_type   = 'ontology';
     $type      = 'ontology';
-    $name_md5s = $self->{mgdb}->get_ontol_md5($evalue, $identity, $alength, $sources[0]); # mgid => name => { md5 }
+    $name_md5s = $self->{mgdb}->get_ontol_md5($evalue, $identity, $alength, $sources[0], 1); # mgid => annot_id => { md5_int }
   }
 
+  my %md5_names;  # md5_int => { annot_id }
   foreach my $mg (keys %$name_md5s) {
     foreach my $name (keys %{$name_md5s->{$mg}}) {
       foreach my $md5 (keys %{$name_md5s->{$mg}{$name}}) {
-	    push @{ $md5_names{$md5} }, $name;
+	    $md5_names{$md5}{$name} = 1;
       }
-      $name_set{$name} = 1;
     }
   }    
 
-  my $name_hier = $self->{mgdb}->get_hierarchy($type, $sources[0], 1); # name => [ hierarchy ]
+  my $name_hier = $self->{mgdb}->get_hierarchy($type, $sources[0], undef, 1); # annot_id => [ hierarchy ]
   my $md2pos = {};
   my $values = [];
   my $hier = [];
@@ -1820,22 +1818,21 @@ sub qiime_export_data {
 
   foreach my $md5 (keys %md5_names) {
     my $counts = [];
-    my $names  = $md5_names{$md5};
     foreach my $mg (@$mgs) {
       push @$counts, $mg_md5_abd->{$mg}->{$md5} ? $mg_md5_abd->{$mg}->{$md5} : 0;
     }
     if ((sum @$counts) == 0) { next; }
-    foreach my $n ( @{$md5_names{$md5}} ) {
+    foreach my $n ( sort keys %{$md5_names{$md5}} ) {
       if (exists($name_hier->{$n}) && (@{$name_hier->{$n}} > 0)) {
 	    my @qiime = ($type eq 'organism') ? ("Root", @{$name_hier->{$n}}, $n) : @{$name_hier->{$n}};
-	    if (! $md2pos->{$n}) {
+	    if (! exists($md2pos->{$n})) {
 	      $md2pos->{$n} = $pos;
 	      push(@$hier, { "id" => $n, "metadata" => { $md_type => \@qiime } });
 	      $pos++;
 	    }
 	    for (my $i=0; $i<scalar(@$mgs); $i++) {
 	      if ($mg_md5_abd->{$mgs->[$i]}->{$md5}) {
-	        push @$values, [ $md2pos->{$n}, $i, int($mg_md5_abd->{$mgs->[$i]}->{$md5})];
+	        push @$values, [ $md2pos->{$n}, $i, int($mg_md5_abd->{$mgs->[$i]}->{$md5}) ];
 	      }
 	    }
       }
@@ -1844,7 +1841,7 @@ sub qiime_export_data {
 
   use POSIX qw(strftime);
   my $data = { "id"                  => "",
-	       "format"              => "Biological Observation Matrix 0.9.1",
+	       "format"              => "Biological Observation Matrix 1.0",
 	       "format_url"          => "http://biom-format.org",
 	       "type"                => $tbl_type,
 	       "generated_by"        => "MG-RAST revision ".$Conf::server_version,
