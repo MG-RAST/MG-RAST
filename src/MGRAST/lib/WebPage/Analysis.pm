@@ -2022,7 +2022,7 @@ sub single_visual {
     my $colhashcount = {};
     my $newdata = [];
     foreach my $d (@$data) {
-      my $range = 2 + $cgi->param('group_by');
+      my $range = 1 + $cgi->param('group_by');
       my $key = join(";", @$d[0..$range]);
       if (exists($dhash->{$key})) { # sum|avg|avg|avg|avg|avg|avg|hash|num_hash|sum
 	$newdata->[$dhash->{$key}]->[9] = $newdata->[$dhash->{$key}]->[9] + $d->[9];
