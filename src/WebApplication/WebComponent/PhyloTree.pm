@@ -386,7 +386,7 @@ sub output {
 	  $info .= "</tr>";
 	  my $ii = 0;
 	  foreach my $n (@{$leaf->{children}}) {
-	    $info .= "<tr><td style='background-color: rgb(".$pie->color_set->[$ii + 6]->[0].",".$pie->color_set->[$ii + 6]->[1].",".$pie->color_set->[$ii + 6]->[2].");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td>";
+	    $info .= "<tr><td style='background-color: rgb(".($pie->color_set->[$ii + 6]->[0]||0).",".($pie->color_set->[$ii + 6]->[1]||0).",".($pie->color_set->[$ii + 6]->[2]||0).");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td>";
 	    for (my $hh=0; $hh<scalar(@{$self->sample_names}); $hh++) {
 	      my $percent = "0";
 	      if ($self->{nodes}->{$n}->{value}->[$hh]) {
@@ -538,7 +538,7 @@ sub output {
 	    $info .= "</tr>";
 	    my $ii = 0;
 	    foreach my $n (@{$node->{children}}) {
-	      $info .= "<tr><td style='background-color: rgb(".$pie->color_set->[$ii + 6]->[0].",".$pie->color_set->[$ii + 6]->[1].",".$pie->color_set->[$ii + 6]->[2].");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td>";
+	      $info .= "<tr><td style='background-color: rgb(".($pie->color_set->[$ii + 6]->[0]||0).",".($pie->color_set->[$ii + 6]->[1]||0).",".($pie->color_set->[$ii + 6]->[2]||0).");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td>";
 	      for (my $hh=0; $hh<scalar(@{$self->sample_names}); $hh++) {
 		my $percent = "0";
 		if ($self->{nodes}->{$n}->{value}->[$hh]) {
