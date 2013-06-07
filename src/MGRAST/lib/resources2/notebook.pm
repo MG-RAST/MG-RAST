@@ -129,6 +129,15 @@ sub info {
               				               'parameters'  => { 'options'  => { 'email' => ['string', "email of user to share with"] },
               							                      'required' => { "nbid" => ["string", "unique notebook object identifier"] },
               							                      'body'     => {} } },
+              							 { 'name'        => "publish",
+               				               'request'     => $self->cgi->url."/".$self->name."/publish/{NBID}",
+               				               'description' => "Publishes a private notebook (and its history)",
+               				               'method'      => "GET",
+               				               'type'        => "synchronous",  
+               				               'attributes'  => $self->attributes,
+               				               'parameters'  => { 'options'  => { 'description' => ['string', "description of notebook"] },
+               							                      'required' => { "nbid" => ["string", "unique notebook object identifier"] },
+               							                      'body'     => {} } },
              							 { 'name'        => "delete",
               				               'request'     => $self->cgi->url."/".$self->name."/delete/{NBID}",
               				               'description' => "Flags notebook as deleted.",
@@ -160,6 +169,10 @@ sub instance {
     if (($self->rest->[0] eq 'share') && (@{$self->rest} > 1)) {
         $self->share_notebook($self->rest->[1]);
     }
+    # possible publish
+    if (($self->rest->[0] eq 'publish') && (@{$self->rest} > 1)) {
+        $self->share_notebook($self->rest->[1]);
+    }
     # possible delete
     if (($self->rest->[0] eq 'delete') && (@{$self->rest} > 1)) {
         $self->delete_notebook($self->rest->[1]);
@@ -179,7 +192,10 @@ sub instance {
 
     # clone node if requested (update shock attributes and ipynb metadata)
     if (@{$self->rest} > 1) {
-        my $clone = $self->clone_notebook($node, $self->rest->[1], $self->cgi->param('name'));
+        my $params = { 'name' => $self->cgi->param('name'),
+                       'nbid' => $self->rest->[1],
+                       'type' => $self->cgi->param('type') };
+        my $clone = $self->clone_notebook($node);
         $data = $self->prepare_data( [$clone] );
     } else {
         $data = $self->prepare_data( [$node] );
@@ -258,21 +274,22 @@ sub prepare_data {
 
 # copy given nb node / update attributes and metadata
 sub clone_notebook {
-    my ($self, $node, $uuid, $name, $delete) = @_;
+    my ($self, $node, $params) = @_;
     
-    my $type = $self->cgi->param('type') || undef;
     my $file = $self->json->decode( encode_utf8($self->get_shock_file($node->{id}, undef, $self->shock_auth())) );
-    my $attr = { name => $name || $node->{attributes}{name}.'_copy',
-                 nbid => $uuid,
-                 type => $type ? $type : ($node->{attributes}{type} ? $node->{attributes}{type} : 'generic'),
+    my $attr = { name => $node->{attributes}{name}.'_copy',
+                 nbid => undef,
+                 type => $node->{attributes}{type} ? $node->{attributes}{type} : 'generic',
                  owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
                  access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
                  created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                  permission => 'edit',
                  description => $node->{attributes}{description} || ''
                };
-    if ($delete) {
-        $attr->{deleted} = 1;
+    foreach my $key (keys %$params) {
+        if ($params->{$key}) {
+            $attr->{$key} = $params->{$key};
+        }
     }
     $file->{'metadata'} = $attr;
     my $new_node = $self->set_shock_node($node->{id}.'.ipynb', $file, $attr, $self->shock_auth(1));
@@ -305,17 +322,44 @@ sub share_notebook {
     $self->return_data($data);
 }
 
-# delete notebook - we make a newer copy that we flag as deleted
+# publish notebook - we make a copy (new nbid) that we publish with 'public' and 'view'
+sub publish_notebook {
+    my ($self, $uuid) = @_;
+    
+    my $desc = $self->cgi->param('description') || undef;
+    unless ($desc) {
+        $self->return_data( {"ERROR" => "Missing description to publish notebook $uuid with."}, 500 );
+    }
+    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', {nbid => $uuid}, $self->shock_auth())};
+    my $latest = $nb_set[0];
+    my $attr = $latest->{attributes};
+    if ((! $self->{user_info}) || ($attr->{permission} eq 'view') || ($attr->{owner} eq 'public') || ($attr->{owner} ne $self->{user_info}{username})) {
+        $self->return_data( {"ERROR" => "insufficient permissions to delete this notebook"}, 401 );
+    }
+    $attr->{description} = $desc;
+    $attr->{permission} = 'view';
+    $attr->{access} = [];
+    $attr->{owner} = 'public';
+    $attr->{nbid} = $self->uuidv4();
+    
+    my $new  = $self->clone_notebook($latest, $attr);
+    my $data = $self->prepare_data( [$new] );
+    $self->return_data($data->[0]);
+}
+
+# delete notebook - we make a copy (same nbid) that we flag as deleted
 sub delete_notebook {
     my ($self, $uuid) = @_;
     
-    my $attr   = {nbid => $uuid};
+    my $attr = {nbid => $uuid};
     my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
     my $latest = $nb_set[0];
     if (($latest->{attributes}{permission} eq 'view') || ($self->{user_info} && ($latest->{attributes}{owner} ne $self->{user_info}{username}))) {
         $self->return_data( {"ERROR" => "insufficient permissions to delete this notebook"}, 401 );
     }
-    my $new  = $self->clone_notebook($latest, $latest->{attributes}{nbid}, $latest->{attributes}{name}, 1);
+    $attr->{name} = $latest->{attributes}{name};
+    $attr->{deleted} = 1;
+    my $new  = $self->clone_notebook($latest, $attr);
     my $data = $self->prepare_data( [$new] );
     $self->return_data($data->[0]);
 }
