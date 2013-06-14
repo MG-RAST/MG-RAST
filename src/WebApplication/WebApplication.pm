@@ -11,6 +11,7 @@ use CGI;
 use CGI::Cookie;
 use HTML::Strip;
 use DBMaster;
+use Scalar::Util qw/reftype/;
 
 # include default WebPages
 use WebMenu;
@@ -128,7 +129,7 @@ sub new {
   foreach my $p (@cgi_params) {
     my @plist = $cgi->param($p);
     foreach my $p1 (@plist) {
-      if ($p1) {
+      if ($p1 && reftype($p1) eq "") {
         $p1 = $hs->parse($p1);
       }
     }
