@@ -40,6 +40,7 @@ sub new {
   my $self = shift->SUPER::new(@_);
 
   $self->{successful_request} = 0;
+  $self->{use_recaptcha} = 1;
 
   $self->application->register_action($self, 'perform_registration', $self->get_trigger('register'));
   $self->application->register_action($self, 'claim_invitation', $self->get_trigger('claim'));
@@ -115,7 +116,9 @@ sub output {
     $iform .= "<tr><td>URL</td><td>http://<input type='text' name='lru'></td></tr>";
     $iform .= "<tr><td>Country</td><td>" . $cgi->popup_menu( -name => 'country', -values => $country_values, -labels => $country_codes, -default => 'US' ) . "</td></tr>";
 
-    $iform .= &recaptcha();
+    if ($self->{use_recaptcha}) {
+      $iform .= &recaptcha();
+    }
 
     $iform .= "<td><input type='submit' class='button' value='Request'></td></tr>";
     $iform .= "</table>";
@@ -162,7 +165,9 @@ sub output {
       $new_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $new_account .= "</table>";
 
-      $new_account .= &recaptcha();
+      if ($self->{use_recaptcha}) {
+	$new_account .= &recaptcha();
+      }
       
       $new_account .= $self->application->page->end_form;
       
@@ -180,7 +185,9 @@ sub output {
       $existing_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $existing_account .= "</table>";
 
-      $existing_account .= &recaptcha();
+      if ($self->{use_recaptcha}) {
+	$existing_account .= &recaptcha();
+      }
       
       $existing_account .= $self->application->page->end_form;
       
@@ -229,9 +236,11 @@ sub perform_registration {
   }
   
   # check recaptcha
-  if (! &check_answer()) {
-    $application->add_message('warning', 'reCAPTCHA incorrect, please retry.');
-    return 0;
+  if ($self->{use_recaptcha}) {
+    if (! &check_answer()) {
+      $application->add_message('warning', 'reCAPTCHA incorrect, please retry.');
+      return 0;
+    }
   }
 
   # check for an email address
