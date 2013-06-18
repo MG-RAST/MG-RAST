@@ -538,10 +538,10 @@ sub get_shock_query {
 }
 
 sub get_solr_query {
-    my ($self, $server, $space, $query, $offset, $limit, $fields) = @_;
+    my ($self, $server, $collect, $query, $offset, $limit, $fields) = @_;
     
     my $data = undef;
-    my $url = $server.'/'.$space.'/select?q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json';
+    my $url = $server.'/'.$collect.'/select?q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json';
     if ($fields && (@$fields > 0)) {
         $url .= '&fl='.join('%2C', @$fields);
     }

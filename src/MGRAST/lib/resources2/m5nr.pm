@@ -163,8 +163,7 @@ sub info {
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-    					                                    'partial' => [ 'boolean', "if true return all sets where organism contains input string, else requires exact match. default is false." ]
+                                                            'offset' => ['integer','zero based index of the first data object to be returned']
     					                                  },
    							                'required' => { "text" => ["string", "text string of function name"] },
    							                'body'     => {} }
@@ -176,8 +175,7 @@ sub info {
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-     					                                    'partial' => [ 'boolean', "if true return all sets where organism contains input string, else requires exact match. default is false." ]
+                                                            'offset' => ['integer','zero based index of the first data object to be returned']
      					                                  },
    							                'required' => { "text" => ["string", "text string of organism name"] },
    							                'body'     => {} }
@@ -189,8 +187,7 @@ sub info {
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-      					                                    'partial' => [ 'boolean', "if true return all sets where organism contains input string, else requires exact match. default is false." ]
+                                                            'offset' => ['integer','zero based index of the first data object to be returned']
       					                                  },
    							                'required' => { "text" => ["string", "text string of protein sequence"] },
    							                'body'     => {} }
@@ -327,17 +324,13 @@ sub instance {
 sub query {
     my ($self, $type, $item) = @_;
     
-    # params
-    my $partial = $self->cgi->param('partial') ? 1 : 0;
+    # pagination
     my $limit  = $self->cgi->param('limit') ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
     
     # build url
     my $path = '/'.$type.'/'.$item;
-    my $url = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
-    if ($partial) {
-        $url .= '&partial=1';
-    }
+    my $url  = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
     
     # strip wildcards    
     $item =~ s/\*//g;
@@ -348,13 +341,15 @@ sub query {
         $item = Digest::MD5::md5_hex( uc $item );
         $type = 'md5';
     }
-    # clean md5
-    if ($type eq 'md5') {
-        $item = $self->clean_md5($item);
-    }
     
     # get results
-    my ($data, $total) = $self->solr_data($type, $item, $offset, $limit, $partial);
+    my ($data, $total);
+    if ($type eq 'md5') {
+        my $md5 = $self->clean_md5($item);
+        ($data, $total) = $self->solr_data('md5', $md5, $offset, $limit);
+    } else {
+        ($data, $total) = $self->solr_data($type, $item, $offset, $limit, 1);
+    }
     my $obj = $self->check_pagination($data, $total, $limit, $path);
     $obj->{url} = $url;
     $obj->{version} = 1;
@@ -376,14 +371,14 @@ sub clean_md5 {
 }
 
 sub solr_data {
-    my ($self, $field, $text, $offset, $limit, $part) = @_;
+    my ($self, $field, $text, $offset, $limit, $partial) = @_;
     $text = uri_unescape($text);
     $text = uri_escape($text);
-    if ($part) {
+    if ($partial) {
         $text = '*'.$text.'*';
     }
     my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
-    return $self->get_solr_query($Conf::m5nr_solr, 'm5nr', $field.'%3A'.$text, $offset, $limit, $fields);
+    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $field.'%3A'.$text, $offset, $limit, $fields);
 }
 
 1;
