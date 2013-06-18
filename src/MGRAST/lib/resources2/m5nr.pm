@@ -4,6 +4,9 @@ use strict;
 use warnings;
 no warnings('once');
 
+use URI::Escape;
+use Digest::MD5;
+
 use MGRAST::Analysis;
 use Babel::lib::Babel;
 use Conf;
@@ -18,6 +21,8 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "m5nr";
+    $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
+                         md5 => 1, function => 1, organism => 1, sequence => 1 };
     $self->{sources} = [ ['Subsystems', 'returns 4 level SEED-Subsystems ontology' ],
 						 ['COG', 'returns 3 level COG ontology'],
 					     ['NOG', 'returns 3 level NOG ontology'],
@@ -44,16 +49,23 @@ sub new {
                                                                  'value' => ['object', 'source object']}, 'source object hash'] ],
                                           version => [ 'integer', 'version of the object' ],
                                           url     => [ 'uri', 'resource location of this object instance' ] },
-                            annotation => { version => [ 'integer', 'version of the object' ],
+                            annotation => { next   => ["uri","link to the previous set or null if this is the first set"],
+                                            prev   => ["uri","link to the next set or null if this is the last set"],
+                                            limit  => ["integer","maximum number of data items returned, default is 10"],
+                                            offset => ["integer","zero based index of the first returned data item"],
+                                            total_count => ["integer","total number of available data items"],
+                                            version => [ 'integer', 'version of the object' ],
                                             url  => [ 'uri', 'resource location of this object instance' ],
-                                            data => [ 'list', ['object', [{'id'       => [ 'string', 'unique identifier' ],
-                                                                           'md5'      => [ 'string', 'md5 checksum - M5NR ID' ],
-                                                                           'function' => [ 'string', 'function annotation' ],
-                                                                           'organism' => [ 'string', 'organism annotation' ],
-                                                                           'source'   => [ 'string', 'source name' ]}, "annotation object"]] ] },
+                                            data => [ 'list', ['object', [{'accession'   => [ 'string', 'unique identifier given by source' ],
+                                                                           'md5'         => [ 'string', 'md5 checksum - M5NR ID' ],
+                                                                           'function'    => [ 'string', 'function annotation' ],
+                                                                           'organism'    => [ 'string', 'organism annotation' ],
+                                                                           'ncbi_tax_id' => [ 'int', 'organism ncbi tax_id' ],
+                                                                           'type'        => [ 'string', 'source type' ],
+                                                                           'source'      => [ 'string', 'source name' ]}, "annotation object"]] ] },
                             sequence => { version => [ 'integer', 'version of the object' ],
                                           url  => [ 'uri', 'resource location of this object instance' ],
-                                          data => [ 'object', [{'id'       => [ 'string', 'unique identifier' ],
+                                          data => [ 'object', [{'accession' => [ 'string', 'unique identifier given by source' ],
                                                                  'md5'      => [ 'string', 'md5 checksum - M5NR ID' ],
                                                                  'sequence' => [ 'string', 'protein sequence' ]}, "sequence object"] ] }
              	          };
@@ -118,14 +130,17 @@ sub info {
 							                'required' => {},
 							                'body'     => {} }
 				       },
-				       { 'name'        => "ID",
-   					     'request'     => $self->cgi->url."/".$self->name."/id/{id}",
+				       { 'name'        => "accession",
+   					     'request'     => $self->cgi->url."/".$self->name."/accession/{id}",
    					     'description' => "Return annotation or sequence of given source protein ID",
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ] },
-   							                'required' => { "id" => ["string", "unique identifier from protein DB"] },
+   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
+    					                                    'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
+    					                                  },
+   							                'required' => { "id" => ["string", "unique identifier from source DB"] },
    							                'body'     => {} }
    				       },
 				       { 'name'        => "md5",
@@ -134,7 +149,10 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ] },
+   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
+   					                                        'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
+   					                                      },
    							                'required' => { "id" => ["string", "unique identifier in form of md5 checksum"] },
    							                'body'     => {} }
    				       },
@@ -144,7 +162,10 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'partial' => [ 'boolean', "if true return all sets where function contains input string, else requires exact match. default is false." ] },
+   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
+    					                                    'partial' => [ 'boolean', "if true return all sets where organism contains input string, else requires exact match. default is false." ]
+    					                                  },
    							                'required' => { "text" => ["string", "text string of function name"] },
    							                'body'     => {} }
    				       },
@@ -154,7 +175,10 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'partial' => [ 'boolean', "if true return all sets where organism contains input string, else requires exact match. default is false." ] },
+   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
+     					                                    'partial' => [ 'boolean', "if true return all sets where organism contains input string, else requires exact match. default is false." ]
+     					                                  },
    							                'required' => { "text" => ["string", "text string of organism name"] },
    							                'body'     => {} }
    				       },
@@ -164,7 +188,10 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => {},
+   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
+      					                                    'partial' => [ 'boolean', "if true return all sets where organism contains input string, else requires exact match. default is false." ]
+      					                                  },
    							                'required' => { "text" => ["string", "text string of protein sequence"] },
    							                'body'     => {} }
    				       } ]
@@ -175,13 +202,18 @@ sub info {
 # Override parent request function
 sub request {
     my ($self) = @_;
+
+    my $seq = $self->cgi->param('sequence') ? 1 : 0;
+    
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
     } elsif (($self->rest->[0] eq 'taxonomy') || ($self->rest->[0] eq 'ontology') || ($self->rest->[0] eq 'sources')) {
         $self->static($self->rest->[0]);
-    } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1]) {
+    } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && $seq) {
         $self->instance($self->rest->[0], $self->rest->[1]);
+    } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1]) {
+        $self->query($self->rest->[0], $self->rest->[1]);
     } else {
         $self->info();
     }
@@ -257,7 +289,7 @@ sub static {
     $self->return_data($obj, undef, 1);
 }
 
-# return object data: id, md5, sequence
+# return data: sequence object for accession or md5
 sub instance {
     my ($self, $type, $item) = @_;
     
@@ -267,42 +299,22 @@ sub instance {
         $self->return_data({"ERROR" => "could not connect to M5NR database"}, 500);
     }
     
-    my $seq  = $self->cgi->param('sequence') ? 1 : 0;
-    my $part = $self->cgi->param('partial') ? 1 : 0;
     my $data = [];
-    my $url  = $self->cgi->url.'/m5nr/'.$type.'/'.$item;
+    my $url  = $self->cgi->url.'/m5nr/'.$type.'/'.$item.'?sequence=1';
     
-    if ($type eq 'id') {
-        if ($seq) {
-            my $md5 = $ach->id2md5($item);
-            unless ($md5 && @$md5 && $md5->[0][0]) {
-                $self->return_data( {"ERROR" => "id $item does not exist in M5NR"}, 404 );
-            }
-            $data = {id => $item, md5 => $md5->[0][0], sequence => $ach->md52sequence($md5->[0][0])};
-        } else {
-            $data = $self->reformat_set($ach->id2set($item));
+    if ($type eq 'md5') {
+        my $md5 = $self->clean_md5($item);
+        $data = {id => undef, md5 => $md5, sequence => $ach->md52sequence($item)};
+    } elsif ($type eq 'accession') {
+        my $md5 = $self->clean_md5( $ach->id2md5($item) );
+        unless ($md5 && @$md5 && $md5->[0][0]) {
+            $self->return_data( {"ERROR" => "accession $item does not exist in M5NR"}, 404 );
         }
-    } elsif ($type eq 'md5') {
-        if ($seq) {
-            $data = {id => undef, md5 => $item, sequence => $ach->md52sequence($item)};
-        } else {
-            $data = $self->reformat_set($ach->md52set($item));
-        }
-    } elsif ($type eq 'function') {
-        $data = $self->reformat_set($ach->functions2sets([$item], $part));
-    } elsif ($type eq 'organism') {
-        $data = $self->reformat_set($ach->organisms2sets([$item], $part));
-    } elsif ($type eq 'sequence') {
-        $data = $self->reformat_set($ach->sequence2set(uc($item)));
+        $data = {id => $item, md5 => $md5->[0][0], sequence => $ach->md52sequence($md5->[0][0])};
     } else {
-        $self->return_data({"ERROR" => "Invalid resource type was entered ($type)."}, 404);
+        $self->return_data({"ERROR" => "Invalid resource type was entered ($type) for sequence output."}, 404);
     }
     
-    if ($seq) {
-        $url .= '?sequence=1';
-    } elsif ($part) {
-        $url .= '?partial=1';
-    }
     my $obj = { data => $data, version => 1, url => $url };
     
     # return cached if exists
@@ -311,17 +323,67 @@ sub instance {
     $self->return_data($obj, undef, 1);
 }
 
-sub reformat_set {
-    my ($self, $set) = @_;
-    my $data = [];
-    foreach my $s (@$set) {
-	    push @$data, { id       => $s->[0],
-		               md5      => $s->[1],
-		               function => $s->[2],
-		               organism => $s->[3],
-		               source   => $s->[4] };
+# return query data: annotation object
+sub query {
+    my ($self, $type, $item) = @_;
+    
+    # params
+    my $partial = $self->cgi->param('partial') ? 1 : 0;
+    my $limit  = $self->cgi->param('limit') ? $self->cgi->param('limit') : 10;
+    my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
+    
+    # build url
+    my $path = '/'.$type.'/'.$item;
+    my $url = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
+    if ($partial) {
+        $url .= '&partial=1';
     }
-    return $data;
+    
+    # strip wildcards    
+    $item =~ s/\*//g;
+
+    # get md5 for sequence
+    if ($type eq 'sequence') {
+        $item =~ s/\s+//sg;
+        $item = Digest::MD5::md5_hex( uc $item );
+        $type = 'md5';
+    }
+    # clean md5
+    if ($type eq 'md5') {
+        $item = $self->clean_md5($item);
+    }
+    
+    # get results
+    my ($data, $total) = $self->solr_data($type, $item, $offset, $limit, $partial);
+    my $obj = $self->check_pagination($data, $total, $limit, $path);
+    $obj->{url} = $url;
+    $obj->{version} = 1;
+    
+    # return cached if exists
+    $self->return_cached();
+    # cache this!
+    $self->return_data($obj, undef, 1);
+}
+
+sub clean_md5 {
+    my ($self, $md5) = @_;
+    my $clean = $md5;
+    $clean =~ s/[^a-zA-Z0-9]//g;
+    unless ($clean && (length($clean) == 32)) {
+        $self->return_data({"ERROR" => "Invalid md5 was entered ($md5)."}, 404);
+    }
+    return $clean;
+}
+
+sub solr_data {
+    my ($self, $field, $text, $offset, $limit, $part) = @_;
+    $text = uri_unescape($text);
+    $text = uri_escape($text);
+    if ($part) {
+        $text = '*'.$text.'*';
+    }
+    my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
+    return $self->get_solr_query($Conf::m5nr_solr, 'm5nr', $field.'%3A'.$text, $offset, $limit, $fields);
 }
 
 1;
