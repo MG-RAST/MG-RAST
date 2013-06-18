@@ -206,11 +206,14 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-    my ($self, $data, $total, $limit) = @_;
+    my ($self, $data, $total, $limit, $path) = @_;
 
     my $offset = $self->cgi->param('offset') || 0;
-    my $order  = $self->cgi->param('order')  || "id";
+    my $order  = $self->cgi->param('order') || undef;
     my @params = $self->cgi->param;
+    $total = int($total);
+    $limit = int($limit);
+    $path  = $path || "";
     
     my $total_count = $total || scalar(@$data);
     my $additional_params = "";
@@ -225,21 +228,25 @@ sub check_pagination {
     my $prev_offset = (($offset - $limit) < 0) ? 0 : $offset - $limit;
     my $next_offset = $offset + $limit;
     
-    my $prev = ($offset > 0) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$prev_offset" : undef;
-    my $next = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$next_offset" : undef;
-
-    my $attributes = $self->attributes;
-    if (exists($attributes->{$order})) {
-        return { "limit" => $limit,
-		          "offset" => $offset,
-		          "total_count" => $total_count,
-		          "order" => $order,
-		          "next" => $next,
-		          "prev" => $prev,
-		          "data" => $data };
-    } else {
-        $self->return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
-    }
+    my $prev = ($offset > 0) ? $self->cgi->url."/".$self->name.$path."?$additional_params&offset=$prev_offset" : undef;
+    my $next = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name.$path."?$additional_params&offset=$next_offset" : undef;
+    my $object = { "limit" => int($limit),
+	               "offset" => int($offset),
+	               "total_count" => int($total_count),
+	               "next" => $next,
+	               "prev" => $prev,
+	               "data" => $data };
+	
+	if ($order) {
+	    if (exists $self->attributes->{$order}) {
+	        $object->{order} = $order;
+	        return $object;
+	    } else {
+	        $self->return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
+	    }
+	} else {
+	    return $object;
+	}
 }
 
 # return cached data if exists
@@ -527,6 +534,28 @@ sub get_shock_query {
         $self->return_data( {"ERROR" => "Unable to query Shock: ".$shock->{error}}, $shock->{status} );
     } else {
         return $shock->{data};
+    }
+}
+
+sub get_solr_query {
+    my ($self, $server, $space, $query, $offset, $limit, $fields) = @_;
+    
+    my $data = undef;
+    my $url = $server.'/'.$space.'/select?q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json';
+    if ($fields && (@$fields > 0)) {
+        $url .= '&fl='.join('%2C', @$fields);
+    }
+    print STDERR $url."&indent=true\n";
+    eval {
+        my $get = $self->agent->get($url);
+        $data = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($data))) {
+        return ([], 0);
+    } elsif (exists $data->{error}) {
+        $self->return_data( {"ERROR" => "Unable to query DB: ".$data->{error}{msg}}, $data->{error}{status} );
+    } else {
+        return ($data->{response}{docs}, $data->{response}{numFound});
     }
 }
 
