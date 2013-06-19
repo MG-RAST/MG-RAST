@@ -307,7 +307,7 @@ sub instance {
         unless ($md5 && @$md5 && $md5->[0][0]) {
             $self->return_data( {"ERROR" => "accession $item does not exist in M5NR"}, 404 );
         }
-        $clean = $self->clean_md5($md5->[0][0]);
+        my $clean = $self->clean_md5($md5->[0][0]);
         $data = {id => $item, md5 => $clean, sequence => $ach->md52sequence($md5->[0][0])};
     } else {
         $self->return_data({"ERROR" => "Invalid resource type was entered ($type) for sequence output."}, 404);
