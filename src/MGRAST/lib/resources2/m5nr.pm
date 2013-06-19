@@ -300,14 +300,15 @@ sub instance {
     my $url  = $self->cgi->url.'/m5nr/'.$type.'/'.$item.'?sequence=1';
     
     if ($type eq 'md5') {
-        my $md5 = $self->clean_md5($item);
-        $data = {id => undef, md5 => $md5, sequence => $ach->md52sequence($item)};
+        my $clean = $self->clean_md5($item);
+        $data = {id => undef, md5 => $clean, sequence => $ach->md52sequence($item)};
     } elsif ($type eq 'accession') {
-        my $md5 = $self->clean_md5( $ach->id2md5($item) );
+        my $md5 = $ach->id2md5($item);
         unless ($md5 && @$md5 && $md5->[0][0]) {
             $self->return_data( {"ERROR" => "accession $item does not exist in M5NR"}, 404 );
         }
-        $data = {id => $item, md5 => $md5->[0][0], sequence => $ach->md52sequence($md5->[0][0])};
+        $clean = $self->clean_md5($md5->[0][0]);
+        $data = {id => $item, md5 => $clean, sequence => $ach->md52sequence($md5->[0][0])};
     } else {
         $self->return_data({"ERROR" => "Invalid resource type was entered ($type) for sequence output."}, 404);
     }
