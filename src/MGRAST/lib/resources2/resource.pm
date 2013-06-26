@@ -428,7 +428,7 @@ sub edit_shock_acl {
     if ($@ || (! ref($response))) {
         return undef;
     } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to $action ACL '$acl' to node $id in Shock: ".$response->{error}}, $response->{status} );
+        $self->return_data( {"ERROR" => "Unable to $action ACL '$acl' to node $id in Shock: ".$response->{error}[0]}, $response->{status} );
     } else {
         return $response->{data};
     }
@@ -439,7 +439,7 @@ sub set_shock_node {
     
     my $attr_str = $self->json->encode($attr);
     my $file_str = $self->json->encode($file);
-    my $content  = [datatype => 'ipynb', attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str]];
+    my $content  = [attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str]];
     my $response = undef;
     eval {
         my $post = undef;
@@ -453,7 +453,7 @@ sub set_shock_node {
     if ($@ || (! ref($response))) {
         return undef;
     } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to POST to Shock: ".$response->{error}}, $response->{status} );
+        $self->return_data( {"ERROR" => "Unable to POST to Shock: ".$response->{error}[0]}, $response->{status} );
     } else {
         return $response->{data};
     }
@@ -475,7 +475,7 @@ sub get_shock_node {
     if ($@ || (! ref($content))) {
         return undef;
     } elsif (exists($content->{error}) && $content->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$content->{error}}, $content->{status} );
+        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$content->{error}[0]}, $content->{status} );
     } else {
         return $content->{data};
     }
@@ -497,7 +497,7 @@ sub get_shock_file {
     if ($@ || (! $content)) {
         return undef;
     } elsif (ref($content) && exists($content->{error}) && $content->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET file $id from Shock: ".$content->{error}}, $content->{status} );
+        $self->return_data( {"ERROR" => "Unable to GET file $id from Shock: ".$content->{error}[0]}, $content->{status} );
     } elsif ($file) {
         if (open(FILE, ">$file")) {
             print FILE $content;
@@ -512,12 +512,12 @@ sub get_shock_file {
 }
 
 sub get_shock_query {
-    my ($self, $type, $params, $auth) = @_;
+    my ($self, $params, $auth) = @_;
     
     my $shock = undef;
-    my $query = '?querynode&type='.$type.'&limit=0';
+    my $query = '?query&limit=0';
     if ($params && (scalar(keys %$params) > 0)) {
-        map { $query .= '&attributes.'.$_.'='.$params->{$_} } keys %$params;
+        map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
     }
     eval {
         my $get = undef;
@@ -531,21 +531,24 @@ sub get_shock_query {
     if ($@ || (! ref($shock))) {
         return [];
     } elsif (exists($shock->{error}) && $shock->{error}) {
-        $self->return_data( {"ERROR" => "Unable to query Shock: ".$shock->{error}}, $shock->{status} );
+        $self->return_data( {"ERROR" => "Unable to query Shock: ".$shock->{error}[0]}, $shock->{status} );
     } else {
         return $shock->{data};
     }
 }
 
 sub get_solr_query {
-    my ($self, $server, $collect, $query, $sort_field, $offset, $limit, $fields) = @_;
+    my ($self, $server, $collect, $query, $sort, $offset, $limit, $fields) = @_;
     
     my $data = undef;
-    my $url = $server.'/'.$collect.'/select?q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json&sort='.$sort_field;
+    my $url = $server.'/'.$collect.'/select?q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json';
+    if ($sort) {
+        $url .= '&sort='.$sort;
+    }
     if ($fields && (@$fields > 0)) {
         $url .= '&fl='.join('%2C', @$fields);
     }
-    print STDERR $url."&indent=true\n";
+    #print STDERR $url."&indent=true\n";
     eval {
         my $get = $self->agent->get($url);
         $data = $self->json->decode( $get->content );
