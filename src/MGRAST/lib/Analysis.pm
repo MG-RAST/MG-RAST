@@ -1998,8 +1998,8 @@ sub _get_annotation_md5 {
 }
 
 sub get_md5s_for_tax_level {
-    my ($self, $level, $names) = @_;
-    return $self->_get_md5s_for_annotation_level('organism', $level, $names);
+    my ($self, $level, $names, $source) = @_;
+    return $self->_get_md5s_for_annotation_level('organism', $level, $names, $source);
 }
 
 sub get_md5s_for_ontol_level {
