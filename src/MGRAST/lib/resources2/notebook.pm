@@ -165,19 +165,19 @@ sub info {
 sub instance {
     my ($self) = @_;
 
-    # possible share
+    # share
     if (($self->rest->[0] eq 'share') && (@{$self->rest} > 1)) {
         $self->share_notebook($self->rest->[1]);
     }
-    # possible publish
+    # publish
     if (($self->rest->[0] eq 'publish') && (@{$self->rest} > 1)) {
         $self->share_notebook($self->rest->[1]);
     }
-    # possible delete
+    # delete
     if (($self->rest->[0] eq 'delete') && (@{$self->rest} > 1)) {
         $self->delete_notebook($self->rest->[1]);
     }
-    # possible upload
+    # upload
     if (($self->rest->[0] eq 'upload') && ($self->method eq 'POST')) {
         $self->upload_notebook();
     }
@@ -194,8 +194,9 @@ sub instance {
     if (@{$self->rest} > 1) {
         my $params = { 'name' => $self->cgi->param('name'),
                        'nbid' => $self->rest->[1],
-                       'type' => $self->cgi->param('type') };
-        my $clone = $self->clone_notebook($node);
+                       'type' => $self->cgi->param('type'),
+                       'format' => 'ipynb' };
+        my $clone = $self->clone_notebook($node, $params);
         $data = $self->prepare_data( [$clone] );
     } else {
         $data = $self->prepare_data( [$node] );
@@ -209,11 +210,11 @@ sub query {
     my ($self) = @_;
  
     # get all items the user has access to
-    my $attr  = {};
+    my $attr = {format => 'ipynb'};
     if ($self->cgi->param('type')) {
         $attr->{type} = $self->cgi->param('type');
     }
-    my $nodes = $self->get_shock_query('ipynb', $attr, $self->shock_auth());
+    my $nodes = $self->get_shock_query($attr, $self->shock_auth());
     my $total = scalar @$nodes;
  
     # check limit
@@ -282,6 +283,7 @@ sub clone_notebook {
                  type => $node->{attributes}{type} ? $node->{attributes}{type} : 'generic',
                  owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
                  access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
+                 format => 'ipynb',
                  created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                  permission => 'edit',
                  description => $node->{attributes}{description} || ''
@@ -305,8 +307,8 @@ sub share_notebook {
     unless ($email) {
         $self->return_data( {"ERROR" => "Missing email of user to share notebook $uuid with."}, 500 );
     }
-    my $attr = {nbid => $uuid};
-    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
+    my $attr = {format => 'ipynb', nbid => $uuid};
+    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query($attr, $self->shock_auth())};
     # test permissions
     foreach my $n (@nb_set) {
         my $a = $n->{attributes};
@@ -330,14 +332,16 @@ sub publish_notebook {
     unless ($desc) {
         $self->return_data( {"ERROR" => "Missing description to publish notebook $uuid with."}, 500 );
     }
-    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', {nbid => $uuid}, $self->shock_auth())};
+    my $attr = {format => 'ipynb', nbid => $uuid};
+    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query($attr, $self->shock_auth())};
     my $latest = $nb_set[0];
-    my $attr = $latest->{attributes};
+    $attr = $latest->{attributes};
     if ((! $self->{user_info}) || ($attr->{permission} eq 'view') || ($attr->{owner} eq 'public') || ($attr->{owner} ne $self->{user_info}{username})) {
         $self->return_data( {"ERROR" => "insufficient permissions to delete this notebook"}, 401 );
     }
     $attr->{description} = $desc;
     $attr->{permission} = 'view';
+    $attr->{format} = 'ipynb';
     $attr->{access} = [];
     $attr->{owner} = 'public';
     $attr->{nbid} = $self->uuidv4();
@@ -351,8 +355,8 @@ sub publish_notebook {
 sub delete_notebook {
     my ($self, $uuid) = @_;
     
-    my $attr = {nbid => $uuid};
-    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query('ipynb', $attr, $self->shock_auth())};
+    my $attr = {format => 'ipynb', nbid => $uuid};
+    my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query($attr, $self->shock_auth())};
     my $latest = $nb_set[0];
     if (($latest->{attributes}{permission} eq 'view') || ($self->{user_info} && ($latest->{attributes}{owner} ne $self->{user_info}{username}))) {
         $self->return_data( {"ERROR" => "insufficient permissions to delete this notebook"}, 401 );
@@ -401,6 +405,7 @@ sub upload_notebook {
                     type => $nb_obj->{metadata}{type} || 'generic',
                     owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
                     access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
+                    format => 'ipynb',
                     created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                     permission => $nb_obj->{metadata}{permission} || 'edit',
                     description => $nb_obj->{metadata}{description} || ''

@@ -439,7 +439,7 @@ sub set_shock_node {
     
     my $attr_str = $self->json->encode($attr);
     my $file_str = $self->json->encode($file);
-    my $content  = [datatype => 'ipynb', attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str]];
+    my $content  = [attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str]];
     my $response = undef;
     eval {
         my $post = undef;
@@ -512,12 +512,12 @@ sub get_shock_file {
 }
 
 sub get_shock_query {
-    my ($self, $type, $params, $auth) = @_;
+    my ($self, $params, $auth) = @_;
     
     my $shock = undef;
-    my $query = '?querynode&type='.$type.'&limit=0';
+    my $query = '?query&limit=0';
     if ($params && (scalar(keys %$params) > 0)) {
-        map { $query .= '&attributes.'.$_.'='.$params->{$_} } keys %$params;
+        map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
     }
     eval {
         my $get = undef;
