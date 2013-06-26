@@ -138,6 +138,7 @@ sub info {
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
     					                                    'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
     					                                  },
    							                'required' => { "id" => ["string", "unique identifier from source DB"] },
@@ -151,6 +152,7 @@ sub info {
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
    					                                        'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
    					                                      },
    							                'required' => { "id" => ["string", "unique identifier in form of md5 checksum"] },
@@ -163,7 +165,8 @@ sub info {
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned']
+                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"]
     					                                  },
    							                'required' => { "text" => ["string", "text string of function name"] },
    							                'body'     => {} }
@@ -175,7 +178,8 @@ sub info {
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned']
+                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"]
      					                                  },
    							                'required' => { "text" => ["string", "text string of organism name"] },
    							                'body'     => {} }
@@ -187,7 +191,8 @@ sub info {
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned']
+                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"]
       					                                  },
    							                'required' => { "text" => ["string", "text string of protein sequence"] },
    							                'body'     => {} }
@@ -328,6 +333,7 @@ sub query {
     # pagination
     my $limit  = $self->cgi->param('limit') ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
+    my $order  = $self->cgi->param('offset') ? $self->cgi->param('offset') : undef;
     
     # build url
     my $path = '/'.$type.'/'.$item;
@@ -347,9 +353,9 @@ sub query {
     my ($data, $total);
     if ($type eq 'md5') {
         my $md5 = $self->clean_md5($item);
-        ($data, $total) = $self->solr_data('md5', $md5, $offset, $limit);
+        ($data, $total) = $self->solr_data('md5', $md5, $offset, $limit, $order);
     } else {
-        ($data, $total) = $self->solr_data($type, $item, $offset, $limit, 1);
+        ($data, $total) = $self->solr_data($type, $item, $offset, $limit, $order, 1);
     }
     my $obj = $self->check_pagination($data, $total, $limit, $path);
     $obj->{url} = $url;
@@ -372,14 +378,15 @@ sub clean_md5 {
 }
 
 sub solr_data {
-    my ($self, $field, $text, $offset, $limit, $partial) = @_;
+    my ($self, $field, $text, $offset, $limit, $order, $partial) = @_;
     $text = uri_unescape($text);
     $text = uri_escape($text);
     if ($partial) {
         $text = '*'.$text.'*';
     }
+    my $sort = $order ? $order.'_sort+asc' : '';
     my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
-    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $field.'%3A'.$text, "", $offset, $limit, $fields);
+    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $field.'%3A'.$text, $sort, $offset, $limit, $fields);
 }
 
 1;
