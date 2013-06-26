@@ -384,8 +384,9 @@ sub solr_data {
     if ($partial) {
         $text = '*'.$text.'*';
     }
+    my $sort = $order ? $order.'_sort+asc' : '';
     my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
-    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $field.'%3A'.$text, $offset, $limit, $order, $fields);
+    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $field.'%3A'.$text, $sort, $offset, $limit, $fields);
 }
 
 1;

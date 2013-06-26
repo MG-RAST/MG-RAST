@@ -812,7 +812,7 @@ sub authenticate_user {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
 			   -Access_Control_Allow_Origin => '*' );
-	print "{ 'error': 'required parameter token missing' }";
+	print '{ "error": "required parameter token missing" }';
 	exit 0;
     }
 
@@ -826,14 +826,14 @@ sub authenticate_user {
 	    print $cgi->header(-type => 'application/json',
 			       -status => 400,
 			       -Access_Control_Allow_Origin => '*' );
-	    print "{ 'error': 'token timed out' }";
+	    print '{ "error": "token timed out" }';
 	    exit 0;
 	}
     } else {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
 			   -Access_Control_Allow_Origin => '*' );
-	print "{ 'error': 'invalid token' }";
+	print '{ "error": "invalid token" }';
 	exit 0;
     }
 }
@@ -848,7 +848,7 @@ sub get_user {
 	    print $cgi->header(-type => 'application/json',
 			       -status => 400,
 			       -Access_Control_Allow_Origin => '*' );
-	    print "{ 'error': 'invalid user id' }";
+	    print '{ "error": "invalid user id" }';
 	    exit 0;
 	}
     } elsif ($cgi->param('email')) {
@@ -859,14 +859,14 @@ sub get_user {
 	    print $cgi->header(-type => 'application/json',
 			       -status => 400,
 			       -Access_Control_Allow_Origin => '*' );
-	    print "{ 'error': 'invalid user email' }";
+	    print '{ "error": "invalid user email" }';
 	    exit 0;
 	}
     } else {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
 			   -Access_Control_Allow_Origin => '*' );
-	print "{ 'error': 'missing parameter, you must provide either user_id or email' }";
+	print '{ "error": "missing parameter, you must provide either user_id or email" }';
 	exit 0;
     }
     return $u2;
@@ -883,14 +883,14 @@ sub get_group {
 	    print $cgi->header(-type => 'application/json',
 			       -status => 400,
 			       -Access_Control_Allow_Origin => '*' );
-	    print "{ 'error': 'invalid group id' }";
+	    print '{ "error": "invalid group id" }';
 	    exit 0;
 	}
     } else {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
 			   -Access_Control_Allow_Origin => '*' );
-	print "{ 'error': 'missing parameter group' }";
+	print '{ "error": "missing parameter group" }';
 	exit 0;	
     }
     return $group;

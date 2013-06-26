@@ -538,17 +538,17 @@ sub get_shock_query {
 }
 
 sub get_solr_query {
-    my ($self, $server, $collect, $query, $offset, $limit, $sort, $fields) = @_;
+    my ($self, $server, $collect, $query, $sort, $offset, $limit, $fields) = @_;
     
     my $data = undef;
-    my $url = $server.'/'.$collect.'/select?wt=json&q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit;
+    my $url = $server.'/'.$collect.'/select?q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json';
     if ($sort) {
-        $url .= '&sort='.$sort.'_sort+asc';
+        $url .= '&sort='.$sort;
     }
     if ($fields && (@$fields > 0)) {
         $url .= '&fl='.join('%2C', @$fields);
     }
-    print STDERR $url."&indent=true\n";
+    #print STDERR $url."&indent=true\n";
     eval {
         my $get = $self->agent->get($url);
         $data = $self->json->decode( $get->content );
