@@ -6,7 +6,6 @@ no warnings('once');
 
 use URI::Escape;
 use Digest::MD5;
-use Data::Dumper;
 
 use MGRAST::Analysis;
 use Conf;
@@ -22,16 +21,17 @@ sub new {
     # Add name / attributes
     $self->{name} = "search";
     $self->{return_fields} = {'job'          => [ 'string', 'MG-RAST internal job number' ],
-                              'name'         => [ 'string', 'name of metagenome' ],
                               'id'           => [ 'string', 'metagenome id' ],
+                              'name'         => [ 'string', 'name of metagenome' ],
                               'project_id'   => [ 'string', 'project containing metagenome' ],
                               'project_name' => [ 'string', 'project containing metagenome' ],
-                              'public'       => [ 'boolean', 'public status of metagenome' ],
+                              'status'       => [ 'string', 'public/private status of metagenome' ],
                               'biome'        => [ 'string', 'environmental biome, EnvO term' ],
                               'feature'      => [ 'string', 'environmental feature, EnvO term' ],
                               'material'     => [ 'string', 'environmental material, EnvO term' ],
                               'country'      => [ 'string', 'country' ],
-                              'location'     => [ 'string', 'location' ]};
+                              'location'     => [ 'string', 'location' ],
+                              'PI_lastname'  => [ 'string', 'principal investigator\'s last name' ]};
 
     $self->{attributes} = { metagenome => { next   => ["uri","link to the previous set or null if this is the first set"],
                                             prev   => ["uri","link to the next set or null if this is the last set"],
@@ -71,11 +71,14 @@ sub info {
                                          'method'      => "GET",
                                          'type'        => "synchronous",  
                                          'attributes'  => $self->{attributes}{metagenome},
-                                         'parameters'  => { 'options'  => { 'limit' => ["integer", "maximum number of items requested"],
-                                                                            'offset' => ["integer", "zero based index of the first data object to be returned"],
-                                                                            'function' => ["string", "query string for function"],
-                                                                            'organism' => ["string", "query string for organism"],
-                                                                            'metadata' => ["string", "query string for any metadata field"]
+                                         'parameters'  => { 'options'  => { 'limit'     => ["integer", "maximum number of items requested"],
+                                                                            'offset'    => ["integer", "zero based index of the first data object to be returned"],
+                                                                            'md5'       => ["string", "md5 checksum of feature sequence"],
+                                                                            'function'  => ["string", "query string for function"],
+                                                                            'metadata'  => ["string", "query string for any metadata field"],
+                                                                            'organism'  => ["string", "query string for organism"],
+                                                                            'sort_by'   => ["string", "metagenome object field to sort by (default is id)"],
+                                                                            'sort_dir'  => ["string", "sort direction: asc for ascending (default), desc for descending"]
                                                                           },
                                                             'required' => {},
                                                             'body'     => {} }
@@ -106,50 +109,55 @@ sub query {
     # pagination
     my $limit  = $self->cgi->param('limit') ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
-    
+
+    # sorting
+    my $sort_by = $self->cgi->param('sort_by') ? $self->cgi->param('sort_by') : 'id';
+    my $sort_dir = $self->cgi->param('sort_dir') ? $self->cgi->param('sort_dir') : 'asc';
+
+    unless(exists($self->{return_fields}->{$sort_by})) {
+        $sort_by = 'id';
+    }
+
+    unless($sort_dir eq 'asc' || $sort_dir eq 'desc') {
+        $sort_dir = 'asc';
+    }
+
     # build url
     my $query_str = "";
     my $solr_query_str = "";
-    my %api_to_solr_fields = ( 'function' => 'functions',
-                               'organism' => 'organisms',
-                               'metadata' => 'metadata' );
-    foreach my $field ('function', 'metadata', 'organism') {
-        my $solr_field = $api_to_solr_fields{$field};
+    foreach my $field ('md5', 'function', 'metadata', 'organism') {
         if($self->cgi->param($field)) {
-            if($query_str ne "") { $query_str .= '&'; }
-            if($solr_query_str ne "") { $solr_query_str .= ' '; }
+            if($query_str ne "") {
+                $query_str .= '&';
+                $solr_query_str .= ' ';
+            }
             $query_str .= "$field=".$self->cgi->param($field);
-            $solr_query_str .= "$solr_field:".$self->cgi->param($field);
+            $solr_query_str .= "$field:".$self->cgi->param($field);
         }
     }
 
     my $path = '/'.$type;
     my $url = "";
     if($query_str eq "") {
-        $url  = $self->cgi->url.'/search'.$path.'?limit='.$limit.'&offset='.$offset;
+        $url  = $self->cgi->url.'/search'.$path.'?sort_by='.$sort_by.'&sort_dir='.$sort_dir.'&limit='.$limit.'&offset='.$offset;
     } else {
-        $url  = $self->cgi->url.'/search'.$path.'?'.$query_str.'&limit='.$limit.'&offset='.$offset;
+        $url  = $self->cgi->url.'/search'.$path.'?'.$query_str.'&sort_by='.$sort_by.'&sort_dir='.$sort_dir.'&limit='.$limit.'&offset='.$offset;
+    }
+    
+    # all non-numeric fields must use separate solr string field for sorting
+    unless($sort_by eq 'job') {
+      $sort_by .= "_sort";
     }
     
     # get results
-    my ($data, $total) = $self->solr_data($solr_query_str, $offset, $limit);
+    my ($data, $total) = $self->solr_data($solr_query_str, "$sort_by $sort_dir", $offset, $limit);
     my $obj = $self->check_pagination($data, $total, $limit, $path);
     $obj->{url} = $url;
     $obj->{version} = 1;
 
-    my $master = $self->connect_to_datasource();
     foreach my $data_item (@{$obj->{data}}) {
         foreach my $return_field (keys %{$self->{return_fields}}) {
-            if($return_field eq 'id') {
-                my $id = $data_item->{$return_field};
-                $id =~ s/^mgm(\d+\.\d+)$/$1/;
-                my $job = $master->Job->get_objects( {metagenome_id => $id, viewable => 1} );
-                if($job && scalar(@$job)) {
-                    $data_item->{job} = $job->[0]->{job_id};
-                }
-            } elsif($return_field eq 'public') {
-                $data_item->{$return_field} = "true";
-            } elsif(! exists($data_item->{$return_field})) {
+            if(! exists($data_item->{$return_field})) {
                 $data_item->{$return_field} = "";
             }
         }
@@ -162,11 +170,11 @@ sub query {
 }
 
 sub solr_data {
-    my ($self, $solr_query_str, $offset, $limit) = @_;
+    my ($self, $solr_query_str, $sort_field, $offset, $limit) = @_;
     $solr_query_str = uri_unescape($solr_query_str);
     $solr_query_str = uri_escape($solr_query_str);
-    my $fields = ['id', 'name', 'project_id', 'project_name', 'biome', 'feature', 'material', 'country', 'location'];
-    return $self->get_solr_query($Conf::job_solr, $Conf::job_collect, $solr_query_str, $offset, $limit, $fields);
+    my $fields = ['job', 'id', 'name', 'project_id', 'project_name', 'status', 'biome', 'feature', 'material', 'country', 'location', 'PI_lastname'];
+    return $self->get_solr_query($Conf::job_solr, $Conf::job_collect, $solr_query_str, $sort_field, $offset, $limit, $fields);
 }
 
 1;
