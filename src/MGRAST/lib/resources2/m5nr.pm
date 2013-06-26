@@ -379,7 +379,7 @@ sub solr_data {
         $text = '*'.$text.'*';
     }
     my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
-    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $field.'%3A'.$text, $offset, $limit, $fields);
+    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $field.'%3A'.$text, "", $offset, $limit, $fields);
 }
 
 1;
