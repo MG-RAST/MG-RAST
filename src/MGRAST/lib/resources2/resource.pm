@@ -428,7 +428,7 @@ sub edit_shock_acl {
     if ($@ || (! ref($response))) {
         return undef;
     } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to $action ACL '$acl' to node $id in Shock: ".$response->{error}}, $response->{status} );
+        $self->return_data( {"ERROR" => "Unable to $action ACL '$acl' to node $id in Shock: ".$response->{error}[0]}, $response->{status} );
     } else {
         return $response->{data};
     }
@@ -453,7 +453,7 @@ sub set_shock_node {
     if ($@ || (! ref($response))) {
         return undef;
     } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to POST to Shock: ".$response->{error}}, $response->{status} );
+        $self->return_data( {"ERROR" => "Unable to POST to Shock: ".$response->{error}[0]}, $response->{status} );
     } else {
         return $response->{data};
     }
@@ -475,7 +475,7 @@ sub get_shock_node {
     if ($@ || (! ref($content))) {
         return undef;
     } elsif (exists($content->{error}) && $content->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$content->{error}}, $content->{status} );
+        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$content->{error}[0]}, $content->{status} );
     } else {
         return $content->{data};
     }
@@ -497,7 +497,7 @@ sub get_shock_file {
     if ($@ || (! $content)) {
         return undef;
     } elsif (ref($content) && exists($content->{error}) && $content->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET file $id from Shock: ".$content->{error}}, $content->{status} );
+        $self->return_data( {"ERROR" => "Unable to GET file $id from Shock: ".$content->{error}[0]}, $content->{status} );
     } elsif ($file) {
         if (open(FILE, ">$file")) {
             print FILE $content;
@@ -531,7 +531,7 @@ sub get_shock_query {
     if ($@ || (! ref($shock))) {
         return [];
     } elsif (exists($shock->{error}) && $shock->{error}) {
-        $self->return_data( {"ERROR" => "Unable to query Shock: ".$shock->{error}}, $shock->{status} );
+        $self->return_data( {"ERROR" => "Unable to query Shock: ".$shock->{error}[0]}, $shock->{status} );
     } else {
         return $shock->{data};
     }
