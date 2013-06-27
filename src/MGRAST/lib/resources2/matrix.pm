@@ -117,6 +117,7 @@ sub info {
                                                                                          'source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
+                                                                                         'filter_level' => [ 'cv', $self->{hierarchy}{ontology} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if false, return metagenome metadata set in 'columns' object.  default is false." ],
@@ -140,6 +141,7 @@ sub info {
                                                                                          'source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'group_level' => [ 'cv', $self->{hierarchy}{ontology} ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
+                                                                                         'filter_level' => [ 'cv', $self->{hierarchy}{organism} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
@@ -255,7 +257,7 @@ sub instance {
             my $fname = $Conf::temp.'/'.$$.'.json';
             close STDERR;
             close STDOUT;
-            my $data = $self->prepare_data([keys %$mgids], $type);
+            my $data = $self->prepare_data([sort keys %$mgids], $type);
             open(FILE, ">$fname");
             print FILE $self->json->encode($data);
             close FILE;
@@ -287,12 +289,14 @@ sub prepare_data {
     my $eval   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
     my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
     my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
+    my $flvl   = $cgi->param('filter_level') ? $cgi->param('filter_level') : (($type eq 'organism') ? 'function' : 'strain');
     my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'M5NR');
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
-    my $hide_md   = $cgi->param('hide_metadata') ? 1 : 0;
-    my $all_srcs  = {};
+    my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $leaf_node = 0;
+    my $leaf_filter = 0;
     my $group_level = $glvl;
+    my $filter_level = $flvl;
     my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen, $taxid));
     my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.'&source='.$source.
                      '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen.'&taxid='.$taxid;
@@ -301,8 +305,8 @@ sub prepare_data {
         $matrix_url .= '&hide_metadata='.$hide_md;
     }
     if (@filter > 0) {
-        $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc;
-        $matrix_url .= '&filter='.join('&filter=', sort map { uri_escape($_) } @filter).'&filter_source='.$fsrc;
+        $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc."_".$flvl;
+        $matrix_url .= '&filter='.join('&filter=', sort map { uri_escape($_) } @filter).'&filter_source='.$fsrc.'&filter_level='.$flvl;
     }
 
     # initialize analysis obj with mgids
@@ -331,49 +335,79 @@ sub prepare_data {
                        identity  => {function => 9, organism => {all => 16, single => 14, lca => 14}, feature => 7}
                      };
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
+    my $type_set   = ["function", "organism", "feature"];
     my @func_hier  = map { $_->[0] } @{$self->{hierarchy}{ontology}};
     my @org_hier   = map { $_->[0] } @{$self->{hierarchy}{organism}};
-    my $type_set   = ["function", "organism", "feature"];
+    my %func_srcs  = map { $_->[0], 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
+    my %org_srcs   = map { $_->[0], 1 } @{$mgdb->sources_for_type('protein')};
+    map { $org_srcs{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
                              
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
         $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
     }
     if ($type eq 'organism') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
         if ( grep(/^$glvl$/, @org_hier) ) {
             $glvl = 'tax_'.$glvl;
             if ($glvl eq 'tax_strain') {
-                      $glvl = 'name';
-                      $leaf_node = 1;
+                $glvl = 'name';
+                $leaf_node = 1;
             }
         } else {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @org_hier)."]"}, 404);
         }
+        if ( grep(/^$flvl$/, @func_hier) ) {
+            if ($flvl eq 'function') {
+                $flvl = ($fsrc =~ /^[NC]OG$/) ? 'level3' : 'level4';
+                $leaf_filter = 1;
+            }
+            if ( ($fsrc =~ /^[NC]OG$/) && ($fsrc eq 'level3') ) {
+                $leaf_filter = 1;
+            }
+        } else {
+            $self->return_data({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @func_hier)."]"}, 404);
+        }
+        unless (exists $org_srcs{$source}) {
+            $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+        }
+        unless (exists $func_srcs{$fsrc}) {
+            $self->return_data({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
+        }
     } elsif ($type eq 'function') {
-        map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
         if ( grep(/^$glvl$/, @func_hier) ) {
             if ($glvl eq 'function') {
-                      $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
-                      $leaf_node = 1;
+                $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
+                $leaf_node = 1;
             }
             if ( ($source =~ /^[NC]OG$/) && ($glvl eq 'level3') ) {
-                      $leaf_node = 1;
+                $leaf_node = 1;
             }
         } else {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @func_hier)."]"}, 404);
         }
+        if ( grep(/^$flvl$/, @org_hier) ) {
+            $flvl = 'tax_'.$flvl;
+            if ($flvl eq 'tax_strain') {
+                $flvl = 'name';
+                $leaf_filter = 1;
+            }
+        } else {
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @org_hier)."]"}, 404);
+        }
+        unless (exists $func_srcs{$source}) {
+            $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
+        }
+        unless (exists $org_srcs{$fsrc}) {
+            $self->return_data({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+        }
     } elsif ($type eq 'feature') {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
-        delete $all_srcs->{M5NR};
-        delete $all_srcs->{M5RNA};
+        delete $org_srcs{M5NR};
+        delete $org_srcs{M5RNA};
+        unless (exists $org_srcs{$source}) {
+            $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+        }        
     } else {
         $self->return_data({"ERROR" => "Invalid resource type was entered ($type)."}, 404);
-    }
-    unless (exists $all_srcs->{$source}) {
-        $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 404);
     }
 
     # get data
@@ -390,7 +424,11 @@ sub prepare_data {
         $mtype = 'taxonomy';
         $col_idx = $result_idx->{$rtype}{$type}{$htype};
         if (@filter > 0) {
-            $umd5s = $mgdb->get_md5s_for_ontology(\@filter, $fsrc);
+            if ($leaf_filter) {
+                $umd5s = $mgdb->get_md5s_for_ontology(\@filter, $fsrc);
+            } else {
+                $umd5s = $mgdb->get_md5s_for_ontol_level($fsrc, $flvl, \@filter);
+            }
         }
         unless ((@filter > 0) && (@$umd5s == 0)) {
             if ($htype eq 'all') {
@@ -466,7 +504,11 @@ sub prepare_data {
         $ttype = 'Function';
         $mtype = 'ontology';
         if (@filter > 0) {
-            $umd5s = $mgdb->get_md5s_for_organism(\@filter, $fsrc);
+            if ($leaf_filter) {
+                $umd5s = $mgdb->get_md5s_for_organism(\@filter, $fsrc);
+            } else {
+                $umd5s = $mgdb->get_md5s_for_tax_level($flvl, \@filter, $fsrc);
+            }
         }
         unless ((@filter > 0) && (@$umd5s == 0)) {
             if ($leaf_node) {
@@ -491,10 +533,18 @@ sub prepare_data {
         map { push @{$md52id->{ $mmap->{$_->[1]} }}, $_->[0] } @{ $mgdb->annotation_for_md5s([keys %md5s], [$source]) };
         @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {exists $md52id->{$_->[1]}} @$info;
     }
+    
+    if (scalar(@$matrix) == 0) {
+        $self->return_data( {"ERROR" => "no data found for the given combination of ids and paramaters"}, 404 );
+    }
 
-    @$matrix = sort { $a->[0] cmp $b->[0] || $a->[1] cmp $b->[1] } @$matrix;
+    @$matrix = sort { $a->[0] cmp $b->[0] } @$matrix; # sort annotations
+    my $col_ids = {};
     my $row_ids = $self->sorted_hash($matrix, 0);
-    my $col_ids = $self->sorted_hash($matrix, 1);
+    # use full list of ids, not just those found
+    foreach my $pos (0..(scalar(@$data)-1)) {
+        $col_ids->{$data->[$pos]} = $pos;
+    }
 
     # produce output
     my $brows = [];

@@ -10,16 +10,23 @@ use Data::Dumper;
 use Cache::Memcached;
 use Digest::MD5;
 
-#use Babel::lib::Babel;
-use M5NR;
+use Babel::lib::Babel;
+#use M5NR;
 use Conf;
 
 # create objects
 my $cgi  = new CGI;
 my $json = new JSON;
-my $dbh  = DBI->connect("DBI:$Conf::babel_dbtype:dbname=$Conf::babel_db;host=$Conf::babel_dbhost", $Conf::babel_dbuser, '');
-#my $ach  = Babel::lib::Babel->new($dbh);
-my $ach  = M5NR->new($dbh);
+
+print $cgi->header( -type => "application/json",
+	                -status => 410,
+	                -Access_Control_Allow_Origin => '*' );
+print $json->encode({status => 410, error => "This URI is no longer available. Please use http://api.metagenomics.anl.gov/m5nr"});
+exit 0;
+
+my $dbh = DBI->connect("DBI:$Conf::babel_dbtype:dbname=$Conf::babel_db;host=$Conf::babel_dbhost", $Conf::babel_dbuser, '');
+my $ach = Babel::lib::Babel->new($dbh);
+#my $ach = M5NR->new($dbh);
 
 my $query_memcache_host = $Conf::web_memcache ;
 
