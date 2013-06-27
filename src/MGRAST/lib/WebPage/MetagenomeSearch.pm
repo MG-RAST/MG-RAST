@@ -1433,6 +1433,10 @@ sub get_search_list {
   return $to_search;
 }
 
+sub require_css {
+        return [ "$Conf::cgi_url/Html/bootstrap.min.css" ];
+}
+
 sub require_javascript {
   return [ "$Conf::cgi_url/Html/MetagenomeSearch.js" ];
 }
