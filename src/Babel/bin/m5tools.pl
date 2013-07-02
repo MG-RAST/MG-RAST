@@ -2,203 +2,192 @@ use strict;
 use warnings;
 
 use Getopt::Long;
+use Digest::MD5;
+use LWP::UserAgent;
 use Data::Dumper;
-use DBI;
+use JSON;
 
-use Babel::lib::M5NR;
-use Babel::lib::M5NR_Config;
-
-my $verbose = 0;
-my $sim     = '';
-my $id      = '';
-my $md5     = '';
-my $seq     = '';
-my $source  = '';
-my $option  = '';
-my $help    = 0 ;
+my $api = 'http://localhost';
+my $sim = '';
+my $acc = '';
+my $md5 = '';
+my $seq = '';
+my $src = '';
+my $opt = '';
+my $help = 0;
+my $verb = 0;
 my $options = {sequence => 1, annotation => 1};
+my $sources = {};
 
-GetOptions( "verbose!"   => \$verbose,
-	    "sim=s"      => \$sim,
-	    "id=s"       => \$id,
-	    "md5=s"      => \$md5,
-        "sequence=s" => \$seq,
-	    "source=s"   => \$source,
-	    "option=s"   => \$option,
-	    "help!"      => \$help
+GetOptions( "verbose!"   => \$verb,
+            "api=s"      => \$api,
+	        "sim=s"      => \$sim,
+	        "acc=s"      => \$acc,
+	        "md5=s"      => \$md5,
+            "sequence=s" => \$seq,
+	        "source=s"   => \$src,
+	        "option=s"   => \$opt,
+	        "help!"      => \$help
  	  );
 
-my $dbh  = DBI->connect("DBI:$M5NR_Config::m5nr_dbtype:dbname=$M5NR_Config::m5nr_dbname;host=$M5NR_Config::m5nr_dbhost", $M5NR_Config::m5nr_dbuser, '');
-my $m5nr = M5NR->new($dbh);
-unless ($m5nr->dbh) {
-  print STDERR "Unable to retrieve the M5NR database.\n";
-  exit 1;
+my $agent = LWP::UserAgent->new;
+my $json  = JSON->new;
+$json = $json->utf8();
+$json->max_size(0);
+$json->allow_nonref;
+
+my @data = ();
+my $para = ($opt eq 'sequence') ? {'sequence' => '1'} : {};
+my $smap = get_data('sources');
+my $hdr  = ["Accession", "MD5", "Function", "Organism", "Source"];
+
+if ($help) {
+    help($options, $smap);
+    exit 0;
 }
-
-my $srcs = $m5nr->sources;
-my %smap = map { $_, 1 } grep { $srcs->{$_}{type} ne 'rna' } keys %$srcs;
-
-if ($help or ! ($options->{$option} or $seq)) {
-  &help($options, \%smap);
-  exit 1;
-}
-
-my $hdr = ["ID", "MD5", "Function", "Organism", "Source"];
-if ($source) {
-  #push @$hdr, "Source";
-  unless (exists $smap{$source}) {
-    &help($options, \%smap);
+unless (exists($options->{$opt}) || $seq) {
+    print STDERR "Missing required option type or sequence\n";
+    help($options, $smap);
     exit 1;
-  }
+}
+
+if ($src) {
+    unless (exists $smap->{$src}) {
+        print STDERR "Invalid source: $src\n";
+        help($options, $smap);
+        exit 1;
+    }
 }
 
 if ($sim) {
-  unless ((-s $sim) && $source) {
-    print "POOP\n";
-    &help($options, \%smap);
-    exit 1;
-  }
-  my ($total, $count) = &process_sims($m5nr, $sim, $source);
-  print STDERR "$count out of $total similarities annotated\n";
+    unless (-s $sim) {
+        print STDERR "File missing: $sim\n";
+        help($options, $smap);
+        exit 1;
+    }
+    my ($total, $count) = process_sims($sim, $src);
+    print STDERR "$count out of $total similarities annotated\n";
+    exit 0;
 }
 elsif ($seq) {
-  print $m5nr->sequence2md5($seq)."\n";
+    $seq =~ s/\s+//sg;
+    print STDOUT Digest::MD5::md5_hex(uc $seq)."\n";
+    exit 0;
 }
-elsif ($md5 && ($option eq 'sequence')) {
-  my $md5s = &list_from_input($md5);
-  print $m5nr->md5s2sequences($md5s);
+elsif ($md5 && ($opt eq 'sequence')) {
+    foreach my $m (@{ list_from_input($md5) }) {
+        push @data, get_data("md5/".$m, {'sequence' => '1'});
+    }
 }
-elsif ($md5 && ($option eq 'annotation')) {
-  my $md5s = &list_from_input($md5);
-  if ($source) {
-    &output($hdr, $m5nr->md5s2sets4source($md5s, $source));
-  } else {
-    &output($hdr, $m5nr->md5s2sets($md5s));
-  }
+elsif($acc && ($opt eq 'sequence')) {
+    foreach my $a (@{ list_from_input($acc) }) {
+        push @data, get_data("accession/".$a, {'sequence' => '1'});
+    }
 }
-elsif($id && ($option eq 'sequence')) {
-  my $ids = &list_from_input($id);
-  print $m5nr->ids2sequences($ids);
+elsif ($md5) {
+    foreach my $m (@{ list_from_input($md5) }) {
+        push @data, @{ get_data("md5/".$m) };
+    }
 }
-elsif($id && ($option eq 'annotation')) {
-  my %ids  = map {$_, 1} @{ &list_from_input($id) };
-  my %md5s = map {$_->[0], 1} @{ $m5nr->ids2md5s([keys %ids]) };
-  my @data = ();
-  if ($source) {
-    @data = grep {exists $ids{$_->[0]}} @{ $m5nr->md5s2sets4source([keys %md5s], $source) };
-  } else {
-    @data = grep {exists $ids{$_->[0]}} @{ $m5nr->md5s2sets([keys %md5s]) };
-  }
-  &output($hdr, \@data);
+elsif($acc) {
+    foreach my $a (@{ list_from_input($acc) }) {
+        push @data, @{ get_data("accession/".$a) };
+    }
 }
 else {
-  &help($options, \%smap);
-  exit 1;
+    &help($options, $smap);
+    exit 1;
+}
+
+unless (@data > 0) {
+    print STDERR "No data available for the given input\n";
+}
+if ($opt eq 'sequence') {
+    foreach my $d (@data) {
+        print STDOUT ">".($d->{id} ? $d->{id} : $d->{md5})."\n".$d->{sequence}."\n";
+    }
+} else {
+    if ($src) { pop @$hdr; }
+    print STDOUT join("\t", @$hdr)."\n";
+    @data = sort { ($$a{md5} cmp $$b{md5}) or ($$a{source} cmp $$b{source}) or ($$a{function} cmp $$b{function}) } @data;
+    foreach my $d (@data) {
+        if ($src) {
+            next unless ($d->{source} eq $src);
+            print STDOUT $d->{accession}."\t".$d->{md5}."\t".$d->{function}."\t".($d->{organism} || '')."\n";
+        } else {
+            print STDOUT $d->{accession}."\t".$d->{md5}."\t".$d->{function}."\t".($d->{organism} || '')."\t".$d->{source}."\n";
+        }
+    }
 }
 
 sub list_from_input {
-  my ($input) = @_;
+    my ($input) = @_;
 
-  my @list = ();
-  if (-s $input) {
-    @list = `cat $input`;
-    chomp @list;
-  }
-  else {
-    @list = split(/,/, $input);
-  }
-  my %set = map {$_, 1} @list;
-
-  return [keys %set];
-}
-
-sub output {
-  my ($hdr, $rows) = @_;
-
-  if ($hdr && @$hdr) {
-    print join("\t", @$hdr) . "\n";
-  }
-  foreach my $row (@$rows) {
-    print join("\t", @$row) . "\n";
-  }
+    my @list = ();
+    if (-s $input) {
+        @list = `cat $input`;
+        chomp @list;
+    }
+    else {
+        @list = split(/,/, $input);
+    }
+    my %set = map {$_, 1} @list;
+    return [keys %set];
 }
 
 sub process_sims {
-  my ($m5nr, $file, $source) = @_;
+    # output: md5, query, identity, length, evalue, function, organism
+    my ($file, $source) = @_;
 
-  my $data  = {};
-  my $frags = 0;
-  my $total = 0;
-  my $count = 0;
-  my $curr  = '';
+    my $total = 0;
+    my $count = 0;
 
-  open(INFILE, "<$file") or die "Can't open file $file!\n";
-  while (my $line = <INFILE>) {
-    chomp $line;
-    my ($frag, $md5, @rest) = split(/\t/, $line);
-
-    if ((! $frag) || (! $line)) { next; }
-    if ($curr ne $frag) {
-      if ($frags >= 5000) {
-	my ($text, $num) = &annotate_hits($data, $source, $m5nr->dbh);
-	print STDOUT $text;
-	$data  = {};
-	$frags = 0;
-	$count += $num;
-      }
-      $curr = $frag;
-      $frags += 1;
+    open(INFILE, "<$file") or die "Can't open file $file!\n";
+    while (my $line = <INFILE>) {
+        $total += 1;
+        chomp $line;
+        # @rest = [ identity, length, mismatch, gaps, q_start, q_end, s_start, s_end, evalue, bit_score ]
+        my ($frag, $md5, @rest) = split(/\t/, $line);
+        my $data = get_data("md5/".$md5);
+        next if (@$data == 0);
+        
+        @$data = sort { ($$a{source} cmp $$b{source}) or ($$a{function} cmp $$b{function}) } @$data;
+        foreach my $d (@$data) {
+            if ($source) {
+                next unless ($d->{source} eq $source);
+                print STDOUT join("\t", ($md5,$frag,$rest[0],$rest[1],$rest[8],$d->{function},$d->{organism}))."\n";
+            } else {
+                print STDOUT join("\t", ($md5,$frag,$rest[0],$rest[1],$rest[8],$d->{function},$d->{organism},$d->{source}))."\n";
+            }
+        }
+        $count += 1;
     }
-    $md5 =~ s/lcl\|//;
-    if (! exists $data->{$frag}{$md5}) {
-      # only keep top hit for each md5
-      $data->{$frag}{$md5} = \@rest;
-    }
-    $total += 1;
-  }
-  close INFILE;
-
-  return ($total, $count);
+    close INFILE;
+    
+    return ($total, $count);
 }
 
-sub annotate_hits {
-  my ($data, $source, $dbh) = @_;
-
-  my $total_md5s = {};
-  foreach my $frag (keys %$data) {
-    foreach my $md5 (keys %{$data->{$frag}}) {
-      $total_md5s->{$md5} = 1;
+sub get_data {
+    my ($resource, $params) = @_;
+    
+    my $data = undef;
+    my $url  = $api.'/m5nr/'.$resource.'?limit=1000';
+    if ($params && (scalar(keys %$params) > 0)) {
+        $url = $url.'&'.join('&', map { $_.'='.$params->{$_} } keys %$params);
     }
-  }
-  unless (scalar(keys %$total_md5s) > 0) { return; }
-
-  my $sql = "select p.md5, f.name, o.name from md5_protein p, functions f, organisms_ncbi o, sources s where p.function = f._id and p.organism = o._id and p.source = s._id and s.name='$source' and p.md5 in (" . join(",", map {"'$_'"} keys %$total_md5s) . ")";
-  my $rows = $dbh->selectall_arrayref($sql);
-  
-  my $md5_prots = {};
-  if ($rows && @$rows) {
-    foreach my $row (@$rows) {
-      $md5_prots->{$row->[0]}{$row->[1]}{$row->[2]} = 1;
+    eval {
+        my $get = $agent->get($url);
+        $data = $json->decode($get->content);
+    };
+    if ($@ || (! ref($data))) {
+        print STDERR "Error accessing M5NR API: ".$@."\n";
+        exit 1;
+    } elsif (exists($data->{ERROR}) && $data->{ERROR}) {
+        print STDERR "Error: ".$data->{ERROR}."\n";
+        exit 1;
+    } else {
+        return $data->{data};
     }
-  }
-
-  my $count = 0;
-  my $text  = "";
-  my ($frag, $md5, $org, $func, $top);
-  foreach $frag ( keys %$data ) {
-    foreach $md5 ( keys %{$data->{$frag}} ) {
-      # top: identity, length, mismatch, gaps, q_start, q_end, s_start, s_end, evalue, bit_score
-      $top = $data->{$frag}{$md5};
-      foreach $func ( keys %{$md5_prots->{$md5}} ) {
-	foreach $org ( keys %{$md5_prots->{$md5}{$func}} ) {
-	  $text .= join("\t", ($md5, $frag, $top->[0], $top->[1], $top->[8], $func, $org)) . "\n";
-	  $count += 1;
-	}
-      }
-    }
-  }
-
-  return ($text, $count);
 }
 
 sub help {
@@ -208,8 +197,9 @@ sub help {
     my $srcs = join(", ", sort keys %$smap);
 
     print STDERR qq(Usage: $0
+  --api       <api url>          url of m5nr API, default is 'http://localhost'
   --sim       <similarity file>  file in blast m8 format to be annotated
-  --id        <protein ids>      file or comma seperated list of protein ids
+  --acc       <accession ids>    file or comma seperated list of protein ids
   --md5       <md5sums>          file or comma seperated list of md5sums
   --sequence  <aa sequence>      protein sequence, returns md5sum of sequence
   --source    <source name>      source for annotation, default is all
