@@ -86,7 +86,7 @@ sub info {
 					             'request'     => $self->cgi->url."/".$self->name,
 					             'description' => "Returns description of parameters and attributes.",
 					             'method'      => "GET",
-					             'type'        => "synchronous",  
+					             'type'        => "synchronous",
 					             'attributes'  => "self",
 					             'parameters'  => { 'options'  => {},
 							                        'required' => {},
@@ -136,7 +136,8 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+   					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
     					                                    'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
@@ -150,7 +151,8 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+   					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
    					                                        'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
@@ -164,7 +166,8 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+   					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"]
     					                                  },
@@ -177,7 +180,8 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+   					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"]
      					                                  },
@@ -190,7 +194,8 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'limit' => ['integer','maximum number of items requested'],
+   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+   					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"]
       					                                  },
@@ -330,7 +335,8 @@ sub instance {
 sub query {
     my ($self, $type, $item) = @_;
     
-    # pagination
+    # paramaters
+    my $source = $self->cgi->param('source') ? $self->cgi->param('source') : undef;
     my $limit  = $self->cgi->param('limit') ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
     my $order  = $self->cgi->param('offset') ? $self->cgi->param('offset') : undef;
@@ -338,6 +344,9 @@ sub query {
     # build url
     my $path = '/'.$type.'/'.$item;
     my $url  = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
+    if ($source) {
+        $url .= '&source='.$source;
+    }
     
     # strip wildcards    
     $item =~ s/\*//g;
@@ -353,9 +362,9 @@ sub query {
     my ($data, $total);
     if ($type eq 'md5') {
         my $md5 = $self->clean_md5($item);
-        ($data, $total) = $self->solr_data('md5', $md5, $offset, $limit, $order);
+        ($data, $total) = $self->solr_data('md5', $md5, $source, $offset, $limit, $order);
     } else {
-        ($data, $total) = $self->solr_data($type, $item, $offset, $limit, $order, 1);
+        ($data, $total) = $self->solr_data($type, $item, $source, $offset, $limit, $order, 1);
     }
     my $obj = $self->check_pagination($data, $total, $limit, $path);
     $obj->{url} = $url;
@@ -378,15 +387,19 @@ sub clean_md5 {
 }
 
 sub solr_data {
-    my ($self, $field, $text, $offset, $limit, $order, $partial) = @_;
+    my ($self, $field, $text, $source, $offset, $limit, $order, $partial) = @_;
     $text = uri_unescape($text);
     $text = uri_escape($text);
     if ($partial) {
         $text = '*'.$text.'*';
     }
-    my $sort = $order ? $order.'_sort+asc' : '';
+    my $sort   = $order ? $order.'_sort+asc' : '';
     my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
-    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $field.'%3A'.$text, $sort, $offset, $limit, $fields);
+    my $query  = $field.'%3A'.$text;
+    if ($source) {
+        $query .= '+AND+source%3A'.$source;
+    }
+    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $query, $sort, $offset, $limit, $fields);
 }
 
 1;
