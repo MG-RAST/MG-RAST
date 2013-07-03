@@ -228,6 +228,7 @@ sub check_pagination {
     my $prev_offset = (($offset - $limit) < 0) ? 0 : $offset - $limit;
     my $next_offset = $offset + $limit;
     
+    my $this = $self->cgi->url."/".$self->name.$path."?$additional_params&offset=$offset";
     my $prev = ($offset > 0) ? $self->cgi->url."/".$self->name.$path."?$additional_params&offset=$prev_offset" : undef;
     my $next = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name.$path."?$additional_params&offset=$next_offset" : undef;
     my $object = { "limit" => int($limit),
@@ -235,6 +236,7 @@ sub check_pagination {
 	               "total_count" => int($total_count),
 	               "next" => $next,
 	               "prev" => $prev,
+	               "url"  => $this,
 	               "data" => $data };
 	
 	if ($order) {
