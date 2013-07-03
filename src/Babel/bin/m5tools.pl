@@ -1,3 +1,5 @@
+#!/usr/bin/env perl
+
 use strict;
 use warnings;
 
@@ -7,7 +9,7 @@ use LWP::UserAgent;
 use Data::Dumper;
 use JSON;
 
-my $api = 'http://localhost';
+my $api = '';
 my $sim = '';
 my $acc = '';
 my $md5 = '';
@@ -30,6 +32,12 @@ GetOptions( "verbose!"   => \$verb,
 	        "help!"      => \$help
  	  );
 
+unless ($api) {
+    print STDERR "Missing required API url\n";
+    help($options, {});
+    exit 1;
+}
+
 my $agent = LWP::UserAgent->new;
 my $json  = JSON->new;
 $json = $json->utf8();
@@ -37,26 +45,27 @@ $json->max_size(0);
 $json->allow_nonref;
 
 my @data = ();
-my $para = ($opt eq 'sequence') ? {'sequence' => '1'} : {};
 my $smap = get_data('sources');
-my $hdr  = ["Accession", "MD5", "Function", "Organism", "Source"];
+my $hdr  = ["Accession", "MD5", "Function", "Organism"];
 
 if ($help) {
     help($options, $smap);
     exit 0;
 }
-unless (exists($options->{$opt}) || $seq) {
-    print STDERR "Missing required option type or sequence\n";
+unless (exists($options->{$opt}) || $seq || $sim) {
+    print STDERR "One of the following paramters are required: option, sequence, or sim\n";
     help($options, $smap);
     exit 1;
 }
-
-if ($src) {
-    unless (exists $smap->{$src}) {
-        print STDERR "Invalid source: $src\n";
-        help($options, $smap);
-        exit 1;
-    }
+unless ($src) {
+    print STDERR "Source is required\n";
+    help($options, $smap);
+    exit 1;
+}
+unless (exists $smap->{$src}) {
+    print STDERR "Invalid source: $src\n";
+    help($options, $smap);
+    exit 1;
 }
 
 if ($sim) {
@@ -66,7 +75,7 @@ if ($sim) {
         exit 1;
     }
     my ($total, $count) = process_sims($sim, $src);
-    print STDERR "$count out of $total similarities annotated\n";
+    print STDERR "$count out of $total similarities annotated for source $src\n";
     exit 0;
 }
 elsif ($seq) {
@@ -86,12 +95,12 @@ elsif($acc && ($opt eq 'sequence')) {
 }
 elsif ($md5) {
     foreach my $m (@{ list_from_input($md5) }) {
-        push @data, @{ get_data("md5/".$m) };
+        push @data, @{ get_data("md5/".$m, {'source' => $src}) };
     }
 }
 elsif($acc) {
     foreach my $a (@{ list_from_input($acc) }) {
-        push @data, @{ get_data("accession/".$a) };
+        push @data, @{ get_data("accession/".$a, {'source' => $src}) };
     }
 }
 else {
@@ -107,16 +116,13 @@ if ($opt eq 'sequence') {
         print STDOUT ">".($d->{id} ? $d->{id} : $d->{md5})."\n".$d->{sequence}."\n";
     }
 } else {
-    if ($src) { pop @$hdr; }
+    if ($data[0]{type} eq 'ontology') {
+        pop @$hdr;
+    }
     print STDOUT join("\t", @$hdr)."\n";
-    @data = sort { ($$a{md5} cmp $$b{md5}) or ($$a{source} cmp $$b{source}) or ($$a{function} cmp $$b{function}) } @data;
+    @data = sort { ($$a{md5} cmp $$b{md5}) or ($$a{function} cmp $$b{function}) } @data;
     foreach my $d (@data) {
-        if ($src) {
-            next unless ($d->{source} eq $src);
-            print STDOUT $d->{accession}."\t".$d->{md5}."\t".$d->{function}."\t".($d->{organism} || '')."\n";
-        } else {
-            print STDOUT $d->{accession}."\t".$d->{md5}."\t".$d->{function}."\t".($d->{organism} || '')."\t".$d->{source}."\n";
-        }
+        print STDOUT $d->{accession}."\t".$d->{md5}."\t".$d->{function}.(exists($d->{organism}) ? "\t".$d->{organism} : '')."\n";
     }
 }
 
@@ -148,16 +154,15 @@ sub process_sims {
         chomp $line;
         # @rest = [ identity, length, mismatch, gaps, q_start, q_end, s_start, s_end, evalue, bit_score ]
         my ($frag, $md5, @rest) = split(/\t/, $line);
-        my $data = get_data("md5/".$md5);
+        my $data = get_data("md5/".$md5, {'source' => $source});
         next if (@$data == 0);
         
-        @$data = sort { ($$a{source} cmp $$b{source}) or ($$a{function} cmp $$b{function}) } @$data;
+        @$data = sort { $$a{function} cmp $$b{function} } @$data;
         foreach my $d (@$data) {
-            if ($source) {
-                next unless ($d->{source} eq $source);
-                print STDOUT join("\t", ($md5,$frag,$rest[0],$rest[1],$rest[8],$d->{function},$d->{organism}))."\n";
+            if ($d->{type} eq 'ontology') {
+                print STDOUT join("\t", ($md5,$frag,$rest[0],$rest[1],$rest[8],$d->{function},$d->{accession}))."\n";
             } else {
-                print STDOUT join("\t", ($md5,$frag,$rest[0],$rest[1],$rest[8],$d->{function},$d->{organism},$d->{source}))."\n";
+                print STDOUT join("\t", ($md5,$frag,$rest[0],$rest[1],$rest[8],$d->{function},$d->{organism}))."\n";
             }
         }
         $count += 1;
@@ -197,12 +202,12 @@ sub help {
     my $srcs = join(", ", sort keys %$smap);
 
     print STDERR qq(Usage: $0
-  --api       <api url>          url of m5nr API, default is 'http://localhost'
+  --api       <api url>          required: url of m5nr API, required
   --sim       <similarity file>  file in blast m8 format to be annotated
   --acc       <accession ids>    file or comma seperated list of protein ids
   --md5       <md5sums>          file or comma seperated list of md5sums
   --sequence  <aa sequence>      protein sequence, returns md5sum of sequence
-  --source    <source name>      source for annotation, default is all
+  --source    <source name>      required: source for annotation
   --option    <output option>    output type, one of: $opts
   --verbose                      verbose output
   --help                         show this
