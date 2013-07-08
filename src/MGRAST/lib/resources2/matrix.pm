@@ -345,7 +345,7 @@ sub prepare_data {
                 $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @org_hier)."]"}, 404);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{organism}})."]"}, 404);
         }
         if ( any {$_->[0] eq $flvl} @{$self->{hierarchy}{ontology}} ) {
             if ($flvl eq 'function') {
@@ -356,7 +356,7 @@ sub prepare_data {
                 $leaf_filter = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @func_hier)."]"}, 404);
+            $self->return_data({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{ontology}})."]"}, 404);
         }
         unless (exists $org_srcs{$source}) {
             $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
@@ -374,7 +374,7 @@ sub prepare_data {
                 $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @func_hier)."]"}, 404);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{ontology}})."]"}, 404);
         }
         if ( any {$_->[0] eq $flvl} @{$self->{hierarchy}{organism}} ) {
             $flvl = 'tax_'.$flvl;
@@ -383,7 +383,7 @@ sub prepare_data {
                 $leaf_filter = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @org_hier)."]"}, 404);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{organism}})."]"}, 404);
         }
         unless (exists $func_srcs{$source}) {
             $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
@@ -410,6 +410,7 @@ sub prepare_data {
     my $umd5s   = [];
 
     if ($type eq 'organism') {
+        my @levels = map {$_->[0]} reverse @{$self->{hierarchy}{organism}};
         my $seen = {};
         $ttype = 'Taxon';
         $mtype = 'taxonomy';
@@ -444,7 +445,6 @@ sub prepare_data {
                     map { $self->{org2tax}->{$_->[8]} = [ @$_[1..8] ] } @$info;
                     map { $self->{org2tid}->{$_->[8]} = $_->[17] } @$info;
                 } else {
-                    my @levels  = reverse @org_hier;
                     my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
                     $lvl_idx += 1;
                     my $merged = {};
@@ -468,7 +468,6 @@ sub prepare_data {
                 # my ($self, $eval, $ident, $alen) = @_;
                 my $info = $mgdb->get_lca_data(int($eval), int($ident), int($alen));
                 # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
-                my @levels  = reverse @org_hier;
                 my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
                 $lvl_idx += 1;
                 my $merged = {};
