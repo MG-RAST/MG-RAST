@@ -250,7 +250,7 @@ sub instance {
             my $fname = $Conf::temp.'/'.$$.'.json';
             close STDERR;
             close STDOUT;
-            my $data = $self->prepare_data([uniq(@mgids)], $type);
+            my $data = $self->prepare_data([sort uniq(@mgids)], $type);
             open(FILE, ">$fname");
             print FILE $self->json->encode($data);
             close FILE;
@@ -263,7 +263,7 @@ sub instance {
         }
     } else {
         # prepare data
-        my $data = $self->prepare_data([uniq(@mgids)], $type);
+        my $data = $self->prepare_data([sort uniq(@mgids)], $type);
         $self->return_data($data, undef, 1); # cache this!
     }
 }
@@ -525,7 +525,7 @@ sub prepare_data {
     }
     
     if (scalar(@$matrix) == 0) {
-        $self->return_data( {"ERROR" => "no data found for the given combination of ids and paramaters"}, 404 );
+        $self->return_data( {"ERROR" => "no data found for the given combination of ids and paramaters"}, 400 );
     }
 
     @$matrix = sort { $a->[0] cmp $b->[0] } @$matrix; # sort annotations
