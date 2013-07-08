@@ -4,6 +4,10 @@ use strict;
 use warnings;
 no warnings('once');
 
+use List::MoreUtils qw(any uniq);
+use Data::Dumper;
+use HTML::Strip;
+
 use Conf;
 use parent qw(resources2::resource);
 
@@ -15,20 +19,47 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    $self->{name} = "annotation";
-    $self->{types} = { "organism" => 1, "function" => 1, "ontology" => 1 };
-    $self->{attributes} = { ann => { "id"      => [ 'string', 'unique object identifier' ],
-    	                             "data"    => [ 'hash', [ { 'key' => ['string', 'annotation text'],
-    	                                                        'value' => ['list', ['tuple', 'read id and read sequence']] },
-    	                                                      'data type pointing at lists of sequence info' ]],
-    	                             "version" => [ 'integer', 'version of the object' ],
-    	                             "url"     => [ 'uri', 'resource location of this object instance' ]},
-                            md5 => { "id"      => [ 'string', 'unique object identifier' ],
-                                     "data"    => [ 'hash', [ { 'key' => ['string', 'md5sum'],
-                                     	                        'value' => ['list', ['tuple', 'read id and read sequence']] },
-                                     	                      'annotation to md5s' ]],
-                                     "version" => [ 'integer', 'version of the object' ],
-                                     "url"     => [ 'uri', 'resource location of this object instance' ]}
+    $self->{name}  = "annotation";
+    $self->{types} = [[ "organism", "return organism data" ],
+                      [ "function", "return function data" ],
+                      [ "ontology", "return ontology data" ],
+                      [ "feature", "return feature data" ]];
+    $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
+    $self->{sources} = [[ "RefSeq", "protein database, type organism, function, feature" ],
+					    [ "GenBank", "protein database, type organism, function, feature" ],
+			            [ "IMG", "protein database, type organism, function, feature" ],
+				        [ "SEED", "protein database, type organism, function, feature" ],
+				        [ "TrEMBL", "protein database, type organism, function, feature" ],
+			            [ "SwissProt", "protein database, type organism, function, feature" ],
+					    [ "PATRIC", "protein database, type organism, function, feature" ],
+					    [ "KEGG", "protein database, type organism, function, feature" ],
+          			    [ "RDP", "RNA database, type organism, function, feature" ],
+          			    [ "Greengenes", "RNA database, type organism, function, feature" ],
+          		        [ "LSU", "RNA database, type organism, function, feature" ],
+          		        [ "SSU", "RNA database, type organism, function, feature" ],
+          		        [ "Subsystems", "ontology database, type ontology only" ],
+					    [ "NOG", "ontology database, type ontology only" ],
+					    [ "COG", "ontology database, type ontology only" ],
+				        [ "KO", "ontology database, type ontology only" ]];
+    $self->{attributes} = { sequence => {
+                                "col1" => ['string', 'sequence id'],
+                                "col2" => ['string', 'm5nr id (md5sum)'],
+                                "col3" => ['string', 'semicolon seperated list of annotations'],
+                                "col4" => ['string', 'dna sequence'] },
+                            similarity => {
+                                "col1" => ['string', 'query sequence id'],
+                                "col2" => ['string', 'hit m5nr id (md5sum)'],
+                                "col3" => ['float', 'percentage identity'],
+                                "col4" => ['int', 'alignment length,'],
+                                "col5" => ['int', 'number of mismatches'],
+                                "col6" => ['int', 'number of gap openings'],
+                                "col7" => ['int', 'query start'],
+                                "col8" => ['int', 'query end'],
+                                "col9" => ['int', 'hit start'],
+                                "col10" => ['int', 'hit end'],
+                                "col11" => ['float', 'e-value'],
+                                "col12" => ['float', 'bit score'],
+                                "col13" => ['string', 'semicolon seperated list of annotations'] }
                           };
     return $self;
 }
@@ -38,83 +69,80 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
-		    'description' => "A set of genomic sequences of a metagenome annotated by a specified source",
-		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
-		    'requests' => [ { 'name'        => "info",
-				      'request'     => $self->cgi->url."/".$self->name,
-				      'description' => "Returns description of parameters and attributes.",
-				      'method'      => "GET" ,
-				      'type'        => "synchronous" ,  
-				      'attributes'  => "self",
-				      'parameters'  => { 'options'  => {},
-							             'required' => {},
-							             'body'     => {} } },
-				    { 'name'        => "md5",
-				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
-				      'description' => "Returns a single data object.",
-				      'method'      => "GET" ,
-				      'type'        => "synchronous" ,  
-				      'attributes'  => $self->{attributes}{md5},
-				      'parameters'  => { 'options'  => { "sequence" => [ "cv", [ [ "dna", "return DNA sequences" ],
-													                             [ "protein", "return protein sequences" ] ] ],
-									                          "md5" => [ "list", [ "string", "md5 identifier" ] ] },
-							             'required' => { "id" => [ "string", "unique metagenome identifier" ] },
-							             'body'     => {} } },
-				    { 'name'        => "annotation",
-				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
-				      'description' => "Returns a single data object.",
-				      'method'      => "GET" ,
-				      'type'        => "synchronous" ,  
-				      'attributes'  => $self->{attributes}{ann},
-				      'parameters'  => { 'options' => {
-				                                 "type" => [ "cv", [ [ "organism", "return organism data" ],
-												                     [ "function", "return function data" ],
-												                     [ "ontology", "return ontology data" ] ] ],
-									         "sequence" => [ "cv", [ [ "dna", "return DNA sequences" ],
-													                 [ "protein", "return protein sequences" ],
-													                 [ "md5", "return md5sum" ] ] ],
-									       "annotation" => [ "list", [ "string", "data_type to filter by" ] ],
-									           "source" => [ "cv", [[ "RefSeq", "protein database, type organism and function only" ],
-               												        [ "GenBank", "protein database, type organism and function only" ],
-               												        [ "IMG", "protein database, type organism and function only" ],
-               												        [ "SEED", "protein database, type organism and function only" ],
-               												        [ "TrEMBL", "protein database, type organism and function only" ],
-               												        [ "SwissProt", "protein database, type organism and function only" ],
-               												        [ "PATRIC", "protein database, type organism and function only" ],
-               												        [ "KEGG", "protein database, type organism and function only" ],
-                           									        [ "RDP", "RNA database, type organism and function only" ],
-                           									        [ "Greengenes", "RNA database, type organism and function only" ],
-                           									        [ "LSU", "RNA database, type organism and function only" ],
-                           									        [ "SSU", "RNA database, type organism and function only" ],
-                           									        [ "Subsystems", "ontology database, type ontology only" ],
-               												        [ "NOG", "ontology database, type ontology only" ],
-               												        [ "COG", "ontology database, type ontology only" ],
-               												        [ "KO", "ontology database, type ontology only" ]] ] },
-							             'required' => { "id" => [ "string", "unique metagenome identifier" ] },
-							             'body'     => {} } }
-				  ]
+		            'url' => $self->cgi->url."/".$self->name,
+		            'description' => "All annotations of a metagenome for a specific annotation type and source",
+		            'type' => 'object',
+		            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		            'requests' => [
+		                { 'name'        => "info",
+				          'request'     => $self->cgi->url."/".$self->name,
+				          'description' => "Returns description of parameters and attributes.",
+			              'method'      => "GET",
+				          'type'        => "synchronous",  
+				          'attributes'  => "self",
+				          'parameters'  => { 'required' => {},
+				                             'options'  => {},
+						                     'body'     => {} }
+						},
+				        { 'name'        => "sequence",
+				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
+				          'description' => "tab deliminted annotated sequence stream",
+				          'method'      => "GET",
+				          'type'        => "stream",  
+				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab deliminted annotated sequence stream"]] },
+				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
+				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                            'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                            'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+				                                            "type"     => ["cv", $self->{types} ],
+									                        "source"   => ["cv", $self->{sources} ] },
+							                 'body' => {} }
+						},
+						{ 'name'        => "similarity",
+				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
+				          'description' => "tab deliminted blast m8 with annotation",
+				          'method'      => "GET",
+				          'type'        => "stream",  
+				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab deliminted blast m8 with annotation"]] },
+				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
+				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                            'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                            'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+				                                            "type"     => ["cv", $self->{types} ],
+									                        "source"   => ["cv", $self->{sources} ] },
+							                 'body' => {} }
+						} ]
 		  };
 
     $self->return_data($content);
 }
 
+# Override parent request function
+sub request {
+    my ($self) = @_;
+    # determine sub-module to use
+    if (scalar(@{$self->rest}) == 0) {
+        $self->info();
+    } elsif ($self->rest->[1] && (($self->rest->[0] eq 'sequence') || ($self->rest->[0] eq 'similarity'))) {
+        $self->instance($self->rest->[0], $self->rest->[1]);
+    } else {
+        $self->info();
+    }
+}
+
 # the resource is called with an id parameter
 sub instance {
-    my ($self) = @_;
+    my ($self, $format, $mgid) = @_;
     
     # check id format
     my $rest = $self->rest;
-    my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
+    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if ((! $id) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: ".$mgid}, 400 );
     }
 
-    # get database
-    my $master = $self->connect_to_datasource();
-
     # get data
+    my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $id, viewable => 1} );
     unless ($job && scalar(@$job)) {
         $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
@@ -123,78 +151,90 @@ sub instance {
     }  
     
     # check rights
-    unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id}) || $self->user->has_star_right('view', 'metagenome')))) {
+    unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
-
-    # prepare data
-    my $data = $self->prepare_data($job);
     
-    $self->return_data($data);
+    $self->prepare_data($job, $format);
 }
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $data) = @_;
+    my ($self, $data, $format) = @_;
 
-    my $cgi  = $self->cgi;
-    my $type = $cgi->param('type') ? $cgi->param('type') : 'organism';
-    my $seq  = $cgi->param('sequence') ? $cgi->param('sequence') : 'dna';
-    my $src  = $cgi->param('source') ? $cgi->param('source') : 'RefSeq';
-    my @anns = $cgi->param('annotation') ? $cgi->param('annotation') : ();
-    my @md5s = $cgi->param('md5') ? $cgi->param('md5') : ();
+    my $cgi    = $self->cgi;
+    my $type   = $cgi->param('type') ? $cgi->param('type') : 'organism';
+    my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'ontology') ? 'Subsystems' : 'RefSeq');
+    my $eval   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
+    my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
+    my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
   
     my $master = $self->connect_to_datasource();
     use MGRAST::Analysis;
     my $mgdb = MGRAST::Analysis->new( $master->db_handle );
     unless (ref($mgdb)) {
-        $self->return_data( {"ERROR" => "resource database offline"}, 503 );
+        $self->return_data({"ERROR" => "resource database offline"}, 503);
     }
-    unless (exists $mgdb->_src_id->{$src}) {
-        $self->return_data({"ERROR" => "Invalid source was entered ($src). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
+    my $mgid = $data->{metagenome_id};
+    $mgdb->set_jobs([$mgid]);
+
+    unless (exists $mgdb->_src_id->{$source}) {
+        $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
     }
-    unless (exists $self->{types}{$type}) {
-        $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", keys %{$self->{types}})}, 404);
+    unless (any {$_->[0] eq $type} @{$self->{types}}) {
+        $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
     }
 
-    my $url = $cgi->url."/".$self->{name}."/mgm".$data->{metagenome_id}."?sequence=".$seq;
-    my $content;
-    if (scalar(@md5s) > 0) {
-        my $md5_ints_to_strings = $mgdb->_get_annotation_map('md5', \@md5s);
-        if (scalar(keys %$md5_ints_to_strings) > 0) {
-          $content = $mgdb->sequences_for_md5s($data->{metagenome_id}, $seq, [keys %$md5_ints_to_strings], 1);
-          my %valid_md5s = map { $_ => 1} values %$md5_ints_to_strings; # uniquifying valid md5s
-          $url .= "&md5=".join("&md5=", keys %valid_md5s);
-        } else {
-          $self->return_data( {"ERROR" => "No valid md5 was entered.  For more information on how to use this resource, view the resource description here: ".$cgi->url."/sequences"}, 404 );
-        }
-    } elsif (scalar(@anns) > 0) {
-        if ($seq eq 'md5') {
-            $content = $mgdb->md5_abundance_for_annotations($data->{metagenome_id}, $type, [$src], \@anns); # annotation_text => md5_integer => abundance
-            my $md5_ints = {};
-            foreach my $a (keys %$content) {
-                map { $md5_ints->{$_} = 1 } keys %{$content->{$a}};
-            }
-            my $md5_ints_to_strings = $mgdb->decode_annotation('md5', [keys %$md5_ints]);
-            foreach my $a (keys %$content) {
-                my @md5s = map { $md5_ints_to_strings->{$_} } grep { $md5_ints_to_strings->{$_} } keys %{$content->{$a}};
-                $content->{$a} = \@md5s;
-            }
-        } else {
-            $content = $mgdb->sequences_for_annotation($data->{metagenome_id}, $seq, $type, [$src], \@anns);
-        }
-        $url .= "&source=".$src."&type=".$type."&annotation=".join("&annotation=", @anns);
-    } else {
-        $self->return_data( {"ERROR" => "To retrieve sequences, you must either enter an 'md5' or a 'type' and an 'annotation'.  The default 'type' is organism.  For more information on how to use this resource, view the resource description here: ".$cgi->url."/sequences"}, 404 );
-    }
+    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
+    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
+    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
+    
+    my $srcid = $mgdb->_src_id->{$source};
+    my $where = $mgdb->_get_where_str([$mgdb->_qver, "job = ".$data->{job_id}, $eval, $ident, $alen, "seek IS NOT NULL", "length IS NOT NULL"]);
+    my $query = "SELECT md5, seek, length FROM ".$mgdb->_jtbl->{md5}.$where." ORDER BY seek";
+    
+    open(FILE, "<" . $mgdb->_sim_file($data->{job_id})) || $self->return_data({"ERROR" => "resource database offline"}, 503);
+    print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
 
-    my $object = { id      => "mgm".$data->{metagenome_id},
-		           data    => $content,
-		           url     => $url,
-		           version => 1
-		         };
-  
-    return $object;
+    my $hs  = HTML::Strip->new();
+    my $sth = $mgdb->_dbh->prepare($query);
+    $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
+    
+    # loop through indices and print data
+    while (my @row = $sth->fetchrow_array()) {
+        my ($md5, $seek, $len) = @row;
+        my $ann = [];
+        if ($type eq 'organism') {
+            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT o.name FROM md5_annotation a, organisms_ncbi o WHERE a.md5=$md5 AND a.source=$srcid AND a.organism=o._id");
+        } elsif ($type eq 'function') {
+            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT f.name FROM md5_annotation a, functions f WHERE a.md5=$md5 AND a.source=$srcid AND a.function=f._id");
+        } else {
+            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT id FROM md5_annotation WHERE md5=$md5 AND source=$srcid");
+        }
+        if (@$ann == 0) { next; }
+        my $rec = '';
+        seek(FILE, $seek, 0);
+        read(FILE, $rec, $len);
+        chomp $rec;
+        foreach my $line ( split(/\n/, $rec) ) {
+            my @tabs = split(/\t/, $line);
+            if ($tabs[0]) {
+                my $rid = $hs->parse($tabs[0]);
+                $hs->eof;
+                if (($format eq 'sequence') && (@tabs == 13)) {
+                    print join("\t", ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]))."\n";
+                } elsif ($format eq 'similarity') {
+                    print join("\t", ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann)))."\n";
+                }
+            }
+        }
+    }
+    
+    # cleanup
+    $sth->finish;
+    $mgdb->_dbh->commit;
+    close FILE;
+    exit 0;
 }
 
 1;
