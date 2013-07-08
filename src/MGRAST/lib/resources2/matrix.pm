@@ -11,6 +11,7 @@ use MGRAST::Analysis;
 use Data::Dumper;
 use URI::Escape;
 use List::Util qw(max min sum first);
+use List::MoreUtils qw(any uniq);
 use Digest::MD5 qw(md5_hex md5_base64);
 use parent qw(resources2::resource);
 
@@ -40,6 +41,7 @@ sub new {
                                          ['level1', 'top function ontology level'] ]
                          };
     $self->{sources} = { organism => [ ["M5NR", "comprehensive protein database"],
+                                       ["M5RNA", "comprehensive RNA database"],
                                        ["RefSeq", "protein database"],
                                        ["SwissProt", "protein database"],
                                        ["GenBank", "protein database"],
@@ -48,7 +50,6 @@ sub new {
                                        ["TrEMBL", "protein database"],
                                        ["PATRIC", "protein database"],
                                        ["KEGG", "protein database"],
-                                       ["M5RNA", "comprehensive RNA database"],
                                        ["RDP", "RNA database"],
                                        ["Greengenes", "RNA database"],
                                        ["LSU", "RNA database"],
@@ -155,22 +156,14 @@ sub info {
                                                       'method'      => "GET" ,
                                                       'type'        => "synchronous or asynchronous" ,  
                                                       'attributes'  => $self->attributes,
-                                                      'parameters'  => { 'options'  => { 'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+                                                      'parameters'  => { 'options'  => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                                                         'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                                                         'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                                                         'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
                                                                                                                    ['evalue', 'average e-value exponent of hits in annotation'],
                                                                                                                    ['identity', 'average percent identity of hits in annotation'],
                                                                                                                    ['length', 'average alignment length of hits in annotation']] ],
-                                                                                         'source' => [ 'cv', [["RefSeq", "protein database"],
-                                                                                                              ["SwissProt", "protein database"],
-                                                                                                              ["GenBank", "protein database"],
-                                                                                                              ["IMG", "protein database"],
-                                                                                                              ["SEED", "protein database"],
-                                                                                                              ["TrEMBL", "protein database"],
-                                                                                                              ["PATRIC", "protein database"],
-                                                                                                              ["KEGG", "protein database"],
-                                                                                                              ["RDP", "RNA database"],
-                                                                                                              ["Greengenes", "RNA database"],
-                                                                                                              ["LSU", "RNA database"],
-                                                                                                              ["SSU", "RNA database"]] ],
+                                                                                         'source' => [ 'cv', [ @{$self->{sources}{organism}}[2..14] ] ],
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
                                                                                          'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
@@ -202,7 +195,7 @@ sub instance {
         $self->return_data( {"ERROR" => "no ids submitted, aleast one 'id' is required"}, 400 );
     }
     my @ids   = $self->cgi->param('id');
-    my $mgids = {};
+    my @mgids = [];
     my $seen  = {};
         
     # get database
@@ -223,7 +216,7 @@ sub instance {
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
             if ($m_star || exists($m_rights{$1})) {
-                $mgids->{$1} = 1;
+                push @mgids, $1;
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
@@ -232,7 +225,7 @@ sub instance {
                 my $proj = $master->Project->init( {id => $1} );
                 foreach my $mgid (@{ $proj->metagenomes(1) }) {
                     next unless ($m_star || exists($m_rights{$mgid}));
-                    $mgids->{$mgid} = 1;
+                    push @mgids, $mgid;
                 }
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
@@ -242,7 +235,7 @@ sub instance {
         }
         $seen->{$id} = 1;
     }
-    if (scalar(keys %$mgids) == 0) {
+    if (@mgids == 0) {
         $self->return_data( {"ERROR" => "no valid ids submitted and/or found: ".join(", ", @ids)}, 401 );
     }
 
@@ -257,7 +250,7 @@ sub instance {
             my $fname = $Conf::temp.'/'.$$.'.json';
             close STDERR;
             close STDOUT;
-            my $data = $self->prepare_data([sort keys %$mgids], $type);
+            my $data = $self->prepare_data([uniq(@mgids)], $type);
             open(FILE, ">$fname");
             print FILE $self->json->encode($data);
             close FILE;
@@ -270,7 +263,7 @@ sub instance {
         }
     } else {
         # prepare data
-        my $data = $self->prepare_data([keys %$mgids], $type);
+        my $data = $self->prepare_data([uniq(@mgids)], $type);
         $self->return_data($data, undef, 1); # cache this!
     }
 }
@@ -336,8 +329,6 @@ sub prepare_data {
                      };
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
     my $type_set   = ["function", "organism", "feature"];
-    my @func_hier  = map { $_->[0] } @{$self->{hierarchy}{ontology}};
-    my @org_hier   = map { $_->[0] } @{$self->{hierarchy}{organism}};
     my %func_srcs  = map { $_->[0], 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
     my %org_srcs   = map { $_->[0], 1 } @{$mgdb->sources_for_type('protein')};
     map { $org_srcs{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
@@ -347,7 +338,7 @@ sub prepare_data {
         $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
     }
     if ($type eq 'organism') {
-        if ( grep(/^$glvl$/, @org_hier) ) {
+        if ( any {$_->[0] eq $glvl} @{$self->{hierarchy}{organism}} ) {
             $glvl = 'tax_'.$glvl;
             if ($glvl eq 'tax_strain') {
                 $glvl = 'name';
@@ -356,7 +347,7 @@ sub prepare_data {
         } else {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @org_hier)."]"}, 404);
         }
-        if ( grep(/^$flvl$/, @func_hier) ) {
+        if ( any {$_->[0] eq $flvl} @{$self->{hierarchy}{ontology}} ) {
             if ($flvl eq 'function') {
                 $flvl = ($fsrc =~ /^[NC]OG$/) ? 'level3' : 'level4';
                 $leaf_filter = 1;
@@ -374,7 +365,7 @@ sub prepare_data {
             $self->return_data({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
         }
     } elsif ($type eq 'function') {
-        if ( grep(/^$glvl$/, @func_hier) ) {
+        if ( any {$_->[0] eq $glvl} @{$self->{hierarchy}{ontology}} ) {
             if ($glvl eq 'function') {
                 $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
                 $leaf_node = 1;
@@ -385,7 +376,7 @@ sub prepare_data {
         } else {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @func_hier)."]"}, 404);
         }
-        if ( grep(/^$flvl$/, @org_hier) ) {
+        if ( any {$_->[0] eq $flvl} @{$self->{hierarchy}{organism}} ) {
             $flvl = 'tax_'.$flvl;
             if ($flvl eq 'tax_strain') {
                 $flvl = 'name';
