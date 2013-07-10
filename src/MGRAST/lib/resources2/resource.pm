@@ -216,39 +216,26 @@ sub check_pagination {
     $path  = $path || "";
     
     my $total_count = $total || scalar(@$data);
-    my $additional_params = "";
-
-    foreach my $param (@params) {
-        next if ($param eq 'offset');
-        $additional_params .= $param."=".$self->cgi->param($param)."&";
-    }
-    if (length($additional_params)) {
-        chop $additional_params;
-    }
     my $prev_offset = (($offset - $limit) < 0) ? 0 : $offset - $limit;
     my $next_offset = $offset + $limit;
     
-    my $this = $self->cgi->url."/".$self->name.$path."?$additional_params&offset=$offset";
-    my $prev = ($offset > 0) ? $self->cgi->url."/".$self->name.$path."?$additional_params&offset=$prev_offset" : undef;
-    my $next = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name.$path."?$additional_params&offset=$next_offset" : undef;
     my $object = { "limit" => int($limit),
 	               "offset" => int($offset),
 	               "total_count" => int($total_count),
-	               "next" => $next,
-	               "prev" => $prev,
-	               "url"  => $this,
 	               "data" => $data };
-	
+
+    # don't build urls for POST
+    if ($self->method eq 'GET') {
+        my $add_params  = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'offset'} @params);
+        $object->{url}  = $self->cgi->url."/".$self->name.$path."?$add_params&offset=$offset";
+        $object->{prev} = ($offset > 0) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$prev_offset" : undef;
+        $object->{next} = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$next_offset" : undef;
+    }
 	if ($order) {
-	    if (exists $self->attributes->{$order}) {
-	        $object->{order} = $order;
-	        return $object;
-	    } else {
-	        $self->return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
-	    }
-	} else {
-	    return $object;
-	}
+	    $object->{order} = $order;
+    }
+    
+	return $object;
 }
 
 # return cached data if exists
@@ -540,27 +527,33 @@ sub get_shock_query {
 }
 
 sub get_solr_query {
-    my ($self, $server, $collect, $query, $sort, $offset, $limit, $fields) = @_;
+    my ($self, $method, $server, $collect, $query, $sort, $offset, $limit, $fields) = @_;
     
-    my $data = undef;
-    my $url = $server.'/'.$collect.'/select?q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json';
+    my $content = undef;
+    my $url  = $server.'/'.$collect.'/select';
+    my $data = 'q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json';
     if ($sort) {
-        $url .= '&sort='.$sort;
+        $data .= '&sort='.$sort;
     }
     if ($fields && (@$fields > 0)) {
-        $url .= '&fl='.join('%2C', @$fields);
+        $data .= '&fl='.join('%2C', @$fields);
     }
-    #print STDERR $url."&indent=true\n";
     eval {
-        my $get = $self->agent->get($url);
-        $data = $self->json->decode( $get->content );
+        my $res = undef;
+        if ($method eq 'GET') {
+            $res = $self->agent->get($url.'?'.$data);
+        }
+        if ($method eq 'POST') {
+            $res = $self->agent->post($url, Content => $data);
+        }
+        $content = $self->json->decode( $res->content );
     };
-    if ($@ || (! ref($data))) {
+    if ($@ || (! ref($content))) {
         return ([], 0);
-    } elsif (exists $data->{error}) {
-        $self->return_data( {"ERROR" => "Unable to query DB: ".$data->{error}{msg}}, $data->{error}{status} );
+    } elsif (exists $content->{error}) {
+        $self->return_data( {"ERROR" => "Unable to query DB: ".$content->{error}{msg}}, $content->{error}{status} );
     } else {
-        return ($data->{response}{docs}, $data->{response}{numFound});
+        return ($content->{response}{docs}, $content->{response}{numFound});
     }
 }
 
