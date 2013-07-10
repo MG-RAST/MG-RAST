@@ -335,6 +335,8 @@ sub output {
     if ( \$("#metaSimple").attr('checked') ) { sTypes.push('metadata'); }
     if ( \$("#funcSimple").attr('checked') ) { sTypes.push('function'); }
     if ( \$("#orgSimple").attr('checked') )  { sTypes.push('organism'); }
+    var result = document.getElementById("dResult"); 
+    result.innerHTML = "<img src='./Html/loading-green.gif' />";
     queryAPI({type: sTypes, query: sText, result: "dResult"});
   });
   \$("#bSimpleMeta").click( function() {
@@ -345,6 +347,8 @@ sub output {
     \$("#metaSimple").attr('checked', true);
     \$("#funcSimple").attr('checked', false);
     \$("#orgSimple").attr('checked', false);
+    var result = document.getElementById("dResult"); 
+    result.innerHTML = "<img src='./Html/loading-green.gif' />";
     queryAPI({type: ['metadata'], query: sText, result: "dResult"});
   });
   \$("#bSimpleFunc").click( function() {
@@ -355,6 +359,8 @@ sub output {
     \$("#metaSimple").attr('checked', false);
     \$("#funcSimple").attr('checked', true);
     \$("#orgSimple").attr('checked', false);
+    var result = document.getElementById("dResult"); 
+    result.innerHTML = "<img src='./Html/loading-green.gif' />";
     queryAPI({type: ['function'], query: sText, result: "dResult"});
   });
   \$("#bSimpleOrg").click( function() {
@@ -365,6 +371,8 @@ sub output {
     \$("#metaSimple").attr('checked', false);
     \$("#funcSimple").attr('checked', false);
     \$("#orgSimple").attr('checked', true);
+    var result = document.getElementById("dResult"); 
+    result.innerHTML = "<img src='./Html/loading-green.gif' />";
     queryAPI({type: ['organism'], query: sText, result: "dResult"});
   });
   \$("#bAdvanced").click( function() {
@@ -474,7 +482,7 @@ sub output {
   my @colors = ('#3674D9', '#52B95E', '#FF9933');
   $html .= "<div id='dSimple' style='padding-top:20px; float: left;'>";
   $html .= "<label for='tSimpleAll' style='font-size: 14px; font-weight:bold;'>Search for Metagenomes<br></label>";
-  $html .= "<input id='tSimpleAll' type='text' placeholder='by metadata / MG-RAST id (name, biome, project name, 4441137.3), function or organism...' value='".$stext."' style='width:580px;' onkeyup='if (event.keyCode == 13) { document.getElementById(\"bSimpleAll\").click(); var result = document.getElementById(\"dResult\"); result.innerHTML = \"<img src=\\\"./Html/loading-green.gif\\\" />\"; }'>";
+  $html .= "<input id='tSimpleAll' type='text' placeholder='by metadata / MG-RAST id (name, biome, project name, 4441137.3), function or organism...' value='".$stext."' style='width:580px;' onkeyup='if (event.keyCode == 13) { document.getElementById(\"bSimpleAll\").click(); }'>";
   $html .= "&nbsp;&nbsp;<button type='button' id='bSimpleAll'>Search</button><br>";
   $html .= "<div style='padding-top: 5px; font:12px sans-serif;'>Match<span id='share_help' onmouseover='hover(event, \"match_help\", " . $help->id . ")'><sup style='cursor: help;'>[?]</sup></span>";
   $html .= "&nbsp;&nbsp;<input type='checkbox' name='resType' id='metaSimple' checked/>&nbsp;<span style='font-weight: bold; color: ".$colors[0]."'>metadata / MG-RAST id</span>";
@@ -494,15 +502,15 @@ sub output {
   $html .= "<div>";
   $html .= "<div style='margin:5px; padding: 20px; float:left; width:260; height:60px; border: 2px dashed ".$colors[0].";'>";
   $html .= "<label for='tSimpleMeta' style='font-weight:bold;'>Find by metadata / mg-rast id<br></label>";
-  $html .= "<input id='tSimpleMeta' type='text' placeholder='MG-RAST id, name, biome, project name...' value='' style='width:260px;'><br><button id='bSimpleMeta'>Search</button>";
+  $html .= "<input id='tSimpleMeta' type='text' placeholder='MG-RAST id, name, biome, project name...' value='' style='width:260px;' onkeyup='if (event.keyCode == 13) { document.getElementById(\"bSimpleMeta\").click(); }'><br><button id='bSimpleMeta'>Search</button>";
   $html .= "</div>";
   $html .= "<div style='margin:5px; padding: 20px; float:left; width:260; height:60px; border: 2px dashed ".$colors[1].";'>";
   $html .= "<label for='tSimpleFunc' style='font-weight:bold;'>Find by function or functional category<br></label>";
-  $html .= "<input id='tSimpleFunc' type='text' placeholder='BatE, 3.4.11.9, RNA Metabolism...' value='' style='width:260px;'><br><button id='bSimpleFunc'>Search</button>";
+  $html .= "<input id='tSimpleFunc' type='text' placeholder='BatE, 3.4.11.9, RNA Metabolism...' value='' style='width:260px;' onkeyup='if (event.keyCode == 13) { document.getElementById(\"bSimpleFunc\").click(); }'><br><button id='bSimpleFunc'>Search</button>";
   $html .= "</div>";
   $html .= "<div style='margin:5px; padding: 20px; float:left; width:260; height:60px; border: 2px dashed ".$colors[2].";'>";
   $html .= "<label for='tSimpleOrg' style='font-weight:bold;'>Find by organism<br></label>";
-  $html .= "<input id='tSimpleOrg' type='text' placeholder='Firmicutes, Mobiluncus curtisii...' value='' style='width:260px;'><br><button id='bSimpleOrg'>Search</button>";
+  $html .= "<input id='tSimpleOrg' type='text' placeholder='Firmicutes, Mobiluncus curtisii...' value='' style='width:260px;' onkeyup='if (event.keyCode == 13) { document.getElementById(\"bSimpleOrg\").click(); }'><br><button id='bSimpleOrg'>Search</button>";
   $html .= "</div>";
   $html .= "</div>"; 
   $html .= "<div class='clear' style='height: 25px;'></div>";
