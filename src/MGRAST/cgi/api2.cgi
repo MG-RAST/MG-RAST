@@ -128,6 +128,22 @@ my $user;
 if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
   use Auth;
   $user = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
+  unless($user) {
+    print $cgi->header( -type => 'application/json',
+	                -status => 401,
+    	                -Access_Control_Allow_Origin => '*' );
+    print "{ \"ERROR\": \"auth parameter did not authenticate\" }";
+    exit 0;
+  }
+}
+
+# print google analytics
+use GoogleAnalytics;
+my $debug = undef;
+if($user) {
+  GoogleAnalytics::track_page_view($user->_id, $debug);
+} else {
+  GoogleAnalytics::track_page_view("anonymous", $debug);
 }
 
 # if a resource is passed, call the resources module
@@ -140,10 +156,10 @@ if ($resource) {
         $error = $@;
     }
     if ($error) {
-        print $cgi->header( -type => 'text/plain',
+        print $cgi->header( -type => 'application/json',
     		                -status => 500,
     		                -Access_Control_Allow_Origin => '*' );
-        print "ERROR: resource '$resource' does not exist";
+        print "{ \"ERROR\": \"resource '$resource' does not exist\" }";
         exit 0;
     } else {
       # check for kbase ids
