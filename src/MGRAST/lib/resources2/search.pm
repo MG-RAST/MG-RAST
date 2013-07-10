@@ -155,9 +155,11 @@ sub query {
                 } else {
                     $solr_query_str .= ' OR ';
                 }
+            } else {
+                $solr_query_str .= "(";
             }
             $query_str .= "$field=".$self->cgi->param($field);
-            $solr_query_str .= "($field:".$self->cgi->param($field);
+            $solr_query_str .= "$field:".$self->cgi->param($field);
         }
     }
 

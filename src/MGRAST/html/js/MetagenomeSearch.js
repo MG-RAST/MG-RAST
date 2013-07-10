@@ -64,7 +64,7 @@ function queryAPI (params) {
         }
     }
 
-    var url = api_url + query_str + "&sort_by=" + sort + "&sort_dir=" + sortDir + "&match=any" + "&limit=" + limit + "&offset=" + offset;
+    var url = api_url + query_str + "&order=" + sort + "&direction=" + sortDir + "&match=any" + "&limit=" + limit + "&offset=" + offset;
     var wsCookie = getCookie("WebSession");
     //if(wsCookie) {
     //    url += "&auth=" + wsCookie;
