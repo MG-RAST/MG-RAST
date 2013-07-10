@@ -161,18 +161,6 @@ sub query {
         }
     }
 
-    my $url  = $self->cgi->url."/search/$type?";
-
-    my @params = $self->cgi->param;
-    my $additional_params = "";
-    foreach my $param (@params) {
-        $additional_params .= $param."=".$self->cgi->param($param)."&";
-    }
-    if (length($additional_params)) {
-        chop $additional_params;
-    }
-    $url .= $additional_params;
-    
     # all non-numeric fields must use separate solr string field for sorting
     unless($order eq 'job' || $order eq 'sequence_type') {
         $order .= "_sort";
@@ -233,7 +221,6 @@ sub query {
         ($data, $total) = $self->solr_data($solr_query_str, "$order $direction", $offset, $limit);
     }
     my $obj = $self->check_pagination($data, $total, $limit, "/$type");
-    $obj->{url} = $url;
     $obj->{version} = 1;
 
     foreach my $data_item (@{$obj->{data}}) {
@@ -255,7 +242,7 @@ sub solr_data {
     $solr_query_str = uri_unescape($solr_query_str);
     $solr_query_str = uri_escape($solr_query_str);
     my $fields = ['job', 'id', 'name', 'project_id', 'project_name', 'status', 'biome', 'feature', 'material', 'country', 'location', 'sequence_type', 'PI_lastname'];
-    return $self->get_solr_query($Conf::job_solr, $Conf::job_collect, $solr_query_str, $sort_field, $offset, $limit, $fields);
+    return $self->get_solr_query("POST", $Conf::job_solr, $Conf::job_collect, $solr_query_str, $sort_field, $offset, $limit, $fields);
 }
 
 1;
