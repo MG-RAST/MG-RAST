@@ -238,6 +238,8 @@ sub instance {
     if (@mgids == 0) {
         $self->return_data( {"ERROR" => "no valid ids submitted and/or found: ".join(", ", @ids)}, 401 );
     }
+    # unique list and sort it - sort required for proper caching
+    @mgids = sort uniq(@mgids);
 
     # return cached if exists
     $self->return_cached();
@@ -250,7 +252,7 @@ sub instance {
             my $fname = $Conf::temp.'/'.$$.'.json';
             close STDERR;
             close STDOUT;
-            my $data = $self->prepare_data([sort uniq(@mgids)], $type);
+            my $data = $self->prepare_data(\@mgids, $type);
             open(FILE, ">$fname");
             print FILE $self->json->encode($data);
             close FILE;
@@ -263,7 +265,7 @@ sub instance {
         }
     } else {
         # prepare data
-        my $data = $self->prepare_data([sort uniq(@mgids)], $type);
+        my $data = $self->prepare_data(\@mgids, $type);
         $self->return_data($data, undef, 1); # cache this!
     }
 }
@@ -398,7 +400,26 @@ sub prepare_data {
             $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
         }        
     } else {
-        $self->return_data({"ERROR" => "Invalid resource type was entered ($type)."}, 404);
+        $self->return_data({"ERROR" => "invalid resource type was entered ($type)."}, 404);
+    }
+
+    # validate metagenome type combinations
+    # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
+    my $num_amp = 0;
+    map { $num_amp += 1 } grep { $mgdb->_type_map->{$_} eq 'Amplicon' } @$data;
+    if ($num_amp) {
+        if ($num_amp != scalar(@$data)) {
+            $self->return_data({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, 400);
+        }
+        if ($type eq 'function') {
+            $self->return_data({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, 400);
+        }
+        if (any {$_->[0] eq $source} @{$mgdb->sources_for_type('protein')}) {
+            $self->return_data({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, 400);
+        }
+        if (@filter > 0) {
+            $self->return_data({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, 400);
+        }
     }
 
     # get data
