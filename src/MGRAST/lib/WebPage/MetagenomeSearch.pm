@@ -48,25 +48,18 @@ sub init {
   my @mgs  = $self->app->cgi->param('metagenomes');
   my $jmap = {};
   my $pmap = {};
-  my $jobs = $self->get_user_jobs(\@mgs);
-  foreach (keys %$jobs) {
-    $jmap->{ $jobs->{$_}{_id} } = $_;
-    if (exists $jobs->{$_}{project_id}) {
-      push @{ $pmap->{ $jobs->{$_}{project_id} } }, $_;
-    }
-  }
+  my $jobs;
+#  my $jobs = $self->get_user_jobs(\@mgs);
+#  foreach (keys %$jobs) {
+#    last;
+#    $jmap->{ $jobs->{$_}{_id} } = $_;
+#    if (exists $jobs->{$_}{project_id}) {
+#      push @{ $pmap->{ $jobs->{$_}{project_id} } }, $_;
+#    }
+#  }
   my $mddb = MGRAST::Metadata->new();
   my $mgdb = MGRAST::Analysis->new( $self->app->data_handle('MGRAST')->db_handle );
   
-  unless ($jobs && (scalar(keys %$jobs) > 0)) {
-    $self->app->add_message('warning', "Unable to retrieve any metagenomes.");
-    return 1;
-  }
-  unless ($mgdb) {
-    $self->app->add_message('warning', "Unable to retrieve the metagenome analysis database.");
-    return 1;
-  }
-
   my $type = [ ["function", "Function", ""],
 	       ["organism", "Organism", "taxon"],
 	       ["Subsystems", "SEED Subsystem", "hier2"],
@@ -125,6 +118,7 @@ sub init {
   $self->data('hier1', $hier1);
   $self->data('hier2', $hier2);
   $self->data('max_results', 500000);
+  close OUT;
 
   return 1;
 }
@@ -141,6 +135,10 @@ Returns the html output of the MetagenomeSelect page.
 sub output {
   my ($self) = @_;
 
+  my $msg_count = 1;
+  open OUT, ">/homes/jbischof/foo.txt" || die;
+  print OUT "$msg_count\t".`date`; ++$msg_count;
+
   my $cgi    = $self->app->cgi;
   my $qnum   = $cgi->param('qnum')  || 0;
   my $mode   = $cgi->param('smode') || 1;
@@ -149,24 +147,27 @@ sub output {
   my $mgdb   = $self->data('mgdb');
   my $match  = $self->data('match');
   my $modes  = { 1 => "dSimple", 2 => "dAdvanced" };
-  my $extras = { "metadata"   => { "biome"       => $self->get_unique_job_info('biome'),
-				   "feature"     => $self->get_unique_job_info('feature'),
-				   "material"    => $self->get_unique_job_info('material'),
-				   "env_package" => $mddb->get_cv_list('env_package'),
-				   "country"     => $self->get_unique_job_info('country'),
-				   "sequencing method" => $mddb->get_cv_list('seq_meth') },
-		 "organism"   => { "tax_phylum" => $mgdb->ach->get_taxonomy4level("tax_phylum"),
-				   "tax_domain" => $mgdb->ach->get_taxonomy4level("tax_domain") },
-		 "Subsystems" => { "level1" => $mgdb->ach->get_level4ontology("Subsystems","level1"),
-				   "level2" => $mgdb->ach->get_level4ontology("Subsystems","level2") },
-		 "KO"         => { "level1" => $mgdb->ach->get_level4ontology("KO","level1"),
-				   "level2" => $mgdb->ach->get_level4ontology("KO","level2") },
-		 "COG"        => { "level1" => $mgdb->ach->get_level4ontology("COG","level1"),
-				   "level2" => $mgdb->ach->get_level4ontology("COG","level2") },
-		 "NOG"        => { "level1" => $mgdb->ach->get_level4ontology("NOG","level1"),
-				   "level2" => $mgdb->ach->get_level4ontology("NOG","level2") }
-	       };
+  print OUT "$msg_count\t".`date`; ++$msg_count;
+  my $extras = {};
+#  my $extras = { "metadata"   => { "biome"       => $self->get_unique_job_info('biome'),
+#				   "feature"     => $self->get_unique_job_info('feature'),
+#				   "material"    => $self->get_unique_job_info('material'),
+#				   "env_package" => $mddb->get_cv_list('env_package'),
+#				   "country"     => $self->get_unique_job_info('country'),
+#				   "sequencing method" => $mddb->get_cv_list('seq_meth') },
+#		 "organism"   => { "tax_phylum" => $mgdb->ach->get_taxonomy4level("tax_phylum"),
+#				   "tax_domain" => $mgdb->ach->get_taxonomy4level("tax_domain") },
+#		 "Subsystems" => { "level1" => $mgdb->ach->get_level4ontology("Subsystems","level1"),
+#				   "level2" => $mgdb->ach->get_level4ontology("Subsystems","level2") },
+#		 "KO"         => { "level1" => $mgdb->ach->get_level4ontology("KO","level1"),
+#				   "level2" => $mgdb->ach->get_level4ontology("KO","level2") },
+#		 "COG"        => { "level1" => $mgdb->ach->get_level4ontology("COG","level1"),
+#				   "level2" => $mgdb->ach->get_level4ontology("COG","level2") },
+#		 "NOG"        => { "level1" => $mgdb->ach->get_level4ontology("NOG","level1"),
+#				   "level2" => $mgdb->ach->get_level4ontology("NOG","level2") }
+#	       };
   
+  print OUT "$msg_count\t".`date`; ++$msg_count;
   my $taxon_sel = $self->build_select("sel_extra", $self->data('taxon'));
   my $hier1_sel = $self->build_select("sel_extra", $self->data('hier1'));
   my $hier2_sel = $self->build_select("sel_extra", $self->data('hier2'));
@@ -183,6 +184,7 @@ sub output {
 
   if ($qnum && ($qnum > 0) && ($mode == 2)) {
     foreach my $i (1..$qnum) {
+      last;
       my $qtype  = $cgi->param("type_q$i");
       my $qmatch = $cgi->param("match_q$i");
       my $qinput = uri_unescape( $cgi->param("input_q$i") );
@@ -197,8 +199,10 @@ sub output {
     $adv_srch = qq(<tr id='query1'>$adv_deflt</tr>);
   }
 
+  print OUT "$msg_count\t".`date`; ++$msg_count;
   my @ext_set = ();
   foreach my $t (keys %$extras) {
+    last;
     foreach my $e (keys %{$extras->{$t}}) {
       push @ext_set, qq("${t}_$e" : ") . $self->build_select("sel_adv", $extras->{$t}{$e}) . qq(");
     }
@@ -206,6 +210,7 @@ sub output {
   my $ext_json = "{ " . join(",", @ext_set) . " }";
   my $qlist    = "[ " . join(",", map {"'$_'"} @adv_list) . " ]";
 
+  print OUT "$msg_count\t".`date`; ++$msg_count;
   my $stext = $cgi->param('text') || "";
   my $stype = $cgi->param('type') || "metadata,function,organism";
   if ($cgi->param('init_search')) {
@@ -234,6 +239,7 @@ sub output {
     $search_now = "switch_mode(2);";
   }
   
+  print OUT "$msg_count\t".`date`; ++$msg_count;
   my $scripts  = qq~
 <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
 <script type="text/javascript">
@@ -329,7 +335,7 @@ sub output {
     if ( \$("#metaSimple").attr('checked') ) { sTypes.push('metadata'); }
     if ( \$("#funcSimple").attr('checked') ) { sTypes.push('function'); }
     if ( \$("#orgSimple").attr('checked') )  { sTypes.push('organism'); }
-    simple_search(sText, sTypes);
+    queryAPI({type: sTypes, query: sText, result: "dResult"});
   });
   \$("#bSimpleMeta").click( function() {
     var sText = clean_text( \$("#tSimpleMeta").val() );
@@ -339,7 +345,7 @@ sub output {
     \$("#metaSimple").attr('checked', true);
     \$("#funcSimple").attr('checked', false);
     \$("#orgSimple").attr('checked', false);
-    simple_search(sText, ['metadata']);
+    queryAPI({type: ['metadata'], query: sText, result: "dResult"});
   });
   \$("#bSimpleFunc").click( function() {
     var sText = clean_text( \$("#tSimpleFunc").val() );
@@ -349,7 +355,7 @@ sub output {
     \$("#metaSimple").attr('checked', false);
     \$("#funcSimple").attr('checked', true);
     \$("#orgSimple").attr('checked', false);
-    simple_search(sText, ['function']);
+    queryAPI({type: ['function'], query: sText, result: "dResult"});
   });
   \$("#bSimpleOrg").click( function() {
     var sText = clean_text( \$("#tSimpleOrg").val() );
@@ -359,7 +365,7 @@ sub output {
     \$("#metaSimple").attr('checked', false);
     \$("#funcSimple").attr('checked', false);
     \$("#orgSimple").attr('checked', true);
-    simple_search(sText, ['organism']);
+    queryAPI({type: ['organism'], query: sText, result: "dResult"});
   });
   \$("#bAdvanced").click( function() {
     adv_search();
@@ -457,6 +463,7 @@ sub output {
 });
 </script>
 ~ . $self->application->component('sAjax')->output;
+  print OUT "$msg_count\t".`date`; ++$msg_count;
 
   my $html = '';
   my $help = $self->app->component('help');
@@ -467,8 +474,8 @@ sub output {
   my @colors = ('#3674D9', '#52B95E', '#FF9933');
   $html .= "<div id='dSimple' style='padding-top:20px; float: left;'>";
   $html .= "<label for='tSimpleAll' style='font-size: 14px; font-weight:bold;'>Search for Metagenomes<br></label>";
-  $html .= "<input id='tSimpleAll' type='text' placeholder='by metadata / MG-RAST id (name, biome, project name, 4441137.3), function or organism...' value='".$stext."' style='width:580px;'>";
-  $html .= "&nbsp;&nbsp;<button id='bSimpleAll'>Search</button> or <a id='SwitchSearchType' style='cursor:pointer;'>Advanced Search</a><br>";
+  $html .= "<input id='tSimpleAll' type='text' placeholder='by metadata / MG-RAST id (name, biome, project name, 4441137.3), function or organism...' value='".$stext."' style='width:580px;' onkeyup='if (event.keyCode == 13) { document.getElementById(\"bSimpleAll\").click(); var result = document.getElementById(\"dResult\"); result.innerHTML = \"<img src=\\\"./Html/loading-green.gif\\\" />\"; }'>";
+  $html .= "&nbsp;&nbsp;<button type='button' id='bSimpleAll'>Search</button><br>";
   $html .= "<div style='padding-top: 5px; font:12px sans-serif;'>Match<span id='share_help' onmouseover='hover(event, \"match_help\", " . $help->id . ")'><sup style='cursor: help;'>[?]</sup></span>";
   $html .= "&nbsp;&nbsp;<input type='checkbox' name='resType' id='metaSimple' checked/>&nbsp;<span style='font-weight: bold; color: ".$colors[0]."'>metadata / MG-RAST id</span>";
   $html .= "&nbsp;&nbsp;<input type='checkbox' name='resType' id='funcSimple' checked/>&nbsp;<span style='font-weight: bold; color: ".$colors[1]."'>function</span>";
@@ -483,9 +490,7 @@ sub output {
   $html .= "</fieldset>";
   $html .= "<button id='bAdvanced'>Search</button> or <a id='SwitchSearchType' style='cursor:pointer;'>Simple Search</a>";
   $html .= "</div>";
-  $html .= "<div class='clear' style='height: 20px;'></div>";
-  $html .= "<div>Two types of searches are available in MG-RAST.<ul><li>Simple Search: simple text query against metadata, function and organism data. Metagenomes that match the query in any of the data will be returned. Unchecking the match checkboxes restricts the search.</li><li>Advanced Search: specify complex boolean queries combining multiple database fields. The plus and minus buttons add and remove fields that will be considered. Only metagenomes that match ALL the conditions are returned.</li></ul>Both searches return a list of metagenomes that match the query criteria. For help identifying terms for protein and organism searches refer to <a href='http://seed-viewer.theseed.org/seedviewer.cgi?page=SubsystemSelect' target='_blank'>SEED Subsystems</a>, <a href='http://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Root' target='_blank'>NCBI Taxonomy</a>, <a href='http://www.genome.jp/kegg/ko.html' target='_blank'>KEGG KO</a>, <a href='http://eggnog.embl.de/cgi_bin/show_input_page.pl' target='_blank'>eggNOGs</a> and <a href='http://www.ncbi.nlm.nih.gov/COG/' target='_blank'>COG</a>.</div>";
-  $html .= "<div class='clear' style='height: 25px;'></div>";
+  $html .= "<div class='clear' style='height: 20px;'></div><div class='clear' style='height: 25px;'></div>";
   $html .= "<div>";
   $html .= "<div style='margin:5px; padding: 20px; float:left; width:260; height:60px; border: 2px dashed ".$colors[0].";'>";
   $html .= "<label for='tSimpleMeta' style='font-weight:bold;'>Find by metadata / mg-rast id<br></label>";
@@ -504,6 +509,7 @@ sub output {
   $html .= "<div id='dResult'></div>";
   $html .= "<div class='clear' style='height: 15px;'></div>";
 
+  print OUT "$msg_count\t".`date`; ++$msg_count;
   return $scripts . $html;
 }
 
@@ -1284,6 +1290,7 @@ sub get_user_jobs {
   $sql = "SELECT job_id, primary_project, sample, library FROM Job WHERE job_id IN (".join(",", keys %$data).")";
   $tmp = $mgrast->db_handle->selectall_arrayref($sql);
   foreach my $row (@$tmp) {
+    last;
     $data->{$row->[0]}{_id_project} = $row->[1] ? $row->[1] : 0;
     $data->{$row->[0]}{_id_sample}  = $row->[2] ? $row->[2] : 0;
     $data->{$row->[0]}{_id_library} = $row->[3] ? $row->[3] : 0;

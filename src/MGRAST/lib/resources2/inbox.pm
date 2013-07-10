@@ -123,7 +123,7 @@ sub view_inbox {
                               'files' => \@files,
                               'url' => $self->cgi->url."/".$self->name } );
     } else {
-      $self->return_data( {"ERROR" => "authentication failed"}, 401 );
+      $self->return_data( {"ERROR" => "this request type requires authentication"}, 401 );
     }
 }
 
