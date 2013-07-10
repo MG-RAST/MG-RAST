@@ -66,6 +66,7 @@ sub new {
 	           job_map => {},       # hash: mg_id => job_id
 	           mg_map  => {},       # hash: job_id => mg_id
 	           name_map => {},      # hash: mg_id => job_name
+	           type_map => {},      # hash: mg_id => seq_type
 	           sources => $srcs,    # hash: source_name => { col => value }
 	           id_src  => \%idsrc,  # hash: source_id => source_name
    	           src_id  => \%srcid,  # hash: source_name => source_id
@@ -132,6 +133,10 @@ sub _name_map {
   my ($self) = @_;
   return $self->{name_map};
 }
+sub _type_map {
+  my ($self) = @_;
+  return $self->{type_map};
+}
 sub _id_src {
   my ($self) = @_;
   return $self->{id_src};
@@ -184,6 +189,7 @@ sub add_jobs {
 sub set_jobs {
   my ($self, $mgids, $jids) = @_;
   $self->{name_map} = {};
+  $self->{type_map} = {};
   if (defined($jids)) {
     $self->{job_map} = $self->_get_jobid_map($mgids, 1);
   } else {
@@ -217,12 +223,13 @@ sub _get_jobid_map {
   my $list = join(",", map {"'$_'"} @$mgids);
   my $rows;
   if ($jids) {
-    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id, name FROM Job WHERE job_id IN ($list) AND viewable = 1");
+    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id, name, sequence_type FROM Job WHERE job_id IN ($list) AND viewable = 1");
   } else {
-    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id, name FROM Job WHERE metagenome_id IN ($list) AND viewable = 1");
+    $rows = $self->_jcache->selectall_arrayref("SELECT metagenome_id, job_id, name, sequence_type FROM Job WHERE metagenome_id IN ($list) AND viewable = 1");
   }
   unless ($no_names) {
       map { $self->{name_map}->{$_->[0]} = $_->[2] } @$rows;
+      map { $self->{type_map}->{$_->[0]} = $_->[3] } @$rows;
   }
   if ($rows && (@$rows > 0)) {
     %$hash = map { $_->[0], $_->[1] } @$rows;
