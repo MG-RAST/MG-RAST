@@ -20,18 +20,19 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "search";
-    $self->{return_fields} = {'job'          => [ 'string', 'MG-RAST internal job number' ],
-                              'id'           => [ 'string', 'metagenome id' ],
-                              'name'         => [ 'string', 'name of metagenome' ],
-                              'project_id'   => [ 'string', 'project containing metagenome' ],
-                              'project_name' => [ 'string', 'project containing metagenome' ],
-                              'status'       => [ 'string', 'public/private status of metagenome' ],
-                              'biome'        => [ 'string', 'environmental biome, EnvO term' ],
-                              'feature'      => [ 'string', 'environmental feature, EnvO term' ],
-                              'material'     => [ 'string', 'environmental material, EnvO term' ],
-                              'country'      => [ 'string', 'country' ],
-                              'location'     => [ 'string', 'location' ],
-                              'PI_lastname'  => [ 'string', 'principal investigator\'s last name' ]};
+    $self->{return_fields} = {'job'           => [ 'string', 'MG-RAST internal job number' ],
+                              'id'            => [ 'string', 'metagenome id' ],
+                              'name'          => [ 'string', 'name of metagenome' ],
+                              'project_id'    => [ 'string', 'project containing metagenome' ],
+                              'project_name'  => [ 'string', 'project containing metagenome' ],
+                              'status'        => [ 'string', 'public/private status of metagenome' ],
+                              'biome'         => [ 'string', 'environmental biome, EnvO term' ],
+                              'feature'       => [ 'string', 'environmental feature, EnvO term' ],
+                              'material'      => [ 'string', 'environmental material, EnvO term' ],
+                              'country'       => [ 'string', 'country' ],
+                              'location'      => [ 'string', 'location' ],
+                              'sequence_type' => [ 'string', 'type of sequence library (Amplicon, mt, Unknown, WGS)' ],
+                              'PI_lastname'   => [ 'string', 'principal investigator\'s last name' ]};
 
     $self->{attributes} = { metagenome => { next   => ["uri","link to the previous set or null if this is the first set"],
                                             prev   => ["uri","link to the next set or null if this is the last set"],
@@ -77,8 +78,10 @@ sub info {
                                                                             'function'  => ["string", "query string for function"],
                                                                             'metadata'  => ["string", "query string for any metadata field"],
                                                                             'organism'  => ["string", "query string for organism"],
-                                                                            'sort_by'   => ["string", "metagenome object field to sort by (default is id)"],
-                                                                            'sort_dir'  => ["string", "sort direction: asc for ascending (default), desc for descending"]
+                                                                            'order'     => ["string", "metagenome object field to sort by (default is id)"],
+                                                                            'direction' => ["cv", "sort direction: asc for ascending (default), desc for descending"],
+                                                                            'match'     => ["cv", "boolean operator for search fields: all (default), any"],
+                                                                            'status'    => ["cv", "public, private, both (default)"]
                                                                           },
                                                             'required' => {},
                                                             'body'     => {} }
@@ -111,15 +114,33 @@ sub query {
     my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
 
     # sorting
-    my $sort_by = $self->cgi->param('sort_by') ? $self->cgi->param('sort_by') : 'id';
-    my $sort_dir = $self->cgi->param('sort_dir') ? $self->cgi->param('sort_dir') : 'asc';
+    my $order = $self->cgi->param('order') ? $self->cgi->param('order') : 'id';
+    my $direction = $self->cgi->param('direction') ? $self->cgi->param('direction') : 'asc';
+    my $match = $self->cgi->param('match') ? $self->cgi->param('match') : 'all';
+    my $status = $self->cgi->param('status') ? $self->cgi->param('status') : 'both';
 
-    unless(exists($self->{return_fields}->{$sort_by})) {
-        $sort_by = 'id';
+    # explicitly setting the default CGI parameters for returned url strings
+    $self->cgi->param('limit', $limit);
+    $self->cgi->param('offset', $offset);
+    $self->cgi->param('order', $order);
+    $self->cgi->param('direction', $direction);
+    $self->cgi->param('match', $match);
+    $self->cgi->param('status', $status);
+
+    unless(exists($self->{return_fields}->{$order})) {
+        $order = 'id';
     }
 
-    unless($sort_dir eq 'asc' || $sort_dir eq 'desc') {
-        $sort_dir = 'asc';
+    unless($direction eq 'asc' || $direction eq 'desc') {
+        $direction = 'asc';
+    }
+
+    unless($match eq 'all' || $match eq 'any') {
+        $match = 'all';
+    }
+
+    unless($status eq 'public' || $status eq 'private' || $status eq 'both') {
+        $status = 'both';
     }
 
     # build url
@@ -129,29 +150,89 @@ sub query {
         if($self->cgi->param($field)) {
             if($query_str ne "") {
                 $query_str .= '&';
-                $solr_query_str .= ' ';
+                if($match eq 'all') {
+                    $solr_query_str .= ' AND ';
+                } else {
+                    $solr_query_str .= ' OR ';
+                }
             }
             $query_str .= "$field=".$self->cgi->param($field);
-            $solr_query_str .= "$field:".$self->cgi->param($field);
+            $solr_query_str .= "($field:".$self->cgi->param($field);
         }
     }
 
-    my $path = '/'.$type;
-    my $url = "";
-    if($query_str eq "") {
-        $url  = $self->cgi->url.'/search'.$path.'?sort_by='.$sort_by.'&sort_dir='.$sort_dir.'&limit='.$limit.'&offset='.$offset;
-    } else {
-        $url  = $self->cgi->url.'/search'.$path.'?'.$query_str.'&sort_by='.$sort_by.'&sort_dir='.$sort_dir.'&limit='.$limit.'&offset='.$offset;
+    my $url  = $self->cgi->url."/search/$type?";
+
+    my @params = $self->cgi->param;
+    my $additional_params = "";
+    foreach my $param (@params) {
+        $additional_params .= $param."=".$self->cgi->param($param)."&";
     }
+    if (length($additional_params)) {
+        chop $additional_params;
+    }
+    $url .= $additional_params;
     
     # all non-numeric fields must use separate solr string field for sorting
-    unless($sort_by eq 'job') {
-      $sort_by .= "_sort";
+    unless($order eq 'job' || $order eq 'sequence_type') {
+        $order .= "_sort";
     }
-    
+
+    # complete solr query and add rights
+    if($solr_query_str ne "") {
+        $solr_query_str .= ') AND ';
+    }
+
+    my $return_empty_set = 0;
+
+    if($status eq 'public') {
+        $solr_query_str .= '(status:public)';
+    } elsif($status eq 'private') {
+        if($self->user) {
+            if($self->user->has_star_right('view', 'metagenome')) {
+                $solr_query_str .= "(status:private)";
+            } else {
+                my $userjobs = $self->user->has_right_to(undef, 'view', 'metagenome');
+                if ($userjobs->[0] eq '*') {
+                    $solr_query_str .= "(status:private)";
+                } elsif ( @$userjobs > 0 ) {
+                    $solr_query_str .= "((status:private AND (id:mgm".join(" OR id:mgm", map {"$_"} @$userjobs).")))";
+                } else {
+                    $return_empty_set = 1;
+                }
+            }
+        } else {
+            $self->return_data( {"ERROR" => "a search with status=private requires authentication and this request was not authenticated"}, 401 );
+        }
+    } else {
+        if($self->user) {
+            if($self->user->has_star_right('view', 'metagenome')) {
+                $solr_query_str .= "(status:*)";
+            } else {
+                my $userjobs = $self->user->has_right_to(undef, 'view', 'metagenome');
+                if ($userjobs->[0] eq '*') {
+                    $solr_query_str .= "(status:*)";
+                } elsif ( @$userjobs > 0 ) {
+                    $solr_query_str .= "((status:public) OR (status:private AND (id:mgm".join(" OR id:mgm", map {"$_"} @$userjobs).")))";
+                } else {
+                    $solr_query_str .= '(status:public)';
+                }
+            }
+        } else {
+            $solr_query_str .= '(status:public)';
+        }
+    }
+
     # get results
-    my ($data, $total) = $self->solr_data($solr_query_str, "$sort_by $sort_dir", $offset, $limit);
-    my $obj = $self->check_pagination($data, $total, $limit, $path);
+    my $data;
+    my $total;
+    if($return_empty_set == 1) {
+        $data = [];
+        $total = 0;
+    } else {
+        ($data, $total) = $self->solr_data($solr_query_str, "$order $direction", $offset, $limit);
+    }
+    my $obj = $self->check_pagination($data, $total, $limit, "/$type");
     $obj->{url} = $url;
     $obj->{version} = 1;
 
@@ -173,7 +254,7 @@ sub solr_data {
     my ($self, $solr_query_str, $sort_field, $offset, $limit) = @_;
     $solr_query_str = uri_unescape($solr_query_str);
     $solr_query_str = uri_escape($solr_query_str);
-    my $fields = ['job', 'id', 'name', 'project_id', 'project_name', 'status', 'biome', 'feature', 'material', 'country', 'location', 'PI_lastname'];
+    my $fields = ['job', 'id', 'name', 'project_id', 'project_name', 'status', 'biome', 'feature', 'material', 'country', 'location', 'sequence_type', 'PI_lastname'];
     return $self->get_solr_query($Conf::job_solr, $Conf::job_collect, $solr_query_str, $sort_field, $offset, $limit, $fields);
 }
 
