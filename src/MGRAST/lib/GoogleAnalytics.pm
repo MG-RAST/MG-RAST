@@ -26,7 +26,7 @@ sub track_page_view {
 
   my $document_referer = "-";
   if (defined($ENV{'HTTP_REFERER'})) {
-    $document_referer = $ENV{'HTTP_REFERER'});
+    $document_referer = $ENV{'HTTP_REFERER'};
   }
   my $document_path = "";
   if (defined($ENV{'REQUEST_URI'})) {

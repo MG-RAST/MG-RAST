@@ -1,89 +1,217 @@
 var api_url = 'http://dunkirk.mcs.anl.gov/~jbischof/mgrast/api2.cgi/search/metagenome?';
 var datastore = {};
-var result = 'result';
-var promises = 0;
+var result = 'result'; // div where results are to be displayed
+var saved_params = {};
+var result_count = 0;
+var MAX_LIMIT = 1000000;
+
+// The variables below (selectAll, selected{}, deselected{}) are used to keep track of which metagenomes
+// have been selected for creation of a collection.  There are two possible states:
+//
+//   1) selectAll has not been performed (or deselectAll HAS been) and selected{} contains the metagenomes
+//      that have been manually selected.
+//   2) selectAll has been performed and deselected{} contains the metagenomes that have been manually
+//      deselected.
+//
+// This is done rather than querying the API/Solr for all metagenomes returned by the query and storing them
+// in a large associative array to save time and disk space.
+//
+// Each time selectAll or deselectAll is performed, both associative arrays must be emptied.
+//
+// If selectAll is performed, we'll still have to perform the API query to retrieve all metagenomes, but this
+// will postpone the operation to the time of the "create collection" task which will take some time anyway.
+
+var selectAll = 0;
+var selected = {};
+var deselected = {};
 
 function queryAPI (params) {
     var type = params.type || [ "metadata" ];
     var query = params.query;
+    var sort = params.sort || "name";
+    var sortDir = params.sortDir || "asc";
+    var offset = params.offset || 0;
+    var limit = params.limit || 10;
+
     if (params.result) {
-	result = params.result;
+        result = params.result;
     }
-    var limit = params.limit || 100;
+
+    // Save these search params in case user decides to search results by a different column.
+    saved_params['type'] = type;
+    saved_params['query'] = query;
+    saved_params['sort'] = sort;
+    saved_params['sortDir'] = sortDir;
+    saved_params['offset'] = offset;
+    saved_params['limit'] = limit;
+    saved_params['result'] = result;
 
     if (typeof type == "string") {
-	type = [ type ];
+        type = [ type ];
     }
 
     if (query === null) {
-	console.log('invalid request, missing query parameter');
-	return;
+        console.log('invalid request, missing query parameter');
+        return;
     }
 
-    var promises = type.length;
+    var query_str = "";
     for (h=0;h<type.length; h++) {
-	var url = api_url + type[h] + "=" + query + "&limit=" + limit;
-	jQuery.getJSON(url, function(data) {
-	    for (i=0;i<data.data.length;i++) {
-		datastore[data.data[i]["id"]] = data.data[i];
-	    }
-	    promises--;
-	    updateResults;
-	});
+        if(query_str == "") {
+            query_str = type[h] + "=" + query;
+        } else {
+            query_str += "&" + type[h] + "=" + query;
+        }
     }
+
+    var url = api_url + query_str + "&sort_by=" + sort + "&sort_dir=" + sortDir + "&match=any" + "&limit=" + limit + "&offset=" + offset;
+    var wsCookie = getCookie("WebSession");
+    //if(wsCookie) {
+    //    url += "&auth=" + wsCookie;
+    //}
+    jQuery.getJSON(url, function(data) {
+        for (i=0;i<data.data.length;i++) {
+            datastore[data.data[i]["id"]] = data.data[i];
+        }
+        result_count = data.total_count;
+        updateResults(offset, limit, sort, sortDir);
+    });
 
     return;
 }
 
-function updateResults () {
+function selectAllMgms () {
+    selectAll = 1;
+    selected = {};
+    deselected = {};
+}
 
-    if (promises == 0) {
+function deselectAllMgms () {
+    selectAll = 0;
+    selected = {};
+    deselected = {};
+}
 
-	var html = "<table class='table'><tr><th>Job</th><th>Metagenome</th><th>MG-RAST ID</th><th>Project</th><th>biome</th><th>feature</th><th>material</th><th>country</th><th>location</th><th>PI</th></tr>";
-	var rows = [];
-	for (i in datastore) {
-	    if (datastore.hasOwnProperty(i)) {
-		rows.push( [ datastore[i].id, datastore[i].name ] );
-	    }
-	}
-	
-	rows.sort(sortByName);
-	
-	for (i=0;i<rows.length;i++) {
-	    datastore[rows[i][0]]["project_id"] = datastore[rows[i][0]]["project_id"].substr(3);
-	    datastore[rows[i][0]]["id"] = datastore[rows[i][0]]["id"].substr(3);
-	    
-	    html += "<tr>";
-	    html += "<td>"+datastore[rows[i][0]]["job"]+"</td>";
-	    html += "<td><a href='?page=MetagenomeOverview&metagenome="+datastore[rows[i][0]]["id"]+"' target=_blank>"+datastore[rows[i][0]]["name"]+"</a></td>";
-	    html += "<td>"+datastore[rows[i][0]]["id"]+"</td>";
-	    html += "<td><a href='?page=MetagenomeProject&project="+datastore[rows[i][0]]["project_id"]+"' target=_blank>"+datastore[rows[i][0]]["project_name"]+"</a></td>";
-	    html += "<td>"+datastore[rows[i][0]]["biome"]+"</td>";
-	    html += "<td>"+datastore[rows[i][0]]["feature"]+"</td>";
-	    html += "<td>"+datastore[rows[i][0]]["material"]+"</td>";
-	    html += "<td>"+datastore[rows[i][0]]["country"]+"</td>";
-	    html += "<td>"+datastore[rows[i][0]]["location"]+"</td>";
-	    html += "<td>"+datastore[rows[i][0]]["PI_lastname"]+"</td>";
-	    html += "</tr>";
-	}
-	
-	html += "</table>";
-	
-	var target = document.getElementById(result);
-	target.innerHTML = html;
-	
-	datastore = {};
+function sortQuery (sort, sortDir) {
+    queryAPI({type: saved_params['type'], query: saved_params['query'], result: saved_params['result'], sort: sort, sortDir: sortDir});
+    return;
+}
+
+function firstQuery () {
+    queryAPI({type: saved_params['type'], query: saved_params['query'], result: saved_params['result'], sort: saved_params['sort'], sortDir: saved_params['sortDir'], offset: 0, limit: saved_params['limit']});
+    return;
+}
+
+function prevQuery () {
+    var limit = saved_params['limit'];
+    var offset = saved_params['offset'] - limit;
+    if(offset < 0) {
+        offset = 0;
     }
+    queryAPI({type: saved_params['type'], query: saved_params['query'], result: saved_params['result'], sort: saved_params['sort'], sortDir: saved_params['sortDir'], offset: offset, limit: limit});
+    return;
+}
+
+function nextQuery () {
+    var limit = saved_params['limit'];
+    var offset = saved_params['offset'] + limit;
+    if(offset + limit > result_count) {
+        offset = result_count - limit;
+    }
+    queryAPI({type: saved_params['type'], query: saved_params['query'], result: saved_params['result'], sort: saved_params['sort'], sortDir: saved_params['sortDir'], offset: offset, limit: limit});
+    return;
+}
+
+function lastQuery () {
+    var limit = saved_params['limit'];
+    var offset = result_count - limit;
+    queryAPI({type: saved_params['type'], query: saved_params['query'], result: saved_params['result'], sort: saved_params['sort'], sortDir: saved_params['sortDir'], offset: offset, limit: limit});
+    return;
+}
+
+function updateResults (offset, limit, sort, sortDir) {
+
+    var html = "<button onclick=\"selectAllMgms()\">Select all metagenomes</button>&nbsp;\n" +
+               "<button onclick=\"deselectAllMgms()\">Deselect all metagenomes</button><br /><br />\n";
+    html += "<table style=\"width: 100%;\"><tr>" +
+            "<td align=\"left\"><a onclick=\"firstQuery();\" style=\"cursor: pointer\">&#171;first</a> " +
+                               "<a onclick=\"prevQuery();\" style=\"cursor: pointer\">&#171;prev</a></td>" +
+            "<td align=\"center\">Displaying " + (offset + 1) + "-" + Math.min(offset+limit, result_count) + " of " + result_count + " results</td>" +
+            "<td align=\"right\"><a onclick=\"nextQuery();\" style=\"cursor: pointer\">next&#187;</a> " +
+                                "<a onclick=\"lastQuery();\" style=\"cursor: pointer\">last&#187;</a></td></tr></table><br />\n";
+    html += "<table class='table'><tr><th>Select</th>";
+    var fields = ["sequence_type", "name", "id", "project_name", "biome", "feature", "material", "country", "location"];
+    var fnames = ["Seq&nbsp;Type", "Metagenome", "MG-RAST&nbsp;ID", "Project", "Biome", "Feature", "Material", "Country", "Location"];
+    for (i=0;i<fields.length;i++) {
+        html += "<th>"+fnames[i]+"<img onclick=\"sortQuery(\'"+fields[i]+"\', \'asc\');\" src=\"./Html/up-arrow.gif\" style=\"cursor: pointer\" />"+
+                "<img onclick=\"sortQuery(\'"+fields[i]+"\', \'desc\');\" src=\"./Html/down-arrow.gif\" style=\"cursor: pointer\" />";
+
+        if (sort == fields[i]) {
+            if (sortDir == 'asc') {
+                html += "<br /><span style=\"font-weight:normal\"><i>(ascending)</i></span>";
+            } else {
+                html += "<br /><span style=\"font-weight:normal\"><i>(descending)</i></span>";
+            }
+        }
+        html += "</th>";
+    }
+    html += "</tr>";
+
+    var rows = [];
+    for (i in datastore) {
+        if (datastore.hasOwnProperty(i)) {
+            rows.push( [ datastore[i].id, datastore[i].name ] );
+        }
+    }
+        
+    for (i=0;i<rows.length;i++) {
+        datastore[rows[i][0]]["project_id"] = datastore[rows[i][0]]["project_id"].substr(3);
+        datastore[rows[i][0]]["id"] = datastore[rows[i][0]]["id"].substr(3);
+
+        html += "<tr>";
+        if(selectAll == 1 && (datastore[rows[i][0]]["id"] in deselected)) {
+            html += "<td><input type=\"checkbox\" onclick=\"updateSelection("+datastore[rows[i][0]]["id"]+");\" selected />\n";
+        } else {
+            html += "<td><input type=\"checkbox\" onclick=\"updateSelection("+datastore[rows[i][0]]["id"]+");\" />\n";
+        }
+        html += "<td>"+datastore[rows[i][0]]["sequence_type"]+"</td>";
+        html += "<td><a href='?page=MetagenomeOverview&metagenome="+datastore[rows[i][0]]["id"]+"' target=_blank>"+datastore[rows[i][0]]["name"]+"</a></td>";
+        html += "<td>"+datastore[rows[i][0]]["id"]+"</td>";
+        html += "<td><a href='?page=MetagenomeProject&project="+datastore[rows[i][0]]["project_id"]+"' target=_blank>"+datastore[rows[i][0]]["project_name"]+"</a></td>";
+        html += "<td>"+datastore[rows[i][0]]["biome"]+"</td>";
+        html += "<td>"+datastore[rows[i][0]]["feature"]+"</td>";
+        html += "<td>"+datastore[rows[i][0]]["material"]+"</td>";
+        html += "<td>"+datastore[rows[i][0]]["country"]+"</td>";
+        html += "<td>"+datastore[rows[i][0]]["location"]+"</td>";
+        html += "</tr>";
+    }
+        
+    html += "</table>";
+    
+    var target = document.getElementById(result);
+    target.innerHTML = html;
+    
+    datastore = {};
 
     return;
 }
 
-function sortByName (a, b) {
-    if (a[1]<b[1]) {
-	return 1;
-    } else if (a[1]>b[1]) {
-	return -1;
+function getCookie(c_name) {
+    var c_value = document.cookie;
+    var c_start = c_value.indexOf(" " + c_name + "=");
+    if (c_start == -1) {
+        c_start = c_value.indexOf(c_name + "=");
+    }
+
+    if (c_start == -1) {
+        c_value = null;
     } else {
-	return 0;
+        c_start = c_value.indexOf("=", c_start) + 1;
+        var c_end = c_value.indexOf(";", c_start);
+        if (c_end == -1) {
+            c_end = c_value.length;
+        }
+        c_value = unescape(c_value.substring(c_start,c_end));
     }
+    return c_value;
 }
