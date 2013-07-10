@@ -93,32 +93,31 @@ sub info {
 							                        'body'     => {} }
 				       },
 				       { 'name'        => "ontology",
-					 'request'     => $self->cgi->url."/".$self->name."/ontology",
-					 'description' => "Return functional hierarchy",
-					 'method'      => "GET",
-					 'type'        => "synchronous",  
-					 'attributes'  => $self->{attributes}{ontology},
-					 'parameters'  => { 'options'  => { 'source' => ['cv', $self->{sources} ],
-										'id_map' => ['boolean', 'if true overrides other options and returns a map { ontology ID: [ontology levels] }'],
-									    'min_level' => ['cv', $self->{hierarchy}{ontology}],
-									    'parent_name' => ['string', 'name of ontology group to retrieve children of']
-									  },
-							    'required' => {},
-							    'body'     => {} }
+					     'request'     => $self->cgi->url."/".$self->name."/ontology",
+					     'description' => "Return functional hierarchy",
+					     'method'      => "GET",
+					     'type'        => "synchronous",  
+					     'attributes'  => $self->{attributes}{ontology},
+					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->{sources} ],
+										                    'id_map' => ['boolean', 'if true overrides other options and returns a map { ontology ID: [ontology levels] }'],
+									                        'min_level' => ['cv', $self->{hierarchy}{ontology}],
+									                        'parent_name' => ['string', 'name of ontology group to retrieve children of']
+									                      },
+							                'required' => {},
+							                'body'     => {} }
 				       },
 				       { 'name'        => "taxonomy",
-					 'request'     => $self->cgi->url."/".$self->name."/taxonomy",
-					 'description' => "Return organism hierarchy",
-					 'method'      => "GET",
-					 'type'        => "synchronous",  
-					 'attributes'  => $self->{attributes}{taxonomy},
-					 'parameters'  => { 'options'  => {
-					                    'id_map' => ['boolean', 'if true overrides other options and returns a map { NCBI tax ID: [taxonomy levels] }'],
-									    'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
-									    'parent_name' => ['string', 'name of taxanomy group to retrieve children of']
-									  },
-							    'required' => {},
-							    'body'     => {} }
+					     'request'     => $self->cgi->url."/".$self->name."/taxonomy",
+					     'description' => "Return organism hierarchy",
+					     'method'      => "GET",
+					     'type'        => "synchronous",  
+					     'attributes'  => $self->{attributes}{taxonomy},
+					     'parameters'  => { 'options'  => { 'id_map' => ['boolean', 'if true overrides other options and returns a map { NCBI tax ID: [taxonomy levels] }'],
+									                        'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
+									                        'parent_name' => ['string', 'name of taxanomy group to retrieve children of']
+									                      },
+							                'required' => {},
+							                'body'     => {} }
 				       },
 				       { 'name'        => "sources",
 					     'request'     => $self->cgi->url."/".$self->name."/sources",
@@ -201,7 +200,78 @@ sub info {
       					                                  },
    							                'required' => { "text" => ["string", "text string of protein sequence"] },
    							                'body'     => {} }
-   				       } ]
+   				       },
+                           { 'name'        => "accession",
+      					     'request'     => $self->cgi->url."/".$self->name."/accession",
+      					     'description' => "Return annotation or sequence of given source protein ID",
+      					     'method'      => "POST",
+      					     'type'        => "synchronous",  
+      					     'attributes'  => $self->{attributes}{annotation},
+      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					                                        'limit'  => ['integer','maximum number of items requested'],
+                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+       					                                  },
+      							                'required' => {},
+      							                'body'     => { 'list' => ["string", "unique identifier from source DB"] } }
+      				       },
+   				           { 'name'        => "md5",
+      					     'request'     => $self->cgi->url."/".$self->name."/md5",
+      					     'description' => "Return annotation(s) or sequence of given md5sum (M5NR ID)",
+      					     'method'      => "POST",
+      					     'type'        => "synchronous",  
+      					     'attributes'  => $self->{attributes}{annotation},
+      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					                                        'limit'  => ['integer','maximum number of items requested'],
+                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+      					                                      },
+      							                'required' => {},
+      							                'body'     => { "list" => ["string", "unique identifier in form of md5 checksum"] } }
+      				       },
+   				           { 'name'        => "function",
+      					     'request'     => $self->cgi->url."/".$self->name."/function",
+      					     'description' => "",
+      					     'method'      => "POST",
+      					     'type'        => "synchronous",  
+      					     'attributes'  => $self->{attributes}{annotation},
+      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					                                        'limit'  => ['integer','maximum number of items requested'],
+                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+       					                                  },
+      							                'required' => {},
+      							                'body'     => { "list" => ["string", "text string of function name"] } }
+      				       },
+      				       { 'name'        => "organism",
+      					     'request'     => $self->cgi->url."/".$self->name."/organism",
+      					     'description' => "",
+      					     'method'      => "POST",
+      					     'type'        => "synchronous",  
+      					     'attributes'  => $self->{attributes}{annotation},
+      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					                                        'limit'  => ['integer','maximum number of items requested'],
+                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+        					                                  },
+      							                'required' => {},
+      							                'body'     => { "list" => ["string", "text string of organism name"] } }
+      				       },
+      				       { 'name'        => "sequence",
+      					     'request'     => $self->cgi->url."/".$self->name."/sequence",
+      					     'description' => "",
+      					     'method'      => "POST",
+      					     'type'        => "synchronous",  
+      					     'attributes'  => $self->{attributes}{annotation},
+      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					                                        'limit'  => ['integer','maximum number of items requested'],
+                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+         					                                  },
+      							                'required' => {},
+      							                'body'     => { "list" => ["string", "text string of protein sequence"] } }
+      				       }
+   				       ]
 		};
   $self->return_data($content);
 }
@@ -217,10 +287,12 @@ sub request {
         $self->info();
     } elsif (($self->rest->[0] eq 'taxonomy') || ($self->rest->[0] eq 'ontology') || ($self->rest->[0] eq 'sources')) {
         $self->static($self->rest->[0]);
-    } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && $seq) {
+    } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && $seq && ($self->method eq 'GET')) {
         $self->instance($self->rest->[0], $self->rest->[1]);
-    } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1]) {
+    } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && ($self->method eq 'GET')) {
         $self->query($self->rest->[0], $self->rest->[1]);
+    } elsif ((scalar(@{$self->rest}) == 1) && ($self->method eq 'POST')) {
+        $self->query($self->rest->[0]);
     } else {
         $self->info();
     }
@@ -247,7 +319,7 @@ sub static {
         my $min_lvl  = $self->cgi->param('min_level') || 'function';
         $url .= '?source='.$source.'&min_level='.$min_lvl;
         unless ( grep(/^$source$/, @src_map) ) {
-            $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", @src_map)}, 404);
+            $self->return_data({"ERROR" => "invalid source was entered ($source). Please use one of: ".join(", ", @src_map)}, 404);
         }
         if ( grep(/^$min_lvl$/, @ont_hier) ) {
             if ($min_lvl eq 'function') {
@@ -285,7 +357,7 @@ sub static {
         $data = $mgdb->_sources();
         delete $data->{GO};
     } else {
-        $self->return_data({"ERROR" => "Invalid resource type was entered ($type)."}, 404);
+        $self->return_data({"ERROR" => "invalid resource type was entered ($type)"}, 404);
     }
     
     my $obj = { data => $data, version => 1, url => $url };
@@ -320,7 +392,7 @@ sub instance {
         my $clean = $self->clean_md5($md5->[0][0]);
         $data = {id => $item, md5 => $clean, sequence => $ach->md52sequence($md5->[0][0])};
     } else {
-        $self->return_data({"ERROR" => "Invalid resource type was entered ($type) for sequence output."}, 404);
+        $self->return_data({"ERROR" => "invalid resource type was entered ($type) for sequence output"}, 404);
     }
     
     my $obj = { data => $data, version => 1, url => $url };
@@ -339,67 +411,88 @@ sub query {
     my $source = $self->cgi->param('source') ? $self->cgi->param('source') : undef;
     my $limit  = $self->cgi->param('limit') ? $self->cgi->param('limit') : 10;
     my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
-    my $order  = $self->cgi->param('offset') ? $self->cgi->param('offset') : undef;
+    my $order  = $self->cgi->param('order') ? $self->cgi->param('order') : undef;
     
-    # build url
-    my $path = '/'.$type.'/'.$item;
-    my $url  = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
+    # build data / url
+    my $post = ($self->method eq 'POST') ? 1 : 0;
+    my $data = [];
+    my $path = '';
+    
+    if ($post) {
+        eval {
+            @$data = split(/;/, $self->cgi->param('DATA'));
+        };
+        if ($@ || (@$data == 0)) {
+            $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
+        }
+        $path = '/'.$type;
+    } else {
+        $data = [$item];
+        $path = '/'.$type.'/'.$item;
+    }
+    
+    my $url = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
     if ($source) {
         $url .= '&source='.$source;
     }
     
-    # strip wildcards    
-    $item =~ s/\*//g;
+    # strip wildcards
+    map { $_ =~ s/\*//g } @$data;
 
     # get md5 for sequence
     if ($type eq 'sequence') {
-        $item =~ s/\s+//sg;
-        $item = Digest::MD5::md5_hex( uc $item );
+        foreach my $d (@$data) {
+            $d =~ s/\s+//sg;
+            $d = Digest::MD5::md5_hex(uc $d);
+        }
         $type = 'md5';
     }
     
     # get results
-    my ($data, $total);
+    my ($result, $total);
     if ($type eq 'md5') {
-        my $md5 = $self->clean_md5($item);
-        ($data, $total) = $self->solr_data('md5', $md5, $source, $offset, $limit, $order);
+        my $md5s = $self->clean_md5($data);
+        ($result, $total) = $self->solr_data($type, $md5s, $source, $offset, $limit, $order);
+    } elsif ($type eq 'accession') {
+        ($result, $total) = $self->solr_data($type, $data, $source, $offset, $limit, $order);
     } else {
-        ($data, $total) = $self->solr_data($type, $item, $source, $offset, $limit, $order, 1);
+        ($result, $total) = $self->solr_data($type, $data, $source, $offset, $limit, $order, 1);
     }
-    my $obj = $self->check_pagination($data, $total, $limit, $path);
-    $obj->{url} = $url;
+    my $obj = $self->check_pagination($result, $total, $limit, $path);
     $obj->{version} = 1;
     
-    # return cached if exists
-    $self->return_cached();
-    # cache this!
-    $self->return_data($obj, undef, 1);
+    $self->return_data($obj);
 }
 
 sub clean_md5 {
-    my ($self, $md5) = @_;
-    my $clean = $md5;
-    $clean =~ s/[^a-zA-Z0-9]//g;
-    unless ($clean && (length($clean) == 32)) {
-        $self->return_data({"ERROR" => "Invalid md5 was entered ($md5)."}, 404);
+    my ($self, $md5s) = @_;
+    my $clean = [];
+    foreach my $m (@$md5s) {
+        my $c = $m;
+        $c =~ s/[^a-zA-Z0-9]//g;
+        unless ($c && (length($c) == 32)) {
+            $self->return_data({"ERROR" => "invalid md5 was entered ($m)"}, 404);
+        }
+        push @$clean, $c;
     }
     return $clean;
 }
 
 sub solr_data {
-    my ($self, $field, $text, $source, $offset, $limit, $order, $partial) = @_;
-    $text = uri_unescape($text);
-    $text = uri_escape($text);
+    my ($self, $field, $data, $source, $offset, $limit, $order, $partial) = @_;
+    
+    @$data = map { uri_escape( uri_unescape($_) ) } @$data;
     if ($partial) {
-        $text = '*'.$text.'*';
+        @$data = map { '*'.$_.'*' } @$data;
     }
     my $sort   = $order ? $order.'_sort+asc' : '';
     my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
-    my $query  = $field.'%3A'.$text;
+    my $method = (@$data > 1) ? 'POST' : 'GET';
+    my $query  = join('+OR+', map { $field.'%3A'.$_ } @$data);
     if ($source) {
-        $query .= '+AND+source%3A'.$source;
+        $query = '('.$query.')+AND+source%3A'.$source;
     }
-    return $self->get_solr_query($Conf::m5nr_solr, $Conf::m5nr_collect, $query, $sort, $offset, $limit, $fields);
+    return $self->get_solr_query($method, $Conf::m5nr_solr, $Conf::m5nr_collect, $query, $sort, $offset, $limit, $fields);
 }
 
 1;
