@@ -8,8 +8,6 @@ use Conf;
 use Data::Dumper;
 use parent qw(resources2::resource);
 use WebApplicationDBHandle;
-use DBMaster;
-
 
 # Override parent constructor
 sub new {
@@ -71,31 +69,30 @@ sub instance {
     
     # check id format
     my $rest = $self->rest;
-    my $id = $rest->[0];
-
-    if ($rest && scalar(@$rest) == 1) {
-        unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $self->user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
-            $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 400 );
-        }
+    unless ($rest && scalar(@$rest) == 1) {
+        $self->return_data( {"ERROR" => "invalid id format"}, 400 );
     }
 
-    use WebApplicationDBHandle;
-    use DBMaster;
-
-    my ($dbmaster, $error) = WebApplicationDBHandle->new();
+    # get database
+    my ($master, $error) = WebApplicationDBHandle->new();
     if ($error) {
-        $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 500 );
+        $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
     }
-  
+    
     # get data
-    my $user = $dbmaster->User->get_objects( { "login" => $id } );
-
+    my $user = $master->User->get_objects( {"login" => $rest->[0]} );
     unless (scalar(@$user)) {
-        $self->return_data( {"ERROR" => "login $id does not exists"}, 404 );
+        $self->return_data( {"ERROR" => "login ".$rest->[0]." does not exists"}, 404 );
+    }
+    $user = $user->[0];
+
+    # check rights
+    unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
+        $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
     }
 
     # prepare data
-    my $data = $self->prepare_data($user->[0]);
+    my $data = $self->prepare_data($user);
     $self->return_data($data);
 }
 
@@ -112,7 +109,7 @@ sub prepare_data {
     $obj->{entry_date} = $user->entry_date;
     $obj->{active}     = $user->active;
     $obj->{comment}    = $user->comment;
-    $obj->{url}        = $url.'/user/'.$obj->{id};
+    $obj->{url}        = $self->cgi->url.'/'.$self->{name}.'/'.$obj->{id};
 
     return $obj;
 }
