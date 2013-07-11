@@ -1,4 +1,4 @@
-package resources2::metagenome;
+package resources::metagenome;
 
 use strict;
 use warnings;
@@ -8,7 +8,7 @@ use List::Util qw(first max min sum);
 use POSIX qw(strftime floor);
 use MGRAST::Analysis;
 use Conf;
-use parent qw(resources2::resource);
+use parent qw(resources::resource);
 
 # Override parent constructor
 sub new {

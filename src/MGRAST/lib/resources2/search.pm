@@ -1,4 +1,4 @@
-package resources2::search;
+package resources::search;
 
 use strict;
 use warnings;
@@ -9,7 +9,7 @@ use Digest::MD5;
 
 use MGRAST::Analysis;
 use Conf;
-use parent qw(resources2::resource);
+use parent qw(resources::resource);
 
 # Override parent constructor
 sub new {

@@ -1,4 +1,4 @@
-package resources2::matrix;
+package resources::matrix;
 
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ use URI::Escape;
 use List::Util qw(max min sum first);
 use List::MoreUtils qw(any uniq);
 use Digest::MD5 qw(md5_hex md5_base64);
-use parent qw(resources2::resource);
+use parent qw(resources::resource);
 
 # Override parent constructor
 sub new {

@@ -1,4 +1,4 @@
-package resources2::user;
+package resources::user;
 
 use strict;
 use warnings;
@@ -6,7 +6,7 @@ no warnings('once');
 
 use Conf;
 use Data::Dumper;
-use parent qw(resources2::resource);
+use parent qw(resources::resource);
 use WebApplicationDBHandle;
 
 # Override parent constructor

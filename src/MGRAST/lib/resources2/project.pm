@@ -1,11 +1,11 @@
-package resources2::project;
+package resources::project;
 
 use strict;
 use warnings;
 no warnings('once');
 
 use Conf;
-use parent qw(resources2::resource);
+use parent qw(resources::resource);
 
 # Override parent constructor
 sub new {
