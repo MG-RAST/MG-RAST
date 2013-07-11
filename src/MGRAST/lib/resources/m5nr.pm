@@ -95,6 +95,8 @@ sub info {
 				       { 'name'        => "ontology",
 					     'request'     => $self->cgi->url."/".$self->name."/ontology",
 					     'description' => "Return functional hierarchy",
+					     'example'     => [ $self->cgi->url."/".$self->name."/ontology?source=Subsystems&min_level=level3",
+       				                        'retrieve subsystems hierarchy for the top 3 levels' ],
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{ontology},
@@ -109,6 +111,8 @@ sub info {
 				       { 'name'        => "taxonomy",
 					     'request'     => $self->cgi->url."/".$self->name."/taxonomy",
 					     'description' => "Return organism hierarchy",
+					     'example'     => [ $self->cgi->url."/".$self->name."/taxonomy?parent_name=Bacteroidetes&min_level=class",
+        				                    'retrieve all class level taxa that belong to Bacteroidetes' ],
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{taxonomy},
@@ -121,6 +125,8 @@ sub info {
 				       },
 				       { 'name'        => "sources",
 					     'request'     => $self->cgi->url."/".$self->name."/sources",
+					     'example'     => [ $self->cgi->url."/".$self->name."/sources",
+         				                    'retrieve all data sources for M5NR' ],
 					     'description' => "Return all sources in M5NR",
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
@@ -132,11 +138,12 @@ sub info {
 				       { 'name'        => "accession",
    					     'request'     => $self->cgi->url."/".$self->name."/accession/{id}",
    					     'description' => "Return annotation or sequence of given source protein ID",
+   					     'example'     => [ $self->cgi->url."/".$self->name."/accession/YP_003268079.1",
+          				                    "retrieve M5NR data for accession ID 'YP_003268079.1'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
-   					                                        'limit'  => ['integer','maximum number of items requested'],
+   					     'parameters'  => { 'options'  => { 'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
     					                                    'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
@@ -147,6 +154,8 @@ sub info {
 				       { 'name'        => "md5",
    					     'request'     => $self->cgi->url."/".$self->name."/md5/{id}",
    					     'description' => "Return annotation(s) or sequence of given md5sum (M5NR ID)",
+   					     'example'     => [ $self->cgi->url."/".$self->name."/md5/000821a2e2f63df1a3873e4b280002a8?source=InterPro",
+           				                    "retrieve InterPro M5NR data for md5sum '000821a2e2f63df1a3873e4b280002a8'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
@@ -161,7 +170,9 @@ sub info {
    				       },
 				       { 'name'        => "function",
    					     'request'     => $self->cgi->url."/".$self->name."/function/{text}",
-   					     'description' => "",
+   					     'description' => "Return annotations for function names containing the given text",
+   					     'example'     => [ $self->cgi->url."/".$self->name."/function/sulfatase?source=GenBank",
+             				                "retrieve GenBank M5NR data for function names containing string 'sulfatase'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
@@ -170,12 +181,14 @@ sub info {
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"]
     					                                  },
-   							                'required' => { "text" => ["string", "text string of function name"] },
+   							                'required' => { "text" => ["string", "text string of partial function name"] },
    							                'body'     => {} }
    				       },
    				       { 'name'        => "organism",
    					     'request'     => $self->cgi->url."/".$self->name."/organism/{text}",
-   					     'description' => "",
+   					     'description' => "Return annotations for organism names containing the given text",
+   					     'example'     => [ $self->cgi->url."/".$self->name."/organism/Akkermansia?source=KEGG",
+              				                "retrieve KEGG M5NR data for organism names containing string 'Akkermansia'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
@@ -184,12 +197,14 @@ sub info {
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"]
      					                                  },
-   							                'required' => { "text" => ["string", "text string of organism name"] },
+   							                'required' => { "text" => ["string", "text string of partial organism name"] },
    							                'body'     => {} }
    				       },
    				       { 'name'        => "sequence",
    					     'request'     => $self->cgi->url."/".$self->name."/sequence/{text}",
-   					     'description' => "",
+   					     'description' => "Return annotation(s) for md5sum (M5NR ID) of given sequence",
+   					     'example'     => [ $self->cgi->url."/".$self->name."/sequence/MAGENHQWQGSIL?source=TrEMBL",
+            				                "retrieve TrEMBL M5NR data for md5sum of sequence 'MAGENHQWQGSIL'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
@@ -207,13 +222,13 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of unique identifier from source DB'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
        					                                  },
       							                'required' => {},
-      							                'body'     => { 'list' => ["string", "unique identifier from source DB"] } }
+      							                'body'     => {} }
       				       },
    				           { 'name'        => "md5",
       					     'request'     => $self->cgi->url."/".$self->name."/md5",
@@ -221,13 +236,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of unique identifier in form of md5 checksum'],
+      					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
       					                                      },
       							                'required' => {},
-      							                'body'     => { "list" => ["string", "unique identifier in form of md5 checksum"] } }
+      							                'body'     => {} }
       				       },
    				           { 'name'        => "function",
       					     'request'     => $self->cgi->url."/".$self->name."/function",
@@ -235,13 +251,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of text string of partial function name'],
+      					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
        					                                  },
       							                'required' => {},
-      							                'body'     => { "list" => ["string", "text string of function name"] } }
+      							                'body'     => {} }
       				       },
       				       { 'name'        => "organism",
       					     'request'     => $self->cgi->url."/".$self->name."/organism",
@@ -249,13 +266,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of text string of partial organism name'],
+      					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
         					                                  },
       							                'required' => {},
-      							                'body'     => { "list" => ["string", "text string of organism name"] } }
+      							                'body'     => {} }
       				       },
       				       { 'name'        => "sequence",
       					     'request'     => $self->cgi->url."/".$self->name."/sequence",
@@ -263,13 +281,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of text string of protein sequence'],
+      					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
          					                                  },
       							                'required' => {},
-      							                'body'     => { "list" => ["string", "text string of protein sequence"] } }
+      							                'body'     => {} }
       				       }
    				       ]
 		};
@@ -332,6 +351,7 @@ sub static {
             $url .= '&id_map=1';
             $data = $mgdb->get_hierarchy('ontology', $source);
         } elsif ($pname && ($min_lvl ne 'level1')) {
+            $url .= '&parent_name=$pname';
             $data = $mgdb->get_hierarchy_slice('ontology', $source, $pname, $min_lvl);
         } else {
             @$data = values %{ $mgdb->get_hierarchy('ontology', $source, undef, undef, $min_lvl) };
@@ -349,6 +369,7 @@ sub static {
             $url .= '&id_map=1';
             $data = $mgdb->get_hierarchy('organism', undef, 1);
         } elsif ($pname && ($min_lvl ne 'tax_domain')) {
+            $url .= '&parent_name=$pname';
             $data = $mgdb->get_hierarchy_slice('organism', undef, $pname, $min_lvl);
         } else {
             @$data = values %{ $mgdb->get_hierarchy('organism', undef, undef, undef, $min_lvl) };
@@ -432,7 +453,7 @@ sub query {
     }
     
     my $url = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
-    if ($source) {
+    if ($source && ($type ne 'accession')) {
         $url .= '&source='.$source;
     }
     
@@ -454,7 +475,7 @@ sub query {
         my $md5s = $self->clean_md5($data);
         ($result, $total) = $self->solr_data($type, $md5s, $source, $offset, $limit, $order);
     } elsif ($type eq 'accession') {
-        ($result, $total) = $self->solr_data($type, $data, $source, $offset, $limit, $order);
+        ($result, $total) = $self->solr_data($type, $data, undef, $offset, $limit, $order);
     } else {
         ($result, $total) = $self->solr_data($type, $data, $source, $offset, $limit, $order, 1);
     }
