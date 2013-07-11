@@ -41,7 +41,7 @@ my $resource = shift @rest_parameters;
 
 # get resource list
 my $resources = [];
-my $resource_path = $Conf::api_resource_path."2";
+my $resource_path = $Conf::api_resource_path;
 if (! $resource_path) {
   print $cgi->header(-type => 'text/plain',
 		     -status => 500,
@@ -53,7 +53,7 @@ if (! $resource_path) {
 if (opendir(my $dh, $resource_path)) {
   my @res = grep { -f "$resource_path/$_" } readdir($dh);
   closedir $dh;
-  @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } @res;  
+  @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } @res;
   @$resources = map { $_ eq 'resource' ? () : $_; } @$resources;
 } else {
   if ($cgi->param('POSTDATA') && ! $resource) {
@@ -149,7 +149,7 @@ if($user) {
 # if a resource is passed, call the resources module
 if ($resource) {
     my $error   = '';
-    my $package = "resources2::".$resource;
+    my $package = $Conf::api_resource_dir."::".$resource;
     {
         no strict;
         eval "require $package;";
