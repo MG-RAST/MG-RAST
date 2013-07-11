@@ -368,11 +368,13 @@ sub get_sequence_sets {
         my $fnum = 1;
         foreach my $rf (@rawfiles) {
             my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
-            push(@$stages, { id => "mgm".$mgid."-050-".$fnum,
-		                     stage_id => "050",
+            push(@$stages, { id  => "mgm".$mgid,
+                             url => $self->cgi->url.'/download/mgm'.$mgid.'?file=050.'.$fnum,
+		                     stage_id   => "050",
 		                     stage_name => "upload",
 		                     stage_type => $ftype,
-		                     file_name => $rf });
+		                     file_id    => "050.".$fnum,
+		                     file_name  => $rf });
             $fnum += 1;
         }
     }
@@ -388,11 +390,13 @@ sub get_sequence_sets {
             } else {
 	            $stagehash->{$stageid} = 1;
             }
-            push(@$stages, { id => "mgm".$mgid."-".$stageid."-".$stagehash->{$stageid},
-		                     stage_id => $stageid,
+            push(@$stages, { id  => "mgm".$mgid,
+                             url => $self->cgi->url.'/download/mgm'.$mgid.'?file='.$stageid.'.'.$stagehash->{$stageid},
+		                     stage_id   => $stageid,
 		                     stage_name => $stagename,
 		                     stage_type => $stageresult,
-		                     file_name => $sf });
+		                     file_id    => $stageid.".".$stagehash->{$stageid},
+		                     file_name  => $sf });
         }
     }
     return $stages;
