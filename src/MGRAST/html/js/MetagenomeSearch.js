@@ -65,10 +65,12 @@ function queryAPI (params) {
     }
 
     var url = api_url + query_str + "&order=" + sort + "&direction=" + sortDir + "&match=any" + "&limit=" + limit + "&offset=" + offset;
-    var wsCookie = getCookie("WebSession");
-    //if(wsCookie) {
-    //    url += "&auth=" + wsCookie;
-    //}
+    if (document.getElementById('login_input_box') == null) {
+        var wsCookie = getCookie("WebSession");
+        if(wsCookie) {
+            url += "&auth=" + wsCookie;
+        }
+    }
     jQuery.getJSON(url, function(data) {
         for (i=0;i<data.data.length;i++) {
             datastore[data.data[i]["id"]] = data.data[i];
