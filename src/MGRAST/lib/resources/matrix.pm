@@ -100,7 +100,9 @@ sub info {
                                                             },
                                                             { 'name'        => "organism",
                                                       'request'     => $self->cgi->url."/".$self->name."/organism",
-                                                      'description' => "Returns a single data object.",
+                                                      'description' => "Returns a BIOM object.",
+                                                      'example'     => [ $self->cgi->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&id=mgm4447103.3&group_level=family&source=RefSeq&result_type=abundance&evalue=15",
+                                    				                     'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evaule < e-15' ],
                                                       'method'      => "GET" ,
                                                       'type'        => "synchronous or asynchronous" ,  
                                                       'attributes'  => $self->attributes,
@@ -128,7 +130,9 @@ sub info {
                                                             },
                                                             { 'name'        => "function",
                                                       'request'     => $self->cgi->url."/".$self->name."/function",
-                                                      'description' => "Returns a single data object.",
+                                                      'description' => "Returns a BIOM object.",
+                                                      'example'     => [ $self->cgi->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&id=mgm4447103.3&group_level=level3&source=Subsystems&result_type=abundance&identity=80&filter_level=phylum&filter=Firmicutes",
+                                      				                     'retrieve abundance matrix of Subsystem annotations at level3 for listed metagenomes at % identity > 80, filtered to return annotations only in phylum Firmicutes' ],
                                                       'method'      => "GET" ,
                                                       'type'        => "synchronous or asynchronous" ,  
                                                       'attributes'  => $self->attributes,
@@ -152,7 +156,9 @@ sub info {
                                                             },
                                                     { 'name'        => "feature",
                                                       'request'     => $self->cgi->url."/".$self->name."/feature",
-                                                      'description' => "Returns a single data object.",
+                                                      'description' => "Returns a BIOM object.",
+                                                      'example'     => [ $self->cgi->url."/".$self->name."/feature?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&id=mgm4447103.3&source=KEGG&result_type=evalue&length=25",
+                                      				                     'retrieve e-value matrix of KEGG protein annotations for listed metagenomes at alignment length > 25' ],
                                                       'method'      => "GET" ,
                                                       'type'        => "synchronous or asynchronous" ,  
                                                       'attributes'  => $self->attributes,
@@ -195,7 +201,7 @@ sub instance {
         $self->return_data( {"ERROR" => "no ids submitted, aleast one 'id' is required"}, 400 );
     }
     my @ids   = $self->cgi->param('id');
-    my @mgids = [];
+    my %mgids = ();
     my $seen  = {};
         
     # get database
@@ -216,7 +222,7 @@ sub instance {
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
             if ($m_star || exists($m_rights{$1})) {
-                push @mgids, $1;
+                $mgids{$1} = 1;
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
@@ -225,7 +231,7 @@ sub instance {
                 my $proj = $master->Project->init( {id => $1} );
                 foreach my $mgid (@{ $proj->metagenomes(1) }) {
                     next unless ($m_star || exists($m_rights{$mgid}));
-                    push @mgids, $mgid;
+                    $mgids{$mgid} = 1;
                 }
             } else {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
@@ -235,11 +241,11 @@ sub instance {
         }
         $seen->{$id} = 1;
     }
-    if (@mgids == 0) {
+    if (scalar(keys %mgids) == 0) {
         $self->return_data( {"ERROR" => "no valid ids submitted and/or found: ".join(", ", @ids)}, 401 );
     }
     # unique list and sort it - sort required for proper caching
-    @mgids = sort uniq(@mgids);
+    my @mgids = sort keys %mgids;
 
     # return cached if exists
     $self->return_cached();
