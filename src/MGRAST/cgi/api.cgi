@@ -11,6 +11,8 @@ my $cgi  = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
+my %private_resources = ('notebook' => 1, 'resource' => 1, 'status' => 1, 'user' => 1);
+
 # get request method
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
 my $request_method = $ENV{'REQUEST_METHOD'};
@@ -53,8 +55,8 @@ if (! $resource_path) {
 if (opendir(my $dh, $resource_path)) {
   my @res = grep { -f "$resource_path/$_" } readdir($dh);
   closedir $dh;
-  @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } @res;
-  @$resources = map { $_ eq 'resource' ? () : $_; } @$resources;
+  @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } grep { $_ =~ /^[a-zA-Z](.*)\.pm$/ } @res;
+  @$resources = grep { ! exists($private_resources{$_}) } @$resources;
 } else {
   if ($cgi->param('POSTDATA') && ! $resource) {
     print $cgi->header(-type => 'application/json',
@@ -95,7 +97,6 @@ if ($json_rpc && ! $resource) {
     exit 0;
   }
   
-  #    if ($rpc_request->{jsonrpc} && $rpc_request->{jsonrpc} eq "2.0" && $rpc_request->{method}) {
   $json_rpc_id = $rpc_request->{id};
   my $params = $rpc_request->{params};
   if (ref($params) eq 'ARRAY' && ref($params->[0]) eq 'HASH') {
@@ -193,14 +194,14 @@ if ($resource) {
 }
 # we are called without a resource, return API information
 else {
-  my @resource_objects = map { { 'name' => $_, 'url' => $cgi->url.'/'.$_ } } sort @$resources;
+  my @res = map {{ 'name' => $_, 'url' => $cgi->url.'/'.$_ , 'documentation' => $cgi->url.'/api.html#'.$_}} sort @$resources;
   my $content = { version => 1,
 		  service => 'MG-RAST',
 		  url => $cgi->url,
 		  documentation => $cgi->url.'/api.html',
 		  description => "RESTful Metagenomics RAST object and resource API\nFor usage note that required parameters need to be passed as path parameters, optional parameters need to be query parameters. If an optional parameter has a list of option values, the first displayed will be used as default.",
 		  contact => 'mg-rast@mcs.anl.gov',
-		  resources => \@resource_objects };
+		  resources => \@res };
   print $cgi->header(-type => 'application/json',
 		     -status => 200,
 		     -Access_Control_Allow_Origin => '*' );
