@@ -41,6 +41,8 @@ sub info {
 				            { 'name'        => "instance",
 				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
 				              'description' => "Returns a single sequence file.",
+				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?file=350.1",
+      				                             'download fasta file of genecalled protein sequences (from stage 350)' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
 				              'attributes'  => { "data" => [ 'file', 'requested analysis file' ] },
@@ -51,6 +53,8 @@ sub info {
 				            { 'name'        => "setlist",
 				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
 				              'description' => "Returns a list of sets of sequence files for the given id.",
+				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?stage=650",
+        				                         'view all available files from stage 650' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
 				              'attributes'  => { "stage_name" => [ "string", "name of the stage in processing of this file" ],
@@ -170,7 +174,7 @@ sub setlist {
 	        } else {
 	            $stagehash->{$stageid} = 1;
 	        }
-	        push(@$stages, { id  => "mgm".$job->metagenome_id."-".$stageid."-".$stagehash->{$stageid},
+	        push(@$stages, { id  => "mgm".$job->metagenome_id,
 			                 url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file='.$stageid.'.'.$stagehash->{$stageid},
 			                 stage_id   => $stageid,
 			                 stage_name => $stagename,

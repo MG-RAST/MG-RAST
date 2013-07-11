@@ -41,6 +41,8 @@ sub info {
                                     { 'name'        => "view",
                                       'request'     => $self->cgi->url."/".$self->name,
                                       'description' => "lists the contents of the user inbox",
+                                      'example'     => [ $self->cgi->url."/".$self->name,
+                  			                             'lists the contents of the user inbox, auth is required' ],
                                       'method'      => "GET",
                                       'type'        => "synchronous",  
                                       'attributes'  => { 'id'        => [ 'string', "user login" ],
@@ -57,7 +59,7 @@ sub info {
                                       'request'     => $self->cgi->url."/".$self->name,
                                       'description' => "receives user inbox data upload",
                                       'method'      => "POST",
-                                      'type'        => "synchronous",  
+                                      'type'        => "synchronous",
                                       'attributes'  => { 'id'        => [ 'string', "user login" ],
                                                          'status'    => [ 'string', "status message" ],
                                                          'timestamp' => [ 'string', "timestamp for return of this query" ]
