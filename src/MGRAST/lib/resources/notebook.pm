@@ -1,4 +1,4 @@
-package resources2::notebook;
+package resources::notebook;
 
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ use utf8;
 use Encode qw( encode_utf8 );
 
 use Conf;
-use parent qw(resources2::resource);
+use parent qw(resources::resource);
 
 # Override parent constructor
 sub new {

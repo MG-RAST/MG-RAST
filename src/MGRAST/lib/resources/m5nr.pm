@@ -1,4 +1,4 @@
-package resources2::m5nr;
+package resources::m5nr;
 
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ use Digest::MD5;
 use MGRAST::Analysis;
 use Babel::lib::Babel;
 use Conf;
-use parent qw(resources2::resource);
+use parent qw(resources::resource);
 
 # Override parent constructor
 sub new {
