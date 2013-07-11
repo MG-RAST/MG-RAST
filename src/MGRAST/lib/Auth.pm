@@ -76,9 +76,17 @@ sub authenticate {
     }
   }
     
+  # check webkey
   my $preference = $master->Preferences->get_objects( { name => $auth_source, value => $auth_value } );
   if (scalar(@$preference)) {
     $user = $preference->[0]->user;
+    return $user;
+  }
+
+  # check session
+  my $sessions = $master->UserSession->get_objects({ 'session_id' => $auth_value });
+  if (scalar(@$sessions)) {
+    $user = $sessions->[0]->user;
     return $user;
   }
 
