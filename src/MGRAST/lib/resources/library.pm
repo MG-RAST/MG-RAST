@@ -1,158 +1,210 @@
 package resources::library;
 
-use CGI;
-use JSON;
+use strict;
+use warnings;
+no warnings('once');
 
-use MGRAST::Metadata;
-use WebServiceObject;
+use Conf;
+use parent qw(resources::resource);
 
-my $cgi = new CGI;
-my $json = new JSON;
-$json = $json->utf8();
+# Override parent constructor
+sub new {
+    my ($class, @args) = @_;
 
-sub about {
-  my $content = { 'description' => "metagenomic library",
-		  'parameters' => { "id" => "string" },
-		  'return_type' => "application/json" };
-
-  print $cgi->header(-type => 'application/json',
-		     -status => 200,
-		     -Access_Control_Allow_Origin => '*' );
-  print $json->encode($content);
-  exit 0;
-}
-
-sub request {
-  my ($params) = @_;
-
-  my $rest = $params->{rest_parameters};
-  my $user = $params->{user};
-  my ($master, $error) = WebServiceObject::db_connect();
-  if ($rest && scalar(@$rest) == 1 && $rest->[0] eq 'about') {
-    &about();
-    exit 0;
-  }
-
-  if ($error) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 500,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: resource database offline";
-    exit 0;
-  }
-
-  my %rights = $user ? map {$_, 1} @{$user->has_right_to(undef, 'view', 'metagenome')} : ();
-  my $dbh = $master->db_handle;
-  my $library;
-
-  if ($rest && scalar(@$rest)) {
-    my $id = shift @$rest;
-    $id =~ s/mgl(.+)/$1/;
-    $library = $master->MetaDataCollection->init( {ID => $id} );
-  } else {
-    my $ids = {};
-    my $library_map = {};
-    my $job_lib_map = {};
-    my $job_library = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job");
-    map { $job_lib_map->{$_->[0]} = 1 }  @$job_library;
-    map { $library_map->{$_->[0]} = $_->[1] } @{$dbh->selectall_arrayref("SELECT _id, ID FROM MetaDataCollection WHERE type='library'")};
-
-    # add libraries with job: public or rights
-    map { $ids->{"mgl".$library_map->{$_->[0]}} = 1 } grep { ($_->[2] == 1) || exists($rights{$_->[1]}) || exists($rights{'*'}) } @$job_library;
-    # add libraries with no job
-    map { $ids->{"mgl".$library_map->{$_}} = 1 } grep { ! exists $job_lib_map->{$_} } keys %$library_map;
+    # Call the constructor of the parent class
+    my $self = $class->SUPER::new(@args);
     
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode([sort keys %$ids]);
-    exit 0;
-  }
-
-  if ($library && ref($library)) {
-    my $obj    = {};
-    my $mddb   = MGRAST::Metadata->new();
-    my $mdata  = $library->data();
-    my $name   = $library->name ? $library->name : (exists($mdata->{sample_name}) ? $mdata->{sample_name} : '');
-    my $proj   = $library->project;
-    my @jobs   = grep { $_->public || exists($rights{$_->metagenome_id}) || exists($rights{'*'}) } @{ $library->jobs };
-    my $libjob = (@jobs > 0) ? $jobs[0] : undef;
-    my $sample = ref($library->parent) ? $library->parent : undef;
-    if ($cgi->param('template')) {
-      $mdata = $mddb->add_template_to_data($library->lib_type, $mdata);
-    }
-
-    $obj->{id}       = "mgl".$library->ID;
-    $obj->{about}    = "metagenomics library";
-    $obj->{name}     = $name;
-    $obj->{url}      = $cgi->url.'/library/'.$obj->{id};
-    $obj->{version}  = 1;
-    $obj->{created}  = $library->entry_date;
-    $obj->{metadata} = $mdata;
-    $obj->{project}  = $proj ? "mgp".$proj->{id} : undef;
-    $obj->{sample}   = $sample ? "mgs".$sample->{ID} : undef;
-    $obj->{reads}    = $libjob ? "mgm".$libjob->metagenome_id : undef;
-    $obj->{metagenome} = $libjob ? "mgm".$libjob->metagenome_id : undef;
-    $obj->{sequence_sets} = $libjob ? get_sequence_sets($libjob) : [];
-
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode($obj);
-    exit 0;
-  } else {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 400,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: library not found";
-    exit 0;
-  }
-
+    # Add name / attributes
+    my %rights = $self->{user} ? map {$_, 1} @{$self->{user}->has_right_to(undef, 'view', 'metagenome')} : ();
+    $self->{name} = "library";
+    $self->{rights} = \%rights;
+    $self->{attributes} = { "id"           => [ 'string', 'unique object identifier' ],
+    	                    "name"         => [ 'string', 'human readable identifier' ],
+    	                    "sequencesets" => [ 'list', [ 'reference sequenceset', 'a list of references to the related sequence sets' ] ],
+    	                    "metagenome"   => [ 'reference metagenome', 'reference to the related metagenome object' ],
+    	                    "sample"       => [ 'reference sample', 'reference to the related sample object' ],
+    	                    "project"      => [ 'reference project', 'reference to the project object' ],
+    	                    "metadata"     => [ 'hash', 'key value pairs describing metadata' ],
+    	                    "created"      => [ 'date', 'time the object was first created' ],
+    	                    "version"      => [ 'integer', 'version of the object' ],
+    	                    "url"          => [ 'uri', 'resource location of this object instance' ]
+    	                  };
+    return $self;
 }
 
-sub get_sequence_sets {
-  my ($job) = @_;
+# resource is called without any parameters
+# this method must return a description of the resource
+sub info {
+    my ($self) = @_;
+    my $content = { 'name' => $self->name,
+		    'url' => $self->cgi->url."/".$self->name,
+		    'description' => "A library of metagenomic samples from some environment",
+		    'type' => 'object',
+		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'requests' => [ { 'name'        => "info",
+				      'request'     => $self->cgi->url."/".$self->name,
+				      'description' => "Returns description of parameters and attributes.",
+				      'method'      => "GET" ,
+				      'type'        => "synchronous" ,  
+				      'attributes'  => "self",
+				      'parameters'  => { 'options'     => {},
+							             'required'    => {},
+							             'body'        => {} } },
+				    { 'name'        => "query",
+				      'request'     => $self->cgi->url."/".$self->name,				      
+				      'description' => "Returns a set of data matching the query criteria.",
+				      'method'      => "GET" ,
+				      'type'        => "synchronous" ,  
+				      'attributes'  => { "next"   => [ "uri", "link to the previous set or null if this is the first set" ],
+							 "prev"   => [ "uri", "link to the next set or null if this is the last set" ],
+							 "order"  => [ "string", "name of the attribute the returned data is ordered by" ],
+							 "data"   => [ "list", [ "object", [$self->attributes, "list of the library objects"] ] ],
+							 "limit"  => [ "integer", "maximum number of data items returned, default is 10" ],
+							 "total_count" => [ "integer", "total number of available data items" ],
+							 "offset" => [ "integer", "zero based index of the first returned data item" ] },
+				      'parameters'  => { 'options'     => { 'verbosity' => [ 'cv', [ [ 'minimal', 'returns only minimal information' ] ] ],
+									    'limit' => [ 'integer', 'maximum number of items requested' ],
+									    'offset' => [ 'integer', 'zero based index of the first data object to be returned' ],
+									    'order' => [ 'cv', [ [ 'id' , 'return data objects ordered by id' ],
+												 [ 'name' , 'return data objects ordered by name' ] ] ] },
+							 'required'    => {},
+							 'body'        => {} } },
+				    { 'name'        => "instance",
+				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				      'description' => "Returns a single data object.",
+				      'method'      => "GET" ,
+				      'type'        => "synchronous" ,  
+				      'attributes'  => $self->attributes,
+				      'parameters'  => { 'options'     => { 'verbosity' => [ 'cv', [ [ 'minimal', 'returns only minimal information' ],
+												     [ 'verbose', 'returns a standard subselection of metadata' ],
+												     [ 'full', 'returns all connected metadata' ] ] ] },
+							 'required'    => { "id" => [ "string", "unique object identifier" ] },
+							 'body'        => {} } },
+				  ]
+		  };
+
+    $self->return_data($content);
+}
+
+# the resource is called with an id parameter
+sub instance {
+    my ($self) = @_;
+    
+    # check id format
+    my $rest = $self->rest;
+    my (undef, $id) = $rest->[0] =~ /^(mgl)?(\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+    }
+
+    # get database
+    my $master = $self->connect_to_datasource();
   
-  my $mgid = $job->metagenome_id;
-  my $rdir = $job->download_dir;
-  my $adir = $job->analysis_dir;
-  my $stages = [];
-  if (opendir(my $dh, $rdir)) {
-    my @rawfiles = sort grep { /^.*(fna|fastq)(\.gz)?$/ && -f "$rdir/$_" } readdir($dh);
-    closedir $dh;
-    my $fnum = 1;
-    foreach my $rf (@rawfiles) {
-      my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
-      push(@$stages, { id => "mgm".$mgid."-050-".$fnum,
-		       stage_id => "050",
-		       stage_name => "upload",
-		       stage_type => $ftype,
-		       file_name => $rf });
-      $fnum += 1;
+    # get data
+    my $library = $master->MetaDataCollection->init( {ID => $id} );
+    unless (ref($library)) {
+        $self->return_data( {"ERROR" => "id $id does not exists"}, 404 );
     }
-  }
-  if (opendir(my $dh, $adir)) {
-    my @stagefiles = sort grep { /^.*(fna|faa)(\.gz)?$/ && -f "$adir/$_" } readdir($dh);
-    closedir $dh;
-    my $stagehash = {};
-    foreach my $sf (@stagefiles) {
-      my ($stageid, $stagename, $stageresult) = $sf =~ /^(\d+)\.([^\.]+)\.([^\.]+)\.(fna|faa)(\.gz)?$/;
-      next unless ($stageid && $stagename && $stageresult);
-      if (exists($stagehash->{$stageid})) {
-	$stagehash->{$stageid}++;
-      } else {
-	$stagehash->{$stageid} = 1;
-      }
-      push(@$stages, { id => "mgm".$mgid."-".$stageid."-".$stagehash->{$stageid},
-		       stage_id => $stageid,
-		       stage_name => $stagename,
-		       stage_type => $stageresult,
-		       file_name => $sf });
-    }
-  }
-  return $stages;
+
+    # prepare data
+    my $data = $self->prepare_data([ $library ]);
+    $data = $data->[0];
+
+    $self->return_data($data)
 }
 
-sub TO_JSON { return { %{ shift() } }; }
+# the resource is called without an id parameter, but with at least one query parameter
+sub query {
+    my ($self) = @_;
+
+    # get database
+    my $master = $self->connect_to_datasource();
+    my $dbh    = $master->db_handle();
+  
+    my $libraries_hash = {};
+    my $library_map    = {};
+    my $job_lib_map    = {};
+    my $job_library    = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job WHERE viewable=1");
+    map { $job_lib_map->{$_->[0]} = 1 } @$job_library;
+    map { $library_map->{$_->[0]} = {id => $_->[1], name => $_->[2], entry_date => $_->[3]} } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='library'")};
+  
+    # add libraries with job: public or rights
+    map { $libraries_hash->{"mgl".$library_map->{$_->[0]}} = $library_map->{$_->[0]} } grep { ($_->[2] == 1) || exists($self->rights->{$_->[1]}) || exists($self->rights->{'*'}) } @$job_library;
+    # add libraries with no job
+    map { $libraries_hash->{"mgl".$library_map->{$_}} = $library_map->{$_} } grep { ! exists $job_lib_map->{$_} } keys %$library_map;
+    my $libraries = [];
+    @$libraries   = map { $libraries_hash->{$_} } keys(%$libraries_hash);
+    my $total     = scalar @$libraries;
+
+    # check limit
+    my $limit   = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
+    my $offset  = $self->cgi->param('offset') || 0;
+    my $order   = $self->cgi->param('order')  || "id";
+    @$libraries = sort { $a->{$order} cmp $b->{$order} } @$libraries;
+    $limit      = (($limit == 0) || ($limit > scalar(@$libraries))) ? scalar(@$libraries) : $limit;
+    @$libraries = @$libraries[$offset..($offset+$limit-1)];
+
+    # prepare data to the correct output format
+    my $data = $self->prepare_data($libraries);
+
+    # check for pagination
+    $data = $self->check_pagination($data, $total, $limit);
+
+    $self->return_data($data);
+}
+
+# reformat the data into the requested output format
+sub prepare_data {
+  my ($self, $data) = @_;
+
+  my $mddb;
+  my $master = $self->connect_to_datasource();
+  if ($self->cgi->param('verbosity') && $self->cgi->param('verbosity') ne 'minimal') {
+    use MGRAST::Metadata;
+    my $mddb = MGRAST::Metadata->new();
+  }
+
+  my $objects = [];
+  foreach my $library (@$data) {
+      if ($library->{ID}) {
+          $library->{id} = $library->{ID};
+      }
+      my $url = $self->cgi->url;
+      my $obj = {};
+      $obj->{id}      = "mgl".$library->{id};
+      $obj->{name}    = $library->{name};
+      $obj->{url}     = $url.'/library/'.$obj->{id};
+      $obj->{version} = 1;
+      $obj->{created} = $library->{entry_date};
+    
+      if ($self->cgi->param('verbosity')) {
+          if ($self->cgi->param('verbosity') ne 'minimal' && ref($library) ne 'JobDB::MetaDataCollection') {
+	          $library = $master->MetaDataCollection->init( {ID => $library->{id}} );
+          }
+          if ($self->cgi->param('verbosity') eq 'full') {
+	          my $proj = $library->project;
+	          my @jobs = grep { $_->{public} || exists($self->rights->{$_->{metagenome_id}}) || exists($self->rights->{'*'}) } @{$library->jobs};
+	          my $ljob = (@jobs > 0) ? $jobs[0] : undef;
+	          my $samp = ref($library->parent) ? $library->parent : undef;
+	          $obj->{project}       = $proj ? ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}] : undef;
+              $obj->{sample}        = $samp ? ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}] : undef;
+	          $obj->{reads}         = $ljob ? ["mgm".$ljob->{metagenome_id}, $url.'/metagenome/mgm'.$ljob->{metagenome_id}] : undef;
+	          $obj->{metagenome}    = $ljob ? ["mgm".$ljob->{metagenome_id}, $url.'/metagenome/mgm'.$ljob->{metagenome_id}] : undef;
+	          $obj->{sequence_sets} = $ljob ? $self->get_sequence_sets($ljob) : [];
+          }
+          if ($self->cgi->param('verbosity') eq 'verbose' || $self->cgi->param('verbosity') eq 'full') {
+	          my $mdata = $library->data();
+	          if ($self->cgi->param('template')) {
+	              $mdata = $mddb->add_template_to_data($library->lib_type, $mdata);
+	          }
+	          $obj->{metadata} = $mdata;
+          } elsif ($self->cgi->param('verbosity') ne 'minimal') {
+	          $self->return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
+          }
+      }
+      push @$objects, $obj;      
+  }
+  return $objects;
+}
 
 1;

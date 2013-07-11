@@ -1,4 +1,4 @@
-package resources2::resource;
+package resources::resource;
 
 use strict;
 use warnings;
