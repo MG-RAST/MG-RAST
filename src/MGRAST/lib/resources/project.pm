@@ -57,6 +57,8 @@ sub info {
 				    { 'name'        => "query",
 				      'request'     => $self->cgi->url."/".$self->name,				      
 				      'description' => "Returns a set of data matching the query criteria.",
+				      'example'     => [ $self->cgi->url."/".$self->name."?limit=20&order=name",
+    				                     'retrieve the first 20 projects ordered by name' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
 				      'attributes'  => { "next"   => [ "uri", "link to the previous set or null if this is the first set" ],
@@ -78,6 +80,8 @@ sub info {
 				    { 'name'        => "instance",
 				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
 				      'description' => "Returns a single data object.",
+				      'example'     => [ $self->cgi->url."/".$self->name."/mgp128?verbosity=full",
+      				                     'retrieve all data for project mgp128' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
 				      'attributes'  => $self->attributes,
@@ -98,7 +102,7 @@ sub instance {
     
     # check id format
     my $rest = $self->rest;
-    my (undef, $id) = $rest->[0] =~ /^(mgp)?(\d+)$/;
+    my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
