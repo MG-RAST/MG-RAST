@@ -222,13 +222,13 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of unique identifier from source DB'],
+      					     'parameters'  => { 'body'     => { 'DATA'   => ['string','semicolon seperated list of unique identifier from source DB'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
-       					                                  },
+       					                                      },
       							                'required' => {},
-      							                'body'     => {} }
+      							                'options'  => {} }
       				       },
    				           { 'name'        => "md5",
       					     'request'     => $self->cgi->url."/".$self->name."/md5",
@@ -236,14 +236,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of unique identifier in form of md5 checksum'],
+      					     'parameters'  => { 'body'     => { 'DATA'   => ['string','semicolon seperated list of unique identifier in form of md5 checksum'],
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
       					                                      },
       							                'required' => {},
-      							                'body'     => {} }
+      							                'options'  => {} }
       				       },
    				           { 'name'        => "function",
       					     'request'     => $self->cgi->url."/".$self->name."/function",
@@ -251,14 +251,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of text string of partial function name'],
+      					     'parameters'  => { 'body'     => { 'DATA'   => ['string','semicolon seperated list of text string of partial function name'],
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
-       					                                  },
+       					                                      },
       							                'required' => {},
-      							                'body'     => {} }
+      							                'options'  => {} }
       				       },
       				       { 'name'        => "organism",
       					     'request'     => $self->cgi->url."/".$self->name."/organism",
@@ -266,14 +266,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of text string of partial organism name'],
+      					     'parameters'  => { 'body'     => { 'DATA'   => ['string','semicolon seperated list of text string of partial organism name'],
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
         					                                  },
       							                'required' => {},
-      							                'body'     => {} }
+      							                'options'  => {} }
       				       },
       				       { 'name'        => "sequence",
       					     'request'     => $self->cgi->url."/".$self->name."/sequence",
@@ -281,14 +281,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'options'  => { 'DATA'   => ['string','semicolon seperated list of text string of protein sequence'],
+      					     'parameters'  => { 'body'     => { 'DATA'   => ['string','semicolon seperated list of text string of protein sequence'],
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
          					                                  },
       							                'required' => {},
-      							                'body'     => {} }
+      							                'options'  => {} }
       				       }
    				       ]
 		};
