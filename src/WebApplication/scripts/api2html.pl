@@ -113,6 +113,10 @@ foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) 
             }
         }
         $html .= "</ul>";
+        if (exists $req->{example}) {
+            $html .= "<h3>Example</h3><ul>";
+            $html .= "<li>".$req->{example}[0]."<li>".$req->{example}[1]."</ul>";
+        }
         $html .= "<h3>Return Attributes</h3><ul>";
         # iterate over attributes
         foreach my $param (sort keys(%{$req->{attributes}})) {
