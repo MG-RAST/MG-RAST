@@ -155,7 +155,7 @@ sub info {
              				               'attributes'  => $self->attributes,
              				               'parameters'  => { 'options'  => {},
              							                      'required' => {},
-             							                      'body'     => { "ipynb" => ["file", ".pynb file in JSON format"] } } },
+             							                      'body'     => { "upload" => ["file", ".pynb file in JSON format"] } } },
             						   ]
                   };
     $self->return_data($content);

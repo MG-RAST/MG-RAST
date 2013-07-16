@@ -48,7 +48,7 @@ if (! $resource_path) {
   print $cgi->header(-type => 'text/plain',
 		     -status => 500,
 		     -Access_Control_Allow_Origin => '*' );
-  print "ERROR: resource directory not found";
+  print $json->encode( {"ERROR"=> "resource directory not found"} );
   exit 0;
 }
 
@@ -63,65 +63,72 @@ if (opendir(my $dh, $resource_path)) {
 		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );
     print $json->encode( { jsonrpc => "2.0",
-			   id => undef,
-			   error => {  code => -32603,
-				       message => "Internal error",
-				       data => "resource directory offline" } } );
+			               id => undef,
+			               error => { code => -32603,
+				                      message => "Internal error",
+				                      data => "resource directory offline" }
+				        } );
     exit 0;
   } else {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 500,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: resource directory offline";
+    print $cgi->header( -type => 'text/plain',
+		                -status => 500,
+		                -Access_Control_Allow_Origin => '*' );
+	print $json->encode( {"ERROR"=> "resource directory offline"} );
     exit 0;
   }
 }
 
 # check for json rpc
 my $json_rpc = $cgi->param('POSTDATA') || $cgi->param('keywords');
-$cgi->delete('POSTDATA');
-my $json_rpc_id;
-my $rpc_request;
-my $submethod;
-if ($json_rpc && ! $resource) {
-  eval { $rpc_request = $json->decode($json_rpc) };
-  if ($@) {
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode( { jsonrpc => "2.0",
-			   id => undef,
-			   error => {  code => -32700,
-				       message => "Parse error",
-				       data => $@ } } );
-    exit 0;
-  }
-  
-  $json_rpc_id = $rpc_request->{id};
-  my $params = $rpc_request->{params};
-  if (ref($params) eq 'ARRAY' && ref($params->[0]) eq 'HASH') {
-    $params = $params->[0];
-  }
-  unless (ref($params) eq 'HASH') {
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode( { jsonrpc => "2.0",
-			   id => undef,
-			   error => {  code => -32602,
-				       message => "Invalid params",
-				       data => "only named parameters are accepted" } } );
-    exit 0;
-  }
-  foreach my $key (keys(%$params)) {
-    if ($key eq 'id') {
-      @rest_parameters = ( $params->{$key} );
-    } else {
-      $cgi->param($key, $params->{$key});
+
+# no resource, process as json rpc
+if ($json_rpc && (! $resource)) {
+    $cgi->delete('POSTDATA');
+    my ($rpc_request, $submethod);
+    eval { $rpc_request = $json->decode($json_rpc) };
+    if ($@) {
+        print $cgi->header( -type => 'application/json',
+		                    -status => 200,
+		                    -Access_Control_Allow_Origin => '*' );
+        print $json->encode( { jsonrpc => "2.0",
+                               id => undef,
+                               error => { code => -32700,
+				                          message => "Parse error",
+				                          data => $@ }
+				            } );
+        exit 0;
     }
-  }
-  (undef, $request_method, $resource, $submethod) = $rpc_request->{method} =~ /^(\w+\.)?(get|post|delete|put)_(\w+)_(\w+)$/;
-  $json_rpc = 1;
+  
+    my $json_rpc_id = $rpc_request->{id};
+    my $params = $rpc_request->{params};
+    if (ref($params) eq 'ARRAY' && ref($params->[0]) eq 'HASH') {
+        $params = $params->[0];
+    }
+    unless (ref($params) eq 'HASH') {
+        print $cgi->header( -type => 'application/json',
+		                    -status => 200,
+		                    -Access_Control_Allow_Origin => '*' );
+        print $json->encode( { jsonrpc => "2.0",
+			                   id => undef,
+			                   error => { code => -32602,
+				                          message => "Invalid params",
+				                          data => "only named parameters are accepted" }
+				            } );
+        exit 0;
+    }
+    foreach my $key (keys(%$params)) {
+        if ($key eq 'id') {
+            @rest_parameters = ( $params->{$key} );
+        } else {
+            $cgi->param($key, $params->{$key});
+        }
+    }
+    (undef, $request_method, $resource, $submethod) = $rpc_request->{method} =~ /^(\w+\.)?(get|post|delete|put)_(\w+)_(\w+)$/;
+    $json_rpc = 1;
+}
+# this is not json rpc, normal data POST
+else {
+    $json_rpc = undef;
 }
 
 # check for authentication
@@ -131,9 +138,9 @@ if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
   $user = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
   unless($user) {
     print $cgi->header( -type => 'application/json',
-	                -status => 401,
+	                    -status => 401,
     	                -Access_Control_Allow_Origin => '*' );
-    print "{ \"ERROR\": \"auth parameter did not authenticate\" }";
+    print $json->encode( {"ERROR"=> "auth parameter did not authenticate"} );
     exit 0;
   }
 }
@@ -160,13 +167,13 @@ if ($resource) {
         print $cgi->header( -type => 'application/json',
     		                -status => 500,
     		                -Access_Control_Allow_Origin => '*' );
-        print "{ \"ERROR\": \"resource '$resource' does not exist\" }";
+    	print $json->encode( {"ERROR"=> "resource '$resource' does not exist"} );
         exit 0;
     } else {
       # check for kbase ids
       if (scalar(@rest_parameters)) {
-	$rest_parameters[0] = uri_unescape($rest_parameters[0]);
-	$rest_parameters[0] =~ s/^kb\|(.+)$/$1/;
+	      $rest_parameters[0] = uri_unescape($rest_parameters[0]);
+	      $rest_parameters[0] =~ s/^kb\|(.+)$/$1/;
       }
 
       # create params hash
@@ -187,7 +194,7 @@ if ($resource) {
             print $cgi->header( -type => 'text/plain',
 			                    -status => 500,
 			                    -Access_Control_Allow_Origin => '*' );
-            print "ERROR: resource request failed\n$@\n";
+			print $json->encode( {"ERROR"=> "resource request failed\n$@\n"} );
             exit 0;
         }
     }
