@@ -169,7 +169,7 @@ sub info {
                                                                                                                    ['evalue', 'average e-value exponent of hits in annotation'],
                                                                                                                    ['identity', 'average percent identity of hits in annotation'],
                                                                                                                    ['length', 'average alignment length of hits in annotation']] ],
-                                                                                         'source' => [ 'cv', [ @{$self->{sources}{organism}}[2..14] ] ],
+                                                                                         'source' => [ 'cv', [ @{$self->{sources}{organism}}[2..13] ] ],
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
                                                                                          'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
