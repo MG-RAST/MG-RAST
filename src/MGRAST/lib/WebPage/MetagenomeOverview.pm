@@ -1209,7 +1209,7 @@ sub get_func_charts {
   my $func_charts = [];
   foreach my $name (@$src_names) {
     my $func_stats = $mgdb->get_ontology_stats($job->job_id, $name);
-    my $func_total = sum @{$src_stats->{$name}->{evalue}};
+    my $func_total = sum map {$_->[1]} @$func_stats;
     if ((@$func_stats > 0) && ($func_stats->[0][0])) {
       my $data_rows  = join("\n", map { qq(data.addRow(["$_->[0]", $_->[1]]);) } @$func_stats);
       my $data_count = scalar @$func_stats;
