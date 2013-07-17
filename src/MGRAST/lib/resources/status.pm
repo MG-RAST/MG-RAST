@@ -48,7 +48,7 @@ sub info {
                                             { 'name'        => "instance",
                                               'request'     => $self->cgi->url."/".$self->name."/{TOKEN}",
                                               'description' => "Returns a single data object.",
-                                              'example'     => [ 'curl -X GET -H "auth: <auth_key>" "'.$self->cgi->url."/".$self->name.'/12345"',
+                                              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/12345"',
                               			                         "data for asynchronous call with ID 12345" ],
                                               'method'      => "GET" ,
                                               'type'        => "synchronous" ,  
