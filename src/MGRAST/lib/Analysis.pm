@@ -238,10 +238,16 @@ sub _get_seq_count {
 }
 
 sub get_all_job_ids {
-  my ($self) = @_;
-  my $query = "SELECT DISTINCT job FROM job_info WHERE loaded IS TRUE AND ".$self->_qver;
-  my $rows = $self->_dbh->selectcol_arrayref($query);
-  return ($rows && (@$rows > 0)) ? $rows : [];
+    my ($self) = @_;
+    my $data = [];
+    my $sth = $self->_dbh->prepare("SELECT DISTINCT job FROM job_info WHERE loaded IS TRUE AND ".$self->_qver);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @$data, $row[0];
+    }
+    $sth->finish;
+    $self->_dbh->commit;
+    return $data;
 }
 
 ####################
@@ -377,10 +383,16 @@ sub _run_fraggenescan {
 }
 
 sub _get_table_cols {
-  my ($self, $table) = @_;
-  my $sql  = "SELECT a.attname FROM pg_attribute a, pg_class c WHERE c.oid = a.attrelid AND a.attnum > 0 AND c.relname = '$table'";
-  my $cols = $self->_dbh->selectcol_arrayref($sql);
-  return ($cols && (@$cols > 0)) ? $cols : [];
+    my ($self, $table) = @_;
+    my $data = [];
+    my $sth = $self->_dbh->prepare("SELECT a.attname FROM pg_attribute a, pg_class c WHERE c.oid = a.attrelid AND a.attnum > 0 AND c.relname = ?");
+    $sth->execute($table) or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @$data, $row[0];
+    }
+    $sth->finish;
+    $self->_dbh->commit;
+    return $data;
 }
 
 ####################
@@ -563,12 +575,16 @@ sub get_hierarchy {
     if (($type eq 'ontology') && $src) {
         $sql .= " WHERE source = ".$self->_src_id->{$src};
     }
-    foreach my $row ( @{$self->_dbh->selectall_arrayref($sql)} ) {
-        my $id = pop @$row;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        my $id = pop @row;
         next unless ($id && ($id =~ /\S/));
-        map { $_ = $_ ? $_ : "-" } @$row;
-        $hier->{$id} = $row;
+        map { $_ = $_ ? $_ : "-" } @row;
+        $hier->{$id} = \@row;
     }
+    $sth->finish;
+    $self->_dbh->commit;
     return $hier;
     # { end_node => [ hierachy of node ] }
 }
@@ -580,8 +596,7 @@ sub get_hierarchy_slice {
     my $col = $self->_get_table_cols($tbl);
     unless ($tbl && @$col && $parent_name && $child_level && grep(/^$child_level$/, @$col)) {
         return [];
-    }    
-    my $data = [];
+    }
     my $child_index = first { $col->[$_] eq $child_level } 0..$#{$col};
     # level does not exist
     unless ($child_index) {
@@ -600,8 +615,15 @@ sub get_hierarchy_slice {
     if (($type eq 'ontology') && $source) {
         $sql .= " AND source = ".$self->_src_id->{$source};
     }
-    my $cols = $self->_dbh->selectcol_arrayref($sql);
-    return ($cols && @$cols) ? $cols : [];
+    my $data = [];
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @$data, $row[0];
+    }
+    $sth->finish;
+    $self->_dbh->commit;
+    return $data;
 }
 
 sub _get_annotation_map {
@@ -619,11 +641,14 @@ sub _get_annotation_map {
         if ($src && ($type eq 'ontology')) {
             $sql .= " AND source = ".$self->_src_id->{$src};
         }
-        my $rows = $self->_dbh->selectall_arrayref($sql);
-        if ($rows && (@$rows > 0)) {
-            map { $amap->{$_->[0]} = {$_->[1]} } @$rows;
+        my $sth = $self->_dbh->prepare($sql);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
+            $amap->{$row[0]} = $row[1];
         }
+        $sth->finish;
     }
+    $self->_dbh->commit;
     return $amap;
     # _id => name
 }
@@ -641,11 +666,16 @@ sub _get_annotations4level {
 
     if (@cols == 1) {
         my $where = $self->_get_where_str([$qsrc, "$level IS NOT NULL"]);
-        my $rows  = $self->_dbh->selectall_arrayref("SELECT DISTINCT $key, $level FROM ".$tbl.$where);
-        if ($rows && (@$rows > 0)) {
-            %$anns = map { $_->[0], $_->[1] } grep { $_->[1] && ($_->[1] =~ /\S/) } @$rows;
+        my $sth = $self->_dbh->prepare("SELECT DISTINCT $key, $level FROM ".$tbl.$where);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
+            if ($row[1] && ($row[1] =~ /\S/)) {
+                $anns->{$row[0]} = $row[1];
+            }
         }
+        $sth->finish;
     }
+    $self->_dbh->commit;
     return $anns;
     # (_id || name) => annot
 }
@@ -666,13 +696,18 @@ sub _search_annotations {
     unless (@$jobs) { return $data; }
 
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", "a.name ~* ".$self->_dbh->quote($text)]);
-    my $sql   = "SELECT DISTINCT j.job, j.source, a.name, j.abundance FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        push @{ $data->{ $self->_mg_map->{$row->[0]} } }, [ $self->_id_src->{$row->[1]}, @$row[2,3] ];
+    my $sql = "SELECT DISTINCT j.job, j.source, a.name, j.abundance FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @{ $data->{ $self->_mg_map->{$row[0]} } }, [ $self->_id_src->{$row[1]}, @row[2,3] ];
     }
+    $sth->finish;
+    
     foreach my $mg (keys %$data) {
         $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
     }
+    $self->_dbh->commit;
     return $data;
     # mgid => [ source, organism, abundance ]
 }
@@ -694,13 +729,15 @@ sub annotation_for_md5s {
                   "LEFT OUTER JOIN functions f ON a.function = f._id ".
                   "LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id ".
                   "WHERE a.md5 IN (".join(",", @curr).")".$qsrc;
-
-        my $rows = $self->_dbh->selectall_arrayref($sql);
-        if ($rows && (@$rows > 0)) {
-            map { $_->[4] = $self->_id_src->{$_->[4]} } @$rows;
-            push @$data, @$rows;
+        my $sth = $self->_dbh->prepare($sql);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
+            $row[4] = $self->_id_src->{$row[4]};
+            push @$data, \@row;
         }
+        $sth->finish;
     }
+    $self->_dbh->commit;
     # [ id, md5, function, organism, source ]
     return $data;
 }
@@ -715,12 +752,15 @@ sub decode_annotation {
     my $iter = natatime $self->_chunk, keys %uids;
     
     while (my @curr = $iter->()) {
-        my $sql  = "SELECT _id, $col FROM ".$self->_atbl->{$type}." WHERE _id IN (".join(',', @curr).")";
-        my $rows = $self->_dbh->selectall_arrayref($sql);
-        if ($rows && @$rows) {
-            map { $data->{$_->[0]} = $_->[1] } @$rows;
+        my $sql = "SELECT _id, $col FROM ".$self->_atbl->{$type}." WHERE _id IN (".join(',', @curr).")";
+        my $sth = $self->_dbh->prepare($sql);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
+            $data->{$row[0]} = $row[1];
         }
+        $sth->finish;
     }
+    $self->_dbh->commit;
     return $data;
     # id => name
 }
@@ -734,16 +774,19 @@ sub type_for_md5s {
     my $iter = natatime $self->_chunk, keys %umd5;
     
     while (my @curr = $iter->()) {
-        my $sql  = "SELECT _id, md5, is_protein FROM md5s WHERE _id IN (".join(',', @curr).")";
-        my $rows = $self->_dbh->selectall_arrayref($sql);
-        if ($rows && @$rows) {
+        my $sql = "SELECT _id, md5, is_protein FROM md5s WHERE _id IN (".join(',', @curr).")";
+        my $sth = $self->_dbh->prepare($sql);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
             if ($get_id) {
-                map { $data->{$_->[0]} = [ $_->[1], $_->[2] ? 'protein' : 'rna' ] } @$rows;
+                $data->{$row[0]} = [ $row[1], $row[2] ? 'protein' : 'rna' ];
             } else {
-                map { $data->{$_->[1]} = $_->[2] ? 'protein' : 'rna' } @$rows;
+                $data->{$row[1]} = $row[2] ? 'protein' : 'rna';
             }
         }
+        $sth->finish;
     }
+    $self->_dbh->commit;
     return $data;
     # md5 => 'protein'|'rna' OR _id => [md5, 'protein'|'rna']
 }
@@ -754,10 +797,13 @@ sub organisms_for_taxids {
     unless ($tax_ids && (@$tax_ids > 0)) { return {}; }
     my $data = {};
     my $list = join(",", grep {$_ =~ /^\d+$/} @$tax_ids);
-    my $rows = $self->_dbh->selectcol_arrayref("SELECT _id, name FROM ".$self->_atbl->{organism}." WHERE ncbi_tax_id in ($list)");
-    if ($rows && @$rows) {
-        map { $data->{$_->[0]} = $_->[1] } @$rows;
+    my $sth = $self->_dbh->prepare("SELECT _id, name FROM ".$self->_atbl->{organism}." WHERE ncbi_tax_id in ($list)");
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        $data->{$row[0]} = $row[1];
     }
+    $sth->finish;
+    $self->_dbh->commit;
     return $data;
     # org_id => org_name
 }
@@ -787,6 +833,7 @@ sub delete_job {
             $self->_dbh->do("DELETE FROM $tbl WHERE version IN (".join(",", @$all).") AND job = ".$job);
         }
     };
+    $self->_dbh->commit;
     if ($@) {
         return 0;
     } else {
@@ -803,6 +850,7 @@ sub get_sources {
     if ($type && exists($self->_jtbl->{$type})) {
         my $srcs  = $self->_dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$self->_jtbl->{$type}.$where);
         @$srcs = sort map { $self->_id_src->{$_} } @$srcs;
+        $self->_dbh->commit;
         return $srcs;
     } else {
         my $total = {};
@@ -811,6 +859,7 @@ sub get_sources {
             my $srcs = $self->_dbh->selectcol_arrayref("SELECT DISTINCT source FROM ".$name.$where);
             map { $total->{ $self->_id_src->{$_} } = 1 } @$srcs;
         }
+        $self->_dbh->commit;
         return [ sort keys %$total ];
     }
     # [ source ]
@@ -830,11 +879,20 @@ sub md5_abundance_for_annotations {
         unless (scalar(keys %$amap)) { return {}; }
     }
   
+    my $mdata = [];
+    my $md5s  = {};
     my $data  = {};
     my $qsrc  = ($srcs && @$srcs) ? "source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : '';
     my $qids  = (scalar(keys %$amap) > 0) ? "id IN (".join(",", keys %$amap).")" : '';
+    
     my $where = $self->_get_where_str([$self->_qver, "job = $job", $qsrc, $qids]);
-    my $mdata = $self->_dbh->selectall_arrayref("SELECT id, md5s FROM ".$tbl.$where);
+    my $sth = $self->_dbh->prepare("SELECT id, md5s FROM ".$tbl.$where);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @$mdata, \@row;
+    }
+    $sth->finish;
+
     unless ($mdata && (@$mdata > 0)) {
         return $data;
     }
@@ -843,13 +901,19 @@ sub md5_abundance_for_annotations {
         map { $unique_md5s{$_} = 1 } @{$m->[1]};
         map { $data->{ $amap->{$m->[0]} }->{$_} = 0 } @{$m->[1]};
     }
-    $where   = $self->_get_where_str([$self->_qver, "job = $job", "md5 IN (".join(",", keys %unique_md5s).")"]);
-    my $sql  = "SELECT md5, abundance FROM ".$self->_jtbl->{md5}.$where;
-
-    my %md5s = map { $_->[0], $_->[1] } @{ $self->_dbh->selectall_arrayref($sql) };
-    foreach my $ann (keys %$data) {
-        map { $data->{$ann}{$_} = $md5s{$_} } grep { exists $md5s{$_} } keys %{$data->{$ann}};
+    
+    $where = $self->_get_where_str([$self->_qver, "job = $job", "md5 IN (".join(",", keys %unique_md5s).")"]);
+    $sth = $self->_dbh->prepare("SELECT md5, abundance FROM ".$self->_jtbl->{md5}.$where);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        $md5s->{$row[0]} = $row[1];
     }
+    $sth->finish;
+
+    foreach my $ann (keys %$data) {
+        map { $data->{$ann}{$_} = $md5s->{$_} } grep { exists $md5s->{$_} } keys %{$data->{$ann}};
+    }
+    $self->_dbh->commit;
     # annotation_text => md5_integer => abundance
     return $data;
 }
@@ -865,10 +929,10 @@ sub sequences_for_md5s {
     if ($type eq 'dna') {
         foreach my $set (@$seqs) {
             if($return_read_id_flag == 1) {
-		push @{ $data->{$set->{md5}} }, ["mgm".$set->{id}, $set->{sequence}];
-	    } else {
-		push @{ $data->{$set->{md5}} }, $set->{sequence};
-	    }
+		        push @{ $data->{$set->{md5}} }, ["mgm".$set->{id}, $set->{sequence}];
+	        } else {
+		        push @{ $data->{$set->{md5}} }, $set->{sequence};
+	        }
         }
     } elsif ($type eq 'protein') {
         my $fna = '';
@@ -878,16 +942,16 @@ sub sequences_for_md5s {
         my @seqs = split(/\n/, $faa);
         for (my $i=0; $i<@seqs; $i += 2) {
             if ($seqs[$i] =~ /^>(\S+)/) {
-	        my $id  = $1;
-	        my $seq = $seqs[$i+1];
-	        $id =~ /^(\w+)?\|(.*)/;
-	        my $md5 = $1;
-		my $read_id = $2;
-		if($return_read_id_flag == 1) {
-		    push @{ $data->{$md5} }, ["mgm".$read_id, $seq];
-		} else {
-		    push @{ $data->{$md5} }, $seq;
-		}
+	            my $id  = $1;
+	            my $seq = $seqs[$i+1];
+	            $id =~ /^(\w+)?\|(.*)/;
+	            my $md5 = $1;
+		        my $read_id = $2;
+		        if ($return_read_id_flag == 1) {
+		            push @{ $data->{$md5} }, ["mgm".$read_id, $seq];
+		        } else {
+		            push @{ $data->{$md5} }, $seq;
+	            }
             }
         }
     } else {
@@ -929,16 +993,22 @@ sub metagenome_search {
     my $atbl = exists($self->_atbl->{$type}) ? $self->_atbl->{$type} : '';
     unless ($jtbl && $atbl) { return []; }
 
-    my $jobs  = {};
+    my $jobs  = [];
     my $qsrc  = ($srcs && @$srcs) ? "j.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : "";
     my $qann  = "a.name ".($exact ? '= ' : '~* ').$self->_dbh->quote($ann);
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.id = a._id", $qsrc, $qann]);
-    my $rows  = $self->_dbh->selectcol_arrayref("SELECT DISTINCT j.job FROM $jtbl j, $atbl a".$where);
-    unless ($rows && (@$rows > 0)) {
+    
+    my $sth = $self->_dbh->prepare("SELECT DISTINCT j.job FROM $jtbl j, $atbl a".$where);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @$jobs, $row[0];
+    }
+    $sth->finish;
+    unless ($jobs && (@$jobs > 0)) {
         return [];
     }
     # [ mgid ]
-    return [ keys %{$self->_get_jobid_map($rows, 1, 1)} ];
+    return [ keys %{$self->_get_jobid_map($jobs, 1, 1)} ];
 }
 
 ####################
@@ -994,13 +1064,17 @@ sub md5s_to_read_sequences {
 
     while (my @curr = $iter->()) {    
         my $w_md5s = "md5 IN (".join(",", map {"'$_'"} @curr).")";
-        my $where  = $self->_get_where_str([$self->_qver, $self->_qjobs, $eval, $ident, $alen, $w_md5s, "seek IS NOT NULL", "length IS NOT NULL"]);
-        my $sql  = "SELECT job, seek, length FROM ".$self->_jtbl->{md5}.$where." ORDER BY job, seek";
-        my $rows = $self->_dbh->selectall_arrayref($sql);
+        my $where = $self->_get_where_str([$self->_qver, $self->_qjobs, $eval, $ident, $alen, $w_md5s, "seek IS NOT NULL", "length IS NOT NULL"]);
         my $data = {};
-        if ($rows && (@$rows > 0)) {
-            map { push @{ $data->{$_->[0]} }, [$_->[1], $_->[2]] } @$rows;
+        
+        my $sql = "SELECT job, seek, length FROM ".$self->_jtbl->{md5}.$where." ORDER BY job, seek";
+        my $sth = $self->_dbh->prepare($sql);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
+            push @{ $data->{$row[0]} }, [$row[1], $row[2]];
         }
+        $sth->finish;
+        
         while ( my ($j, $info) = each %$data ) {
             open(FILE, "<" . $self->_sim_file($j)) || next;
             foreach my $set (@$info) {
@@ -1019,6 +1093,7 @@ sub md5s_to_read_sequences {
             close FILE;
         }
     }
+    $self->_dbh->commit;
     return $seqs;
 }
 
@@ -1030,6 +1105,7 @@ sub get_abundance_for_organism_source {
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "j.id = a._id", $qorg, $qsrc]);
     my $sql   = "SELECT SUM(j.abundance) FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
     my $sum   = $self->_dbh->selectcol_arrayref($sql);
+    $self->_dbh->commit;
     return ($sum && (@$sum > 0)) ? $sum->[0] : 0;
 }
 
@@ -1038,11 +1114,14 @@ sub get_organism_abundance_for_source {
 
     my $data  = {};
     my $where = $self->_get_where_str([$self->_qver, $self->_qjobs, "source = ".$self->_src_id->{$src}]);
-    my $sql   = "SELECT id, abundance FROM ".$self->_jtbl->{organism}.$where;
-    my $rows  = $self->_dbh->selectall_arrayref($sql);
-    if ($rows && (@$rows > 0)) {
-        %$data = map { $_->[0], $_->[1] } @$rows;
+    my $sql = "SELECT id, abundance FROM ".$self->_jtbl->{organism}.$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        $data->{$row[0]} = $row[1];
     }
+    $sth->finish;
+    $self->_dbh->commit;
     # org_id => abund
     return $data;
 }
@@ -1059,25 +1138,34 @@ sub get_organisms_with_contig_for_source {
 sub get_md5_evals_for_organism_source {
     my ($self, $org, $src) = @_;
 
-    my $data  = {};
-    my $umd5  = {};
+    my $data = {};
+    my $umd5 = {};
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "a.name=".$self->_dbh->quote($org), "j.source=".$self->_src_id->{$src}, "j.id = a._id"]);
-    my $md5s  = $self->_dbh->selectcol_arrayref("SELECT j.md5s FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where);
-    unless ($md5s && (@$md5s > 0)) {
+    my $sql = "SELECT j.md5s FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        $umd5->{$row[0]} = 1;
+    }
+    $sth->finish;
+    
+    if (scalar(keys %$umd5) == 0) {
         return $data;
     }
-    foreach my $m (@$md5s) {
-        map { $umd5->{$_} = 1 } @$m;
-    }
-
     my $iter = natatime $self->_chunk, keys %$umd5;
     while (my @curr = $iter->()) {
-        $where  = $self->_get_where_str([$self->_qver, $self->_qjobs, "md5 IN (".join(",", @curr).")"]);
-        my $sql = "SELECT md5, evals FROM ".$self->_jtbl->{md5}.$where;
-        foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-            for (my $i=0; $i<@{$row->[1]}; $i++) { $data->{$row->[0]}->[$i] += $row->[1]->[$i]; }
+        $where = $self->_get_where_str([$self->_qver, $self->_qjobs, "md5 IN (".join(",", @curr).")"]);
+        $sql = "SELECT md5, evals FROM ".$self->_jtbl->{md5}.$where;
+        $sth = $self->_dbh->prepare($sql);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
+            for (my $i=0; $i<@{$row[1]}; $i++) {
+                $data->{$row[0]}->[$i] += $row[1][$i];
+            }
         }
+        $sth->finish;
     }
+    $self->_dbh->commit;
     # md5 => [ eval ]
     return $data;
 }
@@ -1085,25 +1173,32 @@ sub get_md5_evals_for_organism_source {
 sub get_md5_data_for_organism_source {
     my ($self, $org, $src, $eval) = @_;
 
-    my $data  = [];
-    my $umd5  = {};
+    my $data = [];
+    my $umd5 = {};
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "a.name=".$self->_dbh->quote($org), "j.source=".$self->_src_id->{$src}, "j.id = a._id"]);
-    my $md5s  = $self->_dbh->selectcol_arrayref("SELECT j.md5s FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where);
-    unless ($md5s && (@$md5s > 0)) {
-        return [];
+    my $sql = "SELECT j.md5s FROM ".$self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        $umd5->{$row[0]} = 1;
     }
-    foreach my $m (@$md5s) {
-        map { $umd5->{$_} = 1 } @$m;
-    }
+    $sth->finish;
     
+    if (scalar(keys %$umd5) == 0) {
+        return $data;
+    }
     my $iter = natatime $self->_chunk, keys %$umd5;    
     while (my @curr = $iter->()) {
         $where  = $self->_get_where_str([$self->_qver, $self->_qjobs, "md5 IN (".join(",", @curr).")", "seek IS NOT NULL", "length IS NOT NULL"]);
-        my $sql = "SELECT DISTINCT job,md5,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv,seek,length FROM ".$self->_jtbl->{md5}.$where;
-        foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-            push @$data, [ $self->_mg_map->{$row->[0]}, @$row[1..10] ];
+        $sql = "SELECT DISTINCT job,md5,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv,seek,length FROM ".$self->_jtbl->{md5}.$where;
+        my $sth = $self->_dbh->prepare($sql);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
+            push @$data, [ $self->_mg_map->{$row[0]}, @row[1..10] ];
         }
+        $sth->finish;
     }
+    $self->_dbh->commit;
     return $data;
     # [ mgid, md5, abund, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length ]
 }
@@ -1217,20 +1312,28 @@ sub _get_abundance_for_hierarchy {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
 
     # get for jobs
+    my ($job, $id, $md5);
     my %md5_set = $qmd5s ? map {$_, 1} @$md5s : ();
     my $hier  = {};
     my $curr  = 0;
     my $qsrcs = ($srcs && (@$srcs > 0)) ? "source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : "";
     my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $qsrcs, $eval, $ident, $alen]);
-    my $sql   = "SELECT DISTINCT job, id, md5s FROM ".$self->_jtbl->{$type}.$where." ORDER BY job";
-    my ($job, $id, $md5);
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        ($job, $id, $md5) = @$row;
+    my $sql = "SELECT DISTINCT job, id, md5s FROM ".$self->_jtbl->{$type}.$where." ORDER BY job";
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        ($job, $id, $md5) = @row;
         next unless(exists $name_map->{$id});
         unless ($curr) { $curr = $job; }
         if ($curr != $job) {
-            my %md5s  = map { $_->[0], $_->[1] } @{ $self->_dbh->selectall_arrayref("SELECT md5, $value FROM ".$self->_jtbl->{md5}." WHERE ".$self->_qver." AND job=".$curr) };
             my $cdata = [];
+            my %md5s = ();
+            my $ssth = $self->_dbh->prepare("SELECT md5, $value FROM ".$self->_jtbl->{md5}." WHERE ".$self->_qver." AND job=".$curr);
+            $ssth->execute() or die "Couldn't execute statement: " . $ssth->errstr;
+            while (my @srow = $ssth->fetchrow_array()) {
+                $md5s{$srow[0]} = $srow[1];
+            }
+            $ssth->finish;
             foreach my $h (sort keys %$hier) {
                 my $num   = 0;
             	my $count = 0;
@@ -1252,10 +1355,17 @@ sub _get_abundance_for_hierarchy {
             map { $hier->{$name_map->{$id}}{$_} = 1 } @$md5;
         }
     }
+    $sth->finish;
     # get last job
     if (scalar(keys %$hier) > 0) {
-        my %md5s  = map { $_->[0], $_->[1] } @{ $self->_dbh->selectall_arrayref("SELECT md5, $value FROM ".$self->_jtbl->{md5}." WHERE ".$self->_qver." AND job=".$job) };
         my $cdata = [];
+        my %md5s = ();
+        my $ssth = $self->_dbh->prepare("SELECT md5, $value FROM ".$self->_jtbl->{md5}." WHERE ".$self->_qver." AND job=".$job);
+        $ssth->execute() or die "Couldn't execute statement: " . $ssth->errstr;
+        while (my @srow = $ssth->fetchrow_array()) {
+            $md5s{$srow[0]} = $srow[1];
+        }
+        $ssth->finish;
         foreach my $h (sort keys %$hier) {
             my $num   = 0;
         	my $count = 0;
@@ -1268,7 +1378,7 @@ sub _get_abundance_for_hierarchy {
         }
         $self->_memd->set($self->_mg_map->{$job}.$cache_key, $cdata, $self->_expire);
     }
-
+    $self->_dbh->commit;
     return $data;
     # [ mgid, taxa_name, abundance ]
 }
@@ -1285,14 +1395,18 @@ sub get_abundance_for_set {
     my $qterm = "a.name IN (".join(", ", map { $self->_dbh->quote($_) } @$set).")";
     my $qsrcs = (@$srcs > 0) ? "j.source IN (".join(",", map { $self->_src_id->{$_} } @$srcs).")" : "";
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "j.id = a._id", $qsrcs, $qterm]);
-    my $sql   = "SELECT DISTINCT j.job, a.name, j.abundance FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
-
-    map { push @{ $data->{ $self->_mg_map->{$_->[0]} }{$_->[1]} }, $_->[2] } @{ $self->_dbh->selectall_arrayref($sql) };
+    my $sql = "SELECT DISTINCT j.job, a.name, j.abundance FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @{ $data->{ $self->_mg_map->{$row[0]} }{$row[1]} }, $row[2];
+    }
+    $sth->finish;
     my $results = {};
     foreach my $mg (keys %$data) {
         map { $results->{$mg}{$_} = max @{ $data->{$mg}{$_} } } keys %{$data->{$mg}};
     }
-
+    $self->_dbh->commit;
     return $results;
     # mgid => annotation => abundance
 }
@@ -1305,16 +1419,20 @@ sub get_rank_abundance {
     my $data  = {};
     my $qsrcs = (@$srcs > 0) ? "j.source IN (" . join(",", map { $self->_src_id->{$_} } @$srcs) . ")" : "";
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "j.id = a._id", $qsrcs]);
-    my $sql   = "SELECT DISTINCT j.job, a.name, j.abundance FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
-    
-    map { push @{ $data->{ $self->_mg_map->{$_->[0]} }{$_->[1]} }, $_->[2] } @{ $self->_dbh->selectall_arrayref($sql) };
+    my $sql = "SELECT DISTINCT j.job, a.name, j.abundance FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @{ $data->{ $self->_mg_map->{$row[0]} }{$row[1]} }, $row[2];
+    }
+    $sth->finish;
     my $results = {};
     foreach my $mg (keys %$data) {
         my @ranked = map { [ $_, max @{$data->{$mg}{$_}} ] } keys %{$data->{$mg}};
         @ranked    = sort { ($b->[1] <=> $a->[1]) || ($a->[0] cmp $b->[0]) } @ranked;
         $results->{$mg} = [ @ranked[0..($limit-1)] ];
     }
-
+    $self->_dbh->commit;
     return $results;
     # mgid => [ annotation, abundance ]
 }
@@ -1324,20 +1442,20 @@ sub get_set_rank_abundance {
 
     unless ($limit && exists($self->_jtbl->{$type})) { return []; }
   
+    my $data  = [];
     my $qsrcs = (@$srcs > 0) ? "j.source IN (" . join(",", map { $self->_src_id->{$_} } @$srcs) . ")" : "";
     my $qjobs = $all ? '' : 'j.'.$self->_qjobs;
     my $where = $self->_get_where_str(['j.'.$self->_qver, $qjobs, "j.id = a._id", $qsrcs]);
     my $qlim  = "LIMIT ".($limit * scalar(@$srcs));
-    my $sql   = "SELECT DISTINCT a.name SUM(j.job) FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where." GROUP BY j.job ORDER BY SUM(j.job) DESC ".$limit;
-    my $data  = $self->_dbh->selectall_arrayref($sql);
-    
-    return ($data && @$data) ? $data : [];
-    map { $data->{$_->[1]} += 1 } @{ $self->_dbh->selectall_arrayref($sql) };
-    my @results = map { [$_, $data->{$_}] } keys %$data;
-    @results    = sort { ($b->[1] <=> $a->[1]) || ($a->[0] cmp $b->[0]) } @results;
-    @results    = @results[0..($limit-1)];
-  
-    return \@results;
+    my $sql = "SELECT DISTINCT a.name, SUM(j.job) FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where." GROUP BY j.job ORDER BY SUM(j.job) DESC ".$limit;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        push @$data, \@row;
+    }
+    $sth->finish;
+    $self->_dbh->commit;
+    return $data;
     # [ annotation, job_count ]
 }
 
@@ -1385,15 +1503,18 @@ sub get_organisms_unique_for_source {
     my $sql = "SELECT _id,COALESCE(tax_domain,'unassigned') AS txd,COALESCE(tax_phylum,'unassigned') AS txp,COALESCE(tax_class,'unassigned') AS txc,".
               "COALESCE(tax_order,'unassigned') AS txo,COALESCE(tax_family,'unassigned') AS txf,COALESCE(tax_genus,'unassigned') AS txg,".
               "COALESCE(tax_species,'unassigned') AS txs,name$ctax FROM ".$self->_atbl->{organism}." WHERE _id IN (".join(',', keys %$all_orgs).")$qtax";
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        my $oid = shift @$row;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        my $oid = shift @row;
         if ($with_taxid) {
-            my $t = pop @$row;
+            my $t = pop @row;
             $tid->{$oid} = $t;
         }
-        $tax->{$oid} = $row;
+        $tax->{$oid} = \@row;
     }
-    
+    $sth->finish;
+
     my $result = [];
     foreach my $mgid (keys %$mg_org_data) {
         foreach my $oid (keys %{$mg_org_data->{$mgid}}) {
@@ -1415,6 +1536,7 @@ sub get_organisms_unique_for_source {
             }
         }
     }
+    $self->_dbh->commit;
     return $result;
     # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
 }
@@ -1470,29 +1592,31 @@ sub get_organisms_for_md5s {
               "COALESCE(a.tax_species,'unassigned') AS txs,a.name";
     my $sql = "SELECT DISTINCT j.job,j.source,$tax,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s$ctax FROM ".
               $self->_jtbl->{organism}." j, ".$self->_atbl->{organism}." a".$where;
-
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
         my $sub_abund = 0;
-        my $mg = $self->_mg_map->{$row->[0]};
+        my $mg = $self->_mg_map->{$row[0]};
         if ($qmd5s) {
-            my @has_md5 = grep { exists $md5_set{$_} } @{$row->[17]};
+            my @has_md5 = grep { exists $md5_set{$_} } @{$row[17]};
             next unless ((@has_md5 > 0) && exists($mg_md5_abund->{$mg}));
             map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) } @has_md5;
 	    } else {
-	        $sub_abund = $row->[10];
+	        $sub_abund = $row[10];
 	    }
-	    my $drow = [ $mg, $self->_id_src->{$row->[1]}, @$row[2..10], $sub_abund, @$row[11..16], join(";", @{$row->[17]}) ];
-	    if ($with_taxid) { push @$drow, $row->[18]; }
+	    my $drow = [ $mg, $self->_id_src->{$row[1]}, @row[2..10], $sub_abund, @row[11..16], join(";", @{$row[17]}) ];
+	    if ($with_taxid) { push @$drow, $row[18]; }
 	    push @{$data->{$mg}}, $drow;
-	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[17]};
+	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row[17]};
     }
+    $sth->finish;
     unless ($qmd5s) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	        $self->_memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->_expire);
 	    }
     }
-    
+    $self->_dbh->commit;
     return (\%mdata, [ map { @$_ } values %$data ]);
     # mgid => md5 => abundance
     # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
@@ -1553,27 +1677,29 @@ sub get_ontology_for_md5s {
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,a.name,$level,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
               $self->_jtbl->{ontology}." j, ".$self->_atbl->{ontology}." a".$where;
-
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
         my $sub_abund = 0;
-        my $mg = $self->_mg_map->{$row->[0]};
+        my $mg = $self->_mg_map->{$row[0]};
 	    if ($qmd5s) {
-            my @has_md5 = grep { exists $md5_set{$_} } @{$row->[10]};
+            my @has_md5 = grep { exists $md5_set{$_} } @{$row[10]};
             next unless ((@has_md5 > 0) && exists($mg_md5_abund->{$mg}));
             map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) } @has_md5;        
 	    } else {
-	        $sub_abund = $row->[3];
+	        $sub_abund = $row[3];
 	    }
-	    push @{$data->{$mg}}, [ $mg, @$row[1..3], $sub_abund, @$row[4..9], join(";", @{$row->[10]}) ];
-	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row->[10]};
+	    push @{$data->{$mg}}, [ $mg, @row[1..3], $sub_abund, @row[4..9], join(";", @{$row[10]}) ];
+	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row[10]};
     }
+    $sth->finish;
     unless ($qmd5s) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	        $self->_memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->_expire);
 	    }
     }
-
+    $self->_dbh->commit;
     return (\%mdata, [ map { @$_ } values %$data ]);
     # mgid => md5 => abundance
     # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
@@ -1624,27 +1750,29 @@ sub get_functions_for_md5s {
     my $qsrcs = (@$sources > 0) ? "j.source in (" . join(",", map { $self->_src_id->{$_} } @$sources) . ")" : "";
     my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen]);
     my $sql = "SELECT DISTINCT j.job,j.source,a.name,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv,j.md5s FROM ".
-              $self->_jtbl->{function}." j, ".$self->_atbl->{function}." a".$where;        
-
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
+              $self->_jtbl->{function}." j, ".$self->_atbl->{function}." a".$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
         my $sub_abund = 0;
-        my $mg = $self->_mg_map->{$row->[0]};
+        my $mg = $self->_mg_map->{$row[0]};
         
         if ($qmd5s) {
-            my @has_md5 = grep { exists $md5_set{$_} } @{$row->[10]};
+            my @has_md5 = grep { exists $md5_set{$_} } @{$row[10]};
             next unless ((@has_md5 > 0) && exists($mg_md5_abund->{$mg}));
             map { $sub_abund += $mg_md5_abund->{$mg}{$_} } grep { exists($mg_md5_abund->{$mg}{$_}) } @has_md5;        
 	    } else {
-	        $sub_abund = $row->[3];
+	        $sub_abund = $row[3];
 	    }
-	    push @{$data->{$mg}}, [ $mg, $self->_id_src->{$row->[1]}, @$row[2,3], $sub_abund, @$row[4..9], join(";", @{$row->[10]}) ];
+	    push @{$data->{$mg}}, [ $mg, $self->_id_src->{$row[1]}, @row[2,3], $sub_abund, @row[4..9], join(";", @{$row[10]}) ];
     }
+    $sth->finish;
     unless ($qmd5s) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	    }
     }
-
+    $self->_dbh->commit;
     return [ map { @$_ } values %$data ];
     # mgid, source, function, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
 }
@@ -1671,21 +1799,23 @@ sub get_lca_data {
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
     
     my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $eval, $ident, $alen]);
-    my $sql   = "SELECT DISTINCT job,lca,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv FROM ".$self->_jtbl->{lca}.$where;
-
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        my $mg  = $self->_mg_map->{$row->[0]};
+    my $sql = "SELECT DISTINCT job,lca,abundance,exp_avg,exp_stdv,ident_avg,ident_stdv,len_avg,len_stdv FROM ".$self->_jtbl->{lca}.$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        my $mg  = $self->_mg_map->{$row[0]};
         my @tax = ('-','-','-','-','-','-','-','-');
-        my @lca = split(/;/, $row->[1]);
+        my @lca = split(/;/, $row[1]);
         for (my $i=0; $i<@lca; $i++) {
     	    $tax[$i] = $lca[$i];
         }
-        push @{$data->{$mg}}, [ $mg, @tax, @$row[2..8] ];
+        push @{$data->{$mg}}, [ $mg, @tax, @row[2..8] ];
     }
+    $sth->finish;
     foreach my $mg (keys %$data) {
         $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
     }
-    
+    $self->_dbh->commit;
     return [ map { @$_ } values %$data ];
     # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
 }
@@ -1725,16 +1855,18 @@ sub get_md5_data {
     my $crep  = $rep_org_src ? ",r.organism" : "";
     my $sql   = "SELECT DISTINCT j.job,j.md5,j.abundance,j.exp_avg,j.exp_stdv,j.ident_avg,j.ident_stdv,j.len_avg,j.len_stdv${cseek}${crep} FROM ".
                 $self->_jtbl->{md5}." j".($rep_org_src ? ", md5_organism_unique r" : "").$where.($ignore_sk ? "" : " ORDER BY job, seek");
-    
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        my $j  = shift @$row;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        my $j  = shift @row;
         my $mg = $self->_mg_map->{$j};
-        push @{ $data->{$mg} }, [ $mg, @$row ];
+        push @{ $data->{$mg} }, [ $mg, @row ];
     }
+    $sth->finish;
     foreach my $mg (keys %$data) {
         $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
     }
-
+    $self->_dbh->commit;
     return [ map { @$_ } values %$data ];
     # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, (seek, length || rep_org_id)
 }
@@ -1770,22 +1902,28 @@ sub get_md5_abundance {
         while (my @curr = $iter->()) {
             my $qmd5s = "md5 IN (".join(",", map {"'$_'"} @curr).")";
             my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $qmd5s, $eval, $ident, $alen]);
-            my $sql   = "SELECT DISTINCT job, md5, abundance FROM ".$self->_jtbl->{md5}.$where;
-            foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-                $data->{ $self->_mg_map->{$row->[0]} }{$row->[1]} = $row->[2];
+            my $sql = "SELECT DISTINCT job, md5, abundance FROM ".$self->_jtbl->{md5}.$where;
+            my $sth = $self->_dbh->prepare($sql);
+            $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+            while (my @row = $sth->fetchrow_array()) {
+                $data->{ $self->_mg_map->{$row[0]} }{$row[1]} = $row[2];
             }
+            $sth->finish;
         }
     } else {
         my $where = $self->_get_where_str([$self->_qver, "job IN (".join(",", @$jobs).")", $eval, $ident, $alen]);
-        my $sql   = "SELECT DISTINCT job, md5, abundance FROM ".$self->_jtbl->{md5}.$where;
-        foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-            $data->{ $self->_mg_map->{$row->[0]} }{$row->[1]} = $row->[2];
-        }        
+        my $sql = "SELECT DISTINCT job, md5, abundance FROM ".$self->_jtbl->{md5}.$where;
+        my $sth = $self->_dbh->prepare($sql);
+        $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+        while (my @row = $sth->fetchrow_array()) {
+            $data->{ $self->_mg_map->{$row[0]} }{$row[1]} = $row[2];
+        }
+        $sth->finish;        
     }
     foreach my $mg (keys %$data) {
         $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
     }
-
+    $self->_dbh->commit;
     return $data;
     # mgid => md5 => abundance
 }
@@ -1844,15 +1982,17 @@ sub _get_annotation_md5 {
         my $where = $self->_get_where_str(['j.'.$self->_qver, "j.job IN (".join(",", @$jobs).")", "j.id = a._id", $qsrcs, $eval, $ident, $alen, $tid]);
         $sql = "SELECT DISTINCT j.job,$key,j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
     }
-    
-    foreach my $row (@{ $self->_dbh->selectall_arrayref($sql) }) {
-        my $mg = $self->_mg_map->{$row->[0]};
-        map { $data->{$mg}{$row->[1]}{$_} = 1 } @{ $row->[2] };
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        my $mg = $self->_mg_map->{$row[0]};
+        map { $data->{$mg}{$row[1]}{$_} = 1 } @{ $row[2] };
     }
+    $sth->finish;
     foreach my $mg (keys %$data) {
         $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
     }
-
+    $self->_dbh->commit;
     return $data;
     # mgid => annotation/id => { md5 }
 }
@@ -1878,11 +2018,14 @@ sub _get_md5s_for_annotation_level {
     my $qsrc  = ($src) ? "j.source=".$self->_src_id->{$src} : "";
     my $qlvl  = ($names && (@$names > 0)) ? "a.$level IN (".join(",", map {$self->_dbh->quote($_)} @$names).")" : "a.$level IS NOT NULL AND a.$level != ''";
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "j.id = a._id", $qsrc, $qlvl]);
-    my $sql   = "SELECT j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
-    
-    foreach my $m (@{ $self->_dbh->selectcol_arrayref($sql) }) {
-        map { $md5s->{$_} = 1 } @$m;
+    my $sql = "SELECT j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        map { $md5s->{$_} = 1 } @{$row[0]};
     }
+    $sth->finish;
+    $self->_dbh->commit;
     return [ keys %$md5s ];
     # [ md5 ]
 }
@@ -1912,10 +2055,14 @@ sub _get_md5s_for_annotation {
     my $qname = "a.name IN (".join(",", map {$self->_dbh->quote($_)} @$names).")";
     my $qsrc  = ($src) ? "j.source=".$self->_src_id->{$src} : "";
     my $where = $self->_get_where_str(['j.'.$self->_qver, 'j.'.$self->_qjobs, "j.id = a._id", $qname, $qsrc]);
-    my $sql   = "SELECT j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
-    foreach my $m (@{ $self->_dbh->selectcol_arrayref($sql) }) {
-        map { $md5s->{$_} = 1 } @$m;
+    my $sql = "SELECT j.md5s FROM ".$self->_jtbl->{$type}." j, ".$self->_atbl->{$type}." a".$where;
+    my $sth = $self->_dbh->prepare($sql);
+    $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
+    while (my @row = $sth->fetchrow_array()) {
+        map { $md5s->{$_} = 1 } @{$row[0]};
     }
+    $sth->finish;
+    $self->_dbh->commit;
     return [ keys %$md5s ];
     # [ md5 ]
 }
