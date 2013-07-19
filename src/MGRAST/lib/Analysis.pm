@@ -1152,7 +1152,9 @@ sub get_md5_evals_for_organism_source {
     my $sth = $self->_dbh->prepare($sql);
     $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
     while (my @row = $sth->fetchrow_array()) {
-        $umd5->{$row[0]} = 1;
+        foreach my $md5_id (@{$row[0]}) {
+            $umd5->{$md5_id} = 1;
+        }
     }
     $sth->finish;
     
@@ -1187,7 +1189,9 @@ sub get_md5_data_for_organism_source {
     my $sth = $self->_dbh->prepare($sql);
     $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
     while (my @row = $sth->fetchrow_array()) {
-        $umd5->{$row[0]} = 1;
+        foreach my $md5_id (@{$row[0]}) {
+            $umd5->{$md5_id} = 1;
+        }
     }
     $sth->finish;
     
