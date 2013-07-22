@@ -4,8 +4,10 @@ use strict;
 use warnings;
 no warnings('once');
 
+use URI::Escape;
 use List::Util qw(first max min sum);
 use POSIX qw(strftime floor);
+
 use MGRAST::Analysis;
 use Conf;
 use parent qw(resources::resource);
@@ -18,46 +20,51 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    my %rights = $self->user ? map { $_, 1 } @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
+    my %rights = $self->user ? map {$_, 1} grep {$_ ne '*'} @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "metagenome";
     $self->{mgdb} = undef;
     $self->{rights} = \%rights;
-    $self->{verbosity} = { 'instance' => {'minimal' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
-                           'query'    => {'minimal' => 1, 'mixs' => 1}
+    $self->{cv} = { verbosity => { 'instance' => {'minimal' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
+                                   'query'    => {'minimal' => 1, 'mixs' => 1} },
+                    direction => {'asc' => 1, 'desc' => 1},
+                    status => {'both' => 1, 'public' => 1, 'private' => 1},
+                    match => {'any' => 1, 'all' => 1}
     };
-    $self->{instance} = { "id"       => [ 'string', 'unique object identifier' ],
-                          "name"     => [ 'string', 'human readable identifier' ],
+    $self->{instance} = { "id"       => [ 'string', 'unique metagenome identifier' ],
+                          "name"     => [ 'string', 'name of metagenome' ],
                           "library"  => [ 'reference library', 'reference to the related library object' ],
                           "sample"   => [ 'reference sample', 'reference to the related sample object' ],
                           "project"  => [ 'reference project', 'reference to the project object' ],
                           "metadata" => [ 'hash', 'key value pairs describing all metadata' ],
                           "mixs"     => [ 'hash', 'key value pairs describing MIxS metadata' ],
-                          "created"  => [ 'date', 'time the object was first created' ],
-                          "version"  => [ 'integer', 'version of the object' ],
+                          "created"  => [ 'date', 'time the metagenome was first created' ],
+                          "version"  => [ 'integer', 'version of the metagenome' ],
                           "url"      => [ 'uri', 'resource location of this object instance' ],
-                          "status"   => [ 'cv', [ ['public', 'object is public'],
-						                          ['private', 'object is private'] ] ],
+                          "status"   => [ 'cv', [['public', 'metagenome is public'],
+						                         ['private', 'metagenome is private'] ] ],
 						  "statistics" => [ 'hash', 'key value pairs describing statistics' ],
                           "sequence_type" => [ 'string', 'sequencing type' ]
     };
-    $self->{query} = { "id"        => [ 'string', 'unique object identifier' ],
-                       "name"      => [ 'string', 'human readable identifier' ],
-                       "project"   => [ 'string', 'name of project' ],
-                       "package"   => [ 'string', 'enviromental package of sample' ],
-                       "biome"     => [ 'string', 'biome of sample' ],
-                       "feature"   => [ 'string', 'feature of sample' ],
-                       "material"  => [ 'string', 'material of sample' ],
+    $self->{query} = { "id"        => [ 'string', 'unique metagenome identifier' ],
+                       "url"       => [ 'uri', 'resource location of this object instance' ],
+                       "name"      => [ 'string', 'name of metagenome' ],
+                       "biome"     => [ 'string', 'environmental biome, EnvO term' ],
+                       "feature"   => [ 'string', 'environmental feature, EnvO term' ],
+                       "material"  => [ 'string', 'environmental material, EnvO term' ],
                        "country"   => [ 'string', 'country where sample taken' ],
                        "location"  => [ 'string', 'location where sample taken' ],
                        "longitude" => [ 'string', 'longitude where sample taken' ],
                        "latitude"  => [ 'string', 'latitude where sample taken' ],
-                       "created"   => [ 'date', 'time the object was first created' ],
-                       "url"       => [ 'uri', 'resource location of this object instance' ],
-                       "status"    => [ 'cv', [ ['public', 'object is public'],
-						                       ['private', 'object is private'] ] ],
-                       "sequence_type" => [ 'string', 'sequencing type' ],
-                       "seq_method"    => [ 'string', 'sequencing method' ],
-                       "collection_date" => [ 'string', 'date sample collected' ]
+                       "created"   => [ 'date', 'time the metagenome was first created' ],
+                       "status"    => [ 'cv', [['public', 'metagenome is public'],
+						                       ['private', 'metagenome is private']] ],
+					   "env_package_type" => [ 'string', 'enviromental package of sample, GSC term' ],
+					   "project_id"       => [ 'string', 'id of project containing metagenome' ],
+                       "project_name"     => [ 'string', 'name of project containing metagenome' ],
+                       "PI_lastname"      => [ 'string', 'principal investigator\'s last name' ],
+                       "sequence_type"    => [ 'string', 'sequencing type' ],
+                       "seq_method"       => [ 'string', 'sequencing method' ],
+                       "collection_date"  => [ 'string', 'date sample collected' ]
     };
     return $self;
 }
@@ -88,25 +95,32 @@ sub info {
                           				                     'retrieve the first 20 metagenomes ordered by name' ],
                                           'method'      => "GET",
                                           'type'        => "synchronous",
-                                          'attributes'  => { "next"   => ["uri","link to the previous set or null if this is the first set"],
-                                                             "prev"   => ["uri","link to the next set or null if this is the last set"],
-                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                             "data"   => ["list", ["object", [$self->{query}, "list of the metagenome objects"] ]],
-                                                             "limit"  => ["integer","maximum number of data items returned, default is 10"],
-                                                             "offset" => ["integer","zero based index of the first returned data item"],
+                                          'attributes'  => { "next"    => ["uri","link to the previous set or null if this is the first set"],
+                                                             "prev"    => ["uri","link to the next set or null if this is the last set"],
+                                                             "order"   => ["string","name of the attribute the returned data is ordered by"],
+                                                             "data"    => ["list", ["object", [$self->{query}, "metagenome object"] ]],
+                                                             "limit"   => ["integer","maximum number of data items returned, default is 10"],
+                                                             "offset"  => ["integer","zero based index of the first returned data item"],
+                                                             "version" => ['integer', 'version of the object'],
+                                                             "url"     => ['uri', 'resource location of this object instance'],
                                                              "total_count" => ["integer","total number of available data items"] },
                                           'parameters' => { 'options' => {
-                                                                'verbosity' => ['cv',
-                                                                                [['minimal','returns only minimal information'],
-                                                                                 ['mixs','returns all GSC MIxS metadata']] ],
-                                                                'status' => ['cv',
-                                                                             [['both','returns all data (public and private) user has access to view'],
-                                                                              ['public','returns all public data'],
-                                                                              ['private','returns private data user has access to view']] ],
-                                                                'limit'  => ['integer','maximum number of items requested'],
-                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                'order'  => ['string', 'attribute name to order results by']
-                                                                         },
+                                                                'metadata'  => ["string", "search parameter: query string for any metadata field"],
+                                                                'md5'       => ["string", "search parameter: md5 checksum of feature sequence"],
+                                                                'function'  => ["string", "search parameter: query string for function"],
+                                                                'organism'  => ["string", "search parameter: query string for organism"],
+                                                                'limit'     => ["integer", "maximum number of items requested"],
+                                                                'offset'    => ["integer", "zero based index of the first data object to be returned"],
+                                                                'order'     => ["string", "metagenome object field to sort by (default is id)"],
+                                                                'direction' => ['cv', [['asc','sort by ascending order'],
+                                                                                       ['desc','sort by descending order']]],
+                                                                'match' => ['cv', [['all','return metagenomes that match all search parameters'],
+                                                                                   ['any','return metagenomes that match any search parameters']]],
+                                                                'status' => ['cv', [['both','returns all data (public and private) user has access to view'],
+                                                                                    ['public','returns all public data'],
+                                                                                    ['private','returns private data user has access to view']]],
+                                                                'verbosity' => ['cv', [['minimal','returns only minimal information'],
+                                                                                       ['mixs','returns all GSC MIxS metadata']] ] },
                                                             'required' => {},
                                                             'body'     => {} }
                                         },
@@ -119,11 +133,10 @@ sub info {
                                           'type'        => "synchronous",
                                           'attributes'  => $self->{instance},
                                           'parameters'  => { 'options' => {
-                                                                 'verbosity' => ['cv',
-                                                                                 [['minimal','returns only minimal information'],
-                                                                                  ['metadata','returns minimal with metadata'],
-                                                                                  ['stats','returns minimal with statistics'],
-                                                                                  ['full','returns all metadata and statistics']] ]
+                                                                 'verbosity' => ['cv', [['minimal','returns only minimal information'],
+                                                                                        ['metadata','returns minimal with metadata'],
+                                                                                        ['stats','returns minimal with statistics'],
+                                                                                        ['full','returns all metadata and statistics']]]
                                                                           },
                                                              'required' => { "id" => ["string","unique object identifier"] },
                                                              'body'     => {} }
@@ -137,7 +150,7 @@ sub instance {
     
     # check verbosity
     my $verb = $self->cgi->param('verbosity') || 'minimal';
-    unless (exists $self->{verbosity}{instance}{$verb}) {
+    unless (exists $self->{cv}{verbosity}{instance}{$verb}) {
         $self->return_data({"ERROR" => "Invalid verbosity entered ($verb) for instance."}, 404);
     }
     
@@ -159,7 +172,7 @@ sub instance {
     $job = $job->[0];
 
     # check rights
-    unless ($job->{public} || exists($self->rights->{$id}) || exists($self->rights->{'*'})) {
+    unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
@@ -167,7 +180,7 @@ sub instance {
     $self->return_cached();
     
     # prepare data
-    my $data = $self->prepare_data([$job], 1);
+    my $data = $self->prepare_data([$job]);
     $data = $data->[0];
     $self->return_data($data, undef, 1); # cache this!
 }
@@ -176,80 +189,134 @@ sub instance {
 sub query {
     my ($self) = @_;
 
-    # check verbosity
-    my $verb = $self->cgi->param('verbosity') || 'minimal';
-    unless (exists $self->{verbosity}{query}{$verb}) {
-        $self->return_data({"ERROR" => "Invalid verbosity entered ($verb) for query."}, 404);
-    }
-
     # get database
     my $master = $self->connect_to_datasource();
     
-    # check pagination
-    my $limit  = defined($self->cgi->param('limit')) ? $self->cgi->param('limit') : 10;
+    # get paramaters
+    my $verb   = $self->cgi->param('verbosity') || 'minimal';
+    my $limit  = $self->cgi->param('limit') || 10;
     my $offset = $self->cgi->param('offset') || 0;
-    my $order  = $self->cgi->param('order')  || "id";
-    if ($order eq 'id') {
-        $order = 'metagenome_id';
+    my $order  = $self->cgi->param('order') || "id";
+    my $dir    = $self->cgi->param('direction') || 'asc';
+    my $match  = $self->cgi->param('match') || 'all';
+    my $status = $self->cgi->param('status') || 'both';
+    
+    # check CV
+    unless (exists $self->{cv}{verbosity}{query}{$verb}) {
+        $self->return_data({"ERROR" => "Invalid verbosity entered ($verb) for query."}, 404);
+    }
+    unless (exists $self->{cv}{direction}{$dir}) {
+        $self->return_data({"ERROR" => "Invalid direction entered ($dir) for query."}, 404);
+    }
+    unless (exists $self->{cv}{match}{$match}) {
+        $self->return_data({"ERROR" => "Invalid match entered ($match) for query."}, 404);
+    }
+    unless (exists $self->{cv}{status}{$status}) {
+        $self->return_data({"ERROR" => "Invalid status entered ($status) for query."}, 404);
+    }
+    unless (exists $self->{query}{$order}) {
+        $self->return_data({"ERROR" => "Invalid order entered ($order) for query."}, 404);
+    }
+    if (($limit > 10000) || ($limit < 1)) {
+        $self->return_data({"ERROR" => "Limit must be less than 10,000 and greater than 0 ($limit) for query."}, 404);
     }
 
-    if ($limit == 0) {
-        $limit = 18446744073709551615;
+    # explicitly setting the default CGI parameters for returned url strings
+    $self->cgi->param('verbosity', $verb);
+    $self->cgi->param('limit', $limit);
+    $self->cgi->param('offset', $offset);
+    $self->cgi->param('order', $order);
+    $self->cgi->param('direction', $dir);
+    $self->cgi->param('match', $match);
+    $self->cgi->param('status', $status);
+    
+    # get query fields
+    my @url_params = ();
+    my @solr_fields = ();
+    foreach my $field ('metadata', 'md5', 'function', 'organism') {
+        if ($self->cgi->param($field)) {
+            push @url_params, $field."=".$self->cgi->param($field);
+            push @solr_fields, $field.':'.$self->cgi->param($field);
+        }
+    }
+    foreach my $field (grep {($_ ne 'status') && ($_ ne 'url')} keys %{$self->{query}}) {
+        if ($self->cgi->param($field)) {
+            push @url_params, $field."=".$self->cgi->param($field);
+            push @solr_fields, $field.':'.$self->cgi->param($field);
+        }
     }
     
-    # get all items the user has access to
-    my $status = $self->cgi->param('status') || "both";
-    my $total = 0;
-    my $query = "";
-    my $job_pub = $master->Job->count_public();
-    if (($status eq 'public') || (! $self->user)) {
-        $total = $job_pub;
-        $query = "viewable=1 AND public=1 ORDER BY $order LIMIT $limit OFFSET $offset";
-    } elsif (exists $self->rights->{'*'}) {
-        my $job_all = $master->Job->count_all();
-        if ($status eq 'private') {
-            $total = $job_all - $job_pub;
-            $query = "viewable=1 AND (public IS NULL OR public=0) ORDER BY $order LIMIT $limit OFFSET $offset";
+    # build urls
+    my $query_str = join('&', @url_params);
+    my $solr_query_str = ($match eq 'all') ? join(' AND ', @solr_fields) : join(' OR ', @solr_fields);
+    
+    # complete solr query and add rights
+    if ($solr_query_str ne "") {
+        $solr_query_str = '('.$solr_query_str.') AND ';
+    }
+    
+    my $return_empty_set = 0;
+    if ($status eq 'public') {
+        $solr_query_str .= '(status:public)';
+    } elsif ($status eq 'private') {
+        unless ($self->user) {
+            $self->return_data( {"ERROR" => "Missing authentication for searching private datasets"}, 401 );
+        }
+        if ($self->user->has_star_right('view', 'metagenome')) {
+            $solr_query_str .= "(status:private)";
         } else {
-            $total = $job_all;
-            $query = "viewable=1 ORDER BY $order LIMIT $limit OFFSET $offset";
+            if (scalar(%{$self->rights}) > 0) {
+                $solr_query_str .= "(status:private AND (".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights})."))";
+            } else {
+                $return_empty_set = 1;
+            }
         }
     } else {
-        my $private = $master->Job->get_private_jobs($self->user, 1);
-        if ($status eq 'private') {
-            $total = scalar(@$private);
-	    if (@$private > 0) {
-		$query = "viewable=1 AND metagenome_id IN (".join(',', @$private).") ORDER BY $order LIMIT $limit OFFSET $offset";
-	    } else {
-		$self->return_data($self->check_pagination([], $total, $limit));
-	    }
+        if ($self->user) {
+            if ($self->user->has_star_right('view', 'metagenome')) {
+                $solr_query_str .= "(status:*)";
+            } else {
+                if (scalar(%{$self->rights}) > 0) {
+                    $solr_query_str .= "((status:public) OR (status:private AND (id:mgm".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights}).")))";
+                } else {
+                    $solr_query_str .= '(status:public)';
+                }
+            }
         } else {
-            $total = scalar(@$private) + $job_pub;
-	    if (@$private > 0) {
-		$query = "viewable=1 AND (public=1 OR metagenome_id IN (".join(',', @$private).")) ORDER BY $order LIMIT $limit OFFSET $offset";
-	    } else {
-		$query = "viewable=1 AND public=1 ORDER BY $order LIMIT $limit OFFSET $offset";
-	    }
+            $solr_query_str .= '(status:public)';
         }
     }
-    my $jobs  = $master->Job->get_objects( {$order => [undef, $query]} );
-    $limit = ($limit > scalar(@$jobs)) ? scalar(@$jobs) : $limit;
     
-    # prepare data to the correct output format
-    my $data = $self->prepare_data($jobs, 0);
+    # get results
+    my ($data, $total) = ([], 0);
+    my $fields = ['id', 'name', 'status', 'created'];
+    if ($verb eq 'mixs') {
+        @$fields = keys %{$self->{query}};
+    }
+    unless ($return_empty_set) {
+        ($data, $total) = $self->solr_data($solr_query_str, $order."_sort+".$dir, $offset, $limit, $fields);
+    }
+    my $obj = $self->check_pagination($data, $total, $limit);
+    $obj->{version} = 1;
 
-    # check for pagination
-    $data = $self->check_pagination($data, $total, $limit);
+    # add missing fields
+    foreach my $item (@{$obj->{data}}) {
+        map { $item->{$_} = exists($item->{$_}) ? $item->{$_} : "" } keys %{$self->{query}}
+    }
+    
+    $self->return_data($obj);
+}
 
-    # return cached if exists
-    $self->return_cached();
-
-    $self->return_data($data, undef, 1);
+sub solr_data {
+    my ($self, $solr_query_str, $sort, $offset, $limit, $fields) = @_;
+    $solr_query_str = uri_unescape($solr_query_str);
+    $solr_query_str = uri_escape($solr_query_str);
+    return $self->get_solr_query("POST", $Conf::job_solr, $Conf::job_collect, $solr_query_str, $sort, $offset, $limit, $fields);
 }
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $data, $instance) = @_;
+    my ($self, $data) = @_;
 
     my $verb = $self->cgi->param('verbosity') || 'minimal';
     my $mgids = [];
@@ -280,59 +347,46 @@ sub prepare_data {
         $obj->{name}    = $job->{name};
         $obj->{status}  = $job->{public} ? 'public' : 'private';
         $obj->{created} = $job->{created_on};
-        
-        if ($instance && ($verb ne 'mixs')) {
-            $obj->{project} = undef;
-            $obj->{sample}  = undef;
-            $obj->{library} = undef;
-	        eval {
-	            my $proj = $job->primary_project;
-	            $obj->{project} = ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}];
-	        };
-	        eval {
-	            my $samp = $job->sample;
-	            $obj->{sample} = ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}];
-	        };
-	        eval {
-	            my $lib = $job->library;
-	            $obj->{library} = ["mgl".$lib->{ID}, $url."/library/mgl".$lib->{ID}];
-	        };
-            $obj->{sequence_type} = $job->{sequence_type};
-            $obj->{version} = 1;
-            $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
-        }
-        if (($verb eq 'mixs') || ($verb eq 'full')) {
+        $obj->{project} = undef;
+        $obj->{sample}  = undef;
+        $obj->{library} = undef;
+	    eval {
+	        my $proj = $job->primary_project;
+	        $obj->{project} = ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}];
+	    };
+	    eval {
+	        my $samp = $job->sample;
+	        $obj->{sample} = ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}];
+	    };
+	    eval {
+	        my $lib = $job->library;
+	        $obj->{library} = ["mgl".$lib->{ID}, $url."/library/mgl".$lib->{ID}];
+	    };
+        $obj->{sequence_type} = $job->{sequence_type};
+        $obj->{version} = 1;
+        $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
+
+        if ($verb eq 'full') {
             my $mixs = {};
-		    $mixs->{project} = '-';
+		    $mixs->{project_id} = "";
+		    $mixs->{project_name} = "";
 		    eval {
-		        $mixs->{project} = $job->primary_project->{name};
+		        $mixs->{project_id} = 'mgp'.$job->primary_project->{id};
+		        $mixs->{project_name} = $job->primary_project->{name};
 		    };
-	        my $lat_lon  = $job->lat_lon;
-	        my $country  = $job->country;
-	        my $location = $job->location;
-	        my $col_date = $job->collection_date;
-	        my $biome    = $job->biome;
-	        my $feature  = $job->feature;
-	        my $material = $job->material;
-	        my $package  = $job->env_package_type;
-	        my $seq_type = $job->seq_type;
-	        my $seq_method = $job->seq_method;
-	        $mixs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "-";
-	        $mixs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "-";
-	        $mixs->{country} = $country ? $country : "-";
-	        $mixs->{location} = $location ? $location : "-";
-	        $mixs->{collection_date} = $col_date ? $col_date : "-";
-	        $mixs->{biome} = $biome ? $biome : "-";
-	        $mixs->{feature} =  $feature ? $feature : "-";
-	        $mixs->{material} = $material ? $material : "-";
-	        $mixs->{package} = $package ? $package : "-";
-	        $mixs->{seq_method} = $seq_method ? $seq_method : "-";
-	        $mixs->{sequence_type} = $seq_type ? $seq_type : "-";
-	        if ($verb eq 'full') {
-	            $obj->{mixs} = $mixs;
-	        } else {
-	            @$obj{ keys %$mixs } = values %$mixs;
-	        }
+	        my $lat_lon = $job->lat_lon;
+	        $mixs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "";
+	        $mixs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "";
+	        $mixs->{country} = $job->country || "";
+	        $mixs->{location} = $job->location || "";
+	        $mixs->{collection_date} = $job->collection_date || "";
+	        $mixs->{biome} = $job->biome || "";
+	        $mixs->{feature} =  $job->feature || "";
+	        $mixs->{material} = $job->material || "";
+	        $mixs->{env_package_type} = $job->env_package_type || "";
+	        $mixs->{seq_method} = $job->seq_method || "";
+	        $mixs->{sequence_type} = $job->seq_type || "";
+	        $obj->{mixs} = $mixs;
         }
         if (($verb eq 'metadata') || ($verb eq 'full')) {
             $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
