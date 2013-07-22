@@ -301,7 +301,7 @@ sub query {
 
     # add missing fields
     foreach my $item (@{$obj->{data}}) {
-        map { $item->{$_} = exists($item->{$_}) ? $item->{$_} : "" } keys %{$self->{query}}
+        map { $item->{$_} = exists($item->{$_}) ? $item->{$_} : "" } @$fields;
     }
     
     $self->return_data($obj);
