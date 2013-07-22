@@ -1,4 +1,4 @@
-var api_url = 'http://dunkirk.mcs.anl.gov/~jbischof/mgrast/api2.cgi/search/metagenome?';
+var api_url = 'http://dev.metagenomics.anl.gov/api.cgi/metagenome?verbosity=mixs&';
 var datastore = {};
 var result = 'result'; // div where results are to be displayed
 var saved_params = {};
@@ -144,6 +144,12 @@ function lastQuery () {
 }
 
 function updateResults (offset, limit, sort, sortDir) {
+    if(result_count == 0) {
+        var target = document.getElementById(result);
+        target.innerHTML = "<span style='color:red;font-weight:bold;'>No results were found from your query.</span>";
+        datastore = {};
+        return;
+    }
     var html = "Note: To create a collection, first select the metagenomes in the first column, then click \"create collection\".<br /><br />\n";
     html += "<div id='dResult2'></div><br />\n" +
             "<button onclick=\"execute_ajax('get_mg_col','dResult2','mg_set='+getMgsString());\">create collection</button><br /><br />\n" +
