@@ -1,40 +1,37 @@
+#!/usr/bin/perl
+
 use CGI;
 use JSON;
-
 use Conf;
-
-use WebApplicationDBHandle;
-use DBMaster;
+use Data::Dumper;
+use URI::Escape;
 
 # create cgi and json objects
-my $cgi = new CGI;
+my $cgi  = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
-# initialize user database
-my ($dbmaster, $error) = WebApplicationDBHandle->new();
-my $authentication_available = 1;
-
-if ($error) {
-    $authentication_available = 0;
-    
-    if ($Conf::api_fatal_on_no_auth_db) {
-	print $cgi->header(-type => 'text/plain',
-			   -status => 500,
-			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: authentication database offline";
-	exit 0;
-    }
-}
+my %private_resources = ('notebook' => 1, 'resource' => 1, 'status' => 1, 'user' => 1);
 
 # get request method
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
 my $request_method = $ENV{'REQUEST_METHOD'};
 
+if (lc($request_method) eq 'options') {
+  print $cgi->header(-Access_Control_Allow_Origin => '*',
+		     -status => 200,
+		     -type => 'text/plain',
+		     -Access_Control_Allow_Methods => 'POST, GET, OPTIONS',
+		     -Access_Control_Allow_Headers => 'AUTH'
+		    );
+  print "";
+  exit 0;
+}
+
 # get REST parameters
 my $abs = $cgi->url(-relative=>1);
 if ($abs !~ /\.cgi/) {
-    $abs = $cgi->url(-base=>1);
+  $abs = $cgi->url(-base=>1);
 }
 my $rest = $cgi->url(-path_info=>1);
 $rest =~ s/^.*$abs\/?//;
@@ -44,162 +41,180 @@ map {$rest[$_] =~ s#forwardslash#/#gi} (0 .. $#rest);
 # get the resource
 my $resource = shift @rest_parameters;
 
-# get CGI parameters
-my @cgi_names = $cgi->param;
-my $cgi_parameters = {};
-%$cgi_parameters = map { $_ => $cgi->param($_) } @cgi_names;
-
 # get resource list
 my $resources = [];
-my $resources_hash = {};
 my $resource_path = $Conf::api_resource_path;
 if (! $resource_path) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 500,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: resource directory not found";
-    exit 0;
+  print $cgi->header(-type => 'text/plain',
+		     -status => 500,
+		     -Access_Control_Allow_Origin => '*' );
+  print $json->encode( {"ERROR"=> "resource directory not found"} );
+  exit 0;
 }
 
 if (opendir(my $dh, $resource_path)) {
-    my @res = grep { -f "$resource_path/$_" } readdir($dh);
-    closedir $dh;
-    @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r; } @res;
-    %$resources_hash = map { $_ => 1 } @$resources;
-
+  my @res = grep { -f "$resource_path/$_" } readdir($dh);
+  closedir $dh;
+  @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } grep { $_ =~ /^[a-zA-Z](.*)\.pm$/ } @res;
+  @$resources = grep { ! exists($private_resources{$_}) } @$resources;
 } else {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 500,
+  if ($cgi->param('POSTDATA') && ! $resource) {
+    print $cgi->header(-type => 'application/json',
+		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: resource directory offline";
+    print $json->encode( { jsonrpc => "2.0",
+			               id => undef,
+			               error => { code => -32603,
+				                      message => "Internal error",
+				                      data => "resource directory offline" }
+				        } );
     exit 0;
+  } else {
+    print $cgi->header( -type => 'text/plain',
+		                -status => 500,
+		                -Access_Control_Allow_Origin => '*' );
+	print $json->encode( {"ERROR"=> "resource directory offline"} );
+    exit 0;
+  }
 }
 
-# check for auth parameter and aquire request body
-my $request_body;
-my $auth;
-if ($ENV{'REQUEST_METHOD'} eq "POST") {
-    $request_body = $cgi->param('POSTDATA');
-    if ($request_body) {
-	$request_body = $json->decode($request_body);
-    
-	if (exists($request_body->{auth})) {
-	    $auth = $request_body->{auth};
-	} else {
-	    $auth = $cgi->param('auth') || shift @rest_parameters;
-	}
-    } else {
-	$auth = $cgi->param('auth') || shift @rest_parameters;
+# check for json rpc
+my $json_rpc = $cgi->param('POSTDATA') || $cgi->param('keywords');
+
+# no resource, process as json rpc
+if ($json_rpc && (! $resource)) {
+    $cgi->delete('POSTDATA');
+    my ($rpc_request, $submethod);
+    eval { $rpc_request = $json->decode($json_rpc) };
+    if ($@) {
+        print $cgi->header( -type => 'application/json',
+		                    -status => 200,
+		                    -Access_Control_Allow_Origin => '*' );
+        print $json->encode( { jsonrpc => "2.0",
+                               id => undef,
+                               error => { code => -32700,
+				                          message => "Parse error",
+				                          data => $@ }
+				            } );
+        exit 0;
     }
-} elsif ($ENV{'REQUEST_METHOD'} eq "GET") {
-    $auth = $cgi->param('auth');
-} elsif ($ENV{'REQUEST_METHOD'} eq "PUT") {
-    $request_body = $cgi->param('PUTDATA');
-    unless ($request_body) {
-	print $cgi->header(-type => 'text/plain',
-			   -status => 400,
-			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: PUT without data";
-	exit 0;
+  
+    my $json_rpc_id = $rpc_request->{id};
+    my $params = $rpc_request->{params};
+    if (ref($params) eq 'ARRAY' && ref($params->[0]) eq 'HASH') {
+        $params = $params->[0];
     }
-    $request_body = $json->decode($request_body);
-    if (exists($request_body->{auth})) {
-	$auth = $request_body->{auth};
-    } else {
-	$auth = $cgi->param('auth');
+    unless (ref($params) eq 'HASH') {
+        print $cgi->header( -type => 'application/json',
+		                    -status => 200,
+		                    -Access_Control_Allow_Origin => '*' );
+        print $json->encode( { jsonrpc => "2.0",
+			                   id => undef,
+			                   error => { code => -32602,
+				                          message => "Invalid params",
+				                          data => "only named parameters are accepted" }
+				            } );
+        exit 0;
     }
+    foreach my $key (keys(%$params)) {
+        if ($key eq 'id') {
+            @rest_parameters = ( $params->{$key} );
+        } else {
+            $cgi->param($key, $params->{$key});
+        }
+    }
+    (undef, $request_method, $resource, $submethod) = $rpc_request->{method} =~ /^(\w+\.)?(get|post|delete|put)_(\w+)_(\w+)$/;
+    $json_rpc = 1;
+}
+# this is not json rpc, normal data POST
+else {
+    $json_rpc = undef;
 }
 
-# check for authentication in request header
-if ($cgi->http('HTTP_AUTH')) {
-    $auth = $cgi->http('HTTP_AUTH');
-}
-
-# check authentication
+# check for authentication
 my $user;
-if ($auth && $authentication_available) {
-    my $preference = $dbmaster->Preferences->get_objects( { value => $auth } );
-    if (scalar(@$preference)) {
-	my $u = $preference->[0]->user;
-	my $tdate = $dbmaster->Preferences->get_objects( { user => $u, name => 'WebServiceKeyTdate' } );
-	if (scalar(@$tdate)) {
-	    if (($tdate->[0]->{value} > time) || $u->has_right(undef, 'edit', 'user', '*')) {
-		$user = $u;
-	    } else {
-		print $cgi->header(-type => 'text/plain',
-				   -status => 401,
-				   -Access_Control_Allow_Origin => '*' );
-		print "ERROR: Authentication failed - WebServiceKey timed out";
-		exit 0;
-	    }
-	} else {
-	    my $timeout = 86400;
-	    my $tdate = time + $timeout;
-	    $dbmaster->Preferences->create( { user => $u, name => 'WebServiceKeyTdate', value => $tdate } );
-	    $user = $u;
-	}
-    } else {
-	# try session id mapping
-	my $session = $dbmaster->UserSession->init({ 'session_id' => $auth });
-	if ($session) {
-	    $user = $session->user;
-	} else {
-	    print $cgi->header(-type => 'text/plain',
-			       -status => 401,
-			       -Access_Control_Allow_Origin => '*' );
-	    print "ERROR: Authentication failed - invalid WebServiceKey";
-	    exit 0;
-	}
-    }
+if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
+  use Auth;
+  my $message;
+  ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
+  unless($user) {
+    print $cgi->header( -type => 'application/json',
+	                    -status => 401,
+    	                -Access_Control_Allow_Origin => '*' );
+    print $json->encode( {"ERROR"=> "authentication failed  - $message"} );
+    exit 0;
+  }
+}
+
+# print google analytics
+use GoogleAnalytics;
+my $debug = undef;
+if($user) {
+  GoogleAnalytics::track_page_view($user->_id, $debug);
+} else {
+  GoogleAnalytics::track_page_view("anonymous", $debug);
 }
 
 # if a resource is passed, call the resources module
 if ($resource) {
-    if ($resource eq 'about') {
-        my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
-	my $content = { id => 'MG-RAST',
-			documentation => $Conf::cgi_url.'Html/api.html',
-			contact => 'mg-rast@mcs.anl.gov',
-			resources => \@resource_objects,
-			url => $cgi->url."/" };
-	print $cgi->header(-type => 'application/json',
-			   -status => 200,
-			   -Access_Control_Allow_Origin => '*' );
-	print $json->encode($content);
-	exit 0;
+    my $error   = '';
+    my $package = $Conf::api_resource_dir."::".$resource;
+    {
+        no strict;
+        eval "require $package;";
+        $error = $@;
     }
-    elsif ($resources_hash->{$resource}) {
-	my $query = "use resources::$resource; resources::".$resource."::request( { 'rest_parameters' => \\\@rest_parameters, 'cgi_parameters' => \$cgi_parameters, 'request_method' => \$request_method, 'request_body' => \$request_body, 'user' => \$user } );";
-	eval $query;
-	if ($@) {
-	    print $cgi->header(-type => 'text/plain',
-			       -status => 500,
-			       -Access_Control_Allow_Origin => '*' );
-	    print "ERROR: resource request failed\n";
-	    print "$@\n";
-	    exit 0;
-	}
+    if ($error) {
+        print $cgi->header( -type => 'application/json',
+    		                -status => 500,
+    		                -Access_Control_Allow_Origin => '*' );
+    	print $json->encode( {"ERROR"=> "resource '$resource' does not exist"} );
+        exit 0;
     } else {
-	print $cgi->header(-type => 'text/plain',
-			   -status => 400,
-			   -Access_Control_Allow_Origin => '*' );
-	print "ERROR: resource '$resource' does not exist";
-	exit 0;
+      # check for kbase ids
+      if (scalar(@rest_parameters)) {
+	      $rest_parameters[0] = uri_unescape($rest_parameters[0]);
+	      $rest_parameters[0] =~ s/^kb\|(.+)$/$1/;
+      }
+
+      # create params hash
+      my $params= { 'rest_parameters' => \@rest_parameters,
+		    'method'          => $request_method,
+		    'user'            => $user,
+		    'json_rpc'        => $json_rpc,
+		    'json_rpc_id'     => $json_rpc_id,
+		    'submethod'       => $submethod,
+		    'cgi'             => $cgi,
+		    'resource'        => $resource
+		  };
+        eval {
+            my $resource_obj = $package->new($params);
+            $resource_obj->request();
+        };
+        if ($@) {
+            print $cgi->header( -type => 'text/plain',
+			                    -status => 500,
+			                    -Access_Control_Allow_Origin => '*' );
+			print $json->encode( {"ERROR"=> "resource request failed\n$@\n"} );
+            exit 0;
+        }
     }
 }
 # we are called without a resource, return API information
 else {
-    my @resource_objects = map { {'name' => $_, 'url' => $cgi->url.'/'.$_, 'about' => $cgi->url.'/'.$_.'/about'} } sort @$resources;
-    my $content = { id => 'MG-RAST',
-		    documentation => $Conf::cgi_url.'Html/api.html',
-		    contact => 'mg-rast@mcs.anl.gov',
-		    resources => \@resource_objects,
-		    url => $cgi->url."/" };
-    print $cgi->header(-type => 'application/json',
-		       -status => 200,
-		       -Access_Control_Allow_Origin => '*' );
-    print $json->encode($content);
-    exit 0;
+  my @res = map {{ 'name' => $_, 'url' => $cgi->url.'/'.$_ , 'documentation' => $cgi->url.'/api.html#'.$_}} sort @$resources;
+  my $content = { version => 1,
+		  service => 'MG-RAST',
+		  url => $cgi->url,
+		  documentation => $cgi->url.'/api.html',
+		  description => "RESTful Metagenomics RAST object and resource API\nFor usage note that required parameters need to be passed as path parameters, optional parameters need to be query parameters. If an optional parameter has a list of option values, the first displayed will be used as default.",
+		  contact => 'mg-rast@mcs.anl.gov',
+		  resources => \@res };
+  print $cgi->header(-type => 'application/json',
+		     -status => 200,
+		     -Access_Control_Allow_Origin => '*' );
+  print $json->encode($content);
+  exit 0;
 }
 
 sub TO_JSON { return { %{ shift() } }; }

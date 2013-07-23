@@ -143,6 +143,12 @@ sub name_readable {
     }
   }
 
+  # Reviewer
+  elsif ($self->description && $self->description =~ /^Reviewer_/) {
+    my $num = scalar(@{$self->_master->UserHasScope->get_objects( { scope => $self } )});
+    return "Reviewer Access ($num registered)";
+  }
+
   # Admin 
   elsif ($name eq 'Admin') {
     return "Software Administrators (".$self->application->name.")";

@@ -1,115 +1,119 @@
 package resources::user;
 
-use CGI;
-use JSON;
+use strict;
+use warnings;
+no warnings('once');
 
-my $cgi = new CGI;
-my $json = new JSON;
-$json = $json->utf8();
+use Conf;
+use Data::Dumper;
+use parent qw(resources::resource);
+use WebApplicationDBHandle;
 
-sub about {
-  my $content = { 'description' => "returns information about a user",
-		  'parameters' => { "id" => "string" },
-		  'return_type' => "application/json" };
+# Override parent constructor
+sub new {
+    my ($class, @args) = @_;
 
-  print $cgi->header(-type => 'application/json',
-		     -status => 200,
-		     -Access_Control_Allow_Origin => '*' );
-  print $json->encode($content);
-  exit 0;
+    # Call the constructor of the parent class
+    my $self = $class->SUPER::new(@args);
+    
+    # Add name / attributes
+    $self->{name} = "user";
+    $self->{attributes} = { "id"         => [ 'string', 'user login' ],
+                            "email"      => [ 'string', 'user e-mail' ],
+                            "firstname"  => [ 'string', 'first name of user' ],
+                            "lastname"   => [ 'string', 'last name of user' ],
+                            "entry_date" => [ 'date', 'date of user creation' ],
+                            "active"     => [ 'boolean', 'user is active' ],
+                            "comment"    => [ 'string', 'any comment about the user account' ],
+                            "url"        => [ 'uri', 'resource location of this object instance' ]
+                          };
+    return $self;
 }
 
-sub request {
-  my ($params) = @_;
+# resource is called without any parameters
+# this method must return a description of the resource
+sub info {
+    my ($self) = @_;
+    my $content = { 'name' => $self->name,
+                    'url' => $self->cgi->url."/".$self->name,
+                    'description' => "The user resource returns information about a user.",
+                    'type' => 'object',
+                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+                    'requests' => [ { 'name'        => "info",
+                                      'request'     => $self->cgi->url."/".$self->name,
+                                      'description' => "Returns description of parameters and attributes.",
+                                      'method'      => "GET" ,
+                                      'type'        => "synchronous" ,  
+                                      'attributes'  => "self",
+                                      'parameters'  => { 'options'     => {},
+                                                         'required'    => {},
+                                                         'body'        => {} } },
+                                    { 'name'        => "instance",
+                                      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+                                      'description' => "Returns a single user object.",
+                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/joeblow"',
+                    			                         "info for user 'joeblow'" ],
+                                      'method'      => "GET",
+                                      'type'        => "synchronous" ,  
+                                      'attributes'  => $self->attributes,
+                                      'parameters'  => { 'options'     => {},
+                                                         'required'    => { "id" => [ "string", "unique user login" ] },
+                                                         'body'        => {} } },
+                                     ]
+                                 };
 
-  my $rest = $params->{rest_parameters};
-
-  my $user = $params->{user};
-
-  if ($rest && scalar(@$rest) == 1 && $rest->[0] eq 'about') {
-    &about();
-    exit 0;
-  }
-
-  unless ($user) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 401,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: Invalid authentication for user call";
-    exit 0;
-  }
-
-  if ($rest && scalar(@$rest) == 1) {
-    unless ($user->has_right(undef, 'edit', 'user', $user->{_id})) {
-      print $cgi->header(-type => 'text/plain',
-			 -status => 401,
-			 -Access_Control_Allow_Origin => '*' );
-      print "ERROR: insufficient permissions for user call";
-      exit 0;
-    }
-  } else {
-    unless ($user->has_right(undef, 'edit', 'user', '*')) {
-      print $cgi->header(-type => 'text/plain',
-			 -status => 401,
-			 -Access_Control_Allow_Origin => '*' );
-      print "ERROR: insufficient permissions for user call";
-      exit 0;
-    }
-  }
-
-  use WebApplicationDBHandle;
-  use DBMaster;
-
-  my ($dbmaster, $error) = WebApplicationDBHandle->new();
-  if ($error) {
-    print $cgi->header(-type => 'text/plain',
-		       -status => 500,
-		       -Access_Control_Allow_Origin => '*' );
-    print "ERROR: could not connect to user database - $error";
-    exit 0;
-  }
-
-  my $data;
-  if ($rest && scalar(@$rest) == 1) {
-    my $u = $dbmaster->User->get_objects( { login => $rest->[0] } );
-    if (scalar(@$u)) {
-      $u = $u->[0];
-      $data = { firstname => $u->{firstname},
-		email => $u->{email},
-		comment => $u->{comment},
-		entry_date => $u->{entry_date},
-		active => $u->{active},
-		lastname => $u->{lastname},
-		login => $u->{login} };
-    } else {
-      print $cgi->header(-type => 'text/plain',
-			 -status => 401,
-			 -Access_Control_Allow_Origin => '*' );
-      print "ERROR: user not found";
-      exit 0;
-    }
-  } else {    
-    $data = [];
-
-    my $users = $dbmaster->User->get_objects();
-    foreach my $u (@$users) {
-      push(@$data, { firstname => $u->{firstname},
-		     email => $u->{email},
-		     comment => $u->{comment},
-		     entry_date => $u->{entry_date},
-		     active => $u->{active},
-		     lastname => $u->{lastname},
-		     login => $u->{login},
-		     id => $u->{login} } );
-    }
-  }
-
-  print $cgi->header(-type => 'application/json',
-		     -status => 200,
-		     -Access_Control_Allow_Origin => '*' );
-  print $json->encode( $data );
+    $self->return_data($content);
 }
 
-sub TO_JSON { return { %{ shift() } }; }
+# the resource is called with an id parameter
+sub instance {
+    my ($self) = @_;
+    
+    # check id format
+    my $rest = $self->rest;
+    unless ($rest && scalar(@$rest) == 1) {
+        $self->return_data( {"ERROR" => "invalid id format"}, 400 );
+    }
+
+    # get database
+    my ($master, $error) = WebApplicationDBHandle->new();
+    if ($error) {
+        $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
+    }
+    
+    # get data
+    my $user = $master->User->get_objects( {"login" => $rest->[0]} );
+    unless (scalar(@$user)) {
+        $self->return_data( {"ERROR" => "login ".$rest->[0]." does not exists"}, 404 );
+    }
+    $user = $user->[0];
+
+    # check rights
+    unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
+        $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
+    }
+
+    # prepare data
+    my $data = $self->prepare_data($user);
+    $self->return_data($data);
+}
+
+# reformat the data into the requested output format
+sub prepare_data {
+    my ($self, $user) = @_;
+
+    my $url = $self->cgi->url;
+    my $obj = {};
+    $obj->{id}         = $user->login;
+    $obj->{email}      = $user->email;
+    $obj->{firstname}  = $user->firstname;
+    $obj->{lastname}   = $user->lastname;
+    $obj->{entry_date} = $user->entry_date;
+    $obj->{active}     = $user->active;
+    $obj->{comment}    = $user->comment;
+    $obj->{url}        = $self->cgi->url.'/'.$self->{name}.'/'.$obj->{id};
+
+    return $obj;
+}
 
 1;

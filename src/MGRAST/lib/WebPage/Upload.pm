@@ -979,7 +979,7 @@ sub validate_metadata {
     if ($project_name) {
       my $jobdbm  = $application->data_handle('MGRAST');
       my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
-      if (scalar(@$projects) && (! $user->has_right(undef, 'view', 'project', $projects->[0]->id))) {
+      if (scalar(@$projects) && (! $user->has_right(undef, 'edit', 'project', $projects->[0]->id))) {
 	print $cgi->header;
 	print "0||taken||The project name you have chosen is already taken and you do not have edit rights to this project.\nPlease choose a different project name or ask the owner of the project for edit rights.";
 	exit 0;

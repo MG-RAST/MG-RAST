@@ -1,4 +1,4 @@
-package resources2::resource;
+package resources::resource;
 
 use strict;
 use warnings;
@@ -206,40 +206,36 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-    my ($self, $data, $total, $limit) = @_;
+    my ($self, $data, $total, $limit, $path) = @_;
 
     my $offset = $self->cgi->param('offset') || 0;
-    my $order  = $self->cgi->param('order')  || "id";
+    my $order  = $self->cgi->param('order') || undef;
     my @params = $self->cgi->param;
+    $total = int($total);
+    $limit = int($limit);
+    $path  = $path || "";
     
     my $total_count = $total || scalar(@$data);
-    my $additional_params = "";
-
-    foreach my $param (@params) {
-        next if ($param eq 'offset');
-        $additional_params .= $param."=".$self->cgi->param($param)."&";
-    }
-    if (length($additional_params)) {
-        chop $additional_params;
-    }
     my $prev_offset = (($offset - $limit) < 0) ? 0 : $offset - $limit;
     my $next_offset = $offset + $limit;
     
-    my $prev = ($offset > 0) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$prev_offset" : undef;
-    my $next = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name."?$additional_params&offset=$next_offset" : undef;
+    my $object = { "limit" => int($limit),
+	               "offset" => int($offset),
+	               "total_count" => int($total_count),
+	               "data" => $data };
 
-    my $attributes = $self->attributes;
-    if (exists($attributes->{$order})) {
-        return { "limit" => $limit,
-		          "offset" => $offset,
-		          "total_count" => $total_count,
-		          "order" => $order,
-		          "next" => $next,
-		          "prev" => $prev,
-		          "data" => $data };
-    } else {
-        $self->return_data({ "ERROR" => "invalid sort order, there is no attribute $order" }, 400);
+    # don't build urls for POST
+    if ($self->method eq 'GET') {
+        my $add_params  = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'offset'} @params);
+        $object->{url}  = $self->cgi->url."/".$self->name.$path."?$add_params&offset=$offset";
+        $object->{prev} = ($offset > 0) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$prev_offset" : undef;
+        $object->{next} = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$next_offset" : undef;
     }
+	if ($order) {
+	    $object->{order} = $order;
+    }
+    
+	return $object;
 }
 
 # return cached data if exists
@@ -372,11 +368,13 @@ sub get_sequence_sets {
         my $fnum = 1;
         foreach my $rf (@rawfiles) {
             my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
-            push(@$stages, { id => "mgm".$mgid."-050-".$fnum,
-		                     stage_id => "050",
+            push(@$stages, { id  => "mgm".$mgid,
+                             url => $self->cgi->url.'/download/mgm'.$mgid.'?file=050.'.$fnum,
+		                     stage_id   => "050",
 		                     stage_name => "upload",
 		                     stage_type => $ftype,
-		                     file_name => $rf });
+		                     file_id    => "050.".$fnum,
+		                     file_name  => $rf });
             $fnum += 1;
         }
     }
@@ -392,11 +390,13 @@ sub get_sequence_sets {
             } else {
 	            $stagehash->{$stageid} = 1;
             }
-            push(@$stages, { id => "mgm".$mgid."-".$stageid."-".$stagehash->{$stageid},
-		                     stage_id => $stageid,
+            push(@$stages, { id  => "mgm".$mgid,
+                             url => $self->cgi->url.'/download/mgm'.$mgid.'?file='.$stageid.'.'.$stagehash->{$stageid},
+		                     stage_id   => $stageid,
 		                     stage_name => $stagename,
 		                     stage_type => $stageresult,
-		                     file_name => $sf });
+		                     file_id    => $stageid.".".$stagehash->{$stageid},
+		                     file_name  => $sf });
         }
     }
     return $stages;
@@ -420,10 +420,10 @@ sub edit_shock_acl {
     };
     if ($@ || (! ref($response))) {
         return undef;
-    } elsif (exists($response->{E}) && $response->{E}) {
-        $self->return_data( {"ERROR" => "Unable to $action ACL '$acl' to node $id in Shock: ".$response->{E}[0]}, 500 );
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to $action ACL '$acl' to node $id in Shock: ".$response->{error}[0]}, $response->{status} );
     } else {
-        return $response->{D};
+        return $response->{data};
     }
 }
 
@@ -432,7 +432,7 @@ sub set_shock_node {
     
     my $attr_str = $self->json->encode($attr);
     my $file_str = $self->json->encode($file);
-    my $content  = [datatype => 'ipynb', attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str]];
+    my $content  = [attributes => [undef, "$name.json", Content => $attr_str], upload => [undef, $name, Content => $file_str]];
     my $response = undef;
     eval {
         my $post = undef;
@@ -445,10 +445,10 @@ sub set_shock_node {
     };
     if ($@ || (! ref($response))) {
         return undef;
-    } elsif (exists($response->{E}) && $response->{E}) {
-        $self->return_data( {"ERROR" => "Unable to POST to Shock: ".$response->{E}[0]}, 500 );
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to POST to Shock: ".$response->{error}[0]}, $response->{status} );
     } else {
-        return $response->{D};
+        return $response->{data};
     }
 }
 
@@ -467,10 +467,10 @@ sub get_shock_node {
     };
     if ($@ || (! ref($content))) {
         return undef;
-    } elsif (exists($content->{E}) && $content->{E}) {
-        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$content->{E}[0]}, 500 );
+    } elsif (exists($content->{error}) && $content->{error}) {
+        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$content->{error}[0]}, $content->{status} );
     } else {
-        return $content->{D};
+        return $content->{data};
     }
 }
 
@@ -489,8 +489,8 @@ sub get_shock_file {
     };
     if ($@ || (! $content)) {
         return undef;
-    } elsif (ref($content) && exists($content->{E}) && $content->{E}) {
-        $self->return_data( {"ERROR" => "Unable to GET file $id from Shock: ".$content->{E}[0]}, 500 );
+    } elsif (ref($content) && exists($content->{error}) && $content->{error}) {
+        $self->return_data( {"ERROR" => "Unable to GET file $id from Shock: ".$content->{error}[0]}, $content->{status} );
     } elsif ($file) {
         if (open(FILE, ">$file")) {
             print FILE $content;
@@ -505,12 +505,12 @@ sub get_shock_file {
 }
 
 sub get_shock_query {
-    my ($self, $type, $params, $auth) = @_;
+    my ($self, $params, $auth) = @_;
     
     my $shock = undef;
-    my $query = '?querynode&type='.$type;
+    my $query = '?query&limit=0';
     if ($params && (scalar(keys %$params) > 0)) {
-        map { $query .= '&attributes.'.$_.'='.$params->{$_} } keys %$params;
+        map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
     }
     eval {
         my $get = undef;
@@ -523,10 +523,41 @@ sub get_shock_query {
     };
     if ($@ || (! ref($shock))) {
         return [];
-    } elsif (exists($shock->{E}) && $shock->{E}) {
-        $self->return_data( {"ERROR" => "Unable to query Shock: ".$shock->{E}[0]}, 500 );
+    } elsif (exists($shock->{error}) && $shock->{error}) {
+        $self->return_data( {"ERROR" => "Unable to query Shock: ".$shock->{error}[0]}, $shock->{status} );
     } else {
-        return $shock->{D};
+        return $shock->{data};
+    }
+}
+
+sub get_solr_query {
+    my ($self, $method, $server, $collect, $query, $sort, $offset, $limit, $fields) = @_;
+    
+    my $content = undef;
+    my $url  = $server.'/'.$collect.'/select';
+    my $data = 'q=*%3A*&fq='.$query.'&start='.$offset.'&rows='.$limit.'&wt=json';
+    if ($sort) {
+        $data .= '&sort='.$sort;
+    }
+    if ($fields && (@$fields > 0)) {
+        $data .= '&fl='.join('%2C', @$fields);
+    }
+    eval {
+        my $res = undef;
+        if ($method eq 'GET') {
+            $res = $self->agent->get($url.'?'.$data);
+        }
+        if ($method eq 'POST') {
+            $res = $self->agent->post($url, Content => $data);
+        }
+        $content = $self->json->decode( $res->content );
+    };
+    if ($@ || (! ref($content))) {
+        return ([], 0);
+    } elsif (exists $content->{error}) {
+        $self->return_data( {"ERROR" => "Unable to query DB: ".$content->{error}{msg}}, $content->{error}{status} );
+    } else {
+        return ($content->{response}{docs}, $content->{response}{numFound});
     }
 }
 
