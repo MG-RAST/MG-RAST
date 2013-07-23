@@ -1,10 +1,14 @@
-var api_url = 'http://dunkirk.mcs.anl.gov/~jbischof/mgrast/api2.cgi/search/metagenome?';
+var api_url = 'http://dev.metagenomics.anl.gov/api.cgi/metagenome?verbosity=mixs&';
 var datastore = {};
 var result = 'result'; // div where results are to be displayed
 var saved_params = {};
 var result_count = 0;
 var MAX_LIMIT = 1000000;
+var mgs = {};
 
+// THE CODE COMMENTED OUT HERE IS FOR SELECTALL CAPABILITY ON THE MG SEARCH PAGE.  NOT ENABLING THIS FEATURE
+// AT THE MOMENT BECAUSE USERS MAY CREATE COLLECTIONS THAT ARE TOO LARGE.  MAY USE CODE IN THE FUTURE.
+//
 // The variables below (selectAll, selected{}, deselected{}) are used to keep track of which metagenomes
 // have been selected for creation of a collection.  There are two possible states:
 //
@@ -21,9 +25,9 @@ var MAX_LIMIT = 1000000;
 // If selectAll is performed, we'll still have to perform the API query to retrieve all metagenomes, but this
 // will postpone the operation to the time of the "create collection" task which will take some time anyway.
 
-var selectAll = 0;
-var selected = {};
-var deselected = {};
+// var selectAll = 0;
+// var selected = {};
+// var deselected = {};
 
 function queryAPI (params) {
     var type = params.type || [ "metadata" ];
@@ -82,16 +86,24 @@ function queryAPI (params) {
     return;
 }
 
-function selectAllMgms () {
-    selectAll = 1;
-    selected = {};
-    deselected = {};
-}
+//function selectAllMgms () {
+//    selectAll = 1;
+//    selected = {};
+//    deselected = {};
+//}
 
-function deselectAllMgms () {
-    selectAll = 0;
-    selected = {};
-    deselected = {};
+//function deselectAllMgms () {
+//    selectAll = 0;
+//    selected = {};
+//    deselected = {};
+//}
+
+function updateSelection (id) {
+    if(document.getElementById(id).checked) {
+        mgs[id] = 1;
+    } else {
+        delete mgs[id];
+    }
 }
 
 function sortQuery (sort, sortDir) {
@@ -132,10 +144,16 @@ function lastQuery () {
 }
 
 function updateResults (offset, limit, sort, sortDir) {
-
-    var html = "<button onclick=\"selectAllMgms()\">Select all metagenomes</button>&nbsp;\n" +
-               "<button onclick=\"deselectAllMgms()\">Deselect all metagenomes</button><br /><br />\n";
-    html += "<table style=\"width: 100%;\"><tr>" +
+    if(result_count == 0) {
+        var target = document.getElementById(result);
+        target.innerHTML = "<span style='color:red;font-weight:bold;'>No results were found from your query.</span>";
+        datastore = {};
+        return;
+    }
+    var html = "Note: To create a collection, first select the metagenomes in the first column, then click \"create collection\".<br /><br />\n";
+    html += "<div id='dResult2'></div><br />\n" +
+            "<button onclick=\"execute_ajax('get_mg_col','dResult2','mg_set='+getMgsString());\">create collection</button><br /><br />\n" +
+            "<table style=\"width: 100%;\"><tr>" +
             "<td align=\"left\"><a onclick=\"firstQuery();\" style=\"cursor: pointer\">&#171;first</a> " +
                                "<a onclick=\"prevQuery();\" style=\"cursor: pointer\">&#171;prev</a></td>" +
             "<td align=\"center\">Displaying " + (offset + 1) + "-" + Math.min(offset+limit, result_count) + " of " + result_count + " results</td>" +
@@ -171,10 +189,10 @@ function updateResults (offset, limit, sort, sortDir) {
         datastore[rows[i][0]]["id"] = datastore[rows[i][0]]["id"].substr(3);
 
         html += "<tr>";
-        if(selectAll == 1 && (datastore[rows[i][0]]["id"] in deselected)) {
-            html += "<td><input type=\"checkbox\" onclick=\"updateSelection("+datastore[rows[i][0]]["id"]+");\" selected />\n";
+        if(datastore[rows[i][0]]["id"] in mgs) {
+            html += "<td><input id=" + datastore[rows[i][0]]["id"] + " type=\"checkbox\" onclick=\"updateSelection("+datastore[rows[i][0]]["id"]+");\" checked />\n";
         } else {
-            html += "<td><input type=\"checkbox\" onclick=\"updateSelection("+datastore[rows[i][0]]["id"]+");\" />\n";
+            html += "<td><input id=" + datastore[rows[i][0]]["id"] + " type=\"checkbox\" onclick=\"updateSelection("+datastore[rows[i][0]]["id"]+");\" />\n";
         }
         html += "<td>"+datastore[rows[i][0]]["sequence_type"]+"</td>";
         html += "<td><a href='?page=MetagenomeOverview&metagenome="+datastore[rows[i][0]]["id"]+"' target=_blank>"+datastore[rows[i][0]]["name"]+"</a></td>";
@@ -216,4 +234,13 @@ function getCookie(c_name) {
         c_value = unescape(c_value.substring(c_start,c_end));
     }
     return c_value;
+}
+
+function getMgsString() {
+    var i = 0;
+    var str = "";
+    for (key in mgs) {
+        str += key + "~";
+    }
+    return str.substring(0, str.length - 1);
 }

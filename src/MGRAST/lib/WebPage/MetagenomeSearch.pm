@@ -118,7 +118,6 @@ sub init {
   $self->data('hier1', $hier1);
   $self->data('hier2', $hier2);
   $self->data('max_results', 500000);
-  close OUT;
 
   return 1;
 }
@@ -136,8 +135,6 @@ sub output {
   my ($self) = @_;
 
   my $msg_count = 1;
-  open OUT, ">/homes/jbischof/foo.txt" || die;
-  print OUT "$msg_count\t".`date`; ++$msg_count;
 
   my $cgi    = $self->app->cgi;
   my $qnum   = $cgi->param('qnum')  || 0;
@@ -147,7 +144,6 @@ sub output {
   my $mgdb   = $self->data('mgdb');
   my $match  = $self->data('match');
   my $modes  = { 1 => "dSimple", 2 => "dAdvanced" };
-  print OUT "$msg_count\t".`date`; ++$msg_count;
   my $extras = {};
 #  my $extras = { "metadata"   => { "biome"       => $self->get_unique_job_info('biome'),
 #				   "feature"     => $self->get_unique_job_info('feature'),
@@ -167,7 +163,6 @@ sub output {
 #				   "level2" => $mgdb->ach->get_level4ontology("NOG","level2") }
 #	       };
   
-  print OUT "$msg_count\t".`date`; ++$msg_count;
   my $taxon_sel = $self->build_select("sel_extra", $self->data('taxon'));
   my $hier1_sel = $self->build_select("sel_extra", $self->data('hier1'));
   my $hier2_sel = $self->build_select("sel_extra", $self->data('hier2'));
@@ -199,7 +194,6 @@ sub output {
     $adv_srch = qq(<tr id='query1'>$adv_deflt</tr>);
   }
 
-  print OUT "$msg_count\t".`date`; ++$msg_count;
   my @ext_set = ();
   foreach my $t (keys %$extras) {
     last;
@@ -210,7 +204,6 @@ sub output {
   my $ext_json = "{ " . join(",", @ext_set) . " }";
   my $qlist    = "[ " . join(",", map {"'$_'"} @adv_list) . " ]";
 
-  print OUT "$msg_count\t".`date`; ++$msg_count;
   my $stext = $cgi->param('text') || "";
   my $stype = $cgi->param('type') || "metadata,function,organism";
   if ($cgi->param('init_search')) {
@@ -239,7 +232,6 @@ sub output {
     $search_now = "switch_mode(2);";
   }
   
-  print OUT "$msg_count\t".`date`; ++$msg_count;
   my $scripts  = qq~
 <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
 <script type="text/javascript">
@@ -471,7 +463,6 @@ sub output {
 });
 </script>
 ~ . $self->application->component('sAjax')->output;
-  print OUT "$msg_count\t".`date`; ++$msg_count;
 
   my $html = '';
   my $help = $self->app->component('help');
@@ -517,7 +508,6 @@ sub output {
   $html .= "<div id='dResult'></div>";
   $html .= "<div class='clear' style='height: 15px;'></div>";
 
-  print OUT "$msg_count\t".`date`; ++$msg_count;
   return $scripts . $html;
 }
 
@@ -1098,16 +1088,22 @@ sub set_mg_col {
 
   my $num = 0;
   foreach my $id (keys %ids) {
+    my $job = $app->data_handle('MGRAST')->Job->init({ metagenome_id => $id });
+    unless(ref($job)) {
+      next;
+    }
+    my $jid = $job->job_id;
+
     my $existing = $app->dbmaster->Preferences->get_objects( { application => $app->backend,
 							       user => $user,
 							       name => 'mgrast_collection',
-							       value => $col."|".$id } );
+							       value => $col."|".$jid } );
     unless (scalar(@$existing)) {
       $num += 1;
       $app->dbmaster->Preferences->create( { application => $app->backend,
 					     user => $user,
 					     name => 'mgrast_collection',
-					     value => $col."|".$id } );
+					     value => $col."|".$jid } );
     }
   }
 
