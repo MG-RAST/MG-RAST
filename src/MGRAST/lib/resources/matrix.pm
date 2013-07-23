@@ -40,25 +40,6 @@ sub new {
                                          ['level2', 'function ontology level' ],
                                          ['level1', 'top function ontology level'] ]
                          };
-    $self->{sources} = { organism => [ ["M5NR", "comprehensive protein database"],
-                                       ["M5RNA", "comprehensive RNA database"],
-                                       ["RefSeq", "protein database"],
-                                       ["SwissProt", "protein database"],
-                                       ["GenBank", "protein database"],
-                                       ["IMG", "protein database"],
-                                       ["SEED", "protein database"],
-                                       ["TrEMBL", "protein database"],
-                                       ["PATRIC", "protein database"],
-                                       ["KEGG", "protein database"],
-                                       ["RDP", "RNA database"],
-                                       ["Greengenes", "RNA database"],
-                                       ["LSU", "RNA database"],
-                                       ["SSU", "RNA database"] ],
-                         ontology => [ ["Subsystems", "ontology database, type function only"],
-                                       ["NOG", "ontology database, type function only"],
-                                       ["COG", "ontology database, type function only"],
-                                       ["KO", "ontology database, type function only"] ]
-                                     };
     $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
                             "url"                  => [ 'uri', 'resource location of this object instance' ],
                             "format"               => [ 'string', 'format specification name' ],
@@ -76,6 +57,11 @@ sub new {
                                                                              'metadata' => ['hash', 'key value pairs describing metadata']}, "columns object"]] ],
                             "data"                 => [ 'list', ['list', ['float', 'the matrix values']] ]
                           };
+    $self->{sources} = { organism => [ $self->source->{m5nr}, $self->source->{m5rna} ],
+                         ontology => $self->source->{ontology}
+                       };
+    map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{protein}};
+    map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{rna}};
     return $self;
 }
 
@@ -295,6 +281,7 @@ sub prepare_data {
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $leaf_node = 0;
+    my $prot_func = 0;
     my $leaf_filter = 0;
     my $group_level = $glvl;
     my $filter_level = $flvl;
@@ -337,8 +324,9 @@ sub prepare_data {
                      };
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
     my $type_set   = ["function", "organism", "feature"];
-    my %func_srcs  = map { $_->[0], 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
-    my %org_srcs   = map { $_->[0], 1 } @{$mgdb->sources_for_type('protein')};
+    my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
+    my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
+    my %org_srcs   = map { $_->[0], 1 } @{$self->{sources}{organism}};
     map { $org_srcs{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
                              
     # validate controlled vocabulary params
@@ -373,7 +361,13 @@ sub prepare_data {
             $self->return_data({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
         }
     } elsif ($type eq 'function') {
-        if ( any {$_->[0] eq $glvl} @{$self->{hierarchy}{ontology}} ) {
+        if ( exists $prot_srcs{$source} ) {
+            $group_level = 'function';
+            $glvl = 'function';
+            $leaf_node = 1;
+            $prot_func = 1;
+        }
+        elsif ( any {$_->[0] eq $glvl} @{$self->{hierarchy}{ontology}} ) {
             if ($glvl eq 'function') {
                 $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
                 $leaf_node = 1;
@@ -393,7 +387,7 @@ sub prepare_data {
         } else {
             $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{organism}})."]"}, 404);
         }
-        unless (exists $func_srcs{$source}) {
+        unless (exists($func_srcs{$source}) || exists($prot_srcs{$source})) {
             $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
         }
         unless (exists $org_srcs{$fsrc}) {
@@ -519,7 +513,7 @@ sub prepare_data {
         }
     } elsif ($type eq 'function') {
         $ttype = 'Function';
-        $mtype = 'ontology';
+        $mtype = $prot_func ? '' : 'ontology';
         if (@filter > 0) {
             if ($leaf_filter) {
                 $umd5s = $mgdb->get_md5s_for_organism(\@filter, $fsrc);
@@ -528,7 +522,13 @@ sub prepare_data {
             }
         }
         unless ((@filter > 0) && (@$umd5s == 0)) {
-            if ($leaf_node) {
+            if ($prot_func) {
+                # my ($self, $md5s, $sources, $eval, $ident, $alen) = @_;
+                my $info = $mgdb->get_functions_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen));
+                # mgid, source, function, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
+                @$matrix = map {[ $_->[2], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
+            }
+            elsif ($leaf_node) {
                 # my ($self, $md5s, $source, $eval, $ident, $alen) = @_;
                 my (undef, $info) = $mgdb->get_ontology_for_md5s($umd5s, $source, int($eval), int($ident), int($alen));
                 # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
@@ -566,11 +566,13 @@ sub prepare_data {
     # produce output
     my $brows = [];
     my $bcols = [];
-    my $r_map = ($type eq 'feature') ? $md52id : $self->get_hierarchy($mgdb, $type, $glvl, $source, $leaf_node);
+    my $r_map = ($type eq 'feature') ? $md52id : ($prot_func ? {} : $self->get_hierarchy($mgdb, $type, $glvl, $source, $leaf_node));
     foreach my $rid (sort {$row_ids->{$a} <=> $row_ids->{$b}} keys %$row_ids) {
         my $rmd = exists($r_map->{$rid}) ? { $mtype => $r_map->{$rid} } : undef;
         if ($leaf_node && ($type eq 'organism') && exists($self->{org2tid}{$rid})) {
             push @$brows, { id => $self->{org2tid}{$rid}, metadata => $rmd };
+        } elsif ($prot_func) {
+            push @$brows, { id => $rid };
         } else {
             push @$brows, { id => $rid, metadata => $rmd };
         }
