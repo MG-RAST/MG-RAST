@@ -75,21 +75,28 @@ sub output {
   if ($user) {
     my $uscope = $user->get_user_scope;
     my $rights = $master->Rights->get_objects( { scope => $token_scope } );
-    foreach my $right (@$rights) {
-      $right->scope($uscope);
-    }
-    $token_scope->delete();
     my $metagenome_id = $rights->[0]->data_id;
     my $link = "MetagenomeOverview&metagenome=$metagenome_id";
+    my $pscope = undef;
     if ($rights->[0]->data_type eq 'project') {
       $link = "MetagenomeProject&project=$metagenome_id";
-      my $pscope = $master->Scope->init( { application => undef,
-					   name => 'MGRAST_project_'.$metagenome_id } );
-      if ($pscope) {
-	$master->UserHasScope->create( { granted => 1,
-					 scope => $pscope,
-					 user => $user } );
+      $pscope = $master->Scope->init( { application => undef,
+					name => 'MGRAST_project_'.$metagenome_id } );
+    }
+    if ($token_scope->description && $token_scope->description =~ /^Reviewer_/) {
+      $master->UserHasScope->create( { granted => 1,
+				       scope => $token_scope,
+				       user => $user } );
+    } else {
+      foreach my $right (@$rights) {
+	$right->scope($uscope);
       }
+      $token_scope->delete();
+    }
+    if ($pscope) {
+      $master->UserHasScope->create( { granted => 1,
+				       scope => $pscope,
+				       user => $user } );
     }
     $content .= "<p style='width: 800px;'>You have successfully claimed your invitation. To view the data click <a href='metagenomics.cgi?page=$link'>here</a>.</p>";
   } else {
