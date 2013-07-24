@@ -713,7 +713,8 @@ sub submit_to_mgrast {
   # create metadata collections
   if ($mdata) {
     ($successfully_created_jobs, $err_msgs) = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
-    if(@$err_msgs != 0) {
+    # only print err_msgs and return if not all jobs were successfully submitted
+    if(@$err_msgs != 0 && @{$successfully_created_jobs} != @{$jobs}) {
       my $msg = "WARNING: The user \"".$user->login."\" submitted jobs that failed. The following errors were generated:\n";      
       foreach my $err (@$err_msgs) {
         $msg .= $err."\n";
