@@ -386,7 +386,7 @@ sub add_job_to_project {
     $html .= "<p>The following metagenomes have been added to or are already in project ".$project->name.":<br>".join(", ", @new)."</p>";
   }
   if (@old > 0) {
-    $html .= "<p>The following metagenomes could not be added:<br>".join(", ", @old)."</p>";
+    $html .= "<p>The following metagenomes could not be added because they are already in a different project:<br>".join(", ", @old)."</p>";
   }
   $html .= "</blockquote>";
 
