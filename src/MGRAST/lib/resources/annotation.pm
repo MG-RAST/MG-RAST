@@ -25,22 +25,6 @@ sub new {
                       [ "ontology", "return ontology data" ],
                       [ "feature", "return feature data" ]];
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
-    $self->{sources} = [[ "RefSeq", "protein database, type organism, function, feature" ],
-					    [ "GenBank", "protein database, type organism, function, feature" ],
-			            [ "IMG", "protein database, type organism, function, feature" ],
-				        [ "SEED", "protein database, type organism, function, feature" ],
-				        [ "TrEMBL", "protein database, type organism, function, feature" ],
-			            [ "SwissProt", "protein database, type organism, function, feature" ],
-					    [ "PATRIC", "protein database, type organism, function, feature" ],
-					    [ "KEGG", "protein database, type organism, function, feature" ],
-          			    [ "RDP", "RNA database, type organism, function, feature" ],
-          			    [ "Greengenes", "RNA database, type organism, function, feature" ],
-          		        [ "LSU", "RNA database, type organism, function, feature" ],
-          		        [ "SSU", "RNA database, type organism, function, feature" ],
-          		        [ "Subsystems", "ontology database, type ontology only" ],
-					    [ "NOG", "ontology database, type ontology only" ],
-					    [ "COG", "ontology database, type ontology only" ],
-				        [ "KO", "ontology database, type ontology only" ]];
     $self->{attributes} = { sequence => {
                                 "col1" => ['string', 'sequence id'],
                                 "col2" => ['string', 'm5nr id (md5sum)'],
@@ -68,6 +52,10 @@ sub new {
 # this method must return a description of the resource
 sub info {
     my ($self) = @_;
+    my $sources = [];
+    map { push @$sources, $_ } @{$self->source->{protein}};
+    map { push @$sources, $_ } @{$self->source->{rna}};
+    map { push @$sources, $_ } @{$self->source->{ontology}};
     my $content = { 'name' => $self->name,
 		            'url' => $self->cgi->url."/".$self->name,
 		            'description' => "All annotations of a metagenome for a specific annotation type and source",
@@ -97,7 +85,7 @@ sub info {
                                                             'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                                                             'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
 				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $self->{sources} ] },
+									                        "source"   => ["cv", $sources ] },
 							                 'body' => {} }
 						},
 						{ 'name'        => "similarity",
@@ -113,7 +101,7 @@ sub info {
                                                             'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                                                             'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
 				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $self->{sources} ] },
+									                        "source"   => ["cv", $sources ] },
 							                 'body' => {} }
 						} ]
 		  };

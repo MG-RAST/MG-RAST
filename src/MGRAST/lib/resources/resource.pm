@@ -152,6 +152,29 @@ sub attributes {
     return $self->{attributes};
 }
 
+# hardcoded source info
+sub source {
+    return { m5nr     => ["M5NR", "comprehensive protein database"],
+             m5rna    => ["M5RNA", "comprehensive RNA database"],
+             protein  => [ ["RefSeq", "protein database, type organism, function, feature"],
+					       ["GenBank", "protein database, type organism, function, feature"],
+			               ["IMG", "protein database, type organism, function, feature"],
+				           ["SEED", "protein database, type organism, function, feature"],
+				           ["TrEMBL", "protein database, type organism, function, feature"],
+			               ["SwissProt", "protein database, type organism, function, feature"],
+					       ["PATRIC", "protein database, type organism, function, feature"],
+					       ["KEGG", "protein database, type organism, function, feature"] ],
+             rna      => [ ["RDP", "RNA database, type organism, function, feature"],
+			               ["Greengenes", "RNA database, type organism, function, feature"],
+		                   ["LSU", "RNA database, type organism, function, feature"],
+		                   ["SSU", "RNA database, type organism, function, feature"] ],
+             ontology => [ ["Subsystems", "ontology database, type ontology only"],
+                           ["NOG", "ontology database, type ontology only"],
+                           ["COG", "ontology database, type ontology only"],
+                           ["KO", "ontology database, type ontology only"] ]
+    };
+}
+
 # get / set functions for class variables
 sub format {
     my ($self, $format) = @_;
