@@ -61,6 +61,7 @@ sub new {
 					   "env_package_type" => [ 'string', 'enviromental package of sample, GSC term' ],
 					   "project_id"       => [ 'string', 'id of project containing metagenome' ],
                        "project_name"     => [ 'string', 'name of project containing metagenome' ],
+                       "PI_firstname"     => [ 'string', 'principal investigator\'s first name' ],
                        "PI_lastname"      => [ 'string', 'principal investigator\'s last name' ],
                        "sequence_type"    => [ 'string', 'sequencing type' ],
                        "seq_method"       => [ 'string', 'sequencing method' ],
@@ -217,9 +218,9 @@ sub query {
     unless (exists $self->{query}{$order}) {
         $self->return_data({"ERROR" => "Invalid order entered ($order) for query."}, 404);
     }
-    if (($limit > 10000) || ($limit < 1)) {
-        $self->return_data({"ERROR" => "Limit must be less than 10,000 and greater than 0 ($limit) for query."}, 404);
-    }
+    #if (($limit > 10000) || ($limit < 1)) {
+    #    $self->return_data({"ERROR" => "Limit must be less than 10,000 and greater than 0 ($limit) for query."}, 404);
+    #}
 
     # explicitly setting the default CGI parameters for returned url strings
     $self->cgi->param('verbosity', $verb);
@@ -233,12 +234,14 @@ sub query {
     # get query fields
     my @url_params = ();
     my @solr_fields = ();
+    # non-returnable query fields
     foreach my $field ('metadata', 'md5', 'function', 'organism') {
         if ($self->cgi->param($field)) {
             push @url_params, $field."=".$self->cgi->param($field);
             push @solr_fields, $field.':'.$self->cgi->param($field);
         }
     }
+    # returnable query fields
     foreach my $field (grep {($_ ne 'status') && ($_ ne 'url')} keys %{$self->{query}}) {
         if ($self->cgi->param($field)) {
             push @url_params, $field."=".$self->cgi->param($field);
@@ -370,9 +373,16 @@ sub prepare_data {
             my $mixs = {};
 		    $mixs->{project_id} = "";
 		    $mixs->{project_name} = "";
+		    $mixs->{PI_firstname} = "";
+		    $mixs->{PI_lastname} = "";
 		    eval {
 		        $mixs->{project_id} = 'mgp'.$job->primary_project->{id};
 		        $mixs->{project_name} = $job->primary_project->{name};
+		    };
+		    eval {
+		        my $pdata = $job->primary_project->data;
+		        $mixs->{PI_firstname} = $pdata->{PI_firstname};
+    		    $mixs->{PI_lastname} = $pdata->{PI_lastname};
 		    };
 	        my $lat_lon = $job->lat_lon;
 	        $mixs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "";
