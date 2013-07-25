@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 
+use List::MoreUtils qw(natatime);
 use Getopt::Long;
 use Digest::MD5;
 use LWP::UserAgent;
@@ -18,6 +19,7 @@ my $src = '';
 my $opt = '';
 my $help = 0;
 my $verb = 0;
+my $batch = 100;
 my $options = {sequence => 1, annotation => 1};
 my $sources = {};
 
@@ -44,9 +46,7 @@ $json = $json->utf8();
 $json->max_size(0);
 $json->allow_nonref;
 
-my @data = ();
-my $smap = get_data('sources');
-my $hdr  = ["Accession", "MD5", "Function", "Organism"];
+my $smap = get_data('GET', 'sources');
 
 if ($help) {
     help($options, $smap);
@@ -85,45 +85,39 @@ elsif ($seq) {
 }
 elsif ($md5 && ($opt eq 'sequence')) {
     foreach my $m (@{ list_from_input($md5) }) {
-        push @data, get_data("md5/".$m, {'sequence' => '1'});
+        foreach my $d ( @{ get_data("GET", "md5/".$m, {'sequence' => '1'}) } ) {
+            print STDOUT ">".$d->{md5}."\n".$d->{sequence}."\n";
+        }
     }
 }
 elsif($acc && ($opt eq 'sequence')) {
     foreach my $a (@{ list_from_input($acc) }) {
-        push @data, get_data("accession/".$a, {'sequence' => '1'});
+        foreach my $d ( @{ get_data("GET", "accession/".$a, {'sequence' => '1'}) } ) {
+            print STDOUT ">".$d->{id}."\n".$d->{sequence}."\n";
+        }
     }
 }
 elsif ($md5) {
-    foreach my $m (@{ list_from_input($md5) }) {
-        push @data, @{ get_data("md5/".$m, {'source' => $src}) };
+    my $md5s = list_from_input($md5);
+    my $iter = natatime $batch, @$md5s;
+    while (my @curr = $iter->()) {
+        foreach my $d ( @{ get_data("POST", "md5", {'limit' => $batch*1000,'source' => $src,'data' => \@curr,'order' => 'md5'}) } ) {
+            print STDOUT $d->{accession}."\t".$d->{md5}."\t".$d->{function}.(exists($d->{organism}) ? "\t".$d->{organism} : '')."\n";
+        }
     }
 }
 elsif($acc) {
-    foreach my $a (@{ list_from_input($acc) }) {
-        push @data, @{ get_data("accession/".$a, {'source' => $src}) };
+    my $accs = list_from_input($acc);
+    my $iter = natatime $batch, @$accs;
+    while (my @curr = $iter->()) {
+        foreach my $d ( @{ get_data("POST", "accession", {'limit' => $batch*1000,'source' => $src,'data' => \@curr,'order' => 'accession'}) } ) {
+            print STDOUT $d->{accession}."\t".$d->{md5}."\t".$d->{function}.(exists($d->{organism}) ? "\t".$d->{organism} : '')."\n";
+        }
     }
 }
 else {
     &help($options, $smap);
     exit 1;
-}
-
-unless (@data > 0) {
-    print STDERR "No data available for the given input\n";
-}
-if ($opt eq 'sequence') {
-    foreach my $d (@data) {
-        print STDOUT ">".($d->{id} ? $d->{id} : $d->{md5})."\n".$d->{sequence}."\n";
-    }
-} else {
-    if ($data[0]{type} eq 'ontology') {
-        pop @$hdr;
-    }
-    print STDOUT join("\t", @$hdr)."\n";
-    @data = sort { ($$a{md5} cmp $$b{md5}) or ($$a{function} cmp $$b{function}) } @data;
-    foreach my $d (@data) {
-        print STDOUT $d->{accession}."\t".$d->{md5}."\t".$d->{function}.(exists($d->{organism}) ? "\t".$d->{organism} : '')."\n";
-    }
 }
 
 sub list_from_input {
@@ -173,17 +167,22 @@ sub process_sims {
 }
 
 sub get_data {
-    my ($resource, $params) = @_;
+    my ($method, $resource, $params) = @_;
     
     my $data = undef;
-    my $url  = $api.'/m5nr/'.$resource.'?limit=1000';
-    if ($params && (scalar(keys %$params) > 0)) {
-        $url = $url.'&'.join('&', map { $_.'='.$params->{$_} } keys %$params);
-    }
     eval {
-        my $get = $agent->get($url);
-        $data = $json->decode($get->content);
+        my $res = undef;
+        if ($method eq 'GET') {
+            my $opts = ($params && (scalar(keys %$params) > 0)) ? '?'.join('&', map {$_.'='.$params->{$_}} keys %$params) : '';
+            $res = $agent->get($api.'/m5nr/'.$resource.$opts);
+        }
+        if ($method eq 'POST') {
+            my $pdata = $json->encode($params);
+            $res = $agent->post($api.'/m5nr/'.$resource, Content => $pdata);
+        }
+        $data = $json->decode($res->content);
     };
+    
     if ($@ || (! ref($data))) {
         print STDERR "Error accessing M5NR API: ".$@."\n";
         exit 1;
