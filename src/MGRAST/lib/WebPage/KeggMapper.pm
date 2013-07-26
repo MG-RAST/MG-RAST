@@ -356,6 +356,7 @@ sub selectable_metagenomes {
       my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
 										 user => $self->application->session->user,
 										 name => 'mgrast_collection' } );
+
       if (scalar(@$coll_prefs) && (! $no_coll)) {
 	my $collections = {};
 	foreach my $collection_pref (@$coll_prefs) {
