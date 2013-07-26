@@ -6514,7 +6514,13 @@ sub group_select {
     if ($self->application->session->user) {
       my $pp_ids = $self->application->session->user->has_right_to(undef, 'view', 'project');
       if (scalar(@$pp_ids)) {
-	push(@$projects, @{$rast->Project->get_objects_for_ids($pp_ids)});
+	my $ps = [];
+        foreach my $p (@{$rast->Project->get_objects_for_ids($pp_ids)}) {
+                if($p->{name}) {
+                        push(@$ps, $p);
+                }
+        }
+        push(@$projects, @$ps);
       }
     }
     my $pdata = [];
@@ -6587,14 +6593,33 @@ sub selectable_metagenomes {
   my $metagenomespub = [];
   my $colls = [];
   my $projs = [];
+  my $mgs = [];
   if (ref($rast)) {
     my $projects = $rast->Project->get_objects({ public => 1 });
+
+    if ($user) {
+      my $pp_ids = $self->application->session->user->has_right_to(undef, 'view', 'project');
+      if (scalar(@$pp_ids)) {
+        my $ps = [];
+        foreach my $p (@{$rast->Project->get_objects_for_ids($pp_ids)}) {
+	  if($p->{name}) {
+	    push(@$ps, $p);
+	  }
+        }
+        push(@$projects, @$ps);
+      }
+
+      my @mga = $rast->Job->get_jobs_for_user_fast($user, 'view', 1);
+      $mgs = \@mga;
+    }
+
     my $p_hash = {};
     %$p_hash = map { $_->{_id} => $_ } @$projects;
     my $pjs = $rast->ProjectJob->get_objects();
     my $pj_hash = {};
     %$pj_hash = map { $_->{job} => $_; } @$pjs;
     my $public_metagenomes = $rast->Job->get_objects({public => 1, viewable => 1});
+    push(@$public_metagenomes, @$mgs);
     foreach my $pmg (@$public_metagenomes) {
       next if ($org_seen->{$pmg->{metagenome_id}});
       $org_seen->{$pmg->{metagenome_id}} = 1;
@@ -6623,8 +6648,6 @@ sub selectable_metagenomes {
     @$projs = sort { lc($a->{label}) cmp lc($b->{label}) } @$projs;
 
     if ($user) {
-      my @mga = $rast->Job->get_jobs_for_user_fast($user, 'view', 1);
-      my $mgs = \@mga;
 
       # check for collections
       my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
