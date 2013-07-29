@@ -2100,6 +2100,9 @@ sub single_visual {
     } else {
       @$vbardata = map { $_ } @$data;
     }
+    foreach my $d (@$vbardata) {
+      $d = [ shift @$d, "source", @$d ];
+    }
     if ($cgi->param('single_bar_col')) {
       $cgi->param('single_bar_col', $cgi->param('single_bar_col') + 1);
     }
@@ -2108,7 +2111,7 @@ sub single_visual {
     if ($level > 8) {
       $noclick = 1;
     }
-    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level - 1, 10, ($cgi->param('top')||10), 'single', $fid, ($cgi->param('raw') || undef), $noclick);
+    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level - 1, 9, ($cgi->param('top')||10), 'single', $fid, ($cgi->param('raw') || undef), $noclick);
 
     $settings .= "<i>$psettings</i><br>";
     # check for p-value calculation
@@ -5968,8 +5971,8 @@ sub data_to_vbar {
       }
     }
     if ($single) {
-      $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{raw} = $row->[9];
-      unless ($selsource = 'lca') {
+      $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{raw} += $row->[9];
+      unless ($selsource eq 'lca') {
 	map { $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{md5s}{$_} = 1 } @{$row->[-1]};
       }
     } else {
