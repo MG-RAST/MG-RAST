@@ -569,7 +569,7 @@ sub prepare_data {
     my $r_map = ($type eq 'feature') ? $md52id : ($prot_func ? {} : $self->get_hierarchy($mgdb, $type, $glvl, $source, $leaf_node));
     foreach my $rid (sort {$row_ids->{$a} <=> $row_ids->{$b}} keys %$row_ids) {
         my $rmd = exists($r_map->{$rid}) ? { $mtype => $r_map->{$rid} } : undef;
-        if ($leaf_node && ($type eq 'organism') && exists($self->{org2tid}{$rid})) {
+        if ($leaf_node && $taxid && ($type eq 'organism') && exists($self->{org2tid}{$rid})) {
             push @$brows, { id => $self->{org2tid}{$rid}, metadata => $rmd };
         } elsif ($prot_func) {
             push @$brows, { id => $rid };
