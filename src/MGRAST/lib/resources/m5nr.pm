@@ -23,10 +23,6 @@ sub new {
     $self->{name} = "m5nr";
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
-    $self->{sources} = [ ['Subsystems', 'returns 4 level SEED-Subsystems ontology' ],
-						 ['COG', 'returns 3 level COG ontology'],
-					     ['NOG', 'returns 3 level NOG ontology'],
-						 ['KO', 'returns 4 level KEGG-KO ontology' ] ];
     $self->{hierarchy} = { taxonomy => [ ['species', 'taxonomy level'],
 					                     ['genus', 'taxonomy level'],
 					                     ['family', 'taxonomy level'],
@@ -100,7 +96,7 @@ sub info {
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{ontology},
-					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->{sources} ],
+					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->source->{ontology} ],
 										                    'id_map' => ['boolean', 'if true overrides other options and returns a map { ontology ID: [ontology levels] }'],
 									                        'min_level' => ['cv', $self->{hierarchy}{ontology}],
 									                        'parent_name' => ['string', 'name of ontology group to retrieve children of']
@@ -343,7 +339,7 @@ sub static {
         
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->{hierarchy}{ontology}};
-        my @src_map  = map { $_->[0] } @{$self->{sources}};
+        my @src_map  = map { $_->[0] } @{$self->source->{ontology}};
         my $source   = $self->cgi->param('source') || 'Subsystems';
         my $min_lvl  = $self->cgi->param('min_level') || 'function';
         $url .= '?source='.$source.'&min_level='.$min_lvl;
