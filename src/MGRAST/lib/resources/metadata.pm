@@ -317,7 +317,7 @@ sub validate {
             $data = {is_valid => 1, message => undef, metadata => $obj};
         } else {
             $data = {is_valid => 0, message => $log, errors => $obj->{data}};
-        }      
+        }
     }
     else {
         $self->return_data({"ERROR" => "Invalid request method: ".$self->method}, 400);
