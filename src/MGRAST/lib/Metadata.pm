@@ -904,9 +904,14 @@ sub validate_metadata {
   my $log  = `$cmd`;
   chomp $log;
   
-  open(JSONF, "<$out_name") || die "can not read file $out_name: $!";
-  my $text = do { local $/; <JSONF> };
-  close JSONF;
+  eval {
+      open(JSONF, "<$out_name");
+      my $text = do { local $/; <JSONF> };
+      close JSONF;
+  }
+  if ($@) {
+      return (0, {is_valid => 0, data => []}, $@);
+  }
 
   if (! $text) {
     $data = { is_valid => 0, data => [] };
