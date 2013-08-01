@@ -316,7 +316,7 @@ sub validate {
             delete $obj->{is_valid};
             $data = {is_valid => 1, message => undef, metadata => $obj};
         } else {
-            $data = {is_valid => 0, message => $log, metadata => $obj->{data}};
+            $data = {is_valid => 0, message => $log, errors => $obj->{data}};
         }      
     }
     else {
