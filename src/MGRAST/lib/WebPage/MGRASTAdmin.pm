@@ -1600,7 +1600,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#1A9641', '#A6D96A', '#FDAE61', '#D7191C'],
-hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}},
+hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 10}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
 isStacked: 1,
 animation:{
@@ -1695,7 +1695,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#1A9641', '#A6D96A', '#FDAE61', '#D7191C'],
-hAxis: {title: 'Job Creation Time (today)', textStyle: {fontSize:11}},
+hAxis: {title: 'Job Creation Time (today)', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 10}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
 isStacked: 1,
 animation:{
@@ -1796,7 +1796,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#A6D96A', '#D7191C'],
-hAxis: {title: 'Job Creation Date (non-contiguous)', textStyle: {fontSize:11}},
+hAxis: {title: 'Job Creation Date (non-contiguous)', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
 isStacked: 1,
 animation:{
@@ -1922,7 +1922,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#D7191C', '#A6D96A', '#1A9641'],
-hAxis: {title: 'Pipeline Stage', textStyle: {fontSize:11}},
+hAxis: {title: 'Pipeline Stage', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}, logScale: true},
 animation:{
   duration: 1000,
@@ -2001,10 +2001,9 @@ title: 'New users registered',
 height: 700,
 width: 1200,
 colors: ['#2B83BA'],
-hAxis: {title: 'Date', textStyle: {fontSize:11}},
+hAxis: {title: 'Date', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized'},
 };		  
-
         var chart = new google.visualization.ColumnChart(document.getElementById('$div_id'));
         chart.draw(data, options);
     }
@@ -2067,7 +2066,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#1A9641', '#D7191C', '#A6D96A'],
-hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}, showTextEvery: 3},
+hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}, showTextEvery: 3, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}, logScale: 'true'},
 isStacked: 1,
 animation:{
