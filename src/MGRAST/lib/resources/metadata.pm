@@ -39,7 +39,8 @@ sub new {
                                             "sampleNum" => [ 'int', 'number of samples in project' ],
                                             "data"      => [ 'hash', [{'key' => ['string', 'metadata label'],
                                                                        'value' => ['object', 'project metadata objects']}, 'hash of metadata by label'] ] },
-                            "validate_post" => { 'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],
+                            "validate_post" => { 'is_valid' => [ 'boolean', 'the metadata sheet is valid' ],
+                                                 'message'  => [ 'string', 'if not valid, reason why' ],
                                                  'metadata' => [ 'object', 'valid metadata object for project and its samples and libraries' ] },
                             "validate_get"  => { 'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],
                                                  'message'  => [ 'string', 'if not valid, reason why' ] }
@@ -256,7 +257,7 @@ sub validate {
             my ($lat_valid, $lat_err) = @{ $mddb->validate_value($cat, 'latitude', $lat) };
             my ($lon_valid, $lon_err) = @{ $mddb->validate_value($cat, 'longitude', $lon) };
             if ($lat_valid && $lon_valid) {
-	            $data = {is_valid => 1, message => ""};
+	            $data = {is_valid => 1, message => undef};
             } else {
 	            $data = {is_valid => 0, message => "unable to validate $value: $lat_err"};
             }
@@ -273,7 +274,7 @@ sub validate {
         else {
             my ($is_valid, $err_msg) = @{ $mddb->validate_value($cat, $label, $value) };
             if ($is_valid) {
-	            $data = {is_valid => 1, message => ""};
+	            $data = {is_valid => 1, message => undef};
             } else {
 	            $data = {is_valid => 0, message => "unable to validate $value: $err_msg"};
             }
@@ -311,10 +312,11 @@ sub validate {
         
         # validate file
         my ($is_valid, $obj, $log) = $mddb->validate_metadata("$tmp_dir/$fname");
-        unless ($is_valid) {
-            $self->return_data({"ERROR" => "Validation failed - $log"}, 400);
-        }
-        $data = $obj;        
+        if ($is_valid) {
+            $data = {is_valid => 1, message => undef, metadata => $obj};
+        } else {
+            $data = {is_valid => 0, message => $log, metadata => undef};
+        }      
     }
     else {
         $self->return_data({"ERROR" => "Invalid request method: ".$self->method}, 400);
