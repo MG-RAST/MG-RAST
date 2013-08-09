@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use List::MoreUtils qw(natatime);
+use List::MoreUtils qw(natatime uniq);
 use Getopt::Long;
 use Digest::MD5;
 use LWP::UserAgent;
@@ -155,17 +155,20 @@ sub process_sims {
             my $data = get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %$md5s]});
             if (@$data > 0) {
                 @$data = sort { ($$a{md5} cmp $$b{md5}) || ($$a{function} cmp $$b{function}) } @$data;
+                my @results = ();
                 foreach my $d (@$data) {
                     my $sims = $md5s->{$d->{md5}};
                     foreach my $s (sort { $a->[0] cmp $b->[0] } @$sims) {
-                        $count += 1;
                         if ($d->{type} eq 'ontology') {
-                            print STDOUT join("\t", ($d->{md5},$s->[0],$s->[1],$s->[2],$s->[9],$d->{function},$d->{accession}))."\n";
+                            push @results, join("\t", ($d->{md5},$s->[0],$d->{function},$d->{accession},$s->[1],$s->[2],$s->[9]));
                         } else {
-                            print STDOUT join("\t", ($d->{md5},$s->[0],$s->[1],$s->[2],$s->[9],$d->{function},$d->{organism}))."\n";
+                            push @results, join("\t", ($d->{md5},$s->[0],$d->{function},$d->{organism},$s->[1],$s->[2],$s->[9]));
                         }
                     }
                 }
+                @results = sort uniq @results;
+                $count += scalar(@results);
+                print STDOUT join("\n", @results);
             }
             $md5s = {};
         }
