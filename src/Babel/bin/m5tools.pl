@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use diagnostics;
 
 use List::MoreUtils qw(natatime uniq);
 use Getopt::Long;
@@ -74,7 +75,7 @@ if ($sim) {
         help($options, $smap);
         exit 1;
     }
-    my ($total, $count) = process_sims($sim, $src);
+    my ($total, $count) = process_sims($sim, $src, $batch);
     print STDERR "$count out of $total similarities annotated for source $src\n";
     exit 0;
 }
@@ -137,11 +138,12 @@ sub list_from_input {
 
 sub process_sims {
     # output: md5, query, identity, length, evalue, function, organism
-    my ($file, $source) = @_;
+    my ($file, $source, $batch) = @_;
 
     my $total = 0;
     my $count = 0;
-    my $md5s  = {};
+    my @lines = ();
+    my %md5s  = ();
 
     open(INFILE, "<$file") or die "Can't open file $file!\n";
     while (my $line = <INFILE>) {
@@ -149,52 +151,57 @@ sub process_sims {
         chomp $line;
         # @rest = [ identity, length, mismatch, gaps, q_start, q_end, s_start, s_end, evalue, bit_score ]
         my ($frag, $md5, @rest) = split(/\t/, $line);
-        push @{ $md5s->{$md5} }, [$frag, @rest];
         
         # process chunk
-        if (scalar(keys %$md5s) >= $batch) {
-            my %data = map {$_->{md5}, $_} @{ get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %$md5s]}) };
-            if (scalar(%data) > 0) {
+        if (scalar(keys %md5s) >= $batch) {
+            my $data = {};
+            foreach my $rec (@{ get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %md5s]}) }) {
+                push @{ $data->{$rec->{md5}} }, $rec;
+            }
+            if (scalar(keys %$data) > 0) {
                 my @results = ();
-                foreach my $m (sort keys %$md5s) {
-                    foreach my $s (sort { $a->[0] cmp $b->[0] } @{$md5s->{$m}}) {
-                        foreach my $d (@{$data{$m}}) {
-                            if ($d->{type} eq 'ontology') {
-                                push @results, join("\t", ($m,$s->[0],$d->{function},$d->{accession},$s->[1],$s->[2],$s->[9]));
-                            } else {
-                                push @results, join("\t", ($m,$s->[0],$d->{function},$d->{organism},$s->[1],$s->[2],$s->[9]));
-                            }
+                foreach my $l (@lines) {
+                    next if (! exists($data->{$l->[1]}));
+                    $count += 1;
+                    foreach my $d (sort {$a->{function} cmp $b->{function}} @{$data->{$l->[1]}}) {
+                        if ($d->{type} eq 'ontology') {
+                            push @results, join("\t", ($l->[1],$l->[0],$d->{function},$d->{accession},$l->[2],$l->[3],$l->[10]));
+                        } else {
+                            push @results, join("\t", ($l->[1],$l->[0],$d->{function},$d->{organism},$l->[2],$l->[3],$l->[10]));
                         }
                     }
                 }
-                @results = sort uniq @results;
-                $count += scalar(@results);
+                @results = uniq @results;
                 print STDOUT join("\n", @results);
             }
-            $md5s = {};
+            %md5s  = ();
+            @lines = ();
         }
-        push @{ $md5s->{$md5} }, [$frag, @rest];
+        $md5s{$md5} = 1;
+        push @lines, [$frag, $md5, @rest];
     }
     close INFILE;
     
     # do last chunk
-    if (scalar(keys %$md5s) > 0) {
-        my %data = map {$_->{md5}, $_} @{ get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %$md5s]}) };
-        if (scalar(%data) > 0) {
+    if (scalar(keys %md5s) > 0) {
+        my $data = {};
+        foreach my $rec (@{ get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %md5s]}) }) {
+            push @{ $data->{$rec->{md5}} }, $rec;
+        }
+        if (scalar(keys %$data) > 0) {
             my @results = ();
-            foreach my $m (sort keys %$md5s) {
-                foreach my $s (sort { $a->[0] cmp $b->[0] } @{$md5s->{$m}}) {
-                    foreach my $d (@{$data{$m}}) {
-                        if ($d->{type} eq 'ontology') {
-                            push @results, join("\t", ($m,$s->[0],$d->{function},$d->{accession},$s->[1],$s->[2],$s->[9]));
-                        } else {
-                            push @results, join("\t", ($m,$s->[0],$d->{function},$d->{organism},$s->[1],$s->[2],$s->[9]));
-                        }
+            foreach my $l (@lines) {
+                next if (! exists($data->{$l->[1]}));
+                $count += 1;
+                foreach my $d (sort {$a->{function} cmp $b->{function}} @{$data->{$l->[1]}}) {
+                    if ($d->{type} eq 'ontology') {
+                        push @results, join("\t", ($l->[1],$l->[0],$d->{function},$d->{accession},$l->[2],$l->[3],$l->[10]));
+                    } else {
+                        push @results, join("\t", ($l->[1],$l->[0],$d->{function},$d->{organism},$l->[2],$l->[3],$l->[10]));
                     }
                 }
             }
-            @results = sort uniq @results;
-            $count += scalar(@results);
+            @results = uniq @results;
             print STDOUT join("\n", @results);
         }
     }
