@@ -141,6 +141,7 @@ sub process_sims {
 
     my $total = 0;
     my $count = 0;
+    my $md5s  = {};
 
     open(INFILE, "<$file") or die "Can't open file $file!\n";
     while (my $line = <INFILE>) {
@@ -148,18 +149,26 @@ sub process_sims {
         chomp $line;
         # @rest = [ identity, length, mismatch, gaps, q_start, q_end, s_start, s_end, evalue, bit_score ]
         my ($frag, $md5, @rest) = split(/\t/, $line);
-        my $data = get_data("md5/".$md5, {'source' => $source});
-        next if (@$data == 0);
-        
-        @$data = sort { $$a{function} cmp $$b{function} } @$data;
-        foreach my $d (@$data) {
-            if ($d->{type} eq 'ontology') {
-                print STDOUT join("\t", ($md5,$frag,$rest[0],$rest[1],$rest[8],$d->{function},$d->{accession}))."\n";
-            } else {
-                print STDOUT join("\t", ($md5,$frag,$rest[0],$rest[1],$rest[8],$d->{function},$d->{organism}))."\n";
+        push @{ $md5s->{$md5} }, [$frag, @rest];
+
+        if (scalar(keys %$md5s) >= $batch) {
+            my $data = get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %$md5s]});
+            if (@$data > 0) {
+                @$data = sort { ($$a{md5} cmp $$b{md5}) || ($$a{function} cmp $$b{function}) } @$data;
+                foreach my $d (@$data) {
+                    my $sims = $md5s->{$d->{md5}};
+                    foreach my $s (sort { $a->[0] cmp $b->[0] } @$sims) {
+                        $count += 1;
+                        if ($d->{type} eq 'ontology') {
+                            print STDOUT join("\t", ($d->{md5},$s->[0],$s->[1],$s->[2],$s->[9],$d->{function},$d->{accession}))."\n";
+                        } else {
+                            print STDOUT join("\t", ($d->{md5},$s->[0],$s->[1],$s->[2],$s->[9],$d->{function},$d->{organism}))."\n";
+                        }
+                    }
+                }
             }
+            $md5s = {};
         }
-        $count += 1;
     }
     close INFILE;
     
