@@ -150,19 +150,20 @@ sub process_sims {
         # @rest = [ identity, length, mismatch, gaps, q_start, q_end, s_start, s_end, evalue, bit_score ]
         my ($frag, $md5, @rest) = split(/\t/, $line);
         push @{ $md5s->{$md5} }, [$frag, @rest];
-
+        
+        # process chunk
         if (scalar(keys %$md5s) >= $batch) {
-            my $data = get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %$md5s]});
-            if (@$data > 0) {
-                @$data = sort { ($$a{md5} cmp $$b{md5}) || ($$a{function} cmp $$b{function}) } @$data;
+            my %data = map {$_->{md5}, $_} @{ get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %$md5s]}) };
+            if (scalar(%data) > 0) {
                 my @results = ();
-                foreach my $d (@$data) {
-                    my $sims = $md5s->{$d->{md5}};
-                    foreach my $s (sort { $a->[0] cmp $b->[0] } @$sims) {
-                        if ($d->{type} eq 'ontology') {
-                            push @results, join("\t", ($d->{md5},$s->[0],$d->{function},$d->{accession},$s->[1],$s->[2],$s->[9]));
-                        } else {
-                            push @results, join("\t", ($d->{md5},$s->[0],$d->{function},$d->{organism},$s->[1],$s->[2],$s->[9]));
+                foreach my $m (sort keys %$md5s) {
+                    foreach my $s (sort { $a->[0] cmp $b->[0] } @{$md5s->{$m}}) {
+                        foreach my $d (@{$data{$m}}) {
+                            if ($d->{type} eq 'ontology') {
+                                push @results, join("\t", ($m,$s->[0],$d->{function},$d->{accession},$s->[1],$s->[2],$s->[9]));
+                            } else {
+                                push @results, join("\t", ($m,$s->[0],$d->{function},$d->{organism},$s->[1],$s->[2],$s->[9]));
+                            }
                         }
                     }
                 }
@@ -172,8 +173,31 @@ sub process_sims {
             }
             $md5s = {};
         }
+        push @{ $md5s->{$md5} }, [$frag, @rest];
     }
     close INFILE;
+    
+    # do last chunk
+    if (scalar(keys %$md5s) > 0) {
+        my %data = map {$_->{md5}, $_} @{ get_data("POST", "md5", {'limit' => $batch*1000,'source' => $source,'data' => [keys %$md5s]}) };
+        if (scalar(%data) > 0) {
+            my @results = ();
+            foreach my $m (sort keys %$md5s) {
+                foreach my $s (sort { $a->[0] cmp $b->[0] } @{$md5s->{$m}}) {
+                    foreach my $d (@{$data{$m}}) {
+                        if ($d->{type} eq 'ontology') {
+                            push @results, join("\t", ($m,$s->[0],$d->{function},$d->{accession},$s->[1],$s->[2],$s->[9]));
+                        } else {
+                            push @results, join("\t", ($m,$s->[0],$d->{function},$d->{organism},$s->[1],$s->[2],$s->[9]));
+                        }
+                    }
+                }
+            }
+            @results = sort uniq @results;
+            $count += scalar(@results);
+            print STDOUT join("\n", @results);
+        }
+    }
     
     return ($total, $count);
 }
