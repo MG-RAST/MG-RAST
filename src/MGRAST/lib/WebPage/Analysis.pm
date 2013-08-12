@@ -6622,7 +6622,6 @@ sub selectable_metagenomes {
     my $pj_hash = {};
     %$pj_hash = map { $_->{job} => $_; } @$pjs;
     my $public_metagenomes = $rast->Job->get_objects({public => 1, viewable => 1});
-    push(@$public_metagenomes, @$mgs);
     foreach my $pmg (@$public_metagenomes) {
       next if ($org_seen->{$pmg->{metagenome_id}});
       $org_seen->{$pmg->{metagenome_id}} = 1;
