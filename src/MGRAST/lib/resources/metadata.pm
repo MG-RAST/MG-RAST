@@ -313,10 +313,11 @@ sub validate {
         # validate file
         my ($is_valid, $obj, $log) = $mddb->validate_metadata("$tmp_dir/$fname");
         if ($is_valid) {
+            delete $obj->{is_valid};
             $data = {is_valid => 1, message => undef, metadata => $obj};
         } else {
-            $data = {is_valid => 0, message => $log, metadata => undef};
-        }      
+            $data = {is_valid => 0, message => $log, errors => $obj->{data}};
+        }
     }
     else {
         $self->return_data({"ERROR" => "Invalid request method: ".$self->method}, 400);
