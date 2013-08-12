@@ -900,13 +900,19 @@ sub validate_metadata {
 
   my $data = {};
   my $json = new JSON;
+  my $text = "";
   my $cmd  = $Conf::validate_metadata.($skip_required ? " -s" : "").($map_by_id ? " -d" : "")." -f $extn -j $out_name $filename 2>&1";
   my $log  = `$cmd`;
   chomp $log;
   
-  open(JSONF, "<$out_name") || die "can not read file $out_name: $!";
-  my $text = do { local $/; <JSONF> };
-  close JSONF;
+  eval {
+      open(JSONF, "<$out_name");
+      $text = do { local $/; <JSONF> };
+      close JSONF;
+  };
+  if ($@) {
+      return (0, {is_valid => 0, data => []}, $@);
+  }
 
   if (! $text) {
     $data = { is_valid => 0, data => [] };
