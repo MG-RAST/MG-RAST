@@ -142,7 +142,7 @@ sub info {
    					     'parameters'  => { 'options'  => { 'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
-    					                                    'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
+    					                                    'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"]
     					                                  },
    							                'required' => { "id" => ["string", "unique identifier from source DB"] },
    							                'body'     => {} }
@@ -159,7 +159,7 @@ sub info {
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
-   					                                        'sequence' => [ 'boolean', "if true return sequence output, else return annotation output. default is false." ]
+   					                                        'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"]
    					                                      },
    							                'required' => { "id" => ["string", "unique identifier in form of md5 checksum"] },
    							                'body'     => {} }
@@ -173,6 +173,7 @@ sub info {
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+   					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"]
@@ -189,6 +190,7 @@ sub info {
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
+   					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"]
@@ -255,6 +257,7 @@ sub info {
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of partial function name"]],
       					                                        'source' => ['string','source name to restrict search by'],
+      					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
@@ -272,6 +275,7 @@ sub info {
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of partial organism name"]],
       					                                        'source' => ['string','source name to restrict search by'],
+      					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"]
@@ -439,6 +443,7 @@ sub query {
     my $limit  = $self->cgi->param('limit')  ? $self->cgi->param('limit')  : 10;
     my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
     my $order  = $self->cgi->param('order')  ? $self->cgi->param('order')  : undef;
+    my $exact  = $self->cgi->param('exact')  ? 1 : 0;
     
     # build data / url
     my $post = ($self->method eq 'POST') ? 1 : 0;
@@ -495,11 +500,11 @@ sub query {
     my ($result, $total);
     if ($type eq 'md5') {
         my $md5s = $self->clean_md5($data);
-        ($result, $total) = $self->solr_data($type, $md5s, $source, $offset, $limit, $order);
+        ($result, $total) = $self->solr_data($type, $md5s, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
-        ($result, $total) = $self->solr_data($type, $data, undef, $offset, $limit, $order);
+        ($result, $total) = $self->solr_data($type, $data, undef, $offset, $limit, $order, 1);
     } else {
-        ($result, $total) = $self->solr_data($type, $data, $source, $offset, $limit, $order, 1);
+        ($result, $total) = $self->solr_data($type, $data, $source, $offset, $limit, $order, $exact);
     }
     my $obj = $self->check_pagination($result, $total, $limit, $path);
     $obj->{version} = 1;
@@ -522,10 +527,12 @@ sub clean_md5 {
 }
 
 sub solr_data {
-    my ($self, $field, $data, $source, $offset, $limit, $order, $partial) = @_;
+    my ($self, $field, $data, $source, $offset, $limit, $order, $exact) = @_;
     
     @$data = map { uri_escape( uri_unescape($_) ) } @$data;
-    if ($partial) {
+    if ($exact) {
+        @$data = map { '"'.$_.'"' } @$data;
+    } else {
         @$data = map { '*'.$_.'*' } @$data;
     }
     my $sort   = $order ? $order.'_sort+asc' : '';
