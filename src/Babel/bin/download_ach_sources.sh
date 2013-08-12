@@ -8,7 +8,7 @@ fi
 
 # Config
 DOWNLOAD_DIR=$1
-SOURCES="eggNOG FungalDB GO Greengenes IMG InterPro KEGG KO NR PATRIC Phantome RefSeq RDP SEED SILVA UniProt"
+SOURCES="eggNOG FungalDB Greengenes IMG InterPro KEGG KO NR PATRIC Phantome RefSeq RDP SEED SILVA UniProt"
 
 echo Starting Download for ACH `date`
 
@@ -25,7 +25,7 @@ done
 
 echo Downloading eggNOG `date`
 wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/fun.txt.gz
-wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/UniProtAC2eggNOG.tsv.gz
+wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/UniProtAC2eggNOG.3.0.tsv.gz
 wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/COG.funccat.txt.gz
 wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/NOG.funccat.txt.gz
 wget -v -N -P ${DOWNLOAD_DIR}/eggNOG http://eggnog.embl.de/version_3.0/data/downloads/COG.description.txt.gz
@@ -41,7 +41,7 @@ echo Downloading Greengenes `date`
 wget -v -N -P ${DOWNLOAD_DIR}/Greengenes http://greengenes.lbl.gov/Download/Sequence_Data/Fasta_data_files/current_GREENGENES_gg16S_unaligned.fasta.gz
 
 echo Downloading IMG `date`
-time lftp -c "open -e 'mirror -v --parallel=2 -I *.tar.gz /pub/IMG/img_core_v400/ ${DOWNLOAD_DIR}/IMG' ftp://ftp.jgi-psf.org"
+time lftp -c "open -e 'mirror -v --no-recursion -I img_core_v400.tar /pub/IMG/ ${DOWNLOAD_DIR}/IMG' ftp://ftp.jgi-psf.org"
 
 echo Downloading InterPro `date`
 time lftp -c "open -e 'mirror -v --no-recursion -I names.dat /pub/databases/interpro/ ${DOWNLOAD_DIR}/InterPro' ftp://ftp.ebi.ac.uk"
@@ -63,17 +63,18 @@ echo Downloading PATRIC `date`
 time lftp -c "open -e 'mirror -v --parallel=2 -I *.PATRIC.gbf /patric2/genomes/ ${DOWNLOAD_DIR}/PATRIC' http://brcdownloads.vbi.vt.edu"
 
 echo Downloading Phantome `date`
-wget -v -N -P ${DOWNLOAD_DIR}/Phantome http://www.phantome.org/Downloads/proteins/all_sequences/phage_proteins_1364814002.fasta.gz
+wget -v -N -P ${DOWNLOAD_DIR}/Phantome http://www.phantome.org/Downloads/proteins/all_sequences/phage_proteins_1375354802.fasta.gz
 
 echo Downloading RefSeq `date`
 time lftp -c "open -e 'mirror -v -e --delete-first -I *.genomic.gbff.gz /refseq/release/complete/ ${DOWNLOAD_DIR}/RefSeq' ftp://ftp.ncbi.nih.gov"
 
 echo Downloading RDP `date`
-wget -v -N -P ${DOWNLOAD_DIR}/RDP http://rdp.cme.msu.edu/download/release10_31_unaligned.gb.gz
+wget -v -N -P ${DOWNLOAD_DIR}/RDP http://rdp.cme.msu.edu/download/release10_32_unaligned.gb.gz
 
 echo Downloading SEED `date`
-time lftp -c "open -e 'mirror -v --no-recursion -I SEED.fasta /misc/Data/idmapping/ ${DOWNLOAD_DIR}/SEED' ftp://ftp.theseed.org"
-time lftp -c "open -e 'mirror -v --no-recursion -I subsystems2role.gz /subsystems/ ${DOWNLOAD_DIR}/SEED' ftp://ftp.theseed.org"
+# can not fp, must extract painfully through SEED API
+#time lftp -c "open -e 'mirror -v --no-recursion -I SEED.fasta /misc/Data/idmapping/ ${DOWNLOAD_DIR}/SEED' ftp://ftp.theseed.org"
+#time lftp -c "open -e 'mirror -v --no-recursion -I subsystems2role.gz /subsystems/ ${DOWNLOAD_DIR}/SEED' ftp://ftp.theseed.org"
 
 echo Downloading SILVA `date`
 wget -v -N -P ${DOWNLOAD_DIR}/SILVA http://www.arb-silva.de/no_cache/download/archive/release_108/Exports/lsu-parc.fasta.tgz
