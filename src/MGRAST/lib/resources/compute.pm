@@ -160,10 +160,16 @@ sub abundance_compute {
         if ($@ || (@$data == 0)) {
             $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
         }
+        if (scalar(@$col) < 2) {
+            $self->return_data( {"ERROR" => "a minimum of 2 columns are required"}, 400 );
+        }
+        if (scalar(@$row) < 2) {
+            $self->return_data( {"ERROR" => "a minimum of 2 rows are required"}, 400 );
+        }
         # transform POSTed json to input file format
         my ($tfh, $tfile) = tempfile($type."XXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
         eval {
-            print "\t".join("\t", @$col)."\n";
+            print $tfh "\t".join("\t", @$col)."\n";
             for (my $i=0; $i<scalar(@$data); $i++) {
                 print $tfh $row->[$i]."\t".join("\t", @{$data->[$i]})."\n";
             }
@@ -317,9 +323,14 @@ sub pcoa {
 
 sub run_r {
     my ($self, $rfile) = @_;
-    my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-    `$R --vanilla --slave < $rfile`;
-    unlink($rfile);
+    eval {
+        my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
+        `$R --vanilla --slave < $rfile`;
+        unlink($rfile);
+    };
+    if ($@) {
+        $self->return_data({"ERROR" => "Error running R: ".$@}, 500);
+    }
 }
 
 sub read_file {
