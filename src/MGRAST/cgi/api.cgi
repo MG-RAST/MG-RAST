@@ -35,6 +35,12 @@ if ($abs !~ /\.cgi/) {
 }
 my $rest = $cgi->url(-path_info=>1);
 $rest =~ s/^.*$abs\/?//;
+$rest =~ s/^\///;
+$rest =~ s/^\d+//;
+$rest =~ s/^\///;
+$rest =~ s/^api\.cgi//;
+$rest =~ s/^\///;
+
 my @rest_parameters = split m#/#, $rest;
 map {$rest[$_] =~ s#forwardslash#/#gi} (0 .. $#rest);
 
@@ -202,11 +208,14 @@ if ($resource) {
 }
 # we are called without a resource, return API information
 else {
-  my @res = map {{ 'name' => $_, 'url' => $cgi->url.'/'.$_ , 'documentation' => $cgi->url.'/api.html#'.$_}} sort @$resources;
+  my $cgi_url = $cgi->url;
+  $cgi_url =~ s/^(.*)\/$/$1/;
+  $cgi_url =~ s/^(.*)\/api.cgi$/$1/;
+  my @res = map {{ 'name' => $_, 'url' => $cgi_url.'/'.$_ , 'documentation' => $cgi_url.'/api.html#'.$_}} sort @$resources;
   my $content = { version => 1,
 		  service => 'MG-RAST',
 		  url => $cgi->url,
-		  documentation => $cgi->url.'/api.html',
+		  documentation => $cgi_url.'/api.html',
 		  description => "RESTful Metagenomics RAST object and resource API\nFor usage note that required parameters need to be passed as path parameters, optional parameters need to be query parameters. If an optional parameter has a list of option values, the first displayed will be used as default.",
 		  contact => 'mg-rast@mcs.anl.gov',
 		  resources => \@res };
