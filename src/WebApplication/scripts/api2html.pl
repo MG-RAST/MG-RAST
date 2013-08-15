@@ -12,17 +12,19 @@ sub TO_JSON { return { %{ shift() } }; }
 
 sub usage {
   print "api2html.pl >>> create an HTML API documentation file from a REST API\n";
-  print "api2html.pl -url <url to api> -outfile <file for html output>\n";
+  print "api2html.pl -url <url to api> -site_name <name of site> -outfile <file for html output>\n";
 }
 
 # read in parameters
-my $url     = '';
-my $outfile = '';
+my $url       = '';
+my $site_name = '';
+my $outfile   = '';
 
 GetOptions ( 'url=s' => \$url,
+             'site_name=s' => \$site_name,
 	     'outfile=s' => \$outfile );
 
-unless ($url and $outfile) {
+unless ($url and $site_name and $outfile) {
   &usage();
   exit 0;
 }
@@ -58,7 +60,7 @@ foreach my $resource (@{$data->{resources}}) {
 $structure->{resources} = $resources;
 
 # start the template
-my $html = template_start();
+my $html = template_start($site_name);
 
 # build the navigation
 $html .= '<li><a href="#overview">overview</a></li>';
@@ -70,7 +72,7 @@ $html .= qq~</ul>
     <div class="span12" style="margin-left: 270px;">
 ~;
 
-$html .= "<h1><a name='overview' style='padding-top: 50px;'>".$structure->{service}->{name}." Overview</a></h1><p>".$structure->{service}->{description}."</p><hr>";
+$html .= "<h1><a name='overview' style='padding-top: 50px;'>".$site_name." Overview</a></h1><p>".$structure->{service}->{description}."</p><hr>";
 
 my %param_types = ( body => "<p>This parameter must be passed in the message body.</p>",
                     options => "<p>This is an optional parameter and may be passed in the query string.</p>",
@@ -113,6 +115,10 @@ foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) 
             }
         }
         $html .= "</ul>";
+        if (exists $req->{example}) {
+            $html .= "<h3>Example</h3><ul>";
+            $html .= "<li>".$req->{example}[0]."<li>".$req->{example}[1]."</ul>";
+        }
         $html .= "<h3>Return Attributes</h3><ul>";
         # iterate over attributes
         foreach my $param (sort keys(%{$req->{attributes}})) {
@@ -188,11 +194,12 @@ print "\nall done.\n\nHave a nice day :)\n\n";
 exit;
 
 sub template_start {
+  my $site_name = shift;
   return qq~
 <!DOCTYPE html>
 <html>
   <head>
-    <title>MG-RAST API</title>
+    <title>$site_name API</title>
     <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <script type="text/javascript" src="bootstrap.min.js"></script>
     <link rel="stylesheet" type="text/css" href="bootstrap.min.css" />
@@ -202,7 +209,7 @@ sub template_start {
     <div class="navbar navbar-inverse navbar-fixed-top">
       <div class="navbar-inner">
 	<div class="container">
-	  <a class="brand" href="./index.html">MG-RAST API documentation</a>
+	  <a class="brand" href="./index.html">$site_name API documentation</a>
 	</div>
       </div>
     </div>
