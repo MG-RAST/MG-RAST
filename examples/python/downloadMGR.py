@@ -6,6 +6,9 @@
 import sys, os, re
 from optparse import OptionParser
 
+# MG-RAST API url
+API_URL = "http://api.metagenomics.anl.gov/1"
+
 def retrieveMGRbyaccession(accession):
     '''Retrieve raw data from MG-RAST API using curl and dump result into file named <accession>.gz'''
     try:
@@ -14,10 +17,10 @@ def retrieveMGRbyaccession(accession):
         sys.exit("Don't recognize accession number format %s" % accession) 
     if key == "":
         sys.stderr.write("Warning: MGR webkey not defined\n")
-        s1 = "curl http://api.metagenomics.anl.gov/2/sequenceset/mgm%s-050-1/             > %s.gz"  % ( a, a ) 
+        s1 = "curl '%s/download/mgm%s?file=050.2' > %s.gz"  % ( API_URL, a, a ) 
     else: 
         sys.stderr.write("Using MGR webkey %s\n" % key)
-        s1 = "curl 'http://api.metagenomics.anl.gov/2/sequenceset/mgm%s-050-1/?&auth=%s'  > %s.gz" % ( a, key, a )
+        s1 = "curl '%s/download/mgm%s?file=050.2&auth=%s' > %s.gz" % ( API_URL, a, key, a )
     sys.stderr.write("Executing %s\n" % s1) 
     os.popen(s1)
   

@@ -324,7 +324,7 @@ sub return_data {
                 $self->memd->set($self->url_id, $self->json->encode($data), $self->{expire});
             }
         }
-        print $self->header;
+        print $self->header($status);
         print $self->json->encode($data);
         exit 0;
     }
@@ -335,7 +335,7 @@ sub return_data {
 	            $data = { 'data' => $data };
             }
             $self->format("application/json");
-            print $self->header;
+            print $self->header($status);
             print $self->cgi->param('callback')."(".$self->json->encode($data).");";
             exit 0;
         }
@@ -349,7 +349,7 @@ sub return_data {
                 $self->memd->set($self->url_id, $data, $self->{expire});
             }
             # send it
-            print $self->header;
+            print $self->header($status);
             print $data;
             exit 0;
         }
