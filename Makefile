@@ -53,7 +53,7 @@ OVERRIDES = \
 # if you change all: make sure all: in standard.mk is consistent.
 # api-doc target must be run last.
 
-all: installdirs $(TOOL_HDR) lib api-doc
+all: installdirs $(TOOL_HDR) lib
 
 # Use the PACKAGES macro to transform lib, bin, etc., targets
 # into package level dependencies, e.g., lib -> PkgA.lib, PkgB.lib
