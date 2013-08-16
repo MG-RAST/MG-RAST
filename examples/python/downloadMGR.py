@@ -8,7 +8,10 @@ from optparse import OptionParser
 
 def retrieveMGRbyaccession(accession):
     '''Retrieve raw data from MG-RAST API using curl and dump result into file named <accession>.gz'''
-    a = re.search(r"(\d\d\d\d\d\d\d\.\d)$", accession).group(1)
+    try:
+        a = re.search(r"(\d\d\d\d\d\d\d\.\d)$", accession).group(1)
+    except IndexError:
+        sys.exit("Don't recognize accession number format %s" % accession) 
     if key == "":
         sys.stderr.write("Warning: MGR webkey not defined\n")
         s1 = "curl http://api.metagenomics.anl.gov/2/sequenceset/mgm%s-050-1/             > %s.gz"  % ( a, a ) 
@@ -33,11 +36,6 @@ example: downloadMGR.py  MGR4440613.3'''
         accession = args[0]
     except IndexError:
         parser.error("accession is a required parameter\n" )
-# test for accession in the right format and call retrieve MGRbyaccession   
-    if re.search(r"^(\d\d\d\d\d\d\d\.\d)$", accession): 
-        retrieveMGRbyaccession(accession)
-    elif re.search(r"^(MGR\d\d\d\d\d\d\d.\d)$", accession): 
-        retrieveMGRbyaccession(accession)
-    else: 
-        print "Don't recognize acecssion %s" % accession
-        sys.exit()
+
+# call retrieveMGRbyaccession   
+    retrieveMGRbyaccession(accession)
