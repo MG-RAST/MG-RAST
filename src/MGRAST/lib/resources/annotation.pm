@@ -84,6 +84,7 @@ sub info {
 				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                                                             'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                                                             'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                            "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
 				                                            "type"     => ["cv", $self->{types} ],
 									                        "source"   => ["cv", $sources ] },
 							                 'body' => {} }
@@ -100,6 +101,7 @@ sub info {
 				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                                                             'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                                                             'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                            "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
 				                                            "type"     => ["cv", $self->{types} ],
 									                        "source"   => ["cv", $sources ] },
 							                 'body' => {} }
@@ -156,6 +158,7 @@ sub prepare_data {
 
     my $cgi    = $self->cgi;
     my $type   = $cgi->param('type') ? $cgi->param('type') : 'organism';
+    my $filter = $cgi->param('filter') || undef;
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'ontology') ? 'Subsystems' : 'RefSeq');
     my $eval   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
     my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
@@ -203,7 +206,15 @@ sub prepare_data {
         } else {
             $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT id FROM md5_annotation WHERE md5=$md5 AND source=$srcid");
         }
+        
+        # remove non-matching annotations if using filter
+        if ($filter) {
+            my @matches = grep {/$filter/} @$ann;
+            @$ann = @matches;
+        }
         if (@$ann == 0) { next; }
+        
+        # pull data from indexed file
         my $rec = '';
         seek(FILE, $seek, 0);
         read(FILE, $rec, $len);
