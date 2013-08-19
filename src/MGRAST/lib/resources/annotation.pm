@@ -26,24 +26,24 @@ sub new {
                       [ "feature", "return feature data" ]];
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{attributes} = { sequence => {
-                                "col1" => ['string', 'sequence id'],
-                                "col2" => ['string', 'm5nr id (md5sum)'],
-                                "col3" => ['string', 'semicolon seperated list of annotations'],
-                                "col4" => ['string', 'dna sequence'] },
+                                "col_01" => ['string', 'sequence id'],
+                                "col_02" => ['string', 'm5nr id (md5sum)'],
+                                "col_03" => ['string', 'semicolon seperated list of annotations'],
+                                "col_04" => ['string', 'dna sequence'] },
                             similarity => {
-                                "col1" => ['string', 'query sequence id'],
-                                "col2" => ['string', 'hit m5nr id (md5sum)'],
-                                "col3" => ['float', 'percentage identity'],
-                                "col4" => ['int', 'alignment length,'],
-                                "col5" => ['int', 'number of mismatches'],
-                                "col6" => ['int', 'number of gap openings'],
-                                "col7" => ['int', 'query start'],
-                                "col8" => ['int', 'query end'],
-                                "col9" => ['int', 'hit start'],
-                                "col10" => ['int', 'hit end'],
-                                "col11" => ['float', 'e-value'],
-                                "col12" => ['float', 'bit score'],
-                                "col13" => ['string', 'semicolon seperated list of annotations'] }
+                                "col_01" => ['string', 'query sequence id'],
+                                "col_02" => ['string', 'hit m5nr id (md5sum)'],
+                                "col_03" => ['float', 'percentage identity'],
+                                "col_04" => ['int', 'alignment length,'],
+                                "col_05" => ['int', 'number of mismatches'],
+                                "col_06" => ['int', 'number of gap openings'],
+                                "col_07" => ['int', 'query start'],
+                                "col_08" => ['int', 'query end'],
+                                "col_09" => ['int', 'hit start'],
+                                "col_10" => ['int', 'hit end'],
+                                "col_11" => ['float', 'e-value'],
+                                "col_12" => ['float', 'bit score'],
+                                "col_13" => ['string', 'semicolon seperated list of annotations'] }
                           };
     return $self;
 }
@@ -187,9 +187,12 @@ sub prepare_data {
     my $srcid = $mgdb->_src_id->{$source};
     my $where = $mgdb->_get_where_str([$mgdb->_qver, "job = ".$data->{job_id}, $eval, $ident, $alen, "seek IS NOT NULL", "length IS NOT NULL"]);
     my $query = "SELECT md5, seek, length FROM ".$mgdb->_jtbl->{md5}.$where." ORDER BY seek";
+    my @head  = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}}
+    my $count = 0;
     
     open(FILE, "<" . $mgdb->_sim_file($data->{job_id})) || $self->return_data({"ERROR" => "resource database offline"}, 503);
     print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
+    print join("\t", @head)."\n";
 
     my $hs  = HTML::Strip->new();
     my $sth = $mgdb->_dbh->prepare($query);
@@ -226,8 +229,10 @@ sub prepare_data {
                 $hs->eof;
                 if (($format eq 'sequence') && (@tabs == 13)) {
                     print join("\t", ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]))."\n";
+                    $count += 1;
                 } elsif ($format eq 'similarity') {
                     print join("\t", ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann)))."\n";
+                    $count += 1;
                 }
             }
         }
@@ -236,6 +241,7 @@ sub prepare_data {
     # cleanup
     $sth->finish;
     $mgdb->_dbh->commit;
+    print "Download complete. $count rows retrieved\n";
     close FILE;
     exit 0;
 }
