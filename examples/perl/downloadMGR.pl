@@ -21,8 +21,9 @@ Example:  downloadMGR.pl mgm4440442.5\n "  unless $#ARGV + 1 == 1;
 die "Don't recognize format of $metagenome" unless $metagenome =~ m/\d\d\d\d\d\d\d.\d/;
 
 # retrieve the data
-my $base_url = "http://api.metagenomics.anl.gov/2/sequenceset/$metagenome-050-1";
-my $url = $base_url."?auth=$key";
+my $base_url = "http://api.metagenomics.anl.gov/1/download/$metagenome?file=050.2";
+my $url = $base_url."&auth=$key";
+
 my $response = $ua->get($url, ":content_file" => "$metagenome.gz" );
 # check http header 
 my $content = $response->content;
