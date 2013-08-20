@@ -22,7 +22,7 @@ sub new {
     	                    "name"           => [ 'string', 'human readable identifier' ],
     	                    "libraries"      => [ 'list', [ 'reference library', 'a list of references to the related library objects' ] ],
 			                "samples"        => [ 'list', [ 'reference sample', 'a list of references to the related sample objects' ] ],
-			                "analyzed"       => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
+			                "metagenomes"    => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
     	                    "description"    => [ 'string', 'a short, comprehensive description of the project' ],
     	                    "funding_source" => [ 'string', 'the official name of the source of funding of this project' ],
     	                    "pi"             => [ 'string', 'the first and last name of the principal investigator of the project' ],
@@ -190,7 +190,7 @@ sub prepare_data {
 	        my @colls     = @{ $project->collections };
 	        my @samples   = map { ["mgs".$_->{ID}, $url."/sample/mgs".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
 	        my @libraries = map { ["mgl".$_->{ID}, $url."/library/mgl".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
-	        $obj->{analyzed}  = \@jobs;	
+	        $obj->{metagenomes} = \@jobs;	
 	        $obj->{samples}   = \@samples;
 	        $obj->{libraries} = \@libraries;
             }
