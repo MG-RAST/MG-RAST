@@ -216,8 +216,9 @@ function update_inbox (data, files, action) {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file is too small for submission, the minimum is 1MBp for non-amplicon sequences.</div>';
 	    }
 	    ptext += "<table>";
-	  for (i in DataStore.user_inbox[user.login].fileinfo[fn]) {
-	    ptext += "<tr><td><b>"+i+"</b></td><td style='padding-left: 5px;'>"+DataStore.user_inbox[user.login].fileinfo[fn][i]+"</td></tr>";
+	  var sorted_keys = Object.keys(inf).sort();
+	  for (k in sorted_keys) {
+	    ptext += "<tr><td><b>"+k+"</b></td><td style='padding-left: 5px;'>"+inf[k]+"</td></tr>";
 	  }
 	  ptext += "</table>";
 	  document.getElementById('inbox_file_info').innerHTML = ptext;
