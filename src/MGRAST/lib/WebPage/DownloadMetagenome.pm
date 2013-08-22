@@ -588,10 +588,9 @@ sub api_download_builder {
           <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
           <td><a id='api_link' href='metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&$default'><b>Download</b></a></td>
         </tr>
-      </table>
-      <p><b>URL:</b>&nbsp;&nbsp;<code id='api_url'>$sim?$default</code></p>
-    </td></tr></table>
-    <br><br>);
+      </table>);
+      #<p><b>URL:</b>&nbsp;&nbsp;<code id='api_url'>$sim?$default</code></p>
+    $html .= "</td></tr></table><br><br>";
     
     return $html;
 }
