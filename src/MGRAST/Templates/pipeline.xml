@@ -60,28 +60,6 @@
       <column>e-value, e.g. 1.7e-54</column>
       <column>score in bits, e.g. 210.0</column>
     </output>
-    <output><file>A filtered version 450.rna.sims.filter of the raw Sims file 450.rna.sims removes all but the best hit for each data source.</file></output>
-    <output>
-      <file>450.rna.expand.rna includes md5 value of the database sequence hit followed by sequence or cluster ID, similarity information, and annotation information. Some values are encoded as index numbers.</file>
-      <column>hit id (md5sum) index number</column>
-      <column>query id (either fasta ID or cluster ID)</column>
-      <column>percentage identity</column>
-      <column>alignment length</column>
-      <column>e-value</column>
-      <column>function annotation index number</column>
-      <column>organism annotation index number</column>
-      <column>DB source index number</column>
-    </output>
-    <output>
-      <file>450.rna.expand.lca reformats the information in 450.rna.expand.rna to include lowest common ancestor information.</file>
-      <column>hit id (md5sum) in semicolon separated list</column>
-      <column>query id (either fasta ID or cluster ID)</column>
-      <column>percentage identity in semicolon separated list</column>
-      <column>alignment length in semicolon separated list</column>
-      <column>e-value in semicolon separated list</column>
-      <column>LCA text</column>
-      <column>number of identified LCA levels (max of 8)</column>
-    </output>
   </stage>
   <stage num='550'>
     <input>The input sequence data for this step is in the file 350.genecalling.coding.faa.</input>
@@ -113,46 +91,5 @@
       <column>e-value, e.g. 1.7e-54</column>
       <column>score in bits, e.g. 210.0</column>
     </output>
-    <output><file>A filtered version 650.superblat.sims.filter of the raw Sims file 650.superblat.sims removes all but the best hit for each data source.</file></output>
-    <output>
-      <file>650.superblat.expand.protein includes md5 value of the database sequence hit followed by sequence or cluster ID, similarity information, and annotation information. Some values are encoded as index numbers.</file>
-      <column>hit id (md5sum) index number</column>
-      <column>query id (either fasta ID or cluster ID)</column>
-      <column>percentage identity</column>
-      <column>alignment length</column>
-      <column>e-value</column>
-      <column>function annotation index number</column>
-      <column>organism annotation index number</column>
-      <column>DB source index number</column>
-    </output>
-    <output>
-      <file>650.superblat.expand.lca reformats the information in 650.superblat.expand.protein to include lowest common ancestor information.</file>
-      <column>hit id (md5sum) in semicolon separated list</column>
-      <column>query id (either fasta ID or cluster ID)</column>
-      <column>percentage identity in semicolon separated list</column>
-      <column>alignment length in semicolon separated list</column>
-      <column>e-value in semicolon separated list</column>
-      <column>LCA text</column>
-      <column>number of identified LCA levels (max of 8)</column>
-    </output>
-    <output>
-      <file>650.superblat.expand.ontology includes md5 value of the database sequence hit followed by sequence or cluster ID, similarity information, and annotation information. Some values are encoded as index numbers.</file>
-      <column>hit id (md5sum) index number</column>
-      <column>query id (either fasta ID or cluster ID)</column>
-      <column>percentage identity</column>
-      <column>alignment length</column>
-      <column>e-value</column>
-      <column>function annotation index number</column>
-      <column>functional category (ontology) index number</column>
-      <column>DB source index number</column>
-    </output>
-  </stage>
-  <stage num='900'>
-    <input>The input data for this step is in the .expand files produced by both the RNA and Protein similarity stages</input>
-    <output><file>900.abundance.md5</file></output>
-    <output><file>900.abundance.function</file></output>
-    <output><file>900.abundance.ontology</file></output>
-    <output><file>900.abundance.organism</file></output>
-    <output><file>900.abundance.lca</file></output>
   </stage>
 </pipeline>

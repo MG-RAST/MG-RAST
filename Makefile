@@ -51,8 +51,9 @@ OVERRIDES = \
 .PHONY: lib clean purge 
 
 # if you change all: make sure all: in standard.mk is consistent.
+# api-doc target must be run last.
 
-all: installdirs $(TOOL_HDR) lib 
+all: installdirs $(TOOL_HDR) lib api-doc
 
 # Use the PACKAGES macro to transform lib, bin, etc., targets
 # into package level dependencies, e.g., lib -> PkgA.lib, PkgB.lib
@@ -67,7 +68,8 @@ purge:
 	rm -rf $(TARGET) bin/*.r 
 
 api-doc:
-	perl src/WebApplication/scripts/api2html.pl -url http://api.metagenomics.anl.gov -outfile site/CGI/Html/api.html
+	perl bin/api2html.pl -url http://api.metagenomics.anl.gov/1 -site_name "MG-RAST" -outfile site/CGI/Html/api.html
+	perl bin/api2html.pl -url http://kbase.us/services/communities/1 -site_name "Microbial Communities" -outfile site/CGI/Html/api.kbase.html
 
 ##
 # Targets to setup the expected directory structure for the
