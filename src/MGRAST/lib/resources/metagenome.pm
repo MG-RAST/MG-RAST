@@ -25,7 +25,7 @@ sub new {
     $self->{mgdb} = undef;
     $self->{rights} = \%rights;
     $self->{cv} = { verbosity => { 'instance' => {'minimal' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
-                                   'query'    => {'minimal' => 1, 'mixs' => 1} },
+                                   'query'    => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1} },
                     direction => {'asc' => 1, 'desc' => 1},
                     status => {'both' => 1, 'public' => 1, 'private' => 1},
                     match => {'any' => 1, 'all' => 1}
@@ -121,7 +121,10 @@ sub info {
                                                                                     ['public','returns all public data'],
                                                                                     ['private','returns private data user has access to view']]],
                                                                 'verbosity' => ['cv', [['minimal','returns only minimal information'],
-                                                                                       ['mixs','returns all GSC MIxS metadata']] ] },
+                                                                                       ['mixs','returns all GSC MIxS metadata'],
+                                                                                       ['metadata','returns minimal with metadata'],
+                                                                                       ['stats','returns minimal with statistics'],
+                                                                                       ['full','returns all metadata and statistics']] ] },
                                                             'required' => {},
                                                             'body'     => {} }
                                         },
@@ -218,9 +221,9 @@ sub query {
     unless (exists $self->{query}{$order}) {
         $self->return_data({"ERROR" => "Invalid order entered ($order) for query."}, 404);
     }
-    #if (($limit > 10000) || ($limit < 1)) {
-    #    $self->return_data({"ERROR" => "Limit must be less than 10,000 and greater than 0 ($limit) for query."}, 404);
-    #}
+    if (($limit > 10000) || ($limit < 1)) {
+        $self->return_data({"ERROR" => "Limit must be less than 10,000 and greater than 0 ($limit) for query."}, 404);
+    }
 
     # explicitly setting the default CGI parameters for returned url strings
     $self->cgi->param('verbosity', $verb);
@@ -302,9 +305,23 @@ sub query {
     my $obj = $self->check_pagination($data, $total, $limit);
     $obj->{version} = 1;
 
-    # add missing fields
-    foreach my $item (@{$obj->{data}}) {
-        map { $item->{$_} = exists($item->{$_}) ? $item->{$_} : "" } @$fields;
+    if (($verb eq 'minimal') || ($verb eq 'mixs')) {
+        # add missing fields to solr data
+        foreach my $item (@{$obj->{data}}) {
+            map { $item->{$_} = exists($item->{$_}) ? $item->{$_} : "" } @$fields;
+        }
+    } else {
+        # create job objects from solr data
+        my $jobs = [];
+        foreach my $d (@{$obj->{data}}) {
+            my $id = $d->{id};
+            $id =~ s/^mgm//;
+            my $job = $master->Job->get_objects( {metagenome_id => $id, viewable => 1} );
+            if ($job && @$job) {
+                push @$jobs, $job->[0];
+            }
+        }
+        $obj->{data} = $self->prepare_data($jobs);
     }
     
     $self->return_data($obj);

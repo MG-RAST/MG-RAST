@@ -53,8 +53,7 @@ sub init {
 		 440 => { name => 'RNA Clustering 97%', link => "rna_clust" } ,
 		 450 => { name => 'M5 RNA Search', link => "rna_sim" } ,
 		 550 => { name => 'Protein Clustering 90%', link => "aa_clust" } ,
-		 650 => { name => 'M5 Protein Search', link => "aa_sim" } ,
-		 900 => { name => 'Abundance Profiles', link => "abund" }
+		 650 => { name => 'M5 Protein Search', link => "aa_sim" }
 	       };
   $self->data('stages', $stages);
 
@@ -67,6 +66,9 @@ sub init {
     }
   }
   $self->data('default', $default);
+
+  # api info for download
+  $self->data('api', "http://api.metagenomics.anl.gov/1");
 
   # get to metagenome using the metagenome or job ID
   if ( $cgi->param('metagenome') ) {
@@ -93,6 +95,7 @@ sub init {
 
   $self->application->register_action($self, 'download_md', 'download_md');
   $self->application->register_action($self, 'download', 'download');
+  $self->application->register_action($self, 'api_download', 'api_download');
   $self->application->register_component('Table', 'project_table');
   $self->application->register_component('Hover', 'download_project_info');
   $self->application->register_component('Hover', 'download_info');
@@ -207,13 +210,13 @@ my $css_tmp = qq~
   $content .= "<p>On this page you can download all data related to metagenome ".$job->name."</p>";
   $content .= "<p>Data are available from each step in the <a target=_blank href='http://blog.metagenomics.anl.gov/howto/quality-control'>MG-RAST pipeline</a>. Each section below corresponds to a step in the processing pipeline. Each of these sections includes a description of the input, output, and procedures implemented by the indicated step. They also include a brief description of the output format, buttons to download data processed by the step and detailed statistics (click on &ldquo;show stats&rdquo; to make collapsed tables visible).</p>";
   
-  my $pipe1  = [50, 100, 150, 299, 350, 550, 650, 900];
+  my $pipe1  = [50, 100, 150, 299, 350, 550, 650];
   my $pipe2  = [425, 440, 450];
   my $label1 = '['.join(",", map {"'".$self->data('stages')->{$_}{name}."'"} @$pipe1).",'Done']";
   my $label2 = '['.join(",", map {"'".$self->data('stages')->{$_}{name}."'"} @$pipe2).']';
   my $link1  = '['.join(",", map {"'".$self->data('stages')->{$_}{link}."'"} @$pipe1).",'done']";
   my $link2  = '['.join(",", map {"'".$self->data('stages')->{$_}{link}."'"} @$pipe2).']';
-  $content .= "<p><div id='pipeline_image'></div><img src='./Html/clear.gif' onload='draw_pipeline_image($label1,$label2,$link1,$link2,\"pipeline_image\");'></p>";
+  #$content .= "<p><div id='pipeline_image'></div><img src='./Html/clear.gif' onload='draw_pipeline_image($label1,$label2,$link1,$link2,\"pipeline_image\");'></p>";
 
   my $stages = {};
   my $download_dir = $job->download_dir(1) || "/mcs/bio/mg-rast/jobsv3/" . $job->job_id . "/analysis";
@@ -241,7 +244,7 @@ my $css_tmp = qq~
       }
     }
   }
-  #raw data somewhere else
+  # raw data somewhere else
   my $rawid = 50;
   $stages->{$rawid} = $self->data('stages')->{$rawid};
   $stages->{$rawid}->{prefix} = $job->job_id;
@@ -253,7 +256,8 @@ my $css_tmp = qq~
   foreach my $stage (sort {$a <=> $b} keys %$stages) {
     my $dir = ($stage == 50) ? $job->download_dir() : $job->download_dir($stage);
     $content .= $self->stage_download_info($stage, $stages, $dir);
-  }    
+  }
+  $content .= $self->api_download_builder($mid);
   return $content;
 }
 
@@ -384,21 +388,7 @@ sub stage_download_info {
     }
     elsif ($self->data('get_sims') && ($suffix eq '.sims')) {
       $type = "Sims";
-      $desc = "raw";
-    }
-    elsif ($self->data('get_sims') && ($suffix eq '.filter')) {
-      $type = "Sims";
-      $desc = "filtered";
-    }
-    elsif ($self->data('get_sims') && ($desc eq 'expand')) {
-      $type = "Sims";
-      $desc = $suffix." annotated";
-      $desc =~ s/^\.//;
-    }
-    elsif ($stages->{$sid}->{stage} && ($stages->{$sid}->{stage} eq 'abundance')) {
-      $type = "Abundance";
-      $desc = $suffix;
-      $desc =~ s/^\.//;
+      $desc = "similarity";
     }
     else {
       next;
@@ -512,6 +502,125 @@ sub parse_default_info {
   }
 
   return $html;
+}
+
+sub api_download_builder {
+    my ($self, $mid) = @_;
+    
+    my $doc = $self->data('api')."/api.html";
+    my $sim = $self->data('api')."/annotation/similarity/mgm".$mid;
+    my $default = "type=organism&source=RefSeq";
+    
+    my $html = qq(
+    <h3>Annotation Download via API</h3>
+    <table width='100%'><tr><td align='left'>
+      <p>Annotated reads are available through the <a href='$doc' target='_blank'>MG-RAST API</a>.<br>
+         They are built dynamicly based on the chosen annotation type and source.<br>
+         Column fields are as follows:<ol>
+           <li>Query / read id, e.g. mgm4441681.3|12342588</li>
+           <li>Hit id / md5, e.g. afcfe216e7d39b7c789d6760194b6deb</li>
+           <li>percentage identity, e.g. 100.00</li>
+           <li>alignment length, e.g. 107</li>
+           <li>number of mismatches, e.g. 0</li>
+           <li>number of gap openings, e.g. 0</li>
+           <li>q.start, e.g. 1</li>
+           <li>q.end, e.g. 107</li>
+           <li>s.start, e.g. 1262</li>
+           <li>s.end, e.g. 1156</li>
+           <li>e-value, e.g. 1.7e-54</li>
+           <li>score in bits, e.g. 210.0</li>
+           <li>semicolon seperated list of annotation text(s) for the given type and source</li>
+         </ol></p>
+      <table>
+        <tr><td>Annotation Type</td><td>&nbsp;&nbsp;&nbsp;&nbsp;</td><td>Data Source</td><td></td><td></td></tr>
+        <tr>
+          <td>
+            <select id='ann_type' onchange='
+                var asrc = undefined;
+                var sel_type = this.options[this.selectedIndex].value;
+                if (sel_type == "ontology") {
+                  document.getElementById("ont_source").style.display="";
+                  document.getElementById("org_source").style.display="none";
+                  asrc = document.getElementById("ont_source");
+                } else {
+                  document.getElementById("org_source").style.display="";
+                  document.getElementById("ont_source").style.display="none";
+                  asrc = document.getElementById("org_source");
+                }
+                var params = "type="+sel_type+"&source="+asrc.options[asrc.selectedIndex].value;
+                document.getElementById("api_url").innerHTML = "$sim?"+params;
+                document.getElementById("api_link").href = "metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&"+params;'>
+              <option>organism</option>
+              <option>function</option>
+              <option>ontology</option>
+              <option>feature</option>
+            </select></td>
+          <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td>
+            <select id='org_source' onchange='
+                var atype = document.getElementById("ann_type");
+                var params = "type="+atype.options[atype.selectedIndex].value+"&source="+this.options[this.selectedIndex].value;
+                document.getElementById("api_url").innerHTML = "$sim?"+params;
+                document.getElementById("api_link").href = "metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&"+params;'>
+              <option>RefSeq</option>
+              <option>GenBank</option>
+              <option>IMG</option>
+              <option>SEED</option>
+              <option>TrEMBL</option>
+              <option>SwissProt</option>
+              <option>PATRIC</option>
+              <option>KEGG</option>
+              <option>RDP</option>
+              <option>Greengenes</option>
+              <option>LSU</option>
+              <option>SSU</option>
+            </select>
+            <select id='ont_source' style='display:none;' onchange='
+                var atype = document.getElementById("ann_type");
+                var params = "type="+atype.options[atype.selectedIndex].value+"&source="+this.options[this.selectedIndex].value;
+                document.getElementById("api_url").innerHTML = "$sim?"+params;
+                document.getElementById("api_link").href = "metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&"+params;'>
+              <option>Subsystems</option>
+              <option>NOG</option>
+              <option>COG</option>
+              <option>KO</option>
+            </select></td>
+          <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+          <td><a id='api_link' href='metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&$default'><b>Download</b></a></td>
+        </tr>
+      </table>);
+      #<p><b>URL:</b>&nbsp;&nbsp;<code id='api_url'>$sim?$default</code></p>
+    $html .= "</td></tr></table><br><br>";
+    
+    return $html;
+}
+
+sub api_download {
+    my ($self) = @_;
+    
+    use LWP::UserAgent;
+    my $agent = LWP::UserAgent->new;
+    my $mid  = $self->application->cgi->param('mid');
+    my $type = $self->application->cgi->param('type');
+    my $src  = $self->application->cgi->param('source');
+    my $url  = $self->data('api')."/annotation/similarity/mgm".$mid."?type=".$type."&source=".$src;
+
+    my $content = undef;
+    print "Content-Type:application/x-download\n";
+    print "Content-Disposition:attachment;filename=mgm".$mid."_".$type."_".$src.".tab\n\n";
+    eval {
+        my $get  = $agent->get($url, ':read_size_hint' => 1024, ':content_cb' => sub{my ($chunk) = @_; print $chunk;});
+        $content = $get->content;
+    };
+    if ($@) {
+        $self->application->add_message('warning', "Could not download data: ".$@);
+    } elsif (ref($content) && exists($content->{ERROR}) && $content->{ERROR}) {
+        $self->application->add_message('warning', "Could not download data: ".$content->{ERROR});
+    }
+    else {
+        exit;
+    }
+    return 1;
 }
 
 sub public_project_download_table {
