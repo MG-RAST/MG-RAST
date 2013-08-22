@@ -149,7 +149,7 @@ sub output {
 <li><a href='http://metagenomics.anl.gov/metazen.cgi' target=_blank>Use MetaZen to create your metadata spreadsheet</a></li>
 <li><a href='http://www.youtube.com/watch?v=pAf19exJo4o&feature=youtu.be' target=_blank>Uploading a metagenome (Video)</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#inbox' target=_blank>Inbox explained</a></li>
-<li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#api_submission' target=_blank>Automated submission via our API</a></li>
+<li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Automated submission via our API</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#preparing_metadata' target=_blank>Preparing metadata</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#job_priority' target=_blank>Priority assignments explained</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#accession_numbers' target=_blank>Obtaining Accession numbers</a></li>
@@ -225,7 +225,7 @@ sub output {
                   <p>In addition to using your web browser for uploads to the system the following alternatives are available:</p>
                   <table>
                      <tr style='display: none;'><td width="125px"><b>ftp</b></td><td>ftp://incoming.metagenomics.anl.gov/<span id="ftp_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
-                     <tr><td>http://api.metagenomics.anl.gov/inbox/<span id="http_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
+                     <tr><td>http://api.metagenomics.anl.gov/1/inbox</td></tr>
                      <tr><td colspan=2 style='padding-top: 10px; padding-bottom: 10px;'><div id='generate_key'><input type='button' class='btn' onclick='generate_webkey();' value='generate webkey'></div></td></tr>
                   </table>
                   <p><b>Note:</b> The <a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Blog</a> lists a number of examples for data transfer.</p>
