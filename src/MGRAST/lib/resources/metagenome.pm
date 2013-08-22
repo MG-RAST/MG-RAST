@@ -221,9 +221,9 @@ sub query {
     unless (exists $self->{query}{$order}) {
         $self->return_data({"ERROR" => "Invalid order entered ($order) for query."}, 404);
     }
-    #if (($limit > 10000) || ($limit < 1)) {
-    #    $self->return_data({"ERROR" => "Limit must be less than 10,000 and greater than 0 ($limit) for query."}, 404);
-    #}
+    if (($limit > 10000) || ($limit < 1)) {
+        $self->return_data({"ERROR" => "Limit must be less than 10,000 and greater than 0 ($limit) for query."}, 404);
+    }
 
     # explicitly setting the default CGI parameters for returned url strings
     $self->cgi->param('verbosity', $verb);
