@@ -349,11 +349,14 @@ sub parse_types {
 
   my $simple_types = { 'string' => 'string',
 		       'integer' => 'int',
+		       'int' => 'int',
+		       'file' => 'string',
 		       'boolean' => 'int',
 		       'float' => 'float',
 		       'uri' => 'string',
 		       'date' => 'string',
 		       'reference' => 'string',
+		       'cv' => 'string',
 		       'object' => 'mapping<string, string>',
 		       'hash' => 'mapping<string, string>' };
 
@@ -414,6 +417,9 @@ sub parse_parameters {
   
   my $valid_types = { 'string' => 'string',
 		      'integer' => 'int',
+		      'int' => 'int',
+		      'file' => 'string',
+		      'uri' => 'string',
 		      'float' => 'float',
 		      'list' => 'list',
 		      'boolean' => 'int',
@@ -445,7 +451,7 @@ sub parse_parameters {
 	      }
 	    }
 	  } else {
-	    if (ref($param_desc->[1]) eq 'ARRAY') {
+	    if (ref($param_desc->[1]) eq 'ARRAY' && $param_desc->[0] ne 'cv') {
 	      push(@parameters, [ $valid_types->{$param_desc->[0]}." $key;", $param_desc->[1]->[1] ]);
 	    } else {
 	      push(@parameters, [ $valid_types->{$param_desc->[0]}." $key;", $param_desc->[1] ]);
