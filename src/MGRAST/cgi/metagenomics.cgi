@@ -36,7 +36,7 @@ sub main {
     $layout->add_template($Conf::html_base.'/MGRAST-frontpage.tmpl', ["Home"]);
     $layout->add_css($Conf::cgi_url."/Html/mgrast.css");
     $layout->add_css($Conf::cgi_url."/Html/formalize.css");
-    $layout->add_javascript($Conf::cgi_url."/Html/jquery.1.7.2.min.js");
+    $layout->add_javascript($Conf::cgi_url."/Html/jquery.min.js");
     $layout->add_javascript($Conf::cgi_url."/Html/jquery.formalize.min.js");
     $layout->add_javascript($Conf::cgi_url."/Html/raphael-min.js");
     $layout->show_icon(1);
