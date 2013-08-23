@@ -519,7 +519,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		my $file_format = &file_format($sequence_file, $udir, $file_type, $file_suffix);
 		my $file_size   = -s $udir."/".$sequence_file;
 		$file_suffix =~ s/\.//;
-		$file_name = $file_name.'.'.$file_suffix
+		$file_name = $file_name.'.'.$file_suffix;
 	    
 		my $info = {
 		    "type" => $file_type,
