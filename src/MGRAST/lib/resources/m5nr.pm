@@ -499,8 +499,8 @@ sub query {
     # get results
     my ($result, $total);
     if ($type eq 'md5') {
-        my $md5s = $self->clean_md5($data);
-        ($result, $total) = $self->solr_data($type, $md5s, $source, $offset, $limit, $order, 1);
+        my @md5s = map { $self->clean_md5($_) } @$data;
+        ($result, $total) = $self->solr_data($type, \@md5s, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
         ($result, $total) = $self->solr_data($type, $data, undef, $offset, $limit, $order, 1);
     } else {
@@ -513,15 +513,11 @@ sub query {
 }
 
 sub clean_md5 {
-    my ($self, $md5s) = @_;
-    my $clean = [];
-    foreach my $m (@$md5s) {
-        my $c = $m;
-        $c =~ s/[^a-zA-Z0-9]//g;
-        unless ($c && (length($c) == 32)) {
-            $self->return_data({"ERROR" => "invalid md5 was entered ($m)"}, 404);
-        }
-        push @$clean, $c;
+    my ($self, $md5) = @_;
+    my $clean = $md5;
+    $clean =~ s/[^a-zA-Z0-9]//g;
+    unless ($clean && (length($clean) == 32)) {
+        $self->return_data({"ERROR" => "invalid md5 was entered ($md5)"}, 404);
     }
     return $clean;
 }

@@ -536,20 +536,14 @@ sub api_download_builder {
         <tr>
           <td>
             <select id='ann_type' onchange='
-                var asrc = undefined;
                 var sel_type = this.options[this.selectedIndex].value;
                 if (sel_type == "ontology") {
                   document.getElementById("ont_source").style.display="";
                   document.getElementById("org_source").style.display="none";
-                  asrc = document.getElementById("ont_source");
                 } else {
                   document.getElementById("org_source").style.display="";
                   document.getElementById("ont_source").style.display="none";
-                  asrc = document.getElementById("org_source");
-                }
-                var params = "type="+sel_type+"&source="+asrc.options[asrc.selectedIndex].value;
-                document.getElementById("api_url").innerHTML = "$sim?"+params;
-                document.getElementById("api_link").href = "metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&"+params;'>
+                }'>
               <option>organism</option>
               <option>function</option>
               <option>ontology</option>
@@ -557,11 +551,7 @@ sub api_download_builder {
             </select></td>
           <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
           <td>
-            <select id='org_source' onchange='
-                var atype = document.getElementById("ann_type");
-                var params = "type="+atype.options[atype.selectedIndex].value+"&source="+this.options[this.selectedIndex].value;
-                document.getElementById("api_url").innerHTML = "$sim?"+params;
-                document.getElementById("api_link").href = "metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&"+params;'>
+            <select id='org_source'>
               <option>RefSeq</option>
               <option>GenBank</option>
               <option>IMG</option>
@@ -575,22 +565,35 @@ sub api_download_builder {
               <option>LSU</option>
               <option>SSU</option>
             </select>
-            <select id='ont_source' style='display:none;' onchange='
-                var atype = document.getElementById("ann_type");
-                var params = "type="+atype.options[atype.selectedIndex].value+"&source="+this.options[this.selectedIndex].value;
-                document.getElementById("api_url").innerHTML = "$sim?"+params;
-                document.getElementById("api_link").href = "metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&"+params;'>
+            <select id='ont_source' style='display:none;'>
               <option>Subsystems</option>
               <option>NOG</option>
               <option>COG</option>
               <option>KO</option>
             </select></td>
           <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
-          <td><a id='api_link' href='metagenomics.cgi?page=DownloadMetagenome&action=api_download&mid=$mid&$default'><b>Download</b></a></td>
+          <td><a id='api_link' href='#' onclick='
+            var asrc = undefined;
+            var atype = document.getElementById("ann_type");
+            var sel_type = atype.options[atype.selectedIndex].value;
+            if (sel_type == "ontology") {
+              asrc = document.getElementById("ont_source");
+            } else {
+              asrc = document.getElementById("org_source");
+            }
+            var params = "mid=$mid&type="+sel_type+"&source="+asrc.options[asrc.selectedIndex].value;
+            var url = "metagenomics.cgi?page=DownloadMetagenome&action=api_download&"+params;
+            if (document.getElementById("login_input_box") == null) {
+                var wsCookie = getCookie("WebSession");
+                if (wsCookie) {
+                    url += "&auth=" + wsCookie;
+                }
+            }
+            this.href = url;'><b>Download</b>
+          </a></td>
         </tr>
-      </table>);
-      #<p><b>URL:</b>&nbsp;&nbsp;<code id='api_url'>$sim?$default</code></p>
-    $html .= "</td></tr></table><br><br>";
+      </table>
+    </td></tr></table><br><br>);
     
     return $html;
 }
@@ -601,6 +604,7 @@ sub api_download {
     use LWP::UserAgent;
     my $agent = LWP::UserAgent->new;
     my $mid  = $self->application->cgi->param('mid');
+    my $auth = $self->application->cgi->param('auth') || undef;
     my $type = $self->application->cgi->param('type');
     my $src  = $self->application->cgi->param('source');
     my $url  = $self->data('api')."/annotation/similarity/mgm".$mid."?type=".$type."&source=".$src;
@@ -609,7 +613,12 @@ sub api_download {
     print "Content-Type:application/x-download\n";
     print "Content-Disposition:attachment;filename=mgm".$mid."_".$type."_".$src.".tab\n\n";
     eval {
-        my $get  = $agent->get($url, ':read_size_hint' => 1024, ':content_cb' => sub{my ($chunk) = @_; print $chunk;});
+        my $get = undef;
+        if ($auth) {
+            $get = $agent->get($url, 'auth' => $auth, ':read_size_hint' => 1024, ':content_cb' => sub{my ($chunk) = @_; print $chunk;});
+        } else {
+            $get = $agent->get($url, ':read_size_hint' => 1024, ':content_cb' => sub{my ($chunk) = @_; print $chunk;});
+        }
         $content = $get->content;
     };
     if ($@) {
@@ -697,5 +706,5 @@ sub public_project_download_table {
 }
 
 sub require_javascript {
-  return [ "$Conf::cgi_url/Html/pipeline.js" ];
+  return [ "$Conf::cgi_url/Html/pipeline.js", "$Conf::cgi_url/Html/MetagenomeSearch.js" ];
 }
