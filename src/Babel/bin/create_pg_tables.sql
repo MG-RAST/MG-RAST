@@ -56,7 +56,7 @@ functions integer
 DROP TABLE IF EXISTS md5_protein;
 CREATE TABLE md5_protein (
 _id SERIAL PRIMARY KEY,
-md5 integer REFERENCES md5s(_id),
+md5 char(32) NOT NULL,
 id text NOT NULL,
 function integer REFERENCES functions(_id),
 organism integer REFERENCES organisms_ncbi(_id),
@@ -66,7 +66,7 @@ source integer REFERENCES sources(_id)
 DROP TABLE IF EXISTS md5_ontology;
 CREATE TABLE md5_ontology (
 _id SERIAL PRIMARY KEY,
-md5 integer REFERENCES md5s(_id),
+md5 char(32) NOT NULL,
 id text NOT NULL,
 function integer REFERENCES functions(_id),
 source integer REFERENCES sources(_id)
@@ -75,17 +75,17 @@ source integer REFERENCES sources(_id)
 DROP TABLE IF EXISTS md5_rna;
 CREATE TABLE md5_rna (
 _id SERIAL PRIMARY KEY,
-md5 integer REFERENCES md5s(_id),
+md5 char(32) NOT NULL,
 id text NOT NULL,
 function integer REFERENCES functions(_id),
 organism integer REFERENCES organisms_ncbi(_id),
 source integer REFERENCES sources(_id),
-tax_rank integer,
+tax_rank integer
 );
 
 DROP TABLE IF EXISTS md5_lca;
 CREATE TABLE md5_lca (
-md5 integer REFERENCES md5s(_id),
+md5 char(32) NOT NULL,
 tax_domain text,
 tax_phylum text,
 tax_class text,
