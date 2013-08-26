@@ -1,4 +1,4 @@
-var api_url = 'http://dev.metagenomics.anl.gov/api.cgi/metagenome?verbosity=mixs&';
+var api_url = 'http://api.metagenomics.anl.gov/1/metagenome?verbosity=mixs&';
 var datastore = {};
 var result = 'result'; // div where results are to be displayed
 var saved_params = {};
