@@ -138,16 +138,28 @@ function forward_to_search (e) {
 
   $content .= "<div class='clear'></div>";
   $content .= <<'END';
-<script src="./Html/jquery.zrssfeed.min.js" type="text/javascript"></script>
-<script src="./Html/jquery.vticker.js" type="text/javascript"></script>
-<script type="text/javascript">   
-	$(document).ready(function () {
-		$('#newsfeed').rssfeed('http://blog.metagenomics.anl.gov/?feed=rss', {limit: 5, date: false, content: false, snippet: false, linktarget: '_blank'}).ajaxStop( function() {
-            $('#newsfeed div.rssHeader a').html('Updates');
-			$('#newsfeed div.rssBody').vTicker({pause: 5000, showItems: 1}); 
-		});
-	});
-</script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+    
+google.load("feeds", "1");
+
+function initialize() {
+    var feed = new google.feeds.Feed("http://press.igsb.anl.gov/mg-rast/feed/");
+    feed.load(function(result) {
+        if (!result.error) {
+	    var html = "<ul>";
+	    for (var i = 0; i < result.feed.entries.length; i++) {
+		var entry = result.feed.entries[i];
+		html += "<li><a href='"+entry.link+"' target=_blank>"+entry.title+"</a></li>";
+	    }
+	    html += "</ul>";
+	    document.getElementById("newsfeed").innerHTML = html;
+        }
+    });
+}
+
+google.setOnLoadCallback(initialize);
+    </script>
 END
   $content .= "<div id='newsfeed' style='margin-top: 15px;'></div>";
   $content .= "</div>";
