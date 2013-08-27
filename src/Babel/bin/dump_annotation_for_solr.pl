@@ -30,6 +30,7 @@ if ( ! GetOptions(
   print STDERR $usage; exit 1;
 }
 my $sth;
+my $count;
 
 if (! $output) {
     print STDERR $usage; exit;
@@ -40,42 +41,54 @@ unless ($dbh) { print STDERR "Error: " . $DBI::errstr . "\n"; exit 1; }
 
 ## skipping GO
 print STDERR "Loading sources ...\n";
-my $src_data = ['source_id','source','organization','description','type','url','email','link','title','version','download_date'];
 my $src_sql = "SELECT _id AS source_id, name AS source, source AS organization, description, type, url, email, link, title, version, download_date FROM sources WHERE _id != 11";
 my $src_lookup = $dbh->selectall_hashref($src_sql , "source_id");
 
 print STDERR "Dumping sources ...\n";
 open(SRC, ">$output.source") or die "Couldn't open $output.source for writing.\n";
-print SRC to_json(lookup2data($src_lookup, $src_data, 'static_source'), {ascii => 1})."\n";
+foreach my $set (values %$src_lookup) {
+    $set->{id} = 's_'.$set->{source_id};
+    $set->{object} = 'source';
+    print SRC to_json($set, {ascii => 1})."\n";
+    delete $set->{id};
+    delete $set->{object};
+}
 close(SRC);
 
 print STDERR "Loading ontologies ...\n";
-my $ont_sql = "SELECT id, level1, level2, level3, level4, source FROM ontologies";
+my $ont_sql = "SELECT o.id, o.level1, o.level2, o.level3, o.level4, s.name AS source FROM ontologies o, sources s WHERE o.source = s._id AND s._id != 11";
 my $ont_lookup = $dbh->selectall_hashref($ont_sql , "id");
-foreach my $onts (grep {$_->{type} eq 'ontology'} values %$src_lookup) {
-    my $ont_data = ['id','level1','level2','level3','level4'];
-    if ($onts->{source} =~ /^[CN]OG$/) {
-        pop @$ont_data;
+
+print STDERR "Dumping ontologies ...\n";
+open(ONT, ">$output.ontology") or die "Couldn't open $output.ontology for writing.\n";
+$count = 1;
+foreach my $set (values %$ont_lookup) {
+    $set->{id} = 'o_'.$count;
+    $set->{object} = 'ontology';
+    if ($set->{source} =~ /^[NC]OG$/) {
+        delete $set->{level4};
     }
-    my %sub_ont_lookup = map {$_, $ont_lookup->{$_}} grep {$ont_lookup->{$_}{source} eq $onts->{source_id}} keys %$ont_lookup;
-    print STDERR "Dumping ontology ".$onts->{source}." ...\n";
-    open(TAX, ">$output.".$onts->{source}) or die "Couldn't open $output.".$onts->{source}." for writing.\n";
-    print TAX to_json(lookup2data(\%sub_ont_lookup, $ont_data, 'static_'.$onts->{source}), {ascii => 1})."\n";
-    close(TAX);
+    print ONT to_json($set, {ascii => 1})."\n";
+    delete $set->{id};
+    delete $set->{object};
+    $count += 1;
 }
+close(ONT);
 
 print STDERR "Loading organisms ...\n";
-my $org_data = ['organism_id','organism','domain','phylum','class','order','family','genus','species','ncbi_tax_id'];
 my $org_sql = "SELECT _id AS organism_id, name AS organism, tax_domain AS domain, tax_phylum AS phylum, tax_class AS class, tax_order AS order, tax_family AS family, tax_genus AS genus, tax_species AS species, ncbi_tax_id FROM organisms_ncbi";
 my $org_lookup = $dbh->selectall_hashref($org_sql , "organism_id");
 
 print STDERR "Dumping taxonomy ...\n";
 open(TAX, ">$output.taxonomy") or die "Couldn't open $output.taxonomy for writing.\n";
-print TAX to_json(lookup2data($org_lookup, $org_data, 'static_taxonomy'), {ascii => 1})."\n";
+foreach my $set (values %$org_lookup) {
+    $set->{id} = 't_'.$set->{organism_id};
+    $set->{object} = 'taxonomy';
+    print TAX to_json($set, {ascii => 1})."\n";
+    delete $set->{id};
+    delete $set->{object};
+}
 close(TAX);
-
-$dbh->disconnect;
-exit;
 
 print STDERR "Loading functions ...\n";
 my $func_sql = "SELECT _id AS function_id, name AS function FROM functions";
@@ -83,17 +96,17 @@ my $func_lookup = $dbh->selectall_hashref($func_sql , "function_id");
 
 print STDERR "Loading md5s ...\n";
 my $md5_sql = "SELECT _id AS md5_id, md5 FROM md5s";
-my $md5_lookup = $dbh->selectall_hashref($md5_sql , "md5_id");
+my $md5_lookup = $dbh->selectall_hashref($md5_sql , "md5");
 
-open(DUMP, ">$output") or die "Couldn't open $output for writing.\n";
+open(DUMP, ">$output.annotation") or die "Couldn't open $output.annotation for writing.\n";
 # rna
 print STDERR "Dumping rna annotations ...\n";
-my $count = 1;
+$count = 1;
 $sth = $dbh->prepare("SELECT md5, id, function, organism, source FROM md5_rna WHERE tax_rank = 1");
 $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
 while (my @row = $sth->fetchrow_array()) {
     my ($md5, $id, $func, $org, $src) = @row;
-    my $data = { 'id' => $count, 'accession' => $id };
+    my $data = { 'id' => 'a_'.$count, 'accession' => $id, 'object' => 'annotation' };
     if ($md5 && exists($md5_lookup->{$md5})) {
         map { $data->{$_} = $md5_lookup->{$md5}{$_} } keys %{$md5_lookup->{$md5}};
     }
@@ -117,7 +130,7 @@ $sth = $dbh->prepare("SELECT md5, id, function, organism, source FROM md5_protei
 $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
 while (my @row = $sth->fetchrow_array()) {
     my ($md5, $id, $func, $org, $src) = @row;
-    my $data = { 'id' => $count, 'accession' => $id };
+    my $data = { 'id' => 'a_'.$count, 'accession' => $id, 'object' => 'annotation' };
     if ($md5 && exists($md5_lookup->{$md5})) {
         map { $data->{$_} = $md5_lookup->{$md5}{$_} } keys %{$md5_lookup->{$md5}};
     }
@@ -141,7 +154,7 @@ $sth = $dbh->prepare("SELECT md5, id, function, source FROM md5_ontology WHERE s
 $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
 while (my @row = $sth->fetchrow_array()) {
     my ($md5, $id, $func, $src) = @row;
-    my $data = { 'id' => $count, 'accession' => $id };
+    my $data = { 'id' => 'a_'.$count, 'accession' => $id, 'object' => 'annotation' };
     if ($md5 && exists($md5_lookup->{$md5})) {
         map { $data->{$_} = $md5_lookup->{$md5}{$_} } keys %{$md5_lookup->{$md5}};
     }
@@ -160,16 +173,3 @@ while (my @row = $sth->fetchrow_array()) {
 $sth->finish;
 close(DUMP);
 $dbh->disconnect;
-
-sub lookup2data {
-    my ($lookup, $list, $id) = @_;
-    my %data = map {$_, []} @$list;
-    foreach my $set (values %$lookup) {
-        foreach my $field (@$list) {
-            my $value = exists($set->{$field}) ? $set->{$field} : undef;
-            push @{$data{$field}}, $value;
-        }
-    }
-    $data{id} = $id;
-    return \%data;
-}
