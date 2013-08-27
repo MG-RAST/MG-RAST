@@ -108,7 +108,7 @@ sub info {
 					     'attributes'  => $self->{attributes}{ontology},
 					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->source->{ontology} ],
 									                        'filter_level' => ['cv', $self->{hierarchy}{ontology}],
-									                        'filter_name' => ['string', 'text of ontology group (filter_level) to filter by'],
+									                        'filter' => ['string', 'text of ontology group (filter_level) to filter by'],
 									                        'min_level' => ['cv', $self->{hierarchy}{ontology}]
 									                      },
 							                'required' => {},
@@ -123,7 +123,7 @@ sub info {
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{taxonomy},
 					     'parameters'  => { 'options'  => { 'filter_level' => ['cv', $self->{hierarchy}{taxonomy}],
-	                                                        'filter_name' => ['string', 'text of taxanomy group (filter_level) to filter by'],
+	                                                        'filter' => ['string', 'text of taxanomy group (filter_level) to filter by'],
 									                        'min_level' => ['cv', $self->{hierarchy}{taxonomy}]
 									                      },
 							                'required' => {},
@@ -343,7 +343,7 @@ sub static {
     my $url = $self->cgi->url.'/m5nr/'.$type;
     my $solr = 'object%3A';
     my $limit = 1000000;
-    my $fname = $self->cgi->param('filter_name') || '';
+    my $filter = $self->cgi->param('filter') || '';
     my $fields = [];
     my $grouped = 0;
     my $min_lvl;
@@ -361,16 +361,16 @@ sub static {
         $solr .= 'ontology+AND+source%3A'.$source;
         
         # filtered query
-        if ($fname) {
+        if ($filter) {
             my $filter_lvl = $self->cgi->param('filter_level') || 'function';
             unless ( grep(/^$filter_lvl$/, @ont_hier) ) {
                 $self->return_data({"ERROR" => "invalid filter_level for m5nr/ontology: ".$filter_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 404);
             }
-            $url .= '&filter_level='.$filter_lvl.'&filter_name='.$fname;
+            $url .= '&filter_level='.$filter_lvl.'&filter='.$filter;
             if ($filter_lvl eq 'function') {
   	            $filter_lvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
             }
-            $solr .= '+AND+'.$filter_lvl.'%3A'.$fname;
+            $solr .= '+AND+'.$filter_lvl.'%3A*'.uri_escape(uri_unescape($filter)).'*';
         }
         # min level query
         unless ( grep(/^$min_lvl$/, @ont_hier) ) {
@@ -390,13 +390,13 @@ sub static {
         $solr .= 'taxonomy';
         
         # filtered query
-        if ($fname) {
+        if ($filter) {
             my $filter_lvl = $self->cgi->param('filter_level') || 'species';
             unless ( grep(/^$filter_lvl$/, @tax_hier) ) {
                 $self->return_data({"ERROR" => "invalid filter_level for m5nr/taxonomy: ".$filter_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 404);
             }
-            $url .= '&filter_level='.$filter_lvl.'&filter_name='.$fname;
-            $solr .= '+AND+'.$filter_lvl.'%3A'.$fname;
+            $url .= '&filter_level='.$filter_lvl.'&filter='.$filter;
+            $solr .= '+AND+'.$filter_lvl.'%3A*'.uri_escape(uri_unescape($filter)).'*';
         }
         # min level query
         unless ( grep(/^$min_lvl$/, @tax_hier) ) {
