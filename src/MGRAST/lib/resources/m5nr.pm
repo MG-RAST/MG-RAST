@@ -7,8 +7,6 @@ no warnings('once');
 use URI::Escape;
 use Digest::MD5;
 
-use MGRAST::Analysis;
-use Babel::lib::Babel;
 use Conf;
 use parent qw(resources::resource);
 
@@ -35,14 +33,26 @@ sub new {
                                          ['level2', 'ontology level' ],
 					                     ['level1', 'top ontology level'] ]
 			              };
-	$self->{attributes} = { taxonomy => { data    => [ 'list', ['list', 'requested taxonomy levels, from highest to lowest'] ],
+	$self->{attributes} = { taxonomy => { data => [ 'list', ['object', [{'organism' => [ 'string', 'organism name' ],
+	                                                                     'species'  => [ 'string', 'organism species' ],
+                                                                         'genus'    => [ 'string', 'organism genus' ],
+                                                                         'family'   => [ 'string', 'organism family' ],
+                                                                         'order'    => [ 'string', 'organism order' ],
+                                                                         'class'    => [ 'string', 'organism class' ],
+                                                                         'phylum'   => [ 'string', 'organism phylum' ],
+                                                                         'domain'   => [ 'string', 'organism domain' ],
+                                                                         'ncbi_tax_id' => [ 'int', 'organism ncbi id' ]}, "taxonomy object"]] ],
              	                          version => [ 'integer', 'version of the object' ],
              	                          url     => [ 'uri', 'resource location of this object instance' ] },
-             	            ontology => { data    => [ 'list', ['list', 'requested ontology levels, from highest to lowest'] ],
+             	            ontology => { data => [ 'list', ['object', [{'id'     => [ 'string', 'ontology ID' ],
+                                      	                                 'level1' => [ 'string', 'ontology top level' ],
+                                                                         'level2' => [ 'string', 'ontology level 2' ],
+                                                                         'level3' => [ 'string', 'ontology level 3' ],
+                                                                         'level4' => [ 'string', 'ontology bottom level' ],
+                                                                         'source' => [ 'string', 'source name' ]}, "ontology object"]] ],
                                           version => [ 'integer', 'version of the object' ],
                                           url     => [ 'uri', 'resource location of this object instance' ] },
-                           	sources  => { data    => [ 'hash', [{'key' => ['string', 'source name'],
-                                                                 'value' => ['object', 'source object']}, 'source object hash'] ],
+                           	sources  => { data    => [ 'list', ['object', 'source object'] ],
                                           version => [ 'integer', 'version of the object' ],
                                           url     => [ 'uri', 'resource location of this object instance' ] },
                             annotation => { next   => ["uri","link to the previous set or null if this is the first set"],
@@ -97,9 +107,9 @@ sub info {
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{ontology},
 					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->source->{ontology} ],
-										                    'id_map' => ['boolean', 'if true overrides other options and returns a map { ontology ID: [ontology levels] }'],
-									                        'min_level' => ['cv', $self->{hierarchy}{ontology}],
-									                        'parent_name' => ['string', 'name of ontology group to retrieve children of']
+									                        'filter_level' => ['cv', $self->{hierarchy}{ontology}],
+									                        'filter_name' => ['string', 'text of ontology group (filter_level) to filter by'],
+									                        'min_level' => ['cv', $self->{hierarchy}{ontology}]
 									                      },
 							                'required' => {},
 							                'body'     => {} }
@@ -112,9 +122,9 @@ sub info {
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{taxonomy},
-					     'parameters'  => { 'options'  => { 'id_map' => ['boolean', 'if true overrides other options and returns a map { NCBI tax ID: [taxonomy levels] }'],
-									                        'min_level' => ['cv', $self->{hierarchy}{taxonomy}],
-									                        'parent_name' => ['string', 'name of taxanomy group to retrieve children of']
+					     'parameters'  => { 'options'  => { 'filter_level' => ['cv', $self->{hierarchy}{taxonomy}],
+	                                                        'filter_name' => ['string', 'text of taxanomy group (filter_level) to filter by'],
+									                        'min_level' => ['cv', $self->{hierarchy}{taxonomy}]
 									                      },
 							                'required' => {},
 							                'body'     => {} }
@@ -141,8 +151,7 @@ sub info {
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
-    					                                    'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"]
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"]
     					                                  },
    							                'required' => { "id" => ["string", "unique identifier from source DB"] },
    							                'body'     => {} }
@@ -316,7 +325,7 @@ sub request {
         $self->info();
     } elsif (($self->rest->[0] eq 'taxonomy') || ($self->rest->[0] eq 'ontology') || ($self->rest->[0] eq 'sources')) {
         $self->static($self->rest->[0]);
-    } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && $seq && ($self->method eq 'GET')) {
+    } elsif (($self->rest->[0] eq 'md5') && $self->rest->[1] && $seq && ($self->method eq 'GET')) {
         $self->instance($self->rest->[0], $self->rest->[1]);
     } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && ($self->method eq 'GET')) {
         $self->query($self->rest->[0], $self->rest->[1]);
@@ -331,107 +340,103 @@ sub request {
 sub static {
     my ($self, $type) = @_;
     
-    # get database
-    my $master = $self->connect_to_datasource();
-    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
-    unless (ref($mgdb)) {
-        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
-    }
     my $url = $self->cgi->url.'/m5nr/'.$type;
-    my $data = [];
-    my $pname = $self->cgi->param('parent_name') || '';
+    my $solr = 'object%3A';
+    my $limit = 1000000;
+    my $fname = $self->cgi->param('filter_name') || '';
+    my $fields = [];
+    my $grouped = 0;
+    my $min_lvl;
         
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->{hierarchy}{ontology}};
         my @src_map  = map { $_->[0] } @{$self->source->{ontology}};
         my $source   = $self->cgi->param('source') || 'Subsystems';
         my $min_lvl  = $self->cgi->param('min_level') || 'function';
-        $url .= '?source='.$source.'&min_level='.$min_lvl;
+        
         unless ( grep(/^$source$/, @src_map) ) {
             $self->return_data({"ERROR" => "invalid source was entered ($source). Please use one of: ".join(", ", @src_map)}, 404);
         }
-        if ( grep(/^$min_lvl$/, @ont_hier) ) {
-            if ($min_lvl eq 'function') {
-  	            $min_lvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
+        $url .= '?source='.$source.'&min_level='.$min_lvl;
+        $solr .= 'ontology+AND+source%3A'.$source;
+        
+        # filtered query
+        if ($fname) {
+            my $filter_lvl = $self->cgi->param('filter_level') || 'function';
+            unless ( grep(/^$filter_lvl$/, @ont_hier) ) {
+                $self->return_data({"ERROR" => "invalid filter_level for m5nr/ontology: ".$filter_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 404);
             }
-        } else {
-            $self->return_data({"ERROR" => "invalid min_level for m5nr/ontology: ".$min_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 404);
+            $url .= '&filter_level='.$filter_lvl.'&filter_name='.$fname;
+            if ($filter_lvl eq 'function') {
+  	            $filter_lvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
+            }
+            $solr .= '+AND+'.$filter_lvl.'%3A'.$fname;
         }
-        if ( $self->cgi->param('id_map') ) {
-            $url .= '&id_map=1';
-            $data = $mgdb->get_hierarchy('ontology', $source);
-        } elsif ($pname && ($min_lvl ne 'level1')) {
-            $url .= '&parent_name=$pname';
-            $data = $mgdb->get_hierarchy_slice('ontology', $source, $pname, $min_lvl);
-        } else {
-            @$data = values %{ $mgdb->get_hierarchy('ontology', $source, undef, undef, $min_lvl) };
+        # min level query
+        unless ( grep(/^$min_lvl$/, @ont_hier) ) {
+            $self->return_data({"ERROR" => "invalid min_level for m5nr/ontology: ".$min_lvl." - valid types are [".join(", ", @ont_hier)."]"}, 404);
+        }        
+        if ($min_lvl ne 'function') {
+            my $min_index = first { $ont_hier[$_] eq $min_lvl } 0..$#ont_hier;
+            $fields = [ @ont_hier[$min_index..-1] ];
+            $solr .= '&group=true&group.field='.$min_lvl;
+            $grouped = 1;
         }
     } elsif ($type eq 'taxonomy') {
         my @tax_hier = map { $_->[0] } @{$self->{hierarchy}{taxonomy}};
         my $min_lvl  = $self->cgi->param('min_level') || 'species';
+        
         $url .= '?min_level='.$min_lvl;
-        if ( grep(/^$min_lvl$/, @tax_hier) ) {
-            $min_lvl = 'tax_'.$min_lvl;
-        } else {
+        $solr .= 'taxonomy';
+        
+        # filtered query
+        if ($fname) {
+            my $filter_lvl = $self->cgi->param('filter_level') || 'species';
+            unless ( grep(/^$filter_lvl$/, @tax_hier) ) {
+                $self->return_data({"ERROR" => "invalid filter_level for m5nr/taxonomy: ".$filter_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 404);
+            }
+            $url .= '&filter_level='.$filter_lvl.'&filter_name='.$fname;
+            $solr .= '+AND+'.$filter_lvl.'%3A'.$fname;
+        }
+        # min level query
+        unless ( grep(/^$min_lvl$/, @tax_hier) ) {
             $self->return_data({"ERROR" => "invalid min_level for m5nr/taxonomy: ".$min_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 404);
         }
-        if ( $self->cgi->param('id_map') ) {
-            $url .= '&id_map=1';
-            $data = $mgdb->get_hierarchy('organism', undef, 1);
-        } elsif ($pname && ($min_lvl ne 'tax_domain')) {
-            $url .= '&parent_name=$pname';
-            $data = $mgdb->get_hierarchy_slice('organism', undef, $pname, $min_lvl);
-        } else {
-            @$data = values %{ $mgdb->get_hierarchy('organism', undef, undef, undef, $min_lvl) };
+        if ($min_lvl ne 'species') {
+            my $min_index = first { $tax_hier[$_] eq $min_lvl } 0..$#tax_hier;
+            $fields = [ @tax_hier[$min_index..-1] ];
+            $solr .= '&group=true&group.field='.$min_lvl;
+            $grouped = 1;
         }
     } elsif ($type eq 'sources') {
-        $data = $mgdb->_sources();
-        delete $data->{GO};
+        $solr .= 'source';
     } else {
         $self->return_data({"ERROR" => "invalid resource type was entered ($type)"}, 404);
     }
     
+    my $data = [];
+    if ($grouped) {
+        my $result = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect, $solr, undef, 0, $limit, $fields);
+        foreach my $group (@{$result->{$min_lvl}{groups}}) {
+            push @$data, $group->{doclist}{docs}[0];
+        }
+    } else {
+        ($data, undef) = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect, $solr, undef, 0, $limit, $fields);
+    }
     my $obj = { data => $data, version => 1, url => $url };
     
-    # return cached if exists
-    $self->return_cached();
-    # cache this!
-    $self->return_data($obj, undef, 1);
+    $self->return_data($obj);
 }
 
 # return data: sequence object for accession or md5
 sub instance {
-    my ($self, $type, $item) = @_;
+    my ($self, $item) = @_;
     
-    # get database
-    my $ach = new Babel::lib::Babel;
-    unless (ref($ach)) {
-        $self->return_data({"ERROR" => "could not connect to M5NR database"}, 500);
-    }
-    
-    my $data = [];
-    my $url  = $self->cgi->url.'/m5nr/'.$type.'/'.$item.'?sequence=1';
-    
-    if ($type eq 'md5') {
-        my $clean = $self->clean_md5($item);
-        $data = {id => undef, md5 => $clean, sequence => $ach->md52sequence($item)};
-    } elsif ($type eq 'accession') {
-        my $md5 = $ach->id2md5($item);
-        unless ($md5 && @$md5 && $md5->[0][0]) {
-            $self->return_data( {"ERROR" => "accession $item does not exist in M5NR"}, 404 );
-        }
-        my $clean = $self->clean_md5($md5->[0][0]);
-        $data = {id => $item, md5 => $clean, sequence => $ach->md52sequence($md5->[0][0])};
-    } else {
-        $self->return_data({"ERROR" => "invalid resource type was entered ($type) for sequence output"}, 404);
-    }
-    
+    my $clean = $self->clean_md5($item);
+    my $data = { md5 => $clean, sequence => $self->md52sequence($item) };
+    my $url = $self->cgi->url.'/m5nr/md5/'.$item.'?sequence=1';
     my $obj = { data => $data, version => 1, url => $url };
-    
-    # return cached if exists
-    $self->return_cached();
-    # cache this!
-    $self->return_data($obj, undef, 1);
+    $self->return_data($obj);
 }
 
 # return query data: annotation object
@@ -520,6 +525,26 @@ sub clean_md5 {
         $self->return_data({"ERROR" => "invalid md5 was entered ($md5)"}, 404);
     }
     return $clean;
+}
+
+sub md52sequence {
+  my ($self, $md5) = @_;
+
+  my $seq;
+  eval {
+      my @recs = `fastacmd -d $Conf::m5nr_fasta -s \"lcl|$md5\" -l 0 2>&1`;
+      if ((@recs < 2) || (! $recs[0]) || ($recs[0] =~ /^\s+$/) || ($recs[0] =~ /^\[fastacmd\]/)) {
+          $seq = "";
+      } else {
+          $seq = $recs[1];
+          $seq =~ s/\s+//;
+      }
+  };
+  if ($@) {
+       $self->return_data({"ERROR" => "unable to access M5NR sequence data"}, 500);
+  }
+  
+  return $seq;
 }
 
 sub solr_data {
