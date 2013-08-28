@@ -140,16 +140,18 @@ else {
 # check for authentication
 my $user;
 if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
-  use Auth;
-  my $message;
-  ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
-  unless($user) {
-    print $cgi->header( -type => 'application/json',
-	                    -status => 401,
-    	                -Access_Control_Allow_Origin => '*' );
-    print $json->encode( {"ERROR"=> "authentication failed  - $message"} );
-    exit 0;
-  }
+    eval {
+        use Auth;
+        my $message;
+        ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
+        unless($user) {
+            print $cgi->header( -type => 'application/json',
+	                            -status => 401,
+    	                        -Access_Control_Allow_Origin => '*' );
+            print $json->encode( {"ERROR"=> "authentication failed  - $message"} );
+            exit 0;
+        }
+    };
 }
 
 # print google analytics
