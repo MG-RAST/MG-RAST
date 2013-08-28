@@ -19,7 +19,7 @@ sub new {
 
     # set variables
     my $agent = LWP::UserAgent->new;
-    my $memd  = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
+    my $memd  = new Cache::Memcached {'servers' => [$Conf::web_memcache], 'debug' => 0, 'compress_threshold' => 10_000};
     my $json  = JSON->new;
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
     $json = $json->utf8();
@@ -579,8 +579,12 @@ sub get_solr_query {
         return ([], 0);
     } elsif (exists $content->{error}) {
         $self->return_data( {"ERROR" => "Unable to query DB: ".$content->{error}{msg}}, $content->{error}{status} );
-    } else {
+    } elsif (exists $content->{response}) {
         return ($content->{response}{docs}, $content->{response}{numFound});
+    } elsif (exists $content->{grouped}) {
+        return $content->{grouped};
+    } else {
+        $self->return_data( {"ERROR" => "Invalid SOLR return response"}, 500 );
     }
 }
 

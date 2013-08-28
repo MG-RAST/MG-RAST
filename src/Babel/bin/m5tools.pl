@@ -35,6 +35,16 @@ GetOptions( "verbose!"   => \$verb,
 	        "help!"      => \$help
  	  );
 
+my $smap = {};
+eval {
+    %$smap = map { $_->{source}, 1 } @{ get_data('GET', 'sources') };
+};
+
+if ($help) {
+    help($options, $smap);
+    exit 0;
+}
+
 unless ($api) {
     print STDERR "Missing required API url\n";
     help($options, {});
@@ -47,12 +57,6 @@ $json = $json->utf8();
 $json->max_size(0);
 $json->allow_nonref;
 
-my $smap = get_data('GET', 'sources');
-
-if ($help) {
-    help($options, $smap);
-    exit 0;
-}
 unless (exists($options->{$opt}) || $seq || $sim) {
     print STDERR "One of the following paramters are required: option, sequence, or sim\n";
     help($options, $smap);
