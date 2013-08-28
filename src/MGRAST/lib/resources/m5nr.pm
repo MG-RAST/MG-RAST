@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use List::Util qw(first);
 use URI::Escape;
 use Digest::MD5;
 
@@ -344,15 +345,16 @@ sub static {
     my $solr = 'object%3A';
     my $limit = 1000000;
     my $filter = $self->cgi->param('filter') || '';
+    my $min_lvl = $self->cgi->param('min_level') || '';
     my $fields = [];
     my $grouped = 0;
-    my $min_lvl;
         
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->{hierarchy}{ontology}};
         my @src_map  = map { $_->[0] } @{$self->source->{ontology}};
         my $source   = $self->cgi->param('source') || 'Subsystems';
-        my $min_lvl  = $self->cgi->param('min_level') || 'function';
+        $min_lvl = $min_lvl || 'function';
+        $fields  = [ @ont_hier, 'level4', 'accession' ];
         
         unless ( grep(/^$source$/, @src_map) ) {
             $self->return_data({"ERROR" => "invalid source was entered ($source). Please use one of: ".join(", ", @src_map)}, 404);
@@ -378,13 +380,14 @@ sub static {
         }        
         if ($min_lvl ne 'function') {
             my $min_index = first { $ont_hier[$_] eq $min_lvl } 0..$#ont_hier;
-            $fields = [ @ont_hier[$min_index..-1] ];
+            @$fields = splice @ont_hier, $min_index;
             $solr .= '&group=true&group.field='.$min_lvl;
             $grouped = 1;
         }
     } elsif ($type eq 'taxonomy') {
         my @tax_hier = map { $_->[0] } @{$self->{hierarchy}{taxonomy}};
-        my $min_lvl  = $self->cgi->param('min_level') || 'species';
+        $min_lvl = $min_lvl || 'species';
+        $fields  = [ @tax_hier, 'ncbi_tax_id', 'organism' ];
         
         $url .= '?min_level='.$min_lvl;
         $solr .= 'taxonomy';
@@ -404,11 +407,12 @@ sub static {
         }
         if ($min_lvl ne 'species') {
             my $min_index = first { $tax_hier[$_] eq $min_lvl } 0..$#tax_hier;
-            $fields = [ @tax_hier[$min_index..-1] ];
+            @$fields = splice @tax_hier, $min_index;
             $solr .= '&group=true&group.field='.$min_lvl;
             $grouped = 1;
         }
     } elsif ($type eq 'sources') {
+        $fields = [ 'source', 'organization', 'description', 'type', 'url', 'email', 'link', 'title', 'version', 'download_date' ];
         $solr .= 'source';
     } else {
         $self->return_data({"ERROR" => "invalid resource type was entered ($type)"}, 404);
@@ -505,11 +509,11 @@ sub query {
     my ($result, $total);
     if ($type eq 'md5') {
         my @md5s = map { $self->clean_md5($_) } @$data;
-        ($result, $total) = $self->solr_data($type, \@md5s, $source, $offset, $limit, $order, 1);
+        ($result, $total) = $self->query_annotation($type, \@md5s, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
-        ($result, $total) = $self->solr_data($type, $data, undef, $offset, $limit, $order, 1);
+        ($result, $total) = $self->query_annotation($type, $data, undef, $offset, $limit, $order, 1);
     } else {
-        ($result, $total) = $self->solr_data($type, $data, $source, $offset, $limit, $order, $exact);
+        ($result, $total) = $self->query_annotation($type, $data, $source, $offset, $limit, $order, $exact);
     }
     my $obj = $self->check_pagination($result, $total, $limit, $path);
     $obj->{version} = 1;
@@ -547,7 +551,7 @@ sub md52sequence {
   return $seq;
 }
 
-sub solr_data {
+sub query_annotation {
     my ($self, $field, $data, $source, $offset, $limit, $order, $exact) = @_;
     
     @$data = map { uri_escape( uri_unescape($_) ) } @$data;
@@ -559,9 +563,9 @@ sub solr_data {
     my $sort   = $order ? $order.'_sort+asc' : '';
     my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
     my $method = (@$data > 1) ? 'POST' : 'GET';
-    my $query  = join('+OR+', map { $field.'%3A'.$_ } @$data);
+    my $query  = 'object%3Aannotation+AND+('.join('+OR+', map { $field.'%3A'.$_ } @$data).')';
     if ($source) {
-        $query = '('.$query.')+AND+source%3A'.$source;
+        $query .= '+AND+source%3A'.$source;
     }
     return $self->get_solr_query($method, $Conf::m5nr_solr, $Conf::m5nr_collect, $query, $sort, $offset, $limit, $fields);
 }
