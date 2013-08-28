@@ -141,7 +141,8 @@ else {
 my $user;
 if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
     eval {
-        use Auth;
+        require Auth;
+        Auth->import();
         my $message;
         ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
         unless($user) {
