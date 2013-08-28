@@ -56,8 +56,8 @@ foreach my $set (values %$src_lookup) {
 close(SRC);
 
 print STDERR "Loading ontologies ...\n";
-my $ont_sql = "SELECT o.id, o.level1, o.level2, o.level3, o.level4, s.name AS source FROM ontologies o, sources s WHERE o.source = s._id AND s._id != 11";
-my $ont_lookup = $dbh->selectall_hashref($ont_sql , "id");
+my $ont_sql = "SELECT o.id AS accession, o.level1, o.level2, o.level3, o.level4, s.name AS source FROM ontologies o, sources s WHERE o.source = s._id AND s._id != 11";
+my $ont_lookup = $dbh->selectall_hashref($ont_sql , "accession");
 
 print STDERR "Dumping ontologies ...\n";
 open(ONT, ">$output.ontology") or die "Couldn't open $output.ontology for writing.\n";
@@ -74,7 +74,8 @@ foreach my $set (values %$ont_lookup) {
     $count += 1;
 }
 close(ONT);
-
+$dbh->disconnect;
+exit;
 print STDERR "Loading organisms ...\n";
 my $org_sql = "SELECT _id AS organism_id, name AS organism, tax_domain AS domain, tax_phylum AS phylum, tax_class AS class, tax_order AS order, tax_family AS family, tax_genus AS genus, tax_species AS species, ncbi_tax_id FROM organisms_ncbi";
 my $org_lookup = $dbh->selectall_hashref($org_sql , "organism_id");
@@ -162,7 +163,7 @@ while (my @row = $sth->fetchrow_array()) {
         map { $data->{$_} = $func_lookup->{$func}{$_} } keys %{$func_lookup->{$func}};
     }
     if ($id && exists($ont_lookup->{$id})) {
-        map { $data->{$_} = $ont_lookup->{$id}{$_} } grep { exists $ont_lookup->{$id}{$_} } ('level1', 'level2', 'level3', 'level4');
+        map { $data->{$_} = $ont_lookup->{$id}{$_} } keys %{$ont_lookup->{$id}};
     }
     if ($src && exists($src_lookup->{$src})) {
         map { $data->{$_} = $src_lookup->{$src}{$_} } grep { exists $src_lookup->{$src}{$_} } ('source_id', 'source', 'type');
