@@ -579,8 +579,12 @@ sub get_solr_query {
         return ([], 0);
     } elsif (exists $content->{error}) {
         $self->return_data( {"ERROR" => "Unable to query DB: ".$content->{error}{msg}}, $content->{error}{status} );
-    } else {
+    } elsif (exists $content->{response}) {
         return ($content->{response}{docs}, $content->{response}{numFound});
+    } elsif (exists $content->{grouped}) {
+        return $content->{grouped};
+    } else {
+        $self->return_data( {"ERROR" => "Invalid SOLR return response"}, 500 );
     }
 }
 
