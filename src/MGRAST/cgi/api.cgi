@@ -214,7 +214,7 @@ else {
   my $cgi_url = $cgi->url;
   $cgi_url =~ s/^(.*)\/$/$1/;
   $cgi_url =~ s/^(.*)\/api.cgi$/$1/;
-  my @res = map {{ 'name' => $_, 'url' => $cgi_url.'/'.$_ , 'documentation' => $cgi_url.'/api.html#'.$_}} sort @$resources;
+  my @res = map {{ 'name' => $_, 'url' => $cgi->url.'/'.$_ , 'documentation' => $cgi_url.'/api.html#'.$_}} sort @$resources;
   my $content = { version => 1,
 		  service => 'MG-RAST',
 		  url => $cgi->url,
