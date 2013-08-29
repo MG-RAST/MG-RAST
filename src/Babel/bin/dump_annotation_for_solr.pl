@@ -33,7 +33,7 @@ my $sth;
 my $count;
 
 if (! $output) {
-    print STDERR $usage; exit;
+    print STDERR $usage; exit 1;
 }
 
 my $dbh = DBI->connect("DBI:Pg:dbname=$dbname;host=$dbhost", $dbuser, '', {AutoCommit => 0});
@@ -74,8 +74,7 @@ foreach my $set (values %$ont_lookup) {
     $count += 1;
 }
 close(ONT);
-$dbh->disconnect;
-exit;
+
 print STDERR "Loading organisms ...\n";
 my $org_sql = "SELECT _id AS organism_id, name AS organism, tax_domain AS domain, tax_phylum AS phylum, tax_class AS class, tax_order AS order, tax_family AS family, tax_genus AS genus, tax_species AS species, ncbi_tax_id FROM organisms_ncbi";
 my $org_lookup = $dbh->selectall_hashref($org_sql , "organism_id");
