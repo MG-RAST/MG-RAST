@@ -6,8 +6,8 @@ KEGG	ftp://ftp.genome.jp/pub/kegg/release/current/	genes.tar.gz	2011-2-22
 KEGG	ftp://ftp.genome.jp/pub/kegg/brite/ko/	*.keg	2011-2-22
 UniProt	ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/	uniprot_sprot.dat.gz	2013-08-01
 UniProt	ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/	uniprot_trembl.dat.gz	2013-08-01
-SEED	ftp://ftp.theseed.org/misc/Data/idmapping/	SEED.fasta	2013-08-01
-SEED	ftp://ftp.theseed.org/subsystems/	subsystems2role.gz	2013-08-01
+KBase	ftp://ftp.theseed.org/misc/Data/idmapping/	SEED.fasta	2013-08-01
+KBase	ftp://ftp.theseed.org/subsystems/	subsystems2role.gz	2013-08-01
 Phantome	http://www.phantome.org/Downloads/proteins/all_sequences/	phage_proteins_1375354802.fasta.gz	2013-08-01
 VBI	http://brcdownloads.vbi.vt.edu/patric2/genomes/	*.PATRIC.gbf	2013-08-01
 JGI	ftp://ftp.jgi-psf.org/pub/IMG/	img_core_v400.tar	2013-08-01
