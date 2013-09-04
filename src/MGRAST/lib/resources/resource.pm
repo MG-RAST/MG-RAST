@@ -9,7 +9,6 @@ use Data::Dumper;
 use CGI;
 use JSON;
 use LWP::UserAgent;
-use Cache::Memcached;
 use Digest::MD5 qw(md5_hex md5_base64);
 
 1;
@@ -18,8 +17,13 @@ sub new {
     my ($class, $params) = @_;
 
     # set variables
+    my $memd = undef;
+    eval {
+        require Cache::Memcached;
+        Cache::Memcached->import();
+        $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache], 'debug' => 0, 'compress_threshold' => 10_000};
+    };
     my $agent = LWP::UserAgent->new;
-    my $memd  = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
     my $json  = JSON->new;
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
     $json = $json->utf8();
@@ -217,10 +221,15 @@ sub request {
 # get a connection to the datasource
 sub connect_to_datasource {
     my ($self) = @_;
-    use WebServiceObject;
 
-    my ($master, $error) = WebServiceObject::db_connect();
-    if ($error) {
+    my ($master, $error);
+    eval {
+        require WebServiceObject;
+        WebServiceObject->import();
+        ($master, $error) = WebServiceObject::db_connect();
+    };
+
+    if ($@ || $error || (! $master)) {
         $self->return_data({ "ERROR" => "resource database offline" }, 503);
     } else {
         return $master;
@@ -265,12 +274,14 @@ sub check_pagination {
 sub return_cached {
     my ($self) = @_;
     
-    my $cached = $self->memd->get($self->url_id);
-    if ($cached) {
-        # do a runaround on ->return_data
-        print $self->header;
-        print $cached;
-        exit 0;
+    if ($self->memd) {
+        my $cached = $self->memd->get($self->url_id);
+        if ($cached) {
+            # do a runaround on ->return_data
+            print $self->header;
+            print $cached;
+            exit 0;
+        }
     }
 }
 
@@ -320,7 +331,7 @@ sub return_data {
 		              result  => $data,
 		              id      => $self->json_rpc_id };
 		    # cache this!
-            if ($cache_me) {
+            if ($cache_me && $self->memd) {
                 $self->memd->set($self->url_id, $self->json->encode($data), $self->{expire});
             }
         }
@@ -345,7 +356,7 @@ sub return_data {
                 $data = $self->json->encode($data);
             }
             # cache this!
-            if ($cache_me) {
+            if ($cache_me && $self->memd) {
                 $self->memd->set($self->url_id, $data, $self->{expire});
             }
             # send it
@@ -579,8 +590,12 @@ sub get_solr_query {
         return ([], 0);
     } elsif (exists $content->{error}) {
         $self->return_data( {"ERROR" => "Unable to query DB: ".$content->{error}{msg}}, $content->{error}{status} );
-    } else {
+    } elsif (exists $content->{response}) {
         return ($content->{response}{docs}, $content->{response}{numFound});
+    } elsif (exists $content->{grouped}) {
+        return $content->{grouped};
+    } else {
+        $self->return_data( {"ERROR" => "Invalid SOLR return response"}, 500 );
     }
 }
 
