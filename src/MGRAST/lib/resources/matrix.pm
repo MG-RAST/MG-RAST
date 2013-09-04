@@ -26,6 +26,7 @@ sub new {
     $self->{name} = "matrix";
     $self->{org2tax} = {};
     $self->{org2tid} = {};
+    $self->{max_mgs} = 100;
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{hierarchy} = { organism => [ ['strain', 'bottom organism taxanomic level'],
                                          ['species', 'organism type level'],
@@ -105,6 +106,7 @@ sub info {
                                                                                          'taxid' => [ 'boolean', "if true, return annotation ID as NCBI tax id. Only for group_levels with a tax_id" ],
                                                                                          'source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
+                                                                                         'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
                                                                                          'filter_level' => [ 'cv', $self->{hierarchy}{ontology} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
@@ -131,6 +133,7 @@ sub info {
                                                                                                                    ['length', 'average alignment length of hits in annotation']] ],
                                                                                          'source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'group_level' => [ 'cv', $self->{hierarchy}{ontology} ],
+                                                                                         'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
                                                                                          'filter_level' => [ 'cv', $self->{hierarchy}{organism} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
@@ -156,6 +159,7 @@ sub info {
                                                                                                                    ['identity', 'average percent identity of hits in annotation'],
                                                                                                                    ['length', 'average alignment length of hits in annotation']] ],
                                                                                          'source' => [ 'cv', [ @{$self->{sources}{organism}}[2..13] ] ],
+                                                                                         'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
                                                                                          'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
@@ -223,12 +227,15 @@ sub instance {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
         } else {
-            $self->return_data( {"ERROR" => "unknown id in matrix call: ".$id}, 401 );
+            $self->return_data( {"ERROR" => "unknown id in matrix call: ".$id}, 404 );
         }
         $seen->{$id} = 1;
     }
     if (scalar(keys %mgids) == 0) {
-        $self->return_data( {"ERROR" => "no valid ids submitted and/or found: ".join(", ", @ids)}, 401 );
+        $self->return_data( {"ERROR" => "no valid ids submitted and/or found: ".join(", ", @ids)}, 404 );
+    }
+    if (scalar(keys %mgids) > $self->{max_mgs}) {
+        $self->return_data( {"ERROR" => "to many metagenomes requested (".scalar(keys %mgids)."), query is limited to ".$self->{max_mgs}." metagenomes"}, 404 );
     }
     # unique list and sort it - sort required for proper caching
     my @mgids = sort keys %mgids;
@@ -269,6 +276,7 @@ sub prepare_data {
     # get optional params
     my $cgi = $self->cgi;
     my $taxid  = $cgi->param('taxid') ? 1 : 0;
+    my $grep   = $cgi->param('grep') || undef;
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'M5NR' : (($type eq 'function') ? 'Subsystems': 'RefSeq'));
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
     my $htype  = $cgi->param('hit_type') ? $cgi->param('hit_type') : 'all';
@@ -295,6 +303,10 @@ sub prepare_data {
     if (@filter > 0) {
         $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc."_".$flvl;
         $matrix_url .= '&filter='.join('&filter=', sort map { uri_escape($_) } @filter).'&filter_source='.$fsrc.'&filter_level='.$flvl;
+    }
+    if ($grep) {
+        $matrix_id .= '_'.$grep;
+        $matrix_url .= '&grep='.$grep;
     }
 
     # initialize analysis obj with mgids
@@ -550,12 +562,16 @@ sub prepare_data {
         map { push @{$md52id->{ $mmap->{$_->[1]} }}, $_->[0] } @{ $mgdb->annotation_for_md5s([keys %md5s], [$source]) };
         @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {exists $md52id->{$_->[1]}} @$info;
     }
-    
+
+    if ($grep) {
+        @$matrix = sort { $a->[0] cmp $b->[0] } grep { $_->[0] =~ /$grep/i } @$matrix; # sort filtered annotations
+    } else {
+        @$matrix = sort { $a->[0] cmp $b->[0] } @$matrix; # sort annotations
+    }
     if (scalar(@$matrix) == 0) {
         $self->return_data( {"ERROR" => "no data found for the given combination of ids and paramaters"}, 400 );
     }
-
-    @$matrix = sort { $a->[0] cmp $b->[0] } @$matrix; # sort annotations
+        
     my $col_ids = {};
     my $row_ids = $self->sorted_hash($matrix, 0);
     # use full list of ids, not just those found
