@@ -182,12 +182,13 @@ sub prepare_data {
     unless (any {$_->[0] eq $type} @{$self->{types}}) {
         $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
     }
-    if (($flevel eq 'strain') || ($flevel eq 'function')) {
+    if ( ($flevel =~ /^strain|species|function$/) || ($type !~ /^organism|ontology$/) ) {
         $flevel = undef;
     }
     if ($filter && $flevel) {
-        unless ( (any {$_->[0] eq $flevel} @{$self->hierarchy->{organism}}) || (any {$_->[0] eq $flevel} @{$self->hierarchy->{ontology}}) ) {
-            $self->return_data({"ERROR" => "Invalid filter_level was entered ($flevel). Please use one of: ".join(", ", map {$_->[0]} (@{$self->hierarchy->{organism}}, @{$self->hierarchy->{ontology}}))}, 404);
+        unless ( (($type eq 'organism') && (any {$_->[0] eq $flevel} @{$self->hierarchy->{organism}})) ||
+                 (($type eq 'ontology') && (any {$_->[0] eq $flevel} @{$self->hierarchy->{ontology}})) ) {
+            $self->return_data({"ERROR" => "Invalid filter_level was entered ($flevel). For organism use one of: ".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}}).". For ontology use one of: ".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})}, 404);
         }
     }
 
@@ -212,22 +213,23 @@ sub prepare_data {
     # loop through indices and print data
     while (my @row = $sth->fetchrow_array()) {
         my ($md5, $seek, $len) = @row;
-        my $ann = [];
+        my $sql = "";
         if ($type eq 'organism') {
-            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT o.name FROM md5_annotation a, organisms_ncbi o WHERE a.md5=$md5 AND a.source=$srcid AND a.organism=o._id");
+            $sql = "SELECT DISTINCT o.name FROM md5_annotation a, organisms_ncbi o WHERE a.md5=$md5 AND a.source=$srcid AND a.organism=o._id";
             if ($filter && $flevel) {
-                $ann .= " AND o.tax_".$flevel."=".$mgdb->_dbh->quote($filter);
+                $sql .= " AND o.tax_".$flevel."=".$mgdb->_dbh->quote($filter);
             }
         } elsif ($type eq 'function') {
-            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT f.name FROM md5_annotation a, functions f WHERE a.md5=$md5 AND a.source=$srcid AND a.function=f._id");
+            $sql = "SELECT DISTINCT f.name FROM md5_annotation a, functions f WHERE a.md5=$md5 AND a.source=$srcid AND a.function=f._id";
         } elsif ($type eq 'ontology') {
-            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT o.level4 FROM md5_annotation a, ontologies o WHERE a.md5=$md5 AND a.source=$srcid AND a.id=o.name");
+            $sql = "SELECT DISTINCT o.level4 FROM md5_annotation a, ontologies o WHERE a.md5=$md5 AND a.source=$srcid AND a.id=o.name";
             if ($filter && $flevel) {
-                $ann .= " AND o.".$flevel."=".$mgdb->_dbh->quote($filter);
+                $sql .= " AND o.".$flevel."=".$mgdb->_dbh->quote($filter);
             }
         } else {
-            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT id FROM md5_annotation WHERE md5=$md5 AND source=$srcid");
+            $sql = "SELECT DISTINCT id FROM md5_annotation WHERE md5=$md5 AND source=$srcid";
         }
+        my $ann = $mgdb->_dbh->selectcol_arrayref($sql);
         
         # remove non-matching annotations if using filter without hierarchal level
         if ($filter && (! $flevel)) {
