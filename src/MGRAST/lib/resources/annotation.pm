@@ -86,7 +86,8 @@ sub info {
                                                             'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
                                                             "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
 				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $sources ] },
+									                        "source"   => ["cv", $sources ],
+									                        "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'] },
 							                 'body' => {} }
 						},
 						{ 'name'        => "similarity",
@@ -103,7 +104,8 @@ sub info {
                                                             'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
                                                             "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
 				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $sources ] },
+									                        "source"   => ["cv", $sources ],
+									                        "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'] },
 							                 'body' => {} }
 						} ]
 		  };
@@ -159,6 +161,7 @@ sub prepare_data {
     my $cgi    = $self->cgi;
     my $type   = $cgi->param('type') ? $cgi->param('type') : 'organism';
     my $filter = $cgi->param('filter') || undef;
+    my $flevel = $cgi->param('filter_level') || undef;
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'ontology') ? 'Subsystems' : 'RefSeq');
     my $eval   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
     my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
@@ -178,6 +181,14 @@ sub prepare_data {
     }
     unless (any {$_->[0] eq $type} @{$self->{types}}) {
         $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
+    }
+    if (($flevel eq 'strain') || ($flevel eq 'function')) {
+        $flevel = undef;
+    }
+    if ($filter && $flevel) {
+        unless ( (any {$_->[0] eq $flevel} @{$self->hierarchy->{organism}}) || (any {$_->[0] eq $flevel} @{$self->hierarchy->{ontology}}) ) {
+            $self->return_data({"ERROR" => "Invalid filter_level was entered ($flevel). Please use one of: ".join(", ", map {$_->[0]} (@{$self->hierarchy->{organism}}, @{$self->hierarchy->{ontology}}))}, 404);
+        }
     }
 
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
@@ -204,14 +215,22 @@ sub prepare_data {
         my $ann = [];
         if ($type eq 'organism') {
             $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT o.name FROM md5_annotation a, organisms_ncbi o WHERE a.md5=$md5 AND a.source=$srcid AND a.organism=o._id");
+            if ($filter && $flevel) {
+                $ann .= " AND o.tax_".$flevel."=".$mgdb->_dbh->quote($filter);
+            }
         } elsif ($type eq 'function') {
             $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT f.name FROM md5_annotation a, functions f WHERE a.md5=$md5 AND a.source=$srcid AND a.function=f._id");
+        } elsif ($type eq 'ontology') {
+            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT o.level4 FROM md5_annotation a, ontologies o WHERE a.md5=$md5 AND a.source=$srcid AND a.id=o.name");
+            if ($filter && $flevel) {
+                $ann .= " AND o.".$flevel."=".$mgdb->_dbh->quote($filter);
+            }
         } else {
             $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT id FROM md5_annotation WHERE md5=$md5 AND source=$srcid");
         }
         
-        # remove non-matching annotations if using filter
-        if ($filter) {
+        # remove non-matching annotations if using filter without hierarchal level
+        if ($filter && (! $flevel)) {
             my @matches = grep {/$filter/} @$ann;
             @$ann = @matches;
         }
