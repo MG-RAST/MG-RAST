@@ -386,7 +386,7 @@ sub prepare_data {
         $obj->{version} = 1;
         $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
 
-        if ($verb eq 'full') {
+        if (($verb eq 'metadata') || ($verb eq 'full')) {
             my $mixs = {};
 		    $mixs->{project_id} = "";
 		    $mixs->{project_name} = "";
