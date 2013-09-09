@@ -250,6 +250,13 @@ sub query {
             push @solr_fields, $field.':'.$self->cgi->param($field);
         }
     }
+    # sequence stat fields
+    foreach my $field (@{$self->seq_stats}) {
+        if ($self->cgi->param($field)) {
+            push @url_params, $field."=".$self->cgi->param($field);
+            push @solr_fields, $field.':'.$self->cgi->param($field);
+        }
+    }
     
     # build urls
     my $query_str = join('&', @url_params);
