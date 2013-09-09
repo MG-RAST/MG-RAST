@@ -179,6 +179,23 @@ sub source {
     };
 }
 
+# hardcoded hierarchy info
+sub hierarchy {
+    return { organism => [ ['strain', 'bottom organism taxanomic level'],
+                           ['species', 'organism type level'],
+                           ['genus', 'organism taxanomic level'],
+                           ['family', 'organism taxanomic level'],
+                           ['order', 'organism taxanomic level'],
+                           ['class', 'organism taxanomic level'],
+                           ['phylum', 'organism taxanomic level'],
+                           ['domain', 'top organism taxanomic level'] ],
+             ontology => [ ['function', 'bottom function ontology level'],
+                           ['level3', 'function ontology level' ],
+                           ['level2', 'function ontology level' ],
+                           ['level1', 'top function ontology level'] ]
+    };
+}
+
 # get / set functions for class variables
 sub format {
     my ($self, $format) = @_;

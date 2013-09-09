@@ -28,19 +28,6 @@ sub new {
     $self->{org2tid} = {};
     $self->{max_mgs} = 100;
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
-    $self->{hierarchy} = { organism => [ ['strain', 'bottom organism taxanomic level'],
-                                         ['species', 'organism type level'],
-                                         ['genus', 'organism taxanomic level'],
-                                         ['family', 'organism taxanomic level'],
-                                         ['order', 'organism taxanomic level'],
-                                         ['class', 'organism taxanomic level'],
-                                         ['phylum', 'organism taxanomic level'],
-                                         ['domain', 'top organism taxanomic level'] ],
-                           ontology => [ ['function', 'bottom function ontology level'],
-                                         ['level3', 'function ontology level' ],
-                                         ['level2', 'function ontology level' ],
-                                         ['level1', 'top function ontology level'] ]
-                         };
     $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
                             "url"                  => [ 'uri', 'resource location of this object instance' ],
                             "format"               => [ 'string', 'format specification name' ],
@@ -105,10 +92,10 @@ sub info {
                                                                                                                 ['lca', 'returns results based on the Least Common Ancestor for all organisms (M5NR+M5RNA only) that map to hits from a read-feature']] ],
                                                                                          'taxid' => [ 'boolean', "if true, return annotation ID as NCBI tax id. Only for group_levels with a tax_id" ],
                                                                                          'source' => [ 'cv', $self->{sources}{organism} ],
-                                                                                         'group_level' => [ 'cv', $self->{hierarchy}{organism} ],
+                                                                                         'group_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
-                                                                                         'filter_level' => [ 'cv', $self->{hierarchy}{ontology} ],
+                                                                                         'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if false, return metagenome metadata set in 'columns' object.  default is false." ],
@@ -132,10 +119,10 @@ sub info {
                                                                                                                    ['identity', 'average percent identity of hits in annotation'],
                                                                                                                    ['length', 'average alignment length of hits in annotation']] ],
                                                                                          'source' => [ 'cv', $self->{sources}{ontology} ],
-                                                                                         'group_level' => [ 'cv', $self->{hierarchy}{ontology} ],
+                                                                                         'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-                                                                                         'filter_level' => [ 'cv', $self->{hierarchy}{organism} ],
+                                                                                         'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
@@ -346,16 +333,16 @@ sub prepare_data {
         $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
     }
     if ($type eq 'organism') {
-        if ( any {$_->[0] eq $glvl} @{$self->{hierarchy}{organism}} ) {
+        if ( any {$_->[0] eq $glvl} @{$self->hierarchy->{organism}} ) {
             $glvl = 'tax_'.$glvl;
             if ($glvl eq 'tax_strain') {
                 $glvl = 'name';
                 $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{organism}})."]"}, 404);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
         }
-        if ( any {$_->[0] eq $flvl} @{$self->{hierarchy}{ontology}} ) {
+        if ( any {$_->[0] eq $flvl} @{$self->hierarchy->{ontology}} ) {
             if ($flvl eq 'function') {
                 $flvl = ($fsrc =~ /^[NC]OG$/) ? 'level3' : 'level4';
                 $leaf_filter = 1;
@@ -364,7 +351,7 @@ sub prepare_data {
                 $leaf_filter = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{ontology}})."]"}, 404);
+            $self->return_data({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})."]"}, 404);
         }
         unless (exists $org_srcs{$source}) {
             $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
@@ -379,7 +366,7 @@ sub prepare_data {
             $leaf_node = 1;
             $prot_func = 1;
         }
-        elsif ( any {$_->[0] eq $glvl} @{$self->{hierarchy}{ontology}} ) {
+        elsif ( any {$_->[0] eq $glvl} @{$self->hierarchy->{ontology}} ) {
             if ($glvl eq 'function') {
                 $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
                 $leaf_node = 1;
@@ -388,16 +375,16 @@ sub prepare_data {
                 $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{ontology}})."]"}, 404);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})."]"}, 404);
         }
-        if ( any {$_->[0] eq $flvl} @{$self->{hierarchy}{organism}} ) {
+        if ( any {$_->[0] eq $flvl} @{$self->hierarchy->{organism}} ) {
             $flvl = 'tax_'.$flvl;
             if ($flvl eq 'tax_strain') {
                 $flvl = 'name';
                 $leaf_filter = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->{hierarchy}{organism}})."]"}, 404);
+            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
         }
         unless (exists($func_srcs{$source}) || exists($prot_srcs{$source})) {
             $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
@@ -443,7 +430,7 @@ sub prepare_data {
     my $umd5s   = [];
 
     if ($type eq 'organism') {
-        my @levels = map {$_->[0]} reverse @{$self->{hierarchy}{organism}};
+        my @levels = map {$_->[0]} reverse @{$self->hierarchy->{organism}};
         my $seen = {};
         $ttype = 'Taxon';
         $mtype = 'taxonomy';

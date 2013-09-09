@@ -53,7 +53,7 @@ OVERRIDES = \
 # if you change all: make sure all: in standard.mk is consistent.
 # api-doc target must be run last.
 
-all: installdirs $(TOOL_HDR) lib
+all: installdirs $(TOOL_HDR) lib metazen
 
 # Use the PACKAGES macro to transform lib, bin, etc., targets
 # into package level dependencies, e.g., lib -> PkgA.lib, PkgB.lib
@@ -86,6 +86,13 @@ installdirs: $(libdir) $(bindir) $(cgidir) $(cgidir)/Html $(cgidir)/Html/css $(t
 	- mkdir -p $(tmpdir)
 	- mkdir -p $(bindir)
 	- mkdir -p $(cgidir)
+
+metazen:
+	if [ -d "../metazen" ]; then \
+		cd ../metazen;       \
+		make;                \
+		cd -;                \
+	fi
 
 # the subdirs are for putting python pyc etc. into
 
