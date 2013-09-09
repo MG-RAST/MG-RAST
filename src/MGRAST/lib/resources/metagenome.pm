@@ -24,8 +24,7 @@ sub new {
     $self->{name} = "metagenome";
     $self->{mgdb} = undef;
     $self->{rights} = \%rights;
-    $self->{cv} = { verbosity => { 'instance' => {'minimal' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
-                                   'query'    => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1} },
+    $self->{cv} = { verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
                     direction => {'asc' => 1, 'desc' => 1},
                     status => {'both' => 1, 'public' => 1, 'private' => 1},
                     match => {'any' => 1, 'all' => 1}
@@ -154,8 +153,8 @@ sub instance {
     
     # check verbosity
     my $verb = $self->cgi->param('verbosity') || 'minimal';
-    unless (exists $self->{cv}{verbosity}{instance}{$verb}) {
-        $self->return_data({"ERROR" => "Invalid verbosity entered ($verb) for instance."}, 404);
+    unless (exists $self->{cv}{verbosity}{$verb}) {
+        $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
     }
     
     # check id format
@@ -206,8 +205,8 @@ sub query {
     my $status = $self->cgi->param('status') || 'both';
     
     # check CV
-    unless (exists $self->{cv}{verbosity}{query}{$verb}) {
-        $self->return_data({"ERROR" => "Invalid verbosity entered ($verb) for query."}, 404);
+    unless (exists $self->{cv}{verbosity}{$verb}) {
+        $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
     }
     unless (exists $self->{cv}{direction}{$dir}) {
         $self->return_data({"ERROR" => "Invalid direction entered ($dir) for query."}, 404);
@@ -246,6 +245,13 @@ sub query {
     }
     # returnable query fields
     foreach my $field (grep {($_ ne 'status') && ($_ ne 'url')} keys %{$self->{query}}) {
+        if ($self->cgi->param($field)) {
+            push @url_params, $field."=".$self->cgi->param($field);
+            push @solr_fields, $field.':'.$self->cgi->param($field);
+        }
+    }
+    # sequence stat fields
+    foreach my $field (@{$self->seq_stats}) {
         if ($self->cgi->param($field)) {
             push @url_params, $field."=".$self->cgi->param($field);
             push @solr_fields, $field.':'.$self->cgi->param($field);
@@ -386,7 +392,7 @@ sub prepare_data {
         $obj->{version} = 1;
         $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
 
-        if (($verb eq 'metadata') || ($verb eq 'full')) {
+        if (($verb eq 'mixs') || ($verb eq 'full')) {
             my $mixs = {};
 		    $mixs->{project_id} = "";
 		    $mixs->{project_name} = "";
@@ -413,7 +419,11 @@ sub prepare_data {
 	        $mixs->{env_package_type} = $job->env_package_type || "";
 	        $mixs->{seq_method} = $job->seq_method || "";
 	        $mixs->{sequence_type} = $job->seq_type || "";
-	        $obj->{mixs} = $mixs;
+	        if ($verb eq 'full') {
+	            $obj->{mixs} = $mixs;
+            } else {
+                map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
+            }
         }
         if (($verb eq 'metadata') || ($verb eq 'full')) {
             $obj->{metadata} = $jobdata->{$job->{metagenome_id}};

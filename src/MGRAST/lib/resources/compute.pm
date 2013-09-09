@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use MGRAST::Analysis;
 use List::MoreUtils qw(any uniq);
 use File::Temp qw(tempfile tempdir);
 
@@ -20,7 +21,10 @@ sub new {
     # Add name / attributes
     $self->{name} = "compute";
     $self->{example} = '"columns":["mgm4441619.3","mgm4441656.4"],"rows":["Eukaryota","Bacteria","Archaea"],"data":[[135,410],[4397,6529],[1422,2156]]';
-    $self->{attributes} = { normalize => { 'data' => ['list', ['list', ['float', 'normalized value']]],
+    $self->{attributes} = { alphadiversity => { "id"   => [ "string", "unique metagenome identifier" ],
+                                                "url"  => [ "string", "resource location of this object instance" ],
+                                                "data" => [ 'float', 'alpha diversity value' ] },
+                            normalize => { 'data' => ['list', ['list', ['float', 'normalized value']]],
                                            'rows' => ['list', ['string', 'row id']],
                                            'columns' => ['list', ['string', 'column id']] },
                             heatmap => { 'data' => ['list', ['list', ['float', 'normalized value']]],
@@ -61,6 +65,19 @@ sub info {
 							                 'required' => {},
 							                 'body'     => {} }
 						},
+						{ 'name'        => "alphadiversity",
+				          'request'     => $self->cgi->url."/".$self->name."/alphadiversity/{ID}",
+				          'description' => "Calculate alpha diversity value for given ID and taxon level.",
+				          'example'     => [ $self->cgi->url."/".$self->name."/alphadiversity/mgm4447943.3?level=order",
+             				                 "retrieve alpha diversity for order taxon" ],
+				          'method'      => "GET",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{alphadiversity},
+				          'parameters'  => { 'options'  => { 'level' => [ 'cv', $self->hierarchy->{organism} ],
+				                                             'source' => [ 'cv', [@{$self->source->{protein}}, @{$self->source->{rna}}] ] },
+							                 'required' => {},
+							                 'body'     => {} }
+						},
 				        { 'name'        => "normalize",
 				          'request'     => $self->cgi->url."/".$self->name."/normalize",
 				          'description' => "Calculate normalized values for given input data.",
@@ -71,7 +88,7 @@ sub info {
 				          'attributes'  => $self->{attributes}{normalize},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "data" => ['list', ['list', ['float', 'raw value']]],
+							                 'body'     => { "data" => ['list', ['list', ['int', 'raw value']]],
           							                         "rows" => ['list', ['string', 'row id']],
           							                         "columns" => ['list', ['string', 'column id']] } }
 						},
@@ -85,7 +102,7 @@ sub info {
 				          'attributes'  => $self->{attributes}{heatmap},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "data" => ['list', ['list', ['float','raw or normalized value']]],
+							                 'body'     => { "data" => ['list', ['list', ['float', 'raw or normalized value']]],
            							                         "rows" => ['list', ['string', 'row id']],
            							                         "columns" => ['list', ['string', 'column id']],
      							                             "cluster" => ['cv', [map {[$_, $_." cluster method"]} @{$self->{cluster}}]],
@@ -102,12 +119,12 @@ sub info {
 				          'attributes'  => $self->{attributes}{pcoa},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "data" => ['list', ['list', ['float','raw or normalized value']]],
+							                 'body'     => { "data" => ['list', ['list', ['float', 'raw or normalized value']]],
             							                     "rows" => ['list', ['string', 'row id']],
             							                     "columns" => ['list', ['string', 'column id']],
 							                                 "distance" => ['cv', [map {[$_, $_." distance method"]} @{$self->{distance}}]],
 							                                 "raw" => ["boolean", "option to use raw data (not normalize)"] } }
-						},
+						}
 				     ]
 				 };
 
@@ -121,6 +138,8 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
+    } elsif (($self->rest->[0] eq 'alphadiversity') && $self->rest->[1]) {
+        $self->diversity_compute($self->rest->[1]);
     } elsif (any {$self->rest->[0] eq $_} ('normalize', 'heatmap', 'pcoa')) {
         $self->abundance_compute($self->rest->[0]);
     } elsif (any {$self->rest->[0] eq $_} ('stats', 'drisee', 'kmer')) {
@@ -133,6 +152,38 @@ sub request {
 sub sequence_compute {
     my ($self, $type) = @_;
     $self->return_data( {"ERROR" => "compute request $type is not currently available"}, 404 );
+}
+
+sub diversity_compute {
+    my ($self, $mgid) = @_;
+    
+    # check id format
+    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
+    if (! $id) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $mgid}, 400 );
+    }
+    
+    # paramaters
+    my $level  = $self->cgi->param('level') || 'species';
+    my $source = $self->cgi->param('source') || 'RefSeq';
+    
+    # initialize analysis obj with mgid
+    my $master = $self->connect_to_datasource();
+    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
+    unless (ref($mgdb)) {
+        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
+    }
+    $mgdb->set_jobs([$id]);
+    
+    my @alpha = values %{ $mgdb->get_rarefaction_curve([$source], 1, $level) };
+    if (@alpha != 1) {
+        $self->return_data({"ERROR" => "unable to calculate alpha diversity"}, 500);
+    }
+    my $data = { id => 'mgm'.$id,
+                 url => $self->cgi->url.'/alphadiversity/mgm'.$id.'?level='.$level.'&source='.$source,
+                 data => sprintf("%.3f", $alpha[0]) };
+    
+    $self->return_data($data);
 }
 
 sub abundance_compute {
