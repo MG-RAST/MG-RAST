@@ -222,7 +222,7 @@ sub seq_stats {
              'bp_count_raw',
              'clustered_sequence_count_processed',
              'clustered_sequence_count_processed_aa',
-             'clustered_sequence_count_processed_rna'
+             'clustered_sequence_count_processed_rna',
              'cluster_count_processed',
              'cluster_count_processed_aa',
              'cluster_count_processed_rna',
