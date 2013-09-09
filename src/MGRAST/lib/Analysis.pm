@@ -1215,15 +1215,16 @@ sub get_md5_data_for_organism_source {
 }
 
 sub get_rarefaction_curve {
-    my ($self, $srcs, $get_alpha) = @_;
+    my ($self, $srcs, $get_alpha, $level) = @_;
 
     unless ($srcs && @$srcs) { $srcs = []; }
+    unless ($level) { $level = 'species'; }
 
-    my $raw_data  = {};  # mgid => species => abundance
+    my $raw_data  = {};  # mgid => tax level => abundance
     my $mg_alpha  = {};  # mgid => alpha diversity
     my $mg_rare   = {};  # mgid => [ rare-x, rare-y ]
-    my $mg_abund  = $self->get_abundance_for_tax_level('tax_species', undef, $srcs);  # [mgid, species, abundance]
-    my $cache_key = 'rarefaction'.join(':', @$srcs);
+    my $mg_abund  = $self->get_abundance_for_tax_level('tax_'.$level, undef, $srcs);  # [mgid, tax level, abundance]
+    my $cache_key = 'rarefaction'.$level.join(':', @$srcs);
 
     map { $raw_data->{$_->[0]}->{$_->[1]} = $_->[2] } @$mg_abund;
   
