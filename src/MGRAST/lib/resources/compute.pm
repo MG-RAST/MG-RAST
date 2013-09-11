@@ -51,7 +51,7 @@ sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
 		            'url' => $self->cgi->url."/".$self->name,
-		            'description' => "Calculate a PCoA for given input data.",
+		            'description' => "Calculate various statistics for given input data.",
 		            'type' => 'object',
 		            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
 		            'requests' => [
