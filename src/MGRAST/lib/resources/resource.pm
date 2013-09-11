@@ -196,6 +196,28 @@ sub hierarchy {
     };
 }
 
+# hardcoded list of metagenome pipeline option keywords
+sub pipeline_opts {
+    return [ 'assembled',
+             'bowtie',
+             'dereplicate',
+             'dynamic_trim',
+             'file_type',
+             'filter_ambig',
+             'filter_ln',
+             'filter_options',
+             'max_ambig',
+             'max_ln',
+             'max_lqb',
+             'min_ln',
+             'min_qual',
+             'priority',
+             'screen_indexes',
+             'sequence_type_guess',
+             'sequencing_method_guess'  
+    ];
+}
+
 # hardcoded list of metagenome sequence statistics names
 sub seq_stats {
     return [ 'alpha_diversity_shannon',
@@ -677,6 +699,26 @@ sub get_solr_query {
         return $content->{grouped};
     } else {
         $self->return_data( {"ERROR" => "Invalid SOLR return response"}, 500 );
+    }
+}
+
+sub kbase_idserver {
+    my ($self, $method, $params) = @_;
+    
+    my $content = undef;
+    my $post_data = {"method" => "IDServerAPI.".$method, "version" => "1.1", "params" => $params};
+    eval {
+        my $response = $self->agent->post($conf::idserver_url, Content => $self->json->encode($post_data));
+        $content = $self->json->decode( $response->content );
+    };
+    if ($@ || (! ref($content))) {
+        $self->return_data( {"ERROR" => "Unable to access KBase idserver"}, 500 );
+    } elsif (exists $content->{error}) {
+        $self->return_data( {"ERROR" => $content->{error}{message}}, 500 );
+    } elsif (exists $content->{result}) {
+        return $content->{result};
+    } else {
+        $self->return_data( {"ERROR" => "Invalid KBase idserver return response"}, 500 );
     }
 }
 
