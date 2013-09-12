@@ -67,10 +67,10 @@ sub info {
 				          'attributes'  => $self->{attributes}{reserve},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "mg_name"   => ["string", "name of metagenome"],
-							                                 "file_name" => ["string", "name of sequence file"],
+							                 'body'     => { "name" => ["string", "name of metagenome"],
+							                                 "file" => ["string", "name of sequence file"],
 							                                 "file_size" => ["string", "byte size of sequence file"],
-          							                         "md5sum"    => ["string", "md5 checksum of sequence file"] } }
+          							                         "file_checksum" => ["string", "md5 checksum of sequence file"] } }
 						},
 						{ 'name'        => "create",
 				          'request'     => $self->cgi->url."/".$self->name."/create",
@@ -136,14 +136,15 @@ sub job_action {
     my $post = get_post_data();
     
     if ($action eq 'reserve') {
-        my ($name, $file, $size, $md5);
-        eval {
-            ($name, $file, $size, $md5) = ($post->{mg_name}, $post->{file_name}, $post->{file_size}, $post->{md5sum});
-        };
-        if ($@) {
-            $self->return_data( {"ERROR" => "Missing required parameter"}, 404 );
+        my @params = ();
+        foreach my $p ('name', 'file', 'file_size', 'file_checksum') {
+            if (exists $post->{$p}) {
+                push @params, $p;
+            } else {
+                $self->return_data( {"ERROR" => "Missing required parameter '$p'"}, 404 );
+            }
         }
-        my $job = $master->Job->reserve_job_id($self->user, $name, $file, $size, $md5);
+        my $job = $master->Job->reserve_job_id($self->user, $params[0], $params[1], $params[2], $params[3]);
         unless ($job) {
             $self->return_data( {"ERROR" => "Unable to reserve job id"}, 500 );
         }
@@ -165,7 +166,7 @@ sub job_action {
         }
         # check rights
         unless ($self->user->has_right(undef, 'edit', 'metagenome', $id)) {
-            $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+            $self->return_data( {"ERROR" => "insufficient permissions to create metagenome ".$post->{metagenome_id}}, 401 );
         }
         # get data
         my $job = $master->Job->get_objects( {metagenome_id => $id} );
