@@ -68,7 +68,8 @@ sub info {
 				          'attributes'  => $self->{attributes}{reserve},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "name" => ["string", "name of metagenome"],
+							                 'body'     => { "kbase_id" => ['boolean', "if true create KBase ID, default is false."],
+							                                 "name" => ["string", "name of metagenome"],
 							                                 "file" => ["string", "name of sequence file"],
 							                                 "file_size" => ["string", "byte size of sequence file"],
           							                         "file_checksum" => ["string", "md5 checksum of sequence file"] } }
@@ -149,10 +150,11 @@ sub job_action {
         unless ($job) {
             $self->return_data( {"ERROR" => "Unable to reserve job id"}, 500 );
         }
+        my $mgid = 'mgm'.$job->{metagenome_id};
         $data = { timestamp     => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
-                  metagenome_id => 'mgm'.$job->{metagenome_id},
+                  metagenome_id => $mgid,
                   job_id        => $job->{job_id},
-                  kbase_id      => $self->reserve_kbase_id('mgm'.$job->{metagenome_id})
+                  kbase_id      => (exists($post->{kbase_id}) && $post->{kbase_id}) ? $self->reserve_kbase_id($mgid): undef
         };
     } elsif ($action eq 'create') {
         foreach my $key (keys %{$self->{create_param}}) {
