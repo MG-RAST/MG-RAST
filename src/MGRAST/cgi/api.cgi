@@ -11,7 +11,7 @@ my $cgi  = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
-my %private_resources = ('notebook' => 1, 'resource' => 1, 'status' => 1, 'user' => 1);
+my %private_resources = ('notebook' => 1, 'resource' => 1, 'status' => 1, 'user' => 1, 'job' => 1);
 
 # get request method
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
