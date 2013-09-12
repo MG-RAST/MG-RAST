@@ -708,7 +708,7 @@ sub kbase_idserver {
     my $content = undef;
     my $post_data = {"method" => "IDServerAPI.".$method, "version" => "1.1", "params" => $params};
     eval {
-        my $response = $self->agent->post($conf::idserver_url, Content => $self->json->encode($post_data));
+        my $response = $self->agent->post($Conf::idserver_url, Content => $self->json->encode($post_data));
         $content = $self->json->decode( $response->content );
     };
     if ($@ || (! ref($content))) {

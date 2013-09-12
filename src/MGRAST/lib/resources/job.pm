@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use POSIX qw(strftime);
 use Conf;
 use parent qw(resources::resource);
 
@@ -116,7 +117,7 @@ sub request {
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
     } elsif (($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create')) {
-        $self->job_action($self->rest->[1]);
+        $self->job_action($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'kb2mg') || ($self->rest->[0] eq 'mg2kb')) {
         $self->id_lookup($self->rest->[0]);
     } else {
@@ -133,13 +134,13 @@ sub job_action {
     }
     
     my $data = {};
-    my $post = get_post_data();
+    my $post = $self->get_post_data();
     
     if ($action eq 'reserve') {
         my @params = ();
         foreach my $p ('name', 'file', 'file_size', 'file_checksum') {
             if (exists $post->{$p}) {
-                push @params, $p;
+                push @params, $post->{$p};
             } else {
                 $self->return_data( {"ERROR" => "Missing required parameter '$p'"}, 404 );
             }
@@ -148,10 +149,10 @@ sub job_action {
         unless ($job) {
             $self->return_data( {"ERROR" => "Unable to reserve job id"}, 500 );
         }
-        $data = { timestamp     => $job->{created_on},
+        $data = { timestamp     => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                   metagenome_id => 'mgm'.$job->{metagenome_id},
                   job_id        => $job->{job_id},
-                  kbase_id      => reserve_kbase_id('mgm'.$job->{metagenome_id})
+                  kbase_id      => $self->reserve_kbase_id('mgm'.$job->{metagenome_id})
         };
     } elsif ($action eq 'create') {
         foreach my $key (keys %{$self->{create_param}}) {
@@ -189,7 +190,7 @@ sub id_lookup {
     my ($self, $action) = @_;
     
     my $data = {};
-    my $post = get_post_data();
+    my $post = $self->get_post_data();
     unless (exists($post->{ids}) && (@{$post->{ids}} > 0)) {
         $self->return_data( {"ERROR" => "No IDs submitted"}, 404 );
     } 
@@ -208,7 +209,7 @@ sub id_lookup {
 sub reserve_kbase_id {
     my ($self, $mgid) = @_;
     
-    my $result = $self->kbase_idserver('register_ids', ["mg", "MG-RAST", [$mgid]]);
+    my $result = $self->kbase_idserver('register_ids', ["kb|mg", "MG-RAST", [$mgid]]);
     unless (exists($result->[0]->{$mgid}) && $result->[0]->{$mgid}) {
         $self->return_data( {"ERROR" => "Unable to reserve KBase id for $mgid"}, 500 );
     }
@@ -219,14 +220,14 @@ sub get_post_data {
     my ($self) = @_;
     
     # posted data
-    my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join("", $self->cgi->param('keywords'));
+    my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join(" ", $self->cgi->param('keywords'));
     unless ($post_data) {
         $self->return_data( {"ERROR" => "POST request missing data"}, 400 );
     }
     
     my $pdata = {};
     eval {
-        $pdata = $self->json->decode($post_data);        
+        $pdata = $self->json->decode($post_data);
     };
     if ($@ || (scalar(keys %$pdata) == 0)) {
         $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
