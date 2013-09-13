@@ -147,7 +147,7 @@ function initialize() {
     var feed = new google.feeds.Feed("http://press.igsb.anl.gov/mg-rast/feed/");
     feed.load(function(result) {
         if (!result.error) {
-	    var html = "<ul style='position: relative; bottom: 6px; right: 22px;'>";
+	    var html = "<ul style='position: relative; bottom: 9px; right: 22px;'>";
 	    for (var i = 0; i < result.feed.entries.length; i++) {
 		var entry = result.feed.entries[i];
 		html += "<li><a href='"+entry.link+"' target=_blank>"+entry.title+"</a></li>";
