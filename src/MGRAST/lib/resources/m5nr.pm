@@ -460,7 +460,7 @@ sub query {
     my $path = '';
     
     if ($post) {
-        my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join("", $self->cgi->param('keywords'));
+        my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join(" ", $self->cgi->param('keywords'));
         # all options sent as post data
         if ($post_data) {
             eval {
@@ -469,6 +469,7 @@ sub query {
                 if (exists $json_data->{limit})  { $limit  = $json_data->{limit}; }
                 if (exists $json_data->{offset}) { $offset = $json_data->{offset}; }
                 if (exists $json_data->{order})  { $order  = $json_data->{order}; }
+                if (exists $json_data->{exact})  { $exact  = $json_data->{exact} ? 1 : 0; }
                 $data = $json_data->{data};
             };
         # data sent in post form
