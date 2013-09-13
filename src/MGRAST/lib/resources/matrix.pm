@@ -288,7 +288,7 @@ sub prepare_data {
         $matrix_url .= '&hide_metadata='.$hide_md;
     }
     if (@filter > 0) {
-        $matrix_id .= md5_hex( join("_", sort map { s/\s+/_/g } @filter) )."_".$fsrc."_".$flvl;
+        $matrix_id .= md5_hex( join("_", sort map { local $_ = $_; s/\s+/_/g; $_ } @filter) )."_".$fsrc."_".$flvl;
         $matrix_url .= '&filter='.join('&filter=', sort map { uri_escape($_) } @filter).'&filter_source='.$fsrc.'&filter_level='.$flvl;
     }
     if ($grep) {
