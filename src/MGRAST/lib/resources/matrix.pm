@@ -95,11 +95,12 @@ sub info {
                                                                                          'group_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
+                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching functions, default is fasle'],
                                                                                          'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
-                                                                                         'hide_metadata' => [ 'boolean', "if false, return metagenome metadata set in 'columns' object.  default is false." ],
-                                                                                         'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
+                                                                                         'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                                                                                         'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} }
                                                             },
@@ -122,11 +123,12 @@ sub info {
                                                                                          'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
+                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching organisms, default is fasle'],
                                                                                          'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
-                                                                                         'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
-                                                                                         'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
+                                                                                         'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                                                                                         'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} }
                                                             },
@@ -149,7 +151,7 @@ sub info {
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
-                                                                                         'asynchronous' => [ 'boolean', "if true, return process id to query status resource for results.  default is false." ] },
+                                                                                         'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} } }
                                                   ] };
@@ -274,6 +276,7 @@ sub prepare_data {
     my $flvl   = $cgi->param('filter_level') ? $cgi->param('filter_level') : (($type eq 'organism') ? 'function' : 'strain');
     my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'M5NR');
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
+    my $remove = $cgi->param('remove') ? 1 : 0;
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $leaf_node = 0;
     my $prot_func = 0;
@@ -286,6 +289,10 @@ sub prepare_data {
     if ($hide_md) {
         $matrix_id .= '_'.$hide_md;
         $matrix_url .= '&hide_metadata='.$hide_md;
+    }
+    if ($remove) {
+        $matrix_id .= '_'.$remove;
+        $matrix_url .= '&remove='.$remove;
     }
     if (@filter > 0) {
         $matrix_id .= md5_hex( join("_", sort map { local $_ = $_; s/\s+/_/g; $_ } @filter) )."_".$fsrc."_".$flvl;
