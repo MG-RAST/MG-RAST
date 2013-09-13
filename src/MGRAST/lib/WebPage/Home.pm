@@ -134,7 +134,7 @@ function forward_to_search (e) {
   $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of sequences<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$seqcount." billion</span></div>";
   $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of public metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$publiccount."</span></div>";
   $content .= "</div>";
-  $content .= "<div style='float: left; width: 410px; line-height: 17px; margin: 10 0 0 10;'>The server primarily provides upload, quality control, automated annotation and analysis for prokaryotic metagenomic shotgun samples. MG-RAST was launched in 2007 and has over 8000 registered users and ".$jobcount." data sets. The current server version is ".$Conf::server_version.". We suggest users take a look at <a href='http://blog.metagenomics.anl.gov/mg-rast-for-the-impatient'>MG-RAST for the impatient</a>. Also available for download is the <a href='ftp://ftp.metagenomics.anl.gov/data/manual/mg-rast-tech-report-v3_r1.pdf'>technical manual</a>.</div>"; 
+  $content .= "<div style='float: left; width: 410px; line-height: 17px; margin: 10 0 0 10;'>The server primarily provides upload, quality control, automated annotation and analysis for prokaryotic metagenomic shotgun samples. MG-RAST was launched in 2007 and has over 8000 registered users and ".$jobcount." data sets. The current server version is ".$Conf::server_version.". We suggest users take a look at <a href='http://blog.metagenomics.anl.gov/mg-rast-for-the-impatient'>MG-RAST for the impatient</a>. Also available for download is the <a href='ftp://ftp.metagenomics.anl.gov/data/manual/mg-rast-tech-report-v3_r1.pdf' target=_blank>technical manual</a>.</div>"; 
 
   $content .= "<div class='clear'></div>";
   $content .= <<'END';
@@ -147,7 +147,7 @@ function initialize() {
     var feed = new google.feeds.Feed("http://press.igsb.anl.gov/mg-rast/feed/");
     feed.load(function(result) {
         if (!result.error) {
-	    var html = "<ul>";
+	    var html = "<ul style='position: relative; bottom: 6px; right: 22px;'>";
 	    for (var i = 0; i < result.feed.entries.length; i++) {
 		var entry = result.feed.entries[i];
 		html += "<li><a href='"+entry.link+"' target=_blank>"+entry.title+"</a></li>";
