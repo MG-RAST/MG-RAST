@@ -222,7 +222,7 @@ sub prepare_data {
         } elsif ($type eq 'function') {
             $sql = "SELECT DISTINCT f.name FROM md5_annotation a, functions f WHERE a.md5=$md5 AND a.source=$srcid AND a.function=f._id";
         } elsif ($type eq 'ontology') {
-            $sql = "SELECT DISTINCT o.level4 FROM md5_annotation a, ontologies o WHERE a.md5=$md5 AND a.source=$srcid AND a.id=o.name";
+            $sql = "SELECT DISTINCT o.name FROM md5_annotation a, ontologies o WHERE a.md5=$md5 AND a.source=$srcid AND a.id=o.name";
             if ($filter && $flevel) {
                 $sql .= " AND o.".$flevel."=".$mgdb->_dbh->quote($filter);
             }
