@@ -22,18 +22,6 @@ sub new {
     $self->{name} = "m5nr";
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
-    $self->{hierarchy} = { taxonomy => [ ['species', 'taxonomy level'],
-					                     ['genus', 'taxonomy level'],
-					                     ['family', 'taxonomy level'],
-					                     ['order', ' taxonomy level'],
-					                     ['class', ' taxonomy level'],
-					                     ['phylum', 'taxonomy level'],
-					                     ['domain', 'top taxonomy level'] ],
-			               ontology => [ ['function', 'bottom ontology level'],
-                                         ['level3', 'ontology level' ],
-                                         ['level2', 'ontology level' ],
-					                     ['level1', 'top ontology level'] ]
-			              };
 	$self->{attributes} = { taxonomy => { data => [ 'list', ['object', [{'organism' => [ 'string', 'organism name' ],
 	                                                                     'species'  => [ 'string', 'organism species' ],
                                                                          'genus'    => [ 'string', 'organism genus' ],
@@ -108,9 +96,9 @@ sub info {
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{ontology},
 					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->source->{ontology} ],
-									                        'filter_level' => ['cv', $self->{hierarchy}{ontology}],
+									                        'filter_level' => ['cv', $self->hierarchy->{ontology}],
 									                        'filter' => ['string', 'text of ontology group (filter_level) to filter by'],
-									                        'min_level' => ['cv', $self->{hierarchy}{ontology}]
+									                        'min_level' => ['cv', $self->hierarchy->{ontology}]
 									                      },
 							                'required' => {},
 							                'body'     => {} }
@@ -118,14 +106,14 @@ sub info {
 				       { 'name'        => "taxonomy",
 					     'request'     => $self->cgi->url."/".$self->name."/taxonomy",
 					     'description' => "Return organism hierarchy",
-					     'example'     => [ $self->cgi->url."/".$self->name."/taxonomy?parent_name=Bacteroidetes&min_level=class",
+					     'example'     => [ $self->cgi->url."/".$self->name."/taxonomy?filter=Bacteroidetes&filter_level=phylum&min_level=genus",
         				                    'retrieve all class level taxa that belong to Bacteroidetes' ],
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{taxonomy},
-					     'parameters'  => { 'options'  => { 'filter_level' => ['cv', $self->{hierarchy}{taxonomy}],
+					     'parameters'  => { 'options'  => { 'filter_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
 	                                                        'filter' => ['string', 'text of taxanomy group (filter_level) to filter by'],
-									                        'min_level' => ['cv', $self->{hierarchy}{taxonomy}]
+									                        'min_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]]
 									                      },
 							                'required' => {},
 							                'body'     => {} }
@@ -350,7 +338,7 @@ sub static {
     my $grouped = 0;
         
     if ($type eq 'ontology') {
-        my @ont_hier = map { $_->[0] } @{$self->{hierarchy}{ontology}};
+        my @ont_hier = map { $_->[0] } @{$self->hierarchy->{ontology}};
         my @src_map  = map { $_->[0] } @{$self->source->{ontology}};
         my $source   = $self->cgi->param('source') || 'Subsystems';
         $min_lvl = $min_lvl || 'function';
@@ -385,7 +373,7 @@ sub static {
             $grouped = 1;
         }
     } elsif ($type eq 'taxonomy') {
-        my @tax_hier = map { $_->[0] } @{$self->{hierarchy}{taxonomy}};
+        my @tax_hier = map { $_->[0] } @{$self->hierarchy->{organism}}[1..7];
         $min_lvl = $min_lvl || 'species';
         $fields  = [ @tax_hier, 'ncbi_tax_id', 'organism' ];
         
