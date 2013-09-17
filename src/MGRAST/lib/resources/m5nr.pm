@@ -135,7 +135,7 @@ sub info {
 				       },
 				       { 'name'        => "accession",
    					     'request'     => $self->cgi->url."/".$self->name."/accession/{id}",
-   					     'description' => "Return annotation or sequence of given source protein ID",
+   					     'description' => "Return annotation of given source protein ID",
    					     'example'     => [ $self->cgi->url."/".$self->name."/accession/YP_003268079.1",
           				                    "retrieve M5NR data for accession ID 'YP_003268079.1'" ],
    					     'method'      => "GET",
