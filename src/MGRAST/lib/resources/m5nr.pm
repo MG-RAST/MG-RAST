@@ -22,18 +22,7 @@ sub new {
     $self->{name} = "m5nr";
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
-    $self->{hierarchy} = { taxonomy => [ ['species', 'taxonomy level'],
-					                     ['genus', 'taxonomy level'],
-					                     ['family', 'taxonomy level'],
-					                     ['order', ' taxonomy level'],
-					                     ['class', ' taxonomy level'],
-					                     ['phylum', 'taxonomy level'],
-					                     ['domain', 'top taxonomy level'] ],
-			               ontology => [ ['function', 'bottom ontology level'],
-                                         ['level3', 'ontology level' ],
-                                         ['level2', 'ontology level' ],
-					                     ['level1', 'top ontology level'] ]
-			              };
+    $self->{version} = { '1' => 1, '9' => 1 };
 	$self->{attributes} = { taxonomy => { data => [ 'list', ['object', [{'organism' => [ 'string', 'organism name' ],
 	                                                                     'species'  => [ 'string', 'organism species' ],
                                                                          'genus'    => [ 'string', 'organism genus' ],
@@ -43,7 +32,7 @@ sub new {
                                                                          'phylum'   => [ 'string', 'organism phylum' ],
                                                                          'domain'   => [ 'string', 'organism domain' ],
                                                                          'ncbi_tax_id' => [ 'int', 'organism ncbi id' ]}, "taxonomy object"]] ],
-             	                          version => [ 'integer', 'version of the object' ],
+             	                          version => [ 'integer', 'version of M5NR' ],
              	                          url     => [ 'uri', 'resource location of this object instance' ] },
              	            ontology => { data => [ 'list', ['object', [{'id'     => [ 'string', 'ontology ID' ],
                                       	                                 'level1' => [ 'string', 'ontology top level' ],
@@ -51,17 +40,17 @@ sub new {
                                                                          'level3' => [ 'string', 'ontology level 3' ],
                                                                          'level4' => [ 'string', 'ontology bottom level' ],
                                                                          'source' => [ 'string', 'source name' ]}, "ontology object"]] ],
-                                          version => [ 'integer', 'version of the object' ],
+                                          version => [ 'integer', 'version of M5NR' ],
                                           url     => [ 'uri', 'resource location of this object instance' ] },
                            	sources  => { data    => [ 'list', ['object', 'source object'] ],
-                                          version => [ 'integer', 'version of the object' ],
+                                          version => [ 'integer', 'version of M5NR' ],
                                           url     => [ 'uri', 'resource location of this object instance' ] },
                             annotation => { next   => ["uri","link to the previous set or null if this is the first set"],
                                             prev   => ["uri","link to the next set or null if this is the last set"],
                                             limit  => ["integer","maximum number of data items returned, default is 10"],
                                             offset => ["integer","zero based index of the first returned data item"],
                                             total_count => ["integer","total number of available data items"],
-                                            version => [ 'integer', 'version of the object' ],
+                                            version => [ 'integer', 'version of M5NR' ],
                                             url  => [ 'uri', 'resource location of this object instance' ],
                                             data => [ 'list', ['object', [{'accession'   => [ 'string', 'unique identifier given by source' ],
                                                                            'md5'         => [ 'string', 'md5 checksum - M5NR ID' ],
@@ -70,7 +59,7 @@ sub new {
                                                                            'ncbi_tax_id' => [ 'int', 'organism ncbi tax_id' ],
                                                                            'type'        => [ 'string', 'source type' ],
                                                                            'source'      => [ 'string', 'source name' ]}, "annotation object"]] ] },
-                            sequence => { version => [ 'integer', 'version of the object' ],
+                            sequence => { version => [ 'integer', 'version of M5NR' ],
                                           url  => [ 'uri', 'resource location of this object instance' ],
                                           data => [ 'object', [{'accession' => [ 'string', 'unique identifier given by source' ],
                                                                  'md5'      => [ 'string', 'md5 checksum - M5NR ID' ],
@@ -107,10 +96,11 @@ sub info {
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{ontology},
-					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->source->{ontology} ],
-									                        'filter_level' => ['cv', $self->{hierarchy}{ontology}],
+					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->source->{ontology}],
+									                        'filter_level' => ['cv', $self->hierarchy->{ontology}],
 									                        'filter' => ['string', 'text of ontology group (filter_level) to filter by'],
-									                        'min_level' => ['cv', $self->{hierarchy}{ontology}]
+									                        'min_level' => ['cv', $self->hierarchy->{ontology}],
+									                        'version' => ['integer', 'M5NR version, default 9']
 									                      },
 							                'required' => {},
 							                'body'     => {} }
@@ -118,14 +108,15 @@ sub info {
 				       { 'name'        => "taxonomy",
 					     'request'     => $self->cgi->url."/".$self->name."/taxonomy",
 					     'description' => "Return organism hierarchy",
-					     'example'     => [ $self->cgi->url."/".$self->name."/taxonomy?parent_name=Bacteroidetes&min_level=class",
+					     'example'     => [ $self->cgi->url."/".$self->name."/taxonomy?filter=Bacteroidetes&filter_level=phylum&min_level=genus",
         				                    'retrieve all class level taxa that belong to Bacteroidetes' ],
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{taxonomy},
-					     'parameters'  => { 'options'  => { 'filter_level' => ['cv', $self->{hierarchy}{taxonomy}],
+					     'parameters'  => { 'options'  => { 'filter_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
 	                                                        'filter' => ['string', 'text of taxanomy group (filter_level) to filter by'],
-									                        'min_level' => ['cv', $self->{hierarchy}{taxonomy}]
+									                        'min_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
+									                        'version' => ['integer', 'M5NR version, default 9']
 									                      },
 							                'required' => {},
 							                'body'     => {} }
@@ -138,13 +129,13 @@ sub info {
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{sources},
-					     'parameters'  => { 'options'  => {},
+					     'parameters'  => { 'options'  => { 'version' => ['integer', 'M5NR version, default 9'] },
 							                'required' => {},
 							                'body'     => {} }
 				       },
 				       { 'name'        => "accession",
    					     'request'     => $self->cgi->url."/".$self->name."/accession/{id}",
-   					     'description' => "Return annotation or sequence of given source protein ID",
+   					     'description' => "Return annotation of given source protein ID",
    					     'example'     => [ $self->cgi->url."/".$self->name."/accession/YP_003268079.1",
           				                    "retrieve M5NR data for accession ID 'YP_003268079.1'" ],
    					     'method'      => "GET",
@@ -152,7 +143,8 @@ sub info {
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                            'version' => ['integer', 'M5NR version, default 9']
     					                                  },
    							                'required' => { "id" => ["string", "unique identifier from source DB"] },
    							                'body'     => {} }
@@ -169,7 +161,8 @@ sub info {
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
-   					                                        'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"]
+   					                                        'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
+   					                                        'version' => ['integer', 'M5NR version, default 9']
    					                                      },
    							                'required' => { "id" => ["string", "unique identifier in form of md5 checksum"] },
    							                'body'     => {} }
@@ -186,7 +179,8 @@ sub info {
    					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                            'version' => ['integer', 'M5NR version, default 9']
     					                                  },
    							                'required' => { "text" => ["string", "text string of partial function name"] },
    							                'body'     => {} }
@@ -203,7 +197,8 @@ sub info {
    					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                            'version' => ['integer', 'M5NR version, default 9']
      					                                  },
    							                'required' => { "text" => ["string", "text string of partial organism name"] },
    							                'body'     => {} }
@@ -219,7 +214,8 @@ sub info {
    					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                            'version' => ['integer', 'M5NR version, default 9']
       					                                  },
    							                'required' => { "text" => ["string", "text string of protein sequence"] },
    							                'body'     => {} }
@@ -235,7 +231,8 @@ sub info {
       					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","unique identifier from source DB"]],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                                'version' => ['integer', 'M5NR version, default 9']
        					                                      },
       							                'required' => {},
       							                'options'  => {} }
@@ -252,7 +249,8 @@ sub info {
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                                'version' => ['integer', 'M5NR version, default 9']
       					                                      },
       							                'required' => {},
       							                'options'  => {} }
@@ -270,7 +268,8 @@ sub info {
       					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                                'version' => ['integer', 'M5NR version, default 9']
        					                                      },
       							                'required' => {},
       							                'options'  => {} }
@@ -288,7 +287,8 @@ sub info {
       					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                                'version' => ['integer', 'M5NR version, default 9']
         					                                  },
       							                'required' => {},
       							                'options'  => {} }
@@ -305,7 +305,8 @@ sub info {
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"]
+                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
+                                                                'version' => ['integer', 'M5NR version, default 9']
          					                                  },
       							                'required' => {},
       							                'options'  => {} }
@@ -318,7 +319,7 @@ sub info {
 # Override parent request function
 sub request {
     my ($self) = @_;
-
+    
     my $seq = $self->cgi->param('sequence') ? 1 : 0;
     
     # determine sub-module to use
@@ -327,7 +328,7 @@ sub request {
     } elsif (($self->rest->[0] eq 'taxonomy') || ($self->rest->[0] eq 'ontology') || ($self->rest->[0] eq 'sources')) {
         $self->static($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'md5') && $self->rest->[1] && $seq && ($self->method eq 'GET')) {
-        $self->instance($self->rest->[0], $self->rest->[1]);
+        $self->instance($self->rest->[1]);
     } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && ($self->method eq 'GET')) {
         $self->query($self->rest->[0], $self->rest->[1]);
     } elsif ((scalar(@{$self->rest}) == 1) && ($self->method eq 'POST')) {
@@ -346,11 +347,17 @@ sub static {
     my $limit = 1000000;
     my $filter = $self->cgi->param('filter') || '';
     my $min_lvl = $self->cgi->param('min_level') || '';
+    my $version = $self->cgi->param('version') || '9';
     my $fields = [];
     my $grouped = 0;
-        
+    
+    # validate version
+    unless (exists $self->{version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    }
+    
     if ($type eq 'ontology') {
-        my @ont_hier = map { $_->[0] } @{$self->{hierarchy}{ontology}};
+        my @ont_hier = map { $_->[0] } @{$self->hierarchy->{ontology}};
         my @src_map  = map { $_->[0] } @{$self->source->{ontology}};
         my $source   = $self->cgi->param('source') || 'Subsystems';
         $min_lvl = $min_lvl || 'function';
@@ -385,7 +392,7 @@ sub static {
             $grouped = 1;
         }
     } elsif ($type eq 'taxonomy') {
-        my @tax_hier = map { $_->[0] } @{$self->{hierarchy}{taxonomy}};
+        my @tax_hier = map { $_->[0] } @{$self->hierarchy->{organism}}[1..7];
         $min_lvl = $min_lvl || 'species';
         $fields  = [ @tax_hier, 'ncbi_tax_id', 'organism' ];
         
@@ -420,14 +427,14 @@ sub static {
     
     my $data = [];
     if ($grouped) {
-        my $result = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect, $solr, undef, 0, $limit, $fields);
+        my $result = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $solr, undef, 0, $limit, $fields);
         foreach my $group (@{$result->{$min_lvl}{groups}}) {
             push @$data, $group->{doclist}{docs}[0];
         }
     } else {
-        ($data, undef) = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect, $solr, undef, 0, $limit, $fields);
+        ($data, undef) = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $solr, undef, 0, $limit, $fields);
     }
-    my $obj = { data => $data, version => 1, url => $url };
+    my $obj = { data => $data, version => $version, url => $url };
     
     $self->return_data($obj);
 }
@@ -436,10 +443,16 @@ sub static {
 sub instance {
     my ($self, $item) = @_;
     
+    # validate version
+    my $version = $self->cgi->param('version') || '9';
+    unless (exists $self->{version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    }
+    
     my $clean = $self->clean_md5($item);
     my $data = { md5 => $clean, sequence => $self->md52sequence($item) };
     my $url = $self->cgi->url.'/m5nr/md5/'.$item.'?sequence=1';
-    my $obj = { data => $data, version => 1, url => $url };
+    my $obj = { data => $data, version => $version, url => $url };
     $self->return_data($obj);
 }
 
@@ -448,11 +461,12 @@ sub query {
     my ($self, $type, $item) = @_;
     
     # paramaters
-    my $source = $self->cgi->param('source') ? $self->cgi->param('source') : undef;
-    my $limit  = $self->cgi->param('limit')  ? $self->cgi->param('limit')  : 10;
-    my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
-    my $order  = $self->cgi->param('order')  ? $self->cgi->param('order')  : undef;
-    my $exact  = $self->cgi->param('exact')  ? 1 : 0;
+    my $source  = $self->cgi->param('source') ? $self->cgi->param('source') : undef;
+    my $limit   = $self->cgi->param('limit')  ? $self->cgi->param('limit')  : 10;
+    my $offset  = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
+    my $order   = $self->cgi->param('order')  ? $self->cgi->param('order')  : undef;
+    my $exact   = $self->cgi->param('exact')  ? 1 : 0;
+    my $version = $self->cgi->param('version') || '9';
     
     # build data / url
     my $post = ($self->method eq 'POST') ? 1 : 0;
@@ -460,15 +474,17 @@ sub query {
     my $path = '';
     
     if ($post) {
-        my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join("", $self->cgi->param('keywords'));
+        my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join(" ", $self->cgi->param('keywords'));
         # all options sent as post data
         if ($post_data) {
             eval {
                 my $json_data = $self->json->decode($post_data);
-                if (exists $json_data->{source}) { $source = $json_data->{source}; }
-                if (exists $json_data->{limit})  { $limit  = $json_data->{limit}; }
-                if (exists $json_data->{offset}) { $offset = $json_data->{offset}; }
-                if (exists $json_data->{order})  { $order  = $json_data->{order}; }
+                if (exists $json_data->{source})  { $source  = $json_data->{source}; }
+                if (exists $json_data->{limit})   { $limit   = $json_data->{limit}; }
+                if (exists $json_data->{offset})  { $offset  = $json_data->{offset}; }
+                if (exists $json_data->{order})   { $order   = $json_data->{order}; }
+                if (exists $json_data->{exact})   { $exact   = $json_data->{exact} ? 1 : 0; }
+                if (exists $json_data->{version}) { $version = $json_data->{version}; }
                 $data = $json_data->{data};
             };
         # data sent in post form
@@ -486,6 +502,11 @@ sub query {
     } else {
         $data = [$item];
         $path = '/'.$type.'/'.$item;
+    }
+    
+    # validate version
+    unless (exists $self->{version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
     }
     
     my $url = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
@@ -509,14 +530,14 @@ sub query {
     my ($result, $total);
     if ($type eq 'md5') {
         my @md5s = map { $self->clean_md5($_) } @$data;
-        ($result, $total) = $self->query_annotation($type, \@md5s, $source, $offset, $limit, $order, 1);
+        ($result, $total) = $self->query_annotation($version, $type, \@md5s, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
-        ($result, $total) = $self->query_annotation($type, $data, undef, $offset, $limit, $order, 1);
+        ($result, $total) = $self->query_annotation($version, $type, $data, undef, $offset, $limit, $order, 1);
     } else {
-        ($result, $total) = $self->query_annotation($type, $data, $source, $offset, $limit, $order, $exact);
+        ($result, $total) = $self->query_annotation($version, $type, $data, $source, $offset, $limit, $order, $exact);
     }
     my $obj = $self->check_pagination($result, $total, $limit, $path);
-    $obj->{version} = 1;
+    $obj->{version} = $version;
     
     $self->return_data($obj);
 }
@@ -552,7 +573,7 @@ sub md52sequence {
 }
 
 sub query_annotation {
-    my ($self, $field, $data, $source, $offset, $limit, $order, $exact) = @_;
+    my ($self, $version, $field, $data, $source, $offset, $limit, $order, $exact) = @_;
     
     @$data = map { uri_escape( uri_unescape($_) ) } @$data;
     if ($exact) {
@@ -567,7 +588,7 @@ sub query_annotation {
     if ($source) {
         $query .= '+AND+source%3A'.$source;
     }
-    return $self->get_solr_query($method, $Conf::m5nr_solr, $Conf::m5nr_collect, $query, $sort, $offset, $limit, $fields);
+    return $self->get_solr_query($method, $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $query, $sort, $offset, $limit, $fields);
 }
 
 1;

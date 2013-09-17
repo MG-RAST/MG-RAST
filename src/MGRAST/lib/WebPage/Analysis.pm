@@ -1333,27 +1333,20 @@ sub workbench_export {
   my $md5_data = {};
   my $seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
   my $src_type = $self->{mgdb}->_sources->{$source}{type};
-  my $md5_ann  = $self->{mgdb}->annotation_for_md5s(\@md5s, [$source]); # [ id, md5, function, organism, source ]
+  my $md5_ann  = $self->{mgdb}->annotation_for_md5s(\@md5s, [$source]); # [ md5_id, id, md5, function, organism, source ]
 
   # ontology has no organism annotation
   if ($src_type eq 'ontology') {
     # seperate id->role mapping for subsystems
     if ($source eq 'Subsystems') {
       my $ss_map = $self->{mgdb}->get_hierarchy('ontology', 'Subsystems');
-      foreach my $x (@$md5_ann) {
-	    next unless ($ss_map->{$x->[0]});
-	    push @{ $md5_data->{$x->[1]} }, [ $ss_map->{$x->[0]}[2], $ss_map->{$x->[0]}[3] ];
-      }
+      map { push @{$md5_data->{$_->[2]}}, [$ss_map->{$_->[1]}[2], $ss_map->{$_->[1]}[3]] } grep { exists $ss_map->{$_->[1]} } @$md5_ann;
     } else {
-      foreach my $x (@$md5_ann) {
-	    push @{ $md5_data->{$x->[1]} }, [ $x->[0], $x->[2] ];
-      }
+      map { push @{$md5_data->{$_->[2]}}, [$_->[1], $_->[3]] } @$md5_ann;
     }
   }
   else {
-    foreach my $x (@$md5_ann) {
-      push @{ $md5_data->{$x->[1]} }, [ $x->[0], $x->[2].($x->[3] ? " [".$x->[3]."]" : '') ];
-    }
+    map { push @{$md5_data->{$_->[2]}}, [$_->[1], $_->[3].($_->[4] ? " [".$_->[4]."]" : '')] } @$md5_ann;
   }
 
   my @fastas = ();
@@ -1396,12 +1389,12 @@ sub workbench_blat_output {
   my $funcs      = {};   # md5 => [ source, id, function ]
   my $orgshash   = {};   # md5 => organism
   my $ncbi_ids   = {};   # organism => tax_id
-  my $md5_ann    = $self->{mgdb}->annotation_for_md5s(\@md5s, $sources, 1); # [ id, md5, function, organism, source, tax_id ]
+  my $md5_ann    = $self->{mgdb}->annotation_for_md5s(\@md5s, $sources, 1); # [ md5_id, id, md5, function, organism, source, tax_id ]
 
-  map { $links_hash->{$_->[1]}{$_->[4]} = $_->[0] } @$md5_ann;
-  map { push @{$funcs->{$_->[1]}}, [ @$_[4,0,2] ] } grep { $_->[2] } @$md5_ann;
-  map { $orgshash->{$_->[1]} = $_->[3] } grep { $_->[3] } @$md5_ann;
-  map { $ncbi_ids->{$_->[3]} = $_->[5] } grep { $_->[3] && $_->[5] } @$md5_ann;
+  map { $links_hash->{$_->[2]}{$_->[5]} = $_->[1] } @$md5_ann;
+  map { push @{$funcs->{$_->[2]}}, [ @$_[5,1,3] ] } grep { $_->[3] } @$md5_ann;
+  map { $orgshash->{$_->[2]} = $_->[4] } grep { $_->[4] } @$md5_ann;
+  map { $ncbi_ids->{$_->[4]} = $_->[6] } grep { $_->[4] && $_->[6] } @$md5_ann;
   
   my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
   my $nr_seq_data = $self->{mgdb}->ach->md5s2sequences([keys %$funcs]); # fasta text
@@ -1577,7 +1570,8 @@ sub workbench_hits_table {
   my $md5_type      = $self->{mgdb}->type_for_md5s(\@md5s, 1);  # id => [md5, type]
   my $source_data   = {};   # md5 => [ source, id, function ]
   if (@ach_srcs > 0) {
-      map { push @{$source_data->{$_->[1]}}, [ @$_[4,0,2] ] } grep { $_->[2] } @{$self->{mgdb}->annotation_for_md5s(\@md5s, \@ach_srcs)};
+      # [ md5_id, id, md5, function, organism, source ]
+      map { push @{$source_data->{$_->[2]}}, [ @$_[5,1,3] ] } grep { $_->[3] } @{$self->{mgdb}->annotation_for_md5s(\@md5s, \@ach_srcs)};
   }
 
   my $html = "<p>Hits for " . scalar(@md5s) . " unique sequences within ";
