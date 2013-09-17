@@ -95,7 +95,7 @@ sub info {
                                                                                          'group_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
-                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching functions, default is fasle'],
+                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching functions, default is false'],
                                                                                          'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
@@ -123,7 +123,7 @@ sub info {
                                                                                          'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching organisms, default is fasle'],
+                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching organisms, default is false'],
                                                                                          'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
@@ -149,6 +149,7 @@ sub info {
                                                                                                                    ['length', 'average alignment length of hits in annotation']] ],
                                                                                          'source' => [ 'cv', [ @{$self->{sources}{organism}}[2..13] ] ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
+                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching organisms, default is false'],
                                                                                          'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
                                                                                          'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
@@ -241,7 +242,10 @@ sub instance {
             my $fname = $Conf::temp.'/'.$$.'.json';
             close STDERR;
             close STDOUT;
-            my $data = $self->prepare_data(\@mgids, $type);
+            my ($data, $code) = $self->prepare_data(\@mgids, $type);
+            if ($code) {
+                $data->{STATUS} = $code;
+            }
             open(FILE, ">$fname");
             print FILE $self->json->encode($data);
             close FILE;
@@ -254,8 +258,8 @@ sub instance {
         }
     } else {
         # prepare data
-        my $data = $self->prepare_data(\@mgids, $type);
-        $self->return_data($data, undef, 1); # cache this!
+        my ($data, $code) = $self->prepare_data(\@mgids, $type);
+        $self->return_data($data, $code, 1); # cache this!
     }
 }
 
@@ -311,19 +315,19 @@ sub prepare_data {
     my $master = $self->connect_to_datasource();
     my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
     unless (ref($mgdb)) {
-        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
+        return ({"ERROR" => "could not connect to analysis database"}, 500);
     }
     $mgdb->set_jobs($data);
 
     # validate cutoffs
     if (int($eval) < 1) {
-        $self->return_data({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 404);
+        return ({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 404);
     }
     if ((int($ident) < 0) || (int($ident) > 100)) {
-        $self->return_data({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 404);
+        return ({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 404);
     }
     if (int($alen) < 1) {
-        $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 404);
+        return ({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 404);
     }
 
     # controlled vocabulary set
@@ -341,7 +345,7 @@ sub prepare_data {
                              
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
-        $self->return_data({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
+        return ({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
     }
     if ($type eq 'organism') {
         if ( any {$_->[0] eq $glvl} @{$self->hierarchy->{organism}} ) {
@@ -351,7 +355,7 @@ sub prepare_data {
                 $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
+            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
         }
         if ( any {$_->[0] eq $flvl} @{$self->hierarchy->{ontology}} ) {
             if ($flvl eq 'function') {
@@ -362,13 +366,13 @@ sub prepare_data {
                 $leaf_filter = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})."]"}, 404);
         }
         unless (exists $org_srcs{$source}) {
-            $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
         }
         unless (exists $func_srcs{$fsrc}) {
-            $self->return_data({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
         }
     } elsif ($type eq 'function') {
         if ( exists $prot_srcs{$source} ) {
@@ -386,7 +390,7 @@ sub prepare_data {
                 $leaf_node = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})."]"}, 404);
+            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})."]"}, 404);
         }
         if ( any {$_->[0] eq $flvl} @{$self->hierarchy->{organism}} ) {
             $flvl = 'tax_'.$flvl;
@@ -395,13 +399,13 @@ sub prepare_data {
                 $leaf_filter = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
         }
         unless (exists($func_srcs{$source}) || exists($prot_srcs{$source})) {
-            $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
         }
         unless (exists $org_srcs{$fsrc}) {
-            $self->return_data({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
         }
     } elsif ($type eq 'feature') {
         delete $org_srcs{M5NR};
@@ -413,13 +417,13 @@ sub prepare_data {
                 $leaf_filter = 1;
             }
         } else {
-            $self->return_data({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
         }
         unless (exists $org_srcs{$source}) {
-            $self->return_data({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
         }
     } else {
-        $self->return_data({"ERROR" => "invalid resource type was entered ($type)."}, 404);
+        return ({"ERROR" => "invalid resource type was entered ($type)."}, 404);
     }
 
     # validate metagenome type combinations
@@ -428,16 +432,16 @@ sub prepare_data {
     map { $num_amp += 1 } grep { $mgdb->_type_map->{$_} eq 'Amplicon' } @$data;
     if ($num_amp) {
         if ($num_amp != scalar(@$data)) {
-            $self->return_data({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, 400);
+            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, 400);
         }
         if ($type eq 'function') {
-            $self->return_data({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, 400);
+            return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, 400);
         }
         if (any {$_->[0] eq $source} @{$mgdb->sources_for_type('protein')}) {
-            $self->return_data({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, 400);
+            return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, 400);
         }
         if (@filter > 0) {
-            $self->return_data({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, 400);
+            return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, 400);
         }
     }
 
@@ -527,7 +531,7 @@ sub prepare_data {
                     }
                 }
             } else {
-                $self->return_data({"ERROR" => "invalid hit_type for matrix call: ".$htype." - valid types are ['all', 'single', 'lca']"}, 404);
+                return ({"ERROR" => "invalid hit_type for matrix call: ".$htype." - valid types are ['all', 'single', 'lca']"}, 404);
             }
         }
     } elsif ($type eq 'function') {
@@ -591,7 +595,7 @@ sub prepare_data {
         @$matrix = sort { $a->[0] cmp $b->[0] } @$matrix; # sort annotations
     }
     if (scalar(@$matrix) == 0) {
-        $self->return_data( {"ERROR" => "no data found for the given combination of ids and paramaters"}, 400 );
+        return ( {"ERROR" => "no data found for the given combination of ids and paramaters"}, 400 );
     }
         
     my $col_ids = {};
@@ -640,7 +644,7 @@ sub prepare_data {
                 "data"                 => $self->index_sparse_matrix($matrix, $row_ids, $col_ids)
               };
                         
-    return $obj;
+    return ($obj, undef);
 }
 
 sub get_hierarchy {
