@@ -61,7 +61,7 @@ sub new {
 	           ach     => $ach,     # ach/babel object
 	           jcache  => $job_dbh, # job cache db_handle
 	           memd    => $memd,    # memcached handle
-	           chunk   => 5000,     # max # md5s to query at once
+	           chunk   => 2500,     # max # md5s to query at once
 	           jobs    => [],       # array: job_id	           
 	           job_map => {},       # hash: mg_id => job_id
 	           mg_map  => {},       # hash: job_id => mg_id
@@ -731,7 +731,7 @@ sub annotation_for_md5s {
     my $iter = natatime $self->_chunk, keys %umd5;
 
     while (my @curr = $iter->()) {
-        my $sql = "SELECT a.id, m.md5, f.name, o.name, a.source$tid FROM md5_annotation a ".
+        my $sql = "SELECT DISTINCT a.md5, a.id, m.md5, f.name, o.name, a.source$tid FROM md5_annotation a ".
                   "INNER JOIN md5s m ON a.md5 = m._id ".
                   "LEFT OUTER JOIN functions f ON a.function = f._id ".
                   "LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id ".
@@ -739,13 +739,13 @@ sub annotation_for_md5s {
         my $sth = $self->_dbh->prepare($sql);
         $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
         while (my @row = $sth->fetchrow_array()) {
-            $row[4] = $self->_id_src->{$row[4]};
+            $row[5] = $self->_id_src->{$row[5]};
             push @$data, \@row;
         }
         $sth->finish;
     }
     $self->_dbh->commit;
-    # [ id, md5, function, organism, source ]
+    # [ md5_id, id, md5, function, organism, source, (tax_id) ]
     return $data;
 }
 
