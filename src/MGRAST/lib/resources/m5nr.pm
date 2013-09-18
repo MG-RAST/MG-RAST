@@ -5,6 +5,7 @@ use warnings;
 no warnings('once');
 
 use List::Util qw(first);
+use List::MoreUtils qw(any uniq);
 use URI::Escape;
 use Digest::MD5;
 
@@ -197,6 +198,7 @@ sub info {
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
    					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+   					                                        'tax_level' => ['cv', $self->hierarchy->{organism}],
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
@@ -287,6 +289,7 @@ sub info {
       					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of partial organism name"]],
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+      					                                        'tax_level' => ['cv', $self->hierarchy->{organism}],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"],
@@ -466,6 +469,7 @@ sub query {
     my ($self, $type, $item) = @_;
     
     # paramaters
+    my $tlevel  = $self->cgi->param('tax_level') ? $self->cgi->param('tax_level') : 'strain';
     my $source  = $self->cgi->param('source') ? $self->cgi->param('source') : undef;
     my $limit   = $self->cgi->param('limit')  ? $self->cgi->param('limit')  : 10;
     my $offset  = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
@@ -484,6 +488,7 @@ sub query {
         if ($post_data) {
             eval {
                 my $json_data = $self->json->decode($post_data);
+                if (exists $json_data->{tax_level}) { $tlevel = $json_data->{tax_level}; }
                 if (exists $json_data->{source})  { $source  = $json_data->{source}; }
                 if (exists $json_data->{limit})   { $limit   = $json_data->{limit}; }
                 if (exists $json_data->{offset})  { $offset  = $json_data->{offset}; }
@@ -538,6 +543,14 @@ sub query {
         ($result, $total) = $self->query_annotation($version, $type, \@md5s, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
         ($result, $total) = $self->query_annotation($version, $type, $data, undef, $offset, $limit, $order, 1);
+    } elsif ($type eq 'organism') {
+        unless ( any {$_->[0] eq $tlevel} @{$self->hierarchy->{organism}} ) {
+            $self->return_data({"ERROR" => "invalid tax_level for m5nr/organism: ".$tlevel." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
+        }
+        if ($tlevel eq 'strain') {
+            $tlevel = 'organism';
+        }
+        ($result, $total) = $self->query_annotation($version, $tlevel, $data, $source, $offset, $limit, $order, $exact);
     } else {
         ($result, $total) = $self->query_annotation($version, $type, $data, $source, $offset, $limit, $order, $exact);
     }
