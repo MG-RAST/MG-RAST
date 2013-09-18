@@ -95,7 +95,6 @@ sub info {
                                                                                          'group_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
-                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching functions, default is false'],
                                                                                          'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
@@ -123,7 +122,6 @@ sub info {
                                                                                          'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
                                                                                          'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching organisms, default is false'],
                                                                                          'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
@@ -149,10 +147,10 @@ sub info {
                                                                                                                    ['length', 'average alignment length of hits in annotation']] ],
                                                                                          'source' => [ 'cv', [ @{$self->{sources}{organism}}[2..13] ] ],
                                                                                          'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-                                                                                         'remove' => [ 'boolean', 'if true reverse filters, exclude abundances for matching organisms, default is false'],
                                                                                          'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
-                                                                                         'hide_metadata' => [ 'boolean', "if false return metagenome metadata set in 'columns' object" ],
+                                                                                         'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                                                                                         'hide_annotation' => [ 'boolean', "if true do not return feature metadata in 'rows' object, default is false" ],
                                                                                          'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} } }
@@ -281,8 +279,8 @@ sub prepare_data {
     my $flvl   = $cgi->param('filter_level') ? $cgi->param('filter_level') : (($type eq 'organism') ? 'function' : 'strain');
     my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'M5NR');
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
-    my $remove = $cgi->param('remove') ? 1 : 0;
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
+    my $hide_an = $cgi->param('hide_annotation') ? 1 : 0;
     my $leaf_node = 0;
     my $prot_func = 0;
     my $leaf_filter = 0;
@@ -298,9 +296,9 @@ sub prepare_data {
         $matrix_id .= '_'.$hide_md;
         $matrix_url .= '&hide_metadata='.$hide_md;
     }
-    if ($remove) {
-        $matrix_id .= '_'.$remove;
-        $matrix_url .= '&remove='.$remove;
+    if ($hide_an) {
+        $matrix_id .= '_'.$hide_an;
+        $matrix_url .= '&hide_annotation='.$hide_an;
     }
     if (@filter > 0) {
         $matrix_id .= md5_hex( join("_", sort map { local $_ = $_; s/\s+/_/g; $_ } @filter) )."_".$fsrc."_".$flvl;
@@ -578,12 +576,18 @@ sub prepare_data {
             my $info = $mgdb->get_md5_data($umd5s, int($eval), int($ident), int($alen), 1);
             my %md5s = map { $_->[1], 1 } @$info;
             my $id2md5 = {}; # md5_id => md5
-            # out: md5_id, id, md5, function, organism, source
-            foreach my $a ( @{ $mgdb->annotation_for_md5s([keys %md5s], [$source]) } ) {
-                $id2md5->{$a->[0]} = $a->[2];
-                my $mdata = { accession => $a->[1], function => $a->[3] };
-                if ($a->[4]) { $mdata->{organism} = $a->[4]; }
-                push @{ $md52ann->{$a->[2]} }, $mdata;
+            if ($hide_an) {
+                # just get md5 map
+                $id2md5 = $mgdb->decode_annotation('md5', [keys %md5s]);
+            } else {
+                # get full annotation
+                # out: md5_id, id, md5, function, organism, source
+                foreach my $a ( @{ $mgdb->annotation_for_md5s([keys %md5s], [$source]) } ) {
+                    $id2md5->{$a->[0]} = $a->[2];
+                    my $mdata = { accession => $a->[1], function => $a->[3] };
+                    if ($a->[4]) { $mdata->{organism} = $a->[4]; }
+                    push @{ $md52ann->{$a->[2]} }, $mdata;
+                }
             }
             @$matrix = map {[ $id2md5->{$_->[1]}, $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {exists $id2md5->{$_->[1]}} @$info;
         }
