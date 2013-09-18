@@ -148,12 +148,17 @@ sub setlist {
         closedir $dh;
         my $fnum = 1;
         foreach my $rf (@rawfiles) {
-	        my ($jid, $ftype) = $rf =~ /^(\d+)\.([^\.]+)/;
+            my $ftype;
+            if ($rf =~ /\.gz$/) {
+                ($ftype) = $rf =~ /\.([^\.]+)\.gz$/;
+            } else {
+                ($ftype) = $rf =~ /\.([^\.]+)$/;
+            }
 	        push(@$stages, { id  => "mgm".$job->metagenome_id,
 			                 url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.'.$fnum,
 			                 stage_id   => "050",
 			                 stage_name => "upload",
-			                 stage_type => $ftype,
+			                 file_type  => $ftype,
 			                 file_id    => "050.".$fnum,
 			                 file_name  => $rf } );
             $fnum += 1;
@@ -167,8 +172,14 @@ sub setlist {
         closedir $dh;
         my $stagehash = {};
         foreach my $sf (@stagefiles) {
-	        my ($stageid, $stagename, $stageresult) = $sf =~ /^(\d+)\.([^\.]+)\.([^\.]+)/;
-	        next unless ($stageid && $stagename && $stageresult);
+            my $ftype;
+	        my ($stageid, $stagename) = $sf =~ /^(\d+)\.([^\.]+)/;
+	        if ($sf =~ /\.gz$/) {
+                ($ftype) = $sf =~ /\.([^\.]+)\.gz$/;
+            } else {
+                ($ftype) = $sf =~ /\.([^\.]+)$/;
+            }
+	        next unless ($stageid && $stagename && $ftype);
 	        if (exists($stagehash->{$stageid})) {
 	            $stagehash->{$stageid} += 1;
 	        } else {
@@ -178,7 +189,7 @@ sub setlist {
 			                 url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file='.$stageid.'.'.$stagehash->{$stageid},
 			                 stage_id   => $stageid,
 			                 stage_name => $stagename,
-			                 stage_type => $stageresult,
+			                 file_type  => $ftype,
 			                 file_id    => $stageid.".".$stagehash->{$stageid},
 			                 file_name  => $sf } );
         }
