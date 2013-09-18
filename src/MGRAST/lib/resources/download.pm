@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use List::MoreUtils qw(any uniq);
 use Conf;
 use parent qw(resources::resource);
 
@@ -143,11 +144,39 @@ sub setlist {
     my $adir = $job->analysis_dir;
     my $stages = [];
     
+    ## hardcode upload sequence files: fastq = 050.1, fasta = 050.2
+    my $fastq = { id  => "mgm".$job->metagenome_id,
+	              url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.1',
+	              stage_id   => "050",
+	              stage_name => "upload",
+	              file_type  => 'fastq',
+	              file_id    => "050.1",
+	              file_name  => $job->job_id.'.fastq.gz'
+	};
+	my $fasta = { id  => "mgm".$job->metagenome_id,
+	              url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.2',
+	              stage_id   => "050",
+	              stage_name => "upload",
+	              file_type  => 'fna',
+	              file_id    => "050.2",
+	              file_name  => $job->job_id.'.fna.gz'
+	};
+    
     if (opendir(my $dh, $rdir)) {
+        # add fastq / fastq
         my @rawfiles = sort grep { -f "$rdir/$_" } readdir($dh);
+        if ( any {$_ eq $fastq->{file_name}} @rawfiles ) {
+            push @$stages, $fastq;
+        }
+        if ( any {$_ eq $fasta->{file_name}} @rawfiles ) {
+            push @$stages, $fasta;
+        }
+        
         closedir $dh;
-        my $fnum = 1;
+        # start at 3, skip fastq / fasta
+        my $fnum = 3;
         foreach my $rf (@rawfiles) {
+            next if (($rf eq $fastq->{file_name}) || ($rf eq $fasta->{file_name}));
             my $ftype;
             if ($rf =~ /\.gz$/) {
                 ($ftype) = $rf =~ /\.([^\.]+)\.gz$/;
