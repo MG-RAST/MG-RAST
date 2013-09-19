@@ -324,7 +324,7 @@ sub help {
     pod2usage( { -message => "\nFor more detailed documentation run 'perldoc $0'\n",
                  -exitval => 0,
                  -output  => \*STDOUT,
-                 -verbose => 99,
-                 -sections => "NAME|VERSION|SYNOPSIS|DESCRIPTION|EXAMPLES|AUTHORS"
+                 -verbose => 2,
+		 -noperldoc => 1,
                } );
 }
