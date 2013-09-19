@@ -83,7 +83,7 @@ M5NR annotations based on input options.
 
 =head1 EXAMPLES
 
--
+m5nr-tools --api http://kbase.us/services/communities/1 --option annotation --source RefSeq --md5 0b95101ffea9396db4126e4656460ce5,068792e95e38032059ba7d9c26c1be78,0b96c92ce600d8b2427eedbc221642f1
 
 =head1 SEE ALSO
 
@@ -324,6 +324,6 @@ sub help {
     pod2usage( { -exitval => 0,
                  -output  => \*STDOUT,
                  -verbose => 2,
-		 -noperldoc => 1
+		         -noperldoc => 1
                } );
 }
