@@ -321,10 +321,9 @@ sub get_data {
 }
 
 sub help {
-    pod2usage( { -message => "\nFor more detailed documentation run 'perldoc $0'\n",
-                 -exitval => 0,
+    pod2usage( { -exitval => 0,
                  -output  => \*STDOUT,
                  -verbose => 2,
-		 -noperldoc => 1,
+		 -noperldoc => 1
                } );
 }
