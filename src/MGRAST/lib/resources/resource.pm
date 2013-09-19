@@ -341,9 +341,9 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-    my ($self, $data, $total, $limit, $path) = @_;
+    my ($self, $data, $total, $limit, $path, $offset) = @_;
 
-    my $offset = $self->cgi->param('offset') || 0;
+    my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : ($offset ? $offset : 0);
     my $order  = $self->cgi->param('order') || undef;
     my @params = $self->cgi->param;
     $total = int($total);
