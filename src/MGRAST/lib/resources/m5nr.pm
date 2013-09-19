@@ -176,10 +176,11 @@ sub info {
    					     'example'     => [ $self->cgi->url."/".$self->name."/function/sulfatase?source=GenBank",
              				                "retrieve GenBank M5NR data for function names containing string 'sulfatase'" ],
    					     'method'      => "GET",
-   					     'type'        => "synchronous",  
+   					     'type'        => "synchronous",
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
    					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+   					                                        'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
                                                             "order"  => ["string","name of the attribute the returned data is ordered by"],
@@ -198,6 +199,7 @@ sub info {
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
    					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+   					                                        'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
    					                                        'tax_level' => ['cv', $self->hierarchy->{organism}],
    					                                        'limit'  => ['integer','maximum number of items requested'],
                                                             'offset' => ['integer','zero based index of the first data object to be returned'],
@@ -268,8 +270,10 @@ sub info {
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of partial function name"]],
+      					                                        'md5s'   => ['list',["string","md5 to constrain search by"]],
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+      					                                        'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                                 "order"  => ["string","name of the attribute the returned data is ordered by"],
@@ -287,8 +291,10 @@ sub info {
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of partial organism name"]],
+      					                                        'md5s'   => ['list',["string","md5 to constrain search by"]],
       					                                        'source' => ['string','source name to restrict search by'],
       					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+      					                                        'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
       					                                        'tax_level' => ['cv', $self->hierarchy->{organism}],
       					                                        'limit'  => ['integer','maximum number of items requested'],
                                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
@@ -470,16 +476,18 @@ sub query {
     
     # paramaters
     my $tlevel  = $self->cgi->param('tax_level') ? $self->cgi->param('tax_level') : 'strain';
-    my $source  = $self->cgi->param('source') ? $self->cgi->param('source') : undef;
-    my $limit   = $self->cgi->param('limit')  ? $self->cgi->param('limit')  : 10;
-    my $offset  = $self->cgi->param('offset') ? $self->cgi->param('offset') : 0;
-    my $order   = $self->cgi->param('order')  ? $self->cgi->param('order')  : undef;
-    my $exact   = $self->cgi->param('exact')  ? 1 : 0;
+    my $source  = $self->cgi->param('source')    ? $self->cgi->param('source') : undef;
+    my $limit   = $self->cgi->param('limit')     ? $self->cgi->param('limit')  : 10;
+    my $offset  = $self->cgi->param('offset')    ? $self->cgi->param('offset') : 0;
+    my $order   = $self->cgi->param('order')     ? $self->cgi->param('order')  : undef;
+    my $exact   = $self->cgi->param('exact')     ? 1 : 0;
+    my $inverse = $self->cgi->param('inverse')   ? 1 : 0;
     my $version = $self->cgi->param('version') || '9';
     
     # build data / url
     my $post = ($self->method eq 'POST') ? 1 : 0;
     my $data = [];
+    my $md5s = [];
     my $path = '';
     
     if ($post) {
@@ -488,17 +496,22 @@ sub query {
         if ($post_data) {
             eval {
                 my $json_data = $self->json->decode($post_data);
-                if (exists $json_data->{tax_level}) { $tlevel = $json_data->{tax_level}; }
-                if (exists $json_data->{source})  { $source  = $json_data->{source}; }
-                if (exists $json_data->{limit})   { $limit   = $json_data->{limit}; }
-                if (exists $json_data->{offset})  { $offset  = $json_data->{offset}; }
-                if (exists $json_data->{order})   { $order   = $json_data->{order}; }
-                if (exists $json_data->{exact})   { $exact   = $json_data->{exact} ? 1 : 0; }
-                if (exists $json_data->{version}) { $version = $json_data->{version}; }
+                if (exists $json_data->{tax_level}) { $tlevel  = $json_data->{tax_level}; }
+                if (exists $json_data->{source})    { $source  = $json_data->{source}; }
+                if (exists $json_data->{limit})     { $limit   = $json_data->{limit}; }
+                if (exists $json_data->{offset})    { $offset  = $json_data->{offset}; }
+                if (exists $json_data->{order})     { $order   = $json_data->{order}; }
+                if (exists $json_data->{exact})     { $exact   = $json_data->{exact} ? 1 : 0; }
+                if (exists $json_data->{inverse})   { $inverse = $json_data->{inverse} ? 1 : 0; }
+                if (exists $json_data->{version})   { $version = $json_data->{version}; }
                 $data = $json_data->{data};
+                $md5s = $json_data->{md5s};
             };
         # data sent in post form
         } elsif ($self->cgi->param('data')) {
+            if ($self->cgi->param('md5s')) {
+                @$md5s = split(/;/, $self->cgi->param('md5s'));
+            }
             eval {
                 @$data = split(/;/, $self->cgi->param('data'));
             };
@@ -519,11 +532,6 @@ sub query {
         $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
     }
     
-    my $url = $self->cgi->url.'/m5nr'.$path.'?limit='.$limit.'&offset='.$offset;
-    if ($source && ($type ne 'accession')) {
-        $url .= '&source='.$source;
-    }
-    
     # strip wildcards
     map { $_ =~ s/\*//g } @$data;
 
@@ -539,10 +547,10 @@ sub query {
     # get results
     my ($result, $total);
     if ($type eq 'md5') {
-        my @md5s = map { $self->clean_md5($_) } @$data;
-        ($result, $total) = $self->query_annotation($version, $type, \@md5s, $source, $offset, $limit, $order, 1);
+        my @clean = map { $self->clean_md5($_) } @$data;
+        ($result, $total) = $self->query_annotation($version, 'md5', \@clean, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
-        ($result, $total) = $self->query_annotation($version, $type, $data, undef, $offset, $limit, $order, 1);
+        ($result, $total) = $self->query_annotation($version, 'accession', $data, undef, $offset, $limit, $order, 1);
     } elsif ($type eq 'organism') {
         unless ( any {$_->[0] eq $tlevel} @{$self->hierarchy->{organism}} ) {
             $self->return_data({"ERROR" => "invalid tax_level for m5nr/organism: ".$tlevel." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
@@ -550,11 +558,13 @@ sub query {
         if ($tlevel eq 'strain') {
             $tlevel = 'organism';
         }
-        ($result, $total) = $self->query_annotation($version, $tlevel, $data, $source, $offset, $limit, $order, $exact);
+        ($result, $total) = $self->query_annotation($version, $tlevel, $data, $source, $offset, $limit, $order, $exact, $inverse, $md5s);
+    } elsif ($type eq 'function') {
+        ($result, $total) = $self->query_annotation($version, 'function', $data, $source, $offset, $limit, $order, $exact, $inverse, $md5s);
     } else {
-        ($result, $total) = $self->query_annotation($version, $type, $data, $source, $offset, $limit, $order, $exact);
+        $self->return_data({"ERROR" => "invalid resource type was entered ($type)"}, 404);
     }
-    my $obj = $self->check_pagination($result, $total, $limit, $path);
+    my $obj = $self->check_pagination($result, $total, $limit, $path, $offset);
     $obj->{version} = $version;
     
     $self->return_data($obj);
@@ -591,7 +601,7 @@ sub md52sequence {
 }
 
 sub query_annotation {
-    my ($self, $version, $field, $data, $source, $offset, $limit, $order, $exact) = @_;
+    my ($self, $version, $field, $data, $source, $offset, $limit, $order, $exact, $inverse, $md5s) = @_;
     
     @$data = map { uri_escape( uri_unescape($_) ) } @$data;
     if ($exact) {
@@ -601,10 +611,18 @@ sub query_annotation {
     }
     my $sort   = $order ? $order.'_sort+asc' : '';
     my $fields = ['source', 'function', 'accession', 'organism', 'ncbi_tax_id', 'type', 'md5'];
-    my $method = (@$data > 1) ? 'POST' : 'GET';
-    my $query  = 'object%3Aannotation+AND+('.join('+OR+', map { $field.'%3A'.$_ } @$data).')';
+    my $method = ((@$data > 1) || ($md5s && (@$md5s > 0))) ? 'POST' : 'GET';
+    my $query  = 'object%3Aannotation+AND+';
+    if ($inverse) {
+        $query .= join('+AND+', map { '-'.$field.'%3A'.$_ } @$data);
+    } else {
+        $query .= '('.join('+OR+', map { $field.'%3A'.$_ } @$data).')';
+    }
     if ($source) {
         $query .= '+AND+source%3A'.$source;
+    }
+    if ($md5s && (@$md5s > 0)) {
+        $query .= '+AND+('.join('+OR+', map { 'md5%3A'.$_ } @$md5s).')';
     }
     return $self->get_solr_query($method, $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $query, $sort, $offset, $limit, $fields);
 }
