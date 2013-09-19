@@ -192,7 +192,9 @@ sub update_preferences {
 	}
       } else {
 	if (exists($prefs{$param})) {
-	  $prefs{$param}->value($cgi->param($param));
+          unless($param eq 'WebServiceKeyTdate' && $cgi->param($param) !~ /^\d+$/) {
+	    $prefs{$param}->value($cgi->param($param));
+          }
 	} else {
 	  $application->dbmaster->Preferences->create( { user => $user,
 							 name => $param,
