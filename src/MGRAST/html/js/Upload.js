@@ -74,7 +74,7 @@ function update_inbox (data, files, action) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(seq stats error) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(non-unique seq IDs) "+fn+"</option>";
-	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && (inf['bp count'] <= BP_CUTOFF) && (inf['sequence type'] != 'Amplicon')) {
+	} else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && (inf['bp count'] <= BP_CUTOFF) && (inf['sequence type'] != 'Amplicon') && (inf['sequencing method guess'] != 'assembled')) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(seq file too small) "+fn+"</option>";
 	} else if ((seq_dlist[dlist[i]] == 1) && (inf['sequence content'] == 'protein' || inf['sequence content'] == 'sequence alignment')) {
 	  inbox_html += "<option style='display: none; padding-left: 35px; color: red;' value='"+dlist[i]+"/"+fn+"'>(seq file is not DNA) "+fn+"</option>";
@@ -115,7 +115,7 @@ function update_inbox (data, files, action) {
 	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(seq stats error) "+flist[i]+"</option>";
       } else if (isSeq && inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] != inf['sequence count'])) {
 	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(non-unique seq IDs) "+flist[i]+"</option>";
-      } else if (isSeq && inf['bp count'] && (inf['bp count'] <= BP_CUTOFF) && (inf['sequence type'] != 'Amplicon')) {
+      } else if (isSeq && inf['bp count'] && (inf['bp count'] <= BP_CUTOFF) && (inf['sequence type'] != 'Amplicon') && (inf['sequencing method guess'] != 'assembled')) {
 	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(seq file too small) "+flist[i]+"</option>";
       } else if (isSeq && (inf['sequence content'] == 'protein' || inf['sequence content'] == 'sequence alignment')) {
 	inbox_html += "<option style='color: red;' value='"+flist[i]+"'>(seq file is not DNA) "+flist[i]+"</option>";
@@ -156,7 +156,7 @@ function update_inbox (data, files, action) {
 	    if ( inf && inf['bp count'] && (inf['file type'] != 'malformed') && (! lock_msg) && (! inf['Error']) && 
     	     inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) &&
     	     (inf['sequence content'] != 'protein') && (inf['sequence content'] != 'sequence alignment') &&
-    	     ((inf['bp count'] > BP_CUTOFF) || ((inf['bp count'] <= BP_CUTOFF) && (inf['sequence type'] == 'Amplicon'))) ) {
+    	     ( (inf['bp count'] > BP_CUTOFF) || ((inf['bp count'] <= BP_CUTOFF) && ((inf['sequence type'] == 'Amplicon') || (inf['sequencing method guess'] == 'assembled'))) ) ) {
 	      var trow = [ 0, i, fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
 	    }
@@ -171,7 +171,7 @@ function update_inbox (data, files, action) {
 	  if ( inf && inf['bp count'] && (inf['file type'] != 'malformed') && (! lock_msg) && (! inf['Error']) && 
 	       inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) &&
 	       (inf['sequence content'] != 'protein') && (inf['sequence content'] != 'sequence alignment') &&
-	       ((inf['bp count'] > BP_CUTOFF) || ((inf['bp count'] <= BP_CUTOFF) && (inf['sequence type'] == 'Amplicon'))) ) {
+	       ( (inf['bp count'] > BP_CUTOFF) || ((inf['bp count'] <= BP_CUTOFF) && ((inf['sequence type'] == 'Amplicon') || (inf['sequencing method guess'] == 'assembled'))) ) ) {
 	    var trow = [ 0, "-", fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
 	  }
@@ -212,8 +212,8 @@ function update_inbox (data, files, action) {
             else if ((seq_dlist[dlist[i]] == 1) && inf['sequence content'] == 'sequence alignment') {
 		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file appears to contain a sequence alignment which cannot be submitted to MG-RAST.</div>';
 	    }
-            else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && (inf['bp count'] <= BP_CUTOFF) && (inf['sequence type'] != 'Amplicon')) {
-		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file is too small for submission, the minimum is 1MBp for non-amplicon sequences.</div>';
+            else if ((seq_dlist[dlist[i]] == 1) && inf['bp count'] && (inf['bp count'] <= BP_CUTOFF) && (inf['sequence type'] != 'Amplicon') && (inf['sequencing method guess'] != 'assembled')) {
+		ptext += '<div class="alert alert-error"><button class="close" data-dismiss="alert" type="button">x</button><strong>Warning</strong><br>This file is too small for submission, the minimum is 1MBp for non-amplicon / non-assembeled sequences.</div>';
 	    }
 	    ptext += "<table>";
 	  var sort_keys = Object.keys(inf).sort();
