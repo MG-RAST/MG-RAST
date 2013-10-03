@@ -223,7 +223,8 @@ sub output {
   my $search_now = "";
   if ($torun) {
     if ($mode == 1) {
-      $search_now = "simple_search('$stext', [" . join(',', map {"'$_'"} keys %types) . "]);";
+      $search_now = "document.getElementById(\"bSimpleAll\").click();";
+#      $search_now = "simple_search('$stext', [" . join(',', map {"'$_'"} keys %types) . "]);";
     }
     elsif ($mode == 2) {
       $search_now = '$("#dSimple").hide(); $("#dAdvanced").show(); adv_search();';
