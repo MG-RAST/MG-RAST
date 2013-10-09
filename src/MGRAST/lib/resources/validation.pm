@@ -76,13 +76,15 @@ sub request {
     my ($self) = @_;
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
-        $self->info();
+      $self->info();
     } elsif (($self->rest->[0] eq 'template')  && (scalar(@{$self->rest}) == 2)) {
-        $self->template($self->rest->[1]);
+      $self->template($self->rest->[1]);
     } elsif (($self->rest->[0] eq 'data')  && (scalar(@{$self->rest}) == 2)) {
-        $self->data($self->rest->[1], $self->cgi->param('template'));
+      $self->data($self->rest->[1], $self->cgi->param('template'));
+    } elsif ($self->rest->[0] eq 'mgrast_template') {
+      $self->reformat_template();
     } else {
-        $self->info();
+      $self->info();
     }
 }
 
@@ -91,8 +93,9 @@ sub template {
   
   # get the shock template node
   my $template = $self->get_shock_node($id, $self->{token});
-  
-  $template = reformat_template();
+  if ($template) {
+    $template = $template->{attributes};
+  }
 
   my $template_status = { "valid" => 1,
 			  "error" => [] };	
@@ -232,7 +235,7 @@ sub template {
     $template_status->{valid} = 0;
   } else {
     $template_status->{template} = $template;
-    # update the node to be valid and of type $template->{name}
+    $self->update_shock_node({ id => $id, tags => [ "template", $template->{name} ] });
   }
   
   $self->return_data($template_status);
@@ -328,8 +331,18 @@ sub data {
   my $template;
   if ($template_id) {
     $template = $self->get_shock_node($template_id);
+    my $valid_template = 0;
+    foreach my $tag (@{$template->{tags}}) {
+      if ($tag eq "template") {
+	$valid_template = 1;
+	last;
+      }
+    }
+    if (! $valid_template) {
+      $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
+    }
   } else {
-    my $mgrast_template = 1234;
+    my $mgrast_template = "000d6934-63e6-4050-aafa-073f836ae3c3";
     $template = $self->get_shock_node($mgrast_template);
   }
   # check shock type to be template
@@ -449,6 +462,8 @@ sub check_field {
 sub reformat_template {
   my ($self) = @_;
 
+  return;
+
   use LWP::UserAgent;
   use JSON;
   my $ua = LWP::UserAgent->new;
@@ -500,7 +515,11 @@ sub reformat_template {
   # get project fields
   foreach my $i (keys(%{$data->{'project'}->{'project'}})) {
     my $field = $data->{'project'}->{'project'}->{$i};
-    $template->{'groups'}->{'project'}->{'fields'}->{$i} = { "description" => $field->{'definition'},
+    my $l = $i;
+    $l =~ s/_/ /g;
+    $template->{'groups'}->{'project'}->{'fields'}->{$i} = { "name" => $i,
+							     "label" => $l,
+							     "description" => $field->{'definition'},
 							     "type" => $field->{'type'},
 							     "mandatory" => $field->{'required'} == 0 ? 0 : 1 };
   }
@@ -508,7 +527,11 @@ sub reformat_template {
   # get sample fields
   foreach my $i (keys(%{$data->{'sample'}->{'sample'}})) {
       my $field = $data->{'sample'}->{'sample'}->{$i};
-      $template->{'groups'}->{'sample'}->{'fields'}->{$i} = { "description" => $field->{'definition'},
+      my $l = $i;
+      $l =~ s/_/ /g;
+      $template->{'groups'}->{'sample'}->{'fields'}->{$i} = { "name" => $i,
+							      "label" => $l,
+							      "description" => $field->{'definition'},
 							      "type" => $field->{'type'},
 							      "mandatory" => $field->{'required'} == 0 ? 0 : 1 };
   }
@@ -521,7 +544,11 @@ sub reformat_template {
 				    "fields" => {} };
     foreach my $h (keys(%{$data->{'library'}->{$i}})) {
       my $field = $data->{'library'}->{$i}->{$h};
-      $template->{'groups'}->{$i}->{'fields'}->{$h} = { "description" => $field->{'definition'},
+      my $l = $h;
+      $l =~ s/_/ /g;
+      $template->{'groups'}->{$i}->{'fields'}->{$h} = { "name" => $h,
+							"label" => $l,
+							"description" => $field->{'definition'},
 							"type" => $field->{'type'},
 							"mandatory" => $field->{'required'} == 0 ? 0 : 1 };
     }
@@ -538,13 +565,20 @@ sub reformat_template {
 				      "fields" => {} };
       foreach my $h (keys(%{$data->{'ep'}->{$i}})) {
 	my $field = $data->{'ep'}->{$i}->{$h};
-	$template->{'groups'}->{$i}->{'fields'}->{$h} = { "description" => $field->{'definition'},
+	my $l = $h;
+	$l =~ s/_/ /g;
+	$template->{'groups'}->{$i}->{'fields'}->{$h} = { "name" => $h,
+							  "label" => $l,
+							  "description" => $field->{'definition'},
 							  "type" => $field->{'type'},
 							  "mandatory" => $field->{'required'} == 0 ? 0 : 1 };
       }
   }
 
-  return $template;
+  my $node = $self->set_shock_node("mgrast", undef, $template, "un=paczian|tokenid=07806e3c-2cfd-11e3-bb07-12313809f035|expiry=1412431101|client_id=paczian|token_type=Bearer|SigningSubject=https://nexus.api.globusonline.org/goauth/keys/07c63674-2cfd-11e3-bb07-12313809f035|sig=3d6d0aa4cfc14ea2406105257cb2e76ec91fa7c32ccf137e37ec2f5e3313639f3e8c2bfe4fbbae4c8bb91de8c66498251986cfe9d2e3336e736bd48cfbe9b5c3f16baabcf1b2801cf7858b0a275e1e7b275dc7c5576ef7c5b47016157de691fddc2de759af84b2390989d3350464daac59352f4de9baf76b723bfc389711a33a");
+  #my $node = $self->update_shock_tags({ id => "40959bb3-131b-4fc4-abbb-c172feac7217", tags => [ "template", 'mgrast_template', 'communities_template' ]});
+
+  return $self->return_data($node);
 }
 
 1;
