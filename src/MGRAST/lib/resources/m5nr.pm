@@ -20,6 +20,7 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
+    $self->{url} = $Conf::url_base ? $Conf::url_base : $self->cgi->url;
     $self->{name} = "m5nr";
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
@@ -75,12 +76,12 @@ sub new {
 sub info {
   my ($self) = @_;
   my $content = { 'name'          => $self->name,
-		  'url'           => $self->cgi->url."/".$self->name,
+		  'url'           => $self->{url}."/".$self->name,
 		  'description'   => "M5NR provides data through a comprehensive non-redundant protein / rRNA database",
 		  'type'          => 'object',
-		  'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		  'documentation' => $self->{url}.'/api.html#'.$self->name,
 		  'requests'      => [ { 'name'        => "info",
-					             'request'     => $self->cgi->url."/".$self->name,
+					             'request'     => $self->{url}."/".$self->name,
 					             'description' => "Returns description of parameters and attributes.",
 					             'method'      => "GET",
 					             'type'        => "synchronous",
@@ -90,9 +91,9 @@ sub info {
 							                        'body'     => {} }
 				       },
 				       { 'name'        => "ontology",
-					     'request'     => $self->cgi->url."/".$self->name."/ontology",
+					     'request'     => $self->{url}."/".$self->name."/ontology",
 					     'description' => "Return functional hierarchy",
-					     'example'     => [ $self->cgi->url."/".$self->name."/ontology?source=Subsystems&min_level=level3",
+					     'example'     => [ $self->{url}."/".$self->name."/ontology?source=Subsystems&min_level=level3",
        				                        'retrieve subsystems hierarchy for the top 3 levels' ],
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
@@ -108,9 +109,9 @@ sub info {
 							                'body'     => {} }
 				       },
 				       { 'name'        => "taxonomy",
-					     'request'     => $self->cgi->url."/".$self->name."/taxonomy",
+					     'request'     => $self->{url}."/".$self->name."/taxonomy",
 					     'description' => "Return organism hierarchy",
-					     'example'     => [ $self->cgi->url."/".$self->name."/taxonomy?filter=Bacteroidetes&filter_level=phylum&min_level=genus",
+					     'example'     => [ $self->{url}."/".$self->name."/taxonomy?filter=Bacteroidetes&filter_level=phylum&min_level=genus",
         				                    'retrieve all class level taxa that belong to Bacteroidetes' ],
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
@@ -125,8 +126,8 @@ sub info {
 							                'body'     => {} }
 				       },
 				       { 'name'        => "sources",
-					     'request'     => $self->cgi->url."/".$self->name."/sources",
-					     'example'     => [ $self->cgi->url."/".$self->name."/sources",
+					     'request'     => $self->{url}."/".$self->name."/sources",
+					     'example'     => [ $self->{url}."/".$self->name."/sources",
          				                    'retrieve all data sources for M5NR' ],
 					     'description' => "Return all sources in M5NR",
 					     'method'      => "GET",
@@ -137,9 +138,9 @@ sub info {
 							                'body'     => {} }
 				       },
 				       { 'name'        => "accession",
-   					     'request'     => $self->cgi->url."/".$self->name."/accession/{id}",
+   					     'request'     => $self->{url}."/".$self->name."/accession/{id}",
    					     'description' => "Return annotation of given source protein ID",
-   					     'example'     => [ $self->cgi->url."/".$self->name."/accession/YP_003268079.1",
+   					     'example'     => [ $self->{url}."/".$self->name."/accession/YP_003268079.1",
           				                    "retrieve M5NR data for accession ID 'YP_003268079.1'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
@@ -153,9 +154,9 @@ sub info {
    							                'body'     => {} }
    				       },
 				       { 'name'        => "md5",
-   					     'request'     => $self->cgi->url."/".$self->name."/md5/{id}",
+   					     'request'     => $self->{url}."/".$self->name."/md5/{id}",
    					     'description' => "Return annotation(s) or sequence of given md5sum (M5NR ID)",
-   					     'example'     => [ $self->cgi->url."/".$self->name."/md5/000821a2e2f63df1a3873e4b280002a8?source=InterPro",
+   					     'example'     => [ $self->{url}."/".$self->name."/md5/000821a2e2f63df1a3873e4b280002a8?source=InterPro",
            				                    "retrieve InterPro M5NR data for md5sum '000821a2e2f63df1a3873e4b280002a8'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
@@ -171,9 +172,9 @@ sub info {
    							                'body'     => {} }
    				       },
 				       { 'name'        => "function",
-   					     'request'     => $self->cgi->url."/".$self->name."/function/{text}",
+   					     'request'     => $self->{url}."/".$self->name."/function/{text}",
    					     'description' => "Return annotations for function names containing the given text",
-   					     'example'     => [ $self->cgi->url."/".$self->name."/function/sulfatase?source=GenBank",
+   					     'example'     => [ $self->{url}."/".$self->name."/function/sulfatase?source=GenBank",
              				                "retrieve GenBank M5NR data for function names containing string 'sulfatase'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",
@@ -190,9 +191,9 @@ sub info {
    							                'body'     => {} }
    				       },
    				       { 'name'        => "organism",
-   					     'request'     => $self->cgi->url."/".$self->name."/organism/{text}",
+   					     'request'     => $self->{url}."/".$self->name."/organism/{text}",
    					     'description' => "Return annotations for organism names containing the given text",
-   					     'example'     => [ $self->cgi->url."/".$self->name."/organism/akkermansia?source=KEGG",
+   					     'example'     => [ $self->{url}."/".$self->name."/organism/akkermansia?source=KEGG",
               				                "retrieve KEGG M5NR data for organism names containing string 'akkermansia'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
@@ -210,9 +211,9 @@ sub info {
    							                'body'     => {} }
    				       },
    				       { 'name'        => "sequence",
-   					     'request'     => $self->cgi->url."/".$self->name."/sequence/{text}",
+   					     'request'     => $self->{url}."/".$self->name."/sequence/{text}",
    					     'description' => "Return annotation(s) for md5sum (M5NR ID) of given sequence",
-   					     'example'     => [ $self->cgi->url."/".$self->name."/sequence/MAGENHQWQGSIL?source=TrEMBL",
+   					     'example'     => [ $self->{url}."/".$self->name."/sequence/MAGENHQWQGSIL?source=TrEMBL",
             				                "retrieve TrEMBL M5NR data for md5sum of sequence 'MAGENHQWQGSIL'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
@@ -227,9 +228,9 @@ sub info {
    							                'body'     => {} }
    				       },
                            { 'name'        => "accession",
-      					     'request'     => $self->cgi->url."/".$self->name."/accession",
+      					     'request'     => $self->{url}."/".$self->name."/accession",
       					     'description' => "Return annotations of given source protein IDs",
-      					     'example'     => [ 'curl -X POST -d \'{"order":"function","data":["YP_003268079.1","COG1764"]}\' "'.$self->cgi->url."/".$self->name.'/accession"',
+      					     'example'     => [ 'curl -X POST -d \'{"order":"function","data":["YP_003268079.1","COG1764"]}\' "'.$self->{url}."/".$self->name.'/accession"',
                				                    "retrieve M5NR data for accession IDs 'YP_003268079.1' and 'COG1764' ordered by function" ],
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
@@ -244,9 +245,9 @@ sub info {
       							                'options'  => {} }
       				       },
    				           { 'name'        => "md5",
-      					     'request'     => $self->cgi->url."/".$self->name."/md5",
+      					     'request'     => $self->{url}."/".$self->name."/md5",
       					     'description' => "Return annotations of given md5sums (M5NR ID)",
-      					     'example'     => [ 'curl -X POST -d \'{"source":"InterPro","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/md5"',
+      					     'example'     => [ 'curl -X POST -d \'{"source":"InterPro","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->{url}."/".$self->name.'/md5"',
                 				                "retrieve InterPro M5NR data for md5s '000821a2e2f63df1a3873e4b280002a8' and '15bf1950bd9867099e72ea6516e3d602'" ],
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
@@ -262,9 +263,9 @@ sub info {
       							                'options'  => {} }
       				       },
    				           { 'name'        => "function",
-      					     'request'     => $self->cgi->url."/".$self->name."/function",
+      					     'request'     => $self->{url}."/".$self->name."/function",
       					     'description' => "Return annotations for function names containing the given texts",
-      					     'example'     => [ 'curl -X POST -d \'{"source":"GenBank","limit":50,"data":["sulfatase","phosphatase"]}\' "'.$self->cgi->url."/".$self->name.'/function"',
+      					     'example'     => [ 'curl -X POST -d \'{"source":"GenBank","limit":50,"data":["sulfatase","phosphatase"]}\' "'.$self->{url}."/".$self->name.'/function"',
                   				                "retrieve top 50 GenBank M5NR data for function names containing string 'sulfatase' or 'phosphatase'" ],
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
@@ -283,9 +284,9 @@ sub info {
       							                'options'  => {} }
       				       },
       				       { 'name'        => "organism",
-      					     'request'     => $self->cgi->url."/".$self->name."/organism",
+      					     'request'     => $self->{url}."/".$self->name."/organism",
       					     'description' => "Return annotations for organism names containing the given texts",
-      					     'example'     => [ 'curl -X POST -d \'{"source":"KEGG","order":"accession","data":["akkermansia","yersinia"]}\' "'.$self->cgi->url."/".$self->name.'/organism"',
+      					     'example'     => [ 'curl -X POST -d \'{"source":"KEGG","order":"accession","data":["akkermansia","yersinia"]}\' "'.$self->{url}."/".$self->name.'/organism"',
                    				                "retrieve KEGG M5NR data (ordered by accession ID) for organism names containing string 'akkermansia' or 'yersinia'" ],
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
@@ -305,9 +306,9 @@ sub info {
       							                'options'  => {} }
       				       },
       				       { 'name'        => "sequence",
-      					     'request'     => $self->cgi->url."/".$self->name."/sequence",
+      					     'request'     => $self->{url}."/".$self->name."/sequence",
       					     'description' => "Return annotations for md5s (M5NR ID) of given sequences",
-      					     'example'     => [ 'curl -X POST -d \'{"source":"KEGG","order":"source","data":["MAGENHQWQGSIL","MAGENHQWQGSIL"]}\' "'.$self->cgi->url."/".$self->name.'/sequence"',
+      					     'example'     => [ 'curl -X POST -d \'{"source":"KEGG","order":"source","data":["MAGENHQWQGSIL","MAGENHQWQGSIL"]}\' "'.$self->{url}."/".$self->name.'/sequence"',
                  				                "retrieve M5NR data ordered by source for sequences 'MAGENHQWQGSIL' and 'MAGENHQWQGSIL'" ],
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
@@ -353,7 +354,7 @@ sub request {
 sub static {
     my ($self, $type) = @_;
     
-    my $url = $self->cgi->url.'/m5nr/'.$type;
+    my $url = $self->{url}.'/m5nr/'.$type;
     my $solr = 'object%3A';
     my $limit = 1000000;
     my $exact = $self->cgi->param('exact')  ? 1 : 0;
@@ -465,7 +466,7 @@ sub instance {
     
     my $clean = $self->clean_md5($item);
     my $data = { md5 => $clean, sequence => $self->md52sequence($item) };
-    my $url = $self->cgi->url.'/m5nr/md5/'.$item.'?sequence=1';
+    my $url = $self->{url}.'/m5nr/md5/'.$item.'?sequence=1';
     my $obj = { data => $data, version => $version, url => $url };
     $self->return_data($obj);
 }
