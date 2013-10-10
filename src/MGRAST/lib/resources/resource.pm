@@ -343,7 +343,7 @@ sub connect_to_datasource {
 sub check_pagination {
     my ($self, $data, $total, $limit, $path, $offset) = @_;
 
-    my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : ($offset ? $offset : 0);
+    $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : ($offset ? $offset : 0);
     my $order  = $self->cgi->param('order') || undef;
     my @params = $self->cgi->param;
     $total = int($total);
@@ -587,6 +587,70 @@ sub set_shock_node {
     } else {
         return $response->{data};
     }
+}
+
+sub update_shock_node {
+    my ($self, $name, $file, $attr, $auth, $id) = @_;
+    
+    my $attr_str = $self->json->encode($attr);
+    my $file_str = $self->json->encode($file);
+    my $content  = [attributes => [undef, "$name.json", Content => $attr_str]];
+    my $response = undef;
+    eval {
+        my $put = undef;
+        if ($auth) {
+            $put = $self->agent->put($Conf::shock_url.'/node/$id', $content, Content_Type => 'form-data', Authorization => "OAuth $auth");
+        } else {
+            $put = $self->agent->put($Conf::shock_url.'/node/$id', $content, Content_Type => 'form-data');
+        }
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
+sub update_shock_tags {
+  my ($self, $params) = @_;
+  
+  unless ($params->{id}) {
+    return undef;
+  }
+  
+  my $id = $params->{id};
+  my $auth = $params->{auth};
+  
+  my $tags = "";
+
+  if ($params->{tags} && ref $params->{tags} eq 'ARRAY') {
+    $tags = join(",", @{$params->{tags}});
+  }
+
+  my $response = undef;
+  eval {
+    my $put = undef;
+    my $url = $Conf::shock_url."/node/$id";
+    if ($auth) {
+      #$put = $self->agent->put($Conf::shock_url."/node/$id", $content, Content_Type => 'form-data', Authorization => "OAuth $auth");
+      $put = `curl -s -X PUT -H "Authorization: OAuth $auth" -F tags="$tags"`;
+    } else {
+      #$put = $self->agent->put($Conf::shock_url."/node/$id", $content, Content_Type => 'form-data');
+      $put = `curl -s -X PUT -F tags="$tags" "$url"`;
+    }
+    #$response = $self->json->decode( $put->content );
+    $response = $self->json->decode( $put );
+  };
+  if ($@ || (! ref($response))) {
+    return undef;
+  } elsif (exists($response->{error}) && $response->{error}) {
+    $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
+  } else {
+    return $response->{data};
+  }
 }
 
 sub get_shock_node {
