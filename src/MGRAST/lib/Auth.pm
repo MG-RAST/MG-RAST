@@ -97,6 +97,8 @@ sub authenticate {
 	  } else {
 	    return (undef, "invalid webkey");
 	  }
+	} else {
+	  return (undef, "valid kbase user");
 	}
       } else {
 	return (undef, "globus authentication did not validate");
