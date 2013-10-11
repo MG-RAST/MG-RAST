@@ -106,7 +106,7 @@ sub perform_login {
   my $login = $self->application->cgi->param('login');
   my $password = $self->application->cgi->param('password');
   
-  unless (defined($login) && defined($password)) {
+  unless (scalar($login) && scalar($password)) {
     $self->application->add_message('warning', 'You must enter both login and password.');
     return 1;
   }
