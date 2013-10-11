@@ -69,11 +69,11 @@ if (opendir(my $dh, $resource_path)) {
 		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );
     print $json->encode( { jsonrpc => "2.0",
-			               id => undef,
-			               error => { code => -32603,
-				                      message => "Internal error",
-				                      data => "resource directory offline" }
-				        } );
+			   id => undef,
+			   error => { code => -32603,
+				      message => "Internal error",
+				      data => "resource directory offline" }
+			 } );
     exit 0;
   } else {
     print $cgi->header( -type => 'text/plain',
@@ -146,11 +146,13 @@ if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
         my $message;
         ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
         unless($user) {
+	  unless ($message eq "valid kbase user") {
             print $cgi->header( -type => 'application/json',
 	                            -status => 401,
     	                        -Access_Control_Allow_Origin => '*' );
             print $json->encode( {"ERROR"=> "authentication failed  - $message"} );
             exit 0;
+	  }
         }
     };
 }
@@ -174,11 +176,12 @@ if ($resource) {
         $error = $@;
     }
     if ($error) {
-        print $cgi->header( -type => 'application/json',
-    		                -status => 500,
-    		                -Access_Control_Allow_Origin => '*' );
-    	print $json->encode( {"ERROR"=> "resource '$resource' does not exist"} );
-        exit 0;
+      print STDERR $error."\n";
+      print $cgi->header( -type => 'application/json',
+			  -status => 500,
+			  -Access_Control_Allow_Origin => '*' );
+      print $json->encode( {"ERROR"=> "resource '$resource' does not exist"} );
+      exit 0;
     } else {
       # check for kbase ids
       if (scalar(@rest_parameters)) {
