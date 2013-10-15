@@ -343,7 +343,7 @@ sub connect_to_datasource {
 sub check_pagination {
     my ($self, $data, $total, $limit, $path, $offset) = @_;
 
-    my $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : ($offset ? $offset : 0);
+    $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : ($offset ? $offset : 0);
     my $order  = $self->cgi->param('order') || undef;
     my @params = $self->cgi->param;
     $total = int($total);
@@ -474,7 +474,7 @@ sub return_data {
 sub return_file {
     my ($self, $filedir, $filename) = @_;
     
-    unless ("$filedir/$filename" && (-s "$filedir/$filename")) {
+    unless ($filename && "$filedir/$filename" && (-s "$filedir/$filename")) {
 	    $self->return_data( {"ERROR" => "could not access filesystem"}, 404 );
     }
     if (open(FH, "<$filedir/$filename")) {
