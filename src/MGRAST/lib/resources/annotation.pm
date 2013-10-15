@@ -246,15 +246,20 @@ sub prepare_data {
         foreach my $line ( split(/\n/, $rec) ) {
             my @tabs = split(/\t/, $line);
             if ($tabs[0]) {
+                my @out = ();
                 my $rid = $hs->parse($tabs[0]);
+                unless ($mgid && $rid) {
+                    next;
+                }
                 $hs->eof;
                 if (($format eq 'sequence') && (@tabs == 13)) {
-                    print join("\t", ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]))."\n";
-                    $count += 1;
+                    @out = ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]);
                 } elsif ($format eq 'similarity') {
-                    print join("\t", ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann)))."\n";
+                    @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
                     $count += 1;
                 }
+                print join("\t", map {$_ || ''} @out)."\n";
+                $count += 1;
             }
         }
     }
