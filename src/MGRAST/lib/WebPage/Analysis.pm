@@ -1558,10 +1558,16 @@ sub workbench_hits_table {
   my @metas = $cgi->param('comparison_metagenomes');
   my @srcs  = $cgi->param('comparison_sources');
   my @md5s  = split(/;/, $cgi->param('use_buffer'));
-  my @mglinks  = @metas;
-  my $has_ss   = first {$_ =~ /^Subsystems$/i} @srcs;
-  my $has_m5nr = first {$_ =~ /^M5NR$/i} @srcs;
-  my @ach_srcs = grep {$_ !~ /^M5NR$/i} @srcs;
+  my @mglinks   = @metas;
+  my $has_ss    = first {$_ =~ /^Subsystems$/i} @srcs;
+  my $has_m5nr  = first {$_ =~ /^M5NR$/i} @srcs;
+  my $has_m5rna = first {$_ =~ /^M5RNA$/i} @srcs;
+  my @ach_srcs  = grep {$_ !~ /^(M5NR|M5RNA)$/i} @srcs;
+
+  if ($has_m5rna) {
+      @srcs = ('RDP','Greengenes','SSU','LSU','ITS');
+      @ach_srcs = @srcs;
+  }
 
   $self->{mgdb}->set_jobs(\@metas);
   my $analysis_data = $self->{mgdb}->get_md5_data(\@md5s);
@@ -1647,7 +1653,7 @@ sub workbench_hits_table {
 		  { name => 'align len std dev', sortable => 1, visible => 0,                               tooltip => 'standard deviation of<br>the alignment length of the hits' },
 		  { name => 'md5',               sortable => 1, visible => 0,                               tooltip => 'md5 checksum of hit sequence'  }
 	       ];
-    
+	       
   $table->columns($columns);
   $table->data(\@table_data);
   $html .= $table->output;

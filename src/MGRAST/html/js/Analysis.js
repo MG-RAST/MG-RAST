@@ -345,6 +345,8 @@ function build_opts(data) {
   for (i=0; i<temp.length; i++) {
     if (temp[i].toUpperCase() == 'M5NR') {
       items.push('GenBank','IMG','KEGG','PATRIC','RefSeq','SEED','SwissProt','TrEMBL','eggNOG');
+    } else if (temp[i].toUpperCase() == 'M5RNA') {
+      items.push('RDP','Greengenes','SSU','LSU','ITS');
     } else {
       items.push( temp[i] );
     }
