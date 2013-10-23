@@ -179,6 +179,12 @@ sub prepare_data {
     unless (exists $mgdb->_src_id->{$source}) {
         $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
     }
+    if (($type eq 'ontology') && (! any {$_->[0] eq $source} @{$self->source->{ontology}})) {
+        $self->return_data({"ERROR" => "Invalid ontology source was entered ($source). Please use one of: ".join(", ", map {$_->[0]} @{$self->source->{ontology}})}, 404);
+    }
+    if (($type eq 'organism') && (any {$_->[0] eq $source} @{$self->source->{ontology}})) {
+        $self->return_data({"ERROR" => "Invalid organism source was entered ($source). Please use one of: ".join(", ", map {$_->[0]} (@{$self->source->{protein}}, @{$self->source->{rna}}))}, 404);
+    }
     unless (any {$_->[0] eq $type} @{$self->{types}}) {
         $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
     }
