@@ -84,6 +84,8 @@ function forward_to_search (e) {
     if (stext && stext.length) {
       if (stext.match(/^mgm\d+\.\d+$/)) {
         window.location = "?page=MetagenomeOverview&metagenome="+stext.substring(3);
+      } else if (stext.match(/^\d{7}\.\d+$/)) {
+        window.location = "?page=MetagenomeOverview&metagenome="+stext;
       } else if (stext.match(/^mgp\d+$/)) {
         window.location = "?page=MetagenomeProject&project="+stext.substring(3);
       } else {
@@ -147,7 +149,7 @@ function initialize() {
     var feed = new google.feeds.Feed("http://press.igsb.anl.gov/mg-rast/feed/");
     feed.load(function(result) {
         if (!result.error) {
-	    var html = "<ul style='position: relative; bottom: 9px; right: 22px;'>";
+	    var html = "<ul style='position: relative; bottom: 6px; right: 22px;'>";
 	    for (var i = 0; i < result.feed.entries.length; i++) {
 		var entry = result.feed.entries[i];
 		html += "<li><a href='"+entry.link+"' target=_blank>"+entry.title+"</a></li>";

@@ -643,7 +643,7 @@ sub submit_to_mgrast {
 	if ($filename_ending eq 'fq') {
 	  $filename_ending = 'fastq';	  
 	}
-	$filename_ending = 'fna';
+	else { $filename_ending = 'fna'; }
 	`mv '$udir/$seqfile' '$udir/$subdir$filename_base.$filename_ending'`;
 	`mv '$udir/$seqfile.error_log' '$udir/$subdir$filename_base.$filename_ending.error_log'`;
 	`mv '$udir/$seqfile.stats_info' '$udir/$subdir$filename_base.$filename_ending.stats_info'`;
