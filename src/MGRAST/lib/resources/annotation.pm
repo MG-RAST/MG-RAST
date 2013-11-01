@@ -179,6 +179,12 @@ sub prepare_data {
     unless (exists $mgdb->_src_id->{$source}) {
         $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
     }
+    if (($type eq 'ontology') && (! any {$_->[0] eq $source} @{$self->source->{ontology}})) {
+        $self->return_data({"ERROR" => "Invalid ontology source was entered ($source). Please use one of: ".join(", ", map {$_->[0]} @{$self->source->{ontology}})}, 404);
+    }
+    if (($type eq 'organism') && (any {$_->[0] eq $source} @{$self->source->{ontology}})) {
+        $self->return_data({"ERROR" => "Invalid organism source was entered ($source). Please use one of: ".join(", ", map {$_->[0]} (@{$self->source->{protein}}, @{$self->source->{rna}}))}, 404);
+    }
     unless (any {$_->[0] eq $type} @{$self->{types}}) {
         $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
     }
@@ -246,15 +252,20 @@ sub prepare_data {
         foreach my $line ( split(/\n/, $rec) ) {
             my @tabs = split(/\t/, $line);
             if ($tabs[0]) {
+                my @out = ();
                 my $rid = $hs->parse($tabs[0]);
+                unless ($mgid && $rid) {
+                    next;
+                }
                 $hs->eof;
                 if (($format eq 'sequence') && (@tabs == 13)) {
-                    print join("\t", ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]))."\n";
-                    $count += 1;
+                    @out = ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]);
                 } elsif ($format eq 'similarity') {
-                    print join("\t", ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann)))."\n";
+                    @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
                     $count += 1;
                 }
+                print join("\t", map {$_ || ''} @out)."\n";
+                $count += 1;
             }
         }
     }

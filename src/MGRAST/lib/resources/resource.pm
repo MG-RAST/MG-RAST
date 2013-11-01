@@ -474,7 +474,7 @@ sub return_data {
 sub return_file {
     my ($self, $filedir, $filename) = @_;
     
-    unless ("$filedir/$filename" && (-s "$filedir/$filename")) {
+    unless ($filename && "$filedir/$filename" && (-s "$filedir/$filename")) {
 	    $self->return_data( {"ERROR" => "could not access filesystem"}, 404 );
     }
     if (open(FH, "<$filedir/$filename")) {
