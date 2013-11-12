@@ -256,7 +256,7 @@ sub output {
 			   <button style="display: none;" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Hidden join paired-ends button for enter key submission</button>
 			   <div class="modal-header">
 			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-			     <h3 id="joinPairedEndsModalLabel">join paired-ends</h3>
+			     <h3 id="joinPairedEndsModalLabel">join fastq-formatted paired-ends</h3>
 		           </div>
 			   <div class="modal-body">
 			     <p>Select file 1 of your paired-ends:</p>
@@ -275,13 +275,13 @@ sub output {
 		           </div>
 			   <div class="modal-footer">
 			     <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Join Overlapping Paired-End Reads</button>
+			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Join FASTQ-formatted Paired-End Reads</button>
 		           </div>
 			 </div>
 		       </form>
                        <input type="button" class="btn" style='width:130px;' value="join paired-ends" data-toggle="modal" href="#joinPairedEndsModal"">
                      </td>
-                     <td width=250 style='vertical-align:middle;'>Joins overlapping paired-end reads.</td>
+                     <td width=250 style='vertical-align:middle;'>Joins FASTQ-formatted overlapping paired-end reads.</td>
                    </tr>
                  </table>
                  <br>
