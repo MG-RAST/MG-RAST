@@ -1,4 +1,4 @@
-package resources2::profile;
+package resources::profile;
 
 use strict;
 use warnings;
