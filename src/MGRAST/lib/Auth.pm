@@ -18,17 +18,8 @@ sub authenticate {
   my $auth_source = 'WebServicesKey';
   my $auth_value = $key;
 
-  # this is KBase
-  if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
-    my $json = new JSON;
-    my $cgi = new CGI;
-
-    $auth_source = 'kbase_user';
-    my $ustruct = "";
-    
-    # this is a key, not a token, obtain a token
-    if ($key =~ /^kbgo4711/) {
-      $key =~ s/^kbgo4711//;
+  if ($key =~ /^mggo4711/) {
+      $key =~ s/^mggo4711//;
 
       use MIME::Base64;
       my ($u,$p) = split(/\:/, decode_base64($key));
@@ -45,9 +36,25 @@ sub authenticate {
                              -Access_Control_Allow_Origin => '*' );
           print '{ "token": "'.$pref->[0]->value.'" }';
           exit;
-        }
+        } else {
+	  return (undef, "api access not enabled for this user");
+	}
+      } else {
+	return (undef, "invalid MG-RAST credentials");
       }
+  }
 
+  # this is KBase
+  if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
+    my $json = new JSON;
+    my $cgi = new CGI;
+
+    $auth_source = 'kbase_user';
+    my $ustruct = "";
+    
+    # this is a key, not a token, obtain a token
+    if ($key =~ /^kbgo4711/) {
+      $key =~ s/^kbgo4711//;
       $ustruct = globus_token($key);
       if ($ustruct) {
 	if ($ustruct->{access_token}) {
