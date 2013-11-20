@@ -351,10 +351,11 @@ sub prepare_data {
     my $mgids = [];
     @$mgids = map { $_->{metagenome_id} } @$data;
     my $jobdata = {};
+    my $mddb;
     
     if (($verb eq 'metadata') || ($verb eq 'full')) {
         use MGRAST::Metadata;
-        my $mddb = MGRAST::Metadata->new();
+        $mddb = MGRAST::Metadata->new();
         $jobdata = $mddb->get_jobs_metadata_fast($mgids, 1);
     }
     if (($verb eq 'stats') || ($verb eq 'full')) {
@@ -430,6 +431,7 @@ sub prepare_data {
         }
         if (($verb eq 'metadata') || ($verb eq 'full')) {
             $obj->{metadata} = $jobdata->{$job->{metagenome_id}};
+            $obj->{mixs_compliant} = $mddb->is_job_compliant($job);
         }
         if (($verb eq 'stats') || ($verb eq 'full')) {
             $obj->{statistics} = $self->job_stats($job);
