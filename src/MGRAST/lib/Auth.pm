@@ -28,9 +28,10 @@ sub authenticate {
         my $pref = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $us } );
         if (scalar(@$pref)) { 
           if ($pref->[0]->value < time) {
-              $pref->value(time + 1209600);
+              $pref->[0]->value(time + 1209600);
           }
           $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', user => $us } );
+	  my $cgi = new CGI;
           print $cgi->header(-type => 'application/json',
                              -status => 200,
                              -Access_Control_Allow_Origin => '*' );
