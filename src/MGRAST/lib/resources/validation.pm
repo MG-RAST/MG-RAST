@@ -241,11 +241,13 @@ sub template {
   if (scalar(@{$template_status->{error}})) {
     $template_status->{valid} = 0;
   } else {
-    $attributes->{id} = $id;
-    push @{$attributes->{tags}->{template}}, $template->{name};
+    $attributes->{type} = 'metadata';
+    $attributes->{data_type} = 'template';
+    $attributes->{template} = 'mgrast';
+    $attributes->{file_format} = 'json';
     $self->update_shock_node($id, $attributes, $self->{token});
   }
-  
+
   $self->return_data($template_status);
 }
 
@@ -348,14 +350,7 @@ sub data {
     my $template_str = $self->get_shock_file($template_id, undef, $self->{token});
     $template = $json->decode($template_str);
 
-    my $valid_template = 0;
-    foreach my $tag (keys %{$template_attributes->{tags}}) {
-      if ($tag eq "template") {
-	$valid_template = 1;
-	last;
-      }
-    }
-    if (! $valid_template) {
+    unless ($template_attributes->{data_type} == 'template') {
       $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
     }
   } else {
