@@ -6,6 +6,7 @@ no warnings('once');
 
 use Conf;
 use parent qw(resources::resource);
+use JSON;
 
 # Override parent constructor
 sub new {
@@ -90,13 +91,19 @@ sub request {
 
 sub template {
   my ($self, $id) = @_;
-  
-  # get the shock template node
-  my $template = $self->get_shock_node($id, $self->{token});
-  if ($template) {
-    $template = $template->{attributes};
+
+  # get the shock template node attributes
+  my $node = $self->get_shock_node($id, $self->{token});
+  my $attributes = $node->{attributes};
+  unless($attributes) {
+    $attributes = {};
   }
 
+  # get the shock template file
+  my $template_str = $self->get_shock_file($id, undef, $self->{token});
+  my $json = JSON->new->allow_nonref;
+  my $template = $json->decode($template_str);
+  
   my $template_status = { "valid" => 1,
 			  "error" => [] };	
   
@@ -234,8 +241,9 @@ sub template {
   if (scalar(@{$template_status->{error}})) {
     $template_status->{valid} = 0;
   } else {
-    $template_status->{template} = $template;
-    $self->update_shock_node({ id => $id, tags => [ "template", $template->{name} ] });
+    $attributes->{id} = $id;
+    push @{$attributes->{tags}->{template}}, $template->{name};
+    $self->update_shock_node($id, $attributes, $self->{token});
   }
   
   $self->return_data($template_status);
@@ -330,7 +338,7 @@ sub data {
   # if no template id is passed, get the MG-RAST template
   my $template;
   if ($template_id) {
-    $template = $self->get_shock_node($template_id);
+    $template = $self->get_shock_node($template_id, $self->{token});
     my $valid_template = 0;
     foreach my $tag (@{$template->{tags}}) {
       if ($tag eq "template") {
@@ -342,8 +350,7 @@ sub data {
       $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
     }
   } else {
-    my $mgrast_template = "000d6934-63e6-4050-aafa-073f836ae3c3";
-    $template = $self->get_shock_node($mgrast_template);
+    $template = $self->get_shock_node($Conf::mgrast_md_template_node_id, $Conf::shock_globus_token);
   }
   # check shock type to be template
 
@@ -575,7 +582,7 @@ sub reformat_template {
       }
   }
 
-  my $node = $self->set_shock_node("mgrast", undef, $template, "un=paczian|tokenid=07806e3c-2cfd-11e3-bb07-12313809f035|expiry=1412431101|client_id=paczian|token_type=Bearer|SigningSubject=https://nexus.api.globusonline.org/goauth/keys/07c63674-2cfd-11e3-bb07-12313809f035|sig=3d6d0aa4cfc14ea2406105257cb2e76ec91fa7c32ccf137e37ec2f5e3313639f3e8c2bfe4fbbae4c8bb91de8c66498251986cfe9d2e3336e736bd48cfbe9b5c3f16baabcf1b2801cf7858b0a275e1e7b275dc7c5576ef7c5b47016157de691fddc2de759af84b2390989d3350464daac59352f4de9baf76b723bfc389711a33a");
+  my $node = $self->set_shock_node("mgrast", undef, $template, $Conf::shock_globus_token);
   #my $node = $self->update_shock_tags({ id => "40959bb3-131b-4fc4-abbb-c172feac7217", tags => [ "template", 'mgrast_template', 'communities_template' ]});
 
   return $self->return_data($node);
