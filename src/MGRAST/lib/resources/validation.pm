@@ -6,6 +6,7 @@ no warnings('once');
 
 use Conf;
 use parent qw(resources::resource);
+use JSON;
 
 # Override parent constructor
 sub new {
@@ -90,13 +91,19 @@ sub request {
 
 sub template {
   my ($self, $id) = @_;
-  
-  # get the shock template node
-  my $template = $self->get_shock_node($id, $self->{token});
-  if ($template) {
-    $template = $template->{attributes};
+
+  # get the shock template node attributes
+  my $node = $self->get_shock_node($id, $self->{token});
+  my $attributes = $node->{attributes};
+  unless($attributes) {
+    $attributes = {};
   }
 
+  # get the shock template file
+  my $template_str = $self->get_shock_file($id, undef, $self->{token});
+  my $json = JSON->new->allow_nonref;
+  my $template = $json->decode($template_str);
+  
   my $template_status = { "valid" => 1,
 			  "error" => [] };	
   
@@ -234,8 +241,9 @@ sub template {
   if (scalar(@{$template_status->{error}})) {
     $template_status->{valid} = 0;
   } else {
-    $template_status->{template} = $template;
-    $self->update_shock_node({ id => $id, tags => [ "template", $template->{name} ] });
+    $attributes->{id} = $id;
+    push @{$attributes->{tags}->{template}}, $template->{name};
+    $self->update_shock_node($id, $attributes, $self->{token});
   }
   
   $self->return_data($template_status);
@@ -330,7 +338,7 @@ sub data {
   # if no template id is passed, get the MG-RAST template
   my $template;
   if ($template_id) {
-    $template = $self->get_shock_node($template_id);
+    $template = $self->get_shock_node($template_id, $self->{token});
     my $valid_template = 0;
     foreach my $tag (@{$template->{tags}}) {
       if ($tag eq "template") {
@@ -342,7 +350,7 @@ sub data {
       $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
     }
   } else {
-    $template = $self->get_shock_node($Conf::mgrast_md_template_node_id);
+    $template = $self->get_shock_node($Conf::mgrast_md_template_node_id, $Conf::shock_globus_token);
   }
   # check shock type to be template
 
