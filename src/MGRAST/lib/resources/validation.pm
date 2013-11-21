@@ -241,11 +241,13 @@ sub template {
   if (scalar(@{$template_status->{error}})) {
     $template_status->{valid} = 0;
   } else {
-    $attributes->{id} = $id;
-    push @{$attributes->{tags}->{template}}, $template->{name};
+    $attributes->{type} = 'metadata';
+    $attributes->{data_type} = 'template';
+    $attributes->{template} = 'mgrast';
+    $attributes->{file_format} = 'json';
     $self->update_shock_node($id, $attributes, $self->{token});
   }
-  
+
   $self->return_data($template_status);
 }
 
@@ -334,27 +336,36 @@ sub check_fields {
 
 sub data {
   my ($self, $data_id, $template_id) = @_;
+  my $json = JSON->new->allow_nonref;
 
   # if no template id is passed, get the MG-RAST template
   my $template;
+  my $template_attributes;
   if ($template_id) {
-    $template = $self->get_shock_node($template_id, $self->{token});
-    my $valid_template = 0;
-    foreach my $tag (@{$template->{tags}}) {
-      if ($tag eq "template") {
-	$valid_template = 1;
-	last;
-      }
-    }
-    if (! $valid_template) {
+    # getting node
+    my $template_node = $self->get_shock_node($template_id, $self->{token});
+    $template_attributes = $template_node->{attributes};
+
+    # getting file
+    my $template_str = $self->get_shock_file($template_id, undef, $self->{token});
+    $template = $json->decode($template_str);
+
+    unless ($template_attributes->{data_type} == 'template') {
       $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
     }
   } else {
-    $template = $self->get_shock_node($Conf::mgrast_md_template_node_id, $Conf::shock_globus_token);
+    # getting node
+    my $template_node = $self->get_shock_node($Conf::mgrast_md_template_node_id, $Conf::shock_globus_token);
+    $template_attributes = $template_node->{attributes};
+
+    # getting file
+    my $template_str = $self->get_shock_file($Conf::mgrast_md_template_node_id, undef, $Conf::shock_globus_token);
+    $template = $json->decode($template_str);
   }
   # check shock type to be template
 
-  my $data = $self->get_shock_node($data_id, $self->{token});
+  my $data_str = $self->get_shock_file($data_id, undef, $self->{token});
+  my $data = $json->decode($data_str);
 
   my $data_status = { "valid" => 1,
 		      "error" => [] };

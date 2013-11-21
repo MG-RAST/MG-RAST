@@ -633,19 +633,23 @@ sub update_shock_tags {
     $tags = join(",", @{$params->{tags}});
   }
 
+  my $tag_str = $self->json->pretty->encode($tags);
+  my $content  = [tags => [undef, "n/a", Content => $tag_str]];
+
   my $response = undef;
   eval {
     my $put = undef;
     my $url = $Conf::shock_url."/node/$id";
     if ($auth) {
-      #$put = $self->agent->put($Conf::shock_url."/node/$id", $content, Content_Type => 'form-data', Authorization => "OAuth $auth");
-      $put = `curl -s -X PUT -H "Authorization: OAuth $auth" -F tags="$tags"`;
+      my $req = POST($Conf::shock_url.'/node/'.$id, Authorization => "OAuth $auth", Content_Type => 'form-data', Content => $content);
+      $req->method('PUT');
+      $put = $self->agent->request($req);
     } else {
-      #$put = $self->agent->put($Conf::shock_url."/node/$id", $content, Content_Type => 'form-data');
-      $put = `curl -s -X PUT -F tags="$tags" "$url"`;
+      my $req = POST($Conf::shock_url.'/node/'.$id, Content_Type => 'form-data', Content => $content);
+      $req->method('PUT');
+      $put = $self->agent->request($req);
     }
-    #$response = $self->json->decode( $put->content );
-    $response = $self->json->decode( $put );
+    $response = $self->json->decode( $put->content );
   };
   if ($@ || (! ref($response))) {
     return undef;
