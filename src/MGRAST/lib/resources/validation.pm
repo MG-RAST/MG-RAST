@@ -480,8 +480,6 @@ sub check_field {
 sub reformat_template {
   my ($self) = @_;
 
-  return;
-
   use LWP::UserAgent;
   use JSON;
   my $ua = LWP::UserAgent->new;
@@ -539,6 +537,7 @@ sub reformat_template {
 							     "label" => $l,
 							     "description" => $field->{'definition'},
 							     "type" => $field->{'type'},
+							     "validation" => { 'type' => 'none' },
 							     "mandatory" => $field->{'required'} == 0 ? 0 : 1 };
   }
   
@@ -551,6 +550,7 @@ sub reformat_template {
 							      "label" => $l,
 							      "description" => $field->{'definition'},
 							      "type" => $field->{'type'},
+							      "validation" => { 'type' => 'none' },
 							      "mandatory" => $field->{'required'} == 0 ? 0 : 1 };
   }
   
@@ -568,6 +568,7 @@ sub reformat_template {
 							"label" => $l,
 							"description" => $field->{'definition'},
 							"type" => $field->{'type'},
+							"validation" => { 'type' => 'none' },
 							"mandatory" => $field->{'required'} == 0 ? 0 : 1 };
     }
   }
@@ -589,12 +590,12 @@ sub reformat_template {
 							  "label" => $l,
 							  "description" => $field->{'definition'},
 							  "type" => $field->{'type'},
+							  "validation" => { 'type' => 'none' },
 							  "mandatory" => $field->{'required'} == 0 ? 0 : 1 };
       }
   }
 
   my $node = $self->set_shock_node("mgrast", undef, $template, $Conf::shock_globus_token);
-  #my $node = $self->update_shock_tags({ id => "40959bb3-131b-4fc4-abbb-c172feac7217", tags => [ "template", 'mgrast_template', 'communities_template' ]});
 
   return $self->return_data($node);
 }
