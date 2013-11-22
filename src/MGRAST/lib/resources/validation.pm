@@ -350,9 +350,9 @@ sub data {
     my $template_str = $self->get_shock_file($template_id, undef, $self->{token});
     $template = $json->decode($template_str);
 
-    unless ($template_attributes->{data_type} == 'template') {
-      $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
-    }
+    # unless ($template_attributes->{data_type} eq 'template') {
+    #   $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
+    # }
   } else {
     # getting node
     my $template_node = $self->get_shock_node($Conf::mgrast_md_template_node_id, $Conf::shock_globus_token);
@@ -368,7 +368,8 @@ sub data {
   my $data = $json->decode($data_str);
 
   my $data_status = { "valid" => 1,
-		      "error" => [] };
+		      "error" => [],
+		      "warning" => [] };
 
   if (ref $data eq 'HASH') {
     foreach my $d (keys(%$data)) {
@@ -399,15 +400,23 @@ sub data {
 
 sub check_group {
   my ($item, $group, $template, $data_status) = @_;
-  
+
   if (ref $item ne 'ARRAY') {
     foreach my $field (keys(%$item)) {
       if (exists $group->{'fields'}->{$field}) {
   	&check_field($item->{$field}, $field, $group, undef, $template, $data_status);
-      } elsif (exists $group->{'subgroups'}->{$field}) {
-  	&check_group($item->{$field}, $template->{'groups'}->{$field}, $template, $data_status);
       } else {
-  	push(@{$data_status->{error}}, $field.' is neither a field or subgroup in group '.$group->{'name'}.' of the template');
+	my $found = 0;
+	foreach my $key (keys(%{$group->{'subgroups'}})) {
+	  if ($group->{'subgroups'}->{$key}->{'label'} eq $field) {
+	    &check_group($item->{$field}, $template->{'groups'}->{$key}, $template, $data_status);
+	    $found = 1;
+	    last;
+	  }
+	}
+	unless ($found) {
+	  push(@{$data_status->{warning}}, 'additional field '.$field.' found in group '.$group->{'name'}.' of the template');
+	}
       }
     }
     foreach my $field (keys(%{$group->{'fields'}})) {
@@ -419,15 +428,23 @@ sub check_group {
     for (my $h=0; $h<scalar(@$item); $h++) {
       if (ref $item->[$h] eq 'HASH') {
   	foreach my $j (keys(%{$item->[$h]})) {
-  	  if (exists $template->{'fields'}->{$j}) {
-  	    &check_field($item->[$h]->{$j}, $j, $group, $h, $template, $data_status);
-  	  } elsif (exists $group->{'subgroups'}->{$j}) {
-  	    &check_group($item->[$h]->{$j}, $template->{'groups'}->{$j}, $template, $data_status);
-  	  } else {
-  	    push(@{$data_status->{error}}, 'field '.$h.' in does not exist in template');
-  	  }
-  	}
-  	foreach my $j (keys(%{$group->{'fields'}})) {
+	  if (exists $group->{'fields'}->{$j}) {
+	    &check_field($item->[$h]->{$j}, $j, $group, $h, $template, $data_status);
+	  } else {
+	    my $found = 0;
+	    foreach my $key (keys(%{$group->{'subgroups'}})) {
+	      if ($group->{'subgroups'}->{$key}->{'label'} eq $j) {
+		&check_group($item->[$h]->{$j}, $template->{'groups'}->{$key}, $template, $data_status);
+		$found = 1;
+		last;
+	      }
+	    }
+	    unless ($found) {
+	      push(@{$data_status->{warning}}, 'additional field '.$j.' found in group '.$group->{'name'}.' of the template');
+	    }
+	  }
+	}
+	foreach my $j (keys(%{$group->{'fields'}})) {
   	  if ($group->{'fields'}->{$j}->{'mandatory'} && ! exists $item->[$h]->{$j}) {
   	    push(@{$data_status->{error}}, 'mandatory field '.$j.' missing in group '.$group->{'name'}.' instance '.$h);
   	  }
@@ -450,14 +467,12 @@ sub check_field {
     $error .= " instance ".$location;
   }
   
-  if (exists $group->{$fieldname}) {
+  if (exists $group->{'fields'}->{$fieldname}) {
     my $field = $group->{'fields'}->{$fieldname};
-    if ($field->{'validation'}->{'type'} eq 'none') {
-      if ($field->{'mandatory'} && ! length $field) {
-	push(@{$data_status->{error}}, 'mandatory field '.$fieldname.' missing');
-      }
-      return;
-    } else {
+    if ($field->{'mandatory'} && ! length $field) {
+      push(@{$data_status->{error}}, 'mandatory field '.$fieldname.' missing');
+    }
+    if (exists $field->{'validation'}) {
       if ($field->{'validation'}->{'type'} eq 'cv') {
 	if (! $template->{'cvs'}->{$field->{'validation'}->{'value'}}->{'value'}) {
 	  push(@{$data_status->{error}}, 'field '.$fieldname.' was not found in the controlled vocabulary '.$field->{'validation'}->{'value'});
@@ -469,10 +484,12 @@ sub check_field {
 	  push(@{$data_status->{error}}, 'field '.$fieldname.' has an invalid value');
 	}
 	return;
+      } else {
+	return;
       }
     }
   } else {
-    push(@{$data_status->{error}}, 'field '.$fieldname.' does not exist in template');
+    push(@{$data_status->{error}}, 'field '.$fieldname.' does not exist in group '.$group->{name}.' of the template');
     return;
   }
 }
