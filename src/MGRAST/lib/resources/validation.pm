@@ -6,6 +6,7 @@ no warnings('once');
 
 use Conf;
 use parent qw(resources::resource);
+use JSON;
 
 # Override parent constructor
 sub new {
@@ -45,7 +46,7 @@ sub info {
 				    { 'name'        => "template",
 				      'request'     => $self->cgi->url."/".$self->name."/template/{ID}",				      
 				      'description' => "Checks if the referenced JSON structure is a valid template",
-				      'example'     => [ $self->cgi->url."/".$self->name."/template/12345",
+				      'example'     => [ $self->cgi->url."/".$self->name."/template/".$Conf::mgrast_md_template_node_id,
 				                         'validate the communities metagenomics template' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -56,7 +57,7 @@ sub info {
 				    { 'name'        => "data",
 				      'request'     => $self->cgi->url."/".$self->name."/data/{ID}",
 				      'description' => "Returns a single data object.",
-				      'example'     => [ $self->cgi->url."/".$self->name."/data/1234?template=5678",
+				      'example'     => [ $self->cgi->url."/".$self->name."/data/".$Conf::mgrast_md_node_id."?template=".$Conf::mgrast_md_template_node_id,
   				                         'validate a JSON data structure against the MG-RAST metagenome metadata template' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -90,13 +91,19 @@ sub request {
 
 sub template {
   my ($self, $id) = @_;
-  
-  # get the shock template node
-  my $template = $self->get_shock_node($id, $self->{token});
-  if ($template) {
-    $template = $template->{attributes};
+
+  # get the shock template node attributes
+  my $node = $self->get_shock_node($id, $self->{token});
+  my $attributes = $node->{attributes};
+  unless($attributes) {
+    $attributes = {};
   }
 
+  # get the shock template file
+  my $template_str = $self->get_shock_file($id, undef, $self->{token});
+  my $json = JSON->new->allow_nonref;
+  my $template = $json->decode($template_str);
+  
   my $template_status = { "valid" => 1,
 			  "error" => [] };	
   
@@ -234,10 +241,13 @@ sub template {
   if (scalar(@{$template_status->{error}})) {
     $template_status->{valid} = 0;
   } else {
-    $template_status->{template} = $template;
-    $self->update_shock_node({ id => $id, tags => [ "template", $template->{name} ] });
+    $attributes->{type} = 'metadata';
+    $attributes->{data_type} = 'template';
+    $attributes->{template} = 'mgrast';
+    $attributes->{file_format} = 'json';
+    $self->update_shock_node($id, $attributes, $self->{token});
   }
-  
+
   $self->return_data($template_status);
 }
 
@@ -326,31 +336,40 @@ sub check_fields {
 
 sub data {
   my ($self, $data_id, $template_id) = @_;
+  my $json = JSON->new->allow_nonref;
 
   # if no template id is passed, get the MG-RAST template
   my $template;
+  my $template_attributes;
   if ($template_id) {
-    $template = $self->get_shock_node($template_id);
-    my $valid_template = 0;
-    foreach my $tag (@{$template->{tags}}) {
-      if ($tag eq "template") {
-	$valid_template = 1;
-	last;
-      }
-    }
-    if (! $valid_template) {
-      $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
-    }
+    # getting node
+    my $template_node = $self->get_shock_node($template_id, $self->{token});
+    $template_attributes = $template_node->{attributes};
+
+    # getting file
+    my $template_str = $self->get_shock_file($template_id, undef, $self->{token});
+    $template = $json->decode($template_str);
+
+    # unless ($template_attributes->{data_type} eq 'template') {
+    #   $self->return_data( {"ERROR" => "template id does not point to a valid template"}, 400 );
+    # }
   } else {
-    my $mgrast_template = "000d6934-63e6-4050-aafa-073f836ae3c3";
-    $template = $self->get_shock_node($mgrast_template);
+    # getting node
+    my $template_node = $self->get_shock_node($Conf::mgrast_md_template_node_id, $Conf::shock_globus_token);
+    $template_attributes = $template_node->{attributes};
+
+    # getting file
+    my $template_str = $self->get_shock_file($Conf::mgrast_md_template_node_id, undef, $Conf::shock_globus_token);
+    $template = $json->decode($template_str);
   }
   # check shock type to be template
 
-  my $data = $self->get_shock_node($data_id, $self->{token});
+  my $data_str = $self->get_shock_file($data_id, undef, $self->{token});
+  my $data = $json->decode($data_str);
 
   my $data_status = { "valid" => 1,
-		      "error" => [] };
+		      "error" => [],
+		      "warning" => [] };
 
   if (ref $data eq 'HASH') {
     foreach my $d (keys(%$data)) {
@@ -381,15 +400,23 @@ sub data {
 
 sub check_group {
   my ($item, $group, $template, $data_status) = @_;
-  
+
   if (ref $item ne 'ARRAY') {
     foreach my $field (keys(%$item)) {
       if (exists $group->{'fields'}->{$field}) {
   	&check_field($item->{$field}, $field, $group, undef, $template, $data_status);
-      } elsif (exists $group->{'subgroups'}->{$field}) {
-  	&check_group($item->{$field}, $template->{'groups'}->{$field}, $template, $data_status);
       } else {
-  	push(@{$data_status->{error}}, $field.' is neither a field or subgroup in group '.$group->{'name'}.' of the template');
+	my $found = 0;
+	foreach my $key (keys(%{$group->{'subgroups'}})) {
+	  if ($group->{'subgroups'}->{$key}->{'label'} eq $field) {
+	    &check_group($item->{$field}, $template->{'groups'}->{$key}, $template, $data_status);
+	    $found = 1;
+	    last;
+	  }
+	}
+	unless ($found) {
+	  push(@{$data_status->{warning}}, 'additional field '.$field.' found in group '.$group->{'name'}.' of the template');
+	}
       }
     }
     foreach my $field (keys(%{$group->{'fields'}})) {
@@ -401,15 +428,23 @@ sub check_group {
     for (my $h=0; $h<scalar(@$item); $h++) {
       if (ref $item->[$h] eq 'HASH') {
   	foreach my $j (keys(%{$item->[$h]})) {
-  	  if (exists $template->{'fields'}->{$j}) {
-  	    &check_field($item->[$h]->{$j}, $j, $group, $h, $template, $data_status);
-  	  } elsif (exists $group->{'subgroups'}->{$j}) {
-  	    &check_group($item->[$h]->{$j}, $template->{'groups'}->{$j}, $template, $data_status);
-  	  } else {
-  	    push(@{$data_status->{error}}, 'field '.$h.' in does not exist in template');
-  	  }
-  	}
-  	foreach my $j (keys(%{$group->{'fields'}})) {
+	  if (exists $group->{'fields'}->{$j}) {
+	    &check_field($item->[$h]->{$j}, $j, $group, $h, $template, $data_status);
+	  } else {
+	    my $found = 0;
+	    foreach my $key (keys(%{$group->{'subgroups'}})) {
+	      if ($group->{'subgroups'}->{$key}->{'label'} eq $j) {
+		&check_group($item->[$h]->{$j}, $template->{'groups'}->{$key}, $template, $data_status);
+		$found = 1;
+		last;
+	      }
+	    }
+	    unless ($found) {
+	      push(@{$data_status->{warning}}, 'additional field '.$j.' found in group '.$group->{'name'}.' of the template');
+	    }
+	  }
+	}
+	foreach my $j (keys(%{$group->{'fields'}})) {
   	  if ($group->{'fields'}->{$j}->{'mandatory'} && ! exists $item->[$h]->{$j}) {
   	    push(@{$data_status->{error}}, 'mandatory field '.$j.' missing in group '.$group->{'name'}.' instance '.$h);
   	  }
@@ -432,14 +467,12 @@ sub check_field {
     $error .= " instance ".$location;
   }
   
-  if (exists $group->{$fieldname}) {
+  if (exists $group->{'fields'}->{$fieldname}) {
     my $field = $group->{'fields'}->{$fieldname};
-    if ($field->{'validation'}->{'type'} eq 'none') {
-      if ($field->{'mandatory'} && ! length $field) {
-	push(@{$data_status->{error}}, 'mandatory field '.$fieldname.' missing');
-      }
-      return;
-    } else {
+    if ($field->{'mandatory'} && ! length $field) {
+      push(@{$data_status->{error}}, 'mandatory field '.$fieldname.' missing');
+    }
+    if (exists $field->{'validation'}) {
       if ($field->{'validation'}->{'type'} eq 'cv') {
 	if (! $template->{'cvs'}->{$field->{'validation'}->{'value'}}->{'value'}) {
 	  push(@{$data_status->{error}}, 'field '.$fieldname.' was not found in the controlled vocabulary '.$field->{'validation'}->{'value'});
@@ -451,10 +484,12 @@ sub check_field {
 	  push(@{$data_status->{error}}, 'field '.$fieldname.' has an invalid value');
 	}
 	return;
+      } else {
+	return;
       }
     }
   } else {
-    push(@{$data_status->{error}}, 'field '.$fieldname.' does not exist in template');
+    push(@{$data_status->{error}}, 'field '.$fieldname.' does not exist in group '.$group->{name}.' of the template');
     return;
   }
 }
@@ -575,7 +610,7 @@ sub reformat_template {
       }
   }
 
-  my $node = $self->set_shock_node("mgrast", undef, $template, "un=paczian|tokenid=07806e3c-2cfd-11e3-bb07-12313809f035|expiry=1412431101|client_id=paczian|token_type=Bearer|SigningSubject=https://nexus.api.globusonline.org/goauth/keys/07c63674-2cfd-11e3-bb07-12313809f035|sig=3d6d0aa4cfc14ea2406105257cb2e76ec91fa7c32ccf137e37ec2f5e3313639f3e8c2bfe4fbbae4c8bb91de8c66498251986cfe9d2e3336e736bd48cfbe9b5c3f16baabcf1b2801cf7858b0a275e1e7b275dc7c5576ef7c5b47016157de691fddc2de759af84b2390989d3350464daac59352f4de9baf76b723bfc389711a33a");
+  my $node = $self->set_shock_node("mgrast", undef, $template, $Conf::shock_globus_token);
   #my $node = $self->update_shock_tags({ id => "40959bb3-131b-4fc4-abbb-c172feac7217", tags => [ "template", 'mgrast_template', 'communities_template' ]});
 
   return $self->return_data($node);

@@ -18,6 +18,33 @@ sub authenticate {
   my $auth_source = 'WebServicesKey';
   my $auth_value = $key;
 
+  if ($key =~ /^mggo4711/) {
+      $key =~ s/^mggo4711//;
+
+      use MIME::Base64;
+      my ($u,$p) = split(/\:/, decode_base64($key));
+      my $us = $master->User->init( { login => $u } );
+      if (ref $us and crypt($p, $us->password) eq $us->password) {
+        my $pref = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $us } );
+        if (scalar(@$pref)) { 
+          if ($pref->[0]->value < time) {
+              $pref->[0]->value(time + 1209600);
+          }
+          $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', user => $us } );
+	  my $cgi = new CGI;
+          print $cgi->header(-type => 'application/json',
+                             -status => 200,
+                             -Access_Control_Allow_Origin => '*' );
+          print '{ "token": "'.$pref->[0]->value.'" }';
+          exit;
+        } else {
+	  return (undef, "api access not enabled for this user");
+	}
+      } else {
+	return (undef, "invalid MG-RAST credentials");
+      }
+  }
+
   # this is KBase
   if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
     my $json = new JSON;
@@ -29,25 +56,6 @@ sub authenticate {
     # this is a key, not a token, obtain a token
     if ($key =~ /^kbgo4711/) {
       $key =~ s/^kbgo4711//;
-
-      use MIME::Base64;
-      my ($u,$p) = split(/\:/, decode_base64($key));
-      my $us = $master->User->init( { login => $u } );
-      if (ref $us and crypt($p, $us->password) eq $us->password) {
-        my $pref = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $us } );
-        if (scalar(@$pref)) { 
-          if ($pref->[0]->value < time) {
-              $pref->value(time + 1209600);
-          }
-          $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', user => $us } );
-          print $cgi->header(-type => 'application/json',
-                             -status => 200,
-                             -Access_Control_Allow_Origin => '*' );
-          print '{ "token": "'.$pref->[0]->value.'" }';
-          exit;
-        }
-      }
-
       $ustruct = globus_token($key);
       if ($ustruct) {
 	if ($ustruct->{access_token}) {

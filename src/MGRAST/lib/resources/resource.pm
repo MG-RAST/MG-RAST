@@ -5,10 +5,10 @@ use warnings;
 no warnings('once');
 
 use Conf;
-use Data::Dumper;
 use CGI;
 use JSON;
 use LWP::UserAgent;
+use HTTP::Request::Common;
 use Digest::MD5 qw(md5_hex md5_base64);
 
 1;
@@ -590,18 +590,21 @@ sub set_shock_node {
 }
 
 sub update_shock_node {
-    my ($self, $name, $file, $attr, $auth, $id) = @_;
+    my ($self, $id, $attr, $auth) = @_;
     
-    my $attr_str = $self->json->encode($attr);
-    my $file_str = $self->json->encode($file);
-    my $content  = [attributes => [undef, "$name.json", Content => $attr_str]];
+    my $attr_str = $self->json->pretty->encode($attr);
+    my $content  = [attributes => [undef, "n/a", Content => $attr_str]];
     my $response = undef;
     eval {
         my $put = undef;
         if ($auth) {
-            $put = $self->agent->put($Conf::shock_url.'/node/$id', $content, Content_Type => 'form-data', Authorization => "OAuth $auth");
+            my $req = POST($Conf::shock_url.'/node/'.$id, Authorization => "OAuth $auth", Content_Type => 'form-data', Content => $content);
+            $req->method('PUT');
+            $put = $self->agent->request($req);
         } else {
-            $put = $self->agent->put($Conf::shock_url.'/node/$id', $content, Content_Type => 'form-data');
+            my $req = POST($Conf::shock_url.'/node/'.$id, Content_Type => 'form-data', Content => $content);
+            $req->method('PUT');
+            $put = $self->agent->request($req);
         }
         $response = $self->json->decode( $put->content );
     };
@@ -630,19 +633,23 @@ sub update_shock_tags {
     $tags = join(",", @{$params->{tags}});
   }
 
+  my $tag_str = $self->json->pretty->encode($tags);
+  my $content  = [tags => [undef, "n/a", Content => $tag_str]];
+
   my $response = undef;
   eval {
     my $put = undef;
     my $url = $Conf::shock_url."/node/$id";
     if ($auth) {
-      #$put = $self->agent->put($Conf::shock_url."/node/$id", $content, Content_Type => 'form-data', Authorization => "OAuth $auth");
-      $put = `curl -s -X PUT -H "Authorization: OAuth $auth" -F tags="$tags"`;
+      my $req = POST($Conf::shock_url.'/node/'.$id, Authorization => "OAuth $auth", Content_Type => 'form-data', Content => $content);
+      $req->method('PUT');
+      $put = $self->agent->request($req);
     } else {
-      #$put = $self->agent->put($Conf::shock_url."/node/$id", $content, Content_Type => 'form-data');
-      $put = `curl -s -X PUT -F tags="$tags" "$url"`;
+      my $req = POST($Conf::shock_url.'/node/'.$id, Content_Type => 'form-data', Content => $content);
+      $req->method('PUT');
+      $put = $self->agent->request($req);
     }
-    #$response = $self->json->decode( $put->content );
-    $response = $self->json->decode( $put );
+    $response = $self->json->decode( $put->content );
   };
   if ($@ || (! ref($response))) {
     return undef;
