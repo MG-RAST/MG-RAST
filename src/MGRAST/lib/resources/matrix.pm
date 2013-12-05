@@ -618,7 +618,7 @@ sub prepare_data {
         if ($leaf_node && $taxid && ($type eq 'organism') && exists($self->{org2tid}{$rid})) {
             push @$brows, { id => $self->{org2tid}{$rid}, metadata => $rmd };
         } elsif ($prot_func) {
-            push @$brows, { id => $rid };
+            push @$brows, { id => $rid, metadata => undef };
         } else {
             push @$brows, { id => $rid, metadata => $rmd };
         }
