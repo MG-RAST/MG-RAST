@@ -256,8 +256,8 @@ sub output {
   my $raw_gc_std  = exists($job_stats->{standard_deviation_gc_content_raw}) ? $job_stats->{standard_deviation_gc_content_raw} : 0;
   my $qc_rna_gc_std = exists($job_stats->{standard_deviation_gc_content_preprocessed_rna}) ? $job_stats->{standard_deviation_gc_content_preprocessed_rna} : 0;
   my $qc_gc_std   = exists($job_stats->{standard_deviation_gc_content_preprocessed}) ? $job_stats->{standard_deviation_gc_content_preprocessed} : 0;
-  my $clusts      = exists($job_stats->{cluster_count_processed}) ? $job_stats->{cluster_count_processed} : 0;
-  my $clust_seq   = exists($job_stats->{clustered_sequence_count_processed}) ? $job_stats->{clustered_sequence_count_processed} : 0;
+  my $clusts      = exists($job_stats->{cluster_count_processed_aa}) ? $job_stats->{cluster_count_processed_aa} : (exists($job_stats->{cluster_count_processed}) ? $job_stats->{cluster_count_processed} : 0);
+  my $clust_seq   = exists($job_stats->{clustered_sequence_count_processed_aa}) ? $job_stats->{clustered_sequence_count_processed_aa} : (exists($job_stats->{clustered_sequence_count_processed}) ? $job_stats->{clustered_sequence_count_processed} : 0);
   my $r_clusts    = exists($job_stats->{cluster_count_processed_rna}) ? $job_stats->{cluster_count_processed_rna} : 0;
   my $r_clust_seq = exists($job_stats->{clustered_sequence_count_processed_rna}) ? $job_stats->{clustered_sequence_count_processed_rna} : 0;
   my $aa_reads    = exists($job_stats->{read_count_processed_aa}) ? $job_stats->{read_count_processed_aa} : 0;
@@ -325,7 +325,7 @@ sub output {
   unless ($is_rna) {
     $html .= "Of the remainder, ".format_number($ann_aa_reads)." sequences (".percent($ann_aa_reads,$raw_seqs).") contain predicted proteins with known functions and ".format_number($unkn_aa_reads)." sequences (".percent($unkn_aa_reads,$raw_seqs).") contain predicted proteins with unknown function. ";
   }
-  $html .= format_number($unknown_all)." sequences (".percent($unknown_all,$raw_seqs).") have no rRNA genes";
+  $html .= format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no rRNA genes";
   unless ($is_rna) {
     $html .= " or predicted proteins";
   }
