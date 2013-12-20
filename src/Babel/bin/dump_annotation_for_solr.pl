@@ -56,7 +56,7 @@ foreach my $set (values %$src_lookup) {
 close(SRC);
 
 print STDERR "Loading ontologies ...\n";
-my $ont_sql = "SELECT o.id AS accession, o.level1, o.level2, o.level3, o.level4, s.name AS source FROM ontologies o, sources s WHERE o.source = s._id AND s._id != 11";
+my $ont_sql = "SELECT _id AS ontology_id, o.id AS accession, o.level1, o.level2, o.level3, o.level4, s.name AS source FROM ontologies o, sources s WHERE o.source = s._id AND s._id != 11";
 my $ont_lookup = $dbh->selectall_hashref($ont_sql , "accession");
 
 print STDERR "Dumping ontologies ...\n";
@@ -130,7 +130,18 @@ $sth = $dbh->prepare("SELECT md5, id, function, organism, source FROM md5_protei
 $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
 while (my @row = $sth->fetchrow_array()) {
     my ($md5, $id, $func, $org, $src) = @row;
+    my $aliases = $dbh->selectall_arrayref("SELECT alias_source, alias_id FROM aliases_protein WHERE id=".$dbh->quote($id));
     my $data = { 'id' => 'a_'.$count, 'accession' => $id, 'object' => 'annotation' };
+    if ($aliases && (@$aliases > 0)) {
+        $data->{alias} = [];
+        foreach $aset (@$aliases) {
+            my ($asrc, $aid) = @$aset;
+            if ($asrc && $aid && ($aid !~ /^$asrc:/)) {
+                $aid = $asrc.":".$aid;
+            }
+            push @{$data->{alias}}, $aid;
+        }
+    }
     if ($md5 && exists($md5_lookup->{$md5})) {
         map { $data->{$_} = $md5_lookup->{$md5}{$_} } keys %{$md5_lookup->{$md5}};
     }
