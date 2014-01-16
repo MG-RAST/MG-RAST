@@ -84,7 +84,9 @@ function forward_to_search (e) {
     if (stext && stext.length) {
       if (stext.match(/^mgm\d+\.\d+$/)) {
         window.location = "?page=MetagenomeOverview&metagenome="+stext.substring(3);
-      } else if (stext.match(/^\d{7}\.\d+$/)) {
+      } else if (stext.match(/^\d+$/)) {
+        window.location = "?page=MetagenomeProject&project="+stext;
+      } else if (stext.match(/^\d{7}\.\d$/)) {
         window.location = "?page=MetagenomeOverview&metagenome="+stext;
       } else if (stext.match(/^mgp\d+$/)) {
         window.location = "?page=MetagenomeProject&project="+stext.substring(3);
