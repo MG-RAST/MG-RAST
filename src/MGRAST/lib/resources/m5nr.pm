@@ -22,7 +22,7 @@ sub new {
     # Add name / attributes
     $self->{url} = $Conf::url_base ? $Conf::url_base : $self->cgi->url;
     $self->{name} = "m5nr";
-    $self->{default} = '9';
+    $self->{default} = '10';
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
     $self->{version} = { '1' => 1, '9' => 1, '10' => 1 };
