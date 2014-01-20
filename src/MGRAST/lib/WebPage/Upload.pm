@@ -243,7 +243,7 @@ sub output {
                    </tr>
                    <tr>
                      <td><input type="button" class="btn" style='width:130px;' value="unpack selected" onclick="unpack_files();"></td>
-                     <td width=250 style='vertical-align:middle;'>Unpacks selected zip, gzip, or tar files.</td>
+                     <td width=250 style='vertical-align:middle;'>Unpacks selected zip, gzip, bzip2, tar gzip, or tar bzip2 files.</td>
                      <td><input type="button" class="btn" style='width:130px;' value="demultiplex" onclick="demultiplex_files();"></td>
                      <td width=250 style='vertical-align:middle;'>Demultiplexes selected files.</td>
                    </tr>

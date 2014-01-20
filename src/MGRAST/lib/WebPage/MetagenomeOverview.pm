@@ -256,6 +256,8 @@ sub output {
   my $raw_gc_std  = exists($job_stats->{standard_deviation_gc_content_raw}) ? $job_stats->{standard_deviation_gc_content_raw} : 0;
   my $qc_rna_gc_std = exists($job_stats->{standard_deviation_gc_content_preprocessed_rna}) ? $job_stats->{standard_deviation_gc_content_preprocessed_rna} : 0;
   my $qc_gc_std   = exists($job_stats->{standard_deviation_gc_content_preprocessed}) ? $job_stats->{standard_deviation_gc_content_preprocessed} : 0;
+  my $clusts      = exists($job_stats->{cluster_count_processed_aa}) ? $job_stats->{cluster_count_processed_aa} : (exists($job_stats->{cluster_count_processed}) ? $job_stats->{cluster_count_processed} : 0);
+  my $clust_seq   = exists($job_stats->{clustered_sequence_count_processed_aa}) ? $job_stats->{clustered_sequence_count_processed_aa} : (exists($job_stats->{clustered_sequence_count_processed}) ? $job_stats->{clustered_sequence_count_processed} : 0);
   my $r_clusts    = exists($job_stats->{cluster_count_processed_rna}) ? $job_stats->{cluster_count_processed_rna} : 0;
   my $r_clust_seq = exists($job_stats->{clustered_sequence_count_processed_rna}) ? $job_stats->{clustered_sequence_count_processed_rna} : 0;
   my $aa_reads    = exists($job_stats->{read_count_processed_aa}) ? $job_stats->{read_count_processed_aa} : 0;
@@ -271,9 +273,9 @@ sub output {
 
   my $is_rna = ($md_seq_type =~ /amplicon/i) ? 1 : 0;
   my $qc_fail_seqs  = $raw_seqs - $qc_seqs;
-  my $ann_rna_reads = $rna_sims ? ($rna_sims - $r_clusts) + $r_clust_seq : 0;
-  my $ann_aa_reads  = ($ann_reads && ($ann_reads > $ann_rna_reads)) ? $ann_reads - $ann_rna_reads : 0;
+  my $ann_aa_reads  = $aa_sims ? ($aa_sims - $clusts) + $clust_seq : 0;
   my $unkn_aa_reads = $aa_reads - $ann_aa_reads;
+  my $ann_rna_reads = $rna_sims ? ($rna_sims - $r_clusts) + $r_clust_seq : 0;
   my $unknown_all   = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads);
 
   if ($is_rna) {
@@ -282,23 +284,27 @@ sub output {
     $ann_aa_reads  = 0;
     $unknown_all   = $raw_seqs - ($qc_fail_seqs + $ann_rna_reads);
     if ($raw_seqs < ($qc_fail_seqs + $ann_rna_reads)) {
-	my $diff = ($qc_fail_seqs + $ann_rna_reads) - $raw_seqs;
-	$unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+	    my $diff = ($qc_fail_seqs + $ann_rna_reads) - $raw_seqs;
+	    $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
     }
   } else {
+      # get correct qc rna
+      if ($qc_rna_seqs > $qc_seqs) {
+          $ann_rna_reads = int((($qc_seqs * 1.0) / $qc_rna_seqs) * $ann_rna_reads);
+      }
       if ($unknown_all < 0) { $unknown_all = 0; }
       if ($raw_seqs < ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads)) {
-	my $diff = ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
-	$unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+	      my $diff = ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+	      $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
       }
       if (($unknown_all == 0) && ($raw_seqs < ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads))) {
-	my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
-	$unkn_aa_reads = ($diff > $unkn_aa_reads) ? 0 : $unkn_aa_reads - $diff;
+	      my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+	      $unkn_aa_reads = ($diff > $unkn_aa_reads) ? 0 : $unkn_aa_reads - $diff;
       }
       ## hack to make MT numbers add up
       if (($unknown_all == 0) && ($unkn_aa_reads == 0) && ($raw_seqs < ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads))) {
-	my $diff = ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
-	$ann_rna_reads = ($diff > $ann_rna_reads) ? 0 : $ann_rna_reads - $diff;
+	      my $diff = ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+	      $ann_rna_reads = ($diff > $ann_rna_reads) ? 0 : $ann_rna_reads - $diff;
       }
   }
 
@@ -319,7 +325,7 @@ sub output {
   unless ($is_rna) {
     $html .= "Of the remainder, ".format_number($ann_aa_reads)." sequences (".percent($ann_aa_reads,$raw_seqs).") contain predicted proteins with known functions and ".format_number($unkn_aa_reads)." sequences (".percent($unkn_aa_reads,$raw_seqs).") contain predicted proteins with unknown function. ";
   }
-  $html .= format_number($unknown_all)." sequences (".percent($unknown_all,$raw_seqs).") have no rRNA genes";
+  $html .= format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no rRNA genes";
   unless ($is_rna) {
     $html .= " or predicted proteins";
   }
