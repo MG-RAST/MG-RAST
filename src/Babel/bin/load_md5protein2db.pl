@@ -82,20 +82,13 @@ if (@aliasfile > 0) {
       chomp $line;
       my ($id, @aliases) = split(/\t/, $line);
       foreach (@aliases) {
-	      if ($_ =~ /^(\S+?):(\S+)$/) {
-	          print ATMP "$id\t$2\t$1\n";
-	          $count += 1;
-	          unless ($count % 1000000) {
-	              if ($verbose) { print STDERR "$count:\t$id , $2 , $1\n"; }
-	          }
+	    if ($_ =~ /^(\S+?):(\S+)$/) {
+	      print ATMP "$id\t$2\t$1\n";
+	      $count += 1;
+	      unless ($count % 1000000) {
+	        if ($verbose) { print STDERR "$count:\t$id , $2 , $1\n"; }
 	      }
-	      if ($_ =~ /^VIMSS(\d+)$/) {
-  	          print ATMP "$id\t$1\tVIMSS\n";
-  	          $count += 1;
-  	          unless ($count % 1000000) {
-  	              if ($verbose) { print STDERR "$count:\t$id , $1 , VIMSS\n"; }
-  	          }
-  	      }
+	    }
       }
     }
     close AFILE;
