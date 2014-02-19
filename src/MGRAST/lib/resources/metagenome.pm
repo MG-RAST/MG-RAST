@@ -314,7 +314,7 @@ sub query {
                 $solr_query_str .= "(status:*)";
             } else {
                 if (scalar(%{$self->rights}) > 0) {
-                    $solr_query_str .= "((status:public) OR (status:private AND (id:mgm".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights}).")))";
+                    $solr_query_str .= "((status:public) OR (status:private AND (".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights}).")))";
                 } else {
                     $solr_query_str .= '(status:public)';
                 }
