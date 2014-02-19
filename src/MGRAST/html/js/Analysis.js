@@ -180,7 +180,8 @@ function buffer_data (source, id, selector, dataloc, mgloc, srcloc, abuloc) {
 	for (h=0; h<selector; h++) {
 	  if (table_visible_columns[data_index][h] && table_visible_columns[data_index][h] != "0") {
 	      if (abuloc && h == abuloc) {
-		  inf += "<td><a style='cursor:pointer' onclick='abu(null, null, null, \""+data_array[i][srcloc]+"\",\""+data_array[i][dataloc]+"\");'>"+parseInt(data_array[i][abuloc].replace(HTML_REPLACE, ''))+"</a></td>";
+		  var fid = data_array[i][h].match(/abu\(this\, (\d+)/)[1];
+		  inf += "<td><a style='cursor:pointer' onclick='abu(null, "+fid+", null, \""+data_array[i][srcloc]+"\",\""+data_array[i][dataloc]+"\");'>"+parseInt(data_array[i][abuloc].replace(HTML_REPLACE, ''))+"</a></td>";
 	      } else {
 		  inf += "<td>"+data_array[i][h] + "</td>";
 	      }
