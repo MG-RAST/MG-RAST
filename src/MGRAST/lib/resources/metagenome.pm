@@ -25,6 +25,7 @@ sub new {
     $self->{mgdb} = undef;
     # set defaults - these are hardcoded in pipeline
     $self->{pipeline_defaults} = {
+        'file_type' => 'fna',
         'filter_ln' => 'yes',
         'filter_ln_mult' => '2.0',
         'filter_ambig' => 'yes',
@@ -422,7 +423,6 @@ sub prepare_data {
 	    # add pipeline info
 	    my $jstats  = $job->stats();
 	    my $jdata   = $job->data();
-	    my $format  = $jdata->{file_type};
 	    my $pparams = $self->{pipeline_defaults};
 	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
 	    # replace value defaults
@@ -440,20 +440,20 @@ sub prepare_data {
 	        }
         }
 	    # preprocessing
-        if ($format =~ /^(fna|fasta)$/) {
-            $pparams->{upload_sequence} = 'fna';
+        if ( ($jdata->{file_type} && ($jdata->{file_type} =~ /^(fq|fastq)$/)) ||
+             ($jdata->{suffix} && ($jdata->{suffix} =~ /^(fq|fastq)$/)) ) {
+            $pparams->{file_type} = 'fastq';
+        }
+        if ($pparams->{file_type} == 'fna') {
             if ($jdata->{max_ln} && $jstats->{average_length_raw} && $jstats->{standard_deviation_length_raw}) {
                 my $multiplier = (1.0 * ($jdata->{max_ln} - $jstats->{average_length_raw})) / $jstats->{standard_deviation_length_raw};
                 $pparams->{filter_ln_mult} = sprintf("%.2f", $multiplier);
             }
             delete @{$pparams}{'dynamic_trim', 'min_qual', 'max_lqb'};
-        } elsif ($format =~ /^(fq|fastq)$/) {
-            $pparams->{upload_sequence} = 'fastq';
+        } elsif ($pparams->{file_type} == 'fastq') {
             delete @{$pparams}{'filter_ln', 'filter_ln_mult', 'filter_ambig', 'max_ambig'};
-        } else {
-            $pparams->{upload_sequence} = $format;
         }
-        $obj->{pipeline_params} = $pparams;
+        $obj->{pipeline_parameters} = $pparams;
         $obj->{pipeline_version} = '3.0';
         
         if (($verb eq 'mixs') || ($verb eq 'full')) {
