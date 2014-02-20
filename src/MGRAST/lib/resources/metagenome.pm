@@ -429,7 +429,7 @@ sub prepare_data {
 	    foreach my $tag (('max_ambig', 'min_qual', 'max_lqb', 'screen_indexes',
 	                        'm5nr_sims_version', 'm5rna_sims_version',
 	                        'm5nr_annotation_version', 'm5rna_annotation_version')) {
-	        if (exists $jdata->{$tag}) {
+	        if (exists($jdata->{$tag}) && defined($jdata->{$tag})) {
 	            $pparams->{$tag} = $jdata->{$tag};
 	        }
         }
@@ -444,13 +444,13 @@ sub prepare_data {
              ($jdata->{suffix} && ($jdata->{suffix} =~ /^(fq|fastq)$/)) ) {
             $pparams->{file_type} = 'fastq';
         }
-        if ($pparams->{file_type} == 'fna') {
+        if ($pparams->{file_type} eq 'fna') {
             if ($jdata->{max_ln} && $jstats->{average_length_raw} && $jstats->{standard_deviation_length_raw}) {
                 my $multiplier = (1.0 * ($jdata->{max_ln} - $jstats->{average_length_raw})) / $jstats->{standard_deviation_length_raw};
                 $pparams->{filter_ln_mult} = sprintf("%.2f", $multiplier);
             }
             delete @{$pparams}{'dynamic_trim', 'min_qual', 'max_lqb'};
-        } elsif ($pparams->{file_type} == 'fastq') {
+        } elsif ($pparams->{file_type} eq 'fastq') {
             delete @{$pparams}{'filter_ln', 'filter_ln_mult', 'filter_ambig', 'max_ambig'};
         }
         $obj->{pipeline_parameters} = $pparams;
