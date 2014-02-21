@@ -446,8 +446,10 @@ sub prepare_data {
         }
         if ($pparams->{file_type} eq 'fna') {
             if ($jdata->{max_ln} && $jstats->{average_length_raw} && $jstats->{standard_deviation_length_raw}) {
-                my $multiplier = (1.0 * ($jdata->{max_ln} - $jstats->{average_length_raw})) / $jstats->{standard_deviation_length_raw};
-                $pparams->{filter_ln_mult} = sprintf("%.2f", $multiplier);
+		if ($jstats->{standard_deviation_length_raw} > 0) {
+		    my $multiplier = (1.0 * ($jdata->{max_ln} - $jstats->{average_length_raw})) / $jstats->{standard_deviation_length_raw};
+		    $pparams->{filter_ln_mult} = sprintf("%.2f", $multiplier);
+		}
             }
             delete @{$pparams}{'dynamic_trim', 'min_qual', 'max_lqb'};
         } elsif ($pparams->{file_type} eq 'fastq') {
