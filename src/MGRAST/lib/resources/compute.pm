@@ -79,7 +79,7 @@ sub info {
 				          'attributes'  => $self->{attributes}{alphadiversity},
 				          'parameters'  => { 'options'  => { 'level' => [ 'cv', $self->hierarchy->{organism} ],
 				                                             'source' => [ 'cv', [@{$self->source->{protein}}, @{$self->source->{rna}}] ] },
-							                 'required' => {},
+							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
 						},
 				        { 'name'        => "normalize",
