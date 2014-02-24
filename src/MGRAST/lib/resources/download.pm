@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use Data::Dumper;
 use List::MoreUtils qw(any uniq);
 use Conf;
 use parent qw(resources::resource);
@@ -88,7 +89,7 @@ sub instance {
     # get job
     my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $mgid, viewable => 1} );
-    unless ($job && ref($job)) {
+    unless ($job && @$job) {
         $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
     }
     $job = $job->[0];

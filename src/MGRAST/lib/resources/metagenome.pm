@@ -23,6 +23,29 @@ sub new {
     my %rights = $self->user ? map {$_, 1} grep {$_ ne '*'} @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "metagenome";
     $self->{mgdb} = undef;
+    # set defaults - these are hardcoded in pipeline
+    $self->{pipeline_defaults} = {
+        'file_type' => 'fna',
+        'filter_ln' => 'yes',
+        'filter_ln_mult' => '2.0',
+        'filter_ambig' => 'yes',
+        'max_ambig' => '5',
+        'dynamic_trim' => 'yes',
+        'min_qual' => '15',
+        'max_lqb' => '5',
+        'dereplicate' => 'yes',
+        'prefix_length' => '50',
+        'bowtie' => 'yes',
+        'screen_indexes' => 'h_sapiens_asm',
+        'fgs_type' => '454',
+        'rna_pid' => '97',
+        'aa_pid' => '90',
+        'm5nr_sims_version' => '1',
+        'm5rna_sims_version' => '1',
+        'm5nr_annotation_version' => '1',
+        'm5rna_annotation_version' => '1',
+        'assembled' => 'no'
+    };
     $self->{rights} = \%rights;
     $self->{cv} = { verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
                     direction => {'asc' => 1, 'desc' => 1},
@@ -30,6 +53,7 @@ sub new {
                     match => {'any' => 1, 'all' => 1}
     };
     $self->{instance} = { "id"       => [ 'string', 'unique metagenome identifier' ],
+                          "url"      => [ 'uri', 'resource location of this object instance' ],
                           "name"     => [ 'string', 'name of metagenome' ],
                           "library"  => [ 'reference library', 'reference to the related library object' ],
                           "sample"   => [ 'reference sample', 'reference to the related sample object' ],
@@ -38,7 +62,6 @@ sub new {
                           "mixs"     => [ 'hash', 'key value pairs describing MIxS metadata' ],
                           "created"  => [ 'date', 'time the metagenome was first created' ],
                           "version"  => [ 'integer', 'version of the metagenome' ],
-                          "url"      => [ 'uri', 'resource location of this object instance' ],
                           "status"   => [ 'cv', [['public', 'metagenome is public'],
 						                         ['private', 'metagenome is private'] ] ],
 						  "statistics" => [ 'hash', 'key value pairs describing statistics' ],
@@ -292,7 +315,7 @@ sub query {
                 $solr_query_str .= "(status:*)";
             } else {
                 if (scalar(%{$self->rights}) > 0) {
-                    $solr_query_str .= "((status:public) OR (status:private AND (id:mgm".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights}).")))";
+                    $solr_query_str .= "((status:public) OR (status:private AND (".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights}).")))";
                 } else {
                     $solr_query_str .= '(status:public)';
                 }
@@ -372,14 +395,19 @@ sub prepare_data {
     my $objects = [];
     foreach my $job (@$data) {
         my $url = $self->cgi->url;
+        # set object
         my $obj = {};
-        $obj->{id}      = "mgm".$job->{metagenome_id};
-        $obj->{name}    = $job->{name};
-        $obj->{status}  = $job->{public} ? 'public' : 'private';
+        $obj->{id} = "mgm".$job->{metagenome_id};
+        $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
+        $obj->{name} = $job->{name};
+        $obj->{status} = $job->{public} ? 'public' : 'private';
         $obj->{created} = $job->{created_on};
+        $obj->{version} = 1;
         $obj->{project} = undef;
         $obj->{sample}  = undef;
         $obj->{library} = undef;
+        $obj->{sequence_type} = $job->{sequence_type};
+        # add metadata pointers
 	    eval {
 	        my $proj = $job->primary_project;
 	        $obj->{project} = ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}];
@@ -392,10 +420,44 @@ sub prepare_data {
 	        my $lib = $job->library;
 	        $obj->{library} = ["mgl".$lib->{ID}, $url."/library/mgl".$lib->{ID}];
 	    };
-        $obj->{sequence_type} = $job->{sequence_type};
-        $obj->{version} = 1;
-        $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
-
+	    # add pipeline info
+	    my $jstats  = $job->stats();
+	    my $jdata   = $job->data();
+	    my $pparams = $self->{pipeline_defaults};
+	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
+	    # replace value defaults
+	    foreach my $tag (('max_ambig', 'min_qual', 'max_lqb', 'screen_indexes',
+	                        'm5nr_sims_version', 'm5rna_sims_version',
+	                        'm5nr_annotation_version', 'm5rna_annotation_version')) {
+	        if (exists($jdata->{$tag}) && defined($jdata->{$tag})) {
+	            $pparams->{$tag} = $jdata->{$tag};
+	        }
+        }
+        # replace boolean defaults
+        foreach my $tag (('filter_ln', 'filter_ambig', 'dynamic_trim', 'dereplicate', 'bowtie')) {
+	        if (exists($jdata->{$tag}) && (! $jdata->{$tag})) {
+	            $pparams->{$tag} = 'no';
+	        }
+        }
+	    # preprocessing
+        if ( ($jdata->{file_type} && ($jdata->{file_type} =~ /^(fq|fastq)$/)) ||
+             ($jdata->{suffix} && ($jdata->{suffix} =~ /^(fq|fastq)$/)) ) {
+            $pparams->{file_type} = 'fastq';
+        }
+        if ($pparams->{file_type} eq 'fna') {
+            if ($jdata->{max_ln} && $jstats->{average_length_raw} && $jstats->{standard_deviation_length_raw}) {
+		if ($jstats->{standard_deviation_length_raw} > 0) {
+		    my $multiplier = (1.0 * ($jdata->{max_ln} - $jstats->{average_length_raw})) / $jstats->{standard_deviation_length_raw};
+		    $pparams->{filter_ln_mult} = sprintf("%.2f", $multiplier);
+		}
+            }
+            delete @{$pparams}{'dynamic_trim', 'min_qual', 'max_lqb'};
+        } elsif ($pparams->{file_type} eq 'fastq') {
+            delete @{$pparams}{'filter_ln', 'filter_ln_mult', 'filter_ambig', 'max_ambig'};
+        }
+        $obj->{pipeline_parameters} = $pparams;
+        $obj->{pipeline_version} = '3.0';
+        
         if (($verb eq 'mixs') || ($verb eq 'full')) {
             my $mixs = {};
 		    $mixs->{project_id} = "";
@@ -434,7 +496,7 @@ sub prepare_data {
             $obj->{mixs_compliant} = $mddb->is_job_compliant($job);
         }
         if (($verb eq 'stats') || ($verb eq 'full')) {
-            $obj->{statistics} = $self->job_stats($job);
+            $obj->{statistics} = $self->job_stats($job, $jstats);
         }
         push @$objects, $obj;
     }
@@ -442,10 +504,9 @@ sub prepare_data {
 }
 
 sub job_stats {
-    my ($self, $job) = @_;
+    my ($self, $job, $jstat) = @_;
     
     my $jid = $job->job_id;
-    my $jstat = $job->stats();
     my $stats = {
         length_histogram => {
             "upload"  => $self->{mgdb}->get_histogram_nums($jid, 'len', 'raw'),

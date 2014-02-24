@@ -2256,6 +2256,9 @@ sub single_visual {
       $download_data_string .= "\\n";
     }
 
+    $download_data_string =~ s/'/\&rsquo\;/g;
+    $download_data_string =~ s/"/\&rdquo\;/g;
+
     if ($level == 2) {
       $content .= "<div><div>Representative Organism Barchart $tabnum</div><div>";
       my $selnorm = "";
@@ -3075,6 +3078,8 @@ sub phylogeny_visual {
       }
       $download_data_string .= "\\n";
     }
+    $download_data_string =~ s/'/\&rsquo\;/g;
+    $download_data_string =~ s/"/\&rdquo\;/g;
 
     if ($level == 2) {
       $content .= "<div><div>Organism barchart $tabnum</div><div>";
@@ -4062,6 +4067,8 @@ sub metabolism_visual {
       }
       $download_data_string .= "\\n";
     }
+    $download_data_string =~ s/'/\&rsquo\;/g;
+    $download_data_string =~ s/"/\&rdquo\;/g;
 
     if ($level == 2) {
       $content .= "<div><div>Functional barchart $tabnum</div><div>";
@@ -5156,6 +5163,8 @@ sub lca_visual {
       }
       $download_data_string .= "\\n";
     }
+    $download_data_string =~ s/'/\&rsquo\;/g;
+    $download_data_string =~ s/"/\&rdquo\;/g;
 
     if ($level == 2) {
       $content .= "<div><div>LCA barchart $tabnum</div><div>";
