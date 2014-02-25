@@ -86,7 +86,8 @@ sub info {
                                                             'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
                                                             "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
 				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $sources ] },
+									                        "source"   => ["cv", $sources ],
+									                        "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'] },
 							                 'body' => {} }
 						},
 						{ 'name'        => "similarity",
@@ -103,7 +104,8 @@ sub info {
                                                             'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
                                                             "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
 				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $sources ] },
+									                        "source"   => ["cv", $sources ],
+									                        "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'] },
 							                 'body' => {} }
 						} ]
 		  };
@@ -159,6 +161,7 @@ sub prepare_data {
     my $cgi    = $self->cgi;
     my $type   = $cgi->param('type') ? $cgi->param('type') : 'organism';
     my $filter = $cgi->param('filter') || undef;
+    my $flevel = $cgi->param('filter_level') || undef;
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'ontology') ? 'Subsystems' : 'RefSeq');
     my $eval   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
     my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
@@ -176,8 +179,23 @@ sub prepare_data {
     unless (exists $mgdb->_src_id->{$source}) {
         $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
     }
+    if (($type eq 'ontology') && (! any {$_->[0] eq $source} @{$self->source->{ontology}})) {
+        $self->return_data({"ERROR" => "Invalid ontology source was entered ($source). Please use one of: ".join(", ", map {$_->[0]} @{$self->source->{ontology}})}, 404);
+    }
+    if (($type eq 'organism') && (any {$_->[0] eq $source} @{$self->source->{ontology}})) {
+        $self->return_data({"ERROR" => "Invalid organism source was entered ($source). Please use one of: ".join(", ", map {$_->[0]} (@{$self->source->{protein}}, @{$self->source->{rna}}))}, 404);
+    }
     unless (any {$_->[0] eq $type} @{$self->{types}}) {
         $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
+    }
+    if ( ($flevel =~ /^strain|species|function$/) || ($type !~ /^organism|ontology$/) ) {
+        $flevel = undef;
+    }
+    if ($filter && $flevel) {
+        unless ( (($type eq 'organism') && (any {$_->[0] eq $flevel} @{$self->hierarchy->{organism}})) ||
+                 (($type eq 'ontology') && (any {$_->[0] eq $flevel} @{$self->hierarchy->{ontology}})) ) {
+            $self->return_data({"ERROR" => "Invalid filter_level was entered ($flevel). For organism use one of: ".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}}).". For ontology use one of: ".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})}, 404);
+        }
     }
 
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
@@ -201,17 +219,26 @@ sub prepare_data {
     # loop through indices and print data
     while (my @row = $sth->fetchrow_array()) {
         my ($md5, $seek, $len) = @row;
-        my $ann = [];
+        my $sql = "";
         if ($type eq 'organism') {
-            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT o.name FROM md5_annotation a, organisms_ncbi o WHERE a.md5=$md5 AND a.source=$srcid AND a.organism=o._id");
+            $sql = "SELECT DISTINCT o.name FROM md5_annotation a, organisms_ncbi o WHERE a.md5=$md5 AND a.source=$srcid AND a.organism=o._id";
+            if ($filter && $flevel) {
+                $sql .= " AND o.tax_".$flevel."=".$mgdb->_dbh->quote($filter);
+            }
         } elsif ($type eq 'function') {
-            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT f.name FROM md5_annotation a, functions f WHERE a.md5=$md5 AND a.source=$srcid AND a.function=f._id");
+            $sql = "SELECT DISTINCT f.name FROM md5_annotation a, functions f WHERE a.md5=$md5 AND a.source=$srcid AND a.function=f._id";
+        } elsif ($type eq 'ontology') {
+            $sql = "SELECT DISTINCT o.name FROM md5_annotation a, ontologies o WHERE a.md5=$md5 AND a.source=$srcid AND a.id=o.name";
+            if ($filter && $flevel) {
+                $sql .= " AND o.".$flevel."=".$mgdb->_dbh->quote($filter);
+            }
         } else {
-            $ann = $mgdb->_dbh->selectcol_arrayref("SELECT DISTINCT id FROM md5_annotation WHERE md5=$md5 AND source=$srcid");
+            $sql = "SELECT DISTINCT id FROM md5_annotation WHERE md5=$md5 AND source=$srcid";
         }
+        my $ann = $mgdb->_dbh->selectcol_arrayref($sql);
         
-        # remove non-matching annotations if using filter
-        if ($filter) {
+        # remove non-matching annotations if using filter without hierarchal level
+        if ($filter && (! $flevel)) {
             my @matches = grep {/$filter/} @$ann;
             @$ann = @matches;
         }
@@ -225,15 +252,20 @@ sub prepare_data {
         foreach my $line ( split(/\n/, $rec) ) {
             my @tabs = split(/\t/, $line);
             if ($tabs[0]) {
+                my @out = ();
                 my $rid = $hs->parse($tabs[0]);
+                unless ($mgid && $rid) {
+                    next;
+                }
                 $hs->eof;
                 if (($format eq 'sequence') && (@tabs == 13)) {
-                    print join("\t", ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]))."\n";
-                    $count += 1;
+                    @out = ('mgm'.$mgid."|".$rid, $tabs[1], join(";", @$ann), $tabs[12]);
                 } elsif ($format eq 'similarity') {
-                    print join("\t", ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann)))."\n";
+                    @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
                     $count += 1;
                 }
+                print join("\t", map {$_ || ''} @out)."\n";
+                $count += 1;
             }
         }
     }

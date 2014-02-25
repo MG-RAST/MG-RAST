@@ -1,18 +1,18 @@
-RefSeq	NCBI	Release 60	NCBI Reference Sequences Database	National Center for Biotechnology Information	protein	http://www.ncbi.nlm.nih.gov	http://www.ncbi.nlm.nih.gov/protein/
-GenBank	NCBI	Release 196	NIH Genetic Sequence Database	National Center for Biotechnology Information	protein	http://www.ncbi.nlm.nih.gov	http://www.ncbi.nlm.nih.gov/protein/
-InterPro	EBI	43.1	InterPro protein sequence & classification	European Bioinformatics Institute	protein	http://www.ebi.ac.uk/interpro	http://www.ebi.ac.uk/interpro/DisplayIproEntry?ac=
+RefSeq	NCBI	Release 62	NCBI Reference Sequences Database	National Center for Biotechnology Information	protein	http://www.ncbi.nlm.nih.gov	http://www.ncbi.nlm.nih.gov/protein/
+GenBank	NCBI	Release 199	NIH Genetic Sequence Database	National Center for Biotechnology Information	protein	http://www.ncbi.nlm.nih.gov	http://www.ncbi.nlm.nih.gov/protein/
+InterPro	EBI	45.0	InterPro protein sequence & classification	European Bioinformatics Institute	protein	http://www.ebi.ac.uk/interpro	http://www.ebi.ac.uk/interpro/DisplayIproEntry?ac=
 KEGG	KEGG	Release 56	Kyoto Encyclopedia of Genes and Genomes		protein	http://www.genome.jp/kegg	http://www.genome.jp/dbget-bin/www_bget?
-SwissProt	UniProt	Release 2013_08	Swiss-Prot UniProt Knowledgebase	UniProt Knowledgebase	protein	http://www.uniprot.org	http://www.uniprot.org/uniprot/
-TrEMBL	UniProt	Release 2013_08	TrEMBL UniProt Knowledgebase	UniProt Knowledgebase	protein	http://www.uniprot.org	http://www.uniprot.org/uniprot/
-IMG	JGI	4.0	Integrated Microbial Genomes at the Joint Genome Institute	Joint Genome Institute	protein	http://img.jgi.doe.gov	http://img.jgi.doe.gov/cgi-bin/w/main.cgi?section=GeneDetail&gene_oid=
+SwissProt	UniProt	Release 2013_12	Swiss-Prot UniProt Knowledgebase	UniProt Knowledgebase	protein	http://www.uniprot.org	http://www.uniprot.org/uniprot/
+TrEMBL	UniProt	Release 2013_12	TrEMBL UniProt Knowledgebase	UniProt Knowledgebase	protein	http://www.uniprot.org	http://www.uniprot.org/uniprot/
+KBase	KBase		DOE Systems Biology Knowledgebase		protein	http://kbase.us	http://140.221.84.217/feature_info/feature.html?id=
 SEED	SEED		The SEED Project		protein	http://www.theseed.org	http://seed-viewer.theseed.org/seedviewer.cgi?page=Annotation&feature=
-Phantome	Phantome	01-Aug-2013	Phage Annotation Tools and Methods		protein	http://www.phantome.org	
-PATRIC	VBI	Mar2013	Pathosystems Resource Integration Center	Virginia Bioinformatics Institute	protein	http://www.patricbrc.org	
+Phantome	Phantome	01-Dec-2013	Phage Annotation Tools and Methods		protein	http://www.phantome.org	
+PATRIC	VBI	Sep2013	Pathosystems Resource Integration Center	Virginia Bioinformatics Institute	protein	http://www.patricbrc.org	
 KO	KEGG	Release 56	KEGG Orthology	Kyoto Encyclopedia of Genes and Genomes	ontology	http://www.genome.jp/kegg	http://www.genome.jp/dbget-bin/www_bget?ko:
 Subsystems	SEED		SEED Subsystems Annotation	The SEED Project	ontology	http://www.theseed.org	http://seed-viewer.theseed.org/seedviewer.cgi?page=Subsystems&subsystem=
 COG	eggNOG	3.0	eggNOG: Clusters of Orthologous Groups	evolutionary genealogy of genes: Non-supervised Orthologous Groups	ontology	http://eggnog.embl.de	http://www.ncbi.nlm.nih.gov/COG/grace/wiew.cgi?
 NOG	eggNOG	3.0	eggNOG: Non-supervised Orthologous Groups	evolutionary genealogy of genes: Non-supervised Orthologous Groups	ontology	http://eggnog.embl.de	
-RDP	RDP	10.32	Ribosomal Database Project		rna	http://rdp.cme.msu.edu	
+RDP	RDP	11.1	Ribosomal Database Project		rna	http://rdp.cme.msu.edu	
 Greengenes	Greengenes		16S rRNA Gene Database		rna	http://greengenes.lbl.gov	
 SSU	SILVA	Release 108	SILVA Small Subunit rRNA Database	SILVA rRNA Database Project	rna	http://www.arb-silva.de	
 LSU	SILVA	Release 108	SILVA Large Subunit rRNA Database	SILVA rRNA Database Project	rna	http://www.arb-silva.de

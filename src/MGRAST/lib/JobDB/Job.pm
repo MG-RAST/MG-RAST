@@ -84,121 +84,148 @@ sub name {
   return $self->SUPER::name() || 'unknown';
 }
 
+sub reserve_job_id {
+    my ($self, $user, $name, $file, $size, $md5) = @_;
+    
+    my $master = $self->_master();
+    unless (ref($master)) {
+        print STDRER "reserve_job_id called without a dbmaster reference";
+        return undef;
+    }
+    unless (ref($user)) {
+        print STDRER "reserve_job_id called without a user";
+        return undef;
+    }
+
+    # get next id
+    my $dbh = $master->db_handle;
+    my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
+    my $job_id  = $max->[0] + 1;
+    my $mg_id   = $max->[1] + 1;
+    my $options = { owner => $user,
+                    job_id => $job_id,
+                    metagenome_id => $mg_id,
+                    name => $name,
+                    file => $file,
+                    file_size_raw => $size,
+                    file_checksum_raw => $md5,
+                    server_version => 3 };
+    
+    # Connect to User/Rights DB
+    my $dbm = DBMaster->new(-database => $Conf::webapplication_db,
+  			                -backend  => $Conf::webapplication_backend,
+  			                -host     => $Conf::webapplication_host,
+  			                -user     => $Conf::webapplication_user,
+  	);
+  			 
+    # check rights
+    my $rights = ['view', 'edit', 'delete'];
+    foreach my $right_name (@$rights) {
+        my $objs = $dbm->Rights->get_objects({ scope     => $user->get_user_scope,
+  					                           data_type => 'metagenome',
+  					                           data_id   => $mg_id,
+  					                           name      => $right_name,
+  					                           granted   => 1 });
+        unless (@$objs > 0) {
+            my $right = $dbm->Rights->create({ scope     => $user->get_user_scope,
+  					                           data_type => 'metagenome',
+  					                           data_id   => $mg_id,
+  					                           name      => $right_name,
+  					                           granted   => 1 });
+            unless (ref $right) {
+  	            print STDRER "Unable to create Right $right_name - metagenome - $mg_id.";
+  	            return undef;
+            }
+        }
+    }
+    
+    # create job
+    my $job = $master->Job->create($options);
+    unless (ref $job) {
+        print STDRER "Can't create job\n";
+        return undef;
+    }
+    
+    return $job;
+}
+
 sub initialize {
-  my ($self, $user, $data) = @_;
-
-  my $master = $self->_master();
-  unless (ref($master)) {
-    print STDRER "reserve_job called without a dbmaster reference";
-    return undef;
-  }
-  unless (ref($user)) {
-    print STDRER "reserve_job called without a user";
-    return undef;
-  }
-
-  my $dbh = $master->db_handle;
-  my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
-  my $job_id  = $max->[0] + 1;
-  my $mg_id   = $max->[1] + 1;
-  my $options = { owner => $user, job_id => $job_id, metagenome_id => $mg_id, server_version => 3 };
-  my $params  = {};
- 
-  if (ref($data) eq "HASH") {
-    $params = $data;
-  }
-  elsif ((! ref($data)) && (-s $data)) {
-    my @lines = `cat $data`;
-    chomp @lines;
-    foreach my $line (@lines) {
-      my ($k, $v) = split(/\t/, $line);
-      $params->{$k} = $v;
+    my ($self, $user, $data, $job) = @_;
+    
+    my $master = $self->_master();
+    unless (ref($master)) {
+        print STDRER "initialize called without a dbmaster reference";
+        return undef;
     }
-  }
-
-  # hack due too same keys: 'sequence type' and 'sequence_type'
-  if (exists $params->{'sequence type'}) {
-    delete $params->{'sequence type'};
-  }
-  # sequence_type is currently a guess, add it
-  if (exists $params->{sequence_type}) {
-    $params->{sequence_type_guess} = $params->{sequence_type};
-  }
-
-  my $job_keys  = ['name','file','file_size','file_checksum','sequence_type'];
-  my $stat_keys = ['bp_count','sequence_count','average_length','standard_deviation_length','length_min','length_max','average_gc_content','standard_deviation_gc_content','average_gc_ratio','standard_deviation_gc_ratio','ambig_char_count','ambig_sequence_count','average_ambig_chars','drisee_score'];
-
-  foreach my $key (@$job_keys) {
-    if (exists $params->{$key}) {
-      if ($key =~ /^file_(size|checksum)/) {
-	$options->{$key.'_raw'} = $params->{$key};
-      } else {
-	$options->{$key} = $params->{$key};
-      }
+    
+    # get parmas from hash or file
+    my $params = {};
+    if (ref($data) eq "HASH") {
+        $params = $data;
     }
-  }
-
-  # Connect to User/Rights DB
-  my $dbm = DBMaster->new(-database => $Conf::webapplication_db,
-			  -backend  => $Conf::webapplication_backend,
-			  -host     => $Conf::webapplication_host,
-			  -user     => $Conf::webapplication_user,
-			 );
-  # check rights
-  my $rights = ['view', 'edit', 'delete'];
-  foreach my $right_name (@$rights) {
-    my $objs = $dbm->Rights->get_objects({ scope     => $user->get_user_scope,
-					   data_type => 'metagenome',
-					   data_id   => $mg_id,
-					   name      => $right_name,
-					   granted   => 1 });
-    unless (@$objs > 0) {
-      my $right = $dbm->Rights->create({ scope     => $user->get_user_scope,
-					 data_type => 'metagenome',
-					 data_id   => $mg_id,
-					 name      => $right_name,
-					 granted   => 1 });
-      unless (ref $right) {
-	print STDRER "Unable to create Right $right_name - metagenome - $mg_id.";
-	return undef;
-      }
+    elsif ((! ref($data)) && (-s $data)) {
+        my @lines = `cat $data`;
+        chomp @lines;
+        foreach my $line (@lines) {
+            my ($k, $v) = split(/\t/, $line);
+            $params->{$k} = $v;
+        }
     }
-  }
 
-  ### now create job
-  my $job = $master->Job->create($options);
-  unless (ref $job) {
-    print STDRER "Can't create job\n";
-    return undef;
-  }
+    # hack due too same keys: 'sequence type' and 'sequence_type'
+    if (exists $params->{'sequence type'}) {
+        delete $params->{'sequence type'};
+    }
+    # sequence_type is currently a guess, add it
+    if (exists $params->{sequence_type}) {
+        $params->{sequence_type_guess} = $params->{sequence_type};
+    }
+
+    # get job object
+    unless ($job && ref($job)) {
+        eval {
+            $job = $master->Job->reserve_job_id($user, $params->{name}, $params->{file}, $params->{file_size}, $params->{file_checksum});
+        };
+        if ($@ || (! $job)) {
+            print STDRER "Can't create job\n";
+            return undef;
+        }
+    }
+    
+    # add sequence type
+    if (exists $params->{sequence_type}) {
+        $job->sequence_type($params->{sequence_type});
+    }
+    
+    # add raw stats
+    my $stat_keys = ['bp_count', 'sequence_count', 'average_length', 'standard_deviation_length', 'length_min', 'length_max', 'average_gc_content', 'standard_deviation_gc_content', 'average_gc_ratio', 'standard_deviation_gc_ratio', 'ambig_char_count', 'ambig_sequence_count', 'average_ambig_chars', 'drisee_score'];
   
-  # store raw stats
-  foreach my $key (@$stat_keys) {
-    if (exists $params->{$key}) {
-      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
-    } elsif (exists $params->{$key.'_raw'}) {
-      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
+    foreach my $key (@$stat_keys) {
+        if (exists $params->{$key}) {
+            $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
+        } elsif (exists $params->{$key.'_raw'}) {
+            $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
+        }
     }
-  }
 
-  # store attributes
-  my $used_keys = {};
-  map { $used_keys->{$_} = 1 } @$job_keys;
-  map { $used_keys->{$_} = 1 } @$stat_keys;
-  map { $used_keys->{$_.'_raw'} = 1 } @$stat_keys;
+    # add attributes
+    my $used_keys = {metagenome_id => 1, name => 1, file => 1, file_size => 1, file_checksum => 1, sequence_type => 1};
+    map { $used_keys->{$_} = 1 } @$stat_keys;
   
-  foreach my $key (keys %$params) {
-    next if (exists $used_keys->{$key});
-    my $value = $params->{$key};
-    $value =~ s/\s+/_/g;
-    $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
-  }
-  $job->set_filter_options();
+    foreach my $key (keys %$params) {
+        my $clean_key = $key;
+        $clean_key =~ s/_raw$//;
+        next if (exists($used_keys->{$key}) || exists($used_keys->{$clean_key}));
+        my $value = $params->{$key};
+        $value =~ s/\s+/_/g;
+        $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
+    }
+    $job->set_filter_options();
 
-  # mark as 'upload'
-  $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
+    # mark as 'upload'
+    $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
 
-  return $job;
+    return $job;
 }
 
 sub reserve_job {

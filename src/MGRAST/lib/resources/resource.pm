@@ -5,11 +5,10 @@ use warnings;
 no warnings('once');
 
 use Conf;
-use Data::Dumper;
 use CGI;
 use JSON;
 use LWP::UserAgent;
-use Cache::Memcached;
+use HTTP::Request::Common;
 use Digest::MD5 qw(md5_hex md5_base64);
 
 1;
@@ -18,8 +17,13 @@ sub new {
     my ($class, $params) = @_;
 
     # set variables
+    my $memd = undef;
+    eval {
+        require Cache::Memcached;
+        Cache::Memcached->import();
+        $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache], 'debug' => 0, 'compress_threshold' => 10_000};
+    };
     my $agent = LWP::UserAgent->new;
-    my $memd  = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
     my $json  = JSON->new;
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
     $json = $json->utf8();
@@ -175,6 +179,109 @@ sub source {
     };
 }
 
+# hardcoded hierarchy info
+sub hierarchy {
+    return { organism => [ ['strain', 'bottom organism taxanomic level'],
+                           ['species', 'organism type level'],
+                           ['genus', 'organism taxanomic level'],
+                           ['family', 'organism taxanomic level'],
+                           ['order', 'organism taxanomic level'],
+                           ['class', 'organism taxanomic level'],
+                           ['phylum', 'organism taxanomic level'],
+                           ['domain', 'top organism taxanomic level'] ],
+             ontology => [ ['function', 'bottom function ontology level'],
+                           ['level3', 'function ontology level' ],
+                           ['level2', 'function ontology level' ],
+                           ['level1', 'top function ontology level'] ]
+    };
+}
+
+# hardcoded list of metagenome pipeline option keywords
+sub pipeline_opts {
+    return [ 'assembled',
+             'bowtie',
+             'dereplicate',
+             'dynamic_trim',
+             'file_type',
+             'filter_ambig',
+             'filter_ln',
+             'filter_options',
+             'max_ambig',
+             'max_ln',
+             'max_lqb',
+             'min_ln',
+             'min_qual',
+             'priority',
+             'screen_indexes',
+             'sequence_type_guess',
+             'sequencing_method_guess'  
+    ];
+}
+
+# hardcoded list of metagenome sequence statistics names
+sub seq_stats {
+    return [ 'alpha_diversity_shannon',
+             'ambig_char_count_preprocessed',
+             'ambig_char_count_preprocessed_rna',
+             'ambig_char_count_raw',
+             'ambig_sequence_count_preprocessed',
+             'ambig_sequence_count_preprocessed_rna',
+             'ambig_sequence_count_raw',
+             'average_ambig_chars_preprocessed',
+             'average_ambig_chars_preprocessed_rna',
+             'average_ambig_chars_raw',
+             'average_gc_content_preprocessed',
+             'average_gc_content_preprocessed_rna',
+             'average_gc_content_raw',
+             'average_gc_ratio_preprocessed',
+             'average_gc_ratio_preprocessed_rna',
+             'average_gc_ratio_raw',
+             'average_length_preprocessed',
+             'average_length_preprocessed_rna',
+             'average_length_raw',
+             'bp_count_preprocessed',
+             'bp_count_preprocessed_rna',
+             'bp_count_raw',
+             'clustered_sequence_count_processed',
+             'clustered_sequence_count_processed_aa',
+             'clustered_sequence_count_processed_rna',
+             'cluster_count_processed',
+             'cluster_count_processed_aa',
+             'cluster_count_processed_rna',
+             'drisee_score_raw',
+             'length_max_preprocessed',
+             'length_max_preprocessed_rna',
+             'length_max_raw',
+             'length_min_preprocessed',
+             'length_min_preprocessed_rna',
+             'length_min_raw',
+             'ratio_reads_aa',
+             'ratio_reads_rna',
+             'read_count_annotated',
+             'read_count_processed_aa',
+             'read_count_processed_rna',
+             'sequence_count_dereplication_removed',
+             'sequence_count_ontology',
+             'sequence_count_preprocessed',
+             'sequence_count_preprocessed_rna',
+             'sequence_count_processed',
+             'sequence_count_processed_aa',
+             'sequence_count_processed_rna',
+             'sequence_count_raw',
+             'sequence_count_sims_aa',
+             'sequence_count_sims_rna',
+             'standard_deviation_gc_content_preprocessed',
+             'standard_deviation_gc_content_preprocessed_rna',
+             'standard_deviation_gc_content_raw',
+             'standard_deviation_gc_ratio_preprocessed',
+             'standard_deviation_gc_ratio_preprocessed_rna',
+             'standard_deviation_gc_ratio_raw',
+             'standard_deviation_length_preprocessed',
+             'standard_deviation_length_preprocessed_rna',
+             'standard_deviation_length_raw'
+    ];
+}
+
 # get / set functions for class variables
 sub format {
     my ($self, $format) = @_;
@@ -217,10 +324,15 @@ sub request {
 # get a connection to the datasource
 sub connect_to_datasource {
     my ($self) = @_;
-    use WebServiceObject;
 
-    my ($master, $error) = WebServiceObject::db_connect();
-    if ($error) {
+    my ($master, $error);
+    eval {
+        require WebServiceObject;
+        WebServiceObject->import();
+        ($master, $error) = WebServiceObject::db_connect();
+    };
+
+    if ($@ || $error || (! $master)) {
         $self->return_data({ "ERROR" => "resource database offline" }, 503);
     } else {
         return $master;
@@ -229,9 +341,9 @@ sub connect_to_datasource {
 
 # check if pagination parameters are used
 sub check_pagination {
-    my ($self, $data, $total, $limit, $path) = @_;
+    my ($self, $data, $total, $limit, $path, $offset) = @_;
 
-    my $offset = $self->cgi->param('offset') || 0;
+    $offset = $self->cgi->param('offset') ? $self->cgi->param('offset') : ($offset ? $offset : 0);
     my $order  = $self->cgi->param('order') || undef;
     my @params = $self->cgi->param;
     $total = int($total);
@@ -265,12 +377,14 @@ sub check_pagination {
 sub return_cached {
     my ($self) = @_;
     
-    my $cached = $self->memd->get($self->url_id);
-    if ($cached) {
-        # do a runaround on ->return_data
-        print $self->header;
-        print $cached;
-        exit 0;
+    if ($self->memd) {
+        my $cached = $self->memd->get($self->url_id);
+        if ($cached) {
+            # do a runaround on ->return_data
+            print $self->header;
+            print $cached;
+            exit 0;
+        }
     }
 }
 
@@ -320,7 +434,7 @@ sub return_data {
 		              result  => $data,
 		              id      => $self->json_rpc_id };
 		    # cache this!
-            if ($cache_me) {
+            if ($cache_me && $self->memd) {
                 $self->memd->set($self->url_id, $self->json->encode($data), $self->{expire});
             }
         }
@@ -345,7 +459,7 @@ sub return_data {
                 $data = $self->json->encode($data);
             }
             # cache this!
-            if ($cache_me) {
+            if ($cache_me && $self->memd) {
                 $self->memd->set($self->url_id, $data, $self->{expire});
             }
             # send it
@@ -360,7 +474,7 @@ sub return_data {
 sub return_file {
     my ($self, $filedir, $filename) = @_;
     
-    unless ("$filedir/$filename" && (-s "$filedir/$filename")) {
+    unless ($filename && "$filedir/$filename" && (-s "$filedir/$filename")) {
 	    $self->return_data( {"ERROR" => "could not access filesystem"}, 404 );
     }
     if (open(FH, "<$filedir/$filename")) {
@@ -475,6 +589,77 @@ sub set_shock_node {
     }
 }
 
+sub update_shock_node {
+    my ($self, $id, $attr, $auth) = @_;
+    
+    my $attr_str = $self->json->pretty->encode($attr);
+    my $content  = [attributes => [undef, "n/a", Content => $attr_str]];
+    my $response = undef;
+    eval {
+        my $put = undef;
+        if ($auth) {
+            my $req = POST($Conf::shock_url.'/node/'.$id, Authorization => "OAuth $auth", Content_Type => 'form-data', Content => $content);
+            $req->method('PUT');
+            $put = $self->agent->request($req);
+        } else {
+            my $req = POST($Conf::shock_url.'/node/'.$id, Content_Type => 'form-data', Content => $content);
+            $req->method('PUT');
+            $put = $self->agent->request($req);
+        }
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
+sub update_shock_tags {
+  my ($self, $params) = @_;
+  
+  unless ($params->{id}) {
+    return undef;
+  }
+  
+  my $id = $params->{id};
+  my $auth = $params->{auth};
+  
+  my $tags = "";
+
+  if ($params->{tags} && ref $params->{tags} eq 'ARRAY') {
+    $tags = join(",", @{$params->{tags}});
+  }
+
+  my $tag_str = $self->json->pretty->encode($tags);
+  my $content  = [tags => [undef, "n/a", Content => $tag_str]];
+
+  my $response = undef;
+  eval {
+    my $put = undef;
+    my $url = $Conf::shock_url."/node/$id";
+    if ($auth) {
+      my $req = POST($Conf::shock_url.'/node/'.$id, Authorization => "OAuth $auth", Content_Type => 'form-data', Content => $content);
+      $req->method('PUT');
+      $put = $self->agent->request($req);
+    } else {
+      my $req = POST($Conf::shock_url.'/node/'.$id, Content_Type => 'form-data', Content => $content);
+      $req->method('PUT');
+      $put = $self->agent->request($req);
+    }
+    $response = $self->json->decode( $put->content );
+  };
+  if ($@ || (! ref($response))) {
+    return undef;
+  } elsif (exists($response->{error}) && $response->{error}) {
+    $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
+  } else {
+    return $response->{data};
+  }
+}
+
 sub get_shock_node {
     my ($self, $id, $auth) = @_;
     
@@ -579,8 +764,32 @@ sub get_solr_query {
         return ([], 0);
     } elsif (exists $content->{error}) {
         $self->return_data( {"ERROR" => "Unable to query DB: ".$content->{error}{msg}}, $content->{error}{status} );
-    } else {
+    } elsif (exists $content->{response}) {
         return ($content->{response}{docs}, $content->{response}{numFound});
+    } elsif (exists $content->{grouped}) {
+        return $content->{grouped};
+    } else {
+        $self->return_data( {"ERROR" => "Invalid SOLR return response"}, 500 );
+    }
+}
+
+sub kbase_idserver {
+    my ($self, $method, $params) = @_;
+    
+    my $content = undef;
+    my $post_data = {"method" => "IDServerAPI.".$method, "version" => "1.1", "params" => $params};
+    eval {
+        my $response = $self->agent->post($Conf::idserver_url, Content => $self->json->encode($post_data));
+        $content = $self->json->decode( $response->content );
+    };
+    if ($@ || (! ref($content))) {
+        $self->return_data( {"ERROR" => "Unable to access KBase idserver"}, 500 );
+    } elsif (exists $content->{error}) {
+        $self->return_data( {"ERROR" => $content->{error}{message}}, 500 );
+    } elsif (exists $content->{result}) {
+        return $content->{result};
+    } else {
+        $self->return_data( {"ERROR" => "Invalid KBase idserver return response"}, 500 );
     }
 }
 

@@ -11,7 +11,7 @@ my $cgi  = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
-my %private_resources = ('notebook' => 1, 'resource' => 1, 'status' => 1, 'user' => 1);
+my %private_resources = ('notebook' => 1, 'resource' => 1, 'status' => 1, 'user' => 1, 'job' => 1);
 
 # get request method
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
@@ -69,11 +69,11 @@ if (opendir(my $dh, $resource_path)) {
 		       -status => 200,
 		       -Access_Control_Allow_Origin => '*' );
     print $json->encode( { jsonrpc => "2.0",
-			               id => undef,
-			               error => { code => -32603,
-				                      message => "Internal error",
-				                      data => "resource directory offline" }
-				        } );
+			   id => undef,
+			   error => { code => -32603,
+				      message => "Internal error",
+				      data => "resource directory offline" }
+			 } );
     exit 0;
   } else {
     print $cgi->header( -type => 'text/plain',
@@ -140,16 +140,21 @@ else {
 # check for authentication
 my $user;
 if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
-  use Auth;
-  my $message;
-  ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
-  unless($user) {
-    print $cgi->header( -type => 'application/json',
-	                    -status => 401,
-    	                -Access_Control_Allow_Origin => '*' );
-    print $json->encode( {"ERROR"=> "authentication failed  - $message"} );
-    exit 0;
-  }
+    eval {
+        require Auth;
+        Auth->import();
+        my $message;
+        ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth'));
+        unless($user) {
+	  unless ($message eq "valid kbase user") {
+            print $cgi->header( -type => 'application/json',
+	                            -status => 401,
+    	                        -Access_Control_Allow_Origin => '*' );
+            print $json->encode( {"ERROR"=> "authentication failed  - $message"} );
+            exit 0;
+	  }
+        }
+    };
 }
 
 # print google analytics
@@ -171,11 +176,12 @@ if ($resource) {
         $error = $@;
     }
     if ($error) {
-        print $cgi->header( -type => 'application/json',
-    		                -status => 500,
-    		                -Access_Control_Allow_Origin => '*' );
-    	print $json->encode( {"ERROR"=> "resource '$resource' does not exist"} );
-        exit 0;
+      print STDERR $error."\n";
+      print $cgi->header( -type => 'application/json',
+			  -status => 500,
+			  -Access_Control_Allow_Origin => '*' );
+      print $json->encode( {"ERROR"=> "resource '$resource' does not exist"} );
+      exit 0;
     } else {
       # check for kbase ids
       if (scalar(@rest_parameters)) {
@@ -208,13 +214,13 @@ if ($resource) {
 }
 # we are called without a resource, return API information
 else {
-  my $cgi_url = $cgi->url;
+  my $cgi_url = $Conf::url_base ? $Conf::url_base : $cgi->url;
   $cgi_url =~ s/^(.*)\/$/$1/;
   $cgi_url =~ s/^(.*)\/api.cgi$/$1/;
-  my @res = map {{ 'name' => $_, 'url' => $cgi_url.'/'.$_ , 'documentation' => $cgi_url.'/api.html#'.$_}} sort @$resources;
+  my @res = map {{ 'name' => $_, 'url' => ($Conf::url_base || $cgi->url).'/'.$_ , 'documentation' => $cgi_url.'/api.html#'.$_}} sort @$resources;
   my $content = { version => 1,
 		  service => 'MG-RAST',
-		  url => $cgi->url,
+		  url => ($Conf::url_base || $cgi->url),
 		  documentation => $cgi_url.'/api.html',
 		  description => "RESTful Metagenomics RAST object and resource API\nFor usage note that required parameters need to be passed as path parameters, optional parameters need to be query parameters. If an optional parameter has a list of option values, the first displayed will be used as default.",
 		  contact => 'mg-rast@mcs.anl.gov',
