@@ -308,6 +308,8 @@ sub output {
       }
   }
 
+  ($qc_fail_seqs, $unknown_all, $unkn_aa_reads, $ann_aa_reads, $ann_rna_reads) =
+        (abs($qc_fail_seqs), abs($unknown_all), abs($unkn_aa_reads), abs($ann_aa_reads), abs($ann_rna_reads));
   # get charts
   my $colors = ["#6C6C6C","#dc3912","#ff9900","#109618","#3366cc","#990099"];
   my $summary_chart = $self->get_summary_chart($colors, $qc_fail_seqs, $unknown_all, $unkn_aa_reads, $ann_aa_reads, $ann_rna_reads);
