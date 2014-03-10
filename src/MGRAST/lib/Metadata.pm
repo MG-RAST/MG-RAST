@@ -50,18 +50,16 @@ sub template {
   unless ($self->{data} && ref($self->{data})) {
     my $data = {};
     my $dbh  = $self->{_handle}->db_handle;
-    my $tmp  = $dbh->selectall_arrayref("SELECT category_type,category,tag,mgrast_tag,qiime_tag,definition,type,fw_type,required,mixs,unit FROM MetaDataTemplate");
+    my $tmp  = $dbh->selectall_arrayref("SELECT category_type,category,tag,mgrast_tag,qiime_tag,definition,type,required,mixs,unit FROM MetaDataTemplate");
     unless ($tmp && (@$tmp)) { return $data; }
     map { $data->{$_->[1]}{category_type} = $_->[0] } @$tmp;
-    map { $data->{$_->[1]}{$_->[2]} = { mgrast_tag => $_->[3],
-					qiime_tag  => $_->[4],
-					definition => $_->[5],
-					type       => $_->[6],
-					fw_type    => $_->[7],
-					required   => $_->[8],
-					mixs       => $_->[9],
-					unit       => $_->[10]
-				      } } @$tmp;
+    map { $data->{$_->[1]}{$_->[2]} =
+            { aliases    => [ $_->[3], $_->[4] ],
+              definition => $_->[5],
+              type       => $_->[6],
+              mixs       => $_->[8],
+              unit       => $_->[9]
+            } } @$tmp;
     $self->{data} = $data;
   }
   return $self->{data};
@@ -669,7 +667,7 @@ sub export_metadata_for_project {
 }
 
 ## input:  { tag => value }
-## output: { tag => {qiime_tag=><str>, mgrast_tag=><str>, definition=><str>, required=><bool>, mixs=><bool>, type=><str>, value=><str>} }
+## output: { tag => {aliases=>[<str>], definition=><str>, required=><bool>, mixs=><bool>, type=><str>, unit=><str>, value=><str>} }
 ## all required tags will be added
 sub add_template_to_data {
   my ($self, $cat, $data, $all) = @_;
@@ -704,13 +702,9 @@ sub add_template_to_data {
     $t_data->{$tag}{unit}  = $template->{$cat}{$ttag}{unit};
     $t_data->{$tag}{type}  = $template->{$cat}{$ttag}{type};
     $t_data->{$tag}{mixs}  = $template->{$cat}{$ttag}{mixs};
-    $t_data->{$tag}{required}   = $template->{$cat}{$ttag}{required};
+    $t_data->{$tag}{aliases} = $template->{$cat}{$ttag}{aliases};
+    $t_data->{$tag}{required} = $template->{$cat}{$ttag}{required};
     $t_data->{$tag}{definition} = $template->{$cat}{$ttag}{definition};
-    foreach my $alias (($template->{$cat}{$ttag}{mgrast_tag}, $template->{$cat}{$ttag}{qiime_tag})) {
-      if ($alias && ($alias ne $tag)) {
-	push @{ $t_data->{$tag}{aliases} }, $alias;
-      }
-    }
   }
   return $t_data;
 }
