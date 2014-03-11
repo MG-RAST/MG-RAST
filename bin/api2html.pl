@@ -17,7 +17,7 @@ sub usage {
 
 # read in parameters
 my $url       = '';
-my $site_name = '';
+my $site_name = 'Metagenomics';
 my $outfile   = '';
 my $help      = 0;
 
@@ -31,7 +31,7 @@ if ($help) {
     exit 0;
 }
 
-unless ($url and $site_name and $outfile) {
+unless ($url and $outfile) {
     print "missing required paramater\n";
     &usage();
     exit 1;

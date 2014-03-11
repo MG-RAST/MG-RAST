@@ -251,8 +251,9 @@ sub get_jobs_metadata_fast {
   my $dbh   = $self->{_handle}->db_handle;
   my $key   = $is_mgid ? 'metagenome_id' : 'job_id';
   my $where = $is_mgid ? 'metagenome_id IN ('.join(',', map {"'$_'"} @$job_ids).')' : 'job_id IN ('.join(',', @$job_ids).')';
+  my $where2= $is_mgid ? 'j.metagenome_id IN ('.join(',', map {"'$_'"} @$job_ids).')' : 'j.job_id IN ('.join(',', @$job_ids).')';
   my $jobs = $dbh->selectall_arrayref("SELECT ".$key.",primary_project,sample,library,sequence_type,name,metagenome_id,file,file_checksum_raw FROM Job WHERE ".$where);
-  my $meth = $dbh->selectall_arrayref("SELECT j.".$key.", a.value FROM Job j, JobAttributes a WHERE j._id=a.job AND a.tag='sequencing_method_guess'");
+  my $meth = $dbh->selectall_arrayref("SELECT j.".$key.", a.value FROM Job j, JobAttributes a WHERE j._id=a.job AND a.tag='sequencing_method_guess' AND ".$where2);
   my %pids = map { $_->[1], 1 } grep {$_->[1] && ($_->[1] =~ /\d+/)} @$jobs;
   my %sids = map { $_->[2], 1 } grep {$_->[2] && ($_->[2] =~ /\d+/)} @$jobs;
   my %lids = map { $_->[3], 1 } grep {$_->[3] && ($_->[3] =~ /\d+/)} @$jobs;
