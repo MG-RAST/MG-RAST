@@ -436,8 +436,8 @@ def process_file(infile):
         try:
             for rec in SeqIO.parse(infile, fformat):
                 parse_format(rec)
-        except:
-            pass
+        except Exception as ex:
+            sys.stderr.write("Unable to parse %s file %s: %s %s\n"%(fformat, infile, type(ex).__name__, ex.args))
 
     for h in o_hdls: h.close()
     return os.path.join(params.outdir, fname)

@@ -477,7 +477,7 @@ sub deny_login_right {
   }
 
   # clean up
-  unless (scalar(@{$self->rights})) {
+  unless (scalar(@{$self->rights}) > 1) {
     $self->delete();
     return undef;
   }

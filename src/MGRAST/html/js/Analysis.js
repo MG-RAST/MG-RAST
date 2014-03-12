@@ -179,7 +179,12 @@ function buffer_data (source, id, selector, dataloc, mgloc, srcloc, abuloc) {
 	inf += "<tr>";
 	for (h=0; h<selector; h++) {
 	  if (table_visible_columns[data_index][h] && table_visible_columns[data_index][h] != "0") {
-	    inf += "<td>"+data_array[i][h] + "</td>";
+	      if (abuloc && h == abuloc) {
+		  var fid = data_array[i][h].match(/abu\(this\, (\d+)/)[1];
+		  inf += "<td><a style='cursor:pointer' onclick='abu(null, "+fid+", null, \""+data_array[i][srcloc]+"\",\""+data_array[i][dataloc]+"\");'>"+parseInt(data_array[i][abuloc].replace(HTML_REPLACE, ''))+"</a></td>";
+	      } else {
+		  inf += "<td>"+data_array[i][h] + "</td>";
+	      }
 	  }
 	}
 	inf += "</tr>";
@@ -460,18 +465,21 @@ function activate_backup(num) {
   document.getElementById('hits_div').innerHTML = "";
 }
 
-function abu(t, id, md5columnindex, source) {
-  var x = t.offsetParent.id;
-  var m = /cell_(\d+)_\d+_(\d+)/.exec(x);
+function abu(t, id, md5columnindex, source, md5string) {
+    if (! md5string) {
+	var x = t.offsetParent.id;
+	var m = /cell_(\d+)_\d+_(\d+)/.exec(x);
+	
+	var data_index;
+	for (i=0;i<table_list.length;i++) {
+	    if (m[1] == table_list[i]) {
+		data_index = i;
+	    }
+	}
 
-  var data_index;
-  for (i=0;i<table_list.length;i++) {
-    if (m[1] == table_list[i]) {
-      data_index = i;
+	md5string = table_data[data_index][m[2]][md5columnindex];
     }
-  }
 
-  var md5string = table_data[data_index][m[2]][md5columnindex];
   var md5s = md5string.split(";");
   var mgslist = document.getElementById('table_group_form_'+id).comparison_metagenomes;
   var mgs = new Array();

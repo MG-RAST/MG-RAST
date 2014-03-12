@@ -4,6 +4,8 @@ use strict;
 use warnings;
 no warnings('once');
 
+use Data::Dumper;
+use List::MoreUtils qw(any uniq);
 use Conf;
 use parent qw(resources::resource);
 
@@ -87,7 +89,7 @@ sub instance {
     # get job
     my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $mgid, viewable => 1} );
-    unless ($job && ref($job)) {
+    unless ($job && @$job) {
         $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
     }
     $job = $job->[0];
@@ -143,17 +145,50 @@ sub setlist {
     my $adir = $job->analysis_dir;
     my $stages = [];
     
+    ## hardcode upload sequence files: fastq = 050.1, fasta = 050.2
+    my $fastq = { id  => "mgm".$job->metagenome_id,
+	              url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.1',
+	              stage_id   => "050",
+	              stage_name => "upload",
+	              file_type  => 'fastq',
+	              file_id    => "050.1",
+	              file_name  => $job->job_id.'.fastq.gz'
+	};
+	my $fasta = { id  => "mgm".$job->metagenome_id,
+	              url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.2',
+	              stage_id   => "050",
+	              stage_name => "upload",
+	              file_type  => 'fna',
+	              file_id    => "050.2",
+	              file_name  => $job->job_id.'.fna.gz'
+	};
+    
     if (opendir(my $dh, $rdir)) {
+        # add fastq / fastq
         my @rawfiles = sort grep { -f "$rdir/$_" } readdir($dh);
+        if ( any {$_ eq $fastq->{file_name}} @rawfiles ) {
+            push @$stages, $fastq;
+        }
+        if ( any {$_ eq $fasta->{file_name}} @rawfiles ) {
+            push @$stages, $fasta;
+        }
+        
         closedir $dh;
-        my $fnum = 1;
+        # start at 3, skip fastq / fasta
+        my $fnum = 3;
         foreach my $rf (@rawfiles) {
-	        my ($jid, $ftype) = $rf =~ /^(\d+)\.([^\.]+)/;
+            next if (($rf eq $fastq->{file_name}) || ($rf eq $fasta->{file_name}));
+            my $ftype;
+            if ($rf =~ /\.gz$/) {
+                ($ftype) = $rf =~ /\.([^\.]+)\.gz$/;
+            } else {
+                ($ftype) = $rf =~ /\.([^\.]+)$/;
+            }
 	        push(@$stages, { id  => "mgm".$job->metagenome_id,
 			                 url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.'.$fnum,
 			                 stage_id   => "050",
 			                 stage_name => "upload",
-			                 stage_type => $ftype,
+			                 file_type  => $ftype,
 			                 file_id    => "050.".$fnum,
 			                 file_name  => $rf } );
             $fnum += 1;
@@ -167,8 +202,14 @@ sub setlist {
         closedir $dh;
         my $stagehash = {};
         foreach my $sf (@stagefiles) {
-	        my ($stageid, $stagename, $stageresult) = $sf =~ /^(\d+)\.([^\.]+)\.([^\.]+)/;
-	        next unless ($stageid && $stagename && $stageresult);
+            my $ftype;
+	        my ($stageid, $stagename) = $sf =~ /^(\d+)\.([^\.]+)/;
+	        if ($sf =~ /\.gz$/) {
+                ($ftype) = $sf =~ /\.([^\.]+)\.gz$/;
+            } else {
+                ($ftype) = $sf =~ /\.([^\.]+)$/;
+            }
+	        next unless ($stageid && $stagename && $ftype);
 	        if (exists($stagehash->{$stageid})) {
 	            $stagehash->{$stageid} += 1;
 	        } else {
@@ -178,7 +219,7 @@ sub setlist {
 			                 url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file='.$stageid.'.'.$stagehash->{$stageid},
 			                 stage_id   => $stageid,
 			                 stage_name => $stagename,
-			                 stage_type => $stageresult,
+			                 file_type  => $ftype,
 			                 file_id    => $stageid.".".$stagehash->{$stageid},
 			                 file_name  => $sf } );
         }

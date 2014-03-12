@@ -155,6 +155,9 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			$files_to_filetype{$file} = 'gzip';
 		    } elsif ($basename =~ s/^(.*)\.bz2$/$1/) {
 			$files_to_filetype{$file} = 'bzip2';
+		    } else {
+			push(@{$data->[0]->{popup_messages}}, "Unable to decompress $file, not a valid file extension for decompression.");
+			next;
 		    }
 
                     my $lock_file1 = "$udir/$file.lock";

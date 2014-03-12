@@ -5,6 +5,67 @@
 -- 1. param / cutoff lookup: version, job, exp_avg, len_avg, ident_avg, source
 -- 2. annotation searching: version, name, source
 
+DROP TABLE IF EXISTS organisms_ncbi;
+CREATE TABLE organisms_ncbi (
+ _id integer PRIMARY KEY,
+ name text NOT NULL,
+ tax_domain text,
+ tax_kingdom text,
+ tax_phylum text,
+ tax_class text,
+ tax_order text,
+ tax_family text,
+ tax_genus text,
+ tax_species text,
+ taxonomy text,
+ ncbi_tax_id integer
+);
+
+CREATE INDEX organisms_ncbi_name ON organisms_ncbi (name);
+CREATE INDEX organisms_ncbi_tax_id ON organisms_ncbi (ncbi_tax_id);
+
+DROP TABLE IF EXISTS sources;
+CREATE TABLE sources (
+_id integer PRIMARY KEY,
+name text NOT NULL,
+type text NOT NULL,
+description text,
+link text );
+
+CREATE INDEX sources_name ON sources (name);
+CREATE INDEX sources_type ON sources (type);
+
+DROP TABLE IF EXISTS ontologies;
+CREATE TABLE ontologies (
+ _id integer PRIMARY KEY,
+ level1 text,
+ level2 text,
+ level3 text,
+ level4 text,
+ name text,
+ source integer REFERENCES sources(_id)
+);
+
+CREATE INDEX ontologies_name ON ontologies (name);
+CREATE INDEX ontologies_source ON ontologies (source);
+
+DROP TABLE IF EXISTS md5s;
+CREATE TABLE md5s (
+_id integer PRIMARY KEY,
+md5 char(32) NOT NULL,
+is_protein boolean
+);
+CREATE UNIQUE INDEX md5s_md5 ON md5s (md5);
+CREATE INDEX md5s_protein ON md5s (is_protein);
+
+DROP TABLE IF EXISTS functions;
+CREATE TABLE functions (
+ _id integer PRIMARY KEY,
+ name text NOT NULL
+);
+CREATE INDEX functions_name ON functions (name);
+
+
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -149,31 +210,6 @@ CREATE TABLE job_lcas (
 CREATE INDEX job_lcas_vj ON job_lcas (version, job);
 CREATE INDEX job_lcas_lookup ON job_lcas (exp_avg, len_avg, ident_avg);
 
-DROP TABLE IF EXISTS functions;
-CREATE TABLE functions (
- _id integer PRIMARY KEY,
- name text NOT NULL
-);
-CREATE INDEX functions_name ON functions (name);
-
-DROP TABLE IF EXISTS organisms_ncbi;
-CREATE TABLE organisms_ncbi (
- _id integer PRIMARY KEY,
- name text NOT NULL,
- tax_domain text,
- tax_kingdom text,
- tax_phylum text,
- tax_class text,
- tax_order text,
- tax_family text,
- tax_genus text,
- tax_species text,
- taxonomy text,
- ncbi_tax_id integer
-);
-CREATE INDEX organisms_ncbi_name ON organisms_ncbi (name);
-CREATE INDEX organisms_ncbi_tax_id ON organisms_ncbi (ncbi_tax_id);
-
 DROP TABLE IF EXISTS md5_organism_unique;
 CREATE TABLE md5_organism_unique (
 md5 integer REFERENCES md5s(_id),
@@ -183,30 +219,6 @@ source integer REFERENCES sources(_id)
 CREATE INDEX md5_organism_unique_md5 ON md5_organism_unique (md5);
 CREATE INDEX md5_organism_unique_organism ON md5_organism_unique (organism);
 CREATE INDEX md5_organism_unique_source ON md5_organism_unique (source);
-
-DROP TABLE IF EXISTS ontologies;
-CREATE TABLE ontologies (
- _id integer PRIMARY KEY,
- level1 text,
- level2 text,
- level3 text,
- level4 text,
- name text,
- source integer REFERENCES sources(_id)
-);
-CREATE INDEX ontologies_name ON ontologies (name);
-CREATE INDEX ontologies_source ON ontologies (source);
-
-DROP TABLE IF EXISTS sources;
-CREATE TABLE sources (
-_id integer PRIMARY KEY,
-name text NOT NULL,
-type text NOT NULL,
-description text,
-link text,
-);
-CREATE INDEX sources_name ON sources (name);
-CREATE INDEX sources_type ON sources (type);
 
 DROP TABLE IF EXISTS md5_annotation;
 CREATE TABLE md5_annotation (
@@ -222,11 +234,4 @@ CREATE INDEX md5_annotation_function ON md5_annotation (function);
 CREATE INDEX md5_annotation_organism ON md5_annotation (organism);
 CREATE INDEX md5_annotation_source ON md5_annotation (source);
 
-DROP TABLE IF EXISTS md5s;
-CREATE TABLE md5s (
-_id integer PRIMARY KEY,
-md5 char(32) NOT NULL,
-is_protein boolean
-);
-CREATE UNIQUE INDEX md5s_md5 ON md5s (md5);
-CREATE INDEX md5s_protein ON md5s (is_protein);
+
