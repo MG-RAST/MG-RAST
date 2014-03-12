@@ -40,7 +40,7 @@ sub new {
 
 Returns the metadata temple in the format:
 category => 'category_type' => <category_type>
-category => tag => { mgrast_tag, qiime_tag, definition, type, fw_type, required, mixs }
+category => tag => { aliases, definition, type, required, mixs, unit }
 
 =cut
 
@@ -50,13 +50,14 @@ sub template {
   unless ($self->{data} && ref($self->{data})) {
     my $data = {};
     my $dbh  = $self->{_handle}->db_handle;
-    my $tmp  = $dbh->selectall_arrayref("SELECT category_type,category,tag,mgrast_tag,qiime_tag,definition,type,required,mixs,unit FROM MetaDataTemplate");
+    my $tmp  = $dbh->selectall_arrayref("SELECT category_type,category,tag,mgrast_tag,qiime_tag,definition,required,type,mixs,unit FROM MetaDataTemplate");
     unless ($tmp && (@$tmp)) { return $data; }
     map { $data->{$_->[1]}{category_type} = $_->[0] } @$tmp;
     map { $data->{$_->[1]}{$_->[2]} =
             { aliases    => [ $_->[3], $_->[4] ],
               definition => $_->[5],
-              type       => $_->[6],
+              required   => $_->[6],
+              type       => $_->[7],
               mixs       => $_->[8],
               unit       => $_->[9]
             } } @$tmp;
@@ -71,7 +72,7 @@ sub get_cv_select {
       $version = $self->cv_latest_version($tag);
   }
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV_2 WHERE tag='$tag' AND type='select' AND value_version='$version'");
+  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='select' AND value_version='$version'");
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
@@ -81,7 +82,7 @@ sub get_cv_ontology {
       $version = $self->cv_latest_version($tag);
   }
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectall_arrayref("SELECT value, value_id FROM MetaDataCV_2 WHERE tag='$tag' AND type='ontology' AND value_version='$version'");
+  my $tmp = $dbh->selectall_arrayref("SELECT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ontology' AND value_version='$version'");
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
@@ -91,7 +92,7 @@ sub cv_ontology_info {
       $version = $self->cv_latest_version($tag);
   }
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectrow_arrayref("SELECT value, value_id FROM MetaDataCV_2 WHERE tag='$tag' AND type='ont_info' AND value_version='$version'");
+  my $tmp = $dbh->selectrow_arrayref("SELECT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ont_info' AND value_version='$version'");
   return ($tmp && @$tmp) ? $tmp : ['', ''];
 }
 
@@ -99,10 +100,10 @@ sub cv_latest_version {
   my ($self, $tag) = @_;
   my $dbh = $self->{_handle}->db_handle;
   if ($tag) {
-      my $one = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV_2 WHERE tag='$tag' AND type='latest_version'");
+      my $one = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='latest_version'");
       return ($one && @$one) ? $one->[0] : '';
   } else {
-      my $all = $dbh->selectall_arrayref("SELECT tag, value FROM MetaDataCV_2 WHERE type='latest_version'");
+      my $all = $dbh->selectall_arrayref("SELECT tag, value FROM MetaDataCV WHERE type='latest_version'");
       if ($all && @$all) {
           my %data = map {$_->[0], $_->[1]} @$all;
           return \%data;
