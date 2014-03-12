@@ -18,12 +18,7 @@ sub new {
 
   $app   = $app   || '';
   $debug = $debug || '';
-  my $self = { app   => $app,
-	       debug => $debug,
-	       ontology_url => 'http://bioportal.bioontology.org/visualize/',
-	       ontology_api => 'http://rest.bioontology.org/bioportal/search',
-	       ontology_key => '56a9721b-0d62-4185-933d-81447db2457a'
-	     };
+  my $self = { app => $app, debug => $debug };
   eval {
       $self->{_handle} = DBMaster->new( -database => $Conf::mgrast_jobcache_db || 'MGRASTMetadata',
 					-host     => $Conf::mgrast_jobcache_host,
@@ -45,7 +40,7 @@ sub new {
 
 Returns the metadata temple in the format:
 category => 'category_type' => <category_type>
-category => tag => { mgrast_tag, qiime_tag, definition, type, fw_type, required, mixs }
+category => tag => { aliases, definition, type, required, mixs, unit }
 
 =cut
 
@@ -55,35 +50,67 @@ sub template {
   unless ($self->{data} && ref($self->{data})) {
     my $data = {};
     my $dbh  = $self->{_handle}->db_handle;
-    my $tmp  = $dbh->selectall_arrayref("SELECT category_type,category,tag,mgrast_tag,qiime_tag,definition,type,fw_type,required,mixs,unit FROM MetaDataTemplate");
+    my $tmp  = $dbh->selectall_arrayref("SELECT category_type,category,tag,mgrast_tag,qiime_tag,definition,required,type,mixs,unit FROM MetaDataTemplate");
     unless ($tmp && (@$tmp)) { return $data; }
     map { $data->{$_->[1]}{category_type} = $_->[0] } @$tmp;
-    map { $data->{$_->[1]}{$_->[2]} = { mgrast_tag => $_->[3],
-					qiime_tag  => $_->[4],
-					definition => $_->[5],
-					type       => $_->[6],
-					fw_type    => $_->[7],
-					required   => $_->[8],
-					mixs       => $_->[9],
-					unit       => $_->[10]
-				      } } @$tmp;
+    map { $data->{$_->[1]}{$_->[2]} =
+            { aliases    => [ $_->[3], $_->[4] ],
+              definition => $_->[5],
+              required   => $_->[6],
+              type       => $_->[7],
+              mixs       => $_->[8],
+              unit       => $_->[9]
+            } } @$tmp;
     $self->{data} = $data;
   }
   return $self->{data};
 }
 
-sub get_cv_list {
-  my ($self, $tag) = @_;
+sub get_cv_select {
+  my ($self, $tag, $version) = @_;
+  if (! $version) {
+      $version = $self->cv_latest_version($tag);
+  }
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='select'");
+  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='select' AND value_version='$version'");
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
-sub get_ont_id {
+sub get_cv_ontology {
+  my ($self, $tag, $version) = @_;
+  if (! $version) {
+      $version = $self->cv_latest_version($tag);
+  }
+  my $dbh = $self->{_handle}->db_handle;
+  my $tmp = $dbh->selectall_arrayref("SELECT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ontology' AND value_version='$version'");
+  return ($tmp && @$tmp) ? $tmp : [];
+}
+
+sub cv_ontology_info {
+  my ($self, $tag, $version) = @_;
+  if (! $version) {
+      $version = $self->cv_latest_version($tag);
+  }
+  my $dbh = $self->{_handle}->db_handle;
+  my $tmp = $dbh->selectrow_arrayref("SELECT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ont_info' AND value_version='$version'");
+  return ($tmp && @$tmp) ? $tmp : ['', ''];
+}
+
+sub cv_latest_version {
   my ($self, $tag) = @_;
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='ontology'");
-  return ($tmp && @$tmp) ? $tmp->[0] : '';
+  if ($tag) {
+      my $one = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='latest_version'");
+      return ($one && @$one) ? $one->[0] : '';
+  } else {
+      my $all = $dbh->selectall_arrayref("SELECT tag, value FROM MetaDataCV WHERE type='latest_version'");
+      if ($all && @$all) {
+          my %data = map {$_->[0], $_->[1]} @$all;
+          return \%data;
+      } else {
+          return {};
+      }
+  }
 }
 
 =pod
@@ -158,7 +185,7 @@ return tuple ref: [ boolean, error_message ]
 =cut
 
 sub validate_value {
-  my ($self, $cat, $tag, $val) = @_;
+  my ($self, $cat, $tag, $val, $version) = @_;
 
   my $dbh  = $self->{_handle}->db_handle;
   my $tmp  = $dbh->selectcol_arrayref("SELECT distinct type FROM MetaDataTemplate WHERE category_type='$cat' AND tag='$tag'");
@@ -181,33 +208,24 @@ sub validate_value {
   } elsif ($type eq 'timezone') {
     return ($val =~ /^UTC/) ? [1, ''] : [0, 'not ISO8601 compliant timezone'];
   } elsif ($type eq 'select') {
-    my %cvs = map {$_, 1} @{ $self->get_cv_list($tag) };
+    # hack for different country tags
+    if ($tag =~ /country$/) {
+        $tag = 'country';
+    }
+    my %cvs = map {$_, 1} @{ $self->get_cv_select($tag, $version) };
     return exists($cvs{lc($val)}) ? [1, ''] : [0, 'not one of: '.join(', ', sort keys %cvs)];
   } elsif ($type eq 'ontology') {
-    my $check = $self->validate_ontology($tag, $val);
-    return ($check eq 'valid') ? [1, ''] : [0, $check];
+    my $cvi = $self->cv_ontology_info($tag, $version);
+    my $cvo = $self->get_cv_ontology($tag, $version);
+    my %oid = map {$_->[1], 1} @$cvo;
+    my %oname = map {$_->[0], 1} @$cvo;
+    if (exists($oname{$val}) || exists($oid{$val})) {
+        return [1, '']
+    } else {
+        return [0, 'not part of: '.$cvi->[0]];
+    }
   } else {
     return [0, 'unknown type'];
-  }
-}
-
-sub validate_ontology {
-  my ($self, $tag, $val) = @_;
-
-  my $oid = $self->get_ont_id($tag);
-  unless ($oid) {
-    return 'not ontology label: '.$tag;
-  }
-  my $url = $self->{ontology_api}.'?isexactmatch=1&apikey='.$self->{ontology_key}.'&ontologyids='.$oid.'&query='.uri_escape($val);
-  my $res = get($url);
-  unless ($res && ($res =~ /<success>/)) {
-    return 'bioportal inaccessable: can not connect to: '.$url;
-  }
-  if ($res =~ /<numHitsTotal>(\d+)<\/numHitsTotal>/) {
-    return ($1 > 0) ? 'valid' : 'not part of: '.$self->{ontology_url}.$oid;
-  }
-  else {
-    return "ontology ID $oid has malformed return structure from ".$url;
   }
 }
 
@@ -651,7 +669,7 @@ sub export_metadata_for_project {
 }
 
 ## input:  { tag => value }
-## output: { tag => {qiime_tag=><str>, mgrast_tag=><str>, definition=><str>, required=><bool>, mixs=><bool>, type=><str>, value=><str>} }
+## output: { tag => {aliases=>[<str>], definition=><str>, required=><bool>, mixs=><bool>, type=><str>, unit=><str>, value=><str>} }
 ## all required tags will be added
 sub add_template_to_data {
   my ($self, $cat, $data, $all) = @_;
@@ -686,13 +704,9 @@ sub add_template_to_data {
     $t_data->{$tag}{unit}  = $template->{$cat}{$ttag}{unit};
     $t_data->{$tag}{type}  = $template->{$cat}{$ttag}{type};
     $t_data->{$tag}{mixs}  = $template->{$cat}{$ttag}{mixs};
-    $t_data->{$tag}{required}   = $template->{$cat}{$ttag}{required};
+    $t_data->{$tag}{aliases} = $template->{$cat}{$ttag}{aliases};
+    $t_data->{$tag}{required} = $template->{$cat}{$ttag}{required};
     $t_data->{$tag}{definition} = $template->{$cat}{$ttag}{definition};
-    foreach my $alias (($template->{$cat}{$ttag}{mgrast_tag}, $template->{$cat}{$ttag}{qiime_tag})) {
-      if ($alias && ($alias ne $tag)) {
-	push @{ $t_data->{$tag}{aliases} }, $alias;
-      }
-    }
   }
   return $t_data;
 }
