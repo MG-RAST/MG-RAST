@@ -184,9 +184,11 @@ sub prepare_data {
                 if (exists $json_data->{evalue})   { $eval   = $json_data->{evalue}; }
                 if (exists $json_data->{identity}) { $ident  = $json_data->{identity}; }
                 if (exists $json_data->{length})   { $alen   = $json_data->{length}; }
-                $filter = undef;
-                $flevel = undef;
-                $md5s = $json_data->{md5s};
+                if ($type eq 'md5') {
+                    $filter = undef;
+                    $flevel = undef;
+                    $md5s = $json_data->{md5s};
+                }
             };
         # data sent in post form
         } elsif ($self->cgi->param('md5s')) {
@@ -200,8 +202,9 @@ sub prepare_data {
             $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
         }
     } elsif ($filter && ($type eq 'md5')) {
-        $md5s = [$filter];
         $filter = undef;
+        $flevel = undef;
+        $md5s = [$filter];
     }
     
     # set DB handle
