@@ -836,7 +836,7 @@ sub set_job_options {
   while ( my ($t, $v) = each %$job_data ) {
     push @job_opts, "$t=$v";
   }
-  push @job_opts, "user_name=".$self->owner->login;
+  push @job_opts, "user_id=mgu".$self->owner->_id;
   if ($self->primary_project) {
       push @job_opts, "project_id=mgp".$self->primary_project->id;
   }
