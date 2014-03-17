@@ -32,10 +32,14 @@ sub authenticate {
           }
           $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', user => $us } );
 	  my $cgi = new CGI;
+	  my $verbose = "";
+	  if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
+	    $verbose = ', "login": "'.$us->{login}.'", "firstname": "'.$us->{firstname}.'", "lastname": "'.$us->{lastname}.'", "email": "'.$us->{email}.'"';
+	  }
           print $cgi->header(-type => 'application/json',
                              -status => 200,
                              -Access_Control_Allow_Origin => '*' );
-          print '{ "token": "'.$pref->[0]->value.'" }';
+          print '{ "token": "'.$pref->[0]->value.'"'.$verbose.' }';
           exit;
         } else {
 	  return (undef, "api access not enabled for this user");
