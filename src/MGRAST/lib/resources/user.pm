@@ -51,7 +51,7 @@ sub info {
                                     { 'name'        => "instance",
                                       'request'     => $self->cgi->url."/".$self->name."/{ID}",
                                       'description' => "Returns a single user object.",
-                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/joeblow"',
+                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
                     			                         "info for user 'joeblow'" ],
                                       'method'      => "GET",
                                       'type'        => "synchronous" ,  
