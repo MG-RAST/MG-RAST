@@ -752,6 +752,10 @@ sub submit_to_mgrast {
     $self->application->add_message('warning', "Unable to find / create vaild project, aborting submission.");
     return undef;
   }
+  # reset job options to include project and other metadata if need
+  foreach my $job (@$jobs) {
+    $job->set_job_options();
+  }
 
   my $pid = fork();
   
