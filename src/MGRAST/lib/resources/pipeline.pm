@@ -162,6 +162,7 @@ sub query {
 sub prepare_data {
     my ($self, $query) = @_;
     
+    $query->{'info.pipeline'} = 'mgrast-prod';
     my $verb = $self->cgi->param('verbosity') || 'minimal';
     my $data = $self->get_awe_query($query);
     return $data;
