@@ -821,6 +821,7 @@ sub set_filter_options {
 
 job function that creates an options string based upon all tag / value pairs
 in JobAttributes for job and sets $job->{options} to its value.
+also adds 'user_name' and 'project_id' as tags
 format: tag1=value1&tag2=value2 ...
 returns options string
 
@@ -834,6 +835,10 @@ sub set_job_options {
 
   while ( my ($t, $v) = each %$job_data ) {
     push @job_opts, "$t=$v";
+  }
+  push @job_opts, "user_id=mgu".$self->owner->_id;
+  if ($self->primary_project) {
+      push @job_opts, "project_id=mgp".$self->primary_project->id;
   }
   my $opts_string  = join("&", @job_opts);
   $self->options($opts_string);
