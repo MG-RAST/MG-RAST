@@ -195,7 +195,7 @@ sub prepare_data {
                         submitted    => $d->{info}{submittime}
             };
             foreach my $t (@{$d->{tasks}}) {
-                push @{$min->{stages}}, { stage => $t->{cmd}{description},
+                push @{$min->{stages}}, { name => $t->{cmd}{description},
                                           status => $t->{state},
                                           started => $t->{starteddate},
                                           completed => $t->{completeddate} };
