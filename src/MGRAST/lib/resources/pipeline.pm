@@ -126,7 +126,7 @@ sub query {
     my $project = $self->cgi->param('project') || '';
     
     # build url
-    my $url = $self->cgi->url.'?verbosity='.$verb;
+    my $url = $self->cgi->url.'/'.$self->name.'?verbosity='.$verb;
     if ($user) {
         $url .= '&user='.$user
     }
