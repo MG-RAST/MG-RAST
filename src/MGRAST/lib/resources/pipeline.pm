@@ -124,6 +124,7 @@ sub query {
     my $verb = $self->cgi->param('verbosity') || 'minimal';
     my $user = $self->cgi->param('user') || '';
     my $project = $self->cgi->param('project') || '';
+    my $query = {};
     
     # build url
     my $url = $self->cgi->url.'/'.$self->name.'?verbosity='.$verb;
@@ -135,8 +136,9 @@ sub query {
     }
     
     # get user ID
-    my $query = { 'info.user' => $self->user_id($user) };
-    
+    if ($user) {
+        $query->{'info.user'} = $self->user_id($user);
+    }
     # get project ID
     if ($project) {
         if ($project =~ /^mgp(\d+)$/) {
@@ -153,6 +155,10 @@ sub query {
             $self->return_data( {"ERROR" => "invalid id format: $project"}, 400 );
         }
     }
+    # get user if no options
+    if (! %$query) {
+        $query->{'info.user'} = $self->user_id();
+    }
     
     my $data = $self->prepare_data($query);
     my $obj = { data => $data, version => $self->{version}, url => $url };
@@ -162,10 +168,44 @@ sub query {
 sub prepare_data {
     my ($self, $query) = @_;
     
+    # get database
+    my $master = $self->connect_to_datasource();
+    
     $query->{'info.pipeline'} = 'mgrast-prod';
     my $verb = $self->cgi->param('verbosity') || 'minimal';
     my $data = $self->get_awe_query($query);
-    return $data;
+    if ($verb eq 'minimal') {
+        my $objs = [];
+        foreach my $d (@$data) {
+            my $job = $master->Job->get_objects( {job_id => $d->{info}{name}} );
+            unless ($job && @$job) {
+                next;
+            }
+            $job = $job->[0];
+            my $min = { stages  => [],
+                        id      => 'mgm'.$job->metagenome_id,
+                        job_id  => $job->job_id,
+                        name    => $job->name,
+                        status  => $d->{state},
+                        awe_id  => $d->{id},
+                        project_id   => 'mgp'.$job->primary_project->{id},
+                        project_name => $job->primary_project->{name},
+                        user_id      => 'mgu'.$job->owner->{_id},
+                        user_name    => $job->owner->{login},
+                        submitted    => $d->{info}{submittime}
+            };
+            foreach my $t (@{$d->{tasks}}) {
+                push @{$min->{stages}}, { name => $t->{cmd}{description},
+                                          status => $t->{state},
+                                          started => $t->{starteddate},
+                                          completed => $t->{completeddate} };
+            }
+            push @$objs, $min;
+        }
+        return $objs;
+    } else {
+        return $data;
+    }
 }
 
 sub user_id {
