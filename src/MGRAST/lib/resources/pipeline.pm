@@ -197,8 +197,8 @@ sub prepare_data {
             foreach my $t (@{$d->{tasks}}) {
                 push @{$min->{stages}}, { name => $t->{cmd}{description},
                                           status => $t->{state},
-                                          started => $t->{starteddate},
-                                          completed => $t->{completeddate} };
+                                          started => ($t->{starteddate} eq "0001-01-01T00:00:00Z") ? undef : $t->{starteddate},
+                                          completed => ($t->{completeddate} eq "0001-01-01T00:00:00Z") ? undef : $t->{completeddate} };
             }
             push @$objs, $min;
         }
