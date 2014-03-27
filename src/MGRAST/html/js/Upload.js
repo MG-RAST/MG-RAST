@@ -24,6 +24,52 @@ function init_all () {
   }
 }
 
+function stop(e){
+    e.stopPropagation();
+}
+
+function validateTextFields() {
+    var boxes = { "deviation": "positive_float",
+		  "max_ambig": "positive_int",
+		  "max_lqb": "int",
+		  "min_qual": "int" };
+
+    var success = true;
+    for (var i in boxes) {
+	if (boxes.hasOwnProperty(i)) {
+	    var box = document.getElementById(i);
+	    switch (boxes[i]) {
+	    case "positive_float":
+		if (box.value == 0 || (! box.value.match(/^\d+\.?(\d+)?$/))) {
+		    box.setAttribute('style', "border: 1px solid red; box-shadow: 0 0 7px red;");
+		    success = false;
+		} else {
+		    box.setAttribute('style', "");
+		}
+		break;
+	    case "positive_int":
+		if (box.value == 0 || (! box.value.match(/^\d+$/))) {
+		    box.setAttribute('style', "border: 1px solid red; box-shadow: 0 0 7px red;");
+		    success = false;
+		} else {
+		    box.setAttribute('style', "");
+		}
+		break;
+	    case "int":
+		if (! box.value.match(/^\d+$/)) {
+		    box.setAttribute('style', "border: 1px solid red; box-shadow: 0 0 7px red;");
+		    success = false;
+		} else {
+		    box.setAttribute('style', "");
+		}
+		break;
+	    };
+	}
+    }
+
+    return success;
+}
+
 function update_inbox (data, files, action) {
   if (data) {
     var flist = DataStore['user_inbox'][user.login].files;
@@ -605,10 +651,14 @@ function unselect_metadata_file () {
 }
 
 function accept_pipeline_options () {
-  document.getElementById("sel_pip_pill").className = "pill_complete";
-  document.getElementById("icon_step_4").style.display = "";
-  toggle("sel_pip_div");
-  check_submitable();
+    if (validateTextFields()) {
+	document.getElementById("sel_pip_pill").className = "pill_complete";
+	document.getElementById("icon_step_4").style.display = "";
+	toggle("sel_pip_div");
+	check_submitable();
+    } else {
+	alert("You have entered invalid values in the highlighted fields.");
+    }
 }
 
 function check_submitable () {
