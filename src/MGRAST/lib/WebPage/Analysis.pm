@@ -1351,7 +1351,7 @@ sub workbench_export {
 
   my @fastas = ();
   foreach my $s (@$seq_data) {
-    if (exists $md5_data->{$s->{md5}}) {
+    if ($s && exists($s->{md5}) && exists($md5_data->{$s->{md5}})) {
       $s->{sequence} =~ s/(.{60})/$1\n/g;
       foreach my $data ( @{$md5_data->{$s->{md5}}} ) {
 	    next unless ($data->[0]);

@@ -368,6 +368,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    while(my $line=<IN>) {
 			$line =~ s/\s+$//;
 			my @array = split(/\t/, $line);
+			next unless ($array[1]);
 			my $output_file = "$array[1]";
 			chomp $output_file;
 			if($filetype eq 'fastq') {
