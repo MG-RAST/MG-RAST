@@ -129,7 +129,7 @@ sub new {
   foreach my $p (@cgi_params) {
     my @plist = $cgi->param($p);
     foreach my $p1 (@plist) {
-      if ($p1 && reftype($p1) eq "") {
+      if ($p1 && defined(reftype($p1)) && (reftype($p1) eq "")) {
         $p1 = $hs->parse($p1);
       }
     }
