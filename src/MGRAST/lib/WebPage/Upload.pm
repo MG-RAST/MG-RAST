@@ -123,7 +123,7 @@ sub output {
     }
   }
 
-  my $webkey = $self->current_key();
+  my $webkey = $self->current_webkey();
 
   my $user_project_ids = $user->has_right_to(undef, "edit", "project");
   my $projects = [];
@@ -1055,7 +1055,7 @@ sub validate_metadata {
 
 sub current_webkey {
   my ($self) = @_;
-  
+
   my $application = $self->application();
   my $master = $application->dbmaster();
   my $user = $application->session->user();
@@ -1067,8 +1067,8 @@ sub current_webkey {
   my $key = 0;
   my $date = 0;
   
-  if (scalar(@$exisiting_key)) {
-    if ($existing_date > time) {
+  if (scalar(@$existing_key)) {
+    if ($existing_date->[0]->{value} > time) {
       $valid = 1;
     }
     $key = $existing_key->[0]->{value};
@@ -1153,17 +1153,17 @@ sub generate_webkey {
     my $tdate_readable = ($year + 1900)." ".sprintf("%02d", $mon + 1)."-".sprintf("%02d", $mday)." ".sprintf("%02d", $hour).":".sprintf("%02d", $min).".".sprintf("%02d", $sec);
 
     $content .= "<b>Your current WebKey:</b> <input type='text' readOnly=1 size=25 value='" . $webkey->{key} . "'>";
-    $content .= " <b>valid until</b>: <input type='text' readOnly=1 size=20 value='" . $tdate_readable . "'>";
-    $content .= " <input type='button' class='btn' value='extend key validity date' onclick='generate_webkey(null, 1);'>";
+    $content .= " &nbsp;&nbsp;&nbsp;<b>valid until</b>: <input type='text' readOnly=1 size=20 value='" . $tdate_readable . "'>";
+    $content .= "<br><input type='button' class='btn' value='extend key validity date' onclick='generate_webkey(null, 1);' style='margin-top: 5px; margin-left: 130px;'>";
 
   } else {
     $content .= "<b>Your current WebKey:</b> " . $webkey->{key};
-    $content .= " <span style='font-weight: bold; color: red;'>your current key has timed out and is no longer valid!</span>";
-    $content .= " <input type='button' class='btn' value='re-activate key' onclick='generate_webkey(null, 1);'>";
+    $content .= "<br><span style='font-weight: bold; color: red; margin-top: 3px;'>your current key has timed out and is no longer valid!</span>";
+    $content .= "<br><input type='button' class='btn' value='re-activate key' onclick='generate_webkey(null, 1);'>";
   }
 
-  $content .= " <input type='button' class='btn' value='generate new key' onclick='generate_webkey(1);'>";
-  $content .= "<img src='./Html/clear.gif' onload='document.getElementById(\"ftp_webkey\").innerHTML=\"" . $webkey->{key} . "\";document.getElementById(\"http_webkey\").innerHTML=\"" . $webkey->{key} . "\";'>";
+  $content .= " <input type='button' class='btn' value='generate new key' onclick='generate_webkey(1);' style='margin-top: 5px; margin-left: 50px;'>";
+#  $content .= "<img src='./Html/clear.gif' onload='document.getElementById(\"ftp_webkey\").innerHTML=\"" . $webkey->{key} . "\";document.getElementById(\"http_webkey\").innerHTML=\"" . $webkey->{key} . "\";'>";
 
   print $cgi->header;
   print $content;
