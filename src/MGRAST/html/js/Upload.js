@@ -813,10 +813,12 @@ function delete_dir () {
   }
 }
 
-function generate_webkey (get_new) {
+function generate_webkey (get_new, reactivate) {
   var get_new_param = "";
   if (get_new) {
     get_new_param = "&generate_new_key=1";
+  } else if (reactivate) {
+      get_new_param = "&reactivate_key=1";
   }
   $.get("?page=Upload&action=generate_webkey"+get_new_param, function (data) {
       document.getElementById('generate_key').innerHTML = data;

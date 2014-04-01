@@ -123,6 +123,8 @@ sub output {
     }
   }
 
+  my $webkey = $self->current_key();
+
   my $user_project_ids = $user->has_right_to(undef, "edit", "project");
   my $projects = [];
   foreach my $pid (@$user_project_ids) {
@@ -226,7 +228,7 @@ sub output {
                   <table>
                      <tr style='display: none;'><td width="125px"><b>ftp</b></td><td>ftp://incoming.metagenomics.anl.gov/<span id="ftp_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
                      <tr><td>http://api.metagenomics.anl.gov/1/inbox</td></tr>
-                     <tr><td colspan=2 style='padding-top: 10px; padding-bottom: 10px;'><div id='generate_key'><input type='button' class='btn' onclick='generate_webkey();' value='generate webkey'></div></td></tr>
+                     <tr><td colspan=2 style='padding-top: 10px; padding-bottom: 10px;'><div id='generate_key'><input type='button' class='btn' onclick='generate_webkey();' value='~. ($webkey->{key} ? ($webkey->{valid} ? "view webkey" : "re-activate webkey") : "generate webkey") . qq~'></div></td></tr>
                   </table>
                   <p><b>Note:</b> The <a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Blog</a> lists a number of examples for data transfer.</p>
 
@@ -1051,6 +1053,33 @@ sub validate_metadata {
   exit 0;
 }
 
+sub current_webkey {
+  my ($self) = @_;
+  
+  my $application = $self->application();
+  my $master = $application->dbmaster();
+  my $user = $application->session->user();
+  
+  my $existing_key = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
+  my $existing_date = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
+  
+  my $valid = 0;
+  my $key = 0;
+  my $date = 0;
+  
+  if (scalar(@$exisiting_key)) {
+    if ($existing_date > time) {
+      $valid = 1;
+    }
+    $key = $existing_key->[0]->{value};
+    $date = $existing_date->[0]->{value};
+  }
+
+  return { "key" => $key,
+	   "date" => $date,
+	   "valid" => $valid };
+}
+
 sub generate_webkey {
   my ($self) = @_;
 
@@ -1059,13 +1088,27 @@ sub generate_webkey {
   my $master = $application->dbmaster();
   my $user = $application->session->user();
 
+  my $timeout = 60 * 60 * 24 * 7; # one week
+  
   my $generated = "";
+
+  my $webkey = { "key" => 0,
+		 "date" => 0,
+		 "valid" => 0 };
 
   my $existing_key = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
   my $existing_date = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
   if (scalar(@$existing_key) && ! $cgi->param('generate_new_key')) {
-    $existing_key = $existing_key->[0]->{value};
-    $existing_date = $existing_date->[0]->{value};
+    $webkey->{key} = $existing_key->[0]->{value};
+    $webkey->{date} = $existing_date->[0]->{value};
+    if ($webkey->{date} > time) {
+      $webkey->{valid} = 1;
+    }
+
+    if ($cgi->param('reactivate_key')) {
+      my $tdate = time + $timeout;
+      $existing_date->[0]->value($tdate);
+    }
   } else {
     my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
     while (length($generated) < 25) {
@@ -1080,7 +1123,6 @@ sub generate_webkey {
       }
       $preference = $master->Preferences->get_objects( { value => $generated } );
     }
-    my $timeout = 60 * 60 * 24 * 7; # one week
     my $tdate = time + $timeout;
 
     my $pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
@@ -1098,20 +1140,30 @@ sub generate_webkey {
       $pref = $master->Preferences->create( { 'user' => $user, 'name' => 'WebServicesKey' } );
     }
     $pref->value($generated);
-    $existing_key = $generated;
-    $existing_date = $tdate;
-
-    # create a symlink
-    
+    $webkey->{key} = $generated;
+    $webkey->{date} = $tdate;
+    $webkey->{valid} = 1;
   }
     
-  my $content = "<b>Your current WebKey:</b> <input type='text' readOnly=1 size=25 value='" . $existing_key . "'>";
+  my $content = "";
   
-  my ($sec,$min,$hour,$mday,$mon,$year) = localtime($existing_date);  
-  my $tdate_readable = ($year + 1900)." ".sprintf("%02d", $mon + 1)."-".sprintf("%02d", $mday)." ".sprintf("%02d", $hour).":".sprintf("%02d", $min).".".sprintf("%02d", $sec);
-  $content .= " <b>valid until</b>: <input type='text' readOnly=1 size=20 value='" . $tdate_readable . "'>";
+  if ($webkey->{valid}) {
+
+    my ($sec,$min,$hour,$mday,$mon,$year) = localtime($webkey->{date});  
+    my $tdate_readable = ($year + 1900)." ".sprintf("%02d", $mon + 1)."-".sprintf("%02d", $mday)." ".sprintf("%02d", $hour).":".sprintf("%02d", $min).".".sprintf("%02d", $sec);
+
+    $content .= "<b>Your current WebKey:</b> <input type='text' readOnly=1 size=25 value='" . $webkey->{key} . "'>";
+    $content .= " <b>valid until</b>: <input type='text' readOnly=1 size=20 value='" . $tdate_readable . "'>";
+    $content .= " <input type='button' class='btn' value='extend key validity date' onclick='generate_webkey(null, 1);'>";
+
+  } else {
+    $content .= "<b>Your current WebKey:</b> " . $webkey->{key};
+    $content .= " <span style='font-weight: bold; color: red;'>your current key has timed out and is no longer valid!</span>";
+    $content .= " <input type='button' class='btn' value='re-activate key' onclick='generate_webkey(null, 1);'>";
+  }
+
   $content .= " <input type='button' class='btn' value='generate new key' onclick='generate_webkey(1);'>";
-  $content .= "<img src='./Html/clear.gif' onload='document.getElementById(\"ftp_webkey\").innerHTML=\"" . $existing_key . "\";document.getElementById(\"http_webkey\").innerHTML=\"" . $existing_key . "\";'>";
+  $content .= "<img src='./Html/clear.gif' onload='document.getElementById(\"ftp_webkey\").innerHTML=\"" . $webkey->{key} . "\";document.getElementById(\"http_webkey\").innerHTML=\"" . $webkey->{key} . "\";'>";
 
   print $cgi->header;
   print $content;
