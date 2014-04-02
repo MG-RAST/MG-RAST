@@ -492,49 +492,39 @@ sub return_file {
     }
 }
 
-sub get_sequence_sets {
-    my ($self, $job) = @_;
-  
-    my $mgid = $job->metagenome_id;
-    my $rdir = $job->download_dir;
-    my $adir = $job->analysis_dir;
+sub get_download_set {
+    my ($self, $mgid, $seq_only) = @_;
+
+    my %seen = {};
     my $stages = [];
-    if (opendir(my $dh, $rdir)) {
-        my @rawfiles = sort grep { /^.*(fna|fastq)(\.gz)?$/ && -f "$rdir/$_" } readdir($dh);
-        closedir $dh;
-        my $fnum = 1;
-        foreach my $rf (@rawfiles) {
-            my ($jid, $ftype) = $rf =~ /^(\d+)\.(fna|fastq)(\.gz)?$/;
-            push(@$stages, { id  => "mgm".$mgid,
-                             url => $self->cgi->url.'/download/mgm'.$mgid.'?file=050.'.$fnum,
-		                     stage_id   => "050",
-		                     stage_name => "upload",
-		                     stage_type => $ftype,
-		                     file_id    => "050.".$fnum,
-		                     file_name  => $rf });
-            $fnum += 1;
+    my $mgdata = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$mgid}, $Conf::mgrast_shock_token);
+    @$mgdata = grep { exists($_->{attributes}{stage_id}) && exists($_->{attributes}{data_type}) } @$mgdata;
+    @$mgdata = sort { ($a->{attributes}{stage_id} cmp $b->{attributes}{stage_id}) ||
+                        ($a->{attributes}{data_type} cmp $b->{attributes}{data_type}) } @$mgdata;
+    foreach my $node (@$mgdata) {
+        my $attr = $node->{attributes};
+        my $file = $node->{file};
+        next if ($seq_only && ($attr->{data_type} ne 'sequence'));
+        if (exists $seen{$attr->{stage_id}}) {
+            $seen{$attr->{stage_id}} += 1;
+        } else {
+            $seen{$attr->{stage_id}} = 1;
         }
-    }
-    if (opendir(my $dh, $adir)) {
-        my @stagefiles = sort grep { /^.*(fna|faa)(\.gz)?$/ && -f "$adir/$_" } readdir($dh);
-        closedir $dh;
-        my $stagehash = {};
-        foreach my $sf (@stagefiles) {
-            my ($stageid, $stagename, $stageresult) = $sf =~ /^(\d+)\.([^\.]+)\.([^\.]+)\.(fna|faa)(\.gz)?$/;
-            next unless ($stageid && $stagename && $stageresult);
-            if (exists($stagehash->{$stageid})) {
-	            $stagehash->{$stageid}++;
-            } else {
-	            $stagehash->{$stageid} = 1;
-            }
-            push(@$stages, { id  => "mgm".$mgid,
-                             url => $self->cgi->url.'/download/mgm'.$mgid.'?file='.$stageid.'.'.$stagehash->{$stageid},
-		                     stage_id   => $stageid,
-		                     stage_name => $stagename,
-		                     stage_type => $stageresult,
-		                     file_id    => $stageid.".".$stagehash->{$stageid},
-		                     file_name  => $sf });
-        }
+        my $file_id = $attr->{stage_id}.'.'.$seen{$attr->{stage_id}};
+        my $data = { id  => "mgm".$mgid,
+		             url => $self->cgi->url.'/download/mgm'.$mgid.'?file='.$file_id,
+		             stage_id   => $attr->{stage_id},
+		             stage_name => $attr->{stage_name},
+		             file_type  => exists($attr->{file_format}) ? $attr->{file_format} : $attr->{data_type},
+		             file_id    => $file_id,
+		             file_name  => $file->{name},
+		             file_size  => $file->{size},
+		             file_md5   => $file->{md5}
+		};
+		if (exists $attr->{statistics}) {
+		    $data->{statistics} = $attr->{statistics};
+		}
+		push @$stages, $data;
     }
     return $stages;
 }
