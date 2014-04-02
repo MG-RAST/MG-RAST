@@ -519,7 +519,7 @@ sub get_download_set {
 		             file_id    => $file_id,
 		             file_name  => $file->{name},
 		             file_size  => $file->{size},
-		             file_md5   => $file->{md5}
+		             file_md5   => $file->{checksum}{md5}
 		};
 		if (exists $attr->{statistics}) {
 		    $data->{statistics} = $attr->{statistics};
