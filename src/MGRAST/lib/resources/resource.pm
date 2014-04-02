@@ -617,49 +617,6 @@ sub update_shock_node {
     }
 }
 
-sub update_shock_tags {
-  my ($self, $params) = @_;
-  
-  unless ($params->{id}) {
-    return undef;
-  }
-  
-  my $id = $params->{id};
-  my $auth = $params->{auth};
-  
-  my $tags = "";
-
-  if ($params->{tags} && ref $params->{tags} eq 'ARRAY') {
-    $tags = join(",", @{$params->{tags}});
-  }
-
-  my $tag_str = $self->json->pretty->encode($tags);
-  my $content  = [tags => [undef, "n/a", Content => $tag_str]];
-
-  my $response = undef;
-  eval {
-    my $put = undef;
-    my $url = $Conf::shock_url."/node/$id";
-    if ($auth) {
-      my $req = POST($Conf::shock_url.'/node/'.$id, Authorization => "OAuth $auth", Content_Type => 'form-data', Content => $content);
-      $req->method('PUT');
-      $put = $self->agent->request($req);
-    } else {
-      my $req = POST($Conf::shock_url.'/node/'.$id, Content_Type => 'form-data', Content => $content);
-      $req->method('PUT');
-      $put = $self->agent->request($req);
-    }
-    $response = $self->json->decode( $put->content );
-  };
-  if ($@ || (! ref($response))) {
-    return undef;
-  } elsif (exists($response->{error}) && $response->{error}) {
-    $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
-  } else {
-    return $response->{data};
-  }
-}
-
 sub get_shock_node {
     my ($self, $id, $auth) = @_;
     

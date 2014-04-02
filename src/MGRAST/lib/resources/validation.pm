@@ -611,7 +611,6 @@ sub reformat_template {
   }
 
   my $node = $self->set_shock_node("mgrast", undef, $template, $Conf::shock_globus_token);
-  #my $node = $self->update_shock_tags({ id => "40959bb3-131b-4fc4-abbb-c172feac7217", tags => [ "template", 'mgrast_template', 'communities_template' ]});
 
   return $self->return_data($node);
 }
