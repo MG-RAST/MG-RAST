@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use HTTP::Request::StreamingUpload;
 use Data::Dumper;
 use Conf;
 use parent qw(resources::resource);
@@ -45,10 +46,12 @@ sub info {
                   			                             'lists the contents of the user inbox, auth is required' ],
                                       'method'      => "GET",
                                       'type'        => "synchronous",  
-                                      'attributes'  => { 'id'        => [ 'string', "user login" ],
+                                      'attributes'  => { 'id'        => [ 'string', "user id" ],
+                                                         'login'     => [ 'string', "user login" ],
                                                          'timestamp' => [ 'string', "timestamp for return of this query" ],
                                                          'files'     => [ 'list', [ 'object', [ { 'filename'  => [ 'string', "path of file from within user inbox" ],
                                                                                                   'filesize'  => [ 'string', "disk size of file in bytes" ],
+                                                                                                  'checksum'  => [ 'string', "md5 checksum of file"],
                                                                                                   'timestamp' => [ 'string', "timestamp of file" ]
                                                                                                  }, "list of file objects"] ] ],
                                                          'url'       => [ 'uri', "resource location of this object instance" ] },
@@ -62,7 +65,8 @@ sub info {
                     			                         "upload file 'sequences.fastq' to user inbox, auth is required" ],
                                       'method'      => "POST",
                                       'type'        => "synchronous",
-                                      'attributes'  => { 'id'        => [ 'string', "user login" ],
+                                      'attributes'  => { 'id'        => [ 'string', "user id" ],
+                                                         'login'     => [ 'string', "user login" ],
                                                          'status'    => [ 'string', "status message" ],
                                                          'timestamp' => [ 'string', "timestamp for return of this query" ]
                                                        },
@@ -80,9 +84,12 @@ sub info {
 sub request {
     my ($self) = @_;
     
-    if ($self->user && ($self->method eq 'POST')) {
+    unless ($self->user) {
+        $self->return_data( {"ERROR" => "this request type requires authentication"}, 401 );
+    }
+    if ($self->method eq 'POST') {
         $self->upload_file();
-    } elsif ($self->user && ($self->method eq 'GET')) {
+    } elsif ($self->method eq 'GET') {
         $self->view_inbox();
     } else {
         $self->info();
@@ -92,89 +99,49 @@ sub request {
 sub view_inbox {
     my ($self) = @_;
 
-    my $black_list = "USER";
-    my $black_list_seq_ext = "stats_info|error_log|lock|";
-    if ($self->user) {
-        use Digest::MD5 qw(md5_hex);
-        my $base_dir = "$Conf::incoming";
-        my $udir = $base_dir."/".md5_hex($self->user->login);
-        my @files = ();
-        foreach my $file (`ls $udir`) {
-            chomp $file;
-            if(-d "$udir/$file") {
-                my $subdir = $file;
-                foreach my $subfile (`ls $udir/$subdir`) {
-                    chomp $subfile;
-                    unless($subfile =~ /^$black_list$/ || $subfile =~ /^\S+\.($black_list_seq_ext)$/) {
-                        my $filesize = -s "$udir/$subdir/$subfile";
-                        my $timestamp = scalar localtime((stat("$udir/$subdir/$subfile"))[9]);
-                        push @files, { 'filename'   => "$subdir/$subfile",
-                                       'filesize',  => $filesize." bytes",
-                                       'timestamp', => $timestamp };
-                    }
-                }
-            } else {
-                unless($file =~ /^$black_list$/ || $file =~ /^\S+\.($black_list_seq_ext)$/) {
-                    my $filesize = -s "$udir/$file";
-                    my $timestamp = scalar localtime((stat("$udir/$file"))[9]);
-                    push @files, { 'filename'   => $file,
-                                   'filesize',  => $filesize." bytes",
-                                   'timestamp', => $timestamp };
-                }
-            }
-        }
-        $self->return_data( { 'id' => $self->user->login,
-                              'timestamp' => scalar localtime,
-                              'files' => \@files,
-                              'url' => $self->cgi->url."/".$self->name } );
-    } else {
-      $self->return_data( {"ERROR" => "this request type requires authentication"}, 401 );
+    my $files = [];
+    my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => 'mgu'.$self->user->_id}, $Conf::mgrast_shock_token);
+    foreach my $node (@$mgdata) {
+        push @$files, { 'filename'  => $node->{file}{name},
+                        'filesize'  => $node->{file}{size},
+                        'checksum'  => $node->{file}{checksum}{md5},
+                        'timestamp' => $node->{created_on} };
     }
+    $self->return_data( { 'id' => 'mgu'.$self->user->_id,
+                          'login' => 'mgu'.$self->user->login,
+                          'timestamp' => scalar localtime,
+                          'files' => \@files,
+                          'url' => $self->cgi->url."/".$self->name } );
 }
 
 sub upload_file {
     my ($self) = @_;
 
-    if ($self->user) {
-        use Digest::MD5 qw(md5_hex);
-        my $base_dir = "$Conf::incoming";
-        my $udir = $base_dir."/".md5_hex($self->user->login);
-        my $fn = $self->cgi->param('upload');
-
-        if ($fn) {
-            if ($fn =~ /\.\./) {
-                $self->return_data( {"ERROR" => "invalid parameters, trying to change directory with filename, aborting"}, 400 );
-            }
-            if ($fn !~ /^[\w\d_\.]+$/) {
-                $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, dot (.), and number characters"}, 400);
-            }
-            if (-f "$udir/$fn") {
-                $self->return_data( {"ERROR" => "the file already exists"}, 400 );
-            }
-
-            my $fh = $self->cgi->upload('upload');
-            if (defined $fh) {
-                my $io_handle = $fh->handle;
-                if (open FH, ">$udir/$fn") {
-                    my ($bytesread, $buffer);
-                    while ($bytesread = $io_handle->read($buffer,4096)) {
-                        print FH $buffer;
-                    }
-                    close FH;
-                    $self->return_data( { 'id' => $self->user->login,
-                                          'status' => "data received successfully",
-                                          'timestamp' => scalar localtime } );
-                } else {
-                    $self->return_data( {"ERROR" => "storing object failed - could not open target file"}, 507 );
+    my $fn = $self->cgi->param('upload');
+    if ($fn) {
+        if ($fn !~ /^[\w\d_\.]+$/) {
+            $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, dot (.), and number characters"}, 400);
+        }
+        my $fh = $self->cgi->upload('upload');
+        if (defined $fh) {
+            my $io_handle = $fh->handle;
+            if (open FH, ">$udir/$fn") {
+                my ($bytesread, $buffer);
+                while ($bytesread = $io_handle->read($buffer,4096)) {
+                    print FH $buffer;
                 }
+                close FH;
+                $self->return_data( { 'id' => $self->user->login,
+                                      'status' => "data received successfully",
+                                      'timestamp' => scalar localtime } );
             } else {
-                $self->return_data( {"ERROR" => "storing object failed - could not obtain filehandle"}, 507 );
+                $self->return_data( {"ERROR" => "storing object failed - could not open target file"}, 507 );
             }
         } else {
-            $self->return_data( {"ERROR" => "invalid parameters, requires filename and data"}, 400 );
+            $self->return_data( {"ERROR" => "storing object failed - could not obtain filehandle"}, 507 );
         }
     } else {
-      $self->return_data( {"ERROR" => "authentication failed"}, 401 );
+        $self->return_data( {"ERROR" => "invalid parameters, requires filename and data"}, 400 );
     }
 }
 
