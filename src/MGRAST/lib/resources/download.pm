@@ -81,43 +81,43 @@ sub instance {
   
     # check id format
     my $rest = $self->rest;
-    my (undef, $mgid) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
-    if ((! $mgid) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: ".$rest->[0]}, 400 );
+    my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
-    
-    # get job
+
+    # get database
     my $master = $self->connect_to_datasource();
-    my $job = $master->Job->get_objects( {metagenome_id => $mgid, viewable => 1} );
+
+    # get data
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
+        $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
     }
     $job = $job->[0];
-  
+    unless ($job->viewable) {
+        $self->return_data( {"ERROR" => "id $id is still processing and unavailable"}, 404 );
+    }
+    
     # check rights
-    unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $mgid) || $self->user->has_star_right('view', 'metagenome')))) {
+    unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
     # get data / parameters
+    my $stage   = $self->cgi->param('stage') || undef;
+    my $file    = $self->cgi->param('file') || undef;
     my $setlist = $self->get_download_set($job->{metagenome_id});
-    my $stage = $self->cgi->param('stage') || undef;
-    my $file  = $self->cgi->param('file') || undef;
     
-    # return file
+    # return file from shock
     if ($file) {
-        my ($fdir, $fname);
+        my $node = undef;
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
-                $fname = $set->{file_name};
-                $fdir  = ($set->{stage_id} eq "050") ? $job->download_dir : $job->analysis_dir;
+                $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $Conf::mgrast_shock_token);
             }
         }
-        if ($fdir && $fname) {
-            $self->return_file($fdir, $fname);
-        } else {
-            $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
-        }
+        $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
     }
     
     # return stage list

@@ -470,26 +470,29 @@ sub return_data {
     }
 }
 
-# print a file to download
-sub return_file {
-    my ($self, $filedir, $filename) = @_;
+# stream a file from shock to browser
+sub return_shock_file {
+    my ($self, $id, $size, $name, $auth) = @_;
     
-    unless ($filename && "$filedir/$filename" && (-s "$filedir/$filename")) {
-	    $self->return_data( {"ERROR" => "could not access filesystem"}, 404 );
+    my $response = undef;
+    # print headers
+    print "Content-Type:application/x-download\n";  
+    print "Access-Control-Allow-Origin: *\n";
+    print "Content-Length: ".$size."\n";
+    print "Content-Disposition:attachment;filename=".$name."\n\n";
+    eval {
+        my @args = (
+            $auth ? ('Authorization', "OAuth $auth") : (),
+            ':read_size_hint', 8192,
+            ':content_cb', sub{ my ($chunk) = @_; print $chunk; }
+        );
+        # print content
+        $response = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_raw', @args);
+    };
+    if ($@ || (! $response)) {
+        print "ERROR (500): Unable to retrieve file from Shock server\n";
     }
-    if (open(FH, "<$filedir/$filename")) {
-	    print "Content-Type:application/x-download\n";  
-	    print "Access-Control-Allow-Origin: *\n";
-	    print "Content-Length: " . (stat("$filedir/$filename"))[7] . "\n";
-	    print "Content-Disposition:attachment;filename=$filename\n\n";
-	    while (<FH>) {
-	        print $_;
-	    }
-	    close FH;
-	    exit 0;
-    } else {
-	    $self->return_data( {"ERROR" => "could not access requested file: $filename"}, 404 );
-    }
+    exit 0;
 }
 
 ## download array of info for metagenome files in shock
@@ -514,6 +517,7 @@ sub get_download_set {
         my $file_id = $attr->{stage_id}.'.'.$seen{$attr->{stage_id}};
         my $data = { id  => "mgm".$mgid,
 		             url => $self->cgi->url.'/download/mgm'.$mgid.'?file='.$file_id,
+		             node_id    => $node->{id},
 		             stage_id   => $attr->{stage_id},
 		             stage_name => $attr->{stage_name},
 		             file_type  => exists($attr->{file_format}) ? $attr->{file_format} : $attr->{data_type},
@@ -571,7 +575,11 @@ sub set_shock_node {
         $content->{attributes} = [undef, "$name.json", Content => $self->json->encode($attr)];
     }
     eval {
-        my @args = ($auth ? ('Authorization', "OAuth $auth") : (), 'Content_Type', 'multipart/form-data', $content ? ('Content', $content) : ());
+        my @args = (
+            $auth ? ('Authorization', "OAuth $auth") : (),
+            'Content_Type', 'multipart/form-data',
+            $content ? ('Content', $content) : ()
+        );
         my $post = $self->agent->post($Conf::shock_url.'/node', @args);
         $response = $self->json->decode( $post->content );
     };
@@ -591,7 +599,11 @@ sub update_shock_node {
     my $response = undef;
     my $content = {attributes => [undef, "n/a", Content => $self->json->encode($attr)]};
     eval {
-        my @args = ($auth ? ('Authorization', "OAuth $auth") : (), 'Content_Type', 'multipart/form-data', $content ? ('Content', $content) : ());
+        my @args = (
+            $auth ? ('Authorization', "OAuth $auth") : (),
+            'Content_Type', 'multipart/form-data',
+            $content ? ('Content', $content) : ()
+        );
         my $req = POST($Conf::shock_url.'/node/'.$id, @args);
         $req->method('PUT');
         my $put = $self->agent->request($req);
@@ -637,8 +649,6 @@ sub get_shock_file {
     };
     if ($@ || (! $response)) {
         return undef;
-    } elsif (ref($response) && exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET file $id from Shock: ".$response->{error}[0]}, $response->{status} );
     } elsif ($file) {
         if (open(FILE, ">$file")) {
             print FILE $response;
