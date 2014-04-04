@@ -47,7 +47,7 @@ sub info {
                                       'method'      => "GET",
                                       'type'        => "synchronous",  
                                       'attributes'  => { 'id'        => [ 'string', "user id" ],
-                                                         'login'     => [ 'string', "user login" ],
+                                                         'user'      => [ 'string', "user name" ],
                                                          'timestamp' => [ 'string', "timestamp for return of this query" ],
                                                          'files'     => [ 'list', [ 'object', [ { 'filename'  => [ 'string', "path of file from within user inbox" ],
                                                                                                   'filesize'  => [ 'string', "disk size of file in bytes" ],
@@ -66,7 +66,7 @@ sub info {
                                       'method'      => "POST",
                                       'type'        => "synchronous",
                                       'attributes'  => { 'id'        => [ 'string', "user id" ],
-                                                         'login'     => [ 'string', "user login" ],
+                                                         'user'      => [ 'string', "user name" ],
                                                          'status'    => [ 'string', "status message" ],
                                                          'timestamp' => [ 'string', "timestamp for return of this query" ]
                                                        },
@@ -107,11 +107,13 @@ sub view_inbox {
                         'checksum'  => $node->{file}{checksum}{md5},
                         'timestamp' => $node->{created_on} };
     }
-    $self->return_data( { 'id' => 'mgu'.$self->user->_id,
-                          'login' => 'mgu'.$self->user->login,
-                          'timestamp' => scalar localtime,
-                          'files' => \@files,
-                          'url' => $self->cgi->url."/".$self->name } );
+    $self->return_data({
+        id        => 'mgu'.$self->user->_id,
+        user      => $self->user->login,
+        timestamp => scalar localtime,
+        files     => \@files,
+        url       => $self->cgi->url."/".$self->name
+    });
 }
 
 sub upload_file {
@@ -124,18 +126,45 @@ sub upload_file {
         }
         my $fh = $self->cgi->upload('upload');
         if (defined $fh) {
+            # POST upload content to shock using file handle
+            # data POST, not form
+            my $response = undef;
             my $io_handle = $fh->handle;
-            if (open FH, ">$udir/$fn") {
-                my ($bytesread, $buffer);
-                while ($bytesread = $io_handle->read($buffer,4096)) {
-                    print FH $buffer;
-                }
-                close FH;
-                $self->return_data( { 'id' => $self->user->login,
-                                      'status' => "data received successfully",
-                                      'timestamp' => scalar localtime } );
+            eval {
+                my $post = HTTP::Request::StreamingUpload->new(
+                    POST    => $Conf::shock_url.'/node',
+                    fh      => $io_handle,
+                    headers => HTTP::Headers->new(
+                        'Content_Type' => 'application/octet-stream',
+                        'Authorization' => 'OAuth '.$Conf::mgrast_shock_token
+                    )
+                );
+                $response = $self->json->decode( $post->content );
+            };
+            if ($@ || (! ref($response))) {
+                $self->return_data({"ERROR" => "Unable to connect to Shock server"}, 507);
+            } elsif (exists($response->{error}) && $response->{error}) {
+                $self->return_data({"ERROR" => "Unable to POST to Shock: ".$response->{error}[0]}, $response->{status});
+            }
+            # PUT attributes to node
+            my $node_id = $response->{data}{id};
+            my $attr = {
+                type  => 'inbox',
+                id    => 'mgu'.$self->user->_id,
+                user  => $self->user->login,
+                email => $self->user->email
+            };
+            my $node = $self->update_shock_node($node_id, $attr, $Conf::mgrast_shock_token);
+            # return info
+            if ($node && ($node->{id} eq $node_id)) {
+                $self->return_data({
+                    id        => 'mgu'.$self->user->_id,
+                    user      => $self->user->login,
+                    status    => "data received successfully",
+                    timestamp => scalar localtime
+                });
             } else {
-                $self->return_data( {"ERROR" => "storing object failed - could not open target file"}, 507 );
+                $self->return_data({"ERROR" => "storing object failed - unable to update file with user info"}, 507);
             }
         } else {
             $self->return_data( {"ERROR" => "storing object failed - could not obtain filehandle"}, 507 );
