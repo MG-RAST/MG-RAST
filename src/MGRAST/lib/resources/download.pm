@@ -107,35 +107,34 @@ sub instance {
     # get data / parameters
     my $stage   = $self->cgi->param('stage') || undef;
     my $file    = $self->cgi->param('file') || undef;
-    my $setlist = $self->get_download_set($job->{metagenome_id});
+    my $setlist = $self->get_download_set($job->{metagenome_id}, $self->mgrast_token);
     
     # return file from shock
     if ($file) {
         my $node = undef;
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
-                $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $Conf::mgrast_shock_token);
+                $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $self->mgrast_token);
             }
         }
         $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
     }
-    
-    # return stage list
+    # return stage(s) list
+    my $data = { id => 'mgm'.$job->{metagenome_id},
+                 url => $self->cgi->url."/".$self->name."/mgm".$job->{metagenome_id},
+                 data => [] };
     if ($stage) {
-        my $subsets = [];
         foreach my $set (@$setlist) {
             if (($set->{stage_id} eq $stage) || ($set->{stage_name} eq $stage)) {
-                push @$subsets, $set;
+                push @{$data->{data}}, $set;
             }
         }
-        if (@$subsets > 0) {
-            $self->return_data($subsets);
-        } else {
-            $self->return_data( {"ERROR" => "requested stage ($stage) is not available"}, 404 );
-        }
-    } else {
-        $self->return_data($setlist);
     }
+    # return all
+    else {
+        $data->{data} = $setlist;
+    }
+    $self->return_data($data);
 }
 
 1;

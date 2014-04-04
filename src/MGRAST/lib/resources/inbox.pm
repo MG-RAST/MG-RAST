@@ -4,7 +4,10 @@ use strict;
 use warnings;
 no warnings('once');
 
+use POSIX qw(strftime);
 use HTTP::Request::StreamingUpload;
+use HTTP::Headers;
+use LWP::UserAgent;
 use Data::Dumper;
 use Conf;
 use parent qw(resources::resource);
@@ -100,8 +103,8 @@ sub view_inbox {
     my ($self) = @_;
 
     my $files = [];
-    my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => 'mgu'.$self->user->_id}, $Conf::mgrast_shock_token);
-    foreach my $node (@$mgdata) {
+    my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => 'mgu'.$self->user->_id}, $self->mgrast_token);
+    foreach my $node (@$inbox) {
         push @$files, { 'filename'  => $node->{file}{name},
                         'filesize'  => $node->{file}{size},
                         'checksum'  => $node->{file}{checksum}{md5},
@@ -110,8 +113,8 @@ sub view_inbox {
     $self->return_data({
         id        => 'mgu'.$self->user->_id,
         user      => $self->user->login,
-        timestamp => scalar localtime,
-        files     => \@files,
+        timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
+        files     => $files,
         url       => $self->cgi->url."/".$self->name
     });
 }
@@ -136,10 +139,11 @@ sub upload_file {
                     fh      => $io_handle,
                     headers => HTTP::Headers->new(
                         'Content_Type' => 'application/octet-stream',
-                        'Authorization' => 'OAuth '.$Conf::mgrast_shock_token
+                        'Authorization' => 'OAuth '.$self->mgrast_token
                     )
                 );
-                $response = $self->json->decode( $post->content );
+                my $req = LWP::UserAgent->new->request($post);
+                $response = $self->json->decode( $req->content );
             };
             if ($@ || (! ref($response))) {
                 $self->return_data({"ERROR" => "Unable to connect to Shock server"}, 507);
@@ -154,14 +158,14 @@ sub upload_file {
                 user  => $self->user->login,
                 email => $self->user->email
             };
-            my $node = $self->update_shock_node($node_id, $attr, $Conf::mgrast_shock_token);
+            my $node = $self->update_shock_node($node_id, $attr, $self->mgrast_token);
             # return info
             if ($node && ($node->{id} eq $node_id)) {
                 $self->return_data({
                     id        => 'mgu'.$self->user->_id,
                     user      => $self->user->login,
                     status    => "data received successfully",
-                    timestamp => scalar localtime
+                    timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
                 });
             } else {
                 $self->return_data({"ERROR" => "storing object failed - unable to update file with user info"}, 507);

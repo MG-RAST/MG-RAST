@@ -4,9 +4,11 @@ use strict;
 use warnings;
 no warnings('once');
 
+use Auth;
 use Conf;
 use CGI;
 use JSON;
+use MIME::Base64;
 use LWP::UserAgent;
 use HTTP::Request::Common;
 use Digest::MD5 qw(md5_hex md5_base64);
@@ -43,6 +45,13 @@ sub new {
     		              -32602 => "Invalid params",
     		              -32603 => "Internal error"
     		              };
+    # get mgrast token
+    my $mgrast_token = undef;
+    if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
+        my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
+        my $rep = Auth::globus_token($key);
+        $mgrast_token = $rep ? $rep->{access_token} : undef;
+    }
     # create object
     my $self = {
         format        => "application/json",
@@ -56,6 +65,7 @@ sub new {
         resource      => $params->{resource},
         user          => $params->{user},
         token         => $params->{cgi}->http('HTTP_AUTH') || undef,
+        mgrast_token  => $mgrast_token,
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
         json_rpc_id   => ($params->{json_rpc} && exists($params->{json_rpc_id})) ? $params->{json_rpc_id} : undef,
         html_messages => $html_messages,
@@ -126,6 +136,10 @@ sub user {
 sub token {
     my ($self) = @_;
     return $self->{token};
+}
+sub mgrast_token {
+    my ($self) = @_;
+    return $self->{mgrast_token};
 }
 sub json_rpc {
     my ($self) = @_;
@@ -476,7 +490,7 @@ sub return_shock_file {
     
     my $response = undef;
     # print headers
-    print "Content-Type:application/x-download\n";  
+    print "Content-Type:application/x-download\n";
     print "Access-Control-Allow-Origin: *\n";
     print "Content-Length: ".$size."\n";
     print "Content-Disposition:attachment;filename=".$name."\n\n";
@@ -497,11 +511,11 @@ sub return_shock_file {
 
 ## download array of info for metagenome files in shock
 sub get_download_set {
-    my ($self, $mgid, $seq_only) = @_;
+    my ($self, $mgid, $auth, $seq_only) = @_;
 
-    my %seen = {};
+    my %seen = ();
     my $stages = [];
-    my $mgdata = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$mgid}, $Conf::mgrast_shock_token);
+    my $mgdata = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$mgid}, $auth);
     @$mgdata = grep { exists($_->{attributes}{stage_id}) && exists($_->{attributes}{data_type}) } @$mgdata;
     @$mgdata = sort { ($a->{attributes}{stage_id} cmp $b->{attributes}{stage_id}) ||
                         ($a->{attributes}{data_type} cmp $b->{attributes}{data_type}) } @$mgdata;
