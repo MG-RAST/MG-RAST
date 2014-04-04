@@ -124,6 +124,7 @@ sub instance {
                  url => $self->cgi->url."/".$self->name."/mgm".$job->{metagenome_id},
                  data => [] };
     if ($stage) {
+        $data->{url} .= '?stage='.$stage;
         foreach my $set (@$setlist) {
             if (($set->{stage_id} eq $stage) || ($set->{stage_name} eq $stage)) {
                 push @{$data->{data}}, $set;
