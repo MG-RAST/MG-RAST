@@ -13,6 +13,7 @@ use List::MoreUtils qw(natatime);
 use DBI;
 use JSON;
 use Data::Dumper;
+use MIME::Base64;
 use LWP::UserAgent;
 use Cache::Memcached;
 use File::Temp qw/ tempfile tempdir /;
