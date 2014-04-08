@@ -228,8 +228,34 @@ sub pipeline_opts {
              'priority',
              'screen_indexes',
              'sequence_type_guess',
-             'sequencing_method_guess'  
+             'sequencing_method_guess'
     ];
+}
+
+# hardcoded list of metagenome pipeline paramters with defaults
+sub pipeline_defaults {
+    return {
+        'file_type' => 'fna',
+        'filter_ln' => 'yes',
+        'filter_ln_mult' => '2.0',
+        'filter_ambig' => 'yes',
+        'max_ambig' => '5',
+        'dynamic_trim' => 'yes',
+        'min_qual' => '15',
+        'max_lqb' => '5',
+        'dereplicate' => 'yes',
+        'prefix_length' => '50',
+        'bowtie' => 'yes',
+        'screen_indexes' => 'h_sapiens_asm',
+        'fgs_type' => '454',
+        'rna_pid' => '97',
+        'aa_pid' => '90',
+        'm5nr_sims_version' => '1',
+        'm5rna_sims_version' => '1',
+        'm5nr_annotation_version' => '1',
+        'm5rna_annotation_version' => '1',
+        'assembled' => 'no'
+    };
 }
 
 # hardcoded list of metagenome sequence statistics names
