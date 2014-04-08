@@ -83,7 +83,7 @@ sub new {
 	           memd     => $memd,    # memcached handle
 	           json     => $json,    # json handle
 	           chunk    => 2500,     # max # md5s to query at once
-	           jobs     => [],       # array: job_id	           
+	           jobs     => [],       # array: job_id
 	           job_map  => {},       # hash: mg_id => job_id
 	           mg_map   => {},       # hash: job_id => mg_id
 	           name_map => {},       # hash: mg_id => job_name
@@ -364,13 +364,14 @@ sub _get_mg_stats {
     my ($self, $mgid) = @_;
     
     # get node
-    my $stat_node = $self->_get_mg_node($mgid, 'data_type=statistics');
+    my $stat_node = $self->stat_node($mgid);
     unless ($stat_node && exists($stat_node->{id})) {
         return {};
     }
     # get content
     my $stats = {};
     eval {
+        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
         my $get = $self->_agent->get($Conf::shock_url.'/node/'.$stat_node->{id}.'?download', @args);
         $stats = $self->_json->decode( $get->content );
     };
@@ -378,6 +379,16 @@ sub _get_mg_stats {
         return {};
     }
     return $stats;
+}
+
+sub stat_node {
+    my ($self, $mgid) = @_;
+    return $self->_get_mg_node($mgid, 'data_type=statistics');
+}
+
+sub sims_node {
+    my ($self, $mgid) = @_;
+    $self->_get_mg_node($mgid, 'data_type=similarity&stage_name=filter.sims');
 }
 
 sub _get_mg_node {
@@ -397,6 +408,25 @@ sub _get_mg_node {
         return {};
     }
     return $response->{data}[0];
+}
+
+sub _get_sim_record {
+    my ($self, $node_id, $seek, $length) = @_;
+    
+    unless ($node_id && defined($seek) && defined($length)) {
+        return '';
+    }
+    my $data = '';
+    eval {
+        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+        my $url = $Conf::shock_url.'/node/'.$node_id.'?download&seek='.$seek.'&length='.$length;
+        my $get = $self->_agent->get($url, @args);
+        $data = $get->content;
+    };
+    if ($@ || (! $data)) {
+        return '';
+    }
+    return $data;
 }
 
 sub get_source_stats {
@@ -469,20 +499,15 @@ sub get_md5_sims {
   my ($self, $jobid, $md5_seeks) = @_;
 
   my $sims = {};
-  if ($md5_seeks && (@$md5_seeks > 0)) {
+  my $sim_node = $self->sims_node($self->_mg_map->{$jobid});
+  if ($md5_seeks && (@$md5_seeks > 0) && $sim_node && exists($sim_node->{id})) {
     @$md5_seeks = sort { $a->[1] <=> $b->[1] } @$md5_seeks;
-    open(FILE, "<" . $self->_sim_file($jobid)) || return {};
-    foreach my $set ( @$md5_seeks ) {
+    foreach my $set (@$md5_seeks) {
       my ($md5, $seek, $length) = @$set;
-      my $rec = '';
-      my %tmp = ();
-      seek(FILE, $seek, 0);
-      read(FILE, $rec, $length);
+      my $rec = $self->_get_sim_record($sim_node->{id}, $seek, $length);
       chomp $rec;
-      
       $sims->{$md5} = [ split(/\n/, $rec) ];
     }
-    close FILE;
   }
   return $sims;
   # md5 => [sim lines]
@@ -1002,32 +1027,6 @@ sub metagenome_search {
 
 =pod
 
-=item * B<all_read_sequences>
-
-Retrieve all the [ {id , sequence} ] from the metagenome job directory.
-
-=cut 
-
-sub all_read_sequences {
-    my ($self) = @_;
-
-    my $seqs = [];
-    while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        open(FILE, "<" . $self->_sim_file($j)) || next;
-        while (my $line = <FILE>) {
-            chomp $line;
-            my @tabs = split(/\t/, $line);
-            if (@tabs == 13) {
-	            push @$seqs, { id => "$mg|$tabs[0]", sequence => $tabs[12] };
-            }
-        }
-        close FILE;
-    }
-    return $seqs;
-}
-
-=pod
-
 =item * B<md5s_to_read_sequences> (I<md5s>, I<eval>, I<ident>)
 
 Retrieve the [ {id , sequence} ] from the metagenome job directory for I<md5s> with I<eval>.
@@ -1036,13 +1035,12 @@ Retrieve the [ {id , sequence} ] from the metagenome job directory for I<md5s> w
 
 sub md5s_to_read_sequences {
     my ($self, $md5s, $eval, $ident, $alen) = @_;
-
-    unless ($md5s && (@$md5s > 0)) { return $self->all_read_sequences(); }
-  
+    
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
 
+    my %mg_sims = map { $_, $self->sims_node($_) } keys %{$self->_job_map};
     my $seqs = [];
     my %umd5 = map {$_, 1} @$md5s;
     my $iter = natatime $self->_chunk, keys %umd5;
@@ -1056,26 +1054,23 @@ sub md5s_to_read_sequences {
         my $sth = $self->_dbh->prepare($sql);
         $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
         while (my @row = $sth->fetchrow_array()) {
-            push @{ $data->{$row[0]} }, [$row[1], $row[2]];
+            push @{ $data->{$self->_mg_map->{$row[0]}} }, [$row[1], $row[2]];
         }
         $sth->finish;
         
-        while ( my ($j, $info) = each %$data ) {
-            open(FILE, "<" . $self->_sim_file($j)) || next;
+        while ( my ($m, $info) = each %$data ) {
+            next unless (exists($mg_sims{$m}) && $mg_sims{$m} && exists($mg_sims{$m}{id}));
             foreach my $set (@$info) {
 	            my ($seek, $len) = @$set;
-	            my $rec = '';
-	            seek(FILE, $seek, 0);
-	            read(FILE, $rec, $len);
+	            my $rec = $self->_get_sim_record($mg_sims{$m}{id}, $seek, $len);
 	            chomp $rec;
 	            foreach my $line ( split(/\n/, $rec) ) {
 	                my @tabs = split(/\t/, $line);
 	                if (@tabs == 13) {
-	                    push @$seqs, { md5 => $tabs[1], id => $self->_mg_map->{$j}."|".$tabs[0], sequence => $tabs[12] };
+	                    push @$seqs, { md5 => $tabs[1], id => $m."|".$tabs[0], sequence => $tabs[12] };
 	                }
 	            }
             }
-            close FILE;
         }
     }
     $self->_dbh->commit;
