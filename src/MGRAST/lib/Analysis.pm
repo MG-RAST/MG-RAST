@@ -68,6 +68,7 @@ sub new {
   }
   
   # set json handle
+  my $agent = LWP::UserAgent->new;
   my $json = JSON->new;
   $json = $json->utf8();
   $json->max_size(0);
@@ -77,6 +78,7 @@ sub new {
   my $self = { dbh      => $dbh,     # job data db_handle
 	           ach      => $ach,     # ach/babel object
 	           jcache   => $job_dbh, # job cache db_handle
+	           agent    => $agent,   # LWP agent handle
 	           memd     => $memd,    # memcached handle
 	           json     => $json,    # json handle
 	           chunk    => 2500,     # max # md5s to query at once
@@ -124,6 +126,10 @@ sub ach {
 sub _jcache {
   my ($self) = @_;
   return $self->{jcache};
+}
+sub _agent {
+  my ($self) = @_;
+  return $self->{agent};
 }
 sub _memd {
   my ($self) = @_;
@@ -286,15 +292,6 @@ sub get_all_job_ids {
 }
 
 ####################
-# Dir / File path
-####################
-
-sub _sim_file {
-  my ($self, $job) = @_;
-  return $job ? $self->_analysis_dir($job) . "/900.loadDB.sims.filter.seq" : '';
-}
-
-####################
 # misc
 ####################
 
@@ -365,13 +362,31 @@ sub _mg_stats {
 sub _get_mg_stats {
     my ($self, $mgid) = @_;
     
-    # get stat node
-    my $response = undef;
-    my $agent = LWP::UserAgent->new;
-    my $query = '?query&limit=1&type=metagenome&data_type=statistics&id=mgm'.$mgid;
-    my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+    # get node
+    my $stat_node = $self->_get_mg_node($mgid, 'data_type=statistics');
+    unless ($stat_node && exists($stat_node->{id})) {
+        return {};
+    }
+    # get content
+    my $stats = {};
     eval {
-        my $get = $agent->get($Conf::shock_url.'/node'.$query, @args);
+        my $get = $self->_agent->get($Conf::shock_url.'/node/'.$stat_node->{id}.'?download', @args);
+        $stats = $self->_json->decode( $get->content );
+    };
+    if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
+        return {};
+    }
+    return $stats;
+}
+
+sub _get_mg_node {
+    my ($self, $mgid, $type) = @_;
+    
+    my $response = undef;
+    my $query = '?query&limit=1&type=metagenome&'.$type.'&id=mgm'.$mgid;
+    eval {
+        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+        my $get = $self->_agent->get($Conf::shock_url.'/node'.$query, @args);
         $response = $self->_json->decode( $get->content );
     };
     if ( $@ || (! ref($response)) ||
@@ -380,18 +395,7 @@ sub _get_mg_stats {
          (scalar(@{$response->{data}}) == 0) ) {
         return {};
     }
-    my $node_id = $response->{data}[0]{id};
-    
-    # get stat content
-    my $stats = {};
-    eval {
-        my $get = $agent->get($Conf::shock_url.'/node/'.$node_id.'?download', @args);
-        $stats = $self->_json->decode( $get->content );
-    };
-    if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
-        return {};
-    }
-    return $stats;
+    return $response->{data}[0];
 }
 
 sub get_source_stats {
