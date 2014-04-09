@@ -716,12 +716,13 @@ sub get_shock_node {
 
 # write file content to given filename, else return file content as string
 sub get_shock_file {
-    my ($self, $id, $file, $auth) = @_;
+    my ($self, $id, $file, $auth, $index) = @_;
     
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "OAuth $auth") : ();
-        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download', @args);
+        my $url = $Conf::shock_url.'/node/'.$id.'?download'.($index ? '&'.$index : '');
+        my $get = $self->agent->get($url, @args);
         $response = $get->content;
     };
     if ($@ || (! $response)) {

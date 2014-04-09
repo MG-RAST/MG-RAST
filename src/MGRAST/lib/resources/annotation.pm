@@ -265,19 +265,27 @@ sub prepare_data {
         $query .= " ORDER BY seek";
     }
     
-    my $srcid = $mgdb->_src_id->{$source};
-    my @head  = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
-    my $count = 0;
+    # get shock node for file
+    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => 'mgm'.$job->{metagenome_id}};
+    my $sim_node = $self->get_shock_query($params, $self->mgrast_token);
+    unless ((@$sim_node > 0) && exists($sim_node->[0]{id})) {
+        $self->return_data({"ERROR" => "Unable to retrieve $format file"}, 500);
+    }
+    my $node_id = $sim_node->[0]{id};
     
-    open(FILE, "<" . $mgdb->_sim_file($data->{job_id})) || $self->return_data({"ERROR" => "resource database offline"}, 503);
+    # print html and line headers
+    my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
     print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
     print join("\t", @head)."\n";
-
+    
+    # start query
     my $hs  = HTML::Strip->new();
     my $sth = $mgdb->_dbh->prepare($query);
     $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
     
-    # loop through indices and print data
+    # loop through indexes and print data
+    my $srcid = $mgdb->_src_id->{$source};
+    my $count = 0;
     while (my @row = $sth->fetchrow_array()) {
         my ($md5, $seek, $len, $mmd5) = @row;
         my $sql = "";
@@ -308,10 +316,8 @@ sub prepare_data {
             if (@$ann == 0) { next; }
         }
         
-        # pull data from indexed file
-        my $rec = '';
-        seek(FILE, $seek, 0);
-        read(FILE, $rec, $len);
+        # pull data from indexed shock file
+        my $rec = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seek.'&length='.$len);
         chomp $rec;
         foreach my $line ( split(/\n/, $rec) ) {
             my @tabs = split(/\t/, $line);
@@ -341,7 +347,6 @@ sub prepare_data {
     $sth->finish;
     $mgdb->_dbh->commit;
     print "Download complete. $count rows retrieved\n";
-    close FILE;
     exit 0;
 }
 
