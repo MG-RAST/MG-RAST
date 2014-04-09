@@ -266,7 +266,7 @@ sub prepare_data {
     }
     
     # get shock node for file
-    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => 'mgm'.$job->{metagenome_id}};
+    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => 'mgm'.$mgid};
     my $sim_node = $self->get_shock_query($params, $self->mgrast_token);
     unless ((@$sim_node > 0) && exists($sim_node->[0]{id})) {
         $self->return_data({"ERROR" => "Unable to retrieve $format file"}, 500);
