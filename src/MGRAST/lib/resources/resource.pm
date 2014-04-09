@@ -11,6 +11,7 @@ use JSON;
 use MIME::Base64;
 use LWP::UserAgent;
 use HTTP::Request::Common;
+use Storable qw(dclone);
 use Digest::MD5 qw(md5_hex md5_base64);
 
 1;
@@ -322,6 +323,15 @@ sub seq_stats {
     ];
 }
 
+# set of pipeline stage names that have subset index (virtual) files
+sub subset_files {
+    return { 'preprocess' => 1,
+             'dereplication' => 1,
+             'screen' => 1,
+             'rna.filter' => 1
+    };
+}
+
 # get / set functions for class variables
 sub format {
     my ($self, $format) = @_;
@@ -512,22 +522,25 @@ sub return_data {
 
 # stream a file from shock to browser
 sub return_shock_file {
-    my ($self, $id, $size, $name, $auth) = @_;
+    my ($self, $id, $size, $name, $auth, $subset) = @_;
     
     my $response = undef;
     # print headers
     print "Content-Type:application/x-download\n";
     print "Access-Control-Allow-Origin: *\n";
-    print "Content-Length: ".$size."\n";
+    if ($size) {
+        print "Content-Length: ".$size."\n";
+    }
     print "Content-Disposition:attachment;filename=".$name."\n\n";
     eval {
+        my $url = $Conf::shock_url.'/node/'.$id.'?download_raw'.($subset ? '&index='.$name : '');
         my @args = (
             $auth ? ('Authorization', "OAuth $auth") : (),
             ':read_size_hint', 8192,
             ':content_cb', sub{ my ($chunk) = @_; print $chunk; }
         );
         # print content
-        $response = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_raw', @args);
+        $response = $self->agent->get($url, @args);
     };
     if ($@ || (! $response)) {
         print "ERROR (500): Unable to retrieve file from Shock server\n";
@@ -566,10 +579,34 @@ sub get_download_set {
 		             file_size  => $file->{size},
 		             file_md5   => $file->{checksum}{md5}
 		};
-		if (exists $attr->{statistics}) {
-		    $data->{statistics} = $attr->{statistics};
-		}
-		push @$stages, $data;
+		# subset nodes - has virtual file from index
+		if (exists $self->subset_files->{$data->{stage_name}}) {
+		    # passed file
+		    $data->{file_name} = $data->{stage_name}.'.passed';
+		    $data->{file_size} = undef;
+		    $data->{file_md5}  = undef;
+		    if (exists($attr->{statistics}) && exists($attr->{statistics}{$attr->{stage_name}.'.passed'})) {
+		        $data->{statistics} = $attr->{statistics}{$attr->{stage_name}.'.passed'};
+		    }
+		    push @$stages, $data;
+		    # removed file
+		    if (exists $node->{indexes}{$data->{stage_name}.'.removed'}) {
+		        my $copy = dclone($data);
+		        my $fid  = $copy->{stage_id}.'.'.($seen{$copy->{stage_id}} + 1);
+		        $copy->{file_name} = $copy->{stage_name}.'.removed';
+		        $copy->{file_id} = $fid;
+		        $copy->{url} = $self->cgi->url.'/download/mgm'.$mgid.'?file='.$fid;
+                if (exists($attr->{statistics}) && exists($attr->{statistics}{$attr->{stage_name}.'.removed'})) {
+                    $copy->{statistics} = $attr->{statistics}{$attr->{stage_name}.'.removed'};
+                }
+		        push @$stages, $copy;
+            }
+        } else {
+            if (exists $attr->{statistics}) {
+                $data->{statistics} = $attr->{statistics};
+            }
+		    push @$stages, $data;
+	    }
     }
     return $stages;
 }
