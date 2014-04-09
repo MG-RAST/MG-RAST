@@ -531,7 +531,7 @@ sub return_shock_file {
     if ($size) {
         print "Content-Length: ".$size."\n";
     }
-    print "Content-Disposition:attachment;filename=".$name."\n\n";
+    print "Content-Disposition:attachment;filename=".$name.($subset ? '.fna' : '')."\n\n";
     eval {
         my $url = $Conf::shock_url.'/node/'.$id.'?download_raw'.($subset ? '&index='.$name : '');
         my @args = (
