@@ -81,157 +81,62 @@ sub instance {
   
     # check id format
     my $rest = $self->rest;
-    my (undef, $mgid) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
-    if ((! $mgid) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: ".$rest->[0]}, 400 );
+    my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
-    
-    # get job
+
+    # get database
     my $master = $self->connect_to_datasource();
-    my $job = $master->Job->get_objects( {metagenome_id => $mgid, viewable => 1} );
+
+    # get data
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        $self->return_data( {"ERROR" => "id $mgid does not exists"}, 404 );
+        $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
     }
     $job = $job->[0];
-  
+    unless ($job->viewable) {
+        $self->return_data( {"ERROR" => "id $id is still processing and unavailable"}, 404 );
+    }
+    
     # check rights
-    unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $mgid) || $self->user->has_star_right('view', 'metagenome')))) {
+    unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
 
     # get data / parameters
-    my $setlist = $self->setlist($job);
-    my $stage = $self->cgi->param('stage') || undef;
-    my $file  = $self->cgi->param('file') || undef;
+    my $stage   = $self->cgi->param('stage') || undef;
+    my $file    = $self->cgi->param('file') || undef;
+    my $setlist = $self->get_download_set($job->{metagenome_id}, $self->mgrast_token);
     
-    # return file
+    # return file from shock
     if ($file) {
-        my ($fdir, $fname);
+        my $node = undef;
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
-                $fname = $set->{file_name};
-                $fdir  = ($set->{stage_id} eq "050") ? $job->download_dir : $job->analysis_dir;
+                my $subset = exists($self->subset_files->{$set->{stage_name}}) ? 1 : 0;
+                $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $self->mgrast_token, $subset);
             }
         }
-        if ($fdir && $fname) {
-            $self->return_file($fdir, $fname);
-        } else {
-            $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
-        }
+        $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
     }
-    
-    # return stage list
+    # return stage(s) list
+    my $data = { id => 'mgm'.$job->{metagenome_id},
+                 url => $self->cgi->url."/".$self->name."/mgm".$job->{metagenome_id},
+                 data => [] };
     if ($stage) {
-        my $subsets = [];
+        $data->{url} .= '?stage='.$stage;
         foreach my $set (@$setlist) {
             if (($set->{stage_id} eq $stage) || ($set->{stage_name} eq $stage)) {
-                push @$subsets, $set;
+                push @{$data->{data}}, $set;
             }
         }
-        if (@$subsets > 0) {
-            $self->return_data($subsets);
-        } else {
-            $self->return_data( {"ERROR" => "requested stage ($stage) is not available"}, 404 );
-        }
-    } else {
-        $self->return_data($setlist);
     }
-}
-
-sub setlist {
-    my ($self, $job) = @_;
-
-    my $rdir = $job->download_dir;
-    my $adir = $job->analysis_dir;
-    my $stages = [];
-    
-    ## hardcode upload sequence files: fastq = 050.1, fasta = 050.2
-    my $fastq = { id  => "mgm".$job->metagenome_id,
-	              url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.1',
-	              stage_id   => "050",
-	              stage_name => "upload",
-	              file_type  => 'fastq',
-	              file_id    => "050.1",
-	              file_name  => $job->job_id.'.fastq.gz'
-	};
-	my $fasta = { id  => "mgm".$job->metagenome_id,
-	              url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.2',
-	              stage_id   => "050",
-	              stage_name => "upload",
-	              file_type  => 'fna',
-	              file_id    => "050.2",
-	              file_name  => $job->job_id.'.fna.gz'
-	};
-    
-    if (opendir(my $dh, $rdir)) {
-        # add fastq / fastq
-        my @rawfiles = sort grep { -f "$rdir/$_" } readdir($dh);
-        if ( any {$_ eq $fastq->{file_name}} @rawfiles ) {
-            push @$stages, $fastq;
-        }
-        if ( any {$_ eq $fasta->{file_name}} @rawfiles ) {
-            push @$stages, $fasta;
-        }
-        
-        closedir $dh;
-        # start at 3, skip fastq / fasta
-        my $fnum = 3;
-        foreach my $rf (@rawfiles) {
-            next if (($rf eq $fastq->{file_name}) || ($rf eq $fasta->{file_name}));
-            my $ftype;
-            if ($rf =~ /\.gz$/) {
-                ($ftype) = $rf =~ /\.([^\.]+)\.gz$/;
-            } else {
-                ($ftype) = $rf =~ /\.([^\.]+)$/;
-            }
-	        push(@$stages, { id  => "mgm".$job->metagenome_id,
-			                 url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file=050.'.$fnum,
-			                 stage_id   => "050",
-			                 stage_name => "upload",
-			                 file_type  => $ftype,
-			                 file_id    => "050.".$fnum,
-			                 file_name  => $rf } );
-            $fnum += 1;
-        }
-    } else {
-        $self->return_data( {"ERROR" => "job directory could not be opened"}, 404 );
+    # return all
+    else {
+        $data->{data} = $setlist;
     }
-    
-    if (opendir(my $dh, $adir)) {
-        my @stagefiles = sort grep { -f "$adir/$_" } readdir($dh);
-        closedir $dh;
-        my $stagehash = {};
-        foreach my $sf (@stagefiles) {
-            my $ftype;
-	        my ($stageid, $stagename) = $sf =~ /^(\d+)\.([^\.]+)/;
-	        if ($sf =~ /\.gz$/) {
-                ($ftype) = $sf =~ /\.([^\.]+)\.gz$/;
-            } else {
-                ($ftype) = $sf =~ /\.([^\.]+)$/;
-            }
-	        next unless ($stageid && $stagename && $ftype);
-	        if (exists($stagehash->{$stageid})) {
-	            $stagehash->{$stageid} += 1;
-	        } else {
-	            $stagehash->{$stageid} = 1;
-	        }
-	        push(@$stages, { id  => "mgm".$job->metagenome_id,
-			                 url => $self->cgi->url.'/'.$self->{name}.'/mgm'.$job->metagenome_id.'?file='.$stageid.'.'.$stagehash->{$stageid},
-			                 stage_id   => $stageid,
-			                 stage_name => $stagename,
-			                 file_type  => $ftype,
-			                 file_id    => $stageid.".".$stagehash->{$stageid},
-			                 file_name  => $sf } );
-        }
-    } else {
-        $self->return_data( {"ERROR" => "job directory could not be opened"}, 404 );
-    }
-    
-    if (@$stages > 0) {
-        return $stages;
-    } else {
-        $self->return_data( {"ERROR" => "no stagefiles found"}, 404 );
-    }
+    $self->return_data($data);
 }
 
 1;
