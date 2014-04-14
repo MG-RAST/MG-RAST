@@ -40,13 +40,13 @@ sub new {
                             'value' => ['list', ['string', 'CV term']]}, 'list of CV terms for metadata'] ]
         },
         "ontology" => {
-            "name": ['string', 'ontology name'],
-            "nodes": ['hash', [{'key' => ['string', 'ontology ID'],
+            "name" => ['string', 'ontology name'],
+            "nodes" => ['hash', [{'key' => ['string', 'ontology ID'],
                                 'value' => ['hash', 'hash of information and relationships for given ontology ID']}, 'info for ontology ID']],
-            "rootNode": ['string', 'ontology ID of root'],
-            "showRoot": ['boolean', 'option to show root when displaying'],
-            "type": ['string', 'this type'],
-            "version": ['string', 'version of this ontology']
+            "rootNode" => ['string', 'ontology ID of root'],
+            "showRoot" => ['boolean', 'option to show root when displaying'],
+            "type" => ['string', 'this type'],
+            "version" => ['string', 'version of this ontology']
         },
         "export" => {
             "id"        => [ 'string', 'unique object identifier' ],
@@ -104,7 +104,7 @@ sub info {
             { 'name'        => "cv",
               'request'     => $self->cgi->url."/".$self->name."/cv",
               'description' => "Returns static controlled vocabularies used in metadata. By default returns all CVs at latest version. If label and version options used, returns those specific values.",
-              'example'     => [ $self->cgi->url."/".$self->name."/cv",
+              'example'     => [ $self->cgi->url."/".$self->name."/cv?label=country",
                                  'metadata controlled vocabularies' ],
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -127,7 +127,7 @@ sub info {
                                     'name'    => ['string', 'ontology name'],
                                     'version' => ['string', 'version of ontology to use'] },
                                  'body'     => {},
-                                 'options'  => {}
+                                 'options'  => {} }
             },
             { 'name'        => "export",
               'request'     => $self->cgi->url."/".$self->name."/export/{ID}",
@@ -239,7 +239,7 @@ sub static {
         unless ($ver && $name) {
             $self->return_data( {"ERROR" => "'name' and 'version' are required parameters"}, 404 );
         }
-        my $nodes = get_shock_query({'type'=>'ontology', 'name'=>$name, 'version'=>$ver});
+        my $nodes = $self->get_shock_query({'type'=>'ontology', 'name'=>$name, 'version'=>$ver});
         unless ($nodes && (@$nodes == 1)) {
             $self->return_data( {"ERROR" => "ontology data for $name (version $ver) is missing or corrupt"}, 500 );
         }
