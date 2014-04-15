@@ -24,7 +24,7 @@ sub new {
     eval {
         require Cache::Memcached;
         Cache::Memcached->import();
-        $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache], 'debug' => 0, 'compress_threshold' => 10_000};
+        $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache || ''], 'debug' => 0, 'compress_threshold' => 10_000};
     };
     my $agent = LWP::UserAgent->new;
     my $json  = JSON->new;
