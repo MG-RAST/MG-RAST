@@ -326,6 +326,9 @@ sub _get_where_str {
 sub _run_fraggenescan {
   my ($self, $fasta) = @_;
 
+  unless ($Conf::run_fraggenescan) {
+    return "";
+  }
   my ($infile_hdl, $infile_name) = tempfile("fgs_in_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fna');
   print $infile_hdl $fasta;
   close $infile_hdl;
