@@ -738,6 +738,31 @@ sub get_shock_query {
     }
 }
 
+sub get_awe_query {
+    my ($self, $params, $recent) = @_;
+    
+    my $awe = undef;
+    my $query = '?query';
+    if ($params && (scalar(keys %$params) > 0)) {
+        map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
+    }
+    if ($recent) {
+        $query .= '&recent='.$recent
+    }
+    eval {
+        my $get = undef;
+        $get = $self->agent->get($Conf::awe_url.'/job'.$query);
+        $awe = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($awe))) {
+        return [];
+    } elsif (exists($awe->{error}) && $awe->{error}) {
+        $self->return_data( {"ERROR" => "Unable to query AWE: ".$awe->{error}[0]}, $awe->{status} );
+    } else {
+        return $awe->{data};
+    }
+}
+
 sub get_solr_query {
     my ($self, $method, $server, $collect, $query, $sort, $offset, $limit, $fields) = @_;
     
