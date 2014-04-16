@@ -39,6 +39,15 @@ sub new {
             "select"   => [ 'hash', [{'key' => ['string', 'metadata label'],
                             'value' => ['list', ['string', 'CV term']]}, 'list of CV terms for metadata'] ]
         },
+        "ontology" => {
+            "name" => ['string', 'ontology name'],
+            "nodes" => ['hash', [{'key' => ['string', 'ontology ID'],
+                                'value' => ['hash', 'hash of information and relationships for given ontology ID']}, 'info for ontology ID']],
+            "rootNode" => ['string', 'ontology ID of root'],
+            "showRoot" => ['boolean', 'option to show root when displaying'],
+            "type" => ['string', 'this type'],
+            "version" => ['string', 'version of this ontology']
+        },
         "export" => {
             "id"        => [ 'string', 'unique object identifier' ],
             "name"      => [ 'string', 'human readable identifier' ],
@@ -95,7 +104,7 @@ sub info {
             { 'name'        => "cv",
               'request'     => $self->cgi->url."/".$self->name."/cv",
               'description' => "Returns static controlled vocabularies used in metadata. By default returns all CVs at latest version. If label and version options used, returns those specific values.",
-              'example'     => [ $self->cgi->url."/".$self->name."/cv",
+              'example'     => [ $self->cgi->url."/".$self->name."/cv?label=country",
                                  'metadata controlled vocabularies' ],
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -105,6 +114,20 @@ sub info {
                                  'options'  => {
                                      'label'   => ['string', 'metadata label'],
                                      'version' => ['string', 'version of CV select list or ontology to use'] } }
+            },
+            { 'name'        => "ontology",
+              'request'     => $self->cgi->url."/".$self->name."/ontology",
+              'description' => "Returns static ontology used in metadata for the given name and version.",
+              'example'     => [ $self->cgi->url."/".$self->name."/ontology?name=biome&version=2013-04-27",
+                                 'metadata ontology lookup' ],
+              'method'      => "GET",
+              'type'        => "synchronous",
+              'attributes'  => $self->attributes->{ontology},
+              'parameters'  => { 'required' => {
+                                    'name'    => ['string', 'ontology name'],
+                                    'version' => ['string', 'version of ontology to use'] },
+                                 'body'     => {},
+                                 'options'  => {} }
             },
             { 'name'        => "export",
               'request'     => $self->cgi->url."/".$self->name."/export/{ID}",
@@ -162,7 +185,7 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif (($self->rest->[0] eq 'template') || ($self->rest->[0] eq 'cv')) {
+    } elsif (($self->rest->[0] eq 'template') || ($self->rest->[0] eq 'cv') || ($self->rest->[0] eq 'ontology')) {
         $self->static($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'export') && (scalar(@{$self->rest}) == 2)) {
         $self->instance($self->rest->[1]);
@@ -209,6 +232,18 @@ sub static {
                 }
             }
         }
+    # get ontology data
+    } elsif ($type eq 'ontology') {
+        my $ver  = $self->cgi->param('version') || '';
+        my $name = $self->cgi->param('name') || '';
+        unless ($ver && $name) {
+            $self->return_data( {"ERROR" => "'name' and 'version' are required parameters"}, 404 );
+        }
+        my $nodes = $self->get_shock_query({'type'=>'ontology', 'name'=>$name, 'version'=>$ver});
+        unless ($nodes && (@$nodes == 1)) {
+            $self->return_data( {"ERROR" => "ontology data for $name (version $ver) is missing or corrupt"}, 500 );
+        }
+        $data = $nodes->[0]->{attributes};
     # get template data
     } elsif ($type eq 'template') {
         my $master = $self->connect_to_datasource();
