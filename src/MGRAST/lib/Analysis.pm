@@ -41,13 +41,12 @@ sub new {
   # connect to database
   unless ($dbh) {
     eval {
-      my $dbms     = $Conf::mgrast_dbms;
       my $host     = $Conf::mgrast_dbhost;
       my $database = $Conf::mgrast_db;
       my $user     = $Conf::mgrast_dbuser;
       my $password = $Conf::mgrast_dbpass;
       
-      $dbh = DBI->connect("DBI:$dbms:dbname=$database;host=$host", $user, $password, 
+      $dbh = DBI->connect("DBI:Pg:dbname=$database;host=$host", $user, $password, 
 			  { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
 			    die "database connect error.";
     };
