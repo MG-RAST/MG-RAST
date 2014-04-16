@@ -51,13 +51,13 @@ sub info {
                                     { 'name'        => "instance",
                                       'request'     => $self->cgi->url."/".$self->name."/{ID}",
                                       'description' => "Returns a single user object.",
-                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/joeblow"',
+                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
                     			                         "info for user 'joeblow'" ],
                                       'method'      => "GET",
                                       'type'        => "synchronous" ,  
                                       'attributes'  => $self->attributes,
                                       'parameters'  => { 'options'     => {},
-                                                         'required'    => { "id" => [ "string", "unique user login" ] },
+                                                         'required'    => { "id" => [ "string", "unique user login or ID" ] },
                                                          'body'        => {} } },
                                      ]
                                  };
@@ -82,9 +82,14 @@ sub instance {
     }
     
     # get data
-    my $user = $master->User->get_objects( {"login" => $rest->[0]} );
+    my $user = [];
+    if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
+        $user = $master->User->get_objects( {"_id" => $1} );
+    } else { # user login
+        $user = $master->User->get_objects( {"login" => $rest->[0]} );
+    }
     unless (scalar(@$user)) {
-        $self->return_data( {"ERROR" => "login ".$rest->[0]." does not exists"}, 404 );
+        $self->return_data( {"ERROR" => "user '".$rest->[0]."' does not exists"}, 404 );
     }
     $user = $user->[0];
 
@@ -104,7 +109,8 @@ sub prepare_data {
 
     my $url = $self->cgi->url;
     my $obj = {};
-    $obj->{id}         = $user->login;
+    $obj->{id}         = 'mgu'.$user->_id;
+    $obj->{login}      = $user->login;
     $obj->{email}      = $user->email;
     $obj->{firstname}  = $user->firstname;
     $obj->{lastname}   = $user->lastname;
