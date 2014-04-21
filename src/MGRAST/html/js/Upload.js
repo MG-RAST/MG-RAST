@@ -217,8 +217,9 @@ function update_inbox (data, files, action) {
 	    if ( inf && inf['bp count'] && (inf['file type'] != 'malformed') && (! lock_msg) && (! inf['Error']) && 
     	     inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) &&
     	     (inf['sequence content'] != 'protein') && (inf['sequence content'] != 'sequence alignment') &&
-             (inf['sequence count'] >= SEQ_COUNT_LOWER_BOUND) &&
-             (inf['length min'] >= MIN_LENGTH_LOWER_BOUND) && (inf['length max'] >= MAX_LENGTH_LOWER_BOUND) &&
+             (inf['sequence count'] && inf['sequence count'] >= SEQ_COUNT_LOWER_BOUND) &&
+             (inf['length min'] && inf['length min'] >= MIN_LENGTH_LOWER_BOUND) &&
+             (inf['length max'] && inf['length max'] >= MAX_LENGTH_LOWER_BOUND) &&
     	     ( (inf['bp count'] > BP_CUTOFF) || ((inf['bp count'] <= BP_CUTOFF) && ((inf['sequence type'] == 'Amplicon') || (inf['sequencing method guess'] == 'assembled'))) ) ) {
 	      var trow = [ 0, i, fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	      tdata[tdata.length] = trow;
@@ -234,8 +235,9 @@ function update_inbox (data, files, action) {
 	  if ( inf && inf['bp count'] && (inf['file type'] != 'malformed') && (! lock_msg) && (! inf['Error']) && 
 	       inf['unique id count'] && inf['sequence count'] && (inf['unique id count'] == inf['sequence count']) &&
 	       (inf['sequence content'] != 'protein') && (inf['sequence content'] != 'sequence alignment') &&
-               (inf['sequence count'] >= SEQ_COUNT_LOWER_BOUND) &&
-               (inf['length min'] >= MIN_LENGTH_LOWER_BOUND) && (inf['length max'] >= MAX_LENGTH_LOWER_BOUND) &&
+               (inf['sequence count'] && inf['sequence count'] >= SEQ_COUNT_LOWER_BOUND) &&
+               (inf['length min'] && inf['length min'] >= MIN_LENGTH_LOWER_BOUND) &&
+               (inf['length max'] && inf['length max'] >= MAX_LENGTH_LOWER_BOUND) &&
 	       ( (inf['bp count'] > BP_CUTOFF) || ((inf['bp count'] <= BP_CUTOFF) && ((inf['sequence type'] == 'Amplicon') || (inf['sequencing method guess'] == 'assembled'))) ) ) {
 	    var trow = [ 0, "-", fn, inf['file type'], inf['file size'], inf['creation date'], inf['bp count'], inf['sequencing method guess'], inf['sequence type'], inf['file checksum'], tdata.length ];
 	    tdata[tdata.length] = trow;
