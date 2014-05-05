@@ -199,6 +199,8 @@ sub info {
                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                 'order'  => ['string','name of the attribute the returned data is ordered by'],
    					                            'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
+   					                            'format' => ['cv', [['fasta', 'return sequences in fasta format'],
+                                                                    ['json', 'return sequences in json struct']] ],
    					                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
    					                        },
    							                'required' => { "id" => ["string", "unique identifier in form of md5 checksum"] },
@@ -523,6 +525,7 @@ sub query {
     my $exact    = $self->cgi->param('exact')     ? 1 : 0;
     my $inverse  = $self->cgi->param('inverse')   ? 1 : 0;
     my $sequence = $self->cgi->param('sequence')  ? 1 : 0;
+    my $format   = $self->cgi->param('format')    ? $self->cgi->param('format') : 'fasta';
     my $version  = $self->cgi->param('version') || $self->{default};
     
     # build data / url
@@ -545,6 +548,7 @@ sub query {
                 if (exists $json_data->{exact})     { $exact    = $json_data->{exact} ? 1 : 0; }
                 if (exists $json_data->{inverse})   { $inverse  = $json_data->{inverse} ? 1 : 0; }
                 if (exists $json_data->{sequence})  { $sequence = $json_data->{sequence} ? 1 : 0; }
+                if (exists $json_data->{format})    { $format   = $json_data->{format}; }
                 if (exists $json_data->{version})   { $version  = $json_data->{version}; }
                 $data = $json_data->{data};
                 $md5s = $json_data->{md5s};
@@ -574,7 +578,7 @@ sub query {
     
     # get sequences if requested
     if (($type eq 'md5') && $sequence) {
-        $self->sequences($data, $version);
+        $self->md5s2sequences($data, $version, $format);
     }
     
     # strip wildcards
@@ -617,14 +621,6 @@ sub query {
     $self->return_data($obj);
 }
 
-# return sequence data for md5s as fasta
-sub sequences {
-    my ($self, $md5s, $version) = @_;
-    my @clean = map { $self->clean_md5($_) } @$md5s;
-    my $seqs  = $self->md5s2sequences(\@clean, $version);
-    $self->download_text($seqs, "md5s_".(scalar(@clean)).".fasta");
-}
-
 sub clean_md5 {
     my ($self, $md5) = @_;
     my $clean = $md5;
@@ -635,12 +631,16 @@ sub clean_md5 {
     return $clean;
 }
 
+# return sequence data for md5s as fasta or json
 sub md5s2sequences {
-    my ($self, $md5s, $version) = @_;
-
+    my ($self, $md5s, $version, $format) = @_;
+    
+    # clean md5s
+    my @clean = map { $self->clean_md5($_) } @$md5s;
+    
     # make id file
     my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.ids');
-    map { print $tfh "lcl|$_\n" } @$md5s;
+    map { print $tfh "lcl|$_\n" } @clean;
     close($tfh);
     
     # get m5nr
@@ -660,6 +660,9 @@ sub md5s2sequences {
             if ((! $line) || ($line =~ /^\s+$/) || ($line =~ /^\[fastacmd\]/)) {
                 next;
             }
+            if ($line =~ /^>/) {
+                $line = (split(/\s/, $line))[0]."\n";
+            }
             $seqs .= $line;
         }
     };
@@ -667,7 +670,18 @@ sub md5s2sequences {
         $self->return_data({"ERROR" => "unable to access M5NR sequence data"}, 500);
     }
     
-    return $seqs;
+    # output
+    if ($format eq 'fasta') {
+        $self->download_text($seqs, "md5s_".(scalar(@clean)).".fasta");
+    } else {
+        my $data = {'version' => $version, 'data' => []};
+        my @lines = split(/\n/, $seqs);
+        chomp @lines;
+        for (my $i = 0; $i < scalar(@lines); $i += 2) {
+            push @{$data->{data}}, {'md5' => (split(/\|/, $lines[$i]))[1], 'sequence' => $lines[$i+1]};
+        }
+        $self->return_data($data);
+    }
 }
 
 sub check_version {
