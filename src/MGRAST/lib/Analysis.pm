@@ -6,7 +6,6 @@ no warnings('once');
 
 use Auth;
 use Conf;
-use Babel::lib::Babel;
 
 use List::Util qw(max min sum first);
 use List::MoreUtils qw(natatime);
@@ -23,23 +22,31 @@ use File::Temp qw/ tempfile tempdir /;
 sub new {
   my ($class, $job_dbh, $dbh) = @_;
 
-  # get ach object
-  my $ach = new Babel::lib::Babel;
+  # get ach object if have lib
+  my $ach = undef;
+  eval {
+      require Babel::lib::Babel;
+      Babel::lib::Babel->import();
+      $ach = new Babel::lib::Babel;
+  };
   
   # get memcache object
-  my $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
+  my $memd = undef;
+  eval {
+      require Cache::Memcached;
+      Cache::Memcached->import();
+      $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache || ''], 'debug' => 0, 'compress_threshold' => 10_000};
+  };
   
   # connect to database
-
   unless ($dbh) {
     eval {
-      my $dbms     = $Conf::mgrast_dbms;
       my $host     = $Conf::mgrast_dbhost;
       my $database = $Conf::mgrast_db;
       my $user     = $Conf::mgrast_dbuser;
       my $password = $Conf::mgrast_dbpass;
       
-      $dbh = DBI->connect("DBI:$dbms:dbname=$database;host=$host", $user, $password, 
+      $dbh = DBI->connect("DBI:Pg:dbname=$database;host=$host", $user, $password, 
 			  { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
 			    die "database connect error.";
     };
@@ -318,6 +325,9 @@ sub _get_where_str {
 sub _run_fraggenescan {
   my ($self, $fasta) = @_;
 
+  unless ($Conf::run_fraggenescan) {
+    return "";
+  }
   my ($infile_hdl, $infile_name) = tempfile("fgs_in_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fna');
   print $infile_hdl $fasta;
   close $infile_hdl;
@@ -699,7 +709,7 @@ sub _search_annotations {
     my $data = {};
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        my $cdata = $self->_memd->get($mg.$cache_key);
+        my $cdata = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
         if ($cdata) { $data->{$mg} = $cdata; }
         else        { push @$jobs, $j; }
     }
@@ -714,8 +724,10 @@ sub _search_annotations {
     }
     $sth->finish;
     
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return $data;
@@ -1109,10 +1121,16 @@ sub get_organism_abundance_for_source {
 sub get_organisms_with_contig_for_source {
     my ($self, $src, $num, $len) = @_;
 
-    my $job_orgs = $self->get_organism_abundance_for_source($src);
-    my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[0]}] } grep { exists $job_orgs->{$_->[0]} } @{ $self->ach->get_organism_with_contig_list($num, $len) };
-    # [ org_id, org_name, abundance ]
-    return \@job_ctgs;
+    if ($self->ach) {
+        my $job_orgs = $self->get_organism_abundance_for_source($src);
+        my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[0]}] }
+                            grep { exists $job_orgs->{$_->[0]} }
+                                @{ $self->ach->get_organism_with_contig_list($num, $len) };
+        # [ org_id, org_name, abundance ]
+        return \@job_ctgs;
+    } else {
+        return [];
+    }
 }
 
 sub get_md5_evals_for_organism_source {
@@ -1204,7 +1222,7 @@ sub get_rarefaction_curve {
     # calculate alpha diversity
     if ($get_alpha) {
         foreach my $mg (keys %$raw_data) {
-            my $cdata = $self->_memd->get($mg.$cache_key."alpha");
+            my $cdata = $self->_memd ? $self->_memd->get($mg.$cache_key."alpha") : undef;
             unless ($cdata) {
 	            my $h1  = 0;
 	            my $sum = sum values %{$raw_data->{$mg}};
@@ -1218,7 +1236,9 @@ sub get_rarefaction_curve {
 	                if ($p > 0) { $h1 += ($p * log(1/$p)) / log(2); }
 	            }
 	            $mg_alpha->{$mg} = 2 ** $h1;
-	            $self->_memd->set($mg.$cache_key."alpha", $mg_alpha->{$mg}, $self->_expire);
+	            if ($self->_memd) {
+	                $self->_memd->set($mg.$cache_key."alpha", $mg_alpha->{$mg}, $self->_expire);
+                }
             } else {
                 $mg_alpha->{$mg} = $cdata;
             }
@@ -1229,7 +1249,7 @@ sub get_rarefaction_curve {
 
     # calculate rarefaction (x, y)
     foreach my $mg (keys %$raw_data) {
-        my $cdata = $self->_memd->get($mg.$cache_key."curve");
+        my $cdata = $self->_memd ? $self->_memd->get($mg.$cache_key."curve") : undef;
         unless ($cdata) {
             my @nums = sort {$a <=> $b} values %{$raw_data->{$mg}};
             my $k    = scalar @nums;
@@ -1246,7 +1266,9 @@ sub get_rarefaction_curve {
 	            map { $curr += exp( $self->_nCr2ln($nseq - $_, $n) - $coeff ) } @nums;
 	            push @{ $mg_rare->{$mg} }, [ $n, $k - $curr ];
             }
-            $self->_memd->set($mg.$cache_key."curve", $mg_rare->{$mg}, $self->_expire);
+            if ($self->_memd) {
+                $self->_memd->set($mg.$cache_key."curve", $mg_rare->{$mg}, $self->_expire);
+            }
         } else {
             $mg_rare->{$mg} = $cdata;
         }
@@ -1285,7 +1307,7 @@ sub _get_abundance_for_hierarchy {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $cdata = $self->_memd->get($mg.$cache_key);
+            my $cdata = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
             if ($cdata) { push @$data, @$cdata; }
             else        { push @$jobs, $j; }
         }
@@ -1329,7 +1351,9 @@ sub _get_abundance_for_hierarchy {
             	push @$data, [ $self->_mg_map->{$curr}, $h, $num ];
             	push @$cdata, [ $self->_mg_map->{$curr}, $h, $num ];
             }
-            $self->_memd->set($self->_mg_map->{$curr}.$cache_key, $cdata, $self->_expire);
+            if ($self->_memd) {
+                $self->_memd->set($self->_mg_map->{$curr}.$cache_key, $cdata, $self->_expire);
+            }
             # reset
             $hier = {};
             $curr = $job;
@@ -1361,7 +1385,9 @@ sub _get_abundance_for_hierarchy {
         	push @$data, [ $self->_mg_map->{$job}, $h, $num ];
         	push @$cdata, [ $self->_mg_map->{$job}, $h, $num ];
         }
-        $self->_memd->set($self->_mg_map->{$job}.$cache_key, $cdata, $self->_expire);
+        if ($self->_memd) {
+            $self->_memd->set($self->_mg_map->{$job}.$cache_key, $cdata, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return $data;
@@ -1549,8 +1575,8 @@ sub get_organisms_for_md5s {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
-            my $m = $self->_memd->get($mg.$cache_key."md5s");
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
+            my $m = $self->_memd ? $self->_memd->get($mg.$cache_key."md5s") : undef;
             if ($c && $m) {
                 $data->{$mg} = $c;
                 $mdata{$mg}  = $m;
@@ -1595,7 +1621,7 @@ sub get_organisms_for_md5s {
 	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row[17]};
     }
     $sth->finish;
-    unless ($qmd5s) {
+    if ((! $qmd5s) && $self->_memd) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	        $self->_memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->_expire);
@@ -1638,8 +1664,8 @@ sub get_ontology_for_md5s {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
-            my $m = $self->_memd->get($mg.$cache_key."md5s");
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
+            my $m = $self->_memd ? $self->_memd->get($mg.$cache_key."md5s") : undef;
             if ($c && $m) {
                 $data->{$mg} = $c;
                 $mdata{$mg}  = $m;
@@ -1678,7 +1704,7 @@ sub get_ontology_for_md5s {
 	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row[10]};
     }
     $sth->finish;
-    unless ($qmd5s) {
+    if ((! $qmd5s) && $self->_memd) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	        $self->_memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->_expire);
@@ -1718,7 +1744,7 @@ sub get_functions_for_md5s {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
             if ($c) { $data->{$mg} = $c; }
             else    { push @$jobs, $j; }
         }
@@ -1752,7 +1778,7 @@ sub get_functions_for_md5s {
 	    push @{$data->{$mg}}, [ $mg, $self->_id_src->{$row[1]}, @row[2,3], $sub_abund, @row[4..9], join(";", @{$row[10]}) ];
     }
     $sth->finish;
-    unless ($qmd5s) {
+    if ((! $qmd5s) && $self->_memd) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	    }
@@ -1773,7 +1799,7 @@ sub get_lca_data {
     my $data = {};
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        my $c = $self->_memd->get($mg.$cache_key);
+        my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
         if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
@@ -1797,8 +1823,10 @@ sub get_lca_data {
         push @{$data->{$mg}}, [ $mg, @tax, @row[2..8] ];
     }
     $sth->finish;
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return [ map { @$_ } values %$data ];
@@ -1820,7 +1848,7 @@ sub get_md5_data {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
             if ($c) { $data->{$mg} = $c; }
             else    { push @$jobs, $j; }
         }
@@ -1848,8 +1876,10 @@ sub get_md5_data {
         push @{ $data->{$mg} }, [ $mg, @row ];
     }
     $sth->finish;
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return [ map { @$_ } values %$data ];
@@ -1870,7 +1900,7 @@ sub get_md5_abundance {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
             if ($c) { $data->{$mg} = $c; }
             else    { push @$jobs, $j; }
         }
@@ -1905,8 +1935,10 @@ sub get_md5_abundance {
         }
         $sth->finish;        
     }
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return $data;
@@ -1942,7 +1974,7 @@ sub _get_annotation_md5 {
     my $data = {};
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        my $c = $self->_memd->get($mg.$cache_key);
+        my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
         if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
@@ -1974,8 +2006,10 @@ sub _get_annotation_md5 {
         map { $data->{$mg}{$row[1]}{$_} = 1 } @{ $row[2] };
     }
     $sth->finish;
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return $data;
