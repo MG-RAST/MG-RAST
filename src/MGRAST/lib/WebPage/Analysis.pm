@@ -3807,6 +3807,7 @@ sub metabolism_visual {
   $tabnum--;
 
   # mgid => md5 => abundance
+  #  0       1      2       3         4        5    6            7              8        9       10           11         12       13      14
   # mgid, level1, level2, level3, annotation, id, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
 
   unless (scalar(@$data)) {
@@ -4133,42 +4134,38 @@ sub metabolism_visual {
     }
     my $expanded_data = [];
     if (scalar(@comp_mgs) > 1) {
-      $pt->sample_names( [ @comp_mgs[0..1] ] );
+
+      $pt->sample_names( [ @comp_mgs ] );
       $pt->coloring_method('split');
       my $exp_hash = {};
+      my $anno_hash = {};
+      my $mg2num = {};
+
+      for (my $hh=0; $hh<scalar(@comp_mgs); $hh++) {
+      	$mg2num->{$comp_mgs[$hh]} = $hh;
+      }
+
       foreach my $row (@$data) {
 	next if ($row->[1] eq "-");
 	next if ($row->[1] eq "Clustering-based subsystems");
-	if ($row->[0] eq $comp_mgs[0]) {
-	  $exp_hash->{$row->[4]} = $row;
-	}
+	my $keystring = join("", @$row[1..4]);
+	$anno_hash->{$keystring} = [ @$row[1..4] ];
+      	unless (exists($exp_hash->{$keystring})) {
+      	  $exp_hash->{$keystring} = [];
+      	}
+      	$exp_hash->{$keystring}->[$mg2num->{$row->[0]}] = $row->[6];
       }
-      foreach my $row (@$data) {
-	next if ($row->[1] eq "-");
-	next if ($row->[1] eq "Clustering-based subsystems");
-	if ($row->[0] eq $comp_mgs[1]) {
-	  my $other = 0;
-	  if (exists($exp_hash->{$row->[4]})) {
-	    $other = $exp_hash->{$row->[4]}->[6];
-	    delete $exp_hash->{$row->[4]};
-	  }
-	  if ($row->[6] + $other > 0) {
-	    if ($has_three) {
-	      push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[3], $row->[4], [ $row->[6], $other ] ] );
-	    } else {
-	      push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[4], [ $row->[6], $other ] ] );
-	    }
-	  }
-	}
-      }
-      foreach my $key (keys(%$exp_hash)) {
-	my $row = $exp_hash->{$key};
-	if ($row->[6] > 0) {
-	  if ($has_three) {
-	    push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[3], $row->[4], [ 0, $row->[6] ] ] );
-	  } else {
-	    push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[4], [ 0, $row->[6] ] ] );
-	  }
+
+      foreach my $key (sort(keys(%$exp_hash))) {
+      	my $vals = [];
+      	for (my $ii=0; $ii<scalar(@comp_mgs); $ii++) {
+      	  push(@$vals, $exp_hash->{$key}->[$ii] || 0);
+      	}
+      	my $row = $anno_hash->{$key};
+	if ($has_three) {
+	  push(@$expanded_data, [ 'Metabolism', $row->[0], $row->[1], $row->[2], $row->[3], $vals ] );
+	} else {
+	  push(@$expanded_data, [ 'Metabolism', $row->[0], $row->[1], $row->[3], $vals ] );
 	}
       }
     } else {

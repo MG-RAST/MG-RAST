@@ -16,9 +16,7 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    my %rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
     $self->{name} = "metadata";
-    $self->{rights} = \%rights;
     $self->{ontologies} = { 'biome' => 1, 'feature' => 1, 'material' => 1 };
     $self->{attributes} = {
         "template" => {
@@ -38,6 +36,15 @@ sub new {
                             'value' => ['list', ['string', 'ontology url and ID']]}, 'term IDs for metadata'] ],
             "select"   => [ 'hash', [{'key' => ['string', 'metadata label'],
                             'value' => ['list', ['string', 'CV term']]}, 'list of CV terms for metadata'] ]
+        },
+        "ontology" => {
+            "name" => ['string', 'ontology name'],
+            "nodes" => ['hash', [{'key' => ['string', 'ontology ID'],
+                                'value' => ['hash', 'hash of information and relationships for given ontology ID']}, 'info for ontology ID']],
+            "rootNode" => ['string', 'ontology ID of root'],
+            "showRoot" => ['boolean', 'option to show root when displaying'],
+            "type" => ['string', 'this type'],
+            "version" => ['string', 'version of this ontology']
         },
         "export" => {
             "id"        => [ 'string', 'unique object identifier' ],
@@ -95,7 +102,7 @@ sub info {
             { 'name'        => "cv",
               'request'     => $self->cgi->url."/".$self->name."/cv",
               'description' => "Returns static controlled vocabularies used in metadata. By default returns all CVs at latest version. If label and version options used, returns those specific values.",
-              'example'     => [ $self->cgi->url."/".$self->name."/cv",
+              'example'     => [ $self->cgi->url."/".$self->name."/cv?label=country",
                                  'metadata controlled vocabularies' ],
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -105,6 +112,20 @@ sub info {
                                  'options'  => {
                                      'label'   => ['string', 'metadata label'],
                                      'version' => ['string', 'version of CV select list or ontology to use'] } }
+            },
+            { 'name'        => "ontology",
+              'request'     => $self->cgi->url."/".$self->name."/ontology",
+              'description' => "Returns static ontology used in metadata for the given name and version.",
+              'example'     => [ $self->cgi->url."/".$self->name."/ontology?name=biome&version=2013-04-27",
+                                 'metadata ontology lookup' ],
+              'method'      => "GET",
+              'type'        => "synchronous",
+              'attributes'  => $self->attributes->{ontology},
+              'parameters'  => { 'required' => {
+                                    'name'    => ['string', 'ontology name'],
+                                    'version' => ['string', 'version of ontology to use'] },
+                                 'body'     => {},
+                                 'options'  => {} }
             },
             { 'name'        => "export",
               'request'     => $self->cgi->url."/".$self->name."/export/{ID}",
@@ -162,7 +183,7 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif (($self->rest->[0] eq 'template') || ($self->rest->[0] eq 'cv')) {
+    } elsif (($self->rest->[0] eq 'template') || ($self->rest->[0] eq 'cv') || ($self->rest->[0] eq 'ontology')) {
         $self->static($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'export') && (scalar(@{$self->rest}) == 2)) {
         $self->instance($self->rest->[1]);
@@ -209,6 +230,18 @@ sub static {
                 }
             }
         }
+    # get ontology data
+    } elsif ($type eq 'ontology') {
+        my $ver  = $self->cgi->param('version') || '';
+        my $name = $self->cgi->param('name') || '';
+        unless ($ver && $name) {
+            $self->return_data( {"ERROR" => "'name' and 'version' are required parameters"}, 404 );
+        }
+        my $nodes = $self->get_shock_query({'type'=>'ontology', 'name'=>$name, 'version'=>$ver});
+        unless ($nodes && (@$nodes == 1)) {
+            $self->return_data( {"ERROR" => "ontology data for $name (version $ver) is missing or corrupt"}, 500 );
+        }
+        $data = $nodes->[0]->{attributes};
     # get template data
     } elsif ($type eq 'template') {
         my $master = $self->connect_to_datasource();
@@ -228,32 +261,55 @@ sub static {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self, $pid) = @_;
-    
-    # check id format
-    my (undef, $id) = $pid =~ /^(mgp)?(\d+)$/;
-    if ((! $id) && $pid) {
-        $self->return_data( {"ERROR" => "invalid id format: " . $pid}, 400 );
-    }
+    my ($self, $id) = @_;
     
     # get database
     my $master = $self->connect_to_datasource();
     my $mddb = MGRAST::Metadata->new();
     
-    # get data
-    my $project = $master->Project->init( {id => $id} );
-    unless (ref($project)) {
-        $self->return_data( {"ERROR" => "id $pid does not exists"}, 404 );
+    # project export
+    if ($id =~ /^(mgp)?(\d+)$/) {
+        my $pid = $2;
+        # get data
+        my $project = $master->Project->init( {id => $pid} );
+        unless (ref($project)) {
+            $self->return_data( {"ERROR" => "id pid does not exists"}, 404 );
+        }
+        # check rights
+        unless ( $project->{public} ||
+                 ($self->user && $self->user->has_right(undef, 'view', 'project', $pid)) ||
+                 ($self->user && $self->user->has_star_right('view', 'project'))
+               ) {
+            $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+        }
+        # prepare data
+        my $data = $mddb->export_metadata_for_project($project);
+        $self->return_data($data);
     }
-
-    # check rights
-    unless ($project->{public} || exists($self->rights->{$id}) || exists($self->rights->{'*'})) {
-        $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+    # metagenome export
+    elsif ($id =~ /^(mgm)?(\d+\.\d+)$/) {
+        my $mgid = $2;
+        # get data
+        my $job = $master->Job->get_objects( {metagenome_id => $mgid} );
+        unless ($job && @$job) {
+            $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
+        }
+        $job = $job->[0];
+        # check rights
+        unless ( $job->{public} ||
+                 ($self->user && $self->user->has_right(undef, 'view', 'metagenome', $mgid)) ||
+                 ($self->user && $self->user->has_star_right('view', 'metagenome'))
+               ) {
+            $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+        }
+        # prepare data
+        my $dataset = $mddb->get_jobs_metadata_fast([$mgid], 1);
+        $self->return_data($dataset->{$mgid});
     }
-
-    # prepare data
-    my $data = $mddb->export_metadata_for_project($project);
-    $self->return_data($data)
+    # bad id
+    else {
+        $self->return_data( {"ERROR" => "invalid id format: " . $id}, 400 );
+    }
 }
 
 # validate metadata, this can be GET for single value or POST for whole spreadsheet

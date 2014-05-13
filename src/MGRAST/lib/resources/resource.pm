@@ -520,10 +520,21 @@ sub return_data {
     }
 }
 
+# print a string to download
+sub download_text {
+    my ($self, $text, $name) = @_;
+    print "Content-Type:application/x-download\n";
+    print "Access-Control-Allow-Origin: *\n";
+    print "Content-Length: ".(length($text))."\n";
+    print "Content-Disposition:attachment;filename=$name\n\n";
+    print $text;
+    exit 0;
+}
+
 # stream a file from shock to browser
 sub return_shock_file {
     my ($self, $id, $size, $name, $auth, $subset) = @_;
-    
+        
     my $response = undef;
     # print headers
     print "Content-Type:application/x-download\n";
