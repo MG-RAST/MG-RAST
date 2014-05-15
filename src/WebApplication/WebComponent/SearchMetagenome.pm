@@ -280,7 +280,7 @@ sub dbh_data {
   my $db = $self->data_db || $Conf::mgrast_db ;
   my $host = $Conf::mgrast_dbhost || "";
   my $user = $Conf::mgrast_dbuser || "root";
-  my $password = $Conf::mgrast_password || "";
+  my $password = $Conf::mgrast_dbpass || "";
 
 
   my $connect = "DBI:Pg:dbname=$db";

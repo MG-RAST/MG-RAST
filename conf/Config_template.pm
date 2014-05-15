@@ -41,6 +41,7 @@ $mgrast_formWizard_templates = $ROOT."/src/MGRAST/Templates";
 $mgrast_db     = '';
 $mgrast_dbms   = '';
 $mgrast_dbuser = '';
+$mgrast_dbpass = '';
 $mgrast_dbhost = '';
 
 # ACH settings
