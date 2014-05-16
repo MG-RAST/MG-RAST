@@ -16,9 +16,7 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    my %rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
     $self->{name} = "metadata";
-    $self->{rights} = \%rights;
     $self->{ontologies} = { 'biome' => 1, 'feature' => 1, 'material' => 1 };
     $self->{attributes} = {
         "template" => {
@@ -263,32 +261,55 @@ sub static {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self, $pid) = @_;
-    
-    # check id format
-    my (undef, $id) = $pid =~ /^(mgp)?(\d+)$/;
-    if ((! $id) && $pid) {
-        $self->return_data( {"ERROR" => "invalid id format: " . $pid}, 400 );
-    }
+    my ($self, $id) = @_;
     
     # get database
     my $master = $self->connect_to_datasource();
     my $mddb = MGRAST::Metadata->new();
     
-    # get data
-    my $project = $master->Project->init( {id => $id} );
-    unless (ref($project)) {
-        $self->return_data( {"ERROR" => "id $pid does not exists"}, 404 );
+    # project export
+    if ($id =~ /^(mgp)?(\d+)$/) {
+        my $pid = $2;
+        # get data
+        my $project = $master->Project->init( {id => $pid} );
+        unless (ref($project)) {
+            $self->return_data( {"ERROR" => "id pid does not exists"}, 404 );
+        }
+        # check rights
+        unless ( $project->{public} ||
+                 ($self->user && $self->user->has_right(undef, 'view', 'project', $pid)) ||
+                 ($self->user && $self->user->has_star_right('view', 'project'))
+               ) {
+            $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+        }
+        # prepare data
+        my $data = $mddb->export_metadata_for_project($project);
+        $self->return_data($data);
     }
-
-    # check rights
-    unless ($project->{public} || exists($self->rights->{$id}) || exists($self->rights->{'*'})) {
-        $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+    # metagenome export
+    elsif ($id =~ /^(mgm)?(\d+\.\d+)$/) {
+        my $mgid = $2;
+        # get data
+        my $job = $master->Job->get_objects( {metagenome_id => $mgid} );
+        unless ($job && @$job) {
+            $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
+        }
+        $job = $job->[0];
+        # check rights
+        unless ( $job->{public} ||
+                 ($self->user && $self->user->has_right(undef, 'view', 'metagenome', $mgid)) ||
+                 ($self->user && $self->user->has_star_right('view', 'metagenome'))
+               ) {
+            $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+        }
+        # prepare data
+        my $dataset = $mddb->get_jobs_metadata_fast([$mgid], 1);
+        $self->return_data($dataset->{$mgid});
     }
-
-    # prepare data
-    my $data = $mddb->export_metadata_for_project($project);
-    $self->return_data($data)
+    # bad id
+    else {
+        $self->return_data( {"ERROR" => "invalid id format: " . $id}, 400 );
+    }
 }
 
 # validate metadata, this can be GET for single value or POST for whole spreadsheet

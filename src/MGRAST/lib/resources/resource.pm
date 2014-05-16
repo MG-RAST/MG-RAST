@@ -470,6 +470,17 @@ sub return_data {
     }
 }
 
+# print a string to download
+sub download_text {
+    my ($self, $text, $name) = @_;
+    print "Content-Type:application/x-download\n";  
+    print "Access-Control-Allow-Origin: *\n";
+    print "Content-Length: ".(length($text))."\n";
+    print "Content-Disposition:attachment;filename=$name\n\n";
+    print $text;
+    exit 0;
+}
+
 # print a file to download
 sub return_file {
     my ($self, $filedir, $filename) = @_;

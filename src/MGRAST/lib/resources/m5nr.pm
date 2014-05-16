@@ -6,6 +6,7 @@ no warnings('once');
 
 use List::Util qw(first);
 use List::MoreUtils qw(any uniq);
+use File::Temp qw(tempfile tempdir);
 use URI::Escape;
 use Digest::MD5;
 
@@ -25,7 +26,11 @@ sub new {
     $self->{default} = '10';
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
-    $self->{version} = { '1' => 1, '9' => 1, '10' => 1 };
+    $self->{version} = {
+        '1' => '20100309',
+        '9' => '20130801',
+        '10' => '20131215'
+    };
 	$self->{attributes} = { taxonomy => { data => [ 'list', ['object', [{'organism' => [ 'string', 'organism name' ],
 	                                                                     'species'  => [ 'string', 'organism species' ],
                                                                          'genus'    => [ 'string', 'organism genus' ],
@@ -65,8 +70,7 @@ sub new {
                                                                            'source'      => [ 'string', 'source name' ]}, "annotation object"]] ] },
                             sequence => { version => [ 'integer', 'version of M5NR' ],
                                           url  => [ 'uri', 'resource location of this object instance' ],
-                                          data => [ 'object', [{'accession' => [ 'string', 'unique identifier given by source' ],
-                                                                 'md5'      => [ 'string', 'md5 checksum - M5NR ID' ],
+                                          data => [ 'object', [{ 'md5'      => [ 'string', 'md5 checksum - M5NR ID' ],
                                                                  'sequence' => [ 'string', 'protein sequence' ]}, "sequence object"] ] }
              	          };
     return $self;
@@ -77,20 +81,22 @@ sub new {
 # this method must return a description of the resource
 sub info {
   my ($self) = @_;
-  my $content = { 'name'          => $self->name,
+  my $content = {
+          'name'          => $self->name,
 		  'url'           => $self->{url}."/".$self->name,
 		  'description'   => "M5NR provides data through a comprehensive non-redundant protein / rRNA database",
 		  'type'          => 'object',
 		  'documentation' => $self->{url}.'/api.html#'.$self->name,
-		  'requests'      => [ { 'name'        => "info",
-					             'request'     => $self->{url}."/".$self->name,
-					             'description' => "Returns description of parameters and attributes.",
-					             'method'      => "GET",
-					             'type'        => "synchronous",
-					             'attributes'  => "self",
-					             'parameters'  => { 'options'  => {},
-							                        'required' => {},
-							                        'body'     => {} }
+		  'requests'      => [
+		               { 'name'        => "info",
+					     'request'     => $self->{url}."/".$self->name,
+				         'description' => "Returns description of parameters and attributes.",
+			             'method'      => "GET",
+					     'type'        => "synchronous",
+					     'attributes'  => "self",
+				         'parameters'  => { 'options'  => {},
+							                'required' => {},
+							                'body'     => {} }
 				       },
 				       { 'name'        => "ontology",
 					     'request'     => $self->{url}."/".$self->name."/ontology",
@@ -100,13 +106,14 @@ sub info {
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{ontology},
-					     'parameters'  => { 'options'  => { 'source' => ['cv', $self->source->{ontology}],
-									                        'filter_level' => ['cv', $self->hierarchy->{ontology}],
-									                        'filter' => ['string', 'text of ontology group (filter_level) to filter by'],
-									                        'min_level' => ['cv', $self->hierarchy->{ontology}],
-									                        'exact'  => ['boolean', "if true return only those ontologies that exactly match filter, default is false"],
-									                        'version' => ['integer', 'M5NR version, default '.$self->{default}]
-									                      },
+					     'parameters'  => { 'options'  => {
+					                            'source' => ['cv', $self->source->{ontology}],
+									            'filter_level' => ['cv', $self->hierarchy->{ontology}],
+									            'filter' => ['string', 'text of ontology group (filter_level) to filter by'],
+									            'min_level' => ['cv', $self->hierarchy->{ontology}],
+									            'exact'  => ['boolean', "if true return only those ontologies that exactly match filter, default is false"],
+									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+									        },
 							                'required' => {},
 							                'body'     => {} }
 				       },
@@ -118,12 +125,13 @@ sub info {
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{taxonomy},
-					     'parameters'  => { 'options'  => { 'filter_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
-	                                                        'filter' => ['string', 'text of taxanomy group (filter_level) to filter by'],
-									                        'min_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
-									                        'exact'  => ['boolean', "if true return only those taxonomies that exactly match filter, default is false"],
-									                        'version' => ['integer', 'M5NR version, default '.$self->{default}]
-									                      },
+					     'parameters'  => { 'options'  => {
+					                            'filter_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
+	                                            'filter' => ['string', 'text of taxanomy group (filter_level) to filter by'],
+									            'min_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
+									            'exact'  => ['boolean', "if true return only those taxonomies that exactly match filter, default is false"],
+									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+									        },
 							                'required' => {},
 							                'body'     => {} }
 				       },
@@ -135,7 +143,9 @@ sub info {
 					     'method'      => "GET",
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{sources},
-					     'parameters'  => { 'options'  => { 'version' => ['integer', 'M5NR version, default '.$self->{default}] },
+					     'parameters'  => { 'options'  => {
+					                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+					                        },
 							                'required' => {},
 							                'body'     => {} }
 				       },
@@ -147,11 +157,12 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'limit'  => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
-    					                                  },
+   					     'parameters'  => { 'options'  => {
+   					                            'limit'  => ['integer','maximum number of items requested'],
+                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+    					                    },
    							                'required' => { "id" => ["string", "unique identifier from source DB"] },
    							                'body'     => {} }
    				       },
@@ -163,14 +174,15 @@ sub info {
       					 'method'      => "GET",
       					 'type'        => "synchronous",  
       				     'attributes'  => $self->{attributes}{annotation},
-      				     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
-    					                                    'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
-    					                                    'limit'  => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
-       					                                  },
-      							            'required' => { "text" => ["string", "text string of partial alias"] },
+      				     'parameters'  => { 'options'  => {
+      				                            'source' => ['string','source name to restrict search by'],
+    					                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+    					                        'limit'  => ['integer','maximum number of items requested'],
+                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+       					                    },
+      							            'required' => { 'text' => ['string', 'text string of partial alias'] },
       							            'body'     => {} }
       				   },
 				       { 'name'        => "md5",
@@ -181,13 +193,16 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
-   					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
-   					                                        'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
-   					                                        'version' => ['integer', 'M5NR version, default '.$self->{default}]
-   					                                      },
+   					     'parameters'  => { 'options'  => {
+   					                            'source' => ['string','source name to restrict search by'],
+   					                            'limit'  => ['integer','maximum number of items requested'],
+                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
+   					                            'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
+   					                            'format' => ['cv', [['fasta', 'return sequences in fasta format'],
+                                                                    ['json', 'return sequences in json struct']] ],
+   					                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+   					                        },
    							                'required' => { "id" => ["string", "unique identifier in form of md5 checksum"] },
    							                'body'     => {} }
    				       },
@@ -199,14 +214,15 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
-   					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
-   					                                        'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
-   					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
-    					                                  },
+   					     'parameters'  => { 'options'  => {
+   					                            'source' => ['string','source name to restrict search by'],
+   					                            'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+   					                            'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
+   					                            'limit'  => ['integer','maximum number of items requested'],
+                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+    					                    },
    							                'required' => { "text" => ["string", "text string of partial function name"] },
    							                'body'     => {} }
    				       },
@@ -218,15 +234,16 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
-   					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
-   					                                        'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
-   					                                        'tax_level' => ['cv', $self->hierarchy->{organism}],
-   					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
-     					                                  },
+   					     'parameters'  => { 'options'  => {
+   					                            'source' => ['string','source name to restrict search by'],
+   					                            'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+   					                            'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
+   					                            'tax_level' => ['cv', $self->hierarchy->{organism}],
+   					                            'limit'  => ['integer','maximum number of items requested'],
+                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+     					                    },
    							                'required' => { "text" => ["string", "text string of partial organism name"] },
    							                'body'     => {} }
    				       },
@@ -238,66 +255,71 @@ sub info {
    					     'method'      => "GET",
    					     'type'        => "synchronous",  
    					     'attributes'  => $self->{attributes}{annotation},
-   					     'parameters'  => { 'options'  => { 'source' => ['string','source name to restrict search by'],
-   					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                            'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                            "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
-      					                                  },
+   					     'parameters'  => { 'options'  => {
+   					                            'source' => ['string','source name to restrict search by'],
+   					                            'limit'  => ['integer','maximum number of items requested'],
+                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+      					                    },
    							                'required' => { "text" => ["string", "text string of protein sequence"] },
    							                'body'     => {} }
    				       },
-                           { 'name'        => "accession",
-      					     'request'     => $self->{url}."/".$self->name."/accession",
-      					     'description' => "Return annotations of given source protein IDs",
-      					     'example'     => [ 'curl -X POST -d \'{"order":"function","data":["YP_003268079.1","COG1764"]}\' "'.$self->{url}."/".$self->name.'/accession"',
-               				                    "retrieve M5NR data for accession IDs 'YP_003268079.1' and 'COG1764' ordered by function" ],
-      					     'method'      => "POST",
-      					     'type'        => "synchronous",  
-      					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","unique identifier from source DB"]],
-      					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
-       					                                      },
-      							                'required' => {},
-      							                'options'  => {} }
-      				       },
-      				       { 'name'        => "alias",
-         					 'request'     => $self->{url}."/".$self->name."/alias",
-         				     'description' => "Return annotations for aliases containing the given texts",
-         			         'example'     => [ 'curl -X POST -d \'{"order":"function","data":["IPR001478","TIGR02124"]}\' "'.$self->{url}."/".$self->name.'/alias"',
-                  				                "retrieve M5NR data for aliases containing string 'IPR001478' and 'TIGR02124'" ],
-         					 'method'      => "POST",
-         				     'type'        => "synchronous",  
-         			         'attributes'  => $self->{attributes}{annotation},
-         				     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of partial alias ID"]],
-         				                                        'source' => ['string','source name to restrict search by'],
-         				                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
-         					                                    'limit'  => ['integer','maximum number of items requested'],
-                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
-          					                                  },
-         							            'required' => {},
-         							            'options'  => {} }
-         				       },
+                       { 'name'        => "accession",
+      				     'request'     => $self->{url}."/".$self->name."/accession",
+      				     'description' => "Return annotations of given source protein IDs",
+      				     'example'     => [ 'curl -X POST -d \'{"order":"function","data":["YP_003268079.1","COG1764"]}\' "'.$self->{url}."/".$self->name.'/accession"',
+               				                "retrieve M5NR data for accession IDs 'YP_003268079.1' and 'COG1764' ordered by function" ],
+      				      'method'      => "POST",
+      				      'type'        => "synchronous",  
+      				      'attributes'  => $self->{attributes}{annotation},
+      				      'parameters'  => { 'body'     => {
+      					                         'data'   => ['list',["string","unique identifier from source DB"]],
+      					                         'limit'  => ['integer','maximum number of items requested'],
+                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                 'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                 'version' => ['integer', 'M5NR version, default '.$self->{default}]
+       					                     },
+      							             'required' => {},
+      							             'options'  => {} }
+      				   },
+      				   { 'name'        => "alias",
+         				 'request'     => $self->{url}."/".$self->name."/alias",
+         				 'description' => "Return annotations for aliases containing the given texts",
+         		         'example'     => [ 'curl -X POST -d \'{"order":"function","data":["IPR001478","TIGR02124"]}\' "'.$self->{url}."/".$self->name.'/alias"',
+                  				            "retrieve M5NR data for aliases containing string 'IPR001478' and 'TIGR02124'" ],
+         			     'method'      => "POST",
+         			     'type'        => "synchronous",  
+         			     'attributes'  => $self->{attributes}{annotation},
+         			     'parameters'  => { 'body'     => {
+         				                        'data'   => ['list',["string","text string of partial alias ID"]],
+         				                        'source' => ['string','source name to restrict search by'],
+         				                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+         					                    'limit'  => ['integer','maximum number of items requested'],
+                                                'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+          					                },
+         							        'required' => {},
+         							        'options'  => {} }
+         				   },
    				           { 'name'        => "md5",
       					     'request'     => $self->{url}."/".$self->name."/md5",
-      					     'description' => "Return annotations of given md5sums (M5NR ID)",
+      					     'description' => "Return annotations or sequences of given md5sums (M5NR ID)",
       					     'example'     => [ 'curl -X POST -d \'{"source":"InterPro","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->{url}."/".$self->name.'/md5"',
                 				                "retrieve InterPro M5NR data for md5s '000821a2e2f63df1a3873e4b280002a8' and '15bf1950bd9867099e72ea6516e3d602'" ],
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","unique identifier in form of md5 checksum"]],
-      					                                        'source' => ['string','source name to restrict search by'],
-      					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
-      					                                      },
+      					     'parameters'  => { 'body'     => {
+      					                            'data'   => ['list',["string","unique identifier in form of md5 checksum"]],
+      					                            'source' => ['string','source name to restrict search by'],
+      					                            'limit'  => ['integer','maximum number of items requested'],
+                                                    'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                    'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                    'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{default}]
+      					                        },
       							                'required' => {},
       							                'options'  => {} }
       				       },
@@ -309,16 +331,17 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of partial function name"]],
-      					                                        'md5s'   => ['list',["string","md5 to constrain search by"]],
-      					                                        'source' => ['string','source name to restrict search by'],
-      					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
-      					                                        'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
-      					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
-       					                                      },
+      					     'parameters'  => { 'body'     => {
+      					                            'data'   => ['list',["string","text string of partial function name"]],
+      					                            'md5s'   => ['list',["string","md5 to constrain search by"]],
+      					                            'source' => ['string','source name to restrict search by'],
+      					                            'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+      					                            'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
+      					                            'limit'  => ['integer','maximum number of items requested'],
+                                                    'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                    'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{default}]
+       					                        },
       							                'required' => {},
       							                'options'  => {} }
       				       },
@@ -330,17 +353,18 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of partial organism name"]],
-      					                                        'md5s'   => ['list',["string","md5 to constrain search by"]],
-      					                                        'source' => ['string','source name to restrict search by'],
-      					                                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
-      					                                        'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
-      					                                        'tax_level' => ['cv', $self->hierarchy->{organism}],
-      					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
-        					                                  },
+      					     'parameters'  => { 'body'     => {
+      					                            'data'   => ['list',["string","text string of partial organism name"]],
+      					                            'md5s'   => ['list',["string","md5 to constrain search by"]],
+      					                            'source' => ['string','source name to restrict search by'],
+      					                            'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+      					                            'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
+      					                            'tax_level' => ['cv', $self->hierarchy->{organism}],
+      					                            'limit'  => ['integer','maximum number of items requested'],
+                                                    'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                    'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{default}]
+        					                    },
       							                'required' => {},
       							                'options'  => {} }
       				       },
@@ -352,13 +376,14 @@ sub info {
       					     'method'      => "POST",
       					     'type'        => "synchronous",  
       					     'attributes'  => $self->{attributes}{annotation},
-      					     'parameters'  => { 'body'     => { 'data'   => ['list',["string","text string of protein sequence"]],
-      					                                        'source' => ['string','source name to restrict search by'],
-      					                                        'limit'  => ['integer','maximum number of items requested'],
-                                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                                "order"  => ["string","name of the attribute the returned data is ordered by"],
-                                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
-         					                                  },
+      					     'parameters'  => { 'body'     => {
+      					                            'data'   => ['list',["string","text string of protein sequence"]],
+      					                            'source' => ['string','source name to restrict search by'],
+      					                            'limit'  => ['integer','maximum number of items requested'],
+                                                    'offset' => ['integer','zero based index of the first data object to be returned'],
+                                                    'order'  => ['string','name of the attribute the returned data is ordered by'],
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{default}]
+         					                    },
       							                'required' => {},
       							                'options'  => {} }
       				       }
@@ -371,15 +396,11 @@ sub info {
 sub request {
     my ($self) = @_;
     
-    my $seq = $self->cgi->param('sequence') ? 1 : 0;
-    
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
     } elsif (($self->rest->[0] eq 'taxonomy') || ($self->rest->[0] eq 'ontology') || ($self->rest->[0] eq 'sources')) {
         $self->static($self->rest->[0]);
-    } elsif (($self->rest->[0] eq 'md5') && $self->rest->[1] && $seq && ($self->method eq 'GET')) {
-        $self->instance($self->rest->[1]);
     } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && ($self->method eq 'GET')) {
         $self->query($self->rest->[0], $self->rest->[1]);
     } elsif ((scalar(@{$self->rest}) == 1) && ($self->method eq 'POST')) {
@@ -404,9 +425,7 @@ sub static {
     my $grouped = 0;
     
     # validate version
-    unless (exists $self->{version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
-    }
+    $self->check_version($version);
     
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->hierarchy->{ontology}};
@@ -493,36 +512,21 @@ sub static {
     $self->return_data($obj);
 }
 
-# return data: sequence object for accession or md5
-sub instance {
-    my ($self, $item) = @_;
-    
-    # validate version
-    my $version = $self->cgi->param('version') || $self->{default};
-    unless (exists $self->{version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
-    }
-    
-    my $clean = $self->clean_md5($item);
-    my $data = { md5 => $clean, sequence => $self->md52sequence($item) };
-    my $url = $self->{url}.'/m5nr/md5/'.$item.'?sequence=1';
-    my $obj = { data => $data, version => $version, url => $url };
-    $self->return_data($obj);
-}
-
 # return query data: annotation object
 sub query {
     my ($self, $type, $item) = @_;
     
     # paramaters
-    my $tlevel  = $self->cgi->param('tax_level') ? $self->cgi->param('tax_level') : 'strain';
-    my $source  = $self->cgi->param('source')    ? $self->cgi->param('source') : undef;
-    my $limit   = $self->cgi->param('limit')     ? $self->cgi->param('limit')  : 10;
-    my $offset  = $self->cgi->param('offset')    ? $self->cgi->param('offset') : 0;
-    my $order   = $self->cgi->param('order')     ? $self->cgi->param('order')  : undef;
-    my $exact   = $self->cgi->param('exact')     ? 1 : 0;
-    my $inverse = $self->cgi->param('inverse')   ? 1 : 0;
-    my $version = $self->cgi->param('version') || $self->{default};
+    my $tlevel   = $self->cgi->param('tax_level') ? $self->cgi->param('tax_level') : 'strain';
+    my $source   = $self->cgi->param('source')    ? $self->cgi->param('source') : undef;
+    my $limit    = $self->cgi->param('limit')     ? $self->cgi->param('limit')  : 10;
+    my $offset   = $self->cgi->param('offset')    ? $self->cgi->param('offset') : 0;
+    my $order    = $self->cgi->param('order')     ? $self->cgi->param('order')  : undef;
+    my $exact    = $self->cgi->param('exact')     ? 1 : 0;
+    my $inverse  = $self->cgi->param('inverse')   ? 1 : 0;
+    my $sequence = $self->cgi->param('sequence')  ? 1 : 0;
+    my $format   = $self->cgi->param('format')    ? $self->cgi->param('format') : 'fasta';
+    my $version  = $self->cgi->param('version') || $self->{default};
     
     # build data / url
     my $post = ($self->method eq 'POST') ? 1 : 0;
@@ -536,14 +540,16 @@ sub query {
         if ($post_data) {
             eval {
                 my $json_data = $self->json->decode($post_data);
-                if (exists $json_data->{tax_level}) { $tlevel  = $json_data->{tax_level}; }
-                if (exists $json_data->{source})    { $source  = $json_data->{source}; }
-                if (exists $json_data->{limit})     { $limit   = $json_data->{limit}; }
-                if (exists $json_data->{offset})    { $offset  = $json_data->{offset}; }
-                if (exists $json_data->{order})     { $order   = $json_data->{order}; }
-                if (exists $json_data->{exact})     { $exact   = $json_data->{exact} ? 1 : 0; }
-                if (exists $json_data->{inverse})   { $inverse = $json_data->{inverse} ? 1 : 0; }
-                if (exists $json_data->{version})   { $version = $json_data->{version}; }
+                if (exists $json_data->{tax_level}) { $tlevel   = $json_data->{tax_level}; }
+                if (exists $json_data->{source})    { $source   = $json_data->{source}; }
+                if (exists $json_data->{limit})     { $limit    = $json_data->{limit}; }
+                if (exists $json_data->{offset})    { $offset   = $json_data->{offset}; }
+                if (exists $json_data->{order})     { $order    = $json_data->{order}; }
+                if (exists $json_data->{exact})     { $exact    = $json_data->{exact} ? 1 : 0; }
+                if (exists $json_data->{inverse})   { $inverse  = $json_data->{inverse} ? 1 : 0; }
+                if (exists $json_data->{sequence})  { $sequence = $json_data->{sequence} ? 1 : 0; }
+                if (exists $json_data->{format})    { $format   = $json_data->{format}; }
+                if (exists $json_data->{version})   { $version  = $json_data->{version}; }
                 $data = $json_data->{data};
                 $md5s = $json_data->{md5s};
             };
@@ -568,8 +574,11 @@ sub query {
     }
     
     # validate version
-    unless (exists $self->{version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    $self->check_version($version);
+    
+    # get sequences if requested
+    if (($type eq 'md5') && $sequence) {
+        $self->md5s2sequences($data, $version, $format);
     }
     
     # strip wildcards
@@ -622,24 +631,64 @@ sub clean_md5 {
     return $clean;
 }
 
-sub md52sequence {
-  my ($self, $md5) = @_;
+# return sequence data for md5s as fasta or json
+sub md5s2sequences {
+    my ($self, $md5s, $version, $format) = @_;
+    
+    # clean md5s
+    my @clean = map { $self->clean_md5($_) } @$md5s;
+    
+    # make id file
+    my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.ids');
+    map { print $tfh "lcl|$_\n" } @clean;
+    close($tfh);
+    
+    # get m5nr
+    my $seqs = "";
+    my $m5nr = "";
+    if ($Conf::m5nr_fasta && (-f $Conf::m5nr_fasta)) {
+        $m5nr = $Conf::m5nr_fasta;
+    } elsif ($Conf::m5nr_dir && (-d $Conf::m5nr_dir)) {
+        $m5nr = $Conf::m5nr_dir."/".$self->{version}{$version}."/md5nr";
+    } else {
+        $self->return_data({"ERROR" => "missing M5NR sequence data"}, 500);
+    }
+    
+    # get seqs
+    eval {
+        foreach my $line (`fastacmd -d $m5nr -i $tfile -l 0 -t T -p T`) {
+            if ((! $line) || ($line =~ /^\s+$/) || ($line =~ /^\[fastacmd\]/)) {
+                next;
+            }
+            if ($line =~ /^>/) {
+                $line = (split(/\s/, $line))[0]."\n";
+            }
+            $seqs .= $line;
+        }
+    };
+    if ($@) {
+        $self->return_data({"ERROR" => "unable to access M5NR sequence data"}, 500);
+    }
+    
+    # output
+    if ($format eq 'fasta') {
+        $self->download_text($seqs, "md5s_".(scalar(@clean)).".fasta");
+    } else {
+        my $data = {'version' => $version, 'data' => []};
+        my @lines = split(/\n/, $seqs);
+        chomp @lines;
+        for (my $i = 0; $i < scalar(@lines); $i += 2) {
+            push @{$data->{data}}, {'md5' => (split(/\|/, $lines[$i]))[1], 'sequence' => $lines[$i+1]};
+        }
+        $self->return_data($data);
+    }
+}
 
-  my $seq;
-  eval {
-      my @recs = `fastacmd -d $Conf::m5nr_fasta -s \"lcl|$md5\" -l 0 2>&1`;
-      if ((@recs < 2) || (! $recs[0]) || ($recs[0] =~ /^\s+$/) || ($recs[0] =~ /^\[fastacmd\]/)) {
-          $seq = "";
-      } else {
-          $seq = $recs[1];
-          $seq =~ s/\s+//;
-      }
-  };
-  if ($@) {
-       $self->return_data({"ERROR" => "unable to access M5NR sequence data"}, 500);
-  }
-  
-  return $seq;
+sub check_version {
+    my ($self, $version) = @_;
+    unless (exists $self->{version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    }
 }
 
 sub query_annotation {
