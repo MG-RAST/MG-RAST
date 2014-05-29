@@ -24,6 +24,8 @@ function init_all () {
     auth = user.auth;
     init_uploader();
     update_inbox();
+      document.getElementById('new_project').addEventListener('keydown', function (event) { window.lastP = this.value; });
+      document.getElementById('new_project').addEventListener('keyup', function (event) { if (! this.value.match(/^[\w+\-\(\)\@\; \:]*$/)) { this.value = window.lastP; alert('invalid character'); } });
   }
 }
 
