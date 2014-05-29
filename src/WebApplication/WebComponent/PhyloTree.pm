@@ -414,7 +414,7 @@ sub output {
 	    if ($self->{nodes}->{$n}->{value}) {
 	      $percent = sprintf("%.2f", $self->{nodes}->{$n}->{value} / $dt * 100 );
 	    }
-	    $info .= "<tr><td style='background-color: rgb(".$pie->color_set->[$ii + 6]->[0].",".$pie->color_set->[$ii + 6]->[1].",".$pie->color_set->[$ii + 6]->[2].");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td><td>".$self->{nodes}->{$n}->{value}." (" . $percent . "\%)</td></tr>";
+	    $info .= "<tr><td style='background-color: rgb(".($pie->color_set->[$ii + 6]->[0] || "0").",".($pie->color_set->[$ii + 6]->[1] || "0").",".($pie->color_set->[$ii + 6]->[2] || "0").");'>&nbsp;</td><td>".($self->{nodes}->{$n}->{name} || "" )."</td><td>".($self->{nodes}->{$n}->{value} || "")." (" . $percent . "\%)</td></tr>";
 	    $ii++;
 	  }
 	  $info .= "</table></td></tr></table>";
@@ -566,7 +566,7 @@ sub output {
 	      if ($self->{nodes}->{$n}->{value}) {
 		$percent = sprintf("%.2f", $self->{nodes}->{$n}->{value} / $dt * 100 );
 	      }
-	      $info .= "<tr><td style='background-color: rgb(".$pie->color_set->[$ii + 6]->[0].",".$pie->color_set->[$ii + 6]->[1].",".$pie->color_set->[$ii + 6]->[2].");'>&nbsp;</td><td>".$self->{nodes}->{$n}->{name}."</td><td>".$self->{nodes}->{$n}->{value}." (" . $percent . "\%)</td></tr>";
+	      $info .= "<tr><td style='background-color: rgb(".($pie->color_set->[$ii + 6]->[0] || "0").",".($pie->color_set->[$ii + 6]->[1] || "0").",".($pie->color_set->[$ii + 6]->[2] || "0").");'>&nbsp;</td><td>".($self->{nodes}->{$n}->{name} || "")."</td><td>".($self->{nodes}->{$n}->{value} || "")." (" . $percent . "\%)</td></tr>";
 	      $ii++;
 	    }
 	    $info .= "</table></td></tr></table>";
