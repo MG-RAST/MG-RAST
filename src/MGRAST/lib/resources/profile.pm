@@ -201,21 +201,21 @@ sub prepare_data {
     if ($params->{type} eq 'organism') {
         $ttype = 'Taxon';
         my $result = [];
-        if ($htype eq 'all') {
+        if ($params->{hit_type} eq 'all') {
             # my ($self, $sources, $eval, $ident, $alen, $with_taxid) = @_;
             (undef, $result) = $mgdb->get_organisms_for_sources([$params->{source}], int($params->{evalue}), int($params->{identity}), int($params->{length}), 1);
             # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
-        } elsif ($htype eq 'single') {
+        } elsif ($params->{hit_type} eq 'single') {
             # my ($self, $source, $eval, $ident, $alen, $with_taxid) = @_;
             $result = $mgdb->get_organisms_unique_for_source($params->{source}, int($params->{evalue}), int($params->{identity}), int($params->{length}), 1);
             # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
-        } elsif ($htype eq 'lca') {
+        } elsif ($params->{hit_type} eq 'lca') {
             # my ($self, $eval, $ident, $alen) = @_;
             $result = $mgdb->get_lca_data(int($params->{evalue}), int($params->{identity}), int($params->{length}));
             # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
         }
         foreach my $row (@$result) {
-            if ($htype eq 'all') {
+            if ($params->{hit_type} eq 'all') {
                 my $rmd = {
                     taxonomy => [$row->[2], $row->[3], $row->[4], $row->[5], $row->[6], $row->[7], $row->[8]],
                     tax_id   => $row->[19]
@@ -224,7 +224,7 @@ sub prepare_data {
                 push(@$values, [ $self->toFloat($row->[10]), $self->toFloat($row->[12]), $self->toFloat($row->[14]), $self->toFloat($row->[16]) ]);
             } else {
                 my $rmd = { taxonomy => [$row->[1], $row->[2], $row->[3], $row->[4], $row->[5], $row->[6], $row->[7]] };
-                if ($htype eq 'single') {
+                if ($params->{hit_type} eq 'single') {
                     $rmd->{tax_id} = $row->[17];
                 }
                 push(@$rows, { "id" => $row->[8], "metadata" => $rmd });
