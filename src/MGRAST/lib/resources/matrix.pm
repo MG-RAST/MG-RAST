@@ -28,26 +28,30 @@ sub new {
     $self->{org2tid} = {};
     $self->{max_mgs} = 100;
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
-    $self->{attributes} = { "id"                   => [ 'string', 'unique object identifier' ],
-                            "url"                  => [ 'uri', 'resource location of this object instance' ],
-                            "format"               => [ 'string', 'format specification name' ],
-                            "format_url"           => [ 'string', 'url to the format specification' ],
-                            "type"                 => [ 'string', 'type of the data in the return table (taxon, function or gene)' ],
-                            "generated_by"         => [ 'string', 'identifier of the data generator' ],
-                            "date"                 => [ 'date', 'time the output data was generated' ],
-                            "matrix_type"          => [ 'string', 'type of the data encoding matrix (dense or sparse)' ],
-                            "matrix_element_type"  => [ 'string', 'data type of the elements in the return matrix' ],
-                            "matrix_element_value" => [ 'string', 'result_type of the elements in the return matrix' ],
-                            "shape"                => [ 'list', ['integer', 'list of the dimension sizes of the return matrix'] ],
-                            "rows"                 => [ 'list', ['object', [{'id'       => ['string', 'unique annotation text'],
-                                                                             'metadata' => ['hash', 'key value pairs describing metadata']}, "rows object"]] ],
-                            "columns"              => [ 'list', ['object', [{'id'       => ['string', 'unique metagenome identifier'],
-                                                                             'metadata' => ['hash', 'key value pairs describing metadata']}, "columns object"]] ],
-                            "data"                 => [ 'list', ['list', ['float', 'the matrix values']] ]
-                          };
-    $self->{sources} = { organism => [ $self->source->{m5nr}, $self->source->{m5rna} ],
-                         ontology => $self->source->{ontology}
-                       };
+    $self->{attributes} = {
+        "id"                   => [ 'string', 'unique object identifier' ],
+        "url"                  => [ 'uri', 'resource location of this object instance' ],
+        "format"               => [ 'string', 'format specification name' ],
+        "format_url"           => [ 'string', 'url to the format specification' ],
+        "type"                 => [ 'string', 'type of the data in the return table (taxon, function or gene)' ],
+        "generated_by"         => [ 'string', 'identifier of the data generator' ],
+        "date"                 => [ 'date', 'time the output data was generated' ],
+        "matrix_type"          => [ 'string', 'type of the data encoding matrix (dense or sparse)' ],
+        "matrix_element_type"  => [ 'string', 'data type of the elements in the return matrix' ],
+        "matrix_element_value" => [ 'string', 'result_type of the elements in the return matrix' ],
+        "shape"                => [ 'list', ['integer', 'list of the dimension sizes of the return matrix'] ],
+        "rows"                 => [ 'list', ['object', [{'id'       => ['string', 'unique annotation text'],
+                                                         'metadata' => ['hash', 'key value pairs describing metadata']}, "rows object"]]
+                                  ],
+        "columns"              => [ 'list', ['object', [{'id'       => ['string', 'unique metagenome identifier'],
+                                                         'metadata' => ['hash', 'key value pairs describing metadata']}, "columns object"]]
+                                  ],
+        "data"                 => [ 'list', ['list', ['float', 'the matrix values']] ]
+    };
+    $self->{sources} = {
+        organism => [ $self->source->{m5nr}, $self->source->{m5rna} ],
+        ontology => $self->source->{ontology}
+    };
     map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{protein}};
     map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{rna}};
     return $self;

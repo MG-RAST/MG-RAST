@@ -334,10 +334,22 @@ sub format {
 
 # get cgi header
 sub header {
-    my ($self, $status) =  @_;
-    return $self->cgi->header( -type => $self->format,
-	                           -status => $status,
-	                           -Access_Control_Allow_Origin => '*' );
+    my ($self, $status, $text) =  @_;
+    unless ($status) {
+        $status = 200;
+    }
+    my $header = $self->cgi->header(
+        -type => $self->format,
+	    -status => $status,
+	    -Access_Control_Allow_Origin => '*'
+	);
+    {
+        use bytes;
+        if ($text) {
+            $header->set('Content-Length' => length($text));
+        }
+    }
+    return $header
 }
 
 # method initially called from the api module
@@ -422,7 +434,7 @@ sub return_cached {
         my $cached = $self->memd->get($self->url_id);
         if ($cached) {
             # do a runaround on ->return_data
-            print $self->header;
+            print $self->header(200, $cached);
             print $cached;
             exit 0;
         }
@@ -479,8 +491,9 @@ sub return_data {
                 $self->memd->set($self->url_id, $self->json->encode($data), $self->{expire});
             }
         }
-        print $self->header($status);
-        print $self->json->encode($data);
+        my $data_text = $self->json->encode($data);
+        print $self->header($status, $data_text);
+        print $data_text;
         exit 0;
     }
     else {
@@ -490,8 +503,9 @@ sub return_data {
 	            $data = { 'data' => $data };
             }
             $self->format("application/json");
-            print $self->header($status);
-            print $self->cgi->param('callback')."(".$self->json->encode($data).");";
+            my $data_text = $self->cgi->param('callback')."(".$self->json->encode($data).");"
+            print $self->header($status, $data_text);
+            print $data_text;
             exit 0;
         }
         # normal return
@@ -504,7 +518,7 @@ sub return_data {
                 $self->memd->set($self->url_id, $data, $self->{expire});
             }
             # send it
-            print $self->header($status);
+            print $self->header($status, $data);
             print $data;
             exit 0;
         }
