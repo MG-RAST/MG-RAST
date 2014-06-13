@@ -45,12 +45,9 @@ function start_upload () {
       document.getElementById('progress_display').style.display = "";
 
       if (start < SIZE) {
-	if ('mozSlice' in blob) {
-	  chunk = blob.mozSlice(start, end);
-	} else {
-	  chunk = blob.webkitSlice(start, end);
-	}
-	
+	  var blobSlice = File.prototype.slice || File.prototype.mozSlice || File.prototype.webkitSlice;
+	  chunk = blobSlice.call(blob, start, end);
+	  	
 	document.getElementById("upload_progress").style.display = "";
 	document.querySelector("#upload_status").innerHTML = "<b>current file</b> " + blob.name + "<br><b>file</b> " + (fu_curr_file+1) + " of " + fu_curr_files.length + "<br><b>size</b> " + pretty_size(blob.size) + "<br><b>type</b> " + pretty_type(blob.type);
 	fu_curr_offset = end;
