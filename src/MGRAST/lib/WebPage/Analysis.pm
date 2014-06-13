@@ -4607,6 +4607,7 @@ sub metabolism_visual {
 	$content .= "'>";
 	close(D);
 	unlink $infile;
+	$cdata =~ s/'/\&\#39\;/g;
 
 	$content .= "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='$cdata'><input type='submit' value='download values used to generate this figure'></form>";
 

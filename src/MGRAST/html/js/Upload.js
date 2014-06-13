@@ -24,6 +24,8 @@ function init_all () {
     auth = user.auth;
     init_uploader();
     update_inbox();
+      document.getElementById('new_project').addEventListener('keydown', function (event) { window.lastP = this.value; });
+      document.getElementById('new_project').addEventListener('keyup', function (event) { if (! this.value.match(/^[\w+\-\(\)\@\; \:]*$/)) { this.value = window.lastP; alert('invalid character'); } });
   }
 }
 
@@ -33,7 +35,7 @@ function stop(e){
 
 function validateTextFields() {
     var boxes = { "deviation": "positive_float",
-		  "max_ambig": "positive_int",
+		  "max_ambig": "int",
 		  "max_lqb": "int",
 		  "min_qual": "int" };
 
