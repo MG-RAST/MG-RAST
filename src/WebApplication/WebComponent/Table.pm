@@ -378,7 +378,7 @@ sub output {
   # insert column visibility control
   if ($self->show_column_select) {
     $table .= "<td class='table_first_row' title='show / hide columns'><div onclick='if (document.getElementById(\"tscs" . $self->id . "\").style.display == \"inline\") { document.getElementById(\"tscs" . $self->id . "\").style.display = \"none\"; } else { document.getElementById(\"tscs" . $self->id . "\").style.display = \"inline\"; }' style='cursor: pointer;'>...</div><div id='tscs" . $self->id . "' style='display: none; position: absolute; border: 1px solid black; margin-left: -3px; margin-top: 2px; background-color: white;'>";
-    $table .= "<table>";
+    $table .= "<table style='color: black;'>";
     my $cind = 0;
     foreach my $col (@{$self->columns}) {
       unless (ref($col)) {
