@@ -129,7 +129,7 @@ sub info {
             },
             { 'name'        => "export",
               'request'     => $self->cgi->url."/".$self->name."/export/{ID}",
-              'description' => "Returns full nested metadata for a project in same format as template",
+              'description' => "Returns full nested metadata for a project in same format as template, or metadata for a single metagenome.",
               'example'     => [ $self->cgi->url."/".$self->name."/export/mgp128",
                                  'all metadata for project mgp128' ],
               'method'      => "GET",
@@ -302,9 +302,11 @@ sub instance {
                ) {
             $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
         }
-        # prepare data
-        my $dataset = $mddb->get_jobs_metadata_fast([$mgid], 1);
-        $self->return_data($dataset->{$mgid});
+        # prepare data / get mixs
+        my $data = $mddb->get_jobs_metadata_fast([$mgid], 1)->{$mgid};
+        my $mixs = $mddb->get_job_mixs($job);
+        $data->{mixs} = $mixs;
+        $self->return_data($data);
     }
     # bad id
     else {
