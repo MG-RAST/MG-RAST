@@ -35,7 +35,7 @@ function stop(e){
 
 function validateTextFields() {
     var boxes = { "deviation": "positive_float",
-		  "max_ambig": "positive_int",
+		  "max_ambig": "int",
 		  "max_lqb": "int",
 		  "min_qual": "int" };
 

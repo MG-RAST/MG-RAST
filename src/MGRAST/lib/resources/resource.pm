@@ -338,17 +338,19 @@ sub header {
     unless ($status) {
         $status = 200;
     }
-    my $header = $self->cgi->header(
-        -type => $self->format,
-	    -status => $status,
-	    -Access_Control_Allow_Origin => '*'
-	);
+    my $size = 0;
     {
         use bytes;
         if ($text) {
-            $header->set('Content-Length' => length($text));
+            $size = length($text);
         }
     }
+    my $header = $self->cgi->header(
+        -type => $self->format,
+	    -status => $status,
+	    -Access_Control_Allow_Origin => '*',
+	    -Content_Length => $size
+	);
     return $header
 }
 
@@ -402,6 +404,11 @@ sub check_pagination {
     $total = int($total);
     $limit = int($limit);
     $path  = $path || "";
+    
+    # user asked for to large of an offset
+    if ($offset >= $total) {
+        $self->return_data({"ERROR" => "Requested offset ($offset) is greater than availabale objects ($total)."}, 404);
+    }
     
     my $total_count = $total || scalar(@$data);
     my $prev_offset = (($offset - $limit) < 0) ? 0 : $offset - $limit;
@@ -503,7 +510,7 @@ sub return_data {
 	            $data = { 'data' => $data };
             }
             $self->format("application/json");
-            my $data_text = $self->cgi->param('callback')."(".$self->json->encode($data).");"
+            my $data_text = $self->cgi->param('callback')."(".$self->json->encode($data).");";
             print $self->header($status, $data_text);
             print $data_text;
             exit 0;
