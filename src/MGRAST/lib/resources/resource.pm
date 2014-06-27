@@ -362,6 +362,11 @@ sub check_pagination {
     $limit = int($limit);
     $path  = $path || "";
     
+    # user asked for to large of an offset
+    if ($offset >= $total) {
+        $self->return_data({"ERROR" => "Requested offset ($offset) is greater than availabale objects ($total)."}, 404);
+    }
+    
     my $total_count = $total || scalar(@$data);
     my $prev_offset = (($offset - $limit) < 0) ? 0 : $offset - $limit;
     my $next_offset = $offset + $limit;
