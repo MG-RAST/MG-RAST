@@ -314,6 +314,11 @@ sub query {
     }
     my $obj = $self->check_pagination($data, $total, $limit);
     $obj->{version} = 1;
+    
+    # found nothing, return it
+    if (scalar(@$data) == 0) {
+        $self->return_data($obj);
+    }
 
     if (($verb eq 'minimal') || ($verb eq 'mixs')) {
         # add missing fields to solr data
