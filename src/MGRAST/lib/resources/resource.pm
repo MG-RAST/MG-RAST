@@ -205,7 +205,6 @@ sub pipeline_opts {
              'file_type',
              'filter_ambig',
              'filter_ln',
-             'filter_options',
              'max_ambig',
              'max_ln',
              'max_lqb',
