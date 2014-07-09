@@ -168,7 +168,7 @@ sub delete {
   }
 
   # delete all organization memberships for this user
-  my $organization_memberships = $self->_master->OrganizationUsers( { user => $self } );
+  my $organization_memberships = $self->_master->OrganizationUsers->get_objects( { user => $self } );
   foreach (@$organization_memberships) {
     $_->delete;
   }
