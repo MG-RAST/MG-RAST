@@ -1520,6 +1520,9 @@ sub run {
 	eval { $content = $self->page->output; };
 	if ($@) {
 	  my $error = $@;
+	  if ($Conf::developer_mode) {
+	    $self->error("<h2>Error generating page output for $page.</h2>\n$error");
+	  }
 	}
 
 	# checking for any js calls via the JSCaller Web Component
