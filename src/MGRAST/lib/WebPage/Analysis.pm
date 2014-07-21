@@ -6585,8 +6585,47 @@ sub selectable_metagenomes {
   my $cache_key = "analysis_metagenomes_".($no_groups ? "nogroups" : "hasgroups")."_".($user ? $user->_id : "anonymous");
   my $cdata = $memd->get($cache_key);
   
+  my $colls = [];
+  my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
+									     user => $user,
+									     name => 'mgrast_collection' } );
+  if (scalar(@$coll_prefs) && (! $no_groups)) {
+    my $rast = $self->application->data_handle('MGRAST'); 
+    my $collections = {};
+    foreach my $collection_pref (@$coll_prefs) {
+      my ($name, $val) = split(/\|/, $collection_pref->{value});
+      if (! exists($collections->{$name})) {
+	$collections->{$name} = [];
+      }
+      my $pj = $rast->Job->get_objects( { job_id => $val })->[0];
+      push @{$collections->{$name}}, [ $pj->{metagenome_id}, $pj->{name} ];
+    }
+    foreach my $coll ( sort keys %$collections ) {
+      if ( @{$collections->{$coll}} == 0 ) { next; }
+      push(@$colls, { label => $coll." [".scalar(@{$collections->{$coll}})."]", value => join('||', map { $_->[0]."##".$_->[1] } @{$collections->{$coll}}) });
+    }
+  }    
+  
   if ($cdata) {
+    # there is cached data  
     $memd->disconnect_all;
+
+    # if there are collections, update them in the cache data
+    if ($user && scalar(@$colls)) {
+      my $found_colls = 0;
+      for (my $i=0; $i<scalar(@{$cdata->[1]}); $i++) {
+	if ($cdata->[1]->[$i] eq 'collections') {
+	  $cdata->[0]->[$i] = $colls;
+	  $found_colls = 1;
+	  last;
+	}
+      }
+      unless ($found_colls) {
+	push(@{$cdata->[1]}, "collections");
+	push(@{$cdata->[0]}, $colls);
+      }
+    }
+
     return @$cdata;
   }
 
@@ -6601,7 +6640,6 @@ sub selectable_metagenomes {
   my $rast = $self->application->data_handle('MGRAST'); 
   my $org_seen = {};
   my $metagenomespub = [];
-  my $colls = [];
   my $projs = [];
   my $mgs = [];
   if (ref($rast)) {
@@ -6657,45 +6695,6 @@ sub selectable_metagenomes {
     @$projs = sort { lc($a->{label}) cmp lc($b->{label}) } @$projs;
 
     if ($user) {
-
-      # check for collections
-      my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
-										 user => $user,
-										 name => 'mgrast_collection' } );
-      if (scalar(@$coll_prefs) && (! $no_groups)) {
-	my $collections = {};
-	foreach my $collection_pref (@$coll_prefs) {
-	  my ($name, $val) = split(/\|/, $collection_pref->{value});
-	  if (! exists($collections->{$name})) {
-	    $collections->{$name} = [];
-	  }
-	  my $pj;
-	  foreach my $pmg (@$public_metagenomes) {
-	    if ($pmg->{job_id} == $val) {
-	      $pj = $pmg;
-	      last;
-	    }
-	  }
-	  unless ($pj) {
-	    foreach my $mg (@$mgs) {
-	      if (ref($mg) && (ref($mg) eq 'HASH')) {
-		if ($mg->{job_id} == $val) {
-		  $pj = $mg;
-		  last;
-		}
-	      }
-	    }
-	  }
-	  if ($pj) {
-	    push @{$collections->{$name}}, [ $pj->{metagenome_id}, $pj->{name} ];
-	  }
-	}
-	foreach my $coll ( sort keys %$collections ) {
-	  if ( @{$collections->{$coll}} == 0 ) { next; }
-	  push(@$colls, { label => $coll." [".scalar(@{$collections->{$coll}})."]", value => join('||', map { $_->[0]."##".$_->[1] } @{$collections->{$coll}}) });
-	}
-      }
-
       # build hash from all accessible metagenomes
       foreach my $mg_job (@$mgs) {
 	next if ($org_seen->{$mg_job->{metagenome_id}});
@@ -6708,6 +6707,7 @@ sub selectable_metagenomes {
       }
     }
   }
+
   my $groups = [];
   if (scalar(@$metagenomes)) {
     push(@$all_mgs, $metagenomes);
