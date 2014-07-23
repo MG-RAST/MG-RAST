@@ -180,7 +180,7 @@ sub instance {
     
     # if we get here, recaptcha is successful
     # now check if the login and email address correspond
-    my $user = $master->User->get_objects( { login => $cgi->param('login'), email => $cgi->param('email') } );
+    my $user = $master->User->get_objects( { login => $self->{cgi}->param('login'), email => $self->{cgi}->param('email') } );
     if ($user && scalar(@$user)) {
       $user = $user->[0];
       &set_password($user, &generate_password(), 1);
