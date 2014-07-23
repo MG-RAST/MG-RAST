@@ -1343,11 +1343,11 @@ sub get_user_info {
 	eval {
 	  use Conf;
 	  if ($Conf::secure_url) {
-	    $formstart = "<form method='post' id='login_form' enctype='multipart/form-data' action='".$Conf::secure_url.$self->application->url()."' style='margin: 0px; padding: 0px;'>\n".$self->application->cgi->hidden(-name=>'action', -id=>'action', -value=>'perform_login', -override=>1).$self->application->cgi->hidden(-name=>'page', -id=>'page', -value=>'Login', -override=>1);  
+	    $formstart = "<form method='post' id='login_form' enctype='multipart/form-data' action='".$Conf::secure_url.$self->url()."' style='margin: 0px; padding: 0px;'>\n".$self->cgi->hidden(-name=>'action', -id=>'action', -value=>'perform_login', -override=>1).$self->cgi->hidden(-name=>'page', -id=>'page', -value=>'Login', -override=>1);  
 	  }
 	};
 	if (! $formstart) {
-	  $formstart = $self->application->page->start_form('login_form', { action => 'perform_login', 'page' => 'Login' });
+	  $formstart = $self->page->start_form('login_form', { action => 'perform_login', 'page' => 'Login' });
 	}
 
 	$info .= $formstart;
