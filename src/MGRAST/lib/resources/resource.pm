@@ -32,27 +32,31 @@ sub new {
     $json = $json->utf8();
     $json->max_size(0);
     $json->allow_nonref;
-    my $html_messages = { 200 => "OK",
-                          201 => "Created",
-                          204 => "No Content",
-                          400 => "Bad Request",
-                          401 => "Unauthorized",
-    		              404 => "Not Found",
-    		              416 => "Request Range Not Satisfiable",
-    		              500 => "Internal Server Error",
-    		              501 => "Not Implemented",
-    		              503 => "Service Unavailable",
-    		              507 => "Storing object failed",
-    		              -32602 => "Invalid params",
-    		              -32603 => "Internal error"
-    		              };
-    # get mgrast token
+    
+    my $html_messages = {
+        200 => "OK",
+        201 => "Created",
+        204 => "No Content",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        404 => "Not Found",
+	    416 => "Request Range Not Satisfiable",
+	    500 => "Internal Server Error",
+	    501 => "Not Implemented",
+	    503 => "Service Unavailable",
+	    507 => "Storing object failed",
+	    -32602 => "Invalid params",
+	    -32603 => "Internal error"
+	};
+	
+	# get mgrast token
     my $mgrast_token = undef;
     if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
         my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
         my $rep = Auth::globus_token($key);
         $mgrast_token = $rep ? $rep->{access_token} : undef;
     }
+	
     # create object
     my $self = {
         format        => "application/json",
@@ -220,7 +224,6 @@ sub pipeline_opts {
              'file_type',
              'filter_ambig',
              'filter_ln',
-             'filter_options',
              'max_ambig',
              'max_ln',
              'max_lqb',
@@ -323,15 +326,6 @@ sub seq_stats {
     ];
 }
 
-# set of pipeline stage names that have subset index (virtual) files
-sub subset_files {
-    return { 'preprocess' => 1,
-             'dereplication' => 1,
-             'screen' => 1,
-             'rna.filter' => 1
-    };
-}
-
 # get / set functions for class variables
 sub format {
     my ($self, $format) = @_;
@@ -343,10 +337,24 @@ sub format {
 
 # get cgi header
 sub header {
-    my ($self, $status) =  @_;
-    return $self->cgi->header( -type => $self->format,
-	                           -status => $status,
-	                           -Access_Control_Allow_Origin => '*' );
+    my ($self, $status, $text) =  @_;
+    unless ($status) {
+        $status = 200;
+    }
+    my $size = 0;
+    {
+        use bytes;
+        if ($text) {
+            $size = length($text);
+        }
+    }
+    my $header = $self->cgi->header(
+        -type => $self->format,
+	    -status => $status,
+	    -Access_Control_Allow_Origin => '*',
+	    -Content_Length => $size
+	);
+    return $header
 }
 
 # method initially called from the api module
@@ -431,7 +439,7 @@ sub return_cached {
         my $cached = $self->memd->get($self->url_id);
         if ($cached) {
             # do a runaround on ->return_data
-            print $self->header;
+            print $self->header(200, $cached);
             print $cached;
             exit 0;
         }
@@ -488,8 +496,9 @@ sub return_data {
                 $self->memd->set($self->url_id, $self->json->encode($data), $self->{expire});
             }
         }
-        print $self->header($status);
-        print $self->json->encode($data);
+        my $data_text = $self->json->encode($data);
+        print $self->header($status, $data_text);
+        print $data_text;
         exit 0;
     }
     else {
@@ -499,8 +508,9 @@ sub return_data {
 	            $data = { 'data' => $data };
             }
             $self->format("application/json");
-            print $self->header($status);
-            print $self->cgi->param('callback')."(".$self->json->encode($data).");";
+            my $data_text = $self->cgi->param('callback')."(".$self->json->encode($data).");";
+            print $self->header($status, $data_text);
+            print $data_text;
             exit 0;
         }
         # normal return
@@ -513,7 +523,7 @@ sub return_data {
                 $self->memd->set($self->url_id, $data, $self->{expire});
             }
             # send it
-            print $self->header($status);
+            print $self->header($status, $data);
             print $data;
             exit 0;
         }
@@ -533,7 +543,7 @@ sub download_text {
 
 # stream a file from shock to browser
 sub return_shock_file {
-    my ($self, $id, $size, $name, $auth, $subset) = @_;
+    my ($self, $id, $size, $name, $auth) = @_;
         
     my $response = undef;
     # print headers
@@ -542,9 +552,9 @@ sub return_shock_file {
     if ($size) {
         print "Content-Length: ".$size."\n";
     }
-    print "Content-Disposition:attachment;filename=".$name.($subset ? '.fna' : '')."\n\n";
+    print "Content-Disposition:attachment;filename=".$name."\n\n";
     eval {
-        my $url = $Conf::shock_url.'/node/'.$id.'?download_raw'.($subset ? '&index='.$name : '');
+        my $url = $Conf::shock_url.'/node/'.$id.'?download_raw';
         my @args = (
             $auth ? ('Authorization', "OAuth $auth") : (),
             ':read_size_hint', 8192,
@@ -572,7 +582,14 @@ sub get_download_set {
     foreach my $node (@$mgdata) {
         my $attr = $node->{attributes};
         my $file = $node->{file};
-        next if ($seq_only && ($attr->{data_type} ne 'sequence'));
+        # only return sequence files
+        if ( $seq_only &&
+             ($attr->{data_type} ne 'sequence') && 
+             ($attr->{file_format} ne 'fasta') &&
+             ($attr->{file_format} ne 'fastq') )
+        {
+            next;
+        }
         if (exists $seen{$attr->{stage_id}}) {
             $seen{$attr->{stage_id}} += 1;
         } else {
@@ -587,37 +604,13 @@ sub get_download_set {
 		             file_type  => exists($attr->{file_format}) ? $attr->{file_format} : $attr->{data_type},
 		             file_id    => $file_id,
 		             file_name  => $file->{name},
-		             file_size  => $file->{size},
-		             file_md5   => $file->{checksum}{md5}
+		             file_size  => $file->{size} || undef,
+		             file_md5   => $file->{checksum}{md5} || undef
 		};
-		# subset nodes - has virtual file from index
-		if (exists $self->subset_files->{$data->{stage_name}}) {
-		    # passed file
-		    $data->{file_name} = $data->{stage_name}.'.passed';
-		    $data->{file_size} = undef;
-		    $data->{file_md5}  = undef;
-		    if (exists($attr->{statistics}) && exists($attr->{statistics}{$attr->{stage_name}.'.passed'})) {
-		        $data->{statistics} = $attr->{statistics}{$attr->{stage_name}.'.passed'};
-		    }
-		    push @$stages, $data;
-		    # removed file
-		    if (exists $node->{indexes}{$data->{stage_name}.'.removed'}) {
-		        my $copy = dclone($data);
-		        my $fid  = $copy->{stage_id}.'.'.($seen{$copy->{stage_id}} + 1);
-		        $copy->{file_name} = $copy->{stage_name}.'.removed';
-		        $copy->{file_id} = $fid;
-		        $copy->{url} = $self->cgi->url.'/download/mgm'.$mgid.'?file='.$fid;
-                if (exists($attr->{statistics}) && exists($attr->{statistics}{$attr->{stage_name}.'.removed'})) {
-                    $copy->{statistics} = $attr->{statistics}{$attr->{stage_name}.'.removed'};
-                }
-		        push @$stages, $copy;
-            }
-        } else {
-            if (exists $attr->{statistics}) {
-                $data->{statistics} = $attr->{statistics};
-            }
-		    push @$stages, $data;
-	    }
+		if (exists $attr->{statistics}) {
+            $data->{statistics} = $attr->{statistics};
+        }
+        push @$stages, $data;
     }
     return $stages;
 }

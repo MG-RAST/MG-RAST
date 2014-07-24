@@ -114,8 +114,7 @@ sub instance {
         my $node = undef;
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
-                my $subset = exists($self->subset_files->{$set->{stage_name}}) ? 1 : 0;
-                $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $self->mgrast_token, $subset);
+                $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $self->mgrast_token);
             }
         }
         $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );

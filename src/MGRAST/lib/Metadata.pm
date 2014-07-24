@@ -410,6 +410,39 @@ sub get_job_metadata {
   return exists($data->{$job->job_id}) ? $data->{$job->job_id} : {};
 }
 
+sub get_job_mixs {
+    my ($self, $job) = @_;
+    
+    my $mixs = {};
+    $mixs->{project_id}   = "";
+    $mixs->{project_name} = "";
+    $mixs->{PI_firstname} = "";
+    $mixs->{PI_lastname}  = "";
+    eval {
+        $mixs->{project_id}   = 'mgp'.$job->primary_project->{id};
+        $mixs->{project_name} = $job->primary_project->{name};
+    };
+    eval {
+        my $pdata = $job->primary_project->data;
+        $mixs->{PI_firstname} = $pdata->{PI_firstname};
+	    $mixs->{PI_lastname}  = $pdata->{PI_lastname};
+    };
+    my $lat_lon = $job->lat_lon;
+    $mixs->{latitude}   = (@$lat_lon > 1) ? $lat_lon->[0] : "";
+    $mixs->{longitude}  = (@$lat_lon > 1) ? $lat_lon->[1] : "";
+    $mixs->{country}    = $job->country || "";
+    $mixs->{location}   = $job->location || "";
+    $mixs->{biome}      = $job->biome || "";
+    $mixs->{feature}    = $job->feature || "";
+    $mixs->{material}   = $job->material || "";
+    $mixs->{seq_method} = $job->seq_method || "";
+    $mixs->{sequence_type}    = $job->seq_type || "";
+    $mixs->{collection_date}  = $job->collection_date || "";
+    $mixs->{env_package_type} = $job->env_package_type || "";
+    
+    return $mixs;
+}
+
 =pod
 
 =item * B<is_job_compliant> (JobObject<job>)

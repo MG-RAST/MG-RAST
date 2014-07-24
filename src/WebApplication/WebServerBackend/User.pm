@@ -168,11 +168,13 @@ sub delete {
   }
 
   # delete all organization memberships for this user
-  my $organization_memberships = $self->_master->OrganizationUsers( { user => $self } );
-  foreach (@$organization_memberships) {
-    $_->delete;
+  my $organization_memberships = $self->_master->OrganizationUsers->get_objects( { user => $self } );
+  if (ref($organization_memberships) eq "ARRAY") {
+    foreach (@$organization_memberships) {
+      $_->delete;
+    }
   }
-  
+
   return $self->SUPER::delete();
 
 }

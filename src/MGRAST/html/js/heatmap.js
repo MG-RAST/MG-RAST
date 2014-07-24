@@ -149,7 +149,7 @@ function heatmap_table(img, d, max_value, cell_h, cell_w, offset_x, offset_y) {
   for(r=0; r<d.rows.length; r++){
     for(c=0, x=offset_x, y=((r * cell_h) + offset_y); c<d.columns.length; c++,x+=cell_w){
       cell_value = pFA(d.table[(d.rows[r]-1)][(d.columns[c]-1)].substr(0,8));
-      img.rect(x,y,cell_w,cell_h).attr({fill: colors[parseInt(cell_value / color_interval)], stroke: 0, title: cell_value});
+      img.rect(x,y,cell_w,cell_h).attr({fill: '#'+colors[parseInt(cell_value / color_interval)], stroke: 0, title: cell_value});
     }
   }
 }

@@ -8,6 +8,7 @@ use URI::Escape;
 use List::Util qw(first max min sum);
 use POSIX qw(strftime floor);
 
+use MGRAST::Metadata;
 use MGRAST::Analysis;
 use Conf;
 use parent qw(resources::resource);
@@ -313,6 +314,11 @@ sub query {
     }
     my $obj = $self->check_pagination($data, $total, $limit);
     $obj->{version} = 1;
+    
+    # found nothing, return it
+    if (scalar(@$data) == 0) {
+        $self->return_data($obj);
+    }
 
     if (($verb eq 'minimal') || ($verb eq 'mixs')) {
         # add missing fields to solr data
@@ -351,10 +357,9 @@ sub prepare_data {
     my $mgids = [];
     @$mgids = map { $_->{metagenome_id} } @$data;
     my $jobdata = {};
-    my $mddb;
+    my $mddb = undef;
     
     if (($verb eq 'metadata') || ($verb eq 'full')) {
-        use MGRAST::Metadata;
         $mddb = MGRAST::Metadata->new();
         $jobdata = $mddb->get_jobs_metadata_fast($mgids, 1);
     }
@@ -436,32 +441,10 @@ sub prepare_data {
         $obj->{pipeline_version} = '3.0';
         
         if (($verb eq 'mixs') || ($verb eq 'full')) {
-            my $mixs = {};
-		    $mixs->{project_id} = "";
-		    $mixs->{project_name} = "";
-		    $mixs->{PI_firstname} = "";
-		    $mixs->{PI_lastname} = "";
-		    eval {
-		        $mixs->{project_id} = 'mgp'.$job->primary_project->{id};
-		        $mixs->{project_name} = $job->primary_project->{name};
-		    };
-		    eval {
-		        my $pdata = $job->primary_project->data;
-		        $mixs->{PI_firstname} = $pdata->{PI_firstname};
-    		    $mixs->{PI_lastname} = $pdata->{PI_lastname};
-		    };
-	        my $lat_lon = $job->lat_lon;
-	        $mixs->{latitude} = (@$lat_lon > 1) ? $lat_lon->[0] : "";
-	        $mixs->{longitude} = (@$lat_lon > 1) ? $lat_lon->[1] : "";
-	        $mixs->{country} = $job->country || "";
-	        $mixs->{location} = $job->location || "";
-	        $mixs->{collection_date} = $job->collection_date || "";
-	        $mixs->{biome} = $job->biome || "";
-	        $mixs->{feature} =  $job->feature || "";
-	        $mixs->{material} = $job->material || "";
-	        $mixs->{env_package_type} = $job->env_package_type || "";
-	        $mixs->{seq_method} = $job->seq_method || "";
-	        $mixs->{sequence_type} = $job->seq_type || "";
+            if (! $mddb) {
+                $mddb = MGRAST::Metadata->new();
+            }
+            my $mixs = $mddb->get_job_mixs($job);
 	        if ($verb eq 'full') {
 	            $obj->{mixs} = $mixs;
             } else {
