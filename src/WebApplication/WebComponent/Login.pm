@@ -164,8 +164,9 @@ sub perform_login {
       my $to = $self->{'target_page'} 
 	|| $self->application->session->get_entry(-current => 1) 
 	  || $self->application->default;
-      $self->application->redirect($to);
-      
+      use Conf;
+      if (ref($to) eq 'HASH') { $to = $to->{page} || $self->application->default; }
+      print $self->application->cgi->redirect(-uri => $Conf::cgi_url."?page=".$to, -cookie => $self->application->session->cookie );
     }
     else {
       $self->application->add_message('warning', "Sorry, you have no access to this web server. <a href='".$self->application->url."?page=Register&tab=existing&login=".$user->login."&email=".$user->email."'>Request access</a>");
