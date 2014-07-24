@@ -32,27 +32,31 @@ sub new {
     $json = $json->utf8();
     $json->max_size(0);
     $json->allow_nonref;
-    my $html_messages = { 200 => "OK",
-                          201 => "Created",
-                          204 => "No Content",
-                          400 => "Bad Request",
-                          401 => "Unauthorized",
-    		              404 => "Not Found",
-    		              416 => "Request Range Not Satisfiable",
-    		              500 => "Internal Server Error",
-    		              501 => "Not Implemented",
-    		              503 => "Service Unavailable",
-    		              507 => "Storing object failed",
-    		              -32602 => "Invalid params",
-    		              -32603 => "Internal error"
-    		              };
-    # get mgrast token
+    
+    my $html_messages = {
+        200 => "OK",
+        201 => "Created",
+        204 => "No Content",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        404 => "Not Found",
+	    416 => "Request Range Not Satisfiable",
+	    500 => "Internal Server Error",
+	    501 => "Not Implemented",
+	    503 => "Service Unavailable",
+	    507 => "Storing object failed",
+	    -32602 => "Invalid params",
+	    -32603 => "Internal error"
+	};
+	
+	# get mgrast token
     my $mgrast_token = undef;
     if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
         my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
         my $rep = Auth::globus_token($key);
         $mgrast_token = $rep ? $rep->{access_token} : undef;
     }
+	
     # create object
     my $self = {
         format        => "application/json",

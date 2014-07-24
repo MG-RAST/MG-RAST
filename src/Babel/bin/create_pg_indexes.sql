@@ -47,7 +47,7 @@ CREATE INDEX ontologies_type ON ontologies (source);
 CREATE INDEX sources_name ON sources (name);
 CREATE INDEX sources_type ON sources (type);
 
-# load ontologies table
+/* load ontologies table */
 INSERT INTO ontologies (level1,level2,level3,level4,id,source) SELECT level1,level2,level3,level4,id,12 FROM ontology_kegg;
 INSERT INTO ontologies (level1,level2,level3,level4,id,source) SELECT level1,level2,level3,level4,id,14 FROM ontology_seed;
 INSERT INTO ontologies (level1,level2,level3,id,source) SELECT level1,level2,level3,id,10 FROM ontology_eggnog WHERE type='COG';
