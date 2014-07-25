@@ -123,7 +123,19 @@ sub output {
 
   # personal user information
   $html .= "<h2>Personal Information</h2>";
-  $html .= $self->start_form('user_form', { action => 'change_user_details' } );
+
+  my $formstart = undef;
+  eval {
+    use Conf;
+    if ($Conf::secure_url) {
+      $formstart = "<form method='post' id='user_form' enctype='multipart/form-data' action='".$Conf::secure_url.$self->application->url()."' style='margin: 0px; padding: 0px;'>\n".$self->application->cgi->hidden(-name=>'action', -id=>'action', -value=>'change_user_details', -override=>1);  
+    }
+  };
+  if (! $formstart) {
+    $formstart = $self->application->page->start_form('user_form', { action => 'change_user_details' });
+  }
+
+  $html .= $formstart;
   $html .= "<table>";
   $html .= "<tr><th> name</th><td><input type='text' name='firstname' value='" . encode_entities($user->firstname()) . "'></td></tr>";
   $html .= "<tr><th>last name</th><td><input type='text' name='lastname' value='" . encode_entities($user->lastname()) . "'></td></tr>";

@@ -57,7 +57,17 @@ sub output {
   my ($self) = @_;
 
   # start the form
-  my $content = $self->application->page->start_form('login_form', { page => $self->application->page->name });
+  my $content = undef;
+
+  eval {
+    use Conf;
+    if ($Conf::secure_url) {
+       $content = "<form method='post' id='login_form' enctype='multipart/form-data' action='".$Conf::secure_url.$self->application->url()."' style='margin: 0px; padding: 0px;'>\n".$self->application->cgi->hidden(-name=>'page', -id=>'page', -value=>$self->application->page->name, -override=>1);  
+    }
+  };
+  if (! $content) {
+    $content = $self->application->page->start_form('login_form', { page => $self->application->page->name });
+  }
 
   # check for small version of login
   if ($self->small_login) {
@@ -154,8 +164,9 @@ sub perform_login {
       my $to = $self->{'target_page'} 
 	|| $self->application->session->get_entry(-current => 1) 
 	  || $self->application->default;
-      $self->application->redirect($to);
-      
+      use Conf;
+      if (ref($to) eq 'HASH') { $to = $to->{page} || $self->application->default; }
+      print $self->application->cgi->redirect(-uri => $Conf::cgi_url."?page=".$to, -cookie => $self->application->session->cookie );
     }
     else {
       $self->application->add_message('warning', "Sorry, you have no access to this web server. <a href='".$self->application->url."?page=Register&tab=existing&login=".$user->login."&email=".$user->email."'>Request access</a>");
