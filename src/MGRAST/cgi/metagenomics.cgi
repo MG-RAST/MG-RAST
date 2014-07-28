@@ -62,6 +62,13 @@ sub main {
 					layout   => $layout,
 					default  => 'Home',
 				      } );
+    if ($cgi->param('loginfail')) {
+	if ($cgi->param('loginfail') eq "password") {
+	    $WebApp->add_message('warning', "Login or Password incorrect. Please try again.");
+	} else {
+	    $WebApp->add_message('warning', "Sorry, you have no access to this web server.");
+	}
+    }
     $WebApp->strict_browser(1);
     $WebApp->page_title_prefix('MG-RAST - ');
     $WebApp->show_login_user_info(1);
