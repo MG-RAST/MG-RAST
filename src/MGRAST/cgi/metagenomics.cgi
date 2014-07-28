@@ -2,6 +2,8 @@ use strict;
 use warnings;
 no warnings 'once';
 
+use CGI;
+
 use WebApplication;
 use WebMenu;
 use WebLayout;
@@ -9,13 +11,21 @@ use WebConfig;
 
 use Conf;
 
+my $cgi = new CGI();
+if ($cgi->url =~ /^https/) {
+    if (! $cgi->param('action') || (($cgi->param('action') != 'perform_login') && ($cgi->param('action') != 'change_user_details')) ) {
+	my $url = $cgi->url;
+	$url =~ s/^https/http/;
+	print $cgi->redirect(-uri => $url);
+    }
+}
+
 eval {
     &main;
 };
 
 if ($@)
 {
-    my $cgi = new CGI();
 
     print $cgi->header();
     print $cgi->start_html();

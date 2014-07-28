@@ -158,6 +158,38 @@ sub instance {
   if ($error) {
     $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
   }
+
+  # check if this is a reset password request
+  if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
+    # passwords may only be reset with a valid recaptcha
+    my $ua = $self->{agent};
+    $ua->env_proxy();
+    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/verify', { privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+									  remoteip   => $ENV{'REMOTE_ADDR'},
+									  challenge  => $self->{cgi}->param('challenge'),
+									  response   => $self->{cgi}->param('response') }
+			);
+    if ( $resp->is_success ) {
+      my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
+      if ( $answer !~ /true/ ) {
+	$self->return_data( {"ERROR" => "recaptcha failed"}, 400 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
+    }
+    
+    # if we get here, recaptcha is successful
+    # now check if the login and email address correspond
+    my $user = $master->User->get_objects( { login => $self->{cgi}->param('login'), email => $self->{cgi}->param('email') } );
+    if ($user && scalar(@$user)) {
+      $user = $user->[0];
+      &set_password($user, &generate_password(), 1);
+      $self->return_data( {"OK" => "password reset"}, 200 );
+
+    } else {
+      $self->return_data( {"ERROR" => "login and email do not match or are not registered"}, 400 );
+    }
+  }
   
   # check if this is a user creation
   if ($self->{method} eq 'POST') {
@@ -234,15 +266,9 @@ sub instance {
   }
   
   # check if this is an action request
-  my $requests = { 'resetpassword' => 1,
-		   'setpassword' => 1,
+  my $requests = { 'setpassword' => 1,
 		   'webkey' => 1 };
   if (scalar(@$rest) > 1 && $requests->{$rest->[1]}) {
-    # reset password
-    if ($rest->[1] eq 'resetpassword') {
-      &set_password($user, &generate_password(), 1);
-      $self->return_data( {"OK" => "password reset"}, 200 );
-    }
     # set password
     if ($rest->[1] eq 'setpassword') {
       if ($self->cgi->param('dwp')) {
