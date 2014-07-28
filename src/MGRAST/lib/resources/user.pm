@@ -30,7 +30,7 @@ sub new {
                             "url"        => [ 'uri', 'resource location of this object instance' ]
                           };
 
-    $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1},
+    $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1, 'session' => 1},
                     direction => {'asc' => 1, 'desc' => 1},
                     match => {'any' => 1, 'all' => 1}
     };
@@ -158,6 +158,38 @@ sub instance {
   if ($error) {
     $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
   }
+
+  # check if this is a reset password request
+  if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
+    # passwords may only be reset with a valid recaptcha
+    my $ua = $self->{agent};
+    $ua->env_proxy();
+    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/verify', { privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+									  remoteip   => $ENV{'REMOTE_ADDR'},
+									  challenge  => $self->{cgi}->param('challenge'),
+									  response   => $self->{cgi}->param('response') }
+			);
+    if ( $resp->is_success ) {
+      my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
+      if ( $answer !~ /true/ ) {
+	$self->return_data( {"ERROR" => "recaptcha failed"}, 400 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
+    }
+    
+    # if we get here, recaptcha is successful
+    # now check if the login and email address correspond
+    my $user = $master->User->get_objects( { login => $self->{cgi}->param('login'), email => $self->{cgi}->param('email') } );
+    if ($user && scalar(@$user)) {
+      $user = $user->[0];
+      &set_password($user, &generate_password(), 1);
+      $self->return_data( {"OK" => "password reset"}, 200 );
+
+    } else {
+      $self->return_data( {"ERROR" => "login and email do not match or are not registered"}, 400 );
+    }
+  }
   
   # check if this is a user creation
   if ($self->{method} eq 'POST') {
@@ -234,15 +266,9 @@ sub instance {
   }
   
   # check if this is an action request
-  my $requests = { 'resetpassword' => 1,
-		   'setpassword' => 1,
+  my $requests = { 'setpassword' => 1,
 		   'webkey' => 1 };
   if (scalar(@$rest) > 1 && $requests->{$rest->[1]}) {
-    # reset password
-    if ($rest->[1] eq 'resetpassword') {
-      &set_password($user, &generate_password(), 1);
-      $self->return_data( {"OK" => "password reset"}, 200 );
-    }
     # set password
     if ($rest->[1] eq 'setpassword') {
       if ($self->cgi->param('dwp')) {
@@ -377,7 +403,31 @@ sub instance {
     $user->{scopes} = [];
     @{$user->{scopes}} = map { { name => $_->{name},
 				   description => $_->{description} } } @$scopes;
-    
+    $user->{session} = {};
+    my $usession = $master->UserSession->get_objects( { user => $user } );
+    if (ref($usession) eq 'ARRAY' and scalar(@$usession)) {
+      $usession = $usession->[0];
+      $user->{session} = { error_page => $usession->{error_page},
+			   session_id => $usession->{session_id},
+			   error_parameters => $usession->{error_parameters},
+			   current_page => $usession->{current_page},
+			   timestamp => $usession->{timestamp},
+			   previous_page => $usession->{previous_page},
+			   current_parameters => $usession->{current_parameters},
+			   previous_parameters => $usession->{previous_parameters} };
+    }
+    $user->{organization} = {};
+    my $uho = $master->OrganizationUsers->get_objects( { user => $user } );
+    if (ref($uho) eq 'ARRAY' and scalar(@$uho)) {
+      my $org = $uho->[0]->organization;
+      $user->{organization} = { country => $org->{country},
+				city => $org->{city},
+				date => $org->{date},
+				url => $org->{url},
+				name => $org->{name},
+				abbreviation => $org->{abbreviation},
+				location => $org->{location} };
+    }
   }
   
   # prepare data
@@ -523,17 +573,21 @@ sub query {
 	push(@$where, $str);
       }
     }
-    my $where_string = join(" AND ", @$where);
+    my $where_string2 = join(" AND ", @$where);
+    my $where_string = "";
+    if (scalar(@$where)) {
+      $where_string = "WHERE ".join(" AND ", @$where);
+    }
 
     my $data = [];
-    my $total = $master->backend->get_rows('User', ["COUNT(*)"], $where_string, {})->[0]->[0];
+    my $total = $master->backend->get_rows('User', ["COUNT(*)"], $where_string2, {})->[0]->[0];
     # get only basic data
     if ($verb eq 'minimal') {
-      $data = $master->backend->get_rows('User', [], $where_string, { "sort_by" => [ "$order $dir LIMIT $limit OFFSET $offset" ], "row_as_hash" => 1 });
+      $data = $master->backend->get_rows('User', [], $where_string2, { "sort_by" => [ "$order $dir LIMIT $limit OFFSET $offset" ], "row_as_hash" => 1 });
     }
     # get the user preferences
     elsif ($verb eq 'preferences') {
-      my $rows = $master->backend->get_rows( "(SELECT * FROM User WHERE $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN Preferences ON t1._id=Preferences.user ORDER BY t1.$order ".uc($dir), [], undef, {});
+      my $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN Preferences ON t1._id=Preferences.user ORDER BY t1.$order ".uc($dir), [], undef, {});
       my $uhash = {};
       my $order_array = [];
       foreach my $row (@$rows) {
@@ -558,7 +612,7 @@ sub query {
     }
     # get the users rights
     elsif ($verb eq 'rights') {
-      my $rows = $master->backend->get_rows( "(SELECT * FROM User WHERE $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserHasScope ON t1._id=UserHasScope.user JOIN Scope on Scope._id=UserHasScope.scope JOIN Rights ON Scope._id=Rights.scope ORDER BY t1.$order ".uc($dir), [], undef, {});
+      my $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserHasScope ON t1._id=UserHasScope.user JOIN Scope on Scope._id=UserHasScope.scope JOIN Rights ON Scope._id=Rights.scope ORDER BY t1.$order ".uc($dir), [], undef, {});
       my $uhash = {};
       my $order_array = [];
       foreach my $row (@$rows) {
@@ -587,7 +641,7 @@ sub query {
     }
     # get the users scopes
     elsif ($verb eq 'scopes') {
-      my $rows = $master->backend->get_rows( "(SELECT * FROM User WHERE $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserHasScope ON t1._id=UserHasScope.user JOIN Scope on Scope._id=UserHasScope.scope ORDER BY $order ".uc($dir), [], undef, {});
+      my $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserHasScope ON t1._id=UserHasScope.user JOIN Scope on Scope._id=UserHasScope.scope ORDER BY $order ".uc($dir), [], undef, {});
       my $uhash = {};
       my $order_array = [];
       foreach my $row (@$rows) {
@@ -610,10 +664,14 @@ sub query {
 	push(@$data, $uhash->{$key});
       }
     }
+    # get session statistics
+    elsif ($verb eq 'session') {
+      
+    }
     # get everything
     else {
       #  _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 user 10 _user_db 11 scope 12 _scope_db 13 granted 14 _id 15 application 16 _application_db 17 name 18 description 19 _id 20 granted 21 delegated 22 data_id 23 data_type 24 application 25 _application_db 26 name 27 scope 28 _scope_db 29
-      my $rows = $master->backend->get_rows( "(SELECT * FROM User WHERE $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserHasScope ON t1._id=UserHasScope.user JOIN Scope on Scope._id=UserHasScope.scope JOIN Rights ON Scope._id=Rights.scope ORDER BY $order ".uc($dir), [], undef, {});
+      my $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserHasScope ON t1._id=UserHasScope.user JOIN Scope on Scope._id=UserHasScope.scope JOIN Rights ON Scope._id=Rights.scope ORDER BY $order ".uc($dir), [], undef, {});
       my $uhash = {};
       my $order_array = [];
       foreach my $row (@$rows) {
@@ -629,7 +687,9 @@ sub query {
 				  comment => $row->[4],
 				  rights => [],
 				  scopes => {},
-				  preferences => [] };
+				  preferences => [],
+				  organization => {},
+				  session => {} };
 	}
 	push(@{$uhash->{$row->[8]}->{rights}}, { name => $row->[27],
 						 data_type => $row->[24],
@@ -638,11 +698,36 @@ sub query {
 						 delegated => $row->[22] });
 	$uhash->{$row->[8]}->{scopes}->{$row->[12]} = { name => $row->[18], description => $row->[19] };
       }
-      $rows = $master->backend->get_rows( "(SELECT * FROM User WHERE $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN Preferences ON t1._id=Preferences.user ORDER BY t1.$order ".uc($dir), [], undef, {});
+      $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN Preferences ON t1._id=Preferences.user ORDER BY t1.$order ".uc($dir), [], undef, {});
       foreach my $row (@$rows) {
 	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 value 10 user 11 _user_db 12 application 13 _application_db 14 name 15 
 	
 	push(@{$uhash->{$row->[8]}->{preferences}}, { name => $row->[15], value => $row->[10] });
+      }
+      $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserSession ON t1._id=UserSession.user ORDER BY t1.$order ".uc($dir), [], undef, {});
+      foreach my $row (@$rows) {
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 error_page 10 session_id 11 error_parameters 12 current_page 13 timestamp 14 previous_page 15 user 16 _user_db 17 current_parameters 18 previous_parameters 19 
+	
+	$uhash->{$row->[8]}->{session} = { error_page => $row->[10],
+					   session_id => $row->[11],
+					   error_parameters => $row->[12],
+					   current_page => $row->[13],
+					   timestamp => $row->[14],
+					   previous_page => $row->[15],
+					   current_parameters => $row->[18],
+					   previous_parameters => $row->[19] };
+      }
+      $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN OrganizationUsers ON t1._id=OrganizationUsers.user JOIN Organization ON OrganizationUsers.organization=Organization._id ORDER BY t1.$order ".uc($dir), [], undef, {});
+      foreach my $row (@$rows) {
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 user 10 _user_db 11 organization 12 _organization_db 13 _id 14 country 15 city 16 date 17 url 18 name 19 abbreviation 20 scope 21 _scope_db 22 loaction 23
+	
+	$uhash->{$row->[8]}->{organization} = { country => $row->[15],
+						city => $row->[16],
+						date => $row->[17],
+						url => $row->[18],
+						name => $row->[19],
+						abbreviation => $row->[20],
+						location => $row->[23] };
       }
       foreach my $key (@$order_array) {
 	my $s = [];
@@ -691,6 +776,8 @@ sub prepare_data {
       if (defined $u->{preferences}) { $obj->{preferences} = $u->{preferences} };
       if (defined $u->{rights}) { $obj->{rights} = $u->{rights} };
       if (defined $u->{scopes}) { $obj->{scopes} = $u->{scopes} };
+      if (defined $u->{session}) { $obj->{session} = $u->{session} };
+      if (defined $u->{organization}) { $obj->{organization} = $u->{organization} };
       
       push(@$result, $obj);
     }

@@ -57,7 +57,17 @@ sub output {
   my ($self) = @_;
 
   # start the form
-  my $content = $self->application->page->start_form('login_form', { page => $self->application->page->name });
+  my $content = undef;
+
+  eval {
+    use Conf;
+    if ($Conf::secure_url) {
+       $content = "<form method='post' id='login_form' enctype='multipart/form-data' action='".$Conf::secure_url.$self->application->url()."' style='margin: 0px; padding: 0px;'>\n".$self->application->cgi->hidden(-name=>'page', -id=>'page', -value=>$self->application->page->name, -override=>1);  
+    }
+  };
+  if (! $content) {
+    $content = $self->application->page->start_form('login_form', { page => $self->application->page->name });
+  }
 
   # check for small version of login
   if ($self->small_login) {
@@ -111,19 +121,24 @@ sub perform_login {
     return 1;
   }
 
+  use Conf;
+  my $to = $self->{'target_page'} || $self->application->session->get_entry(-current => 1) || $self->application->default;
+  if (ref($to) eq 'HASH') { $to = $to->{page} || $self->application->default; }
+
+
   # try to initialize user
   my $user = $self->application->dbmaster->User->init( { login => $login } );
   if (ref $user and crypt($password, $user->password) eq $user->password) {
-
+    
     # check for login dependencies that were created after the user got the account
     if (ref $WebConfig::LOGIN_DEPENDENCIES) {
-
+      
       foreach my $d (@{$WebConfig::LOGIN_DEPENDENCIES->{$self->application->backend->name}}) {
 	
 	# get the backend
 	my $d_backend = $self->application->dbmaster->Backend->init({ name => $d });
 	if (ref $d_backend) {
-	 
+	  
 	  # create and grant the login right
 	  my $back_app = WebApplication->new( $d_backend );
 	  {
@@ -145,27 +160,20 @@ sub perform_login {
 	  }
 	}
       }
-    }
-
-    if ($user->active and ($user->has_right($self->application, 'login') || $Conf::open_gates)) {
-
-      $self->application->session->user($user);
-      
-      my $to = $self->{'target_page'} 
-	|| $self->application->session->get_entry(-current => 1) 
-	  || $self->application->default;
-      $self->application->redirect($to);
-      
-    }
-    else {
-      $self->application->add_message('warning', "Sorry, you have no access to this web server. <a href='".$self->application->url."?page=Register&tab=existing&login=".$user->login."&email=".$user->email."'>Request access</a>");
-      return 0;
-    }
-  } 
-  else {
-    $self->application->add_message('warning', 'Login or Password incorrect. Please try again.');
-    return 0;
   }
+
+if ($user->active and ($user->has_right($self->application, 'login') || $Conf::open_gates)) {
+  
+  $self->application->session->user($user);
+  print $self->application->cgi->redirect(-uri => $Conf::cgi_url."?page=".$to, -cookie => $self->application->session->cookie );
+} else {
+  print $self->application->cgi->redirect(-uri => $Conf::cgi_url."?page=".$to."&loginfail=access");
+  return 0;
+}
+} else {
+print $self->application->cgi->redirect(-uri => $Conf::cgi_url."?page=".$to."&loginfail=password");
+return 0;
+}
   
   return 1;
 }
