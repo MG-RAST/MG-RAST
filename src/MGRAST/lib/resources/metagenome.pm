@@ -405,6 +405,7 @@ sub prepare_data {
         $obj->{id} = "mgm".$job->{metagenome_id};
         $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
         $obj->{name} = $job->{name};
+        $obj->{job_id} = $job->{job_id};
         $obj->{status} = $job->{public} ? 'public' : 'private';
         $obj->{created} = $job->{created_on};
         $obj->{version} = 1;
