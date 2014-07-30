@@ -38,6 +38,7 @@ sub authenticate {
 	  }
           print $cgi->header(-type => 'application/json',
                              -status => 200,
+			     -charset => 'UTF-8',
                              -Access_Control_Allow_Origin => '*' );
           print '{ "token": "'.$pref->[0]->value.'"'.$verbose.' }';
           exit;
@@ -65,6 +66,7 @@ sub authenticate {
 	if ($ustruct->{access_token}) {
 	  print $cgi->header(-type => 'application/json',
 			     -status => 200,
+			     -charset => 'UTF-8',
 			     -Access_Control_Allow_Origin => '*' );
 	  print '{ "token": "'.$ustruct->{access_token}.'" }';
 	  exit;
