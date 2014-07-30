@@ -2380,7 +2380,7 @@ sub single_visual {
     }
 
     if ($cgi->param('high_res')) {
-      print $cgi->header();
+      print $cgi->header(-charset => 'UTF-8');
       print $cgi->start_html();
       $pt->size(2500);
       $pt->level_distance(100);
@@ -3202,7 +3202,7 @@ sub phylogeny_visual {
     }
 
     if ($cgi->param('high_res')) {
-      print $cgi->header();
+      print $cgi->header(-charset => 'UTF-8');
       print $cgi->start_html();
       $pt->size(2500);
       $pt->level_distance(100);
@@ -4199,7 +4199,7 @@ sub metabolism_visual {
     }
 
     if ($cgi->param('high_res')) {
-      print $cgi->header();
+      print $cgi->header(-charset => 'UTF-8');
       print $cgi->start_html();
       $pt->size(2500);
       $pt->level_distance(100);
@@ -5279,7 +5279,7 @@ sub lca_visual {
     }
 
     if ($cgi->param('high_res')) {
-      print $cgi->header();
+      print $cgi->header(-charset => 'UTF-8');
       print $cgi->start_html();
       $pt->size(2500);
       $pt->level_distance(100);

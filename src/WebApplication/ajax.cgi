@@ -78,7 +78,7 @@ if ($have_fcgi && $ENV{REQUEST_METHOD} eq '')
 	    elsif (ref($@) ne 'ARRAY')
 	    {
 		warn "code died, cgi=$cgi returning error '$@'\n";
-		print $cgi->header(-status => '500 error in body of cgi processing');
+		print $cgi->header(-status => '500 error in body of cgi processing', -charset => 'UTF-8');
 		print $@;
 	    }
 	}
@@ -141,7 +141,7 @@ sub main
 	    $ajaxError = $@;
 	}
     }
-    print $cgi->header(-cookie => \@cookieList);
+    print $cgi->header(-cookie => \@cookieList, -charset => 'UTF-8');
     my $result;
     if (! defined $ajaxError) {
 	eval {
