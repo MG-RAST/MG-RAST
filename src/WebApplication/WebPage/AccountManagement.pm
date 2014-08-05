@@ -128,7 +128,7 @@ sub output {
   eval {
     use Conf;
     if ($Conf::secure_url) {
-      $formstart = "<form method='post' id='user_form' enctype='multipart/form-data' action='".$Conf::secure_url.$self->application->url()."' style='margin: 0px; padding: 0px;'>\n".$self->application->cgi->hidden(-name=>'action', -id=>'action', -value=>'change_user_details', -override=>1);  
+      $formstart = "<form method='post' id='user_form' enctype='multipart/form-data' action='".$Conf::secure_url.$self->application->url()."' style='margin: 0px; padding: 0px;'>\n".$self->application->cgi->hidden(-name=>'action', -id=>'action', -value=>'change_user_details', -override=>1).$self->application->cgi->hidden(-name=>'page', -value=>'AccountManagement', -override=>1);  
     }
   };
   if (! $formstart) {
