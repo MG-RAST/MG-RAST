@@ -17,24 +17,29 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "job";
-    $self->{attributes} = { reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
-                                         "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
-                                         "job_id"        => [ "int", "unique MG-RAST job identifier" ],
-                                         "kbase_id"      => [ "string", "unique KBase metagenome identifier" ] },
-                            create => { "timestamp" => [ 'date', 'time the metagenome was first reserved' ],
-                                        "options"   => [ "string", "job pipeline option string" ],
-                                        "job_id"    => [ "int", "unique MG-RAST job identifier" ] },
-                            kb2mg => { "found" => [ 'int', 'number of inputted ids that have an alias' ],
-                                       "data"  => [ 'hash', 'key value pairs of KBase id to MG-RAST id' ] },
-                            mg2kb => { "found" => [ 'int', 'number of inputted ids that have an alias' ],
-                                       "data"  => [ 'hash', 'key value pairs of MG-RAST id to KBase id' ] }
-      				      };
+    $self->{attributes} = {
+        reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
+                     "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
+                     "job_id"        => [ "int", "unique MG-RAST job identifier" ],
+                     "kbase_id"      => [ "string", "unique KBase metagenome identifier" ] },
+        create => { "timestamp" => [ 'date', 'time the metagenome was first reserved' ],
+                    "options"   => [ "string", "job pipeline option string" ],
+                    "job_id"    => [ "int", "unique MG-RAST job identifier" ] },
+        addproject => { "project_id"   => [ "string", "unique MG-RAST project identifier" ],
+                        "project_name" => [ "string", "MG-RAST project name" ],
+                        "status"       => [ 'string', 'status of action' ] },
+        kb2mg => { "found" => [ 'int', 'number of inputted ids that have an alias' ],
+                   "data"  => [ 'hash', 'key value pairs of KBase id to MG-RAST id' ] },
+        mg2kb => { "found" => [ 'int', 'number of inputted ids that have an alias' ],
+                   "data"  => [ 'hash', 'key value pairs of MG-RAST id to KBase id' ] }
+    };
     $self->{input_stats}  = [ map {substr($_, 0, -4)} grep {$_ =~ /_raw$/} $self->seq_stats ];
-    $self->{create_param} = { 'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
-                              'sequence_type' => ["cv", [["WGS", "whole genome shotgun sequenceing"],
-                                                         ["Amplicon", "amplicon sequenceing"],
-                                                         ["MT", "metatranscriptome sequenceing"]] ]
-                            };
+    $self->{create_param} = {
+        'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
+        'sequence_type' => ["cv", [["WGS", "whole genome shotgun sequenceing"],
+                                   ["Amplicon", "amplicon sequenceing"],
+                                   ["MT", "metatranscriptome sequenceing"]] ]
+    };
     map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } @{$self->{input_stats}};
     map { $self->{create_param}{$_} = ['string', 'pipeline option'] } @{$self->pipeline_opts};
     return $self;
@@ -84,6 +89,17 @@ sub info {
 							                 'required' => {},
 							                 'body'     => $self->{create_param} }
 						},
+						{ 'name'        => "addproject",
+				          'request'     => $self->cgi->url."/".$self->name."/addproject",
+				          'description' => "Add exisiting MG-RAST job to existing MG-RAST project.",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{addproject},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
+							                                 "project_id" => [ "string", "unique MG-RAST project identifier" ] } }
+						},
 						{ 'name'        => "kb2mg",
 				          'request'     => $self->cgi->url."/".$self->name."/kb2mg",
 				          'description' => "Return a mapping of KBase ids to MG-RAST ids",
@@ -117,7 +133,7 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif (($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create')) {
+    } elsif (($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create') || ($self->rest->[0] eq 'addproject')) {
         $self->job_action($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'kb2mg') || ($self->rest->[0] eq 'mg2kb')) {
         $self->id_lookup($self->rest->[0]);
@@ -156,20 +172,15 @@ sub job_action {
                   job_id        => $job->{job_id},
                   kbase_id      => (exists($post->{kbase_id}) && $post->{kbase_id}) ? $self->reserve_kbase_id($mgid): undef
         };
-    } elsif ($action eq 'create') {
-        foreach my $key (keys %{$self->{create_param}}) {
-            unless (exists $post->{$key}) {
-                $self->return_data( {"ERROR" => "Missing required parameter '$key'"}, 404 );
-            }
-        }
+    } elsif (($action eq 'create') || ($action eq 'addproject')) {
         # check id format
         my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
             $self->return_data( {"ERROR" => "invalid id format: ".$post->{metagenome_id}}, 400 );
         }
         # check rights
-        unless ($self->user->has_right(undef, 'edit', 'metagenome', $id)) {
-            $self->return_data( {"ERROR" => "insufficient permissions to create metagenome ".$post->{metagenome_id}}, 401 );
+        unless ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'metagenome')) {
+            $self->return_data( {"ERROR" => "insufficient permissions for metagenome ".$post->{metagenome_id}}, 401 );
         }
         # get data
         my $job = $master->Job->get_objects( {metagenome_id => $id} );
@@ -177,12 +188,45 @@ sub job_action {
             $self->return_data( {"ERROR" => "id ".$post->{metagenome_id}." does not exist"}, 404 );
         }
         $job = $job->[0];
-        # create job
-        $job  = $master->Job->initialize($self->user, $post, $job);
-        $data = { timestamp => $job->{created_on},
-                  options   => $job->{options},
-                  job_id    => $job->{job_id}
-        };
+        
+        if ($action eq 'create') {
+            # check params
+            foreach my $key (keys %{$self->{create_param}}) {
+                unless (exists $post->{$key}) {
+                    $self->return_data( {"ERROR" => "Missing required parameter '$key'"}, 404 );
+                }
+            }
+            # create job
+            $job  = $master->Job->initialize($self->user, $post, $job);
+            $data = {
+                timestamp => $job->{created_on},
+                options   => $job->{options},
+                job_id    => $job->{job_id}
+            };
+        } elsif ($action eq 'addproject') {
+            # check id format
+            my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;
+            if (! $pid) {
+                $self->return_data( {"ERROR" => "invalid id format: ".$post->{project_id}}, 400 );
+            }
+            # check rights
+            unless ($self->user->has_right(undef, 'edit', 'project', $pid) || $self->user->has_star_right('edit', 'project')) {
+                $self->return_data( {"ERROR" => "insufficient permissions for project ".$post->{project_id}}, 401 );
+            }
+            # get data
+            my $project = $master->Project->get_objects( {id => $pid} );
+            unless ($project && @$project) {
+                $self->return_data( {"ERROR" => "id ".$post->{project_id}." does not exists"}, 404 );
+            }
+            $project = $project->[0];
+            # add it
+            my $status = $project->add_job($job);
+            $data = {
+                project_id   => $project->{id},
+                project_name => $project->{name},
+                status       => $status
+            };
+        }
     }
     
     $self->return_data($data);

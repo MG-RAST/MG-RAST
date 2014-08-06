@@ -17,7 +17,7 @@ if ($@)
 {
     my $cgi = new CGI();
 
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print $cgi->start_html();
     
     # print out the error
@@ -57,7 +57,7 @@ sub main {
     }
 
     if ($error) {
-	print $cgi->header();
+	print $cgi->header(-charset => 'UTF-8');
 	print $cgi->start_html(-title => 'MG-RAST linkin');
 	
 	# print out the error
