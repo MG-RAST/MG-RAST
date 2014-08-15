@@ -382,6 +382,7 @@ sub prepare_data {
         $obj->{id} = "mgm".$job->{metagenome_id};
         $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
         $obj->{name} = $job->{name};
+        $obj->{job_id} = $job->{job_id};
         $obj->{status} = $job->{public} ? 'public' : 'private';
         $obj->{created} = $job->{created_on};
         $obj->{version} = 1;
@@ -421,11 +422,14 @@ sub prepare_data {
 	            $pparams->{$tag} = 'no';
 	        }
         }
-	    # preprocessing
-        if ( ($jdata->{file_type} && ($jdata->{file_type} =~ /^(fq|fastq)$/)) ||
-             ($jdata->{suffix} && ($jdata->{suffix} =~ /^(fq|fastq)$/)) ) {
-            $pparams->{file_type} = 'fastq';
-        }
+	# preprocessing
+	if ($jdata->{file_type}) {
+	    $pparams->{file_type} = ($jdata->{file_type} =~ /^(fq|fastq)$/) ? 'fastq' : 'fna';
+	} elsif ($jdata->{suffix}) {
+	    $pparams->{file_type} = ($jdata->{suffix} =~ /^(fq|fastq)$/) ? 'fastq' : 'fna';
+	} else {
+	    $pparams->{file_type} = 'fna';
+	}
         if ($pparams->{file_type} eq 'fna') {
             if ($jdata->{max_ln} && $jstats->{average_length_raw} && $jstats->{standard_deviation_length_raw}) {
 		if ($jstats->{standard_deviation_length_raw} > 0) {

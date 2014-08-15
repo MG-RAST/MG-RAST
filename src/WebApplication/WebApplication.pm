@@ -1604,7 +1604,7 @@ sub run {
   # output, not ours.
   unless ($self->{transmitted}) {
     $self->{transmitted} = 1;
-    print $self->cgi->header( -cookie => $self->session->cookie );
+    print $self->cgi->header( -cookie => $self->session->cookie, -charset => 'UTF-8' );
     my $output = $self->layout->output;
     print $output;
   }

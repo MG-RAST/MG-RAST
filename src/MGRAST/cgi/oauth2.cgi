@@ -67,9 +67,9 @@ if ($cgi->param('logout')) {
 				-expires => "-1d" );
     
     if ($cgi->param('redirect')) {
-      print $cgi->header( -redirect => $cgi->param('redirect'), -cookie => $cookie );
+      print $cgi->header( -redirect => $cgi->param('redirect'), -cookie => $cookie, -charset => 'UTF-8' );
     } else { 
-      print $cgi->header( -cookie => $cookie );
+      print $cgi->header( -cookie => $cookie, -charset => 'UTF-8' );
       print base_template();
       print success_message("You have been logged out.");
       print close_template();
@@ -105,7 +105,7 @@ if ($cgi->param('login') && $cgi->param('pass')) {
 }
 
 unless ($cgi->param('action')) {
-  print $cgi->header(-cookie => $cookie );
+  print $cgi->header(-cookie => $cookie, -charset => 'UTF-8' );
   print base_template();
 
   if (! $allow_application  && ! $allow_user) {
@@ -215,6 +215,7 @@ unless ($cgi->param('action')) {
 	  $dbh->disconnect();
 	  print $cgi->header(-type => 'application/json',
 			     -status => 400,
+			     -charset => 'UTF-8',
 			     -Access_Control_Allow_Origin => '*' );
 	  print "{ 'error': 'redirect_url does not match client id' }";
 	  exit 0;
@@ -234,6 +235,7 @@ unless ($cgi->param('action')) {
 	  $dbh->disconnect();
 	  print $cgi->header(-type => 'application/json',
 			     -status => 400,
+			     -charset => 'UTF-8',
 			     -Access_Control_Allow_Origin => '*' );
 	  print '{ "error": "invalid user code" }';
 	  exit 0;
@@ -242,6 +244,7 @@ unless ($cgi->param('action')) {
 	  $dbh->disconnect();
 	  print $cgi->header(-type => 'application/json',
 			     -status => 400,
+			     -charset => 'UTF-8',
 			     -Access_Control_Allow_Origin => '*' );
 	  print '{ "error": "invalid code" }';
 	  exit 0;
@@ -266,6 +269,7 @@ unless ($cgi->param('action')) {
 	$dbh->disconnect();
 	print $cgi->header(-type => 'application/json',
 			   -status => 200,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print '{ "token": "'.$token.'", "user": "'.$user->login.'" }';
 	exit 0;	
@@ -273,6 +277,7 @@ unless ($cgi->param('action')) {
 	$dbh->disconnect();
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print '{ "error": "missing parameter" }';
 	exit 0;
@@ -299,6 +304,7 @@ unless ($cgi->param('action')) {
 		    if (ref($right)) {
 			print $cgi->header(-type => 'application/json',
 					   -status => 200,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "group": "'.$gid.'", "error": null, "success": "group created successfully" }';
 			exit 0;
@@ -307,6 +313,7 @@ unless ($cgi->param('action')) {
 			$uhs->delete();
 			print $cgi->header(-type => 'application/json',
 					   -status => 400,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "error": "group creation failed due to a database error while creating user group admin right" }';
 			exit 0;
@@ -315,6 +322,7 @@ unless ($cgi->param('action')) {
 		    $group->delete();
 		    print $cgi->header(-type => 'application/json',
 				       -status => 400,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "error": "group creation failed due to a database error while connecting user to group" }';
 		    exit 0;
@@ -322,6 +330,7 @@ unless ($cgi->param('action')) {
 	    } else {
 		print $cgi->header(-type => 'application/json',
 				   -status => 400,
+				   -charset => 'UTF-8',
 				   -Access_Control_Allow_Origin => '*' );
 		print '{ "error": "group creation failed due to a database error at group creation" }';
 		exit 0;
@@ -350,12 +359,14 @@ unless ($cgi->param('action')) {
 			$group->delete();
 			print $cgi->header(-type => 'application/json',
 					   -status => 200,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "group": "'.$gid.'", "error": null, "success": "group deleted successfully" }';
 			exit 0;
 		    } else {
 			print $cgi->header(-type => 'application/json',
 					   -status => 400,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "error": "insufficient rights to delete this group" }';
 			exit 0;
@@ -363,6 +374,7 @@ unless ($cgi->param('action')) {
 		} else {
 		    print $cgi->header(-type => 'application/json',
 				       -status => 400,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "error": "invalid group" }';
 		    exit 0;
@@ -370,6 +382,7 @@ unless ($cgi->param('action')) {
 	    } else {
 		print $cgi->header(-type => 'application/json',
 				   -status => 400,
+				   -charset => 'UTF-8',
 				   -Access_Control_Allow_Origin => '*' );
 		print '{ "error": "missing parameter group" }';
 		exit 0;
@@ -387,6 +400,7 @@ unless ($cgi->param('action')) {
 		    if ($uhs->{granted}) {
 			print $cgi->header(-type => 'application/json',
 					   -status => 200,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user was already part of this group" }';
 			exit 0;
@@ -394,6 +408,7 @@ unless ($cgi->param('action')) {
 			$uhs->granted(1);
 			print $cgi->header(-type => 'application/json',
 					   -status => 200,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user added to group successfully" }';
 			exit 0;
@@ -412,6 +427,7 @@ unless ($cgi->param('action')) {
 			    if ($right->{granted} && ! $right->{delegated}) {
 				print $cgi->header(-type => 'application/json',
 						   -status => 200,
+						   -charset => 'UTF-8',
 						   -Access_Control_Allow_Origin => '*' );
 				print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user was already owner of this group" }';
 				exit 0;
@@ -420,6 +436,7 @@ unless ($cgi->param('action')) {
 				$right->delegated(0);
 				print $cgi->header(-type => 'application/json',
 						   -status => 200,
+						   -charset => 'UTF-8',
 						   -Access_Control_Allow_Origin => '*' );
 				print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user added as owner to group successfully" }';
 				exit 0;
@@ -436,6 +453,7 @@ unless ($cgi->param('action')) {
 			    $uhs->delete();
 			    print $cgi->header(-type => 'application/json',
 					       -status => 400,
+					       -charset => 'UTF-8',
 					       -Access_Control_Allow_Origin => '*' );
 			    print '{ "error": "adding to group failed due to a database error while creating group right" }';
 			    exit 0;
@@ -443,12 +461,14 @@ unless ($cgi->param('action')) {
 		    }
 		    print $cgi->header(-type => 'application/json',
 				       -status => 200,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user added as member to group successfully" }';
 		    exit 0;
 		} else {
 		    print $cgi->header(-type => 'application/json',
 				       -status => 400,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "error": "adding to group failed due to a database error while connecting user to group" }';
 		    exit 0;
@@ -456,6 +476,7 @@ unless ($cgi->param('action')) {
 	    } else {
 		print $cgi->header(-type => 'application/json',
 				   -status => 400,
+				   -charset => 'UTF-8',
 				   -Access_Control_Allow_Origin => '*' );
 		print '{ "error": "invalid permissions to edit group" }';
 		exit 0;
@@ -479,12 +500,14 @@ unless ($cgi->param('action')) {
 		    $uhs->[0]->delete();
 		    print $cgi->header(-type => 'application/json',
 				       -status => 200,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user deleted from group successfully" }';
 		    exit 0;
 		} else {
 		    print $cgi->header(-type => 'application/json',
 				       -status => 400,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "error": "deleting from group failed due to a database error while connecting user to group" }';
 		    exit 0;
@@ -492,6 +515,7 @@ unless ($cgi->param('action')) {
 	    } else {
 		print $cgi->header(-type => 'application/json',
 				   -status => 400,
+				   -charset => 'UTF-8',
 				   -Access_Control_Allow_Origin => '*' );
 		print '{ "error": "invalid permissions to edit group" }';
 		exit 0;
@@ -506,6 +530,7 @@ unless ($cgi->param('action')) {
 		if ($u2->has_right(undef, 'edit', 'scope', $gid, 1)) {
 		    print $cgi->header(-type => 'application/json',
 				       -status => 200,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user was already owner of the group" }';
 		    exit 0;
@@ -519,6 +544,7 @@ unless ($cgi->param('action')) {
 			$right->granted(1);
 			print $cgi->header(-type => 'application/json',
 					   -status => 200,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user is now owner of the group" }';
 			exit 0;
@@ -532,12 +558,14 @@ unless ($cgi->param('action')) {
 			if (ref($right)) {
 			    print $cgi->header(-type => 'application/json',
 					       -status => 200,
+					       -charset => 'UTF-8',
 					       -Access_Control_Allow_Origin => '*' );
 			    print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user is now owner of the group" }';
 			    exit 0;
 			} else {
 			    print $cgi->header(-type => 'application/json',
 					       -status => 400,
+					       -charset => 'UTF-8',
 					       -Access_Control_Allow_Origin => '*' );
 			    print '{ "error": "deleting from group failed due to a database error while creating owner right" }';
 			    exit 0;
@@ -561,6 +589,7 @@ unless ($cgi->param('action')) {
 		if (scalar(@$admins) < 2) {
 		    print $cgi->header(-type => 'application/json',
 				       -status => 400,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "error": "you cannot delete the last admin of a group" }';
 		    exit 0;
@@ -575,12 +604,14 @@ unless ($cgi->param('action')) {
 			$right->[0]->delete();
 			print $cgi->header(-type => 'application/json',
 					   -status => 200,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user no longer owner of the group" }';
 		    exit 0;
 		    } else {
 			print $cgi->header(-type => 'application/json',
 					   -status => 400,
+					   -charset => 'UTF-8',
 					   -Access_Control_Allow_Origin => '*' );
 			print '{ "error": "database error when retrieving owner right" }';
 			exit 0;
@@ -588,6 +619,7 @@ unless ($cgi->param('action')) {
 		} else {
 		    print $cgi->header(-type => 'application/json',
 				       -status => 200,
+				       -charset => 'UTF-8',
 				       -Access_Control_Allow_Origin => '*' );
 		    print '{ "group": "'.$gid.'", "error": null, "user": "'.$u2->{login}.'", "success": "user was not owner of the group" }';
 		    exit 0;
@@ -642,6 +674,7 @@ unless ($cgi->param('action')) {
 	    $return_data .= " }";
 	    print $cgi->header(-type => 'application/json',
 			       -status => 200,
+			       -charset => 'UTF-8',
 			       -Access_Control_Allow_Origin => '*' );
 	    print $return_data;
 	    exit 0;
@@ -649,6 +682,7 @@ unless ($cgi->param('action')) {
     } else {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print '{ "error": "invalid action parameter" }';
 	exit 0;
@@ -699,7 +733,7 @@ sub warning_message {
     my ($message) = @_;
 
     $dbh->disconnect();
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print base_template();
     print qq~<div class="alert alert-error">
 <button class="close" data-dismiss="alert" type="button">x</button>
@@ -713,7 +747,7 @@ sub success_message {
     my ($message) = @_;
 
     $dbh->disconnect();
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print base_template();
     print qq~<div class="alert alert-success">
 <button class="close" data-dismiss="alert" type="button">x</button>
@@ -741,7 +775,7 @@ sub login_screen {
 	$hidden .= "<input type='hidden' name='".$p."' value='".$cgi->param($p)."'>";
     }
 
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print base_template();
 print qq~
 <div class="well">
@@ -770,7 +804,7 @@ sub auth_client_screen {
     }
 
     my $application = $cgi->param("client_id");
-    print $cgi->header(-cookie=>$cookie);
+    print $cgi->header(-cookie=>$cookie, -charset => 'UTF-8');
     print base_template();
     print qq~
   <div class="well">
@@ -811,6 +845,7 @@ sub authenticate_user {
     unless ($token) {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print '{ "error": "required parameter token missing" }';
 	exit 0;
@@ -825,6 +860,7 @@ sub authenticate_user {
 	} else {
 	    print $cgi->header(-type => 'application/json',
 			       -status => 400,
+			       -charset => 'UTF-8',
 			       -Access_Control_Allow_Origin => '*' );
 	    print '{ "error": "token timed out" }';
 	    exit 0;
@@ -832,6 +868,7 @@ sub authenticate_user {
     } else {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print '{ "error": "invalid token" }';
 	exit 0;
@@ -847,6 +884,7 @@ sub get_user {
 	} else {
 	    print $cgi->header(-type => 'application/json',
 			       -status => 400,
+			       -charset => 'UTF-8',
 			       -Access_Control_Allow_Origin => '*' );
 	    print '{ "error": "invalid user id" }';
 	    exit 0;
@@ -858,6 +896,7 @@ sub get_user {
 	} else {
 	    print $cgi->header(-type => 'application/json',
 			       -status => 400,
+			       -charset => 'UTF-8',
 			       -Access_Control_Allow_Origin => '*' );
 	    print '{ "error": "invalid user email" }';
 	    exit 0;
@@ -865,6 +904,7 @@ sub get_user {
     } else {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print '{ "error": "missing parameter, you must provide either user_id or email" }';
 	exit 0;
@@ -882,6 +922,7 @@ sub get_group {
 	} else {
 	    print $cgi->header(-type => 'application/json',
 			       -status => 400,
+			       -charset => 'UTF-8',
 			       -Access_Control_Allow_Origin => '*' );
 	    print '{ "error": "invalid group id" }';
 	    exit 0;
@@ -889,6 +930,7 @@ sub get_group {
     } else {
 	print $cgi->header(-type => 'application/json',
 			   -status => 400,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print '{ "error": "missing parameter group" }';
 	exit 0;	
