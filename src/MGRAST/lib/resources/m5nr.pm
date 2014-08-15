@@ -698,7 +698,7 @@ sub query_annotation {
     if ($exact) {
         @$data = map { '"'.$_.'"' } @$data;
     } else {
-        @$data = map { '*'.$_.'*' } @$data;
+        @$data = map { '"*'.$_.'*"' } @$data;
     }
     my $sort   = $order ? $order.'_sort+asc' : '';
     my $fields = ['source', 'function', 'organism', 'ncbi_tax_id', 'type', 'md5', 'accession', 'alias'];
