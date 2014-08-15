@@ -451,7 +451,7 @@ sub static {
             if ($filter_lvl eq 'function') {
   	            $filter_lvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
             }
-            $solr .= '+AND+'.$filter_lvl.'%3A'.($exact ? '"'.$filter.'"' : '*'.$filter.'*');
+            $solr .= '+AND+'.$filter_lvl.'%3A'.($exact ? '"'.$filter.'"' : '"*'.$filter.'*"');
         }
         # min level query
         unless ( grep(/^$min_lvl$/, @ont_hier) ) {
@@ -479,7 +479,7 @@ sub static {
                 $self->return_data({"ERROR" => "invalid filter_level for m5nr/taxonomy: ".$filter_lvl." - valid types are [".join(", ", @tax_hier)."]"}, 404);
             }
             $url .= '&filter_level='.$filter_lvl.'&filter='.$filter;
-            $solr .= '+AND+'.$filter_lvl.'%3A'.($exact ? '"'.$filter.'"' : '*'.$filter.'*');
+            $solr .= '+AND+'.$filter_lvl.'%3A'.($exact ? '"'.$filter.'"' : '"*'.$filter.'*"');
         }
         # min level query
         unless ( grep(/^$min_lvl$/, @tax_hier) ) {

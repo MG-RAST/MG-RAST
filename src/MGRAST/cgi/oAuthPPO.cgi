@@ -54,9 +54,9 @@ if ($cgi->param('logout')) {
 				-expires => "-1d" );
     
     if ($cgi->param('redirect')) {
-      print $cgi->header( -redirect => $cgi->param('redirect'), -cookie => $cookie );
+      print $cgi->header( -redirect => $cgi->param('redirect'), -cookie => $cookie, -charset => 'UTF-8' );
     } else { 
-      print $cgi->header( -cookie => $cookie );
+      print $cgi->header( -cookie => $cookie, -charset => 'UTF-8' );
       print base_template();
       print success_message("You have been logged out.");
       print close_template();
@@ -92,7 +92,7 @@ if ($cgi->param('login') && $cgi->param('pass')) {
 }
 
 unless ($cgi->param('action')) {
-  print $cgi->header(-cookie => $cookie );
+  print $cgi->header(-cookie => $cookie, -charset => 'UTF-8' );
   print base_template();
 
   if (! $allow_application  && ! $allow_user) {
@@ -202,6 +202,7 @@ unless ($cgi->param('action')) {
 	  $dbh->disconnect();
 	  print $cgi->header(-type => 'text/plain',
 			     -status => 400,
+			     -charset => 'UTF-8',
 			     -Access_Control_Allow_Origin => '*' );
 	  print "redirect_url does not match client id";
 	  exit 0;
@@ -221,6 +222,7 @@ unless ($cgi->param('action')) {
 	  $dbh->disconnect();
 	  print $cgi->header(-type => 'text/plain',
 			     -status => 400,
+			     -charset => 'UTF-8',
 			     -Access_Control_Allow_Origin => '*' );
 	  print "invalid user code";
 	  exit 0;
@@ -229,6 +231,7 @@ unless ($cgi->param('action')) {
 	  $dbh->disconnect();
 	  print $cgi->header(-type => 'text/plain',
 			     -status => 400,
+			     -charset => 'UTF-8',
 			     -Access_Control_Allow_Origin => '*' );
 	  print "invalid code";
 	  exit 0;
@@ -253,6 +256,7 @@ unless ($cgi->param('action')) {
 	$dbh->disconnect();
 	print $cgi->header(-type => 'text/plain',
 			   -status => 200,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print "access_token=$token|".$user->login;
 	exit 0;	
@@ -260,6 +264,7 @@ unless ($cgi->param('action')) {
 	$dbh->disconnect();
 	print $cgi->header(-type => 'text/plain',
 			   -status => 400,
+			   -charset => 'UTF-8',
 			   -Access_Control_Allow_Origin => '*' );
 	print "missing parameter";
 	exit 0;
@@ -314,7 +319,7 @@ sub warning_message {
     my ($message) = @_;
 
     $dbh->disconnect();
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print base_template();
     print qq~<div class="alert alert-error">
 <button class="close" data-dismiss="alert" type="button">x</button>
@@ -328,7 +333,7 @@ sub success_message {
     my ($message) = @_;
 
     $dbh->disconnect();
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print base_template();
     print qq~<div class="alert alert-success">
 <button class="close" data-dismiss="alert" type="button">x</button>
@@ -356,7 +361,7 @@ sub login_screen {
 	$hidden .= "<input type='hidden' name='".$p."' value='".$cgi->param($p)."'>";
     }
 
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print base_template();
 print qq~
 <div class="well">
@@ -385,7 +390,7 @@ sub auth_client_screen {
     }
 
     my $application = $cgi->param("client_id");
-    print $cgi->header(-cookie=>$cookie);
+    print $cgi->header(-cookie=>$cookie, -charset => 'UTF-8');
     print base_template();
     print qq~
   <div class="well">

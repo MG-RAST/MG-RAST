@@ -840,16 +840,16 @@ sub check_for_duplicates {
     foreach my $file (@$missing_files) {
       $output .= "$file\n";
     }
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print $output;
   } elsif (@$dupes > 0) {
     $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tFile Size\t\tYour File\n---------------\t---------------\t---------------\n";
     map { $output .= join("\t", @$_)."\n" } @$dupes;
     $output .= "\nResubmitting jobs that already exist in MG-RAST reduces our resources and can delay the processing of jobs for all MG-RAST users.  Do you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print $output;
   } else {
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print "unique";
   }
   exit 0;
@@ -904,10 +904,10 @@ sub send_email_for_duplicate_submission {
       or die "Can't open Mail::Mailer: $!\n";
     print $mailer $msg;
     $mailer->close();
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print 1;
   } else {
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print 0;
   }
 
@@ -931,10 +931,10 @@ sub check_project_name {
     $projects = $jobdb->Project->get_objects({ id => $project_id });
   }
   if (scalar(@$projects) && ! $user->has_right(undef, 'edit', 'project', $projects->[0]->{id})) {
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print 0;
   } else {
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print 1;
   }
   exit 0;
@@ -959,7 +959,7 @@ sub read_status_file {
     chomp $msg;
   }
 
-  print $cgi->header;
+  print $cgi->header(-charset => 'UTF-8');
   print $msg;
   exit 0;
 }
@@ -987,7 +987,7 @@ sub validate_metadata {
       my $jobdbm  = $application->data_handle('MGRAST');
       my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
       if (scalar(@$projects) && (! $user->has_right(undef, 'edit', 'project', $projects->[0]->id))) {
-	print $cgi->header;
+	print $cgi->header(-charset => 'UTF-8');
 	print "0||taken||The project name you have chosen is already taken and you do not have edit rights to this project.\nPlease choose a different project name or ask the owner of the project for edit rights.";
 	exit 0;
       } else {
@@ -1048,7 +1048,7 @@ sub validate_metadata {
     }
     $formatted_data .= "<input type='button' class='btn' value='select new metadata file' onclick='selected_metadata_file=null;update_inbox();document.getElementById(\"sel_mdfile_info_div\").style.display = \"\";'>";
   }
-  print $cgi->header;
+  print $cgi->header(-charset => 'UTF-8');
   print $is_valid."||".$project_name."||".$formatted_data;
   exit 0;
 }
@@ -1165,7 +1165,7 @@ sub generate_webkey {
   $content .= " <input type='button' class='btn' value='generate new key' onclick='generate_webkey(1);' style='margin-top: 5px; margin-left: 50px;'>";
 #  $content .= "<img src='./Html/clear.gif' onload='document.getElementById(\"ftp_webkey\").innerHTML=\"" . $webkey->{key} . "\";document.getElementById(\"http_webkey\").innerHTML=\"" . $webkey->{key} . "\";'>";
 
-  print $cgi->header;
+  print $cgi->header(-charset => 'UTF-8');
   print $content;
   exit 0;
 }
