@@ -718,29 +718,29 @@ sub get_shock_node {
     }
 }
 
-# write file content to given filename, else return file content as string
+# write file content to given filepath, else return file content as string
 sub get_shock_file {
     my ($self, $id, $file, $auth, $index) = @_;
     
     my $response = undef;
+    my $fhdl = undef;
+    my @args = $auth ? ('Authorization', "OAuth $auth") : ();
+    
+    if ($file) {
+        open($fhdl, ">$file") || return undef;
+        push @args, (':read_size_hint', 8192, ':content_cb', sub{ my ($chunk) = @_; print $fhdl $chunk; });
+    }
     eval {
-        my @args = $auth ? ('Authorization', "OAuth $auth") : ();
         my $url = $Conf::shock_url.'/node/'.$id.'?download'.($index ? '&'.$index : '');
-        my $get = $self->agent->get($url, @args);
-        $response = $get->content;
+        $response = $self->agent->get($url, @args);
     };
     if ($@ || (! $response)) {
         return undef;
     } elsif ($file) {
-        if (open(FILE, ">$file")) {
-            print FILE $response;
-            close(FILE);
-            return 1;
-        } else {
-            return undef;
-        }
+        close($fhdl);
+        return 1;
     } else {
-        return $response;
+        return $response->content;
     }
 }
 

@@ -33,14 +33,14 @@ sub new {
         mg2kb => { "found" => [ 'int', 'number of inputted ids that have an alias' ],
                    "data"  => [ 'hash', 'key value pairs of MG-RAST id to KBase id' ] }
     };
-    $self->{input_stats}  = [ map {substr($_, 0, -4)} grep {$_ =~ /_raw$/} $self->seq_stats ];
     $self->{create_param} = {
         'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
         'sequence_type' => ["cv", [["WGS", "whole genome shotgun sequenceing"],
                                    ["Amplicon", "amplicon sequenceing"],
                                    ["MT", "metatranscriptome sequenceing"]] ]
     };
-    map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } @{$self->{input_stats}};
+    my @input_stats = map { substr($_, 0, -4) } grep { $_ =~ /_raw$/ } @{$self->seq_stats};
+    map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } @input_stats;
     map { $self->{create_param}{$_} = ['string', 'pipeline option'] } @{$self->pipeline_opts};
     return $self;
 }
@@ -89,6 +89,17 @@ sub info {
 							                 'required' => {},
 							                 'body'     => $self->{create_param} }
 						},
+						{ 'name'        => "submit",
+				          'request'     => $self->cgi->url."/".$self->name."/submit",
+				          'description' => "Submit an existing MG-RAST job to AWE pipeline.",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => { "awe_id" => ["ID of AWE job"] },
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ], 
+							                                 "input_id" => ["string", "shock node id of input sequence file"] } }
+						},
 						{ 'name'        => "addproject",
 				          'request'     => $self->cgi->url."/".$self->name."/addproject",
 				          'description' => "Add exisiting MG-RAST job to existing MG-RAST project.",
@@ -133,7 +144,8 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif (($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create') || ($self->rest->[0] eq 'addproject')) {
+    } elsif ( ($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create') ||
+              ($self->rest->[0] eq 'submit') || ($self->rest->[0] eq 'addproject') ) {
         $self->job_action($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'kb2mg') || ($self->rest->[0] eq 'mg2kb')) {
         $self->id_lookup($self->rest->[0]);
@@ -172,7 +184,7 @@ sub job_action {
                   job_id        => $job->{job_id},
                   kbase_id      => (exists($post->{kbase_id}) && $post->{kbase_id}) ? $self->reserve_kbase_id($mgid): undef
         };
-    } elsif (($action eq 'create') || ($action eq 'addproject')) {
+    } elsif (($action eq 'create') || ($action eq 'submit') || ($action eq 'addproject')) {
         # check id format
         my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
@@ -203,6 +215,16 @@ sub job_action {
                 options   => $job->{options},
                 job_id    => $job->{job_id}
             };
+        } elsif ($action eq 'submit') {
+            my $cmd = $Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_node ".$post->{input_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+            my @log = `$cmd 2>&1`;
+            chomp @log;
+            my @err = grep { $_ =~ /^ERROR/ } @log;
+            if (@err) {
+                $self->return_data( {"ERROR" => join("\n", @err)}, 400 );
+            }
+            my (undef, $awe_id) = split(/\t/, $log[1]);
+            $data = { awe_id => $awe_id };
         } elsif ($action eq 'addproject') {
             # check id format
             my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;
