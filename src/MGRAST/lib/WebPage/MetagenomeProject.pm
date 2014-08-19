@@ -799,7 +799,7 @@ sub upload_md {
       $application->add_message('warning', "you do not have the permissions to add metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$skip_jobs));
     }
     
-    my ($md_jobs, $err_msgs) = $meta->add_valid_metadata($user, $mdata, $edit_jobs, $project, $map_by_id, 1);
+    my (undef, $md_jobs, $err_msgs) = $meta->add_valid_metadata($user, $mdata, $edit_jobs, $project, $map_by_id, 1);
     if ((@$md_jobs == @$edit_jobs) && (@$skip_jobs == 0)) {
       $application->add_message('info', "successfully added / updated metadata to all jobs in this project");
     }
