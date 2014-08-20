@@ -37,6 +37,12 @@ $mgrast_metadata_password = '';
 # FormWiz
 $mgrast_formWizard_templates = $ROOT."/src/MGRAST/Templates";
 
+# Shock/AWE information
+$awe_url = '';
+$shock_url = '';
+$mgrast_inbox_clientgroups = '';
+$mgrast_seq_stats_workflow = $ROOT."/src/MGRAST/workflows/seq_stats.awf";
+
 # Analysis DB 
 $mgrast_db     = '';
 $mgrast_dbms   = '';
