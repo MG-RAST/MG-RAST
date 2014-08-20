@@ -673,6 +673,33 @@ sub set_shock_node {
     }
 }
 
+# set node file_name
+sub update_shock_node_file_name {
+    my ($self, $id, $fname, $auth) = @_;
+
+    my $response = undef;
+    my $content = {file_name => $fname};
+    eval {
+        my @args = (
+            $auth ? ('Authorization', "OAuth $auth") : (),
+            'Content_Type', 'multipart/form-data',
+            $content ? ('Content', $content) : ()
+        );
+        my $req = POST($Conf::shock_url.'/node/'.$id, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
+
 # edit node attributes
 sub update_shock_node {
     my ($self, $id, $attr, $auth) = @_;
@@ -762,6 +789,36 @@ sub get_shock_query {
         return [];
     } elsif (exists($response->{error}) && $response->{error}) {
         $self->return_data( {"ERROR" => "Unable to query Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
+# submit job to awe
+sub post_awe_job {
+    my ($self, $workflow, $shock_auth, $awe_auth, $is_string) = @_;
+
+    my $content = undef;
+    if ($is_string) {
+        $content = { upload => [undef, "seqstats.awf", Content => $workflow] }
+    } else {
+        $content = [ upload => [$workflow] ];
+    }
+
+    my $response = undef;
+    eval {
+        my $post = $self->agent->post($Conf::awe_url.'/job',
+                                      'Datatoken', $shock_auth,
+                                      'Authorization', 'OAuth '.$awe_auth,
+                                      'Content-Type', 'multipart/form-data',
+                                      'Content', $content);
+        $response = $self->json->decode( $post->content );
+    };
+
+    if ($@ || (! ref($response))) {
+        return [];
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to submit to AWE: ".$response->{error}[0]}, $response->{status} );
     } else {
         return $response->{data};
     }
