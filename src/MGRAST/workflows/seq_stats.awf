@@ -8,20 +8,20 @@
     "tasks": [
         {
             "cmd": {
-                "args": "-input=@[% input_file_name %] -input_json=input_attr.json -output_json=output_attr.json", 
+                "args": "-input=@inputfile -input_json=input_attr.json -output_json=output_attr.json -type=[% file_type %]", 
                 "description": "seq_stats",
                 "name": "awe_seq_length_stats.pl"
             }, 
             "dependsOn": [], 
             "inputs": {
-                "[% site_dir %]": {
+                "inputfile": {
                     "host": "[% shock_url %]",
                     "node": "[% input_file_id %]",
                     "attrfile": "input_attr.json"
                 }
             }, 
             "outputs": {
-                "[% site_dir %]": {
+                "inputfile": {
                     "host": "[% shock_url %]",
                     "node": "[% input_file_id %]",
                     "type": "update",
