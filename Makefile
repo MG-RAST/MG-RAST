@@ -90,7 +90,7 @@ installdirs: $(libdir) $(bindir) $(cgidir) $(cgidir)/Html $(cgidir)/Html/css $(t
 metazen:
 	if [ -d "../metazen" ]; then \
 		cd ../metazen;       \
-		make;                \
+		make mgrast;         \
 		cd -;                \
 	fi
 

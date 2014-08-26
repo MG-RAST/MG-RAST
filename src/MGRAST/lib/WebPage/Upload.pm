@@ -453,13 +453,13 @@ sub output {
 		    <div class="controls">
 		      <label class="select">
 			<select id="screening" name="screening">
-                           <option value="h_sapiens_asm">H. sapiens, NCBI v36</option>
-                           <option value="m_musculus_ncbi37">M. musculus, NCBI v37</option>
+                           <option value="h_sapiens">H. sapiens, NCBI v36</option>
+                           <option value="m_musculus">M. musculus, NCBI v37</option>
                            <option value="b_taurus">B. taurus, UMD v3.0</option>
-                           <option value="d_melanogaster_fb5_22">D. melanogaster, Flybase, r5.22</option>
+                           <option value="d_melanogaster">D. melanogaster, Flybase, r5.22</option>
                            <option value="a_thaliana">A. thaliana, TAIR, TAIR9</option>
                            <option value="e_coli">E. coli, NCBI, st. 536</option>
-                           <option value="s_scrofa_ncbi10.2">Sus scrofa, NCBI v10.2</option>
+                           <option value="s_scrofa">Sus scrofa, NCBI v10.2</option>
 			   <option value="none">none</option>
                         </select>
 			<br>Remove any host specific species sequences (e.g. plant, human or mouse) using DNA level matching with bowtie <a href='http://genomebiology.com/2009/10/3/R25' target='blank'>Langmead et al., Genome Biol. 2009, Vol 10, issue 3</a>
@@ -766,10 +766,10 @@ sub submit_to_mgrast {
     close STDOUT;
     foreach my $job (@$successfully_created_jobs) {
         # new submission script, delete from inbox if successful
-        my $seqfile = $job2seq->{$job->{job_id}};
-        my $status  = system($Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_file ".$seqfile." > $udir/$seqfile.submit_log 2> $udir/$seqfile.error_log");
+        my $seqfile = $udir."/".$job2seq->{$job->{job_id}};
+        my $status  = system($Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_file ".$seqfile." > $seqfile.submit_log 2> $seqfile.error_log");
         if ($status == 0) {
-            system("rm $udir/$seqfile $udir/$seqfile.stats_info $udir/$seqfile.submit_log $udir/$seqfile.error_log");
+            system("rm $seqfile $seqfile.stats_info $seqfile.submit_log $seqfile.error_log");
         }
     }
     exit;
