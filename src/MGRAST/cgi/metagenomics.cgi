@@ -27,7 +27,7 @@ eval {
 if ($@)
 {
 
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print $cgi->start_html();
     
     # print out the error

@@ -26,6 +26,7 @@ if (lc($request_method) eq 'options') {
   print $cgi->header(-Access_Control_Allow_Origin => '*',
 		     -status => 200,
 		     -type => 'text/plain',
+		     -charset => 'UTF-8',
 		     -Access_Control_Allow_Methods => 'POST, GET, OPTIONS',
 		     -Access_Control_Allow_Headers => 'AUTH'
 		    );
@@ -58,6 +59,7 @@ my $resource_path = $Conf::api_resource_path;
 if (! $resource_path) {
   print $cgi->header(-type => 'text/plain',
 		     -status => 500,
+		     -charset => 'UTF-8',
 		     -Access_Control_Allow_Origin => '*' );
   print $json->encode( {"ERROR"=> "resource directory not found"} );
   exit 0;
@@ -72,6 +74,7 @@ if (opendir(my $dh, $resource_path)) {
   if ($cgi->param('POSTDATA') && ! $resource) {
     print $cgi->header(-type => 'application/json',
 		       -status => 200,
+		       -charset => 'UTF-8',
 		       -Access_Control_Allow_Origin => '*' );
     print $json->encode( { jsonrpc => "2.0",
 			   id => undef,
@@ -82,8 +85,9 @@ if (opendir(my $dh, $resource_path)) {
     exit 0;
   } else {
     print $cgi->header( -type => 'text/plain',
-		                -status => 500,
-		                -Access_Control_Allow_Origin => '*' );
+			-status => 500,
+			-charset => 'UTF-8',
+			-Access_Control_Allow_Origin => '*' );
 	print $json->encode( {"ERROR"=> "resource directory offline"} );
     exit 0;
   }
@@ -99,8 +103,9 @@ if ($json_rpc && (! $resource)) {
     eval { $rpc_request = $json->decode($json_rpc) };
     if ($@) {
         print $cgi->header( -type => 'application/json',
-		                    -status => 200,
-		                    -Access_Control_Allow_Origin => '*' );
+			    -status => 200,
+			    -charset => 'UTF-8',
+			    -Access_Control_Allow_Origin => '*' );
         print $json->encode( { jsonrpc => "2.0",
                                id => undef,
                                error => { code => -32700,
@@ -117,8 +122,9 @@ if ($json_rpc && (! $resource)) {
     }
     unless (ref($params) eq 'HASH') {
         print $cgi->header( -type => 'application/json',
-		                    -status => 200,
-		                    -Access_Control_Allow_Origin => '*' );
+			    -status => 200,
+			    -charset => 'UTF-8',
+			    -Access_Control_Allow_Origin => '*' );
         print $json->encode( { jsonrpc => "2.0",
 			                   id => undef,
 			                   error => { code => -32602,
@@ -153,7 +159,8 @@ if ($cgi->http('HTTP_AUTH') || $cgi->param('auth')) {
         unless($user) {
 	  unless ($message eq "valid kbase user") {
             print $cgi->header( -type => 'application/json',
-	                            -status => 401,
+				-status => 401,
+				-charset => 'UTF-8',
     	                        -Access_Control_Allow_Origin => '*' );
             print $json->encode( {"ERROR"=> "authentication failed  - $message"} );
             exit 0;
@@ -184,6 +191,7 @@ if ($resource) {
       print STDERR $error."\n";
       print $cgi->header( -type => 'application/json',
 			  -status => 500,
+			  -charset => 'UTF-8',
 			  -Access_Control_Allow_Origin => '*' );
       print $json->encode( {"ERROR"=> "resource '$resource' does not exist"} );
       exit 0;
@@ -209,11 +217,12 @@ if ($resource) {
             $resource_obj->request();
         };
         if ($@) {
-            print $cgi->header( -type => 'text/plain',
-			                    -status => 500,
-			                    -Access_Control_Allow_Origin => '*' );
-			print $json->encode( {"ERROR"=> "resource request failed\n$@\n"} );
-            exit 0;
+	  print $cgi->header( -type => 'text/plain',
+			      -status => 500,
+			      -charset => 'UTF-8',
+			      -Access_Control_Allow_Origin => '*' );
+	  print $json->encode( {"ERROR"=> "resource request failed\n$@\n"} );
+	  exit 0;
         }
     }
 }
@@ -232,6 +241,7 @@ else {
 		  resources => \@res };
   print $cgi->header(-type => 'application/json',
 		     -status => 200,
+		     -charset => 'UTF-8',
 		     -Access_Control_Allow_Origin => '*' );
   print $json->encode($content);
   exit 0;
