@@ -499,6 +499,10 @@ sub process_file {
         unless ($self->cgi->param('metagenomes')) {
             $self->return_data({"ERROR" => "Invalid parameters, requires metagenome ID list"}, 404);
         }
+        unless ($is_valid) {
+            $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", @$log, @{$md_obj->{data}})}, 422);
+        }
+        
         # get metagenome objects
         my @mgids = split(/,/, $self->cgi->param('metagenomes'));
         my @jobs  = ();
@@ -520,38 +524,43 @@ sub process_file {
                 $self->return_data( {"ERROR" => "invalid id format: ".$id}, 400 );
             }
         }
+        
         # get project object (if exists)
-        my $pid = undef;
-        my $project = undef;
-        if (exists $md_obj->{id}) {
-            $pid = $md_obj->{id};
-        }
+        my $project_name = $md_obj->{data}{project_name}{value};
+        my $project_id   = exists($md_obj->{id}) ? $md_obj->{id} : '';
+        my $project_obj  = undef;
+        
         if ($type eq 'update') {
-            $pid = $self->cgi->param('project');
-            unless ($pid) {
+            $project_id = $self->cgi->param('project');
+            unless ($project_id) {
                 $self->return_data({"ERROR" => "Invalid parameters, requires project ID"}, 404);
             }
         }
-        if ($pid) {
-            if ($pid =~ /^mgp(\d+)$/) {
+        
+        # get project from id or name
+        my $projects = [];
+        if ($project_id) {
+            if ($project_id =~ /^mgp(\d+)$/) {
                 my $pnum = $1;
-                # get object
-                $project = $master->Project->init( {id => $pnum} );
-                unless (ref($project)) {
-                    $self->return_data( {"ERROR" => "project id $pid does not exists"}, 404 );
-                }
-                # check rights
-                unless ($self->user && ($self->user->has_right(undef, 'edit', 'project', $pnum) || $self->user->has_star_right('edit', 'project'))) {
-                    $self->return_data( {"ERROR" => "insufficient permissions to edit this data"}, 401 );
-                }
+                $projects = $master->Project->get_objects( {id => $pnum} );
             } else {
-                $self->return_data( {"ERROR" => "invalid id format: ".$pid}, 400 );
+                $self->return_data( {"ERROR" => "invalid id format: ".$project_id}, 400 );
+            }
+        } elsif ($project_name) {
+            $projects = $master->Project->get_objects( {name => $project_name} );
+        }
+        if (scalar(@$projects) > 0) {
+            $project_obj = $projects->[0];
+            # check rights
+            unless ($self->user && ($self->user->has_right(undef, 'edit', 'project', $project_obj->id) || $self->user->has_star_right('edit', 'project'))) {
+                $self->return_data( {"ERROR" => "insufficient permissions to edit this data"}, 401 );
             }
         }
+        
         # import or update
         my $mapbyid = $self->cgi->param('map_by_id') ? 1 : 0;
-        my ($proj, $added, $err_msg) = $mddb->add_valid_metadata($self->user, $md_obj, \@jobs, $project, $mapbyid);
-        $data = {project => 'mgp'.$proj, added => $added, errors => $err_msg};
+        my ($pnum, $added, $err_msg) = $mddb->add_valid_metadata($self->user, $md_obj, \@jobs, $project_obj, $mapbyid);
+        $data = {project => 'mgp'.$pnum, added => $added, errors => $err_msg};
     }
     
     $self->return_data($data);

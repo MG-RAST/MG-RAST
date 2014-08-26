@@ -223,7 +223,7 @@ sub job_action {
                 my $nodeid = $post->{input_id};
                 eval {
                     my $node = $self->get_shock_node($nodeid, $self->mgrast_token);
-                    $post = $node->{attributes}{run_stats};
+                    $post = $node->{attributes}{stats_info};
                 };
                 if ($@ || (! $post)) {
                     $self->return_data( {"ERROR" => "unable to obtain sequence file statistics from shock node ".$nodeid}, 500 );
