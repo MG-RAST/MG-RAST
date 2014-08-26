@@ -599,13 +599,13 @@ sub submit_to_mgrast {
   # get project if exists from name or id
   if ($project_name) {
     my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
-    if (scalar(@$projects) && $user->has_right(undef, 'view', 'project', $projects->[0]->id)) {
+    if (scalar(@$projects) && $user->has_right(undef, 'edit', 'project', $projects->[0]->id)) {
       $project_obj = $projects->[0];
     }
   }
   elsif ($project_id) {
     my $projects = $jobdbm->Project->get_objects( { id => $project_id } );
-    if (scalar(@$projects) && $user->has_right(undef, 'view', 'project', $projects->[0]->id)) {
+    if (scalar(@$projects) && $user->has_right(undef, 'edit', 'project', $projects->[0]->id)) {
       $project_obj = $projects->[0];
     }
   }
