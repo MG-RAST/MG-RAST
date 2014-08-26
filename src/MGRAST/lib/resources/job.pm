@@ -35,12 +35,13 @@ sub new {
     };
     $self->{create_param} = {
         'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
+        "input_id"      => ["string", "shock node id of input sequence file (optional)"],
         'sequence_type' => ["cv", [["WGS", "whole genome shotgun sequenceing"],
                                    ["Amplicon", "amplicon sequenceing"],
                                    ["MT", "metatranscriptome sequenceing"]] ]
     };
     my @input_stats = map { substr($_, 0, -4) } grep { $_ =~ /_raw$/ } @{$self->seq_stats};
-    map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } @input_stats;
+    map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } grep { $_ !~ /drisee/ } @input_stats;
     map { $self->{create_param}{$_} = ['string', 'pipeline option'] } @{$self->pipeline_opts};
     return $self;
 }
@@ -73,11 +74,13 @@ sub info {
 				          'attributes'  => $self->{attributes}{reserve},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "kbase_id" => ['boolean', "if true create KBase ID, default is false."],
-							                                 "name" => ["string", "name of metagenome"],
-							                                 "file" => ["string", "name of sequence file"],
-							                                 "file_size" => ["string", "byte size of sequence file"],
-          							                         "file_checksum" => ["string", "md5 checksum of sequence file"] } }
+							                 'body'     => {
+							                     "kbase_id"  => ['boolean', "if true create KBase ID, default is false."],
+							                     "name"      => ["string", "name of metagenome (required)"],
+							                     "input_id"  => ["string", "shock node id of input sequence file (optional)"],
+							                     "file"      => ["string", "name of sequence file"],
+							                     "file_size" => ["string", "byte size of sequence file"],
+          							             "file_checksum" => ["string", "md5 checksum of sequence file"] } }
 						},
 						{ 'name'        => "create",
 				          'request'     => $self->cgi->url."/".$self->name."/create",
@@ -166,6 +169,19 @@ sub job_action {
     my $post = $self->get_post_data();
     
     if ($action eq 'reserve') {
+        # get from shock node if given
+        if (exists $post->{input_id}) {
+            my $nodeid = $post->{input_id};
+            eval {
+                my $node = $self->get_shock_node($nodeid, $self->mgrast_token);
+                $post->{file} = $node->{file}{name};
+                $post->{file_size} = $node->{file}{size};
+                $post->{file_checksum} = $node->{file}{checksum}{md5};
+            };
+            if ($@ || (! $post)) {
+                $self->return_data( {"ERROR" => "unable to obtain sequence file statistics from shock node ".$nodeid}, 500 );
+            }
+        }
         my @params = ();
         foreach my $p ('name', 'file', 'file_size', 'file_checksum') {
             if (exists $post->{$p}) {
@@ -202,6 +218,17 @@ sub job_action {
         $job = $job->[0];
         
         if ($action eq 'create') {
+            # get from shock node if given
+            if (exists $post->{input_id}) {
+                my $nodeid = $post->{input_id};
+                eval {
+                    my $node = $self->get_shock_node($nodeid, $self->mgrast_token);
+                    $post = $node->{attributes}{run_stats};
+                };
+                if ($@ || (! $post)) {
+                    $self->return_data( {"ERROR" => "unable to obtain sequence file statistics from shock node ".$nodeid}, 500 );
+                }
+            }
             # check params
             foreach my $key (keys %{$self->{create_param}}) {
                 unless (exists $post->{$key}) {
@@ -221,10 +248,10 @@ sub job_action {
             chomp @log;
             my @err = grep { $_ =~ /^ERROR/ } @log;
             if (@err) {
-                $self->return_data( {"ERROR" => join("\n", @err)}, 400 );
+                $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
             }
             my (undef, $awe_id) = split(/\t/, $log[1]);
-            $data = { awe_id => $awe_id };
+            $data = { awe_id => $awe_id, log => join("\n", @log) };
         } elsif ($action eq 'addproject') {
             # check id format
             my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;
