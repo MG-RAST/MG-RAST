@@ -545,8 +545,6 @@ $drisee_boilerplate
   } elsif (($drisee_num > 0) && (! $is_rna)) {
     my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
     my $drisee_score = sprintf("%.3f", $drisee_num);
-    my $drisee_info  = $self->get_drisee_info($job);
-    ## [ Input seqs, Processed bins, Processed seqs, Drisee score ]
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a>
@@ -564,7 +562,7 @@ $drisee_boilerplate
   <img src='./Html/clear.gif' onload='draw_position_on_range("drisee_bar_div", $drisee_num, $min, $max, $avg, $stdv);'>
   <div id='drisee_bar_div'></div>
   <p>The above image shows the range of total DRISEE percent errors in all of MG-RAST. The min, max, and mean values are shown, with the standard deviation ranges (&sigma; and 2&sigma;) in different shades. The total DRISEE percent error of this metagenome is shown in red.</p>
-  <p>DRISEE successfully calculated an error profile. DRISEE used ~.format_number($drisee_info->[0]).qq~ reads randomly selected from the ~.format_number($raw_seqs).qq~ reads in this sample. ~.format_number($drisee_info->[2]).qq~ duplicate reads were found with bins of 20 or more reads. A total of ~.format_number($drisee_info->[1]).qq~ such bins were detected</p>
+  <p>DRISEE successfully calculated an error profile.</p>
   $drisee_boilerplate
   $drisee_plot
 </div>~;
@@ -1324,47 +1322,20 @@ sub draw_krona {
   }
 }
 
-sub get_drisee_info {
-  my ($self, $job) = @_;
-
-  my $dinfo = [];
-  my $info_file = $job->download_dir('qc').'075.drisee.info';
-  my @bin_stats = `tail -4 $info_file`;
-  chomp @bin_stats;
-
-  foreach my $line (@bin_stats) {
-    my ($key, $val) = split('\t', $line);
-    push @$dinfo, $val;
-  }
-  ## [ Input seqs, Processed bins, Processed seqs, Drisee score ]
-  return $dinfo;
-}
-
 sub get_drisee_chart {
   my ($self, $job) = @_;
 
   my $mgdb = $self->data('mgdb');
-  my $data = [];
-  
   my $drisee = $mgdb->get_qc_stats($job->metagenome_id, 'drisee');
-  unless ($drisee && (@$drisee > 2) && ($drisee->[0][0] eq '#')) {
+  unless ($drisee && exists($drisee->{percents}) && $drisee->{percents}{data}) {
     return "<p><em>Not yet computed</em></p>";
   }
 
   # data = [ pos, A, T, C, G, N, X, total ]
-  foreach my $row (@$drisee) {
-    my $x = shift @$row;
-    next if (($x eq '#') || (int($x) < 51));
-    my $sum = sum @$row;
-    if ($sum == 0) {
-        push @$data, [ $x, 0, 0, 0, 0, 0, 0, 0 ];
-    } else {
-        my @per = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) } @$row;
-        push @$data, [ $x, @per[6..11], sprintf("%.2f", sum(@per[6..11])) * 1.0 ];
-    }
-  }
+  my $data = $drisee->{percents}{data};
   my @down_data = @$data;
-  unshift @down_data, ['Position','A','T','C','G','N','InDel','Total'];
+  unshift @down_data, $drisee->{percents}{columns};
+  
   my $values_link = $self->chart_export_link($drisee, 'drisee_values', 'Download DRISEE values');
   my $drisee_link = $self->chart_export_link(\@down_data, 'drisee_plot', 'Download DRISEE plot');
   my $drisee_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
@@ -1402,22 +1373,22 @@ sub get_kmer_plot {
   my $jid  = $self->application->cgi->param('job');
   my $type = $self->application->cgi->param('type');
   my $size = $self->application->cgi->param('size');
-  my $kmer = $mgdb->get_qc_stats($mgid, 'kmer.'.$size);
+  my $kmer = $mgdb->get_qc_stats($mgid, 'kmer');
   my @data = ();
   my ($xscale, $yscale, $xtext, $ytext);
 
-  unless ($kmer && (@$kmer > 1)) {
+  unless ($kmer && exists($kmer->{$size.'_mer'}) && $kmer->{$size.'_mer'}{data}) {
     return "<p><em>Not yet computed</em></p>";
   }
   # data = [ x, y ]
   if ($type eq 'abundance') {
-    @data = map { [ $_->[3], $_->[0] ] } @$kmer;
+    @data = map { [ $_->[3], $_->[0] ] } @{$kmer->{$size.'_mer'}{data}};
     ($xscale, $yscale, $xtext, $ytext) = ('log', 'log', 'sequence size', 'kmer coverage');
   } elsif ($type eq 'ranked') {
-    @data = map { [ $_->[3], (1 - (1.0 * $_->[5])) ] } @$kmer;
+    @data = map { [ $_->[3], (1 - (1.0 * $_->[5])) ] } @{$kmer->{$size.'_mer'}{data}};
     ($xscale, $yscale, $xtext, $ytext) = ('log', 'linear', 'sequence size', 'fraction of observed kmers');
   } elsif ($type eq 'spectrum') {
-    @data = map { [ $_->[0], $_->[1] ] } @$kmer;
+    @data = map { [ $_->[0], $_->[1] ] } @{$kmer->{$size.'_mer'}{data}};
     ($xscale, $yscale, $xtext, $ytext) = ('log', (($size == 6) ? 'linear' : 'log'), 'kmer coverage', 'number of kmers');
   } else {
     return "<p><em>Not yet computed</em></p>";
@@ -1456,26 +1427,14 @@ sub get_consensus_chart {
   my ($self, $job) = @_;
 
   my $mgdb = $self->data('mgdb');
-  my $data = [];
-  
-  my $consensus = $mgdb->get_qc_stats($job->metagenome_id, 'consensus');
-  unless ($consensus && (@$consensus > 2)) {
-    return "";
-  }
+  my $consensus = $mgdb->get_qc_stats($job->metagenome_id, 'bp_profile');
 
-  # rows = [ pos, A, C, G, T, N, total ]
-  # data = [ pos, N, G, C, T, A ]
-  foreach my $row (@$consensus) {
-    next if (($row->[0] eq '#') || (! $row->[6]));
-    next if (($row->[0] > 100) && ($row->[6] < 1000));
-    my $sum = $row->[6];
-    if ($sum == 0) {
-        push @$data, [ $row->[0] + 1, 0, 0, 0, 0, 0 ];
-    } else {
-        my @per = map {  floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
-        push @$data, [ $row->[0] + 1, $per[5], $per[3], $per[2], $per[4], $per[1] ];
-    }
+  unless ($consensus && exists($consensus->{percents}) && $consensus->{percents}{data}) {
+    return "<p><em>Not yet computed</em></p>";
   }
+  
+  # data = [ pos, N, G, C, T, A ]
+  my $data = $consensus->{percents}{data};
   my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
   my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
   my $num_bps = scalar(@$data);

@@ -487,7 +487,6 @@ sub get_qc_stats {
     } else {
         return {};
     }
-    # matrix
 }
 
 sub get_histogram_nums {
