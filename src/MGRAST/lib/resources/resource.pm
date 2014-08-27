@@ -574,6 +574,7 @@ sub get_download_set {
     my ($self, $mgid, $auth, $seq_only) = @_;
 
     my %seen = ();
+    my %subset = {'preprocess' => 1, 'dereplication' => 1, 'screen' => 1, 'rna.filter' => 1}
     my $stages = [];
     my $mgdata = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$mgid}, $auth);
     @$mgdata = grep { exists($_->{attributes}{stage_id}) && exists($_->{attributes}{data_type}) } @$mgdata;
@@ -601,14 +602,24 @@ sub get_download_set {
 		             node_id    => $node->{id},
 		             stage_id   => $attr->{stage_id},
 		             stage_name => $attr->{stage_name},
-		             file_type  => exists($attr->{file_format}) ? $attr->{file_format} : $attr->{data_type},
+		             data_type  => $attr->{data_type},
 		             file_id    => $file_id,
 		             file_name  => $file->{name},
 		             file_size  => $file->{size} || undef,
 		             file_md5   => $file->{checksum}{md5} || undef
 		};
-		if (exists $attr->{statistics}) {
-            $data->{statistics} = $attr->{statistics};
+		foreach my $label (('statistics', 'seq_format', 'file_format', 'cluster_percent')) {
+		    if (exists $attr->{$label}) {
+                $data->{$label} = $attr->{$label};
+            }
+		}
+        # rename for subset
+        if (exists $subset{$data->{stage_name}}) {
+            $data->{stage_name} .= ($attr->{data_type} eq 'removed') ? '.removed' : '.passed';
+        }
+        # rename for cluster
+        if ($data->{stage_name} =~ /\.cluster$/) {
+            $data->{stage_name} .= ($attr->{data_type} eq 'cluster') ? '.map' : '.seq';
         }
         push @$stages, $data;
     }
