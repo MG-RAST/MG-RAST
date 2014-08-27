@@ -300,7 +300,7 @@ sub stage_download_info {
   
   foreach my $info (@$stages) {
     unless (exists($info->{file_size}) && $info->{file_size}) {
-        continue;
+        next;
     }
       
     my $stats = exists($info->{statistics}) ? $info->{statistics} : {};
@@ -311,17 +311,19 @@ sub stage_download_info {
     my $type = 'File';
     if (exists($info->{seq_format}) && ($info->{seq_format} eq 'bp')) {
         $type = 'DNA';
-    } elsif (exists($info->{seq_format}) && ($info->{seq_format} eq 'aa')) {
+    }
+    if (exists($info->{seq_format}) && ($info->{seq_format} eq 'aa')) {
         $type = 'Protein'
-    } elsif ($desc eq 'cluster') {
+    }
+    if ($info->{data_type} eq 'cluster') {
         $desc = 'mapping';
         $type = 'Cluster';
-    } elsif ($desc eq 'similarity') {
+    }
+    if ($desc eq 'similarity') {
         $type = 'Sims';
     }
-    
     if (exists $info->{cluster_percent}) {
-        $desc = $info->{seq_format}.$info->{cluster_percent}." ".$desc;
+        $desc = (($info->{seq_format} eq 'aa') ? 'aa' : 'rna').$info->{cluster_percent}." ".$desc;
     }
     
     $has_file    = 1;
