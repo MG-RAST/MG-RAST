@@ -1332,13 +1332,12 @@ sub get_drisee_chart {
   }
 
   # data = [ pos, A, T, C, G, N, X, total ]
-  my $data = $drisee->{percents}{data};
-  my @down_data = @$data;
-  unshift @down_data, $drisee->{percents}{columns};
+  my @values_data = ($drisee->{counts}{columns}, @{$drisee->{counts}{data}});
+  my @down_data   = ($drisee->{percents}{columns}, @{$drisee->{percents}{data}});
   
-  my $values_link = $self->chart_export_link($drisee, 'drisee_values', 'Download DRISEE values');
+  my $values_link = $self->chart_export_link(\@values_data, 'drisee_values', 'Download DRISEE values');
   my $drisee_link = $self->chart_export_link(\@down_data, 'drisee_plot', 'Download DRISEE plot');
-  my $drisee_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
+  my $drisee_rows = join(",\n", map { "[".join(',', @$_)."]" } @{$drisee->{percents}{data}});
   my $html = qq~
 <p>$values_link</p>
 <p>$drisee_link</p>
@@ -1764,7 +1763,7 @@ sub chart_export {
 
 sub chart_export_link {
   my ($self, $data, $name, $text) = @_;
-
+  
   $text = $text || "Download chart data";
   $name =~ s/\s+/_/g;
   $name =~ s/\W//g;
