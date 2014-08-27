@@ -454,9 +454,9 @@ sub get_taxa_stats {
     my ($self, $mgid, $taxa) = @_;
     my $stats = $self->_mg_stats($mgid);
     if (exists $stats->{taxonomy}) {
-        return exists($stats->{taxonomy}{$taxa}) ? $stats->{taxonomy}{$taxa} : {};
+        return exists($stats->{taxonomy}{$taxa}) ? $stats->{taxonomy}{$taxa} : [];
     } else {
-        return {};
+        return [];
     }
     # [ name, abundance ]
 }
@@ -465,9 +465,9 @@ sub get_ontology_stats {
     my ($self, $mgid, $source) = @_;
     my $stats = $self->_mg_stats($mgid);
     if (exists $stats->{ontology}) {
-        return exists($stats->{ontology}{$source}) ? $stats->{ontology}{$source} : {};
+        return exists($stats->{ontology}{$source}) ? $stats->{ontology}{$source} : [];
     } else {
-        return {};
+        return [];
     }
     # [ top level name, abundance ]
 }
@@ -475,7 +475,7 @@ sub get_ontology_stats {
 sub get_rarefaction_coords {
     my ($self, $mgid) = @_;
     my $stats = $self->_mg_stats($mgid);
-    return exists($stats->{rarefaction}) ? $stats->{rarefaction} : {};
+    return exists($stats->{rarefaction}) ? $stats->{rarefaction} : [];
     # [ x, y ]
 }
 
@@ -502,7 +502,7 @@ sub get_histogram_nums {
     } elsif ($type eq 'gc' && exists($stats->{gc_histogram}) && exists($stats->{gc_histogram}{$stage})) {
         return $stats->{gc_histogram}{$stage};
     } else {
-        return {};
+        return [];
     }
     # [ value, count ]
 }
