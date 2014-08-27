@@ -16,6 +16,7 @@ use LWP::UserAgent;
 use JSON;
 
 use Conf;
+use Auth;
 use MGRAST::Metadata;
 
 1;
@@ -57,9 +58,7 @@ sub init {
       '440' => { name => 'RNA Clustering 97%', link => "rna_clust" },
       '450' => { name => 'M5 RNA Search', link => "rna_sim" },
       '550' => { name => 'Protein Clustering 90%', link => "aa_clust" },
-      '650' => { name => 'M5 Protein Search', link => "aa_sim" },
-      '700' => { name => 'Annotation of Sims', link => "ann_sim" }
-      '999' => { name => 'Metagenome Statistics', link => "mg_stats" }
+      '650' => { name => 'M5 Protein Search', link => "aa_sim" }
   };
   $self->data('stages', $stages);
 
@@ -172,7 +171,8 @@ my $css_tmp = qq~
 ~;
 
   my $content = $css_tmp;
-  my $job     = $self->{job};
+  my $job  = $self->{job};
+  my $user = $self->application->session->user;
   
   unless ($job) {
     $self->title("Data sets available");
@@ -244,7 +244,7 @@ my $css_tmp = qq~
   # group by ID
   my $stages = {};
   foreach my $set (@{$response->{data}}) {
-      push @{ $stages->{$set->{id}} }, $set;
+      push @{ $stages->{$set->{stage_id}} }, $set;
   }
   
   # prep output for every stage
@@ -285,6 +285,10 @@ if (this.innerHTML == "show stats") {
 sub stage_download_info {
   my ($self, $sid, $stages) = @_;
   
+  unless (exists $self->data('stages')->{$sid}) {
+      return "";
+  }
+  
   my $name = $self->data('stages')->{$sid}->{name};
   my $link = $self->data('stages')->{$sid}->{link};
   my $content = "<a name='$link'><h3>$name</h3></a>\n";
@@ -295,6 +299,10 @@ sub stage_download_info {
   my $file_count = 0;
   
   foreach my $info (@$stages) {
+    unless (exists($info->{file_size}) && $info->{file_size}) {
+        continue;
+    }
+      
     my $stats = exists($info->{statistics}) ? $info->{statistics} : {};
     my $count = exists($stats->{bp_count}) ? format_number($stats->{bp_count})." reads" : '';
     my $size  = exists($info->{file_size}) ? sprintf("%.2f", ($info->{file_size} / (1024 * 1024)))."MB" : '';
@@ -385,7 +393,7 @@ sub download {
   eval {
       my $url = $Conf::shock_url.'/node/'.$node.'?download_raw';
       my @args = (
-          $mgrast_token ? ('Authorization', "OAuth $auth") : (),
+          $mgrast_token ? ('Authorization', "OAuth $mgrast_token") : (),
           ':read_size_hint', 8192,
           ':content_cb', sub{ my ($chunk) = @_; print $chunk; }
       );
@@ -401,7 +409,9 @@ sub download {
 
 sub format_number {
   my ($val) = @_;
-  while ($val =~ s/(\d+)(\d{3})+/$1,$2/) {}
+  unless ($val =~ /\./) {
+    while ($val =~ s/(\d+)(\d{3})+/$1,$2/) {}
+  }
   return $val;
 }
 
