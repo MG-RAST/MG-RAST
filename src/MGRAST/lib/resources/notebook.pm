@@ -126,7 +126,7 @@ sub info {
               				               'method'      => "GET",
               				               'type'        => "synchronous",  
               				               'attributes'  => $self->attributes,
-              				               'parameters'  => { 'options'  => { 'email' => ['string', "email of user to share with"] },
+              				               'parameters'  => { 'options'  => { 'name' => ['string', "globus login of user to share with"] },
               							                      'required' => { "nbid" => ["string", "unique notebook object identifier"] },
               							                      'body'     => {} } },
               							 { 'name'        => "publish",
@@ -282,7 +282,7 @@ sub clone_notebook {
                  nbid => undef,
                  type => $node->{attributes}{type} ? $node->{attributes}{type} : 'generic',
                  owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
-                 access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
+                 access => $self->{user_info} ? [ $self->{user_info}{username} ] : [],
                  format => 'ipynb',
                  created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                  permission => 'edit',
@@ -299,13 +299,13 @@ sub clone_notebook {
     return $new_node;
 }
 
-# share notebook - we add inputted email to read ACLs
+# share notebook - we add inputted usernames to read ACLs
 sub share_notebook {
     my ($self, $uuid) = @_;
     
-    my $email = $self->cgi->param('email') || undef;
-    unless ($email) {
-        $self->return_data( {"ERROR" => "Missing email of user to share notebook $uuid with."}, 500 );
+    my $name = $self->cgi->param('name') || undef;
+    unless ($name) {
+        $self->return_data( {"ERROR" => "Missing login name of user to share notebook $uuid with."}, 500 );
     }
     my $attr = {format => 'ipynb', nbid => $uuid};
     my @nb_set = sort {$b->{attributes}{created} cmp $a->{attributes}{created}} @{$self->get_shock_query($attr, $self->shock_auth())};
@@ -318,7 +318,7 @@ sub share_notebook {
     }
     # share all
     foreach my $n (@nb_set) {
-        $self->edit_shock_acl($n->{id}, $self->{nb_token}, $email, 'put', 'read')
+        $self->edit_shock_acl($n->{id}, $self->{nb_token}, $name, 'put', 'read')
     }
     my $data = $self->prepare_data( \@nb_set );
     $self->return_data($data);
@@ -404,7 +404,7 @@ sub upload_notebook {
                     nbid => $nb_obj->{metadata}{nbid} || $self->uuidv4(),
                     type => $nb_obj->{metadata}{type} || 'generic',
                     owner => $self->{user_info} ? $self->{user_info}{username} : 'public',
-                    access => $self->{user_info} ? [ $self->{user_info}{email} ] : [],
+                    access => $self->{user_info} ? [ $self->{user_info}{username} ] : [],
                     format => 'ipynb',
                     created => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
                     permission => $nb_obj->{metadata}{permission} || 'edit',
@@ -429,7 +429,7 @@ sub shock_post_acl {
         map { $self->edit_shock_acl($id, $self->{nb_token}, $_, 'put', 'read') } @$access;
     } elsif ($self->{nb_token} && $self->{nb_info} && (@$access == 0)) {
         # public
-        $self->edit_shock_acl($id, $self->{nb_token}, $self->{nb_info}{email}, 'delete', 'read');
+        $self->edit_shock_acl($id, $self->{nb_token}, $self->{nb_info}{username}, 'delete', 'read');
     } else {
         # missing config
         print STDERR "Missing notebook config options\n";

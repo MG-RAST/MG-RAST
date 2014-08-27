@@ -272,107 +272,6 @@ sub finish_upload {
   }
 }
 
-=pod 
-
-=item * B<directory> ()
-
-Returns the full path the job directory (without a trailing slash).
-
-=cut
-
-sub directory {
-  my ($self) = @_;
-  return $Conf::mgrast_jobs.'/'.$self->job_id;
-}
-
-sub dir {
-  my ($self) = @_;
-  return $self->directory;
-}
-
-=pod 
-
-=item * B<download_dir> ()
-
-Returns the full path the download directory inside the job (without a trailing slash).
-
-=cut
-
-sub download_dir {
-    my ($self, $stage) = @_ ;
-    if ($stage) {
-	return $self->directory.'/analysis/';
-    }
-    return $self->directory.'/raw/';
-}
-
-=pod 
-
-=item * B<analysis_dir> ()
-
-Returns the full path the analysis directory inside the job (without a trailing slash).
-
-=cut
-
-sub analysis_dir {
-  my ($self) = @_;
-  unless (-d $self->directory.'/analysis') {
-    chdir($self->directory) or 
-      die("Unable to change directory to ".$self->directory.": $!");
-    mkdir "analysis", 0777 or 
-      die("Unable to create directory analysis in ".$self->directory.": $!");
-  }
-  return $self->directory.'/analysis';
-}
-
-=pod
-
-=item * B<download> ()
-
-Returns the name of the project
-
-=cut
-
-sub download {
-  my ($self , $stage_id , $file) = @_;
-
-  if ($file) {
-    if (open(FH, $self->download_dir($stage_id) . "/" . $file)) {
-      print "Content-Type:application/x-download\n";  
-      # print "Content-Length: " . length($content) . "\n";
-      print "Content-Disposition:attachment;filename=".$self->metagenome_id. "." . $file ."\n\n";
-      #print "<file name='".$self->metagenome_id. "." . $file ."'>";
-      while (<FH>) {
-	print $_ ;
-      }
-      return ( 1 , "" ) ;
-    }
-    else{
-      return ( 0 , "Could not open download file " . $self->download_dir($stage_id) ."'$file'" );
-    }
-  }
-  elsif (defined $stage_id){
-    # Download uploaded files
-    unless ($stage_id){ 
-      
-      opendir(DIR ,  $self->download_dir() ) ;
-      while (my $file = readdir DIR ){
-	next unless ($file =~/\.fna|\.fasta|\.sff|\.fastq|\.txt/) ;
-	print STDERR "Downloading file $file";
-	$self->download( '' , $file);
-      }
-      
-    }
-    
-    return ( 1 , "" ) ;
-  }
-  else{
-    # return list of download files
-  }
-  
-  return 1;
-}
-
 =pod
 
 =item * B<get_jobs_for_user> (I<user>, I<right>, I<viewable>)
@@ -1409,15 +1308,6 @@ sub delete {
   my $jobgroupjobs = $dbm->JobgroupJob->get_objects( { job => $self } );
   foreach my $jobgroupjob (@$jobgroupjobs) {
     $jobgroupjob->delete();
-  }
-
-  # delete the job directory
-  if (-d $self->directory) {
-    my $dir = $self->directory;
-    `rm -rf $dir`;
-    if (-d $dir) {
-      die "Could not delete job directory $dir: $@";
-    }
   }
 
   # delete self

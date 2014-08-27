@@ -33,14 +33,15 @@ sub new {
         mg2kb => { "found" => [ 'int', 'number of inputted ids that have an alias' ],
                    "data"  => [ 'hash', 'key value pairs of MG-RAST id to KBase id' ] }
     };
-    $self->{input_stats}  = [ map {substr($_, 0, -4)} grep {$_ =~ /_raw$/} $self->seq_stats ];
     $self->{create_param} = {
         'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
+        "input_id"      => ["string", "shock node id of input sequence file (optional)"],
         'sequence_type' => ["cv", [["WGS", "whole genome shotgun sequenceing"],
                                    ["Amplicon", "amplicon sequenceing"],
                                    ["MT", "metatranscriptome sequenceing"]] ]
     };
-    map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } @{$self->{input_stats}};
+    my @input_stats = map { substr($_, 0, -4) } grep { $_ =~ /_raw$/ } @{$self->seq_stats};
+    map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } grep { $_ !~ /drisee/ } @input_stats;
     map { $self->{create_param}{$_} = ['string', 'pipeline option'] } @{$self->pipeline_opts};
     return $self;
 }
@@ -73,11 +74,13 @@ sub info {
 				          'attributes'  => $self->{attributes}{reserve},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "kbase_id" => ['boolean', "if true create KBase ID, default is false."],
-							                                 "name" => ["string", "name of metagenome"],
-							                                 "file" => ["string", "name of sequence file"],
-							                                 "file_size" => ["string", "byte size of sequence file"],
-          							                         "file_checksum" => ["string", "md5 checksum of sequence file"] } }
+							                 'body'     => {
+							                     "kbase_id"  => ['boolean', "if true create KBase ID, default is false."],
+							                     "name"      => ["string", "name of metagenome (required)"],
+							                     "input_id"  => ["string", "shock node id of input sequence file (optional)"],
+							                     "file"      => ["string", "name of sequence file"],
+							                     "file_size" => ["string", "byte size of sequence file"],
+          							             "file_checksum" => ["string", "md5 checksum of sequence file"] } }
 						},
 						{ 'name'        => "create",
 				          'request'     => $self->cgi->url."/".$self->name."/create",
@@ -88,6 +91,17 @@ sub info {
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
 							                 'body'     => $self->{create_param} }
+						},
+						{ 'name'        => "submit",
+				          'request'     => $self->cgi->url."/".$self->name."/submit",
+				          'description' => "Submit an existing MG-RAST job to AWE pipeline.",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => { "awe_id" => ["ID of AWE job"] },
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ], 
+							                                 "input_id" => ["string", "shock node id of input sequence file"] } }
 						},
 						{ 'name'        => "addproject",
 				          'request'     => $self->cgi->url."/".$self->name."/addproject",
@@ -133,7 +147,8 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif (($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create') || ($self->rest->[0] eq 'addproject')) {
+    } elsif ( ($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create') ||
+              ($self->rest->[0] eq 'submit') || ($self->rest->[0] eq 'addproject') ) {
         $self->job_action($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'kb2mg') || ($self->rest->[0] eq 'mg2kb')) {
         $self->id_lookup($self->rest->[0]);
@@ -154,6 +169,19 @@ sub job_action {
     my $post = $self->get_post_data();
     
     if ($action eq 'reserve') {
+        # get from shock node if given
+        if (exists $post->{input_id}) {
+            my $nodeid = $post->{input_id};
+            eval {
+                my $node = $self->get_shock_node($nodeid, $self->mgrast_token);
+                $post->{file} = $node->{file}{name};
+                $post->{file_size} = $node->{file}{size};
+                $post->{file_checksum} = $node->{file}{checksum}{md5};
+            };
+            if ($@ || (! $post)) {
+                $self->return_data( {"ERROR" => "unable to obtain sequence file statistics from shock node ".$nodeid}, 500 );
+            }
+        }
         my @params = ();
         foreach my $p ('name', 'file', 'file_size', 'file_checksum') {
             if (exists $post->{$p}) {
@@ -172,7 +200,7 @@ sub job_action {
                   job_id        => $job->{job_id},
                   kbase_id      => (exists($post->{kbase_id}) && $post->{kbase_id}) ? $self->reserve_kbase_id($mgid): undef
         };
-    } elsif (($action eq 'create') || ($action eq 'addproject')) {
+    } elsif (($action eq 'create') || ($action eq 'submit') || ($action eq 'addproject')) {
         # check id format
         my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
@@ -190,6 +218,17 @@ sub job_action {
         $job = $job->[0];
         
         if ($action eq 'create') {
+            # get from shock node if given
+            if (exists $post->{input_id}) {
+                my $nodeid = $post->{input_id};
+                eval {
+                    my $node = $self->get_shock_node($nodeid, $self->mgrast_token);
+                    $post = $node->{attributes}{stats_info};
+                };
+                if ($@ || (! $post)) {
+                    $self->return_data( {"ERROR" => "unable to obtain sequence file statistics from shock node ".$nodeid}, 500 );
+                }
+            }
             # check params
             foreach my $key (keys %{$self->{create_param}}) {
                 unless (exists $post->{$key}) {
@@ -203,6 +242,16 @@ sub job_action {
                 options   => $job->{options},
                 job_id    => $job->{job_id}
             };
+        } elsif ($action eq 'submit') {
+            my $cmd = $Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_node ".$post->{input_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+            my @log = `$cmd 2>&1`;
+            chomp @log;
+            my @err = grep { $_ =~ /^ERROR/ } @log;
+            if (@err) {
+                $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
+            }
+            my (undef, $awe_id) = split(/\t/, $log[1]);
+            $data = { awe_id => $awe_id, log => join("\n", @log) };
         } elsif ($action eq 'addproject') {
             # check id format
             my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;

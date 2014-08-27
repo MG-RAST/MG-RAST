@@ -24,29 +24,6 @@ sub new {
     my %rights = $self->user ? map {$_, 1} grep {$_ ne '*'} @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "metagenome";
     $self->{mgdb} = undef;
-    # set defaults - these are hardcoded in pipeline
-    $self->{pipeline_defaults} = {
-        'file_type' => 'fna',
-        'filter_ln' => 'yes',
-        'filter_ln_mult' => '2.0',
-        'filter_ambig' => 'yes',
-        'max_ambig' => '5',
-        'dynamic_trim' => 'yes',
-        'min_qual' => '15',
-        'max_lqb' => '5',
-        'dereplicate' => 'yes',
-        'prefix_length' => '50',
-        'bowtie' => 'yes',
-        'screen_indexes' => 'h_sapiens_asm',
-        'fgs_type' => '454',
-        'rna_pid' => '97',
-        'aa_pid' => '90',
-        'm5nr_sims_version' => '1',
-        'm5rna_sims_version' => '1',
-        'm5nr_annotation_version' => '1',
-        'm5rna_annotation_version' => '1',
-        'assembled' => 'no'
-    };
     $self->{rights} = \%rights;
     $self->{cv} = { verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
                     direction => {'asc' => 1, 'desc' => 1},
@@ -429,7 +406,7 @@ sub prepare_data {
 	    # add pipeline info
 	    my $jstats  = $job->stats();
 	    my $jdata   = $job->data();
-	    my $pparams = $self->{pipeline_defaults};
+	    my $pparams = $self->pipeline_defaults;
 	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
 	    # replace value defaults
 	    foreach my $tag (('max_ambig', 'min_qual', 'max_lqb', 'screen_indexes',
@@ -483,7 +460,14 @@ sub prepare_data {
             $obj->{mixs_compliant} = $mddb->is_job_compliant($job);
         }
         if (($verb eq 'stats') || ($verb eq 'full')) {
-            $obj->{statistics} = $self->job_stats($job, $jstats);
+            #$obj->{statistics} = $self->job_stats($job, $jstats);
+            my $params = {type => 'metagenome', data_type => 'statistics', id => 'mgm'.$job->{metagenome_id}};
+            my $stat_node = $self->get_shock_query($params, $self->mgrast_token);
+            if (scalar(@{$stat_node}) == 0) {
+                $obj->{statistics} = {};
+            } else {
+                $obj->{statistics} = $self->json->decode($self->get_shock_file($stat_node->[0]{id}, undef, $self->mgrast_token));
+            }
         }
         push @$objects, $obj;
     }
