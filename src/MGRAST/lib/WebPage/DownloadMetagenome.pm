@@ -274,9 +274,9 @@ if (this.innerHTML == "show stats") {
 <table>);
 
   foreach my $key (sort keys %$stats) {
-    $key    =~ s/_/ /g;
     my $val = format_number($stats->{$key});
-    $html  .= "<tr><th>$key</th><td>$val</td></tr>\n";
+    $key  =~ s/_/ /g;
+    $html .= "<tr><th>$key</th><td>$val</td></tr>\n";
   }
 
   return $html."</table></div>";
