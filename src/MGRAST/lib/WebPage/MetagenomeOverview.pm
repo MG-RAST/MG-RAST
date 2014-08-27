@@ -398,8 +398,8 @@ sub output {
   }
 
   # sequence length histogram
-  my @len_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'raw') };
-  my @len_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'qc') };
+  my @len_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->metagenome_id, 'len', 'raw') };
+  my @len_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->metagenome_id, 'len', 'qc') };
   my $len_min = (@len_raw_hist && @len_qc_hist) ? min($len_raw_hist[0][0], $len_qc_hist[0][0]) : (@len_raw_hist ? $len_raw_hist[0][0] : (@len_qc_hist ? $len_qc_hist[0][0] : 0));
   my $len_max = (@len_raw_hist && @len_qc_hist) ? max($len_raw_hist[-1][0], $len_qc_hist[-1][0]) : (@len_raw_hist ? $len_raw_hist[-1][0] : (@len_qc_hist ? $len_qc_hist[-1][0] : 0));
   my $len_raw_bins = @len_raw_hist ? &get_bin_set(\@len_raw_hist, $len_min, $len_max, $self->data('bin_size')) : [];
@@ -760,8 +760,8 @@ The image is currently dynamic. To be able to right-click/save the image, please
   }
 
   # sequence gc distribution
-  my @gc_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'gc', 'raw') };
-  my @gc_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'gc', 'qc') };
+  my @gc_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->metagenome_id, 'gc', 'raw') };
+  my @gc_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->metagenome_id, 'gc', 'qc') };
   my $gc_raw_bins = @gc_raw_hist ? &get_bin_set(\@gc_raw_hist, 0, 100, $self->data('bin_size')) : [];
   my $gc_qc_bins  = @gc_qc_hist  ? &get_bin_set(\@gc_qc_hist, 0, 100, $self->data('bin_size')) : [];
 
@@ -1022,7 +1022,7 @@ sub get_source_chart {
   my ($self, $job, $is_rna, $n_prot, $p_prot, $n_func, $p_func, $n_rna, $p_rna) = @_;
   
   my $mgdb = $self->data('mgdb');
-  my $src_stats = $mgdb->get_source_stats($job->job_id);
+  my $src_stats = $mgdb->get_source_stats($job->metagenome_id);
   my $src_html  = "";
   if (scalar(keys %$src_stats) > 0) {
     my $src_vbar  = $self->application->component('vbar1');
@@ -1125,7 +1125,7 @@ sub get_taxa_chart {
   my @taxa_levels = @{$self->data('tax_levels')};
   pop @taxa_levels;
   foreach my $tax (@taxa_levels) {
-    my $taxa_stats = $mgdb->get_taxa_stats($job->job_id, $tax);
+    my $taxa_stats = $mgdb->get_taxa_stats($mgid, $tax);
     unless (@$taxa_stats > 0) {
       @$taxa_stats = map { [$_->[1], $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_$tax")};
     }
@@ -1181,7 +1181,7 @@ sub get_func_charts {
   my $mgdb = $self->data('mgdb');
   my $mgid = $job->metagenome_id;
   my $jid  = $job->job_id;
-  my $src_stats = $mgdb->get_source_stats($job->job_id);
+  my $src_stats = $mgdb->get_source_stats($mgid);
   my $sources   = $mgdb->_sources();
   my $src_names = [];
   my $src_links = [];
@@ -1216,7 +1216,7 @@ sub get_func_charts {
 ~;
   my $func_charts = [];
   foreach my $name (@$src_names) {
-    my $func_stats = $mgdb->get_ontology_stats($job->job_id, $name);
+    my $func_stats = $mgdb->get_ontology_stats($mgid, $name);
     my $func_total = sum map {$_->[1]} @$func_stats;
     if ((@$func_stats > 0) && ($func_stats->[0][0])) {
       my $data_rows  = join("\n", map { qq(data.addRow(["$_->[0]", $_->[1]]);) } @$func_stats);
@@ -1283,7 +1283,7 @@ sub draw_krona {
   my $type = $self->application->cgi->param('type');
 
   if ($type eq 'tax') {
-    my $taxa_stats = $mgdb->get_taxa_stats($jid, 'species'); # species, abundance
+    my $taxa_stats = $mgdb->get_taxa_stats($mgid, 'species'); # species, abundance
     unless (@$taxa_stats > 0) {
       @$taxa_stats = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_species")};
     }
@@ -1346,7 +1346,7 @@ sub get_drisee_chart {
   my $mgdb = $self->data('mgdb');
   my $data = [];
   
-  my $drisee = $mgdb->get_qc_stats($job->job_id, 'drisee');
+  my $drisee = $mgdb->get_qc_stats($job->metagenome_id, 'drisee');
   unless ($drisee && (@$drisee > 2) && ($drisee->[0][0] eq '#')) {
     return "<p><em>Not yet computed</em></p>";
   }
@@ -1402,7 +1402,7 @@ sub get_kmer_plot {
   my $jid  = $self->application->cgi->param('job');
   my $type = $self->application->cgi->param('type');
   my $size = $self->application->cgi->param('size');
-  my $kmer = $mgdb->get_qc_stats($jid, 'kmer.'.$size);
+  my $kmer = $mgdb->get_qc_stats($mgid, 'kmer.'.$size);
   my @data = ();
   my ($xscale, $yscale, $xtext, $ytext);
 
@@ -1458,7 +1458,7 @@ sub get_consensus_chart {
   my $mgdb = $self->data('mgdb');
   my $data = [];
   
-  my $consensus = $mgdb->get_qc_stats($job->job_id, 'consensus');
+  my $consensus = $mgdb->get_qc_stats($job->metagenome_id, 'consensus');
   unless ($consensus && (@$consensus > 2)) {
     return "";
   }
@@ -1528,7 +1528,7 @@ sub get_abund_plot {
   my $jid   = $self->application->cgi->param('job');
   my $level = $self->application->cgi->param('level');
 
-  my $aplot = $mgdb->get_taxa_stats($jid, $level);
+  my $aplot = $mgdb->get_taxa_stats($mgid, $level);
   unless (@$aplot > 0) {
     @$aplot = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_$level")};
   }
@@ -1578,7 +1578,7 @@ sub get_rare_curve {
   my $mgid = $self->application->cgi->param('metagenome');
   my $jid   = $self->application->cgi->param('job');
 
-  my $curve = $mgdb->get_rarefaction_coords($jid);
+  my $curve = $mgdb->get_rarefaction_coords($mgid);
   unless (@$curve > 0) {
     my $tmp = $mgdb->get_rarefaction_curve();
     if ($tmp && exists($tmp->{$mgid})) {
@@ -1648,7 +1648,7 @@ sub get_alpha {
   $html .= "<p>Alpha diversity summarizes the diversity of organisms in a sample with a single number. The alpha diversity of annotated samples can be estimated from the distribution of the species-level annotations.</p>";
   $html .= "<p>Annotated species richness is the number of distinct species annotations in the combined MG-RAST dataset. Shannon diversity is an abundance-weighted average of the logarithm of the relative abundances of annotated species. The species-level annotations are from all the annotation source databases used by MG-RAST.</p>";
 
-  my $sp_abund = $mgdb->get_taxa_stats($jid, 'species');
+  my $sp_abund = $mgdb->get_taxa_stats($mgid, 'species');
   if (@$sp_abund > 0) {
     $html .= "<p>" . $self->chart_export_link($sp_abund, 'species_anundance', 'Download source data') . "</p>";
   }

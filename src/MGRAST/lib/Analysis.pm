@@ -365,7 +365,11 @@ sub _get_table_cols {
 sub _mg_stats {
     my ($self, $mgid) = @_;
     unless (exists $self->{stat_map}{$mgid}) {
-        $self->{stat_map}{$mgid} = $self->_get_mg_stats($mgid);
+        my $mgstats = $self->_get_mg_stats($mgid);
+        if (! %$mgstats) {
+            print STDERR "no statistics available for $mgid\n";
+        }
+        $self->{stat_map}{$mgid} = $mgstats;
     }
     return $self->{stat_map}{$mgid};
 }
