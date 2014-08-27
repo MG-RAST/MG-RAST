@@ -574,7 +574,7 @@ sub get_download_set {
     my ($self, $mgid, $auth, $seq_only) = @_;
 
     my %seen = ();
-    my %subset = {'preprocess' => 1, 'dereplication' => 1, 'screen' => 1, 'rna.filter' => 1}
+    my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
     my $stages = [];
     my $mgdata = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$mgid}, $auth);
     @$mgdata = grep { exists($_->{attributes}{stage_id}) && exists($_->{attributes}{data_type}) } @$mgdata;
