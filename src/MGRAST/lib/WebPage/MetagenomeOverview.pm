@@ -476,7 +476,7 @@ sub output {
   $html .= "</li></ul></td></tr></table><br>";
 
   # technical text
-  $html .= "<br><a name='stats_ref'><table><tr><td>";
+  $html .= "<br><a name='stats_ref'></a><table><tr><td>";
   $html .= "<h3>Analysis Flowchart</h3><div style='width:375px;'>";
   if ($is_rna) {
     $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of the ".format_number($qc_rna_seqs)." sequences (totaling ".format_number($qc_rna_bps)." bps) that passed quality control, ".format_number($ann_rna_reads)." (".percent($ann_rna_reads,$qc_rna_seqs).") produced a total of ".format_number($rna_sims)." identified ribosomal RNAs.</p>";
