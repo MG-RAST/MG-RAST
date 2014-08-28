@@ -1432,11 +1432,12 @@ sub get_consensus_chart {
     return "<p><em>Not yet computed</em></p>";
   }
   
+  # rows = [ pos, A, T, C, G, N ]
   # data = [ pos, N, G, C, T, A ]
-  my $data = $consensus->{percents}{data};
-  my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
-  my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
-  my $num_bps = scalar(@$data);
+  my @data = map { [$_->[0], $_->[5], $_->[4], $_->[3], $_->[2], $_->[1]] } @{$consensus->{percents}{data}};
+  my $consensus_link = $self->chart_export_link(\@data, 'consensus_plot');
+  my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @data);
+  my $num_bps = scalar(@data);
 
   my $html .= qq~<a name='consensus_ref'></a>
 <h3>Nucleotide Position Histogram
