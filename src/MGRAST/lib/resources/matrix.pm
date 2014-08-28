@@ -641,7 +641,7 @@ sub prepare_data {
                 "format"               => "Biological Observation Matrix 1.0",
                 "format_url"           => "http://biom-format.org",
                 "type"                 => $ttype." table",
-                "generated_by"         => "MG-RAST revision ".$Conf::server_version,
+                "generated_by"         => "MG-RAST".($Conf::server_version ? " revision ".$Conf::server_version : ""),
                 "date"                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
                 "matrix_type"          => "sparse",
                 "matrix_element_type"  => ($rtype eq 'abundance') ? "int" : "float",
