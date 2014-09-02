@@ -10,6 +10,11 @@ use IO::File;
 use Fcntl ':flock';
 use MGRAST::Metadata;
 
+use JSON;
+use LWP::UserAgent;
+use Auth;
+use MIME::Base64;
+
 =pod
 
 =head1 NAME
@@ -270,107 +275,6 @@ sub finish_upload {
     print STDERR "Can't find $cmd\n";
     return 0;
   }
-}
-
-=pod 
-
-=item * B<directory> ()
-
-Returns the full path the job directory (without a trailing slash).
-
-=cut
-
-sub directory {
-  my ($self) = @_;
-  return $Conf::mgrast_jobs.'/'.$self->job_id;
-}
-
-sub dir {
-  my ($self) = @_;
-  return $self->directory;
-}
-
-=pod 
-
-=item * B<download_dir> ()
-
-Returns the full path the download directory inside the job (without a trailing slash).
-
-=cut
-
-sub download_dir {
-    my ($self, $stage) = @_ ;
-    if ($stage) {
-	return $self->directory.'/analysis/';
-    }
-    return $self->directory.'/raw/';
-}
-
-=pod 
-
-=item * B<analysis_dir> ()
-
-Returns the full path the analysis directory inside the job (without a trailing slash).
-
-=cut
-
-sub analysis_dir {
-  my ($self) = @_;
-  unless (-d $self->directory.'/analysis') {
-    chdir($self->directory) or 
-      die("Unable to change directory to ".$self->directory.": $!");
-    mkdir "analysis", 0777 or 
-      die("Unable to create directory analysis in ".$self->directory.": $!");
-  }
-  return $self->directory.'/analysis';
-}
-
-=pod
-
-=item * B<download> ()
-
-Returns the name of the project
-
-=cut
-
-sub download {
-  my ($self , $stage_id , $file) = @_;
-
-  if ($file) {
-    if (open(FH, $self->download_dir($stage_id) . "/" . $file)) {
-      print "Content-Type:application/x-download\n";  
-      # print "Content-Length: " . length($content) . "\n";
-      print "Content-Disposition:attachment;filename=".$self->metagenome_id. "." . $file ."\n\n";
-      #print "<file name='".$self->metagenome_id. "." . $file ."'>";
-      while (<FH>) {
-	print $_ ;
-      }
-      return ( 1 , "" ) ;
-    }
-    else{
-      return ( 0 , "Could not open download file " . $self->download_dir($stage_id) ."'$file'" );
-    }
-  }
-  elsif (defined $stage_id){
-    # Download uploaded files
-    unless ($stage_id){ 
-      
-      opendir(DIR ,  $self->download_dir() ) ;
-      while (my $file = readdir DIR ){
-	next unless ($file =~/\.fna|\.fasta|\.sff|\.fastq|\.txt/) ;
-	print STDERR "Downloading file $file";
-	$self->download( '' , $file);
-      }
-      
-    }
-    
-    return ( 1 , "" ) ;
-  }
-  else{
-    # return list of download files
-  }
-  
-  return 1;
 }
 
 =pod
@@ -1010,82 +914,76 @@ sub jobs_mixs_metadata_fast {
 #####################
 
 sub fetch_browsepage_in_progress {
-	my ($self, $user, $count_only) = @_;
-	my %stage_to_pos = ( 'upload' => 3,
-			     'preprocess' => 4,
-			     'dereplication' => 5,
-			     'screen' => 6,
-			     'genecalling' => 7,
-			     'cluster_aa90' => 8,
-			     'loadAWE' => 9,
-			     'sims' => 10,
-			     'loadDB' => 11,
-			     'done' => 12 );
+  my ($self, $user, $count_only) = @_;
+  
+  # get jobs
+  my $jobs = $self->_master->Job->get_objects({ owner => $user});
+  my $id2job = {};
+  foreach my $job (@$jobs) {
+    $id2job->{$job->{job_id}} = $job;
+  }
 
-	my $selopt = "( viewable = 0 or viewable is null ) and metagenome_id is not null";
-	if (ref $user and ( $user->isa("WebServerBackend::User"))) {
-		unless ($user->has_star_right('edit', 'metagenome')){
-			$selopt .= ' and metagenome_id in ("';
-			my @userjobs = $self->get_jobs_for_user_fast($user, 'edit');
-			unless ( scalar @userjobs > 0 ) {
-				return [];
-			}
-			$selopt .= join('","', map { $_->{'metagenome_id'} } @userjobs).'")';
-		}
-	} else {
-		return [];
+  # get mgrast token
+  my $mgrast_token = undef;
+  if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
+    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
+    my $rep = Auth::globus_token($key);
+    $mgrast_token = $rep ? $rep->{access_token} : undef;
+  }
+  
+  # set json handle
+  my $agent = LWP::UserAgent->new;
+  my $json = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
+
+  my $stage_titles = { 'upload'        => 'Upload', 
+		       'preprocess_qc' => 'Sequence Filtering',
+		       'dereplication' => 'Dereplication',
+		       'screen'        => 'Sequence Screening',
+		       'genecalling'   => 'Gene Calling',
+		       'cluster_aa90'  => 'Gene Clustering',
+		       'loadAWE'       => 'Calculating Sims',
+		       'sims'          => 'Processing Sims',
+		       'loadDB'        => 'Loading Database',
+		       'done'          => 'Finalizing Data' };
+  
+  # get awe data
+  my $stats = {};
+  eval {
+    my @args = ('Authorization', "OAuth ".$mgrast_token);
+    my $get = $agent->get($Conf::awe_url.'/job?query&info.user=mgu'.$user->{_id}, @args);
+    $stats = $json->decode( $get->content );
+  };
+  if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
+    print STDERR "AWE job info retrieval failed for user ".$user->{_id}.": $@".($stats && $stats->{error} ? $stats->{error} : "")."\n";
+    return $count_only ? 0 : [];
+  } else {
+    my $stati = $stats->{data};
+    if ($count_only) {
+      return scalar(@$stati);
+    } else {
+      my $data_table = [];
+      foreach my $job (@$stati) {
+	my $row = { job_id => $job->{info}->{name},
+		    metagenome_id => $id2job->{$job->{info}->{name}}->{metagenome_id},
+		    metagenome_name => $id2job->{$job->{info}->{name}}->{name},
+		    states => [],
+		    status => undef };
+	my $i=1;
+	foreach my $stage (@{$job->{tasks}}) {
+	  if (! $row->{status} && ($stage->{remainwork} > 0 || $i == scalar(@{$job->{tasks}}))) {
+	    $row->{status} = ($stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}).": ".$stage->{state};
+	  }
+	  push(@{$row->{states}}, { stage => $stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}, status => $stage->{state} });
+	  $i++;
 	}
-
-	# get job info
-	my $statement = "select _id, job_id, name, metagenome_id from Job where ".$selopt;
-	my $dbh = $self->_master()->db_handle();
-	my $sth = $dbh->prepare($statement);
-	$sth->execute;
-	my $jobdata = $sth->fetchall_arrayref();
-	$sth->finish;
-
-	# get jobs to skip
-	my $statement = "select job from JobAttributes where tag='deleted' or tag='no_sims_found'";
-	my $sth = $dbh->prepare($statement);
-	$sth->execute;
-	my %skip = map { $_->[0], 1 } @{ $sth->fetchall_arrayref() };
-	$sth->finish;
-
-	if ($count_only) {
-	  my $num = 0;
-	  map { $num += 1 } grep { ! exists $skip{$_->[0]} } @$jobdata;
-	  return $num;
-	} 
-	return [] unless scalar @$jobdata;
-
-	# get job stages
-	my $data = {};
-	my $statement = "select job, stage, status from PipelineStage where job in (".join(',',  map { $_->[0] } @$jobdata).") order by job";
-	my $sth = $dbh->prepare($statement);
-	$sth->execute;
-	while(my @row = $sth->fetchrow_array()){
-	        next if (exists $skip{$row[0]});
-		if(exists $data->{$row[0]}){
-			$data->{$row[0]}->[$stage_to_pos{$row[1]}] = $row[2];
-		} else {
-			$data->{$row[0]} = [];
-			$data->{$row[0]}->[$stage_to_pos{$row[1]}] = $row[2];
-		}
-	}
-	$sth->finish;
-
-	foreach my $jobrow (@$jobdata){
-	        next if (exists $skip{$jobrow->[0]});
-		$data->{$jobrow->[0]}->[0] = $jobrow->[1];
-		$data->{$jobrow->[0]}->[1] = $jobrow->[2];
-		$data->{$jobrow->[0]}->[2] = $jobrow->[3];
-	}
-
-	my $return_results = [];
-	foreach my $k (sort keys %$data){
-		push @$return_results, $data->{$k}; 
-	}
-	return $return_results;
+	push(@$data_table, $row);
+      }
+      return $data_table;
+    }
+  }
 }
 
 sub fetch_browsepage_viewable {
@@ -1409,15 +1307,6 @@ sub delete {
   my $jobgroupjobs = $dbm->JobgroupJob->get_objects( { job => $self } );
   foreach my $jobgroupjob (@$jobgroupjobs) {
     $jobgroupjob->delete();
-  }
-
-  # delete the job directory
-  if (-d $self->directory) {
-    my $dir = $self->directory;
-    `rm -rf $dir`;
-    if (-d $dir) {
-      die "Could not delete job directory $dir: $@";
-    }
   }
 
   # delete self

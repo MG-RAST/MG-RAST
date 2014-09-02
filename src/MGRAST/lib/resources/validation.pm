@@ -355,11 +355,11 @@ sub data {
     # }
   } else {
     # getting node
-    my $template_node = $self->get_shock_node($Conf::mgrast_md_template_node_id, $Conf::shock_globus_token);
+    my $template_node = $self->get_shock_node($Conf::mgrast_md_template_node_id, $self->mgrast_token);
     $template_attributes = $template_node->{attributes};
 
     # getting file
-    my $template_str = $self->get_shock_file($Conf::mgrast_md_template_node_id, undef, $Conf::shock_globus_token);
+    my $template_str = $self->get_shock_file($Conf::mgrast_md_template_node_id, undef, $self->mgrast_token);
     $template = $json->decode($template_str);
   }
   # check shock type to be template
@@ -610,8 +610,7 @@ sub reformat_template {
       }
   }
 
-  my $node = $self->set_shock_node("mgrast", undef, $template, $Conf::shock_globus_token);
-  #my $node = $self->update_shock_tags({ id => "40959bb3-131b-4fc4-abbb-c172feac7217", tags => [ "template", 'mgrast_template', 'communities_template' ]});
+  my $node = $self->set_shock_node("mgrast", undef, $template, $self->mgrast_token);
 
   return $self->return_data($node);
 }

@@ -978,7 +978,7 @@ sub add_valid_metadata {
   my ($self, $user, $data, $jobs, $project, $map_by_id, $delete_old) = @_;
 
   unless ($user && ref($user)) {
-    return ([], ["invalid user object"]);
+    return (undef, [], ["invalid user object"]);
   }
 
   my $err_msg = [];
@@ -1005,7 +1005,7 @@ sub add_valid_metadata {
   }
   unless ( $user->has_right(undef, 'edit', 'project', $project->id) || $user->has_star_right('edit', 'project') ) {
     push @$err_msg, "user lacks permission to edit project ".$project->id;
-    return ([], $err_msg);
+    return ($project->id, [], $err_msg);
   }
   unless ($new_proj) {
     foreach my $md (@proj_md) {
@@ -1158,7 +1158,7 @@ sub add_valid_metadata {
       $samp_coll->delete;
     }
   }
-  return ($added, $err_msg);
+  return ($project->id, $added, $err_msg);
 }
 
 sub investigation_type_alias {

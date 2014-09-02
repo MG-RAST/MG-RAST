@@ -437,17 +437,6 @@ sub get_in_progress_table {
   my ($self) = @_;	
   my $user = $self->application->session->user;
   my $mgrast = $self->application->data_handle('MGRAST');
-  my @stages = ('upload', 'preprocess', 'dereplication', 'screen', 'genecalling', 'cluster_aa90', 'loadAWE', 'sims', 'loadDB', 'done');
-  my %stage_info = ( 'upload'        => ['Upload', 3], 
-		     'preprocess'    => ['Sequence Filtering', 4],
-		     'dereplication' => ['Dereplication', 5],
-		     'screen'        => ['Sequence Screening', 6],
-		     'genecalling'   => ['Gene Calling', 7],
-		     'cluster_aa90'  => ['Gene Clustering', 8],
-		     'loadAWE'       => ['Calculating Sims', 9],
-		     'sims'          => ['Processing Sims', 10],
-		     'loadDB'        => ['Loading Database', 11],
-		     'done'          => ['Finalizing Data', 12] );
   my $html = "";
   my $data_table = $mgrast->Job->fetch_browsepage_in_progress($user);
   
@@ -464,25 +453,11 @@ sub get_in_progress_table {
 			  { name => 'name', filter => 1, visible => 1, sortable => 1 },
 			  { name => 'progress', width => 135 },
 			  { name => 'status', filter => 1, sortable => 1 } ]);
-  
+
   my $data = [];
-  foreach my $row (sort {$b->[0] <=> $a->[0]} @$data_table){
-	my @in_progress = ();
-	my $last_stage = '';
-	foreach my $s (@stages){
-	  if ($s eq 'upload'){
-		push @in_progress, $self->color_box_for_state('completed', $s);
-		$last_stage = $s;
-	  } else {
-		push @in_progress, $self->color_box_for_state($row->[$stage_info{$s}->[1]], $s);
-	  }
-	  $last_stage = $s if $row->[$stage_info{$s}->[1]];
-	}
-	if ($last_stage eq 'loadAWE'){
-	  $row->[$stage_info{$last_stage}->[1]] = 'running';
-	  $in_progress[6] = $self->color_box_for_state('running', 'loadAWE');
-	}
-	push @$data, [$row->[0], $row->[2], $row->[1], "<div>".join("", @in_progress)."</div>", ($last_stage) ? $stage_info{$last_stage}->[0]." : ".(($row->[$stage_info{$last_stage}->[1]]) ? $row->[$stage_info{$last_stage}->[1]] : "completed") : "" ];
+  foreach my $row (sort {$b->{job_id} <=> $a->{job_id}} @$data_table){
+    my @in_progress = map { $self->color_box_for_state($_->{status}, $_->{stage}) } @{$row->{states}};
+    push @$data, [ $row->{job_id}, $row->{metagenome_id}, $row->{metagenome_name}, "<div>".join("", @in_progress)."</div>", $row->{status} ];
   }
   $in_progress->data($data);
   
@@ -492,15 +467,17 @@ sub get_in_progress_table {
 
 sub color_box_for_state {
   my ($self, $state, $stage) = @_;
-  my %state_to_color = ( 'running' => "#FFBE1E",
-			 'completed' => "#3CA53C",
-			 'unknown' => "#B9B9B9",
-			 'error' => "red" );
+  my %state_to_color = ( 'completed' => "green",
+			 'in-progress' => "blue",
+			 'queued' => "orange",
+			 'pending' => "gray",
+			 'error' => "red",
+			 'init' => 'gray' );
   
   if ($state and exists $state_to_color{$state}){
-    return "<div title='".$stage."' style='float:left; height: 14px; width: 12px; margin: 2 0 2 1; background-color:".$state_to_color{$state}.";'></div>";
+    return "<div title='".$stage."' style='float:left; height: 14px; width: 12px; margin: 2px 0px 2px 1px; background-color:".$state_to_color{$state}.";'></div>";
   } else {
-    return "<div title='".$stage."' style='float:left; height: 14px; width: 12px; margin: 2 0 2 1; background-color:".$state_to_color{'unknown'}.";'></div>";
+    return "<div title='".$stage."' style='float:left; height: 14px; width: 12px; margin: 2px 0px 2px 1px; background-color:gray;'></div>";
   }
 }
 
