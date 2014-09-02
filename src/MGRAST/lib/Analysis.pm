@@ -4,13 +4,16 @@ use strict;
 use warnings;
 no warnings('once');
 
+use Auth;
+use Conf;
+
 use List::Util qw(max min sum first);
 use List::MoreUtils qw(natatime);
-use Conf;
 use DBI;
+use JSON;
 use Data::Dumper;
-use Babel::lib::Babel;
-
+use MIME::Base64;
+use LWP::UserAgent;
 use Cache::Memcached;
 use File::Temp qw/ tempfile tempdir /;
 
@@ -19,23 +22,31 @@ use File::Temp qw/ tempfile tempdir /;
 sub new {
   my ($class, $job_dbh, $dbh) = @_;
 
-  # get ach object
-  my $ach = new Babel::lib::Babel;
+  # get ach object if have lib
+  my $ach = undef;
+  eval {
+      require Babel::lib::Babel;
+      Babel::lib::Babel->import();
+      $ach = new Babel::lib::Babel;
+  };
   
   # get memcache object
-  my $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache || "kursk-2.mcs.anl.gov:11211"], 'debug' => 0, 'compress_threshold' => 10_000};
+  my $memd = undef;
+  eval {
+      require Cache::Memcached;
+      Cache::Memcached->import();
+      $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache || ''], 'debug' => 0, 'compress_threshold' => 10_000};
+  };
   
   # connect to database
-
   unless ($dbh) {
     eval {
-      my $dbms     = $Conf::mgrast_dbms;
       my $host     = $Conf::mgrast_dbhost;
       my $database = $Conf::mgrast_db;
       my $user     = $Conf::mgrast_dbuser;
       my $password = $Conf::mgrast_dbpass;
       
-      $dbh = DBI->connect("DBI:$dbms:dbname=$database;host=$host", $user, $password, 
+      $dbh = DBI->connect("DBI:Pg:dbname=$database;host=$host", $user, $password, 
 			  { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
 			    die "database connect error.";
     };
@@ -55,32 +66,51 @@ sub new {
   my $srcs  = $dbh->selectall_hashref("SELECT * FROM sources", "name");
   my %idsrc = map { $srcs->{$_}{_id}, $_ } keys %$srcs;
   my %srcid = map { $_, $srcs->{$_}{_id} } keys %$srcs;
-
+  
+  # get mgrast token
+  my $mgrast_token = undef;
+  if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
+      my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
+      my $rep = Auth::globus_token($key);
+      $mgrast_token = $rep ? $rep->{access_token} : undef;
+  }
+  
+  # set json handle
+  my $agent = LWP::UserAgent->new;
+  my $json = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
+  
   # create object
-  my $self = { dbh     => $dbh,     # job data db_handle
-	           ach     => $ach,     # ach/babel object
-	           jcache  => $job_dbh, # job cache db_handle
-	           memd    => $memd,    # memcached handle
-	           chunk   => 2500,     # max # md5s to query at once
-	           jobs    => [],       # array: job_id	           
-	           job_map => {},       # hash: mg_id => job_id
-	           mg_map  => {},       # hash: job_id => mg_id
-	           name_map => {},      # hash: mg_id => job_name
-	           type_map => {},      # hash: mg_id => seq_type
-	           sources => $srcs,    # hash: source_name => { col => value }
-	           id_src  => \%idsrc,  # hash: source_id => source_name
-   	           src_id  => \%srcid,  # hash: source_name => source_id
-	           expire  => $Conf::web_memcache_expire || 172800, # use config or 48 hours
-	           version => $Conf::m5nr_annotation_version || 1,
-	           jtbl    => { md5          => 'job_md5s',
-	                        ontology     => 'job_ontologies',
-	                        function     => 'job_functions',
-	                        organism     => 'job_organisms',
-	                        lca          => 'job_lcas' },
-	           atbl    => { md5          => 'md5s',
-	                        ontology     => 'ontologies',
-	                        function     => 'functions',
-	                        organism     => 'organisms_ncbi' }
+  my $self = { dbh      => $dbh,     # job data db_handle
+	           ach      => $ach,     # ach/babel object
+	           jcache   => $job_dbh, # job cache db_handle
+	           agent    => $agent,   # LWP agent handle
+	           memd     => $memd,    # memcached handle
+	           json     => $json,    # json handle
+	           chunk    => 2500,     # max # md5s to query at once
+	           jobs     => [],       # array: job_id
+	           job_map  => {},       # hash: mg_id => job_id
+	           mg_map   => {},       # hash: job_id => mg_id
+	           name_map => {},       # hash: mg_id => job_name
+	           type_map => {},       # hash: mg_id => seq_type
+	           stat_map => {},       # hash: mg_id => statistics
+	           sources  => $srcs,    # hash: source_name => { col => value }
+	           id_src   => \%idsrc,  # hash: source_id => source_name
+   	           src_id   => \%srcid,  # hash: source_name => source_id
+	           expire   => $Conf::web_memcache_expire || 172800, # use config or 48 hours
+	           version  => $Conf::m5nr_annotation_version || 1,
+	           mgrast_token => $mgrast_token,
+	           jtbl => { md5      => 'job_md5s',
+	                     ontology => 'job_ontologies',
+	                     function => 'job_functions',
+	                     organism => 'job_organisms',
+	                     lca      => 'job_lcas' },
+	           atbl => { md5      => 'md5s',
+	                     ontology => 'ontologies',
+	                     function => 'functions',
+	                     organism => 'organisms_ncbi' }
 	         };
   bless $self, $class;
   return $self;
@@ -105,9 +135,17 @@ sub _jcache {
   my ($self) = @_;
   return $self->{jcache};
 }
+sub _agent {
+  my ($self) = @_;
+  return $self->{agent};
+}
 sub _memd {
   my ($self) = @_;
   return $self->{memd};
+}
+sub _json {
+  my ($self) = @_;
+  return $self->{json};
 }
 sub _chunk {
   my ($self) = @_;
@@ -156,6 +194,10 @@ sub _expire {
 sub _version {
   my ($self) = @_;
   return $self->{version};
+}
+sub _mgrast_token {
+  my ($self) = @_;
+  return $self->{mgrast_token};
 }
 sub _qver {
   my ($self) = @_;
@@ -258,95 +300,6 @@ sub get_all_job_ids {
 }
 
 ####################
-# Dir / File path
-####################
-
-sub _job_dir {
-  my ($self, $job) = @_;
-  return $job ? $Conf::mgrast_jobs . "/" . $job : '';
-}
-
-sub _analysis_dir {
-  my ($self, $job) = @_;
-  return $job ? $self->_job_dir($job) . "/analysis" : '';
-}
-
-sub _fasta_file {
-  my ($self, $job) = @_;
-
-  unless ($job) { return ''; }
-  my $base = $self->_job_dir($job) . "/raw/" . $job;
-
-  if ((-s "$base.fna") || (-s "$base.fna.gz")) {
-    return "$base.fna";
-  }
-  elsif ((-s "$base.fastq") || (-s "$base.fastq.gz")) {
-    return "$base.fastq";
-  }
-  else {
-    return '';
-  }
-}
-
-sub _sim_file {
-  my ($self, $job) = @_;
-  return $job ? $self->_analysis_dir($job) . "/900.loadDB.sims.filter.seq" : '';
-}
-
-sub _source_stats_file {
-  my ($self, $job) = @_;
-  return $job ? $self->_analysis_dir($job) . "/900.loadDB.source.stats" : '';
-}
-
-sub _taxa_stats_file {
-  my ($self, $job, $taxa) = @_;
-  return $job ? $self->_analysis_dir($job) . "/999.done.$taxa.stats" : '';
-}
-
-sub _ontology_stats_file {
-  my ($self, $job, $source) = @_;
-  return $job ? $self->_analysis_dir($job) . "/999.done.$source.stats" : '';
-}
-
-sub _rarefaction_stats_file {
-  my ($self, $job) = @_;
-  return $job ? $self->_analysis_dir($job) . "/999.done.rarefaction.stats" : '';
-}
-
-sub _qc_stats_file {
-  my ($self, $job, $type) = @_;
-  return $job ? $self->_analysis_dir($job) . "/075.$type.stats" : '';
-}
-
-sub _length_hist_file {
-  my ($self, $job, $stage) = @_;
-
-  if (lc($stage) eq 'raw') {
-    return $self->_fasta_file($job) ? $self->_fasta_file($job) . ".lens" : '';
-  }
-  elsif (lc($stage) eq 'qc') {
-    return $job ? $self->_analysis_dir($job) . "/299.screen.passed.fna.lens" : '';
-  }
-  else {
-    return '';
-  }
-}
-
-sub _gc_hist_file {
-  my ($self, $job, $stage) = @_;
-
-  if (lc($stage) eq 'raw') {
-    return $self->_fasta_file($job) ? $self->_fasta_file($job) . ".gcs" : '';
-  }
-  elsif (lc($stage) eq 'qc') {
-    return $job ? $self->_analysis_dir($job) . "/299.screen.passed.fna.gcs" : '';
-  }
-  else {
-    return '';
-  }
-}
-
-####################
 # misc
 ####################
 
@@ -372,6 +325,9 @@ sub _get_where_str {
 sub _run_fraggenescan {
   my ($self, $fasta) = @_;
 
+  unless ($Conf::run_fraggenescan) {
+    return "";
+  }
   my ($infile_hdl, $infile_name) = tempfile("fgs_in_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fna');
   print $infile_hdl $fasta;
   close $infile_hdl;
@@ -403,87 +359,152 @@ sub _get_table_cols {
 }
 
 ####################
-# data from files
+# data / statistics from shock
 ####################
 
-sub _file_to_array {
-  my ($self, $file) = @_;
-  
-  my $data = [];
-  unless ($file && (-s $file)) { return $data; }
-  
-  open(FILE, "<$file") || return $data;
-  while (my $line = <FILE>) {
-    chomp $line;
-    my @parts = split(/\t/, $line);
-    push @$data, [ @parts ];
-  }
-  close(FILE);
-
-  return $data;
+sub _mg_stats {
+    my ($self, $mgid) = @_;
+    unless (exists $self->{stat_map}{$mgid}) {
+        my $mgstats = $self->_get_mg_stats($mgid);
+        if (! %$mgstats) {
+            print STDERR "no statistics available for $mgid\n";
+        }
+        $self->{stat_map}{$mgid} = $mgstats;
+    }
+    return $self->{stat_map}{$mgid};
 }
 
+sub _get_mg_stats {
+    my ($self, $mgid) = @_;
+    
+    # get node
+    my $stat_node = $self->stat_node($mgid);
+    unless ($stat_node && exists($stat_node->{id})) {
+        return {};
+    }
+    # get content
+    my $stats = {};
+    eval {
+        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+        my $get = $self->_agent->get($Conf::shock_url.'/node/'.$stat_node->{id}.'?download', @args);
+        $stats = $self->_json->decode( $get->content );
+    };
+    if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
+        return {};
+    }
+    return $stats;
+}
+
+sub stat_node {
+    my ($self, $mgid) = @_;
+    return $self->_get_mg_node($mgid, 'data_type=statistics');
+}
+
+sub sims_node {
+    my ($self, $mgid) = @_;
+    $self->_get_mg_node($mgid, 'data_type=similarity&stage_name=filter.sims');
+}
+
+sub _get_mg_node {
+    my ($self, $mgid, $type) = @_;
+    
+    my $response = undef;
+    my $query = '?query&limit=1&type=metagenome&'.$type.'&id=mgm'.$mgid;
+    eval {
+        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+        my $get = $self->_agent->get($Conf::shock_url.'/node'.$query, @args);
+        $response = $self->_json->decode( $get->content );
+    };
+    if ( $@ || (! ref($response)) ||
+         (exists($response->{error}) && $response->{error}) ||
+         (! $response->{data}) ||
+         (scalar(@{$response->{data}}) == 0) ) {
+        return {};
+    }
+    return $response->{data}[0];
+}
+
+sub _get_sim_record {
+    my ($self, $node_id, $seek, $length) = @_;
+    
+    unless ($node_id && defined($seek) && defined($length)) {
+        return '';
+    }
+    my $data = '';
+    eval {
+        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+        my $url = $Conf::shock_url.'/node/'.$node_id.'?download&seek='.$seek.'&length='.$length;
+        my $get = $self->_agent->get($url, @args);
+        $data = $get->content;
+    };
+    if ($@ || (! $data)) {
+        return '';
+    }
+    return $data;
+}
 
 sub get_source_stats {
-  my ($self, $jobid) = @_;
-
-  my $data = {};
-  my $file = $self->_source_stats_file($jobid);
-  unless ($file && (-s $file)) { return $data; }
-
-  open(FILE, "<$file") || return $data;
-  while (my $line = <FILE>) {
-    chomp $line;
-    my @parts  = split(/\t/, $line);
-    my $source = shift @parts;
-    if (@parts == 10) {
-      $data->{$source}->{evalue}  = [ @parts[0..4] ];
-      $data->{$source}->{identity} = [ @parts[5..9] ];
-    }
-  }
-  close(FILE);
-
-  return $data;
-  # source => type => [#, #, #, #, #]
+    my ($self, $mgid) = @_;
+    my $stats = $self->_mg_stats($mgid);
+    return exists($stats->{source}) ? $stats->{source} : {};
+    # source => type => [#, #, #, #, #]
 }
 
 sub get_taxa_stats {
-  my ($self, $jobid, $taxa) = @_;
-  return $self->_file_to_array( $self->_taxa_stats_file($jobid, $taxa) );
-  # [ name, abundance ]
+    my ($self, $mgid, $taxa) = @_;
+    my $stats = $self->_mg_stats($mgid);
+    if (exists $stats->{taxonomy}) {
+        return exists($stats->{taxonomy}{$taxa}) ? $stats->{taxonomy}{$taxa} : [];
+    } else {
+        return [];
+    }
+    # [ name, abundance ]
 }
 
 sub get_ontology_stats {
-  my ($self, $jobid, $source) = @_;
-  return $self->_file_to_array( $self->_ontology_stats_file($jobid, $source) );
-  # [ top level name, abundance ]
+    my ($self, $mgid, $source) = @_;
+    my $stats = $self->_mg_stats($mgid);
+    if (exists $stats->{ontology}) {
+        return exists($stats->{ontology}{$source}) ? $stats->{ontology}{$source} : [];
+    } else {
+        return [];
+    }
+    # [ top level name, abundance ]
 }
 
 sub get_rarefaction_coords {
-  my ($self, $jobid) = @_;
-  return $self->_file_to_array( $self->_rarefaction_stats_file($jobid) );
-  # [ x, y ]
+    my ($self, $mgid) = @_;
+    my $stats = $self->_mg_stats($mgid);
+    return exists($stats->{rarefaction}) ? $stats->{rarefaction} : [];
+    # [ x, y ]
 }
 
 sub get_qc_stats {
-  my ($self, $jobid, $type) = @_;
-  return $self->_file_to_array( $self->_qc_stats_file($jobid, $type) );
-  # matrix
+    my ($self, $mgid, $type) = @_;
+    my $stats = $self->_mg_stats($mgid);
+    if (exists $stats->{qc}) {
+        return exists($stats->{qc}{$type}) ? $stats->{qc}{$type} : {};
+    } else {
+        return {};
+    }
 }
 
 sub get_histogram_nums {
-  my ($self, $jobid, $type, $stage) = @_;
-
-  $stage   = $stage ? $stage : 'raw';
-  my $file = "";
-
-  if ($type eq 'len') {
-    $file = $self->_length_hist_file($jobid, $stage);
-  } elsif ($type eq 'gc') {
-    $file = $self->_gc_hist_file($jobid, $stage);
-  }
-  return $self->_file_to_array($file);
-  # [ value, count ]
+    my ($self, $mgid, $type, $stage) = @_;
+    my $stats = $self->_mg_stats($mgid);
+    if ($stage && ($stage eq 'qc')) {
+        $stage = 'post_qc';
+    } else {
+        $stage = 'upload';
+    }
+    if ($type eq 'len' && exists($stats->{length_histogram}) && exists($stats->{length_histogram}{$stage})) {
+        return $stats->{length_histogram}{$stage};
+    } elsif ($type eq 'gc' && exists($stats->{gc_histogram}) && exists($stats->{gc_histogram}{$stage})) {
+        return $stats->{gc_histogram}{$stage};
+    } else {
+        return [];
+    }
+    # [ value, count ]
 }
 
 sub get_md5_sims {
@@ -491,20 +512,15 @@ sub get_md5_sims {
   my ($self, $jobid, $md5_seeks) = @_;
 
   my $sims = {};
-  if ($md5_seeks && (@$md5_seeks > 0)) {
+  my $sim_node = $self->sims_node($self->_mg_map->{$jobid});
+  if ($md5_seeks && (@$md5_seeks > 0) && $sim_node && exists($sim_node->{id})) {
     @$md5_seeks = sort { $a->[1] <=> $b->[1] } @$md5_seeks;
-    open(FILE, "<" . $self->_sim_file($jobid)) || return {};
-    foreach my $set ( @$md5_seeks ) {
+    foreach my $set (@$md5_seeks) {
       my ($md5, $seek, $length) = @$set;
-      my $rec = '';
-      my %tmp = ();
-      seek(FILE, $seek, 0);
-      read(FILE, $rec, $length);
+      my $rec = $self->_get_sim_record($sim_node->{id}, $seek, $length);
       chomp $rec;
-      
       $sims->{$md5} = [ split(/\n/, $rec) ];
     }
-    close FILE;
   }
   return $sims;
   # md5 => [sim lines]
@@ -696,7 +712,7 @@ sub _search_annotations {
     my $data = {};
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        my $cdata = $self->_memd->get($mg.$cache_key);
+        my $cdata = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
         if ($cdata) { $data->{$mg} = $cdata; }
         else        { push @$jobs, $j; }
     }
@@ -711,8 +727,10 @@ sub _search_annotations {
     }
     $sth->finish;
     
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return $data;
@@ -1024,32 +1042,6 @@ sub metagenome_search {
 
 =pod
 
-=item * B<all_read_sequences>
-
-Retrieve all the [ {id , sequence} ] from the metagenome job directory.
-
-=cut 
-
-sub all_read_sequences {
-    my ($self) = @_;
-
-    my $seqs = [];
-    while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        open(FILE, "<" . $self->_sim_file($j)) || next;
-        while (my $line = <FILE>) {
-            chomp $line;
-            my @tabs = split(/\t/, $line);
-            if (@tabs == 13) {
-	            push @$seqs, { id => "$mg|$tabs[0]", sequence => $tabs[12] };
-            }
-        }
-        close FILE;
-    }
-    return $seqs;
-}
-
-=pod
-
 =item * B<md5s_to_read_sequences> (I<md5s>, I<eval>, I<ident>)
 
 Retrieve the [ {id , sequence} ] from the metagenome job directory for I<md5s> with I<eval>.
@@ -1058,13 +1050,12 @@ Retrieve the [ {id , sequence} ] from the metagenome job directory for I<md5s> w
 
 sub md5s_to_read_sequences {
     my ($self, $md5s, $eval, $ident, $alen) = @_;
-
-    unless ($md5s && (@$md5s > 0)) { return $self->all_read_sequences(); }
-  
+    
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
 
+    my %mg_sims = map { $_, $self->sims_node($_) } keys %{$self->_job_map};
     my $seqs = [];
     my %umd5 = map {$_, 1} @$md5s;
     my $iter = natatime $self->_chunk, keys %umd5;
@@ -1078,26 +1069,23 @@ sub md5s_to_read_sequences {
         my $sth = $self->_dbh->prepare($sql);
         $sth->execute() or die "Couldn't execute statement: " . $sth->errstr;
         while (my @row = $sth->fetchrow_array()) {
-            push @{ $data->{$row[0]} }, [$row[1], $row[2]];
+            push @{ $data->{$self->_mg_map->{$row[0]}} }, [$row[1], $row[2]];
         }
         $sth->finish;
         
-        while ( my ($j, $info) = each %$data ) {
-            open(FILE, "<" . $self->_sim_file($j)) || next;
+        while ( my ($m, $info) = each %$data ) {
+            next unless (exists($mg_sims{$m}) && $mg_sims{$m} && exists($mg_sims{$m}{id}));
             foreach my $set (@$info) {
 	            my ($seek, $len) = @$set;
-	            my $rec = '';
-	            seek(FILE, $seek, 0);
-	            read(FILE, $rec, $len);
+	            my $rec = $self->_get_sim_record($mg_sims{$m}{id}, $seek, $len);
 	            chomp $rec;
 	            foreach my $line ( split(/\n/, $rec) ) {
 	                my @tabs = split(/\t/, $line);
 	                if (@tabs == 13) {
-	                    push @$seqs, { md5 => $tabs[1], id => $self->_mg_map->{$j}."|".$tabs[0], sequence => $tabs[12] };
+	                    push @$seqs, { md5 => $tabs[1], id => $m."|".$tabs[0], sequence => $tabs[12] };
 	                }
 	            }
             }
-            close FILE;
         }
     }
     $self->_dbh->commit;
@@ -1136,10 +1124,16 @@ sub get_organism_abundance_for_source {
 sub get_organisms_with_contig_for_source {
     my ($self, $src, $num, $len) = @_;
 
-    my $job_orgs = $self->get_organism_abundance_for_source($src);
-    my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[0]}] } grep { exists $job_orgs->{$_->[0]} } @{ $self->ach->get_organism_with_contig_list($num, $len) };
-    # [ org_id, org_name, abundance ]
-    return \@job_ctgs;
+    if ($self->ach) {
+        my $job_orgs = $self->get_organism_abundance_for_source($src);
+        my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[0]}] }
+                            grep { exists $job_orgs->{$_->[0]} }
+                                @{ $self->ach->get_organism_with_contig_list($num, $len) };
+        # [ org_id, org_name, abundance ]
+        return \@job_ctgs;
+    } else {
+        return [];
+    }
 }
 
 sub get_md5_evals_for_organism_source {
@@ -1231,7 +1225,7 @@ sub get_rarefaction_curve {
     # calculate alpha diversity
     if ($get_alpha) {
         foreach my $mg (keys %$raw_data) {
-            my $cdata = $self->_memd->get($mg.$cache_key."alpha");
+            my $cdata = $self->_memd ? $self->_memd->get($mg.$cache_key."alpha") : undef;
             unless ($cdata) {
 	            my $h1  = 0;
 	            my $sum = sum values %{$raw_data->{$mg}};
@@ -1245,7 +1239,9 @@ sub get_rarefaction_curve {
 	                if ($p > 0) { $h1 += ($p * log(1/$p)) / log(2); }
 	            }
 	            $mg_alpha->{$mg} = 2 ** $h1;
-	            $self->_memd->set($mg.$cache_key."alpha", $mg_alpha->{$mg}, $self->_expire);
+	            if ($self->_memd) {
+	                $self->_memd->set($mg.$cache_key."alpha", $mg_alpha->{$mg}, $self->_expire);
+                }
             } else {
                 $mg_alpha->{$mg} = $cdata;
             }
@@ -1256,7 +1252,7 @@ sub get_rarefaction_curve {
 
     # calculate rarefaction (x, y)
     foreach my $mg (keys %$raw_data) {
-        my $cdata = $self->_memd->get($mg.$cache_key."curve");
+        my $cdata = $self->_memd ? $self->_memd->get($mg.$cache_key."curve") : undef;
         unless ($cdata) {
             my @nums = sort {$a <=> $b} values %{$raw_data->{$mg}};
             my $k    = scalar @nums;
@@ -1273,7 +1269,9 @@ sub get_rarefaction_curve {
 	            map { $curr += exp( $self->_nCr2ln($nseq - $_, $n) - $coeff ) } @nums;
 	            push @{ $mg_rare->{$mg} }, [ $n, $k - $curr ];
             }
-            $self->_memd->set($mg.$cache_key."curve", $mg_rare->{$mg}, $self->_expire);
+            if ($self->_memd) {
+                $self->_memd->set($mg.$cache_key."curve", $mg_rare->{$mg}, $self->_expire);
+            }
         } else {
             $mg_rare->{$mg} = $cdata;
         }
@@ -1312,7 +1310,7 @@ sub _get_abundance_for_hierarchy {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $cdata = $self->_memd->get($mg.$cache_key);
+            my $cdata = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
             if ($cdata) { push @$data, @$cdata; }
             else        { push @$jobs, $j; }
         }
@@ -1356,7 +1354,9 @@ sub _get_abundance_for_hierarchy {
             	push @$data, [ $self->_mg_map->{$curr}, $h, $num ];
             	push @$cdata, [ $self->_mg_map->{$curr}, $h, $num ];
             }
-            $self->_memd->set($self->_mg_map->{$curr}.$cache_key, $cdata, $self->_expire);
+            if ($self->_memd) {
+                $self->_memd->set($self->_mg_map->{$curr}.$cache_key, $cdata, $self->_expire);
+            }
             # reset
             $hier = {};
             $curr = $job;
@@ -1388,7 +1388,9 @@ sub _get_abundance_for_hierarchy {
         	push @$data, [ $self->_mg_map->{$job}, $h, $num ];
         	push @$cdata, [ $self->_mg_map->{$job}, $h, $num ];
         }
-        $self->_memd->set($self->_mg_map->{$job}.$cache_key, $cdata, $self->_expire);
+        if ($self->_memd) {
+            $self->_memd->set($self->_mg_map->{$job}.$cache_key, $cdata, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return $data;
@@ -1576,8 +1578,8 @@ sub get_organisms_for_md5s {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
-            my $m = $self->_memd->get($mg.$cache_key."md5s");
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
+            my $m = $self->_memd ? $self->_memd->get($mg.$cache_key."md5s") : undef;
             if ($c && $m) {
                 $data->{$mg} = $c;
                 $mdata{$mg}  = $m;
@@ -1622,7 +1624,7 @@ sub get_organisms_for_md5s {
 	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row[17]};
     }
     $sth->finish;
-    unless ($qmd5s) {
+    if ((! $qmd5s) && $self->_memd) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	        $self->_memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->_expire);
@@ -1665,8 +1667,8 @@ sub get_ontology_for_md5s {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
-            my $m = $self->_memd->get($mg.$cache_key."md5s");
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
+            my $m = $self->_memd ? $self->_memd->get($mg.$cache_key."md5s") : undef;
             if ($c && $m) {
                 $data->{$mg} = $c;
                 $mdata{$mg}  = $m;
@@ -1705,7 +1707,7 @@ sub get_ontology_for_md5s {
 	    map { $mdata{$mg}{$_} = $mg_md5_abund->{$mg}{$_} } grep { exists $mg_md5_abund->{$mg}{$_} } @{$row[10]};
     }
     $sth->finish;
-    unless ($qmd5s) {
+    if ((! $qmd5s) && $self->_memd) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	        $self->_memd->set($mg.$cache_key."md5s", $mdata{$mg}, $self->_expire);
@@ -1745,7 +1747,7 @@ sub get_functions_for_md5s {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
             if ($c) { $data->{$mg} = $c; }
             else    { push @$jobs, $j; }
         }
@@ -1779,7 +1781,7 @@ sub get_functions_for_md5s {
 	    push @{$data->{$mg}}, [ $mg, $self->_id_src->{$row[1]}, @row[2,3], $sub_abund, @row[4..9], join(";", @{$row[10]}) ];
     }
     $sth->finish;
-    unless ($qmd5s) {
+    if ((! $qmd5s) && $self->_memd) {
         foreach my $mg (keys %$data) {
 	        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
 	    }
@@ -1800,7 +1802,7 @@ sub get_lca_data {
     my $data = {};
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        my $c = $self->_memd->get($mg.$cache_key);
+        my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
         if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
@@ -1824,8 +1826,10 @@ sub get_lca_data {
         push @{$data->{$mg}}, [ $mg, @tax, @row[2..8] ];
     }
     $sth->finish;
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return [ map { @$_ } values %$data ];
@@ -1847,7 +1851,7 @@ sub get_md5_data {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
             if ($c) { $data->{$mg} = $c; }
             else    { push @$jobs, $j; }
         }
@@ -1875,8 +1879,10 @@ sub get_md5_data {
         push @{ $data->{$mg} }, [ $mg, @row ];
     }
     $sth->finish;
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return [ map { @$_ } values %$data ];
@@ -1897,7 +1903,7 @@ sub get_md5_abundance {
         $jobs = $self->_jobs;
     } else {
         while ( my ($mg, $j) = each %{$self->_job_map} ) {
-            my $c = $self->_memd->get($mg.$cache_key);
+            my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
             if ($c) { $data->{$mg} = $c; }
             else    { push @$jobs, $j; }
         }
@@ -1932,8 +1938,10 @@ sub get_md5_abundance {
         }
         $sth->finish;        
     }
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return $data;
@@ -1969,7 +1977,7 @@ sub _get_annotation_md5 {
     my $data = {};
     my $jobs = [];
     while ( my ($mg, $j) = each %{$self->_job_map} ) {
-        my $c = $self->_memd->get($mg.$cache_key);
+        my $c = $self->_memd ? $self->_memd->get($mg.$cache_key) : undef;
         if ($c) { $data->{$mg} = $c; }
         else    { push @$jobs, $j; }
     }
@@ -2001,8 +2009,10 @@ sub _get_annotation_md5 {
         map { $data->{$mg}{$row[1]}{$_} = 1 } @{ $row[2] };
     }
     $sth->finish;
-    foreach my $mg (keys %$data) {
-        $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+    if ($self->_memd) {
+        foreach my $mg (keys %$data) {
+            $self->_memd->set($mg.$cache_key, $data->{$mg}, $self->_expire);
+        }
     }
     $self->_dbh->commit;
     return $data;

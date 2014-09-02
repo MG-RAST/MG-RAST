@@ -79,7 +79,8 @@ sub authenticate {
     }
 
     # validate the token
-    my $validation_url = 'https://nexus.api.globusonline.org/goauth/keys/';    
+    my $validation_url = 'https://nexus.api.globusonline.org/goauth/keys/';
+    my $userdata_url = 'https://nexus.api.globusonline.org/users/';
 
     # token syntax check
     my ($user, $sig) = $key =~ /^un=([^\|]+)\|.+SigningSubject=([^\|]+)/;
@@ -134,6 +135,20 @@ sub authenticate {
 	  # check if a connection exists
 	  my $pref = $master->Preferences->get_objects( { name => 'kbase_user', value => $user } );
 	  if (! scalar(@$pref)) {
+
+	    # there is no connection, create a fake user and hook them up
+	    $result = `curl -s -X GET "$userdata_url$sig"`;
+	    my $globus_udata;
+	    eval {
+	      $globus_udata = $json->decode($result);
+	    };
+	    if ($@) {
+	      return (undef, "could not reach globus online auth server");
+	    }
+#
+#
+#
+#
 	    return (undef, "valid kbase user");
 	  }
 	}

@@ -5,6 +5,7 @@
  * @license Use it if you like it
  */
 
+// for bps: A, T, C, G, N, X, total
 function bpColors()
 {
     return ["#109618","#dc3912","#3366cc","#ff9900","#8a4117","#000000","#990099"];

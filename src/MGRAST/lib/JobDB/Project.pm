@@ -22,18 +22,7 @@ sub create_project {
   $public = $public ? 1 : 0;
 
   # create project
-  my $nid  = $master->Project->last_id + 1;
-  my $pdir = $Conf::mgrast_projects;
-  while (-d "$pdir/$nid") {
-    $nid++;
-  }
-  unless ($pdir && $nid) {
-    return undef;
-  }
-  mkdir("$pdir/$nid", 0777);
-  mkdir("$pdir/$nid/graphics", 0777);
-  mkdir("$pdir/$nid/tables", 0777);
-
+  my $nid = $master->Project->last_id + 1;
   my $attribs = { id => $nid, name => $name, type => 'study', public => $public };
   if ($curator && ref($curator)) {
     $attribs->{creator} = $curator;
