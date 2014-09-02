@@ -6,6 +6,11 @@ use warnings;
 use MGRAST::Metadata;
 use Data::Dumper;
 
+use JSON;
+use LWP::UserAgent;
+use Auth;
+use MIME::Base64;
+
 use WebConfig;
 use base qw( WebPage );
 
@@ -230,7 +235,30 @@ sub publish {
   my $body    = "Dear $uname,\n\nYour metagenome '" . $job->name . "' ($mg_id) is now public. You can link to the metagenome using:\n" . $self->data('linkin') .
                 "\n\nThis is an automated message.  Please contact mg-rast\@mcs.anl.gov if you have any questions or concerns.";
   
+  ######## make public in mysql ##########
   $job->public(1);
+  
+  ######## make public in shock ##########
+  my $mgrast_token = undef;
+  if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
+    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
+    my $rep = Auth::globus_token($key);
+    $mgrast_token = $rep ? $rep->{access_token} : undef;
+  }
+  # get shock nodes
+  my $agent = LWP::UserAgent->new;
+  my @args  = ('Authorization', "OAuth ".$mgrast_token);
+  my $nodes = [];
+  eval {
+    my $get = $agent->get($Conf::shock_url.'/node?query&limit=100&type=metagenome&id=mgm'.$job->metagenome_id, @args);
+    $nodes  = $json->decode( $get->content )->{data};
+  };
+  # modify shock nodes
+  foreach my $n (@$nodes) {
+    $agent->delete($Conf::shock_url.'/node/'.$n.'/acl/read?users=mgrast', @args);
+  }
+  
+  # send email
   $user->send_email($from, $subject, $body);
 
   my $content = "<h1>" . $job->name . " ($mg_id) is publicly accessible.</h1>";
