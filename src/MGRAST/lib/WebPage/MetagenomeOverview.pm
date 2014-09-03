@@ -60,40 +60,42 @@ sub init {
 
   # get the metagenome id
   my $id = $self->application->cgi->param('metagenome') || '';
+  unless ($id) {
+    $self->app->add_message('warning', "Metagenome ID is missing.");
+    return 1;
+  }
 
   # sanity check on job
-  if ($id) { 
-    my $mgrast = $self->application->data_handle('MGRAST');
-    my $jobs_array = $mgrast->Job->get_objects( { metagenome_id => $id } );
-    unless (@$jobs_array > 0) {
-      $self->app->add_message('warning', "Unable to retrieve the metagenome '$id'. This metagenome does not exist.");
-      return 1;
-    }
-    my $job = $jobs_array->[0];
-    my $user = $self->application->session->user;
-
-    if(! $job->public) {
-      if(! $user) {
-        $self->app->add_message('warning', 'Please log into MG-RAST to view private metagenomes.');
-        return 1;
-      } elsif(! $user->has_right(undef, 'view', 'metagenome', $id)) {
-        $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
-        return 1;
-      }
-    }
-
-    my $attr = $mgrast->JobAttributes->init({ job => $job, tag => 'deleted' });
-    if($attr) {
-      $self->app->add_message('warning', "Unable to view metagenome '$id' because it has been deleted.");
-      return 1;
-    }
-
-    unless ($job->viewable) {
-      $self->app->add_message('warning', "Unable to view metagenome '$id' because it is still processing.");
-      return 1;
-    }
-    $self->data('job', $job);
+  my $mgrast = $self->application->data_handle('MGRAST');
+  my $jobs_array = $mgrast->Job->get_objects( { metagenome_id => $id } );
+  unless (@$jobs_array > 0) {
+    $self->app->add_message('warning', "Unable to retrieve the metagenome '$id'. This metagenome does not exist.");
+    return 1;
   }
+  my $job = $jobs_array->[0];
+  my $user = $self->application->session->user;
+
+  if(! $job->public) {
+    if(! $user) {
+      $self->app->add_message('warning', 'Please log into MG-RAST to view private metagenomes.');
+      return 1;
+    } elsif(! $user->has_right(undef, 'view', 'metagenome', $id)) {
+      $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+      return 1;
+    }
+  }
+
+  my $attr = $mgrast->JobAttributes->init({ job => $job, tag => 'deleted' });
+  if($attr) {
+    $self->app->add_message('warning', "Unable to view metagenome '$id' because it has been deleted.");
+    return 1;
+  }
+
+  unless ($job->viewable) {
+    $self->app->add_message('warning', "Unable to view metagenome '$id' because it is still processing.");
+    return 1;
+  }
+  $self->data('job', $job);
 
   # init the metadata database
   my $mddb = MGRAST::Metadata->new();
