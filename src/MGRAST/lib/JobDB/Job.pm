@@ -1230,29 +1230,66 @@ sub user_delete {
     return (0, "Unable to delete metagenome '$mgid' because it is still processing.");
   }
 
-  if($self->primary_project) {
+  # remove from project
+  if ($self->primary_project) {
     $self->primary_project->remove_job($self);
   }
 
   # using argument 0 does not work, argument 'null' sets viewable to 0
   $self->viewable('null');
 
+  # set status as deleted
   $jobdbm->JobAttributes->create({ job => $self, tag => 'deleted', value => 'deleted by ' . $user->login });
 
+  # delete rights
   my $webappdb = DBMaster->new(-database => $Conf::webapplication_db,
                                -backend  => $Conf::webapplication_backend,
                                -host     => $Conf::webapplication_host,
                                -user     => $Conf::webapplication_user);
-
   my $job_rights = $webappdb->Rights->get_objects( { data_type => 'metagenome', data_id => $mgid  } );
   foreach my $r (@$job_rights) {
     $r->delete;
   }
 
+  # delete analysis tables
   use MGRAST::Analysis;
-  my $analysisDB  = MGRAST::Analysis->new($self->_master->db_handle);
+  my $analysisDB = MGRAST::Analysis->new($self->_master->db_handle);
   $analysisDB->delete_job($self->job_id);
 
+  ######## delete shock nodes ##########
+  
+  # get mgrast auth
+  my $mgrast_token = undef;
+  if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
+    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
+    my $rep = Auth::globus_token($key);
+    $mgrast_token = $rep ? $rep->{access_token} : undef;
+  }
+  
+  # get shock nodes
+  my $agent = LWP::UserAgent->new;
+  my $json  = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
+  
+  my @auth  = ('Authorization', "OAuth ".$mgrast_token);
+  my $nodes = [];
+  eval {
+    my $get = $agent->get($Conf::shock_url.'/node?query&limit=0&type=metagenome&id=mgm'.$job->metagenome_id, @auth);
+    $nodes  = $json->decode( $get->content )->{data};
+  };
+  
+  # delete nodes
+  if ($@) {
+    print STDERR "unable to retrieve shock nodes for metagenome: ".$job->metagenome_id."\n";
+  } else {
+    # modify shock nodes
+    foreach my $n (@$nodes) {
+      $agent->delete($Conf::shock_url.'/node/'.$n->{id}, @auth);
+    }
+  }
+  
   return (1, "");
 }
 
