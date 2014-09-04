@@ -103,6 +103,16 @@ sub info {
 							                 'body'     => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ], 
 							                                 "input_id" => ["string", "shock node id of input sequence file"] } }
 						},
+						{ 'name'        => "public",
+				          'request'     => $self->cgi->url."/".$self->name."/public",
+				          'description' => "Change status of metagenome to public.",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => { "public"  => ['boolean', 'the metagenome is public'] },
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ] } }
+						},
 						{ 'name'        => "addproject",
 				          'request'     => $self->cgi->url."/".$self->name."/addproject",
 				          'description' => "Add exisiting MG-RAST job to existing MG-RAST project.",
@@ -147,8 +157,8 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif ( ($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create') ||
-              ($self->rest->[0] eq 'submit') || ($self->rest->[0] eq 'addproject') ) {
+    } elsif ( ($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create') || ($self->rest->[0] eq 'submit') ||
+              ($self->rest->[0] eq 'public') || ($self->rest->[0] eq 'addproject') ) {
         $self->job_action($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'kb2mg') || ($self->rest->[0] eq 'mg2kb')) {
         $self->id_lookup($self->rest->[0]);
@@ -200,7 +210,7 @@ sub job_action {
                   job_id        => $job->{job_id},
                   kbase_id      => (exists($post->{kbase_id}) && $post->{kbase_id}) ? $self->reserve_kbase_id($mgid): undef
         };
-    } elsif (($action eq 'create') || ($action eq 'submit') || ($action eq 'addproject')) {
+    } elsif (($action eq 'create') || ($action eq 'submit') || ($action eq 'public') || ($action eq 'addproject')) {
         # check id format
         my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
@@ -252,6 +262,18 @@ sub job_action {
             }
             my (undef, $awe_id) = split(/\t/, $log[1]);
             $data = { awe_id => $awe_id, log => join("\n", @log) };
+        } elsif ($action eq 'public') {
+            # update shock nodes
+            my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
+            foreach my $n (@$nodes) {
+                my $attr = $n->{attributes};
+                $attr->{status} = 'public';
+                $self->update_shock_node($n->{id}, $attr, $self->mgrast_token);
+                $self->edit_shock_acl($n->{id}, $self->mgrast_token, 'mgrast', 'delete', 'read');
+            }
+            # update db
+            $job->public(1);
+            $data = { public => $job->public ? 1 : 0 };
         } elsif ($action eq 'addproject') {
             # check id format
             my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;

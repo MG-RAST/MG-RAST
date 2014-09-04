@@ -73,7 +73,7 @@ sub init {
   $self->data('default', $default);
 
   # api info for download
-  $self->data('api', $Conf::cgi_url."api.cgi");
+  $self->data('api', "http://api.metagenomics.anl.gov");
 
   # get to metagenome using the metagenome ID
   if ( $cgi->param('metagenome') ) {
@@ -224,9 +224,9 @@ my $css_tmp = qq~
   # get download info from API
   my $response = undef;
   my $agent = LWP::UserAgent->new;
-  my $auth = ($user && (! $job->public)) ? $Conf::api_key : '';
-  my $url = $self->data('api')."/download/mgm".$mid;
-  my $json = JSON->new;
+  my $auth  = ($user && (! $job->public)) ? $Conf::api_key : '';
+  my $url   = $self->data('api')."/download/mgm".$mid;
+  my $json  = JSON->new;
   $json = $json->utf8();
   $json->max_size(0);
   $json->allow_nonref;
@@ -237,8 +237,10 @@ my $css_tmp = qq~
   };
   if ($@ || (! ref($response))) {
       $self->application->add_message('warning', "Could not retrieve file list: ".$@);
+      return 1;
   } elsif (exists($response->{ERROR}) && $response->{ERROR}) {
       $self->application->add_message('warning', "Could not retrieve file list: ". $response->{ERROR});
+      return 1;
   }
   
   # group by ID
