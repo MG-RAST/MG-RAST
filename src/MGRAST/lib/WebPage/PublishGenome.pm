@@ -2,14 +2,13 @@ package MGRAST::WebPage::PublishGenome;
 
 use strict;
 use warnings;
+no warnings('once');
 
 use MGRAST::Metadata;
-use Data::Dumper;
 
 use JSON;
 use LWP::UserAgent;
-use Auth;
-use MIME::Base64;
+use Data::Dumper;
 
 use WebConfig;
 use base qw( WebPage );
@@ -60,6 +59,10 @@ sub init {
     $self->app->error("Unable to retrieve the job '$id'.");
     return;
   }
+  
+  # api info for making public
+  $self->data('api', "http://api.metagenomics.anl.gov");
+  
   $self->data('job', $job);
   $self->data('linkin', "http://metagenomics.anl.gov/linkin.cgi?metagenome=$id");
 }
@@ -235,27 +238,31 @@ sub publish {
   my $body    = "Dear $uname,\n\nYour metagenome '" . $job->name . "' ($mg_id) is now public. You can link to the metagenome using:\n" . $self->data('linkin') .
                 "\n\nThis is an automated message.  Please contact mg-rast\@mcs.anl.gov if you have any questions or concerns.";
   
-  ######## make public in mysql ##########
-  $job->public(1);
-  
-  ######## make public in shock ##########
-  my $mgrast_token = undef;
-  if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
-    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
-    my $rep = Auth::globus_token($key);
-    $mgrast_token = $rep ? $rep->{access_token} : undef;
-  }
-  # get shock nodes
+  ######## use API to make public ##########
+  my $response = undef;
   my $agent = LWP::UserAgent->new;
-  my @args  = ('Authorization', "OAuth ".$mgrast_token);
-  my $nodes = [];
+  my $json  = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
+  
+  my $url  = $self->data('api')."/job/public";
+  my @args = (
+    ($user && (! $job->public)) ? ('auth', $Conf::api_key) : (),
+    'Content_Type', 'multipart/form-data',
+    'Content', {metagenome_id => 'mgm'.$job->{metagenome_id}}
+  );
+  
   eval {
-    my $get = $agent->get($Conf::shock_url.'/node?query&limit=100&type=metagenome&id=mgm'.$job->metagenome_id, @args);
-    $nodes  = $json->decode( $get->content )->{data};
+    my $post  = $agent->post($url, @args);
+    $response = $json->decode($post->content);
   };
-  # modify shock nodes
-  foreach my $n (@$nodes) {
-    $agent->delete($Conf::shock_url.'/node/'.$n.'/acl/read?users=mgrast', @args);
+  if ($@ || (! ref($response))) {
+    $self->application->add_message('warning', "Could not make metagenome public: ".$@);
+    return 1;
+  } elsif (exists($response->{ERROR}) && $response->{ERROR}) {
+    $self->application->add_message('warning', "Could not make metagenome public: ". $response->{ERROR});
+    return 1;
   }
   
   # send email
