@@ -1276,13 +1276,13 @@ sub user_delete {
   my @auth  = ('Authorization', "OAuth ".$mgrast_token);
   my $nodes = [];
   eval {
-    my $get = $agent->get($Conf::shock_url.'/node?query&limit=0&type=metagenome&id=mgm'.$job->metagenome_id, @auth);
+    my $get = $agent->get($Conf::shock_url.'/node?query&limit=0&type=metagenome&id=mgm'.$self->metagenome_id, @auth);
     $nodes  = $json->decode( $get->content )->{data};
   };
   
   # delete nodes
   if ($@) {
-    print STDERR "unable to retrieve shock nodes for metagenome: ".$job->metagenome_id."\n";
+    print STDERR "unable to retrieve shock nodes for metagenome: ".$self->metagenome_id."\n";
   } else {
     # modify shock nodes
     foreach my $n (@$nodes) {

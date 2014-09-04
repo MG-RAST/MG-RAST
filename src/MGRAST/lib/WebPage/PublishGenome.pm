@@ -253,8 +253,8 @@ sub publish {
   );
   
   eval {
-    my $post = $agent->post($url, @args);
-    $response = $json->decode( $get->content );
+    my $post  = $agent->post($url, @args);
+    $response = $json->decode($post->content);
   };
   if ($@ || (! ref($response))) {
     $self->application->add_message('warning', "Could not make metagenome public: ".$@);
