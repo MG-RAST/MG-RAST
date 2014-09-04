@@ -2,6 +2,7 @@ package MGRAST::WebPage::PublishGenome;
 
 use strict;
 use warnings;
+no warnings('once');
 
 use MGRAST::Metadata;
 
