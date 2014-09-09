@@ -587,7 +587,7 @@ sub submit_to_mgrast {
     $info = $json->decode($get->content);
   };
   if ($@ || ($info->{id} ne 'Shock')) {
-    $self->application->add_message('warning', "Unable to access MG-RAST pipeline. Please try again later.");
+    $self->application->add_message('warning', "Unable to access MG-RAST data store. Please try again later.");
     return undef;
   }
   eval {
@@ -595,7 +595,7 @@ sub submit_to_mgrast {
     $info = $json->decode($get->content);
   };
   if ($@ || ($info->{id} ne 'AWE')) {
-    $self->application->add_message('warning', "Unable to access MG-RAST data store. Please try again later.");
+    $self->application->add_message('warning', "Unable to access MG-RAST pipeline. Please try again later.");
     return undef;
   }
 
