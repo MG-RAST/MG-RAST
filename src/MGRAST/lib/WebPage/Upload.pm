@@ -581,7 +581,7 @@ sub submit_to_mgrast {
   $json = $json->utf8();
   $json->max_size(0);
   $json->allow_nonref;
-  
+  $agent->timeout(10);
   eval {
     my $get = $agent->get($Conf::shock_url);
     $info = $json->decode($get->content);
