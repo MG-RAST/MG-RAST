@@ -9,6 +9,7 @@ use Digest::MD5 qw(md5 md5_hex md5_base64);
 use JSON;
 use Encode;
 use Number::Format qw(format_bytes);
+use LWP::UserAgent;
 
 use Conf;
 use WebConfig;
@@ -572,6 +573,31 @@ sub submit_to_mgrast {
   my $project_obj = undef;
   my $mddb = MGRAST::Metadata->new();
   my ($is_valid, $data, $log);
+  
+  # test if Shock-AWE are running
+  my $info  = undef;
+  my $agent = LWP::UserAgent->new;
+  my $json  = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
+  
+  eval {
+    my $get = $agent->get($Conf::shock_url);
+    $info = $json->decode($get->content);
+  };
+  if ($@ || ($info->{id} ne 'Shock')) {
+    $self->application->add_message('warning', "Unable to access MG-RAST pipeline. Please try again later.");
+    return undef;
+  }
+  eval {
+    my $get = $agent->get($Conf::awe_url);
+    $info = $json->decode($get->content);
+  };
+  if ($@ || ($info->{id} ne 'AWE')) {
+    $self->application->add_message('warning', "Unable to access MG-RAST data store. Please try again later.");
+    return undef;
+  }
 
   # get project name from metadata
   if ($mdata) {
