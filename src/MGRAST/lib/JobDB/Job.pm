@@ -953,7 +953,7 @@ sub fetch_browsepage_in_progress {
   my $stats = {};
   eval {
     my @args = ('Authorization', "OAuth ".$mgrast_token);
-    my $get = $agent->get($Conf::awe_url.'/job?query&info.user=mgu'.$user->{_id}, @args);
+    my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.user=mgu'.$user->{_id}, @args);
     $stats = $json->decode( $get->content );
   };
   if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
