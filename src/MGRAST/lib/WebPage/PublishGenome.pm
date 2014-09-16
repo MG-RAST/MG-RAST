@@ -8,7 +8,7 @@ use MGRAST::Metadata;
 
 use JSON;
 use LWP::UserAgent;
-use HTTP::Request
+use HTTP::Request;
 use Data::Dumper;
 
 use WebConfig;
