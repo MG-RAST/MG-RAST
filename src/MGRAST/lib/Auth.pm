@@ -64,11 +64,18 @@ sub authenticate {
       $ustruct = globus_token($key);
       if ($ustruct) {
 	if ($ustruct->{access_token}) {
+	  my $info = { token => $ustruct->{access_token} };
+	  if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
+	    my $verb = globus_info($ustruct->{access_token});
+	    foreach my $key (keys(%$verb)) {
+	      $info->{$key} = $verb->{$key};
+	    }
+	  }
 	  print $cgi->header(-type => 'application/json',
 			     -status => 200,
 			     -charset => 'UTF-8',
 			     -Access_Control_Allow_Origin => '*' );
-	  print '{ "token": "'.$ustruct->{access_token}.'" }';
+	  print $json->encode($info);
 	  exit;
 	} else {
 	  return (undef, "invalid globus online credentials");
