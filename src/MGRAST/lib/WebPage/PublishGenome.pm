@@ -250,10 +250,7 @@ sub publish {
   my $url  = $self->data('api')."/job/public";
   my $data = {metagenome_id => 'mgm'.$job->{metagenome_id}};
   my $req  = HTTP::Request->new(POST => $url);
-  if ($user && (! $job->public)) {
-      $req->header('auth' => $Conf::api_key);
-  }
-  $req->header('Content-Type' => 'application/json');
+  $req->header('Content-Type' => 'application/json', 'auth' => $Conf::api_key);
   $req->content($json->encode($data));
   
   eval {
@@ -262,10 +259,10 @@ sub publish {
   };
   if ($@ || (! ref($response))) {
     $self->application->add_message('warning', "Could not make metagenome public: ".$@);
-    return 1;
+    return "<pre>Could not make metagenome public: ".$@."</pre>";
   } elsif (exists($response->{ERROR}) && $response->{ERROR}) {
     $self->application->add_message('warning', "Could not make metagenome public: ". $response->{ERROR});
-    return 1;
+    return "<pre>Could not make metagenome public: ".$response->{ERROR}."</pre>";
   }
   
   # send email
