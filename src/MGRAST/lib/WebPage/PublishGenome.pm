@@ -8,6 +8,7 @@ use MGRAST::Metadata;
 
 use JSON;
 use LWP::UserAgent;
+use HTTP::Request
 use Data::Dumper;
 
 use WebConfig;
@@ -247,14 +248,16 @@ sub publish {
   $json->allow_nonref;
   
   my $url  = $self->data('api')."/job/public";
-  my @args = (
-    ($user && (! $job->public)) ? ('auth', $Conf::api_key) : (),
-    'Content_Type', 'multipart/form-data',
-    'Content', {metagenome_id => 'mgm'.$job->{metagenome_id}}
-  );
+  my $data = {metagenome_id => 'mgm'.$job->{metagenome_id}};
+  my $req  = HTTP::Request->new(POST => $url);
+  if ($user && (! $job->public)) {
+      $req->header('auth' => $Conf::api_key);
+  }
+  $req->header('Content-Type' => 'application/json');
+  $req->content($json->encode($data));
   
   eval {
-    my $post  = $agent->post($url, @args);
+    my $post  = $agent->request($req);
     $response = $json->decode($post->content);
   };
   if ($@ || (! ref($response))) {
