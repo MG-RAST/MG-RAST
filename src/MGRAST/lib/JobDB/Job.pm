@@ -916,38 +916,9 @@ sub jobs_mixs_metadata_fast {
 sub fetch_browsepage_in_progress {
   my ($self, $user, $count_only) = @_;
   
-  # build job query
-  my $selopt = "( viewable = 0 or viewable is null ) and metagenome_id is not null";
-  if (ref $user and ( $user->isa("WebServerBackend::User"))) {
-    unless ($user->has_star_right('edit', 'metagenome')) {
-      $selopt .= ' and metagenome_id in ("';
-      my @userjobs = $self->get_jobs_for_user_fast($user, 'edit');
-      unless ( scalar @userjobs > 0 ) {
-        return [];
-      }
-      $selopt .= join('","', map { $_->{'metagenome_id'} } @userjobs).'")';
-    }
-  } else {
-    return [];
+  unless (ref($user) && $user->isa("WebServerBackend::User")) {
+      return [];
   }
-  
-  # get job info
-  my $statement = "select _id, job_id, name, metagenome_id from Job where ".$selopt;
-  my $dbh = $self->_master()->db_handle();
-  my $sth = $dbh->prepare($statement);
-  $sth->execute;
-  my $jobdata = $sth->fetchall_arrayref();
-  $sth->finish;
-  
-  # get jobs to skip
-  my $statement = "select job from JobAttributes where tag='deleted' or tag='no_sims_found'";
-  my $sth = $dbh->prepare($statement);
-  $sth->execute;
-  my %skip = map { $_->[0], 1 } @{ $sth->fetchall_arrayref() };
-  $sth->finish;
-  
-  # get display jobs: _id, job_id, name, metagenome_id
-  my %id2job = map { $_->[1], $_ } grep { ! exists $skip{$_->[0]} } @$jobdata;
   
   # get mgrast token
   my $mgrast_token = undef;
@@ -986,6 +957,25 @@ sub fetch_browsepage_in_progress {
   # awe is down, get minimal info from DB
   if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
     print STDERR "AWE job info retrieval failed for user ".$user->{_id}.": $@".($stats && $stats->{error} ? $stats->{error} : "")."\n";
+
+    # get job info
+    my $dbh = $self->_master()->db_handle();
+    my $sql = "select _id, job_id, name, metagenome_id from Job where owner=".$user->{_id}." and metagenome_id is not null and (viewable=0 or viewable is null)";
+    my $sth = $dbh->prepare($query);
+    $sth->execute;
+    my $jobdata = $sth->fetchall_arrayref();
+    $sth->finish;
+
+    # get jobs to skip
+    $sql = "select job from JobAttributes where tag='deleted' or tag='no_sims_found'";
+    $sth = $dbh->prepare($statement);
+    $sth->execute;
+    my %skip = map { $_->[0], 1 } @{ $sth->fetchall_arrayref() };
+    $sth->finish;
+
+    # get display jobs: _id, job_id, name, metagenome_id
+    my %id2job = map { $_->[1], $_ } grep { ! exists $skip{$_->[0]} } @$jobdata;
+    
     if ($count_only) {
       return scalar(keys %id2job);
     } else {
@@ -1013,14 +1003,10 @@ sub fetch_browsepage_in_progress {
     } else {
       my $data_table = [];
       foreach my $job (@$running) {
-        my $job_id = $job->{info}{name};
-        unless (exists $id2job{$job_id}) {
-          next;
-        }
 	    my $row = {
-	        job_id => $job->{info}{name},
-		    metagenome_id => $id2job{$job_id}[3],
-		    metagenome_name => $id2job{$job_id}[2],
+	        job_id => $job->{info}{userattr}{job_id},
+		    metagenome_id => $job->{info}{userattr}{id},
+		    metagenome_name => $job->{info}{userattr}{name},
 		    states => [],
 		    status => undef };
 	    my $i = 1;
