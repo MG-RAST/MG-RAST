@@ -494,6 +494,10 @@ sub query {
 	
 	# check what operator
 	my $val = uri_unescape($self->cgi->param($key));
+	if ($key eq "id") {
+	  $key = "_id";
+	  $val =~ s/mgu//;
+	}
 	
 	my $str = $key;
 	
