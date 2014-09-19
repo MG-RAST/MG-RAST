@@ -958,7 +958,19 @@ sub fetch_browsepage_in_progress {
   };
   if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
     print STDERR "AWE job info retrieval failed for user ".$user->{_id}.": $@".($stats && $stats->{error} ? $stats->{error} : "")."\n";
-    return $count_only ? 0 : [];
+    if ($count_only) {
+      return scalar(@$jobs);
+    } else {
+      my $data_table = [];
+      foreach my $job (@$jobs) {
+	push(@$data_table, { job_id => $job->{job_id},
+			     metagenome_id => $job->{metagenome_id},
+			     metagenome_name => $job->{metagenome_name},
+			     states => [],
+			     status => $job->{current_stage} });
+      }
+      return $data_table;
+    }
   } else {
     my $stati = $stats->{data};
     if ($count_only) {
