@@ -994,7 +994,7 @@ sub fetch_browsepage_in_progress {
   } else {
     my $running = [];
     foreach my $job (@{$stats->{data}}) {
-      unless (($job->{state} == 'completed') || ($job->{state} == 'deleted')) {
+      unless (($job->{state} eq 'completed') || ($job->{state} eq 'deleted')) {
         push @$running, $job;
       }
     }
