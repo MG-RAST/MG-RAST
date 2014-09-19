@@ -961,14 +961,14 @@ sub fetch_browsepage_in_progress {
     # get job info
     my $dbh = $self->_master()->db_handle();
     my $sql = "select _id, job_id, name, metagenome_id from Job where owner=".$user->{_id}." and metagenome_id is not null and (viewable=0 or viewable is null)";
-    my $sth = $dbh->prepare($query);
+    my $sth = $dbh->prepare($sql);
     $sth->execute;
     my $jobdata = $sth->fetchall_arrayref();
     $sth->finish;
 
     # get jobs to skip
     $sql = "select job from JobAttributes where tag='deleted' or tag='no_sims_found'";
-    $sth = $dbh->prepare($statement);
+    $sth = $dbh->prepare($sql);
     $sth->execute;
     my %skip = map { $_->[0], 1 } @{ $sth->fetchall_arrayref() };
     $sth->finish;
