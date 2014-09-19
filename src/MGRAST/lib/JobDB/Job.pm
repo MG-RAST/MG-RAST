@@ -986,7 +986,7 @@ sub fetch_browsepage_in_progress {
 			metagenome_id => $id2job{$job_id}[3],
 			metagenome_name => $id2job{$job_id}[2],
 			states => [],
-			status => 'running' });
+			status => 'stage unknown: running' });
       }
       return $data_table;
     }
@@ -1010,6 +1010,7 @@ sub fetch_browsepage_in_progress {
 		    states => [],
 		    status => undef };
 	    my $i = 1;
+	    $row->{metagenome_id} =~ s/^mgm//;
 	    foreach my $stage (@{$job->{tasks}}) {
 	      if (! $row->{status} && ($stage->{remainwork} > 0 || $i == scalar(@{$job->{tasks}}))) {
 	        $row->{status} = ($stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}).": ".$stage->{state};
