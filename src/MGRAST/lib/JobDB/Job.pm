@@ -916,13 +916,10 @@ sub jobs_mixs_metadata_fast {
 sub fetch_browsepage_in_progress {
   my ($self, $user, $count_only) = @_;
   
-  # get jobs
-  my $jobs = $self->_master->Job->get_objects({ owner => $user});
-  my $id2job = {};
-  foreach my $job (@$jobs) {
-    $id2job->{$job->{job_id}} = $job;
+  unless (ref($user) && $user->isa("WebServerBackend::User")) {
+      return [];
   }
-
+  
   # get mgrast token
   my $mgrast_token = undef;
   if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
@@ -938,7 +935,8 @@ sub fetch_browsepage_in_progress {
   $json->max_size(0);
   $json->allow_nonref;
 
-  my $stage_titles = { 'upload'        => 'Upload', 
+  my $stage_titles = {
+               'upload'        => 'Upload', 
 		       'preprocess_qc' => 'Sequence Filtering',
 		       'dereplication' => 'Dereplication',
 		       'screen'        => 'Sequence Screening',
@@ -956,30 +954,71 @@ sub fetch_browsepage_in_progress {
     my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.user=mgu'.$user->{_id}, @args);
     $stats = $json->decode( $get->content );
   };
+  # awe is down, get minimal info from DB
   if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
     print STDERR "AWE job info retrieval failed for user ".$user->{_id}.": $@".($stats && $stats->{error} ? $stats->{error} : "")."\n";
-    return $count_only ? 0 : [];
-  } else {
-    my $stati = $stats->{data};
+
+    # get job info
+    my $dbh = $self->_master()->db_handle();
+    my $sql = "select _id, job_id, name, metagenome_id from Job where owner=".$user->{_id}." and metagenome_id is not null and (viewable=0 or viewable is null)";
+    my $sth = $dbh->prepare($sql);
+    $sth->execute;
+    my $jobdata = $sth->fetchall_arrayref();
+    $sth->finish;
+
+    # get jobs to skip
+    $sql = "select job from JobAttributes where tag='deleted' or tag='no_sims_found'";
+    $sth = $dbh->prepare($sql);
+    $sth->execute;
+    my %skip = map { $_->[0], 1 } @{ $sth->fetchall_arrayref() };
+    $sth->finish;
+
+    # get display jobs: _id, job_id, name, metagenome_id
+    my %id2job = map { $_->[1], $_ } grep { ! exists $skip{$_->[0]} } @$jobdata;
+    
     if ($count_only) {
-      return scalar(@$stati);
+      return scalar(keys %id2job);
     } else {
       my $data_table = [];
-      foreach my $job (@$stati) {
-	my $row = { job_id => $job->{info}->{name},
-		    metagenome_id => $id2job->{$job->{info}->{name}}->{metagenome_id},
-		    metagenome_name => $id2job->{$job->{info}->{name}}->{name},
+      foreach my $job_id (keys %id2job) {
+	    push(@$data_table, {
+	        job_id => $job_id,
+			metagenome_id => $id2job{$job_id}[3],
+			metagenome_name => $id2job{$job_id}[2],
+			states => [],
+			status => 'stage unknown: running' });
+      }
+      return $data_table;
+    }
+  # build progress from AWE
+  } else {
+    my $running = [];
+    foreach my $job (@{$stats->{data}}) {
+      unless (($job->{state} eq 'completed') || ($job->{state} eq 'deleted')) {
+        push @$running, $job;
+      }
+    }
+    if ($count_only) {
+      return scalar(@$running);
+    } else {
+      my $data_table = [];
+      foreach my $job (@$running) {
+	    my $row = {
+	        job_id => $job->{info}{userattr}{job_id},
+		    metagenome_id => $job->{info}{userattr}{id},
+		    metagenome_name => $job->{info}{userattr}{name},
 		    states => [],
 		    status => undef };
-	my $i=1;
-	foreach my $stage (@{$job->{tasks}}) {
-	  if (! $row->{status} && ($stage->{remainwork} > 0 || $i == scalar(@{$job->{tasks}}))) {
-	    $row->{status} = ($stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}).": ".$stage->{state};
-	  }
-	  push(@{$row->{states}}, { stage => $stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}, status => $stage->{state} });
-	  $i++;
-	}
-	push(@$data_table, $row);
+	    my $i = 1;
+	    $row->{metagenome_id} =~ s/^mgm//;
+	    foreach my $stage (@{$job->{tasks}}) {
+	      if (! $row->{status} && ($stage->{remainwork} > 0 || $i == scalar(@{$job->{tasks}}))) {
+	        $row->{status} = ($stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}).": ".$stage->{state};
+	      }
+	      push(@{$row->{states}}, { stage => $stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}, status => $stage->{state} });
+	      $i++;
+	    }
+	    push(@$data_table, $row);
       }
       return $data_table;
     }

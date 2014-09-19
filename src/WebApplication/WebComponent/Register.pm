@@ -943,7 +943,7 @@ sub country_codes {
 	   'AG' => 'Antigua and Barbuda',
 	   'GT' => 'Guatemala',
 	   'MC' => 'Monaco',
-	   'GE' => 'Abkhazia',
+	   'GE' => 'Georgia',
 	   'CY' => 'Northern Cyprus',
 	   'LV' => 'Latvia',
 	   'MH' => 'Marshall Islands',
