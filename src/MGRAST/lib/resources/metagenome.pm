@@ -43,7 +43,8 @@ sub new {
                           "status"   => [ 'cv', [['public', 'metagenome is public'],
 						                         ['private', 'metagenome is private'] ] ],
 						  "statistics" => [ 'hash', 'key value pairs describing statistics' ],
-                          "sequence_type" => [ 'string', 'sequencing type' ]
+                          "sequence_type" => [ 'string', 'sequencing type' ],
+                          "pipeline_parameters" => [ 'hash', 'key value pairs describing pipeline parameters' ]
     };
     $self->{query} = { "id"        => [ 'string', 'unique metagenome identifier' ],
                        "url"       => [ 'uri', 'resource location of this object instance' ],
@@ -174,8 +175,10 @@ sub instance {
         $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
     }
     $job = $job->[0];
+    
+    # job is in pipeline, just view minimal info
     unless ($job->viewable) {
-        $self->return_data( {"ERROR" => "id $id is still processing and unavailable"}, 404 );
+        $verb = 'minimal';
     }
 
     # check rights
@@ -187,7 +190,7 @@ sub instance {
     $self->return_cached();
     
     # prepare data
-    my $data = $self->prepare_data([$job]);
+    my $data = $self->prepare_data([$job], $verb);
     $data = $data->[0];
     $self->return_data($data, undef, 1); # cache this!
 }
@@ -336,7 +339,7 @@ sub query {
                 push @$jobs, $job->[0];
             }
         }
-        $obj->{data} = $self->prepare_data($jobs);
+        $obj->{data} = $self->prepare_data($jobs, $verb);
     }
     
     $self->return_data($obj);
@@ -351,9 +354,8 @@ sub solr_data {
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $data) = @_;
-
-    my $verb = $self->cgi->param('verbosity') || 'minimal';
+    my ($self, $data, $verb) = @_;
+    
     my $mgids = [];
     @$mgids = map { $_->{metagenome_id} } @$data;
     my $jobdata = {};
@@ -403,15 +405,21 @@ sub prepare_data {
 	        my $lib = $job->library;
 	        $obj->{library} = ["mgl".$lib->{ID}, $url."/library/mgl".$lib->{ID}];
 	    };
-	    # add pipeline info
+	    # get job info
 	    my $jstats  = $job->stats();
 	    my $jdata   = $job->data();
+	    if (exists($jdata->{deleted}) && $jdata->{deleted}) {
+	        # this is a deleted job !!
+	        $self->return_data( {"ERROR" => "Metagenome mgm".$job->{metagenome_id}." does not exist: ".$jdata->{deleted}}, 400 );
+	    }
+	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;
 	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
+	    $pparams->{publish_priority} = (exists($jdata->{priority}) && $jdata->{priority}) ? $jdata->{priority} : 'never';
 	    # replace value defaults
 	    foreach my $tag (('max_ambig', 'min_qual', 'max_lqb', 'screen_indexes',
-	                        'm5nr_sims_version', 'm5rna_sims_version',
-	                        'm5nr_annotation_version', 'm5rna_annotation_version')) {
+	                      'm5nr_sims_version', 'm5rna_sims_version',
+	                      'm5nr_annotation_version', 'm5rna_annotation_version')) {
 	        if (exists($jdata->{$tag}) && defined($jdata->{$tag})) {
 	            $pparams->{$tag} = $jdata->{$tag};
 	        }
@@ -422,20 +430,18 @@ sub prepare_data {
 	            $pparams->{$tag} = 'no';
 	        }
         }
-	# preprocessing
-	if ($jdata->{file_type}) {
-	    $pparams->{file_type} = ($jdata->{file_type} =~ /^(fq|fastq)$/) ? 'fastq' : 'fna';
-	} elsif ($jdata->{suffix}) {
-	    $pparams->{file_type} = ($jdata->{suffix} =~ /^(fq|fastq)$/) ? 'fastq' : 'fna';
-	} else {
-	    $pparams->{file_type} = 'fna';
-	}
+	    # preprocessing
+	    if ($jdata->{file_type}) {
+	        $pparams->{file_type} = ($jdata->{file_type} =~ /^(fq|fastq)$/) ? 'fastq' : 'fna';
+	    } elsif ($jdata->{suffix}) {
+	        $pparams->{file_type} = ($jdata->{suffix} =~ /^(fq|fastq)$/) ? 'fastq' : 'fna';
+	    } else {
+	        $pparams->{file_type} = 'fna';
+	    }
         if ($pparams->{file_type} eq 'fna') {
-            if ($jdata->{max_ln} && $jstats->{average_length_raw} && $jstats->{standard_deviation_length_raw}) {
-		if ($jstats->{standard_deviation_length_raw} > 0) {
-		    my $multiplier = (1.0 * ($jdata->{max_ln} - $jstats->{average_length_raw})) / $jstats->{standard_deviation_length_raw};
-		    $pparams->{filter_ln_mult} = sprintf("%.2f", $multiplier);
-		}
+            if ($jdata->{max_ln} && $jstats->{average_length_raw} && $jstats->{standard_deviation_length_raw} && ($jstats->{standard_deviation_length_raw} > 0)) {
+		        my $multiplier = (1.0 * ($jdata->{max_ln} - $jstats->{average_length_raw})) / $jstats->{standard_deviation_length_raw};
+		        $pparams->{filter_ln_mult} = sprintf("%.2f", $multiplier);
             }
             delete @{$pparams}{'dynamic_trim', 'min_qual', 'max_lqb'};
         } elsif ($pparams->{file_type} eq 'fastq') {
