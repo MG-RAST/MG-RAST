@@ -178,7 +178,7 @@ sub instance {
     
     # job is in pipeline, just view minimal info
     unless ($job->viewable) {
-        $verb = 'minimal';
+        $verb = 'pipeline';
     }
 
     # check rights
@@ -385,7 +385,7 @@ sub prepare_data {
         $obj->{url} = $url.'/metagenome/'.$obj->{id}.'?verbosity='.$verb;
         $obj->{name} = $job->{name};
         $obj->{job_id} = $job->{job_id};
-        $obj->{status} = $job->{public} ? 'public' : 'private';
+        $obj->{status} = ($verb eq 'pipeline') ? 'pipeline' : ($job->{public} ? 'public' : 'private');
         $obj->{created} = $job->{created_on};
         $obj->{version} = 1;
         $obj->{project} = undef;
