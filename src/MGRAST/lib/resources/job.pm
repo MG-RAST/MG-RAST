@@ -17,6 +17,14 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "job";
+    $self->{job_actions} = {
+        reserve => 1,
+        create  => 1,
+        submit  => 1,
+        public  => 1,
+        delete  => 1,
+        addproject => 1
+    };
     $self->{attributes} = {
         reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
                      "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
@@ -25,6 +33,10 @@ sub new {
         create => { "timestamp" => [ 'date', 'time the metagenome was first reserved' ],
                     "options"   => [ "string", "job pipeline option string" ],
                     "job_id"    => [ "int", "unique MG-RAST job identifier" ] },
+        submit => { "awe_id" => [ "string", "ID of AWE job" ],
+                    "log"    => [ "string", "log of sumbission" ] },
+        delete => { "deleted" => [ 'boolean', 'the metagenome is deleted' ],
+                    "error"   => [ "string", "error message if unable to delete" ] },
         addproject => { "project_id"   => [ "string", "unique MG-RAST project identifier" ],
                         "project_name" => [ "string", "MG-RAST project name" ],
                         "status"       => [ 'string', 'status of action' ] },
@@ -35,7 +47,7 @@ sub new {
     };
     $self->{create_param} = {
         'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
-        "input_id"      => ["string", "shock node id of input sequence file (optional)"],
+        'input_id'      => ["string", "shock node id of input sequence file (optional)"],
         'sequence_type' => ["cv", [["WGS", "whole genome shotgun sequenceing"],
                                    ["Amplicon", "amplicon sequenceing"],
                                    ["MT", "metatranscriptome sequenceing"]] ]
@@ -97,10 +109,10 @@ sub info {
 				          'description' => "Submit an existing MG-RAST job to AWE pipeline.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
-				          'attributes'  => { "awe_id" => ["ID of AWE job"] },
+				          'attributes'  => $self->{attributes}{submit},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ], 
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "input_id" => ["string", "shock node id of input sequence file"] } }
 						},
 						{ 'name'        => "public",
@@ -111,7 +123,18 @@ sub info {
 				          'attributes'  => { "public"  => ['boolean', 'the metagenome is public'] },
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ] } }
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"] } }
+						},
+						{ 'name'        => "delete",
+				          'request'     => $self->cgi->url."/".$self->name."/delete",
+				          'description' => "Delete metagenome.",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{delete},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+     							                             "reason" => ["string", "reason for deleting metagenome"] } }
 						},
 						{ 'name'        => "addproject",
 				          'request'     => $self->cgi->url."/".$self->name."/addproject",
@@ -121,8 +144,8 @@ sub info {
 				          'attributes'  => $self->{attributes}{addproject},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
-							                 'body'     => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
-							                                 "project_id" => [ "string", "unique MG-RAST project identifier" ] } }
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "project_id" => ["string", "unique MG-RAST project identifier"] } }
 						},
 						{ 'name'        => "kb2mg",
 				          'request'     => $self->cgi->url."/".$self->name."/kb2mg",
@@ -157,8 +180,7 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif ( ($self->rest->[0] eq 'reserve') || ($self->rest->[0] eq 'create') || ($self->rest->[0] eq 'submit') ||
-              ($self->rest->[0] eq 'public') || ($self->rest->[0] eq 'addproject') ) {
+    } elsif (exists $self->{job_actions}{ $self->rest->[0] }) {
         $self->job_action($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'kb2mg') || ($self->rest->[0] eq 'mg2kb')) {
         $self->id_lookup($self->rest->[0]);
@@ -178,6 +200,7 @@ sub job_action {
     my $data = {};
     my $post = $self->get_post_data();
     
+    # job does not exist yet
     if ($action eq 'reserve') {
         # get from shock node if given
         if (exists $post->{input_id}) {
@@ -210,7 +233,9 @@ sub job_action {
                   job_id        => $job->{job_id},
                   kbase_id      => (exists($post->{kbase_id}) && $post->{kbase_id}) ? $self->reserve_kbase_id($mgid): undef
         };
-    } elsif (($action eq 'create') || ($action eq 'submit') || ($action eq 'public') || ($action eq 'addproject')) {
+    }
+    # we have a job in DB, do something
+    else {
         # check id format
         my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
@@ -261,7 +286,10 @@ sub job_action {
                 $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
             }
             my (undef, $awe_id) = split(/\t/, $log[1]);
-            $data = { awe_id => $awe_id, log => join("\n", @log) };
+            $data = {
+                awe_id => $awe_id,
+                log    => join("\n", @log)
+            };
         } elsif ($action eq 'public') {
             # update shock nodes
             my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
@@ -274,6 +302,14 @@ sub job_action {
             # update db
             $job->public(1);
             $data = { public => $job->public ? 1 : 0 };
+        } elsif ($action eq 'delete') {
+            # Auf Wiedersehen!
+            my $reason = $post->{reason} || "";
+            my ($status, $message) = $job->user_delete($self->user, $reason);
+            $data = {
+                deleted => $status,
+                error   => $message
+            };
         } elsif ($action eq 'addproject') {
             # check id format
             my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;
