@@ -258,7 +258,8 @@ sub pipeline_defaults {
         'm5rna_sims_version' => '1',
         'm5nr_annotation_version' => '1',
         'm5rna_annotation_version' => '1',
-        'assembled' => 'no'
+        'assembled' => 'no',
+        'publish_priority' => 'never'
     };
 }
 

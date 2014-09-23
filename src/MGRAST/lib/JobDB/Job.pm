@@ -1252,8 +1252,8 @@ sub get_timestamp {
 #################
 
 sub user_delete {
-  my ($self, $user) = @_;
-
+  my ($self, $user, $reason) = @_;
+  
   my $jobdbm = $self->_master();
   my $mgid = $self->metagenome_id;
 
@@ -1261,12 +1261,8 @@ sub user_delete {
     return(0, "Unable to delete metagenome '$mgid' as it has been made public.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
   }
 
-  unless( $user and $user->has_right(undef, 'delete', 'metagenome', $mgid) ) {
+  unless( $user && ($user->has_right(undef, 'delete', 'metagenome', $mgid) || $user->has_star_right('delete','metagenome')) ) {
     return (0, "Unable to delete metagenome '$mgid'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
-  }
-
-  unless ($self->viewable) {
-    return (0, "Unable to delete metagenome '$mgid' because it is still processing.");
   }
 
   # remove from project
@@ -1278,24 +1274,25 @@ sub user_delete {
   $self->viewable('null');
 
   # set status as deleted
-  $jobdbm->JobAttributes->create({ job => $self, tag => 'deleted', value => 'deleted by ' . $user->login });
+  my $message = $reason || 'deleted by '.$user->login;
+  $self->data('deleted', $message);
 
   # delete rights
   my $webappdb = DBMaster->new(-database => $Conf::webapplication_db,
                                -backend  => $Conf::webapplication_backend,
                                -host     => $Conf::webapplication_host,
                                -user     => $Conf::webapplication_user);
-  my $job_rights = $webappdb->Rights->get_objects( { data_type => 'metagenome', data_id => $mgid  } );
+  my $job_rights = $webappdb->Rights->get_objects( { data_type => 'metagenome', data_id => $mgid } );
   foreach my $r (@$job_rights) {
     $r->delete;
   }
 
   # delete analysis tables
   use MGRAST::Analysis;
-  my $analysisDB = MGRAST::Analysis->new($self->_master->db_handle);
+  my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
   $analysisDB->delete_job($self->job_id);
 
-  ######## delete shock nodes ##########
+  ######## delete AWE / Shock ##########
   
   # get mgrast auth
   my $mgrast_token = undef;
@@ -1304,24 +1301,41 @@ sub user_delete {
     my $rep = Auth::globus_token($key);
     $mgrast_token = $rep ? $rep->{access_token} : undef;
   }
+  my @auth = ('Authorization', "OAuth ".$mgrast_token);
   
-  # get shock nodes
+  # get handles
   my $agent = LWP::UserAgent->new;
   my $json  = JSON->new;
   $json = $json->utf8();
   $json->max_size(0);
   $json->allow_nonref;
   
-  my @auth  = ('Authorization', "OAuth ".$mgrast_token);
+  # get AWE job
+  my $ajobs = [];
+  eval {
+    my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.name='.$self->job_id, @auth);
+    $ajobs  = $json->decode( $get->content )->{data};
+  };
+  
+  # delete AWE job
+  if ($@) {
+    return (0, "Unable to delete metagenome '$mgid' from AWE: ".$@);
+  } else {
+    foreach my $j (@$ajobs) {
+      $agent->delete($Conf::awe_url.'/job/'.$j->{id}, @auth);
+    }
+  }
+  
+  # get shock nodes
   my $nodes = [];
   eval {
-    my $get = $agent->get($Conf::shock_url.'/node?query&limit=0&type=metagenome&id=mgm'.$self->metagenome_id, @auth);
+    my $get = $agent->get($Conf::shock_url.'/node?query&limit=0&type=metagenome&id=mgm'.$mgid, @auth);
     $nodes  = $json->decode( $get->content )->{data};
   };
   
-  # delete nodes
+  # delete shock nodes
   if ($@) {
-    print STDERR "unable to retrieve shock nodes for metagenome: ".$self->metagenome_id."\n";
+    return (0, "Unable to delete metagenome '$mgid' from Shock: ".$@);
   } else {
     # modify shock nodes
     foreach my $n (@$nodes) {
