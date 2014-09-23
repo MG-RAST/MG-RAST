@@ -21,6 +21,7 @@ sub new {
         reserve => 1,
         create  => 1,
         submit  => 1,
+        share   => 1,
         public  => 1,
         delete  => 1,
         addproject => 1
@@ -114,6 +115,19 @@ sub info {
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "input_id" => ["string", "shock node id of input sequence file"] } }
+						},
+						{ 'name'        => "share",
+				          'request'     => $self->cgi->url."/".$self->name."/share",
+				          'description' => "Share metagenome with another user.",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => { "shared"  => ['list', ['string', 'user metagenome shared with']] },
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "user_id"       => ["string", "unique user identifier to share with"],
+							                                 "user_email"    => ["string", "user email to share with"].
+							                                 "edit"          => ["boolean", "if true edit rights shared, else (default) view rights only"] } }
 						},
 						{ 'name'        => "public",
 				          'request'     => $self->cgi->url."/".$self->name."/public",
@@ -290,6 +304,57 @@ sub job_action {
                 awe_id => $awe_id,
                 log    => join("\n", @log)
             };
+        } elsif ($action eq 'share') {
+            # get user to share with
+            my $share_user = undef;
+            if ($post->{user_id}) {
+                my (undef, $uid) = $post->{user_id} =~ /^(mgu)?(\d+)$/;
+                $share_user = $master->User->init({ _id => $uid });
+            } elsif ($post->{user_email}) {
+                $share_user = $master->User->init({ email => $post->{user_email} });
+            } else {
+                $self->return_data( {"ERROR" => "Missing required parameter user_id or user_email"}, 404 );
+            }
+            unless ($share_user && ref($share_user)) {
+                $self->return_data( {"ERROR" => "Unable to find user to share with"}, 404 );
+            }
+            # share rights if not owner
+            unless ($share_user->_id eq $job->owner->_id) {
+                my @rights = ('view');
+                if ($post->{edit}) {
+                    push @rights, 'edit';
+                }
+                foreach my $name (@$rights) {
+                    my $right_query = {
+                        name => $name,
+                	    data_type => 'metagenome',
+                	    data_id => $job->metagenome_id,
+                	    scope => $share_user->get_user_scope
+                    };
+                    unless(scalar(@{$master->Rights->get_objects($right_query)) {
+                        $right_query->{granted} = 1;
+                        $right_query->{delegated} = 1;
+                        my $right = $master->Rights->create($right_query);
+            	        unless (ref $right) {
+            	            $self->return_data( {"ERROR" => "Failed to create ".$name." right in the user database, aborting."}, 500 );
+            	        }
+                    }
+                }
+            }
+            # get all who can view / skip owner
+            my $view_query = {
+                name => 'view',
+        	    data_type => 'metagenome',
+        	    data_id => $job->metagenome_id
+            };
+            my $shared = [];
+            my $owner_user = $master->User->init({ _id => $job->owner->_id });
+            my $view_rights = $master->Rights->get_objects($view_query);
+            foreach my $vr (@$view_rights) {
+                next if (($owner_user->get_user_scope->_id eq $vr->scope->_id) || ($vr->scope->name =~ /^token\:/));
+                push @$shared, $vr->scope->name_readable;
+            }
+            $data = { shared => $shared };
         } elsif ($action eq 'public') {
             # update shock nodes
             my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
