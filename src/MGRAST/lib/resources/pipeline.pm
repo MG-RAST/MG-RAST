@@ -124,7 +124,7 @@ sub query {
         $self->return_data( {"ERROR" => "Missing query paramaters"}, 401 );
     }
     # other users data if admin
-    if ($self->user->is_admin('MGRAST')) && exists($params{'info.user'})) {
+    if ($self->user->is_admin('MGRAST') && exists($params{'info.user'})) {
         $params{'info.user'} = $self->user_id( $params{'info.user'} );
     }
     # this users data
