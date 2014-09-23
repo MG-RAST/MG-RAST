@@ -100,7 +100,7 @@ sub instance {
     $job = $job->[0];
     
     # check rights
-    unless ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')) {
+    unless ($self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id}) || $self->user->has_star_right('view', 'metagenome')) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
@@ -124,7 +124,7 @@ sub query {
         $self->return_data( {"ERROR" => "Missing query paramaters"}, 401 );
     }
     # other users data if admin
-    if ($user->is_admin('MGRAST')) && exists($params{'info.user'})) {
+    if ($self->$user->is_admin('MGRAST')) && exists($params{'info.user'})) {
         $params{'info.user'} = $self->user_id( $params{'info.user'} );
     }
     # this users data
