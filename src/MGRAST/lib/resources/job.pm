@@ -324,14 +324,14 @@ sub job_action {
                 if ($post->{edit}) {
                     push @rights, 'edit';
                 }
-                foreach my $name (@$rights) {
+                foreach my $name (@rights) {
                     my $right_query = {
                         name => $name,
                 	    data_type => 'metagenome',
                 	    data_id => $job->metagenome_id,
                 	    scope => $share_user->get_user_scope
                     };
-                    unless(scalar(@{$master->Rights->get_objects($right_query)) {
+                    unless(scalar( @{$master->Rights->get_objects($right_query)} )) {
                         $right_query->{granted} = 1;
                         $right_query->{delegated} = 1;
                         my $right = $master->Rights->create($right_query);
