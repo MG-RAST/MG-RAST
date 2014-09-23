@@ -120,6 +120,9 @@ sub query {
     
     # get paramaters
     my %params = $self->cgi->Vars;
+    if (exists $params{auth}) {
+        delete $params{auth};
+    }
     if (scalar(keys %params) == 0) {
         $self->return_data( {"ERROR" => "Missing query paramaters"}, 401 );
     }
