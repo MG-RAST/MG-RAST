@@ -1253,7 +1253,7 @@ sub get_timestamp {
 
 sub user_delete {
   my ($self, $user, $reason) = @_;
-
+  
   my $jobdbm = $self->_master();
   my $mgid = $self->metagenome_id;
 
@@ -1275,7 +1275,7 @@ sub user_delete {
 
   # set status as deleted
   my $message = $reason || 'deleted by '.$user->login;
-  $jobdbm->JobAttributes->create({ job => $self, tag => 'deleted', value => $message });
+  $self->data('deleted', $message);
 
   # delete rights
   my $webappdb = DBMaster->new(-database => $Conf::webapplication_db,
@@ -1289,7 +1289,7 @@ sub user_delete {
 
   # delete analysis tables
   use MGRAST::Analysis;
-  my $analysisDB = MGRAST::Analysis->new($self->_master->db_handle);
+  my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
   $analysisDB->delete_job($self->job_id);
 
   ######## delete AWE / Shock ##########
