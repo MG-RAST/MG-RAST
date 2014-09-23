@@ -757,6 +757,25 @@ sub get_shock_node {
     }
 }
 
+# get the shock preauth url for a file
+sub get_shock_preauth {
+    my ($self, $id, $auth) = @_;
+    
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "OAuth $auth") : ();
+        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url', @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
 # write file content to given filepath, else return file content as string
 sub get_shock_file {
     my ($self, $id, $file, $auth, $index) = @_;
