@@ -857,26 +857,22 @@ sub post_awe_job {
 
 # get list of jobs for query
 sub get_awe_query {
-    my ($self, $params, $recent) = @_;
+    my ($self, $params, $auth) = @_;
     
     my $response = undef;
     my $query = '?query';
     if ($params && (scalar(keys %$params) > 0)) {
         map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
     }
-    if ($recent) {
-        $query .= '&recent='.$recent
-    }
     eval {
-        my $get = $self->agent->get($Conf::awe_url.'/job'.$query);
+        my @args = $auth ? ('Authorization', "OAuth $auth") : ();
+        my $get = $self->agent->get($Conf::awe_url.'/job'.$query, @args);
         $response = $self->json->decode( $get->content );
     };
     if ($@ || (! ref($response))) {
-        return [];
-    } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to query AWE: ".$response->{error}[0]}, $response->{status} );
+        $self->return_data( {"ERROR" => "Unable to query AWE: ".$@}, 500 );
     } else {
-        return $response->{data};
+        return $response;
     }
 }
 
