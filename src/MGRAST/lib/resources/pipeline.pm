@@ -17,13 +17,11 @@ sub new {
     my $self = $class->SUPER::new(@args);
     
     # Add name / attributes
-    my %rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
     $self->{name} = "pipeline";
-    $self->{rights} = \%rights;
     $self->{version} = '3.0';
-    $self->{attributes} = { data    => [ 'list', ['object', 'workflow document'] ],
-                            version => [ 'integer', 'version of the pipeline' ],
-                            url     => [ 'uri', 'resource location of this object instance' ] };
+    $self->{attributes} = { data   => [ 'list', ['object', 'workflow document'] ],
+                            error  => [ 'list', ['string', 'error that occured'] ],
+                            status => [ 'int', 'http status code' ] };
     return $self;
 }
 
@@ -33,7 +31,7 @@ sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
                     'url' => $self->cgi->url."/".$self->name,
-                    'description' => "The user resource returns information about a user.",
+                    'description' => "The resource returns information about a users data in the pipeline.",
                     'type' => 'object',
                     'documentation' => $self->cgi->url.'/api.html#'.$self->name,
                     'requests' => [ { 'name'        => "info",
@@ -47,8 +45,8 @@ sub info {
                                                          'body'     => {} } },
                                     { 'name'        => "instance",
                                       'request'     => $self->cgi->url."/".$self->name."/{ID}",
-                                      'description' => "Returns a single user object.",
-                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/{job ID}"',
+                                      'description' => "Returns a single job document.",
+                                      'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/{job ID}"',
                     			                         "job in pipeline" ],
                                       'method'      => "GET",
                                       'type'        => "synchronous" ,  
@@ -59,15 +57,12 @@ sub info {
                                     { 'name'        => "query",
                                       'request'     => $self->cgi->url."/".$self->name,
                                       'description' => "Returns a set of data matching the query criteria.",
-                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'?user=johndoe"',
-                    			                         "jobs in pipeline for user johndoe" ],
+                                      'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'?state=queued"',
+                    			                         "queued jobs in pipeline for user" ],
                                       'method'      => "GET",
                                       'type'        => "synchronous" ,  
                                       'attributes'  => $self->attributes,
-                                      'parameters'  => { 'options'  => { "user" => ["string", "user ID or login"],
-                                                                         "project" => ["string", "project ID"],
-                                                                         'verbosity' => ['cv', [['minimal','returns only minimal information'],
-                                                                                                ['full','returns full workflow documents']]] },
+                                      'parameters'  => { 'options'  => {},
                                                          'required' => {},
                                                          'body'     => {} } }
                                 ]
@@ -80,11 +75,12 @@ sub instance {
     my ($self) = @_;
 
     # set params
-    my $verb = $self->cgi->param('verbosity') || 'minimal';
+    unless ($self->user) {
+        $self->return_data( {"ERROR" => "Missing authentication"}, 401 );
+    }
+    my $master = $self->connect_to_datasource();
     my $job  = undef;
     my $rest = $self->rest;
-    my $master = $self->connect_to_datasource();
-    my $url = $self->cgi->url.'/'.$rest->[0].'?verbosity='.$verb;
     
     # metagenome ID
     if ($rest->[0] =~ /^mgm(\d+\.\d+)$/) {
@@ -104,108 +100,43 @@ sub instance {
     $job = $job->[0];
     
     # check rights
-    unless ($job->{public} || exists($self->rights->{$job->{metagenome_id}}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
+    unless ($self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id}) || $self->user->has_star_right('view', 'metagenome')) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
-    my $data = $self->prepare_data({'info.name' => $job->{job_id}});
-    my $obj = { data => $data->[0], version => $self->{version}, url => $url };
-    $self->return_data($obj);
+    my $data = $self->get_awe_query({'info.name' => [$job->{job_id}]}, $self->mgrast_token);
+    $self->return_data($data);
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
 sub query {
     my ($self) = @_;
     
-    # get database
+    # set params
+    unless ($self->user) {
+        $self->return_data( {"ERROR" => "Missing authentication"}, 401 );
+    }
     my $master = $self->connect_to_datasource();
     
     # get paramaters
-    my $verb = $self->cgi->param('verbosity') || 'minimal';
-    my $user = $self->cgi->param('user') || '';
-    my $project = $self->cgi->param('project') || '';
-    my $query = {};
-    
-    # build url
-    my $url = $self->cgi->url.'/'.$self->name.'?verbosity='.$verb;
-    if ($user) {
-        $url .= '&user='.$user
+    my %params = map { $_ => [$self->cgi->param($_)] } $self->cgi->param;
+    if (exists $params{auth}) {
+        delete $params{auth};
     }
-    if ($project) {
-        $url .= '&project='.$project
+    if (scalar(keys %params) == 0) {
+        $self->return_data( {"ERROR" => "Missing query paramaters"}, 401 );
     }
-    
-    # get user ID
-    if ($user) {
-        $query->{'info.user'} = $self->user_id($user);
+    # other users data if admin
+    if ($self->user->is_admin('MGRAST') && exists($params{'info.user'})) {
+        $params{'info.user'} = [ $self->user_id($params{'info.user'}) ];
     }
-    # get project ID
-    if ($project) {
-        if ($project =~ /^mgp(\d+)$/) {
-            my $pobj = $master->Project->init( {id => $1} );
-            unless (ref($pobj)) {
-                $self->return_data( {"ERROR" => "project $project does not exists"}, 404 );
-            }
-            # check rights
-            unless ($pobj->{public} || exists($self->rights->{$pobj->{id}}) || exists($self->rights->{'*'})) {
-                $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
-            }
-            $query->{'info.project'} = 'mgp'.$pobj->{id};
-        } else {
-            $self->return_data( {"ERROR" => "invalid id format: $project"}, 400 );
-        }
-    }
-    # get user if no options
-    if (! %$query) {
-        $query->{'info.user'} = $self->user_id();
+    # this users data
+    else {
+        $params{'info.user'} = [ $self->user_id() ];
     }
     
-    my $data = $self->prepare_data($query);
-    my $obj = { data => $data, version => $self->{version}, url => $url };
-    $self->return_data($obj);
-}
-
-sub prepare_data {
-    my ($self, $query) = @_;
-    
-    # get database
-    my $master = $self->connect_to_datasource();
-    
-    $query->{'info.pipeline'} = 'mgrast-prod';
-    my $verb = $self->cgi->param('verbosity') || 'minimal';
-    my $data = $self->get_awe_query($query);
-    if ($verb eq 'minimal') {
-        my $objs = [];
-        foreach my $d (@$data) {
-            my $job = $master->Job->get_objects( {job_id => $d->{info}{name}} );
-            unless ($job && @$job) {
-                next;
-            }
-            $job = $job->[0];
-            my $min = { stages  => [],
-                        id      => 'mgm'.$job->metagenome_id,
-                        job_id  => $job->job_id,
-                        name    => $job->name,
-                        status  => $d->{state},
-                        awe_id  => $d->{id},
-                        project_id   => 'mgp'.$job->primary_project->{id},
-                        project_name => $job->primary_project->{name},
-                        user_id      => 'mgu'.$job->owner->{_id},
-                        user_name    => $job->owner->{login},
-                        submitted    => $d->{info}{submittime}
-            };
-            foreach my $t (@{$d->{tasks}}) {
-                push @{$min->{stages}}, { name => $t->{cmd}{description},
-                                          status => $t->{state},
-                                          started => ($t->{starteddate} eq "0001-01-01T00:00:00Z") ? undef : $t->{starteddate},
-                                          completed => ($t->{completeddate} eq "0001-01-01T00:00:00Z") ? undef : $t->{completeddate} };
-            }
-            push @$objs, $min;
-        }
-        return $objs;
-    } else {
-        return $data;
-    }
+    my $data = $self->get_awe_query(\%params, $self->mgrast_token);
+    $self->return_data($data);
 }
 
 sub user_id {
@@ -214,12 +145,13 @@ sub user_id {
     my $uid = undef;
     # validate and get user_id
     if ($user) {
+        # all paramaters are arrays
+        $user = $user->[0];
         # get database
         my ($master, $error) = WebApplicationDBHandle->new();
         if ($error) {
             $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
         }
-        
         # get data
         my $uobj = [];
         if ($user =~ /^mgu(\d+)$/) { # user id
