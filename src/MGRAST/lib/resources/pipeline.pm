@@ -119,7 +119,7 @@ sub query {
     my $master = $self->connect_to_datasource();
     
     # get paramaters
-    my %params = map { $_ => [$cgi->param($_)] } $cgi->param;
+    my %params = map { $_ => [$self->cgi->param($_)] } $self->cgi->param;
     if (exists $params{auth}) {
         delete $params{auth};
     }
