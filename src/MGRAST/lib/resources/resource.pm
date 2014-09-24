@@ -863,7 +863,7 @@ sub get_awe_query {
     my $response = undef;
     my $query = '?query';
     if ($params && (scalar(keys %$params) > 0)) {
-        while (my ($key, $value) = each %hash) {
+        while (my ($key, $value) = each %$params) {
             map { $query .= '&'.$key.'='.uri_escape($_) } @$value;
         }
     }
