@@ -8,6 +8,7 @@ use Auth;
 use Conf;
 use CGI;
 use JSON;
+use URI::Escape;
 use MIME::Base64;
 use LWP::UserAgent;
 use HTTP::Request::Common;
@@ -862,7 +863,9 @@ sub get_awe_query {
     my $response = undef;
     my $query = '?query';
     if ($params && (scalar(keys %$params) > 0)) {
-        map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
+        while (my ($key, $value) = each %hash) {
+            map { $query .= '&'.$key.'='.uri_escape($_) } @$value;
+        }
     }
     eval {
         my @args = $auth ? ('Authorization', "OAuth $auth") : ();

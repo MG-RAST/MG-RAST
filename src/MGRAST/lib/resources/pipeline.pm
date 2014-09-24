@@ -104,7 +104,7 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
-    my $data = $self->get_awe_query({'info.name' => $job->{job_id}}, $self->mgrast_token);
+    my $data = $self->get_awe_query({'info.name' => [$job->{job_id}]}, $self->mgrast_token);
     $self->return_data($data);
 }
 
@@ -119,7 +119,7 @@ sub query {
     my $master = $self->connect_to_datasource();
     
     # get paramaters
-    my %params = $self->cgi->Vars;
+    my %params = map { $_ => [$cgi->param($_)] } $cgi->param;
     if (exists $params{auth}) {
         delete $params{auth};
     }
@@ -128,11 +128,11 @@ sub query {
     }
     # other users data if admin
     if ($self->user->is_admin('MGRAST') && exists($params{'info.user'})) {
-        $params{'info.user'} = $self->user_id( $params{'info.user'} );
+        $params{'info.user'} = [ $self->user_id($params{'info.user'}) ];
     }
     # this users data
     else {
-        $params{'info.user'} = $self->user_id();
+        $params{'info.user'} = [ $self->user_id() ];
     }
     
     my $data = $self->get_awe_query(\%params, $self->mgrast_token);
@@ -145,6 +145,8 @@ sub user_id {
     my $uid = undef;
     # validate and get user_id
     if ($user) {
+        # all paramaters are arrays
+        $user = $user->[0];
         # get database
         my ($master, $error) = WebApplicationDBHandle->new();
         if ($error) {
