@@ -126,9 +126,12 @@ sub query {
     if (scalar(keys %params) == 0) {
         $self->return_data( {"ERROR" => "Missing query paramaters"}, 401 );
     }
-    # other users data if admin
-    if ($self->user->is_admin('MGRAST') && exists($params{'info.user'})) {
+    # check for admin
+    if ($self->user->is_admin('MGRAST')) {
+      # check for user selection otherwise skip the info.user and get all
+      if (exists($params{'info.user'})) {
         $params{'info.user'} = [ $self->user_id($params{'info.user'}) ];
+      }
     }
     # this users data
     else {
