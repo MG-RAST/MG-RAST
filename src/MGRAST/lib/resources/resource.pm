@@ -8,6 +8,7 @@ use Auth;
 use Conf;
 use CGI;
 use JSON;
+use URI::Escape;
 use MIME::Base64;
 use LWP::UserAgent;
 use HTTP::Request::Common;
@@ -258,7 +259,8 @@ sub pipeline_defaults {
         'm5rna_sims_version' => '1',
         'm5nr_annotation_version' => '1',
         'm5rna_annotation_version' => '1',
-        'assembled' => 'no'
+        'assembled' => 'no',
+        'publish_priority' => 'never'
     };
 }
 
@@ -756,6 +758,25 @@ sub get_shock_node {
     }
 }
 
+# get the shock preauth url for a file
+sub get_shock_preauth {
+    my ($self, $id, $auth, $fn) = @_;
+    
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "OAuth $auth") : ();
+        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url'.($fn ? "&filename=".$fn : ""), @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to GET node $id from Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
 # write file content to given filepath, else return file content as string
 sub get_shock_file {
     my ($self, $id, $file, $auth, $index) = @_;
@@ -835,28 +856,45 @@ sub post_awe_job {
     }
 }
 
+# PUT command to perfrom action on a job
+sub awe_job_action {
+    my ($self, $id, $action, $auth) = @_;
+    
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "OAuth $auth") : ();
+        my $req = POST($Conf::awe_url.'/job/'.$id.'?'.$action, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        $self->return_data( {"ERROR" => "Unable to PUT to AWE: ".$@}, 500 );
+    } else {
+        return $response;
+    }
+}
+
 # get list of jobs for query
 sub get_awe_query {
-    my ($self, $params, $recent) = @_;
+    my ($self, $params, $auth) = @_;
     
     my $response = undef;
     my $query = '?query';
     if ($params && (scalar(keys %$params) > 0)) {
-        map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
-    }
-    if ($recent) {
-        $query .= '&recent='.$recent
+        while (my ($key, $value) = each %$params) {
+            map { $query .= '&'.$key.'='.uri_escape($_) } @$value;
+        }
     }
     eval {
-        my $get = $self->agent->get($Conf::awe_url.'/job'.$query);
+        my @args = $auth ? ('Authorization', "OAuth $auth") : ();
+        my $get = $self->agent->get($Conf::awe_url.'/job'.$query, @args);
         $response = $self->json->decode( $get->content );
     };
     if ($@ || (! ref($response))) {
-        return [];
-    } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to query AWE: ".$response->{error}[0]}, $response->{status} );
+        $self->return_data( {"ERROR" => "Unable to query AWE: ".$@}, 500 );
     } else {
-        return $response->{data};
+        return $response;
     }
 }
 

@@ -689,7 +689,7 @@ sub phylogenetic_data {
       while (my ($mgid, $jobid) = each %{$self->{mgdb}->_job_map}) {
 	    my $jobj  = $mgrast->Job->init( {job_id => $jobid} );
 	    my $alpha = $jobj->stats('alpha_diversity_shannon')->{'alpha_diversity_shannon'};
-	    my $curve = $self->{mgdb}->get_rarefaction_coords($jobid);
+	    my $curve = $self->{mgdb}->get_rarefaction_coords($jobj->metagenome_id);
 	    if ($alpha)  { $mgid_alpha->{$mgid} = $alpha; }
 	    if (@$curve) { $mgid_curve->{$mgid} = $curve; }
       }

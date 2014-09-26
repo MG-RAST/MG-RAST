@@ -48,7 +48,8 @@ sub info {
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
 				              'attributes'  => { "data" => [ 'file', 'requested analysis file' ] },
-				              'parameters'  => { 'options'  => { "file" => [ "string", "file name or identifier" ] },
+				              'parameters'  => { 'options'  => { "file" => [ "string", "file name or identifier" ],
+				                                                 "link" => [ "boolean", "if true return one time link for download and not file stream" ] },
 							                     'required' => { "id" => [ "string", "unique metagenome identifier" ] },
 							                     'body'     => {} }
 							},
@@ -107,6 +108,7 @@ sub instance {
     # get data / parameters
     my $stage   = $self->cgi->param('stage') || undef;
     my $file    = $self->cgi->param('file') || undef;
+    my $link    = $self->cgi->param('link') ? 1 : 0;
     my $setlist = $self->get_download_set($job->{metagenome_id}, $self->mgrast_token);
     
     # return file from shock
@@ -114,7 +116,12 @@ sub instance {
         my $node = undef;
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
-                $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $self->mgrast_token);
+                if ($link) {
+                    my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
+                    $self->return_data($data);
+                } else {
+                    $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $self->mgrast_token);
+                }
             }
         }
         $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
