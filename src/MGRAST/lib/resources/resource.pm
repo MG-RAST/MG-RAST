@@ -760,12 +760,12 @@ sub get_shock_node {
 
 # get the shock preauth url for a file
 sub get_shock_preauth {
-    my ($self, $id, $auth) = @_;
+    my ($self, $id, $auth, $fn) = @_;
     
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "OAuth $auth") : ();
-        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url', @args);
+        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url'.($fn ? "&filename=".$fn : ""), @args);
         $response = $self->json->decode( $get->content );
     };
     if ($@ || (! ref($response))) {
@@ -853,6 +853,25 @@ sub post_awe_job {
         $self->return_data( {"ERROR" => "Unable to submit to AWE: ".$response->{error}[0]}, $response->{status} );
     } else {
         return $response->{data};
+    }
+}
+
+# PUT command to perfrom action on a job
+sub awe_job_action {
+    my ($self, $id, $action, $auth) = @_;
+    
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "OAuth $auth") : ();
+        my $req = POST($Conf::awe_url.'/job/'.$id.'?'.$action, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        $self->return_data( {"ERROR" => "Unable to PUT to AWE: ".$@}, 500 );
+    } else {
+        return $response;
     }
 }
 

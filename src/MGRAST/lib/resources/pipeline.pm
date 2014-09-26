@@ -19,9 +19,11 @@ sub new {
     # Add name / attributes
     $self->{name} = "pipeline";
     $self->{version} = '3.0';
-    $self->{attributes} = { data   => [ 'list', ['object', 'workflow document'] ],
-                            error  => [ 'list', ['string', 'error that occured'] ],
-                            status => [ 'int', 'http status code' ] };
+    $self->{attributes} = {
+        data   => [ 'list', ['object', 'workflow document'] ],
+        error  => [ 'list', ['string', 'error that occured'] ],
+        status => [ 'int', 'http status code' ]
+    };
     return $self;
 }
 
@@ -42,7 +44,8 @@ sub info {
                                       'attributes'  => "self",
                                       'parameters'  => { 'options'  => {},
                                                          'required' => {},
-                                                         'body'     => {} } },
+                                                         'body'     => {} }
+                                    },
                                     { 'name'        => "instance",
                                       'request'     => $self->cgi->url."/".$self->name."/{ID}",
                                       'description' => "Returns a single job document.",
@@ -53,7 +56,8 @@ sub info {
                                       'attributes'  => $self->attributes,
                                       'parameters'  => { 'options'  => {},
                                                          'required' => { "id" => ["string","unique object identifier"] },
-                                                         'body'     => {} } },
+                                                         'body'     => {} }
+                                    },
                                     { 'name'        => "query",
                                       'request'     => $self->cgi->url."/".$self->name,
                                       'description' => "Returns a set of data matching the query criteria.",
@@ -64,7 +68,21 @@ sub info {
                                       'attributes'  => $self->attributes,
                                       'parameters'  => { 'options'  => {},
                                                          'required' => {},
-                                                         'body'     => {} } }
+                                                         'body'     => {} }
+                                    },
+                                    { 'name'        => "change",
+                                      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+                                      'description' => "Change the status of a job in the pipeline: these are admin functions",
+                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/{job ID}?action=resume"',
+                    			                         "resume a suspended job in pipeline" ],
+                                      'method'      => "GET",
+                                      'type'        => "synchronous" ,  
+                                      'attributes'  => $self->attributes,
+                                      'parameters'  => { 'options'  => { "action" => [ "string", "action to be performed" ],
+                                                                         "level" => [ "int", "priority level to set if 'action=priority'"] },
+                                                         'required' => { "id" => ["string","unique object identifier"] },
+                                                         'body'     => {} }
+                                    }
                                 ]
                         };
     $self->return_data($content);
@@ -103,8 +121,34 @@ sub instance {
     unless ($self->user->has_right(undef, 'view', 'metagenome', $job->{metagenome_id}) || $self->user->has_star_right('view', 'metagenome')) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
-    
+    # get awe jobs
     my $data = $self->get_awe_query({'info.name' => [$job->{job_id}]}, $self->mgrast_token);
+    
+    # get options
+    my $action = $self->cgi->param('action') || undef;
+    my $level  = $self->cgi->param('level') || 1;
+    
+    # admin action
+    if ($action && $self->user->is_admin('MGRAST')) {
+        # get non-deleted job document
+        my $awe_id = "";
+        foreach my $doc (@{$data->{data}}) {
+            unless ($doc->{state} eq 'deleted') {
+                $awe_id = $doc->{id};
+                last;
+            }
+        }
+        unless ($awe_id) {
+            $self->return_data( {"ERROR" => "No AWE job available for given id: ".$rest->[0]}, 404 );
+        }
+        if ($action eq 'priority') {
+            $data = $self->awe_job_action($awe_id, "priority=$level", $self->mgrast_token)
+        } else {
+            $data = $self->awe_job_action($awe_id, $action, $self->mgrast_token)
+        }
+    }
+    
+    # return it
     $self->return_data($data);
 }
 
@@ -126,9 +170,12 @@ sub query {
     if (scalar(keys %params) == 0) {
         $self->return_data( {"ERROR" => "Missing query paramaters"}, 401 );
     }
-    # other users data if admin
-    if ($self->user->is_admin('MGRAST') && exists($params{'info.user'})) {
+    # check for admin
+    if ($self->user->is_admin('MGRAST')) {
+      # check for user selection otherwise skip the info.user and get all
+      if (exists($params{'info.user'})) {
         $params{'info.user'} = [ $self->user_id($params{'info.user'}) ];
+      }
     }
     # this users data
     else {
