@@ -856,6 +856,25 @@ sub post_awe_job {
     }
 }
 
+# PUT command to perfrom action on a job
+sub awe_job_action {
+    my ($self, $id, $action, $auth) = @_;
+    
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "OAuth $auth") : ();
+        my $req = POST($Conf::awe_url.'/job/'.$id.'?'.$action, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        $self->return_data( {"ERROR" => "Unable to PUT to AWE: ".$@}, 500 );
+    } else {
+        return $response;
+    }
+}
+
 # get list of jobs for query
 sub get_awe_query {
     my ($self, $params, $auth) = @_;
