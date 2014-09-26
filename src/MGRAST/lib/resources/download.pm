@@ -117,7 +117,7 @@ sub instance {
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
                 if ($link) {
-                    my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token);
+                    my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
                     $self->return_data($data);
                 } else {
                     $self->return_shock_file($set->{node_id}, $set->{file_size}, $set->{file_name}, $self->mgrast_token);

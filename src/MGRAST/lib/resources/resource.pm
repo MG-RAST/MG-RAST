@@ -760,12 +760,12 @@ sub get_shock_node {
 
 # get the shock preauth url for a file
 sub get_shock_preauth {
-    my ($self, $id, $auth) = @_;
+    my ($self, $id, $auth, $fn) = @_;
     
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "OAuth $auth") : ();
-        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url', @args);
+        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url'.($fn ? "&filename=".$fn : ""), @args);
         $response = $self->json->decode( $get->content );
     };
     if ($@ || (! ref($response))) {
