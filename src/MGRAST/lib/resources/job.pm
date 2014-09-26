@@ -126,7 +126,7 @@ sub info {
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "user_id"       => ["string", "unique user identifier to share with"],
-							                                 "user_email"    => ["string", "user email to share with"].
+							                                 "user_email"    => ["string", "user email to share with"],
 							                                 "edit"          => ["boolean", "if true edit rights shared, else (default) view rights only"] } }
 						},
 						{ 'name'        => "public",
