@@ -456,6 +456,7 @@ sub output {
 			<select id="screening" name="screening">
                            <option value="h_sapiens">H. sapiens, NCBI v36</option>
                            <option value="m_musculus">M. musculus, NCBI v37</option>
+                           <option value="r_norvegicus">R. norvegicus, UCSC rn4</option>
                            <option value="b_taurus">B. taurus, UMD v3.0</option>
                            <option value="d_melanogaster">D. melanogaster, Flybase, r5.22</option>
                            <option value="a_thaliana">A. thaliana, TAIR, TAIR9</option>
