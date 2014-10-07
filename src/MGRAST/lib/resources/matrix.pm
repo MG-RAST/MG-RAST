@@ -80,7 +80,7 @@ sub info {
                                                       'request'     => $self->cgi->url."/".$self->name."/organism",
                                                       'description' => "Returns a BIOM object.",
                                                       'example'     => [ $self->cgi->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&id=mgm4447103.3&group_level=family&source=RefSeq&result_type=abundance&evalue=15",
-                                    				                     'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evaule < e-15' ],
+                                    				                     'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evalue < e-15' ],
                                                       'method'      => "GET" ,
                                                       'type'        => "synchronous or asynchronous" ,  
                                                       'attributes'  => $self->attributes,

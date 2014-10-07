@@ -59,7 +59,7 @@ sub new {
                        "created"   => [ 'date', 'time the metagenome was first created' ],
                        "status"    => [ 'cv', [['public', 'metagenome is public'],
 						                       ['private', 'metagenome is private']] ],
-					   "env_package_type" => [ 'string', 'enviromental package of sample, GSC term' ],
+					   "env_package_type" => [ 'string', 'environmental package of sample, GSC term' ],
 					   "project_id"       => [ 'string', 'id of project containing metagenome' ],
                        "project_name"     => [ 'string', 'name of project containing metagenome' ],
                        "PI_firstname"     => [ 'string', 'principal investigator\'s first name' ],

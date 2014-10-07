@@ -5,6 +5,8 @@ use warnings;
 
 use Getopt::Long;
 
+use Data::Dumper;
+
 use JSON;
 use LWP::UserAgent;
 
@@ -156,7 +158,9 @@ foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) 
 	  } elsif (($att_type =~ /hash/) && ref($att_desc) eq 'ARRAY') {
 	    $att_hash = $att_desc->[0];
 	  } else {
-	    $att_type .= " of ".$att_desc->[0]."s";
+	    my $att_plural = $att_desc->[0];
+	    $att_plural =~ s/y$/ie/;
+	    $att_type .= " of ".$att_plural."s";
 	  }
 	  $att_desc = $att_desc->[1];
 	}
@@ -166,11 +170,28 @@ foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) 
 	  foreach my $key (sort keys(%$att_obj)) {
 	    my $obj_type = $att_obj->{$key}->[0];
 	    my $obj_att = $att_obj->{$key}->[1];
+	    my $obj_cv;
 	    while (ref($obj_att) eq 'ARRAY') {
-	      $obj_type .= " of ".$obj_att->[0]."s";
-	      $obj_att = $obj_att->[1];
+	      if ($obj_type eq 'cv') {
+		$obj_cv = $obj_att;
+		$obj_type = "controlled vocabulary";
+		$obj_att = "cv";
+	      } else {
+		$obj_type .= " of ".$obj_att->[0]."s";
+		$obj_att = $obj_att->[1];
+	      }
 	    }
-	    $html .= "<li><b>$key ($obj_type)</b> - ".$obj_att."</li>";
+	    if ($obj_cv) {
+	      $html .= "<li><b>$key ($obj_type)</b>";
+	      $html .= "<p>This parameter value can be chosen from the following (the first being default):</p><ul style='list-style: none;'>";
+	      foreach my $cvitem (@$obj_cv) {
+		$html .= "<li><b>".$cvitem->[0]."</b> - ".$cvitem->[1]."</li>";
+	      }
+	      $html .= "</ul><br>";
+	      $html .= "</li>";
+	    } else {
+	      $html .= "<li><b>$key ($obj_type)</b> - ".$obj_att."</li>";
+	    }
 	  }
 	  $html .= "</ul><br>";
 	} elsif ($att_hash) {
