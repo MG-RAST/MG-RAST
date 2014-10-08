@@ -48,7 +48,6 @@ sub init {
   $self->application->register_component('Table', 'project_table');
   $self->application->register_component('Table', 'jobs_table');
   $self->application->register_component('FilterSelect', 'job_fs');
-  $self->application->register_component('Hover', 'download_info');
   $self->application->register_component('ListSelect', 'job_select');
   $self->application->register_component('ListSelect', 'shared_job_select');
   $self->application->register_component('ListSelect', 'public_job_select');
@@ -129,18 +128,9 @@ sub output {
     if ($user && ($user->has_right(undef, 'edit', 'project', $project->id) || $user->has_star_right('edit', 'project'))) {
       $self->{is_editor} = 1;
     }
-
-    my $download  = "";
-    my $down_info = $self->app->component('download_info');
+    
     my $proj_link = "http://metagenomics.anl.gov/linkin.cgi?project=".$self->{project_id};
-
-    if ($project->public) {
-      $down_info->add_tooltip('all_down', 'download all submitted and derived metagenome data for this project');
-      $down_info->add_tooltip('meta_down', 'download project metadata');
-      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"all_down\",".$down_info->id.")' target=_blank href='ftp://".$Conf::ftp_download."/projects/$id'><img src='./Html/mg-download.png' style='height:15px;'/><small>metagenomes</small></a>";
-      $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://".$Conf::ftp_download."/projects/$id/metadata.project-$id.xlsx'><img src='./Html/mg-download.png' style='height:15px;'/><small>project metadata</small></a>";
-    }
-    $html .= $down_info->output()."<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " (ID ".$project->id.")": "")."</h1>".$download;
+    $html .= "<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " (ID ".$project->id.")": "")."</h1>".$download;
     $html .= "<p><table>";
     $html .= "<tr><td><b>Visibility</b></td><td style='padding-left:15px;'>".($project->public ? 'Public' : 'Private')."</td></tr>";
     $html .= "<tr><td><b>Static Link</b></td><td style='padding-left:15px;'><a href='$proj_link'>$proj_link</a></td></tr></table>";
@@ -519,15 +509,8 @@ sub job_list {
 	}
 	close FH;
       }
-      my $download = "<table><tr align='center'>
-<td><a href='metagenomics.cgi?page=MetagenomeProject&action=download_md&filetype=text&filename=$mfile'><img src='$Conf::cgi_url/Html/mg-download.png' alt='Download metadata for this metagenome' height='15'/><small>metadata</small></a></td>
-<td><a target=_blank href='ftp://".$Conf::ftp_download."/projects/$proj_id/$mid/raw'><img src='$Conf::cgi_url/Html/mg-download.png' alt='Download submitted metagenome' height='15'/><small>submitted</small></a></td>
-<td><a target=_blank href='ftp://".$Conf::ftp_download."/projects/$proj_id/$mid/processed'><img src='$Conf::cgi_url/Html/mg-download.png' alt='Download all derived data for this metagenome' height='15'/><small>analysis</small></a></td>
-</tr></table>";
       $row->[0] = "<a target=_blank href='?page=MetagenomeOverview&metagenome=$mid'>$mid</a>";
-      push @$row, $download if ($project->public);
     }
-    push @$header, { name => 'Download' } if ($project->public);
    
     my $ptable = $self->application->component('jobs_table');
     $ptable->columns($header); 
