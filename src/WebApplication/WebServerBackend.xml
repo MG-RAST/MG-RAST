@@ -17,6 +17,7 @@
 
   <object label="User">
     <scalar label="email" type="CHAR(255)" mandatory="1" />
+    <scalar label="email2" type="CHAR(255)" />
     <scalar label="login" type="CHAR(64)" mandatory="1" />
     <scalar label="password" type="CHAR(255)" />
     <scalar label="firstname" type="CHAR(64)" />
