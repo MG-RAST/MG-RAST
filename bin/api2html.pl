@@ -85,7 +85,7 @@ $html .= qq~</ul>
 $structure->{service}->{description} =~ s/\n\n/\<\/p\>\<p\>/g;
 $structure->{service}->{description} =~ s/\n/\<br>/g;
 
-$html .= "<h1><a name='overview' style='padding-top: 50px;'>$site_name API Overview</a></h1><p>".$structure->{service}->{description}."</p><hr>";
+$html .= "<h1><a name='overview' style='padding-top: 50px;'>$site_name API Overview</a></h1>".$structure->{service}->{description}."<hr>";
 
 my %param_types = ( body => "<p>This parameter must be passed in the message body.</p>",
                     options => "<p>This is an optional parameter and may be passed in the query string.</p>",
