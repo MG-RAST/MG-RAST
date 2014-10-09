@@ -73,7 +73,7 @@ $structure->{resources} = $resources;
 my $html = template_start($site_name);
 
 # build the navigation
-$html .= '<li><a href="#overview">overview</a></li>';
+$html .= '';
 foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) {
   $html .= '<li><a href="#'.$res->{name}.'">'.$res->{name}.'</a></li>';
 }
@@ -82,7 +82,10 @@ $html .= qq~</ul>
     <div class="span12" style="margin-left: 270px;">
 ~;
 
-$html .= "<h1><a name='overview' style='padding-top: 50px;'>".$site_name." Overview</a></h1><p>".$structure->{service}->{description}."</p><hr>";
+$structure->{service}->{description} =~ s/\n\n/\<\/p\>\<p\>/g;
+$structure->{service}->{description} =~ s/\n/\<br>/g;
+
+$html .= "<h1><a name='overview' style='padding-top: 50px;'>$site_name API Overview</a></h1><p>".$structure->{service}->{description}."</p><hr>";
 
 my %param_types = ( body => "<p>This parameter must be passed in the message body.</p>",
                     options => "<p>This is an optional parameter and may be passed in the query string.</p>",
@@ -246,7 +249,7 @@ sub template_start {
     <div class="navbar navbar-inverse navbar-fixed-top">
       <div class="navbar-inner">
 	<div class="container">
-	  <a class="brand" href="./index.html">$site_name API documentation</a>
+	  <a class="brand">RESTful $site_name object and resource API</a>
 	</div>
       </div>
     </div>
@@ -254,6 +257,7 @@ sub template_start {
     <div class="row" style="margin-top: 50px;">
       <div name="index" class="span3" style="position: fixed; width: 130px;">
 	<ul class="nav nav-list">
+          <li><a href="#overview">back to top</a></li>
 	  <li class="nav-header">Resources</li>
 ~;
 }
