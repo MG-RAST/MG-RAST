@@ -22,6 +22,7 @@ sub new {
     $self->{attributes} = { "id"         => [ 'string', 'user id' ],
 			    "login"      => [ 'string', 'user login'],
                             "email"      => [ 'string', 'user e-mail' ],
+                            "email2"     => [ 'string', 'user secondary e-mail' ],
                             "firstname"  => [ 'string', 'first name of user' ],
                             "lastname"   => [ 'string', 'last name of user' ],
                             "entry_date" => [ 'date', 'date of user creation' ],
@@ -238,6 +239,9 @@ sub instance {
   if ($self->{method} eq 'PUT') {
     if (defined $self->{cgi}->param('email')) {
       $user->email(uri_unescape($self->{cgi}->param('email')));
+    }
+    if (defined $self->{cgi}->param('email2')) {
+      $user->email2(uri_unescape($self->{cgi}->param('email2')));
     }
     if (defined $self->{cgi}->param('firstname')) {
       $user->firstname(uri_unescape($self->{cgi}->param('firstname')));
@@ -595,12 +599,13 @@ sub query {
       my $uhash = {};
       my $order_array = [];
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 value 10 user 11 _user_db 12 application 13 _application_db 14 name 15 
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 value 11 user 12 _user_db 13 application 14 _application_db 15 name 16 
 	if (! defined $uhash->{$row->[8]}) {
 	  push(@$order_array, $row->[8]);
 	  $uhash->{$row->[8]} = { _id => $row->[0],
 				  login => $row->[8],
 				  email => $row->[2],
+				  email2 => $row->[9],
 				  firstname => $row->[1],
 				  lastname => $row->[7],
 				  entry_date => $row->[5],
@@ -608,7 +613,7 @@ sub query {
 				  comment => $row->[4],
 				  preferences => [] };
 	}
-	push(@{$uhash->{$row->[8]}->{preferences}}, { name => $row->[15], value => $row->[10] });
+	push(@{$uhash->{$row->[8]}->{preferences}}, { name => $row->[16], value => $row->[11] });
       }
       foreach my $key (@$order_array) {
 	push(@$data, $uhash->{$key});
@@ -620,12 +625,13 @@ sub query {
       my $uhash = {};
       my $order_array = [];
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 user 10 _user_db 11 scope 12 _scope_db 13 granted 14 _id 15 application 16 _application_db 17 name 18 description 19 _id 20 granted 21 delegated 22 data_id 23 data_type 24 application 25 _application_db 26 name 27 scope 28 _scope_db 29
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 user 11 _user_db 12 scope 13 _scope_db 14 granted 15 _id 16 application 17 _application_db 18 name 19 description 20 _id 21 granted 22 delegated 23 data_id 24 data_type 25 application 26 _application_db 27 name 28 scope 29 _scope_db 30
 	if (! defined $uhash->{$row->[8]}) {
 	  push(@$order_array, $row->[8]);
 	  $uhash->{$row->[8]} = { _id => $row->[0],
 				  login => $row->[8],
 				  email => $row->[2],
+				  email2 => $row->[9],
 				  firstname => $row->[1],
 				  lastname => $row->[7],
 				  entry_date => $row->[5],
@@ -633,11 +639,11 @@ sub query {
 				  comment => $row->[4],
 				  rights => [] };
 	}
-	push(@{$uhash->{$row->[8]}->{rights}}, { name => $row->[27],
-						 data_type => $row->[24],
-						 data_id => $row->[23],
-						 granted => $row->[21],
-						 delegated => $row->[22] });
+	push(@{$uhash->{$row->[8]}->{rights}}, { name => $row->[28],
+						 data_type => $row->[25],
+						 data_id => $row->[24],
+						 granted => $row->[22],
+						 delegated => $row->[23] });
       }
       foreach my $key (@$order_array) {
 	push(@$data, $uhash->{$key});
@@ -649,12 +655,13 @@ sub query {
       my $uhash = {};
       my $order_array = [];
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 user 10 _user_db 11 scope 12 _scope_db 13 granted 14 _id 15 application 16 _application_db 17 name 18 description 19
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 user 11 _user_db 12 scope 13 _scope_db 14 granted 15 _id 16 application 17 _application_db 18 name 19 description 20
 	if (! defined $uhash->{$row->[8]}) {
 	  push(@$order_array, $row->[8]);
 	  $uhash->{$row->[8]} = { _id => $row->[0],
 				  login => $row->[8],
 				  email => $row->[2],
+				  email2 => $row->[9],
 				  firstname => $row->[1],
 				  lastname => $row->[7],
 				  entry_date => $row->[5],
@@ -662,7 +669,7 @@ sub query {
 				  comment => $row->[4],
 				  scopes => [] };
 	}
-	push(@{$uhash->{$row->[8]}->{scopes}}, { name => $row->[18], description => $row->[19] } );
+	push(@{$uhash->{$row->[8]}->{scopes}}, { name => $row->[19], description => $row->[20] } );
       }
       foreach my $key (@$order_array) {
 	push(@$data, $uhash->{$key});
@@ -672,9 +679,21 @@ sub query {
     elsif ($verb eq 'session') {
       
     }
+    # get all users that have an open account request
+    elsif ($verb eq 'request_access') {
+      my $rows = $master->backend->get_rows( "SELECT User.login, User.email, User.firstname, User.lastname, User.entry_date FROM ((SELECT scope FROM Rights WHERE name='login' AND granted=0 AND application=27) AS t1 JOIN UserHasScope ON t1.scope=UserHasScope.scope JOIN User on UserHasScope.user=User._id)", [], undef, {});
+      foreach my $row (@$rows) {
+	# login 0, email 1, firstname 2, lastname 3, entry_date 4
+	push(@$data, { login => $row->[0],
+		       email => $row->[1],
+		       firstname => $row->[2],
+		       lastname => $row->[3],
+		       entry_date => $row->[4] });
+      }
+    }
     # get everything
     else {
-      #  _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 user 10 _user_db 11 scope 12 _scope_db 13 granted 14 _id 15 application 16 _application_db 17 name 18 description 19 _id 20 granted 21 delegated 22 data_id 23 data_type 24 application 25 _application_db 26 name 27 scope 28 _scope_db 29
+      #  _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 user 11 _user_db 12 scope 13 _scope_db 14 granted 15 _id 16 application 17 _application_db 18 name 19 description 20 _id 21 granted 22 delegated 23 data_id 24 data_type 25 application 26 _application_db 27 name 28 scope 29 _scope_db 30
       my $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserHasScope ON t1._id=UserHasScope.user JOIN Scope on Scope._id=UserHasScope.scope JOIN Rights ON Scope._id=Rights.scope ORDER BY $order ".uc($dir), [], undef, {});
       my $uhash = {};
       my $order_array = [];
@@ -684,6 +703,7 @@ sub query {
 	  $uhash->{$row->[8]} = { _id => $row->[0],
 				  login => $row->[8],
 				  email => $row->[2],
+				  email2 => $row->[9],
 				  firstname => $row->[1],
 				  lastname => $row->[7],
 				  entry_date => $row->[5],
@@ -695,43 +715,43 @@ sub query {
 				  organization => {},
 				  session => {} };
 	}
-	push(@{$uhash->{$row->[8]}->{rights}}, { name => $row->[27],
-						 data_type => $row->[24],
-						 data_id => $row->[23],
-						 granted => $row->[21],
-						 delegated => $row->[22] });
-	$uhash->{$row->[8]}->{scopes}->{$row->[12]} = { name => $row->[18], description => $row->[19] };
+	push(@{$uhash->{$row->[8]}->{rights}}, { name => $row->[28],
+						 data_type => $row->[25],
+						 data_id => $row->[24],
+						 granted => $row->[22],
+						 delegated => $row->[23] });
+	$uhash->{$row->[8]}->{scopes}->{$row->[13]} = { name => $row->[19], description => $row->[20] };
       }
       $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN Preferences ON t1._id=Preferences.user ORDER BY t1.$order ".uc($dir), [], undef, {});
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 value 10 user 11 _user_db 12 application 13 _application_db 14 name 15 
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 value 11 user 12 _user_db 13 application 14 _application_db 15 name 16 
 	
-	push(@{$uhash->{$row->[8]}->{preferences}}, { name => $row->[15], value => $row->[10] });
+	push(@{$uhash->{$row->[8]}->{preferences}}, { name => $row->[16], value => $row->[11] });
       }
       $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserSession ON t1._id=UserSession.user ORDER BY t1.$order ".uc($dir), [], undef, {});
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 error_page 10 session_id 11 error_parameters 12 current_page 13 timestamp 14 previous_page 15 user 16 _user_db 17 current_parameters 18 previous_parameters 19 
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 error_page 11 session_id 12 error_parameters 13 current_page 14 timestamp 15 previous_page 16 user 17 _user_db 18 current_parameters 19 previous_parameters 20 
 	
-	$uhash->{$row->[8]}->{session} = { error_page => $row->[10],
-					   session_id => $row->[11],
-					   error_parameters => $row->[12],
-					   current_page => $row->[13],
-					   timestamp => $row->[14],
-					   previous_page => $row->[15],
-					   current_parameters => $row->[18],
-					   previous_parameters => $row->[19] };
+	$uhash->{$row->[8]}->{session} = { error_page => $row->[11],
+					   session_id => $row->[12],
+					   error_parameters => $row->[13],
+					   current_page => $row->[14],
+					   timestamp => $row->[15],
+					   previous_page => $row->[16],
+					   current_parameters => $row->[19],
+					   previous_parameters => $row->[20] };
       }
       $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN OrganizationUsers ON t1._id=OrganizationUsers.user JOIN Organization ON OrganizationUsers.organization=Organization._id ORDER BY t1.$order ".uc($dir), [], undef, {});
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 _id 9 user 10 _user_db 11 organization 12 _organization_db 13 _id 14 country 15 city 16 date 17 url 18 name 19 abbreviation 20 scope 21 _scope_db 22 loaction 23
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 user 11 _user_db 12 organization 13 _organization_db 14 _id 15 country 16 city 17 date 18 url 19 name 20 abbreviation 21 scope 22 _scope_db 23 loaction 24
 	
-	$uhash->{$row->[8]}->{organization} = { country => $row->[15],
-						city => $row->[16],
-						date => $row->[17],
-						url => $row->[18],
-						name => $row->[19],
-						abbreviation => $row->[20],
-						location => $row->[23] };
+	$uhash->{$row->[8]}->{organization} = { country => $row->[16],
+						city => $row->[17],
+						date => $row->[18],
+						url => $row->[19],
+						name => $row->[20],
+						abbreviation => $row->[21],
+						location => $row->[24] };
       }
       foreach my $key (@$order_array) {
 	my $s = [];
@@ -770,6 +790,7 @@ sub prepare_data {
       $obj->{id}         = 'mgu'.$u->{_id};
       $obj->{login}      = $u->{login};
       $obj->{email}      = $u->{email};
+      $obj->{email2}     = $u->{email2};
       $obj->{firstname}  = $u->{firstname};
       $obj->{lastname}   = $u->{lastname};
       $obj->{entry_date} = $u->{entry_date};
@@ -862,10 +883,11 @@ sub create_user {
 
   # create the user in the db
   $user = $master->User->create( { email      => uri_unescape($cgi->param('email')),
+				   email2     => uri_unescape($cgi->param('email2')) || "",
 				   firstname  => uri_unescape($cgi->param('firstname')),
 				   lastname   => uri_unescape($cgi->param('lastname')),
 				   login      => uri_unescape($cgi->param('login')) } );
-  
+
   # check for success
   unless (ref($user)) {
     $self->return_data( {"ERROR" => "could not create user"}, 500 );
