@@ -290,7 +290,7 @@ sub instance {
 	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
       }
       my $backend = $master->Backend->init( { name => "MGRAST" });
-      $user->deny_login_right($backend, $cgi->param('reason') || "-");
+      $user->deny_login_right($backend, $self->cgi->param('reason') || "-");
       $self->return_data( {"OK" => "account request denied"}, 200 );
     }
     # set password
