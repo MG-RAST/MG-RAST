@@ -23,7 +23,6 @@
     <input>The input sequence data for this step is in the file 299.screen.passed.fna.</input>
     <description>Coding regions within the sequences are predicted using FragGeneScan, an ab-initio prokaryotic gene calling algorithm. Using a hidden Markov model for coding regions and non-coding regions, this step identifies the most likely reading frame and translates nucleotide sequences into amino acids sequences. The predicted genes, possibly more than one per fragment, are called features.</description>
     <output><file>The amino acid sequence FASTA formatted file 350.genecalling.coding.faa contains the predicted coding regions.</file></output>
-    <output><file>The nucleotide sequence FASTA formatted file 350.genecalling.coding.fna contains the predicted coding regions.</file></output>
   </stage>
   <stage num='425'>
     <input>The input sequence data for this step is in the file 100.preprocess.passed.fna.</input>
