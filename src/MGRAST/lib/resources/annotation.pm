@@ -33,7 +33,7 @@ sub new {
                                 "col_01" => ['string', 'sequence id'],
                                 "col_02" => ['string', 'm5nr id (md5sum)'],
                                 "col_03" => ['string', 'dna sequence'],
-                                "col_04" => ['string', 'semicolon seperated list of annotations'] },
+                                "col_04" => ['string', 'semicolon separated list of annotations'] },
                             similarity => {
                                 "col_01" => ['string', 'query sequence id'],
                                 "col_02" => ['string', 'hit m5nr id (md5sum)'],
@@ -47,7 +47,7 @@ sub new {
                                 "col_10" => ['int', 'hit end'],
                                 "col_11" => ['float', 'e-value'],
                                 "col_12" => ['float', 'bit score'],
-                                "col_13" => ['string', 'semicolon seperated list of annotations'] }
+                                "col_13" => ['string', 'semicolon separated list of annotations'] }
                           };
     return $self;
 }
@@ -78,12 +78,12 @@ sub info {
 						},
 				        { 'name'        => "sequence",
 				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
-				          'description' => "tab deliminted annotated sequence stream",
+				          'description' => "tab delimited annotated sequence stream",
 				          'example'     => [ $self->cgi->url."/".$self->name."/sequence/mgm4447943.3?evalue=10&type=organism&source=SwissProt",
-				                             'all annotated read sequences from mgm4447943.3 with hits in SwissProt organisms at evaule < e-10' ],
+				                             'all annotated read sequences from mgm4447943.3 with hits in SwissProt organisms at evalue < e-10' ],
 				          'method'      => "GET",
 				          'type'        => "stream",  
-				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab deliminted annotated sequence stream"]] },
+				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab delimited annotated sequence stream"]] },
 				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
 				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                                                             'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
@@ -96,12 +96,12 @@ sub info {
 						},
 						{ 'name'        => "similarity",
 				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
-				          'description' => "tab deliminted blast m8 with annotation",
+				          'description' => "tab delimited blast m8 with annotation",
 				          'example'     => [ $self->cgi->url."/".$self->name."/similarity/mgm4447943.3?identity=80&type=function&source=KO",
   				                             'all annotated read blat stats from mgm4447943.3 with hits in KO functions at % identity > 80' ],
 				          'method'      => "GET",
 				          'type'        => "stream",  
-				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab deliminted blast m8 with annotation"]] },
+				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
 				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
 				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                                                             'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
