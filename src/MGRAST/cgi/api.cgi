@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 use CGI;
 use JSON;
 use Conf;
