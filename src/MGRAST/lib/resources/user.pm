@@ -710,6 +710,7 @@ sub query {
 		       lastname => $row->[3],
 		       entry_date => $row->[4] });
       }
+      $self->return_data($data);
     }
     # get everything
     else {
