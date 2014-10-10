@@ -31,7 +31,7 @@ sub new {
                             "url"        => [ 'uri', 'resource location of this object instance' ]
                           };
 
-    $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1, 'session' => 1},
+    $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1, 'session' => 1, 'request_access' => 1},
                     direction => {'asc' => 1, 'desc' => 1},
                     match => {'any' => 1, 'all' => 1}
     };
@@ -271,8 +271,28 @@ sub instance {
   
   # check if this is an action request
   my $requests = { 'setpassword' => 1,
-		   'webkey' => 1 };
+		   'webkey' => 1,
+		   'accept' => 1,
+		   'deny' => 1 };
   if (scalar(@$rest) > 1 && $requests->{$rest->[1]}) {
+    # accept account request
+    if ($rest->[1] eq 'accept') {
+      unless ($self->user->has_star_right('edit', 'user')) {
+	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+      }
+      my $backend = $master->Backend->init( { name => "MGRAST" });
+      $user->grant_login_right($backend);
+      $self->return_data( {"OK" => "account request accepted"}, 200 );
+    }
+    # deny account request
+    if ($rest->[1] eq 'deny') {
+      unless ($self->user->has_star_right('edit', 'user')) {
+	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+      }
+      my $backend = $master->Backend->init( { name => "MGRAST" });
+      $user->deny_login_right($backend, $self->cgi->param('reason') || "-");
+      $self->return_data( {"OK" => "account request denied"}, 200 );
+    }
     # set password
     if ($rest->[1] eq 'setpassword') {
       if ($self->cgi->param('dwp')) {
@@ -690,6 +710,7 @@ sub query {
 		       lastname => $row->[3],
 		       entry_date => $row->[4] });
       }
+      $self->return_data($data);
     }
     # get everything
     else {
