@@ -220,7 +220,7 @@ sub info {
                   'body'     => { "pair_file_1"   => [ "string", "RFC 4122 UUID for pair 1 file" ],
                                   "pair_file_2"   => [ "string", "RFC 4122 UUID for pair 2 file" ],
                                   "index_file"    => [ "string", "RFC 4122 UUID for optional index (barcode) file" ],
-                                  "barcode_count" => [ "int", "number of unique barcodes in index_file" ]
+                                  "barcode_count" => [ "int", "number of unique barcodes in index_file" ],
                                   "prefix"        => [ "string", "prefix for output file names, default is 'pair_file_1'_'pair_file_2'" ],
                                   "retain"        => [ "boolean", "If true retain non-overlapping sequences, default is false" ] }
               }
@@ -286,8 +286,8 @@ sub file_info {
         $self->get_shock_file($uuid, $tempfile, $self->mgrast_token, "length=2000");
         ($file_type, $err_msg) = $self->verify_file_type($tempfile, $node->{file}{name});
         $file_format = $self->get_file_format($tempfile, $file_type, $file_suffix);
+        unlink($tempfile);
     }
-    unlink($tempfile);
     
     # get info / update node
     my $stats_info = {
