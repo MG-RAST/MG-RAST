@@ -1,0 +1,49 @@
+{
+    "info": {
+        "pipeline": "inbox_pair_join",
+        "name": "[% job_name %]",
+        "user": "[% user_id %]",
+        "clientgroups":"[% clientgroups %]",
+        "userattr": {
+            "type": "inbox",
+            "id": "[% user_id %]",
+            "user": "[% user_name %]",
+            "email": "[% user_email %]"
+        }
+    },
+    "tasks": [
+        {
+            "cmd": {
+                "args": "[% retain %]-m 8 -p 10 -t . -o [% out_file %] @[% p1_file %] @[% p2_file %]",
+                "description": "merge mate-pairs",
+                "name": "pairend_join.py"
+            },
+            "dependsOn": [],
+            "inputs": {
+                "[% p1_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% p1_file_id %]"
+                },
+                "[% p2_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% p2_file_id %]"
+                }
+            },
+            "outputs": {
+                "[% out_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "userattr": {
+                "file_format": "fastq",
+                "seq_format": "bp",
+                "parent_file_1": "[% p1_file_id %]",
+                "parent_file_2": "[% p2_file_id %]"
+            },
+            "taskid": "0",
+            "totalwork": 1
+        }
+    ]
+}

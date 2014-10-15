@@ -1,0 +1,110 @@
+{
+    "info": {
+        "pipeline": "inbox_pair_join_demultiplex",
+        "name": "[% job_name %]",
+        "user": "[% user_id %]",
+        "clientgroups":"[% clientgroups %]",
+        "userattr": {
+            "type": "inbox",
+            "id": "[% user_id %]",
+            "user": "[% user_name %]",
+            "email": "[% user_email %]"
+        }
+    },
+    "tasks": [
+        {
+            "cmd": {
+                "args": "[% retain %]-m 8 -p 10 -t . -r -i [% index_file %] -o [% prefix %].join.fastq @[% p1_file %] @[% p2_file %]",
+                "description": "merge mate-pairs",
+                "name": "pairend_join.py"
+            },
+            "dependsOn": [],
+            "inputs": {
+                "[% p1_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% p1_file_id %]"
+                },
+                "[% p2_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% p2_file_id %]"
+                },
+                "[% index_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% index_id %]"
+                }
+            },
+            "outputs": {
+                "[% prefix %].join.fastq": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "userattr": {
+                "file_format": "fastq",
+                "seq_format": "bp",
+                "parent_file_1": "[% p1_file_id %]",
+                "parent_file_2": "[% p2_file_id %]"
+            },
+            "taskid": "0",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "args": "-r -i @[% index_file %] -p [% prefix %] -o [% prefix %].barcodes.txt",
+                "description": "build barcodes",
+                "name": "index2barcode.py"
+            },
+            "dependsOn": [],
+            "inputs": {
+                "[% index_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% index_id %]"
+                }
+            },
+            "outputs": {
+                "[% prefix %].barcodes.txt": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "userattr": {
+                "file_format": "text",
+                "parent_file": "[% index_id %]"
+            },
+            "taskid": "1",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "args": "-f fastq -b @[% prefix %].barcodes.txt -i @[% prefix %].join.fastq",
+                "description": "demultiplex",
+                "name": "demultiplex.py"
+            },
+            "dependsOn": ["0", "1"], 
+            "inputs": {
+                "[% prefix %].join.fastq": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-"
+                },
+                "[% prefix %].barcodes.txt": {
+                    "host": "[% shock_url %]",
+                    "origin": "1",
+                    "node": "-"
+                }
+            },
+            "outputs": {[% outputs %]
+            },
+            "userattr": {
+                "file_format": "fastq",
+                "seq_format": "bp",
+                "parent_file_1": "[% p1_file_id %]",
+                "parent_file_2": "[% p2_file_id %]"
+            },
+            "taskid": "0",
+            "totalwork": 1
+        }
+    ]
+}
