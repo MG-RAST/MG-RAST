@@ -363,7 +363,7 @@ sub sff_to_fastq {
         job_name     => $user_id.'_sff2fastq_'.$node->{id},
         user_id      => $user_id,
         user_name    => $self->user->login,
-        user_email   => $self->user->email
+        user_email   => $self->user->email,
         clientgroups => $Conf::mgrast_inbox_clientgroups,
         sff_file_id  => $node->{id},
         sff_file     => $node->{file}{name},
@@ -432,7 +432,7 @@ sub demultiplex {
         job_name     => $user_id.'_demultiplex_'.$node->{id},
         user_id      => $user_id,
         user_name    => $self->user->login,
-        user_email   => $self->user->email
+        user_email   => $self->user->email,
         clientgroups => $Conf::mgrast_inbox_clientgroups,
         file_type    => $seq_type,
         seq_file_id  => $seq_node->{id},
@@ -477,7 +477,7 @@ sub pair_join {
         job_name     => $user_id.'pair_join'.$node->{id},
         user_id      => $user_id,
         user_name    => $self->user->login,
-        user_email   => $self->user->email
+        user_email   => $self->user->email,
         clientgroups => $Conf::mgrast_inbox_clientgroups,
         p1_file_id   => $pair1_node->{id},
         p1_file      => $pair1_node->{file}{name},
