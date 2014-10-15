@@ -201,14 +201,14 @@ sub source {
 
 # hardcoded hierarchy info
 sub hierarchy {
-    return { organism => [ ['strain', 'bottom organism taxanomic level'],
+    return { organism => [ ['strain', 'bottom organism taxonomic level'],
                            ['species', 'organism type level'],
-                           ['genus', 'organism taxanomic level'],
-                           ['family', 'organism taxanomic level'],
-                           ['order', 'organism taxanomic level'],
-                           ['class', 'organism taxanomic level'],
-                           ['phylum', 'organism taxanomic level'],
-                           ['domain', 'top organism taxanomic level'] ],
+                           ['genus', 'organism taxonomic level'],
+                           ['family', 'organism taxonomic level'],
+                           ['order', 'organism taxonomic level'],
+                           ['class', 'organism taxonomic level'],
+                           ['phylum', 'organism taxonomic level'],
+                           ['domain', 'top organism taxonomic level'] ],
              ontology => [ ['function', 'bottom function ontology level'],
                            ['level3', 'function ontology level' ],
                            ['level2', 'function ontology level' ],

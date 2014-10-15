@@ -31,7 +31,7 @@ sub new {
     	                    "version"        => [ 'integer', 'version of the object' ],
     	                    "url"            => [ 'uri', 'resource location of this object instance' ],
     	                    "status"         => [ 'cv', [ ['public', 'object is public'],
-							                              ['private', 'object is private'] ] ]
+							  ['private', 'object is private'] ] ]
     	                  };
     return $self;
 }
