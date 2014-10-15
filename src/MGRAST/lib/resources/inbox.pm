@@ -327,7 +327,7 @@ sub seq_stats {
     my $user_id = 'mgu'.$self->user->_id;
     my $info = {
         shock_url    => $Conf::shock_url,
-        job_name     => $user_id.'_seqstats_'.$node->{id},
+        job_name     => $user_id.'_seqstats',
         file_type    => $file_type,
         user_id      => $user_id,
         clientgroups => $Conf::mgrast_inbox_clientgroups,
@@ -360,7 +360,7 @@ sub sff_to_fastq {
     my $user_id = 'mgu'.$self->user->_id;
     my $info = {
         shock_url    => $Conf::shock_url,
-        job_name     => $user_id.'_sff2fastq_'.$node->{id},
+        job_name     => $user_id.'_sff2fastq',
         user_id      => $user_id,
         user_name    => $self->user->login,
         user_email   => $self->user->email,
@@ -429,7 +429,7 @@ sub demultiplex {
     my $user_id = 'mgu'.$self->user->_id;
     my $info = {
         shock_url    => $Conf::shock_url,
-        job_name     => $user_id.'_demultiplex_'.$node->{id},
+        job_name     => $user_id.'_demultiplex',
         user_id      => $user_id,
         user_name    => $self->user->login,
         user_email   => $self->user->email,
@@ -474,7 +474,6 @@ sub pair_join {
     my $user_id = 'mgu'.$self->user->_id;
     my $info = {
         shock_url    => $Conf::shock_url,
-        job_name     => $user_id.'pair_join'.$node->{id},
         user_id      => $user_id,
         user_name    => $self->user->login,
         user_email   => $self->user->email,
@@ -489,7 +488,6 @@ sub pair_join {
     my $status = "";
     # do pair-join with demultiplex
     if ($demultiplex) {
-        $status = "pair join and demultiplex is being run on files: ".$pair1_node->{id}.", ".$pair2_node->{id}.", ".$index_node->{id};
         # validate extra options
         my $index_file = $self->cgi->param('index_file') || "";
         my $bc_count   = $self->cgi->param('barcode_count') || 0;
@@ -502,6 +500,8 @@ sub pair_join {
         }
         # update template info
         my $index_node = $self->node_from_id($index_file);
+        $status = "pair join and demultiplex is being run on files: ".$pair1_node->{id}.", ".$pair2_node->{id}.", ".$index_node->{id};
+        $info->{job_name}   = $user_id.'_pairjoin_demultiplex';
         $info->{index_file} = $index_node->{file}{name};
         $info->{index_id}   = $index_node->{id};
         $info->{prefix}     = $prefix;
@@ -526,6 +526,7 @@ sub pair_join {
     # do pair-join only
     else {
         $status = "pair join is being run on files: ".$pair1_node->{id}.", ".$pair2_node->{id};
+        $info->{job_name} = $user_id.'_pairjoin';
         $info->{out_file} = $self->cgi->param('output') || $pair1_node->{file}{name}."_".$pair2_node->{file}{name}.".fastq";
         $job = $self->submit_awe_template($info, $Conf::mgrast_pair_join_workflow);
     }
@@ -688,7 +689,7 @@ sub verify_file_type {
     } else {
 	    # file does not work for fastq -- craps out for lines beginning with '@'
 	    # check first 4 lines for fastq like format
-	    my @lines = `cat -A '$file' 2>/dev/null | head -n4`;
+	    my @lines = `cat -A '$tempfile' 2>/dev/null | head -n4`;
 	    chomp @lines;
 	    if ( ($lines[0] =~ /^\@/) && ($lines[0] =~ /\$$/) && ($lines[1] =~ /\$$/) &&
 	         ($lines[2] =~ /^\+/) && ($lines[2] =~ /\$$/) && ($lines[3] =~ /\$$/) ) {
