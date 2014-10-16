@@ -160,6 +160,18 @@ sub instance {
     $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
   }
 
+  # check if this is an authentication request
+  if (scalar(@$rest) == 1 && $rest->[0] eq 'authenticate') {
+    if ($self->user) {
+      $self->return_data( { "login" => $self->user->{login},
+			    "firstname" => $self->user->{firstname},
+			    "lastname" => $self->user->{lastname},
+			    "email" => $self->user->{email} }, 200 );
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
+    }
+  }
+
   # check if this is a reset password request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
     # passwords may only be reset with a valid recaptcha
