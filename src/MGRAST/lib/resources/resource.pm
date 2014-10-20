@@ -655,7 +655,7 @@ sub get_download_set {
         } else {
             $suffix = ".".$data->{stage_name};
         }
-        $data->{file_name} = $data->{$id}.".".$data->{stage_id}.$suffix;
+        $data->{file_name} = $data->{id}.".".$data->{stage_id}.$suffix;
         push @$stages, $data;
     }
     return $stages;
