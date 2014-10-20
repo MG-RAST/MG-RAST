@@ -713,7 +713,7 @@ sub query {
     }
     # get all users that have an open account request
     elsif ($verb eq 'request_access') {
-      my $rows = $master->backend->get_rows( "SELECT User.login, User.email, User.firstname, User.lastname, User.entry_date FROM ((SELECT scope FROM Rights WHERE name='login' AND granted=0 AND application=27) AS t1 JOIN UserHasScope ON t1.scope=UserHasScope.scope JOIN User on UserHasScope.user=User._id)", [], undef, {});
+      my $rows = $master->backend->get_rows( "(SELECT User.login, User.email, User.firstname, User.lastname, User.entry_date FROM ((SELECT scope FROM Rights WHERE name='login' AND granted=0 AND application=27) AS t1 JOIN UserHasScope ON t1.scope=UserHasScope.scope JOIN User on UserHasScope.user=User._id)) AS t2", [], undef, {});
       foreach my $row (@$rows) {
 	# login 0, email 1, firstname 2, lastname 3, entry_date 4
 	push(@$data, { login => $row->[0],
