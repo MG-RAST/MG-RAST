@@ -1674,10 +1674,11 @@ sub get_read_align {
   
   $self->{mgdb}->set_jobs([$mgid]);
   my $md5_map  = $self->{mgdb}->decode_annotation('md5', [$md5]);
+  my $md5sum   = $md5_map->{$md5};
   my $seq_data = $self->{mgdb}->md5s_to_read_sequences([$md5]); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
-  my @md5_seq  = split(/\n/, $self->{mgdb}->ach->md5s2sequences([ $md5_map->{$md5} ])); # fasta text
+  my @md5_seq  = split(/\n/, $self->{mgdb}->ach->md5s2sequences([$md5sum])); # fasta text
 
-  if ((@md5_seq == 2) && ($md5_seq[0] =~ /$md5/)) {
+  if ((@md5_seq == 2) && ($md5_seq[0] =~ /$md5sum/)) {
     my $md5_fasta = $Conf::temp."/".$md5."_".time.".faa";
     open(MD5F, ">$md5_fasta") || return $html;
     print MD5F join("\n", @md5_seq) . "\n";
