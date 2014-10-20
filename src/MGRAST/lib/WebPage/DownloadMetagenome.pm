@@ -107,7 +107,6 @@ sub init {
   $self->application->register_action($self, 'download', 'download');
   $self->application->register_action($self, 'api_download', 'api_download');
   $self->application->register_component('Table', 'project_table');
-  $self->application->register_component('Hover', 'download_project_info');
   $self->application->register_component('Hover', 'download_info');
 }
 
@@ -209,12 +208,6 @@ my $css_tmp = qq~
   }
   $down_info->add_tooltip('meta_down', 'Download metadata for this metagenome');
   $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='metagenomics.cgi?page=DownloadMetagenome&action=download_md&filename=$mfile'><img src='./Html/mg-download.png' style='height:15px;'/><small>metadata</small></a>";
-  if ($pid && $job->public) {
-    $down_info->add_tooltip('sub_down', 'Download submitted metagenome');
-    $down_info->add_tooltip('derv_down', 'Download all derived data for this metagenome');
-    $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"sub_down\",".$down_info->id.")' target=_blank href='ftp://".$Conf::ftp_download."/projects/$pid/$mid/raw'><img src='./Html/mg-download.png' style='height:15px;'/><small>submitted</small></a>";
-    $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"derv_down\",".$down_info->id.")' target=_blank href='ftp://".$Conf::ftp_download."/projects/$pid/$mid/processed'><img src='./Html/mg-download.png' style='height:15px;'/><small>analysis</small></a>";
-  }
   
   $self->title("Metagenome Download");
   $content .= $down_info->output()."<h1 style='display:inline;'>".$job->name." ($mid)</h1>".$download;
@@ -306,7 +299,7 @@ sub stage_download_info {
     }
       
     my $stats = exists($info->{statistics}) ? $info->{statistics} : {};
-    my $count = exists($stats->{bp_count}) ? format_number($stats->{bp_count})." reads" : '';
+    my $count = exists($stats->{sequence_count}) ? format_number($stats->{sequence_count})." reads" : '';
     my $size  = exists($info->{file_size}) ? sprintf("%.2f", ($info->{file_size} / (1024 * 1024)))."MB" : '';
     my $desc  = ($info->{data_type} eq 'sequence') ? $info->{file_format} : $info->{data_type};
     
@@ -583,9 +576,6 @@ sub public_project_download_table {
   my $content  = "" ; # "Public projects and metagenomes." ;
   
   if ( scalar(@$projects) || scalar(@$public_projects) ) {
-    my $down_info = $application->component('download_project_info');
-    $down_info->add_tooltip('all_down', 'download all submitted and derived metagenome data for this project');
-    $down_info->add_tooltip('meta_down', 'download project metadata');
 
     my $table = $application->component('project_table');
     $table->items_per_page(25);
@@ -604,8 +594,7 @@ sub public_project_download_table {
 		       { name => 'PubMed ID', filter => 1, sortable => 1, visible => 0 },
 		       { name => 'Sequence&nbsp;type', filter => 1, sortable => 1, operator => 'combobox' },
 		       { name => '#&nbsp;Metagenomes', filter => 1, operators => [ 'equal' , 'less' , 'more' ], sortable =>  1 },
-		       { name => 'Project&nbsp;size (Mbp)', filter => 1, operators => [ 'equal' , 'less' , 'more' ], sortable => 1},
-		       { name =>'Download' }
+		       { name => 'Project&nbsp;size (Mbp)', filter => 1, operators => [ 'equal' , 'less' , 'more' ], sortable => 1}
 		     ] );
     my $data  = [];
     my $shown = {};
@@ -620,10 +609,6 @@ sub public_project_download_table {
       my $formater   = new Number::Format(-thousands_sep => ',');
       my $all_mgids  = $project->all_metagenome_ids;
       my $pubmed_ids = join(",", sort @{$project->pubmed});
-      my $download   = "<table><tr align='center'>
-<td><a  onmouseover='hover(event,\"all_down\",".$down_info->id.")' target=_blank href='ftp://".$Conf::ftp_download."/projects/$id'><img src='$Conf::cgi_url/Html/mg-download.png' height='15'/><small>metagenomes</small></a></td>
-<td><a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='ftp://".$Conf::ftp_download."/projects/$id/metadata.project-$id.xlsx'><img src='$Conf::cgi_url/Html/mg-download.png' height='15'/><small>metadata</small></a></td>
-</tr></table>";
 
       push @$data, [ $id,
 		     join(" " , @$all_mgids) || '',
@@ -634,12 +619,10 @@ sub public_project_download_table {
 		     $pubmed_ids ? "<a href='http://www.ncbi.nlm.nih.gov/pubmed/$pubmed_ids' target=_blank >$pubmed_ids</a>" : '',
 		     join(", ", sort @{$project->sequence_types}) || 'Unknown',
 		     scalar(@$all_mgids),
-		     $formater->format_number(($project->bp_count_raw / 1000000), 0),
-		     $download
+		     $formater->format_number(($project->bp_count_raw / 1000000), 0)
 		   ];
     }
     $table->data($data);
-    $content .= $down_info->output;
     $content .= $table->output();
   }
   return $content;

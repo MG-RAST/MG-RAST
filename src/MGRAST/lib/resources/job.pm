@@ -41,9 +41,9 @@ sub new {
         addproject => { "project_id"   => [ "string", "unique MG-RAST project identifier" ],
                         "project_name" => [ "string", "MG-RAST project name" ],
                         "status"       => [ 'string', 'status of action' ] },
-        kb2mg => { "found" => [ 'int', 'number of inputted ids that have an alias' ],
+        kb2mg => { "found" => [ 'int', 'number of input ids that have an alias' ],
                    "data"  => [ 'hash', 'key value pairs of KBase id to MG-RAST id' ] },
-        mg2kb => { "found" => [ 'int', 'number of inputted ids that have an alias' ],
+        mg2kb => { "found" => [ 'int', 'number of input ids that have an alias' ],
                    "data"  => [ 'hash', 'key value pairs of MG-RAST id to KBase id' ] }
     };
     $self->{create_param} = {
@@ -97,7 +97,7 @@ sub info {
 						},
 						{ 'name'        => "create",
 				          'request'     => $self->cgi->url."/".$self->name."/create",
-				          'description' => "Create an MG-RAST job with inputted reserved ID, sequence stats, and pipeline options.",
+				          'description' => "Create an MG-RAST job with input reserved ID, sequence stats, and pipeline options.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
 				          'attributes'  => $self->{attributes}{create},

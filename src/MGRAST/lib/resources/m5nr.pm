@@ -61,7 +61,7 @@ sub new {
                                             version => [ 'integer', 'version of M5NR' ],
                                             url  => [ 'uri', 'resource location of this object instance' ],
                                             data => [ 'list', ['object', [{'accession'   => [ 'string', 'unique identifier given by source' ],
-                                                                           'alias'       => [ 'list', ['string', 'db_xref alaises'] ],
+                                                                           'alias'       => [ 'list', ['string', 'db_xref aliases'] ],
                                                                            'md5'         => [ 'string', 'md5 checksum - M5NR ID' ],
                                                                            'function'    => [ 'string', 'function annotation' ],
                                                                            'organism'    => [ 'string', 'organism annotation' ],
@@ -127,7 +127,7 @@ sub info {
 					     'attributes'  => $self->{attributes}{taxonomy},
 					     'parameters'  => { 'options'  => {
 					                            'filter_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
-	                                            'filter' => ['string', 'text of taxanomy group (filter_level) to filter by'],
+	                                            'filter' => ['string', 'text of taxonomy group (filter_level) to filter by'],
 									            'min_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
 									            'exact'  => ['boolean', "if true return only those taxonomies that exactly match filter, default is false"],
 									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
