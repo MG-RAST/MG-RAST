@@ -606,7 +606,6 @@ sub get_download_set {
 		             stage_name => $attr->{stage_name},
 		             data_type  => $attr->{data_type},
 		             file_id    => $file_id,
-		             file_name  => $file->{name},
 		             file_size  => $file->{size} || undef,
 		             file_md5   => $file->{checksum}{md5} || undef
 		};
@@ -623,6 +622,40 @@ sub get_download_set {
         if ($data->{stage_name} =~ /\.cluster$/) {
             $data->{stage_name} .= ($attr->{data_type} eq 'cluster') ? '.map' : '.seq';
         }
+        # build proper file name
+        my $suffix = "";
+        if (exists $data->{cluster_percent}) {
+            my $seqtype = (exists($data->{seq_format}) && ($data->{seq_format} eq 'bp')) ? 'rna' : 'aa';
+            $suffix = ".cluster.".$seqtype.$data->{cluster_percent};
+            if ($data->{data_type} eq "cluster") {
+                $suffix .= '.mapping';
+            } elsif ($seqtype eq 'rna') {
+                $suffix .= '.fna';
+            } elsif ($seqtype eq 'aa') {
+                $suffix .= '.faa';
+            }
+        }
+        elsif (($data->{data_type} =~ /^sequence|passed|removed$/) && exists($data->{file_format})) {
+            $suffix = ".".$data->{stage_name};
+            if ($data->{file_format} eq 'fastq') {
+                $suffix .= '.fastq';
+            } elsif (exists($data->{seq_format}) && ($data->{seq_format} eq 'bp')) {
+                $suffix .= '.fna';
+            } elsif (exists($data->{seq_format}) && ($data->{seq_format} eq 'aa')) {
+                $suffix .= '.faa';
+            }
+        } elsif ($data->{stage_name} eq 'filter.sims') {
+            $suffix = '.annotation.sims.filter.seq';
+        } elsif ($data->{data_type} eq 'lca') {
+            $suffix = '.annotation.lca.summary';
+        } elsif ($data->{data_type} eq 'coverage') {
+            $suffix = '.assembly.coverage';
+        } elsif ($data->{data_type} eq 'statistics') {
+            $suffix = '.statistics.json';
+        } else {
+            $suffix = ".".$data->{stage_name};
+        }
+        $data->{file_name} = $data->{id}.".".$data->{stage_id}.$suffix;
         push @$stages, $data;
     }
     return $stages;

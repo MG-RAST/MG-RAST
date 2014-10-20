@@ -1,34 +1,34 @@
 {
     "info": {
-        "pipeline": "seq_stats",
+        "pipeline": "inbox_seq_stats",
         "name": "[% job_name %]",
         "user": "[% user_id %]",
         "clientgroups":"[% clientgroups %]"
-    }, 
+    },
     "tasks": [
         {
             "cmd": {
-                "args": "-input=@inputfile -input_json=input_attr.json -output_json=output_attr.json -type=[% file_type %]", 
-                "description": "seq_stats",
+                "args": "-input=@[% seq_file %] -input_json=input_attr.json -output_json=output_attr.json -type=[% file_type %]",
+                "description": "sequence stats",
                 "name": "awe_seq_length_stats.pl"
-            }, 
-            "dependsOn": [], 
+            },
+            "dependsOn": [],
             "inputs": {
-                "inputfile": {
+                "[% seq_file %]": {
                     "host": "[% shock_url %]",
-                    "node": "[% input_file_id %]",
+                    "node": "[% seq_file_id %]",
                     "attrfile": "input_attr.json"
                 }
-            }, 
+            },
             "outputs": {
-                "inputfile": {
+                "[% seq_file %]": {
                     "host": "[% shock_url %]",
-                    "node": "[% input_file_id %]",
+                    "node": "[% seq_file_id %]",
                     "type": "update",
                     "attrfile": "output_attr.json"
                 }
             },
-            "taskid": "0", 
+            "taskid": "0",
             "totalwork": 1
         }
     ]
