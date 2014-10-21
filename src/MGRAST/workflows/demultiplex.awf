@@ -1,0 +1,43 @@
+{
+    "info": {
+        "pipeline": "inbox_demultiplex",
+        "name": "[% job_name %]",
+        "user": "[% user_id %]",
+        "clientgroups":"[% clientgroups %]",
+        "userattr": {
+            "type": "inbox",
+            "id": "[% user_id %]",
+            "user": "[% user_name %]",
+            "email": "[% user_email %]"
+        }
+    },
+    "tasks": [
+        {
+            "cmd": {
+                "args": "-f [% file_type %] -b @[% bar_file %] -i @[% seq_file %]",
+                "description": "demultiplex",
+                "name": "demultiplex.py"
+            },
+            "dependsOn": [], 
+            "inputs": {
+                "[% seq_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% seq_file_id %]"
+                },
+                "[% bar_file %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% bar_file_id %]"
+                }
+            },
+            "outputs": {[% outputs %]
+            },
+            "userattr": {
+                "file_format": "[% file_type %]",
+                "seq_format": "bp",
+                "parent_file": "[% seq_file_id %]"
+            },
+            "taskid": "0",
+            "totalwork": 1
+        }
+    ]
+}
