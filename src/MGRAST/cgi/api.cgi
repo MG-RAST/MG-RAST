@@ -25,7 +25,7 @@ if (lc($request_method) eq 'options') {
 		     -status => 200,
 		     -type => 'text/plain',
 		     -charset => 'UTF-8',
-		     -Access_Control_Allow_Methods => 'POST, GET, OPTIONS',
+		     -Access_Control_Allow_Methods => 'POST, GET, OPTIONS, PUT',
 		     -Access_Control_Allow_Headers => 'AUTH, AUTHORIZATION'
 		    );
   print "";

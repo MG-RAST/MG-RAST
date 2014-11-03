@@ -1684,7 +1684,7 @@ sub get_read_align {
     print MD5F join("\n", @md5_seq) . "\n";
     close MD5F;
     $html .= "<p>Hit alignment for ".scalar(@$seq_data)." read".((scalar(@$seq_data) > 1) ? "s" : "")." within metagenome ".$job->name()." ($mgid) against sequence ";
-    $html .= ($type ne 'rna') ? "<a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5'>$md5</a>" : $md5;
+    $html .= ($type ne 'rna') ? "<a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5sum'>$md5sum</a>" : $md5;
     $html .= "</p>";
     
     foreach my $s (@$seq_data) {
