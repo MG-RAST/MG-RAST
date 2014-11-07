@@ -396,7 +396,7 @@ sub grant_login_right {
   }
 
   # send mail
-  if (ref $backend_or_app && $backend_or_app->isa('WebApplication')) {
+  #if (ref $backend_or_app && $backend_or_app->isa('WebApplication')) {
     
     my $body = HTML::Template->new(filename => TMPL_PATH.'EmailAcceptAccount.tmpl',
 				   die_on_bad_params => 0);
@@ -412,7 +412,7 @@ sub grant_login_right {
 		       $WebConfig::APPLICATION_NAME.' - account request approved',
 		       $body->output,
 		    );
-  }
+  #}
   
   return $self;
 }
