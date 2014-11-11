@@ -489,10 +489,12 @@ sub clean_stats {
     }
     # source
     foreach my $src (keys %{$stats->{source}}) {
-        if (! $stats->{source}{$src}) {
-            $stats->{source}{$src} = [];
-        } else {
-            $stats->{source}{$src} = [ map { int($_) } @{$stats->{source}{$src}} ];
+        foreach my $type (keys %{$stats->{$src}}) {
+            if (! $stats->{source}{$src}{$type}) {
+                $stats->{source}{$src}{$type} = [];
+            } else {
+                $stats->{source}{$src}{$type} = [ map { int($_) } @{$stats->{source}{$src}{$type}} ];
+            }
         }
     }
     # qc
