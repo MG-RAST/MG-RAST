@@ -191,10 +191,10 @@ sub prepare_data {
     my $values  = [];
     my $rows    = [];
     my $ttype   = '';
-    my $columns = [ { id => 'abundance', metadata => undef },
-		            { id => 'e-value', metadata => undef },
-		            { id => 'percent identity', metadata => undef },
-		            { id => 'alignment length', metadata => undef }
+    my $columns = [ { id => 'abundance', metadata => {metagenome => "mgm".$id} },
+		            { id => 'e-value', metadata => {metagenome => "mgm".$id} },
+		            { id => 'percent identity', metadata => {metagenome => "mgm".$id} },
+		            { id => 'alignment length', metadata => {metagenome => "mgm".$id} }
 		          ];
 
     # get data
