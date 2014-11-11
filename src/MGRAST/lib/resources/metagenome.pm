@@ -516,7 +516,7 @@ sub clean_stats {
         }
     }
     # histograms
-    foreach my $hist (('taxonomy', 'ontology')) {
+    foreach my $hist (('gc_histogram', 'length_histogram')) {
         foreach my $type (keys %{$stats->{$hist}}) {
             if (! $stats->{$hist}{$type}) {
                 $stats->{$hist}{$type} = [];
