@@ -505,7 +505,7 @@ sub clean_stats {
     }
     # tax / ontol
     foreach my $ann (('taxonomy', 'ontology')) {
-        foreach my $type (keys %{$stats->{$ann}{$type}}) {
+        foreach my $type (keys %{$stats->{$ann}}) {
             if (! $stats->{$ann}{$type}) {
                 $stats->{$ann}{$type} = [];
             } else {
@@ -515,7 +515,7 @@ sub clean_stats {
     }
     # histograms
     foreach my $hist (('taxonomy', 'ontology')) {
-        foreach my $type (keys %{$stats->{$hist}{$type}}) {
+        foreach my $type (keys %{$stats->{$hist}}) {
             if (! $stats->{$hist}{$type}) {
                 $stats->{$hist}{$type} = [];
             } else {
