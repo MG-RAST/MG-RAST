@@ -489,7 +489,7 @@ sub clean_stats {
     }
     # source
     foreach my $src (keys %{$stats->{source}}) {
-        foreach my $type (keys %{$stats->{$src}}) {
+        foreach my $type (keys %{$stats->{source}{$src}}) {
             if (! $stats->{source}{$src}{$type}) {
                 $stats->{source}{$src}{$type} = [];
             } else {
