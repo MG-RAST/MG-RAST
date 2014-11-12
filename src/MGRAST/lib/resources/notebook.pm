@@ -299,7 +299,7 @@ sub clone_notebook {
     return $new_node;
 }
 
-# share notebook - we add inputted usernames to read ACLs
+# share notebook - we add input usernames to read ACLs
 sub share_notebook {
     my ($self, $uuid) = @_;
     

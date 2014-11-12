@@ -666,17 +666,18 @@ sub submit_to_mgrast {
       my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|fa|ffn|frn|fna|fastq|fq)$/;
       my $subdir = "";
       if ($filename_base =~ /\//) {
-	($subdir, $filename_base) = $filename_base =~ /^(.*\/)(.*)/;
+	      ($subdir, $filename_base) = $filename_base =~ /^(.*\/)(.*)/;
       }
-      if ($filename_ending ne 'fastq') {
-	if ($filename_ending eq 'fq') {
-	  $filename_ending = 'fastq';	  
-	}
-	else { $filename_ending = 'fna'; }
-	`mv '$udir/$seqfile' '$udir/$subdir$filename_base.$filename_ending'`;
-	`mv '$udir/$seqfile.error_log' '$udir/$subdir$filename_base.$filename_ending.error_log'`;
-	`mv '$udir/$seqfile.stats_info' '$udir/$subdir$filename_base.$filename_ending.stats_info'`;
-	$seqfile = "$subdir$filename_base.$filename_ending";
+      if (($filename_ending ne 'fastq') || ($filename_ending ne 'fna')) {
+	      if ($filename_ending eq 'fq') {
+	          $filename_ending = 'fastq';	  
+	      } else {
+	          $filename_ending = 'fna';
+	      }
+	      `mv '$udir/$seqfile' '$udir/$subdir$filename_base.$filename_ending'`;
+	      `mv '$udir/$seqfile.error_log' '$udir/$subdir$filename_base.$filename_ending.error_log'`;
+	      `mv '$udir/$seqfile.stats_info' '$udir/$subdir$filename_base.$filename_ending.stats_info'`;
+          $seqfile = "$subdir$filename_base.$filename_ending";
       }
       my $name = $filename_base;
       # die if using metadata and no filename-library match

@@ -59,7 +59,7 @@ sub new {
                        "created"   => [ 'date', 'time the metagenome was first created' ],
                        "status"    => [ 'cv', [['public', 'metagenome is public'],
 						                       ['private', 'metagenome is private']] ],
-					   "env_package_type" => [ 'string', 'enviromental package of sample, GSC term' ],
+					   "env_package_type" => [ 'string', 'environmental package of sample, GSC term' ],
 					   "project_id"       => [ 'string', 'id of project containing metagenome' ],
                        "project_name"     => [ 'string', 'name of project containing metagenome' ],
                        "PI_firstname"     => [ 'string', 'principal investigator\'s first name' ],
@@ -466,13 +466,12 @@ sub prepare_data {
             $obj->{mixs_compliant} = $mddb->is_job_compliant($job);
         }
         if (($verb eq 'stats') || ($verb eq 'full')) {
-            #$obj->{statistics} = $self->job_stats($job, $jstats);
             my $params = {type => 'metagenome', data_type => 'statistics', id => 'mgm'.$job->{metagenome_id}};
             my $stat_node = $self->get_shock_query($params, $self->mgrast_token);
             if (scalar(@{$stat_node}) == 0) {
                 $obj->{statistics} = {};
             } else {
-                $obj->{statistics} = $self->json->decode($self->get_shock_file($stat_node->[0]{id}, undef, $self->mgrast_token));
+                $obj->{statistics} = $self->clean_stats($stat_node->[0]{id});
             }
         }
         push @$objects, $obj;
@@ -480,137 +479,56 @@ sub prepare_data {
     return $objects;
 }
 
-sub job_stats {
-    my ($self, $job, $jstat) = @_;
+sub clean_stats {
+    my ($self, $stat_node_id) = @_;
     
-    my $jid = $job->job_id;
-    my $stats = {
-        length_histogram => {
-            "upload"  => $self->{mgdb}->get_histogram_nums($jid, 'len', 'raw'),
-            "post_qc" => $self->{mgdb}->get_histogram_nums($jid, 'len', 'qc')
-        },
-        gc_histogram => {
-            "upload"  => $self->{mgdb}->get_histogram_nums($jid, 'gc', 'raw'),
-            "post_qc" => $self->{mgdb}->get_histogram_nums($jid, 'gc', 'qc')
-        },
-        taxonomy => {
-            "species" => $self->{mgdb}->get_taxa_stats($jid, 'species'),
-            "genus"   => $self->{mgdb}->get_taxa_stats($jid, 'genus'),
-            "family"  => $self->{mgdb}->get_taxa_stats($jid, 'family'),
-            "order"   => $self->{mgdb}->get_taxa_stats($jid, 'order'),
-            "class"   => $self->{mgdb}->get_taxa_stats($jid, 'class'),
-            "phylum"  => $self->{mgdb}->get_taxa_stats($jid, 'phylum'),
-            "domain"  => $self->{mgdb}->get_taxa_stats($jid, 'domain')
-        },
-        ontology => {
-            "COG" => $self->{mgdb}->get_ontology_stats($jid, 'COG'),
-            "KO"  => $self->{mgdb}->get_ontology_stats($jid, 'KO'),
-            "NOG" => $self->{mgdb}->get_ontology_stats($jid, 'NOG'),
-            "Subsystems" => $self->{mgdb}->get_ontology_stats($jid, 'Subsystems')
-        },
-        source => $self->{mgdb}->get_source_stats($jid),
-        rarefaction => $self->{mgdb}->get_rarefaction_coords($jid),
-        sequence_stats => $jstat,
-        qc => { "kmer" => {"6_mer" => $self->get_kmer($jid,'6'), "15_mer" => $self->get_kmer($jid,'15')},
-                "drisee" => $self->get_drisee($jid, $jstat),
-                "bp_profile" => $self->get_nucleo($jid)
-        }
-    };
-}
-
-sub get_drisee {
-    my ($self, $jid, $stats) = @_;
-    
-    my $bp_set = ['A', 'T', 'C', 'G', 'N', 'InDel'];
-    my $drisee = $self->{mgdb}->get_qc_stats($jid, 'drisee');
-    my $ccols  = ['Position'];
-    map { push @$ccols, $_.' match consensus sequence' } @$bp_set;
-    map { push @$ccols, $_.' not match consensus sequence' } @$bp_set;
-    my $data = { summary  => { columns => [@$bp_set, 'Total'], data => undef },
-                 counts   => { columns => $ccols, data => undef },
-                 percents => { columns => ['Position', @$bp_set, 'Total'], data => undef }
-               };
-    unless ($drisee && (@$drisee > 2) && ($drisee->[1][0] eq '#')) {
-        return $data;
+    my $stats = $self->json->decode($self->get_shock_file($stat_node_id, undef, $self->mgrast_token));
+    # seq stats
+    foreach my $key (keys %{$stats->{sequence_stats}}) {
+        $stats->{sequence_stats}{$key} = $self->toFloat($stats->{sequence_stats}{$key});
     }
-    for (my $i=0; $i<6; $i++) {
-        $data->{summary}{data}[$i] = $drisee->[1][$i+1] * 1.0;
-    }
-    $data->{summary}{data}[6] = $stats->{drisee_score_raw} ? $stats->{drisee_score_raw} * 1.0 : undef;
-    my $raw = [];
-    my $per = [];
-    foreach my $row (@$drisee) {
-        next if ($row->[0] =~ /\#/);
-	    @$row = map { int($_) } @$row;
-	    push @$raw, $row;
-	    if ($row->[0] > 50) {
-	        my $x = shift @$row;
-	        my $sum = sum @$row;
-	        if ($sum == 0) {
-	            push @$per, [ $x, 0, 0, 0, 0, 0, 0, 0 ];
-	        } else {
-	            my @tmp = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) * 1.0 } @$row;
-	            push @$per, [ $x, @tmp[6..11], sprintf("%.2f", sum(@tmp[6..11])) * 1.0 ];
+    # source
+    foreach my $src (keys %{$stats->{source}}) {
+        foreach my $type (keys %{$stats->{source}{$src}}) {
+            if (! $stats->{source}{$src}{$type}) {
+                $stats->{source}{$src}{$type} = [];
+            } else {
+                $stats->{source}{$src}{$type} = [ map { int($_) } @{$stats->{source}{$src}{$type}} ];
             }
-	    }
-    }
-    $data->{counts}{data} = $raw;
-    $data->{percents}{data} = $per;
-    return $data;
-}
-
-sub get_nucleo {
-    my ($self, $jid) = @_;
-    
-    my $cols = ['Position', 'A', 'T', 'C', 'G', 'N', 'Total'];
-    my $nuc  = $self->{mgdb}->get_qc_stats($jid, 'consensus');
-    my $data = { counts   => { columns => $cols, data => undef },
-                 percents => { columns => [@$cols[0..5]], data => undef }
-               };
-    unless ($nuc && (@$nuc > 2)) {
-        return $data;
-    }
-    my $raw = [];
-    my $per = [];
-    foreach my $row (@$nuc) {
-        next if (($row->[0] eq '#') || (! $row->[6]));
-        @$row = map { int($_) } @$row;
-        push @$raw, [ $row->[0] + 1, $row->[1], $row->[4], $row->[2], $row->[3], $row->[5], $row->[6] ];
-        unless (($row->[0] > 100) && ($row->[6] < 1000)) {
-    	    my $sum = $row->[6];
-    	    if ($sum == 0) {
-	            push @$per, [ $row->[0] + 1, 0, 0, 0, 0, 0 ];
-	        } else {
-    	        my @tmp = map { floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
-    	        push @$per, [ $row->[0] + 1, $tmp[1], $tmp[4], $tmp[2], $tmp[3], $tmp[5] ];
-	        }
         }
     }
-    $data->{counts}{data} = $raw;
-    $data->{percents}{data} = $per;
-    return $data;
-}
-
-sub get_kmer {
-    my ($self, $jid, $num) = @_;
+    # qc
+    foreach my $qc (keys %{$stats->{qc}}) {
+        foreach my $type (keys %{$stats->{qc}{$qc}}) {
+            if (! $stats->{qc}{$qc}{$type}{data}) {                
+                $stats->{qc}{$qc}{$type}{data} = [];
+            }
+        }
+    }
+    # tax / ontol
+    foreach my $ann (('taxonomy', 'ontology')) {
+        foreach my $type (keys %{$stats->{$ann}}) {
+            if (! $stats->{$ann}{$type}) {
+                $stats->{$ann}{$type} = [];
+            } else {
+                $stats->{$ann}{$type} = [ map { [$_->[0], int($_->[1])] } @{$stats->{$ann}{$type}} ];
+            }
+        }
+    }
+    # histograms
+    foreach my $hist (('gc_histogram', 'length_histogram')) {
+        foreach my $type (keys %{$stats->{$hist}}) {
+            if (! $stats->{$hist}{$type}) {
+                $stats->{$hist}{$type} = [];
+            } else {
+                $stats->{$hist}{$type} = [ map { [$self->toFloat($_->[0]), int($_->[1])] } @{$stats->{$hist}{$type}} ];
+            }
+        }
+    }
+    # rarefaction
+    $stats->{rarefaction} = [ map { [int($_->[0]), $self->toFloat($_->[1])] } @{$stats->{rarefaction}} ];
     
-    my $cols = [ 'count of identical kmers of size N',
-    			 'number of times count occures',
-    	         'product of column 1 and 2',
-    	         'reverse sum of column 2',
-    	         'reverse sum of column 3',
-    		     'ratio of column 5 to total sum column 3 (not reverse)'
-               ];
-    my $kmer = $self->{mgdb}->get_qc_stats($jid, 'kmer.'.$num);
-    my $data = { columns => $cols, data => undef };
-    unless ($kmer && (@$kmer > 1)) {
-        return $data;
-    }
-    foreach my $row (@$kmer) {
-        @$row = map { $_ * 1.0 } @$row;
-    }
-    $data->{data} = $kmer;
-    return $data;
+    return $stats;
 }
 
 1;

@@ -44,7 +44,7 @@ sub info {
 				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
 				              'description' => "Returns a single sequence file.",
 				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?file=350.1",
-      				                             'download fasta file of genecalled protein sequences (from stage 350)' ],
+      				                             'download fasta file of gene-called protein sequences (from stage 350)' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
 				              'attributes'  => { "data" => [ 'file', 'requested analysis file' ] },

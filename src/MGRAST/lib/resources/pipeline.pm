@@ -21,7 +21,7 @@ sub new {
     $self->{version} = '3.0';
     $self->{attributes} = {
         data   => [ 'list', ['object', 'workflow document'] ],
-        error  => [ 'list', ['string', 'error that occured'] ],
+        error  => [ 'list', ['string', 'error that occurred'] ],
         status => [ 'int', 'http status code' ]
     };
     return $self;

@@ -191,10 +191,10 @@ sub prepare_data {
     my $values  = [];
     my $rows    = [];
     my $ttype   = '';
-    my $columns = [ { id => 'abundance', metadata => { metagenome => 'mgm'.$id } },
-		            { id => 'e-value', metadata => { metagenome => 'mgm'.$id } },
-		            { id => 'percent identity', metadata => { metagenome => 'mgm'.$id } },
-		            { id => 'alignment length', metadata => { metagenome => 'mgm'.$id } }
+    my $columns = [ { id => 'abundance', metadata => {metagenome => "mgm".$id} },
+		            { id => 'e-value', metadata => {metagenome => "mgm".$id} },
+		            { id => 'percent identity', metadata => {metagenome => "mgm".$id} },
+		            { id => 'alignment length', metadata => {metagenome => "mgm".$id} }
 		          ];
 
     # get data
@@ -216,17 +216,11 @@ sub prepare_data {
         }
         foreach my $row (@$result) {
             if ($params->{hit_type} eq 'all') {
-                my $rmd = {
-                    taxonomy => [$row->[2], $row->[3], $row->[4], $row->[5], $row->[6], $row->[7], $row->[8]],
-                    tax_id   => $row->[19]
-                };
+                my $rmd = { taxonomy => [$row->[2], $row->[3], $row->[4], $row->[5], $row->[6], $row->[7], $row->[8]] };
                 push(@$rows, { "id" => $row->[9], "metadata" => $rmd });
                 push(@$values, [ $self->toFloat($row->[10]), $self->toFloat($row->[12]), $self->toFloat($row->[14]), $self->toFloat($row->[16]) ]);
             } else {
                 my $rmd = { taxonomy => [$row->[1], $row->[2], $row->[3], $row->[4], $row->[5], $row->[6], $row->[7]] };
-                if ($params->{hit_type} eq 'single') {
-                    $rmd->{tax_id} = $row->[17];
-                }
                 push(@$rows, { "id" => $row->[8], "metadata" => $rmd });
                 push(@$values, [ $self->toFloat($row->[9]), $self->toFloat($row->[10]), $self->toFloat($row->[12]), $self->toFloat($row->[14]) ]);
             }

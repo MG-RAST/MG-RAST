@@ -26,7 +26,7 @@ sub new {
                            'value' => ['hash', 'hash of metadata objects by label']}, 'samples and their metadata'] ],
             "library" => [ 'hash', [{'key' => ['string', 'library type'],
                            'value' => ['hash', 'hash of metadata objects by label']}, 'libraries and their metadata'] ],
-            "ep"      => [ 'hash', [{'key' => ['string', 'enviromental package type'],
+            "ep"      => [ 'hash', [{'key' => ['string', 'environmental package type'],
                            'value' => ['hash', 'hash of metadata objects by label']}, 'eps and their metadata'] ]
         },
         "cv" => {
@@ -57,7 +57,7 @@ sub new {
         "add" => {
             'project' => [ 'string', 'unique object identifier' ],
             'added'   => [ 'list', ['string', 'ID of metagenome with metadata added'] ],
-            'errors'  => [ 'list', ['string', 'error message that may have occured'] ]
+            'errors'  => [ 'list', ['string', 'error message that may have occurred'] ]
         },
         "validate_post" => {
             'is_valid' => [ 'boolean', 'the metadata sheet is valid' ],
@@ -156,7 +156,7 @@ sub info {
               'parameters'  => { 'options'  => {},
                                  'required' => {},
                                  'body'     => {
-                                     "metagenomes" => ['string', 'comma seperated list of unique metagenome IDs'],
+                                     "metagenomes" => ['string', 'comma separated list of unique metagenome IDs'],
                                      "upload"      => ["file", "xlsx or xls format spreadsheet with metadata"],
                                      "node_id"     => ["string", "shock node ID of metadata spreadsheet"]
                                 }}
@@ -173,7 +173,7 @@ sub info {
                                  'required' => {},
                                  'body'     => {
                                      "project"     => ["string", "unique project identifier"],
-                                     "metagenomes" => ['string', 'comma seperated list of unique metagenome IDs'],
+                                     "metagenomes" => ['string', 'comma separated list of unique metagenome IDs'],
                                      "upload"      => ["file", "xlsx or xls format spreadsheet with metadata"],
                                      "node_id"     => ["string", "shock node ID of metadata spreadsheet"],
                                      "map_by_id"   => ["boolean", "option to map metadata from spreadsheet to metagenomes using ID, default is name"]
@@ -198,7 +198,7 @@ sub info {
               'request'     => $self->cgi->url."/".$self->name."/validate",
               'description' => "Validate given metadata value",
               'example'     => [ $self->cgi->url."/".$self->name."/validate?category=sample&label=material&value=soil",
-                               	 "check if 'soil' is a vaild term for sample material" ],
+                               	 "check if 'soil' is a valid term for sample material" ],
               'method'      => "GET",
               'type'        => "synchronous",  
               'attributes'  => $self->attributes->{validate_get},
