@@ -68,12 +68,14 @@ sub new {
   my %srcid = map { $_, $srcs->{$_}{_id} } keys %$srcs;
   
   # get mgrast token
-  my $mgrast_token = undef;
-  if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
-      my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
-      my $rep = Auth::globus_token($key);
-      $mgrast_token = $rep ? $rep->{access_token} : undef;
-  }
+  #my $mgrast_token = undef;
+  #if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
+  #    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
+  #    my $rep = Auth::globus_token($key);
+  #    $mgrast_token = $rep ? $rep->{access_token} : undef;
+  #}
+  #### changed because globus has hard time handeling multiple tokens
+  my $mgrast_token = $Conf::mgrast_oauth_token || undef;
   
   # set json handle
   my $agent = LWP::UserAgent->new;
