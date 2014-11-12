@@ -1500,6 +1500,7 @@ sub get_abund_plot {
       @sort_plot = @sort_plot[0..49];
     }
     my $rap_data = join("~", map { $_->[0] .";;" . $_->[1] } @sort_plot);
+    $rap_data =~ s/'/\&\#39\;/g;
     my $rap_link = $self->chart_export_link(\@sort_plot, 'abundance_plot');
     
     $html = qq~
