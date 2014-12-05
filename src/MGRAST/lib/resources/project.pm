@@ -136,6 +136,7 @@ sub instance {
 	}
 	my @move_over = $self->cgi->param("move");
 	foreach my $m (@move_over) {
+	  $m =~ s/^mgm//;
 	  unless ($job_a_hash->{$m}) {
 	    $self->return_data( {"ERROR" => "metagenome not part of source project: " . $m}, 400 );
 	  }
