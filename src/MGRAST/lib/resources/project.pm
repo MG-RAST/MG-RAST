@@ -118,9 +118,9 @@ sub instance {
 	unless ($self->user->has_star_right('edit', 'user')) {
 	  $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
 	}
-	my ($id2) = $cgi->param('target') =~ /^mgp(\d+)$/;
+	my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
 	if (! $id2) {
-	   $self->return_data( {"ERROR" => "invalid id format: " . $cgi->param('target')}, 400 );
+	   $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
 	}
 	my $project_a = $master->Project->init( {id => $id} );
 	my $project_b = $master->Project->init( {id => $id2} );
@@ -129,12 +129,12 @@ sub instance {
 	  $self->return_data( {"ERROR" => "id $id or $id2 does not exists"}, 404 );
 	}
 
-	my $proj_job = $self->_master->ProjectJob->get_objects({ project => $project_a });
+	my $proj_job = $master->ProjectJob->get_objects({ project => $project_a });
 	my $job_a_hash = {};
 	foreach my $j (@$proj_job) {
 	  $job_a_hash->{$j->job->{metagenome_id}} = $j->job;
 	}
-	my @move_over = $cgi->param("move");
+	my @move_over = $self->cgi->param("move");
 	foreach my $m (@move_over) {
 	  unless ($job_a_hash->{$m}) {
 	    $self->return_data( {"ERROR" => "metagenome not part of source project: " . $m}, 400 );
