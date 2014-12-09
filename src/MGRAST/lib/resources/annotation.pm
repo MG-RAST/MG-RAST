@@ -279,75 +279,122 @@ sub prepare_data {
     print join("\t", @head)."\n";
     
     # start query
-    my $hs  = HTML::Strip->new();
     my $sth = $mgdb->_dbh->prepare($query);
     $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
-    
+
     # loop through indexes and print data
     my $srcid = $mgdb->_src_id->{$source};
     my $count = 0;
+    my @md5s = ();
+    my @seeks = ();
+    my @lens = ();
+    my $batch_count = 0;
     while (my @row = $sth->fetchrow_array()) {
-        my ($md5, $seek, $len, $mmd5) = @row;
-        my $sql = "";
-        my $ann = [];
-        if ($type eq 'organism') {
-            $sql = "SELECT DISTINCT o.name FROM md5_annotation a, organisms_ncbi o WHERE a.md5=$md5 AND a.source=$srcid AND a.organism=o._id";
-            if ($filter && $flevel) {
-                $sql .= " AND o.tax_".$flevel."=".$mgdb->_dbh->quote($filter);
-            }
-        } elsif ($type eq 'function') {
-            $sql = "SELECT DISTINCT f.name FROM md5_annotation a, functions f WHERE a.md5=$md5 AND a.source=$srcid AND a.function=f._id";
-        } elsif ($type eq 'ontology') {
-            $sql = "SELECT DISTINCT o.name FROM md5_annotation a, ontologies o WHERE a.md5=$md5 AND a.source=$srcid AND a.id=o.name";
-            if ($filter && $flevel) {
-                $sql .= " AND o.".$flevel."=".$mgdb->_dbh->quote($filter);
-            }
-        } elsif ($type eq 'feature') {
-            $sql = "SELECT DISTINCT id FROM md5_annotation WHERE md5=$md5 AND source=$srcid";
-        }
-        
-        if ($type ne 'md5') {
-            $ann = $mgdb->_dbh->selectcol_arrayref($sql);
-            # remove non-matching annotations if using filter without hierarchal level
-            if ($filter && (! $flevel)) {
-                my @matches = grep {/$filter/} @$ann;
-                @$ann = @matches;
-            }
-            if (@$ann == 0) { next; }
-        }
-        
-        # pull data from indexed shock file
-        my $rec = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seek.'&length='.$len);
-        chomp $rec;
-        foreach my $line ( split(/\n/, $rec) ) {
-            my @tabs = split(/\t/, $line);
-            if ($tabs[0]) {
-                my @out = ();
-                my $rid = $hs->parse($tabs[0]);
-                unless ($mgid && $rid) {
-                    next;
-                }
-                $hs->eof;
-                if (($format eq 'sequence') && (@tabs == 13)) {
-                    @out = ('mgm'.$mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
-                } elsif ($format eq 'similarity') {
-                    @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
-                    $count += 1;
-                }
-                if ($type eq 'md5') {
-                    pop @out;
-                }
-                print join("\t", map {$_ || ''} @out)."\n";
-                $count += 1;
-            }
+        my ($md5, $seek, $len) = @row;
+        push @md5s, $md5;
+        push @seeks, $seek;
+        push @lens, $len;
+        $batch_count++;
+        if($batch_count == 1000) {
+            my $solr_query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @md5s)."))";
+            $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, $mgdb->_version, \@md5s, \@seeks, \@lens);
+            @md5s = ();
+            @seeks = ();
+            @lens = ();
+            $batch_count = 0;
         }
     }
-    
+    if($batch_count > 0) {
+        my $solr_query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @md5s)."))";
+        $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, \@md5s, \@seeks, \@lens);
+    }
+
     # cleanup
     $sth->finish;
     $mgdb->_dbh->commit;
     print "Download complete. $count rows retrieved\n";
     exit 0;
+}
+
+sub print_batch {
+    my ($self, $count, $node_id, $format, $mgid, $solr_query_str, $ann_ver, $md5s, $seeks, $lens) = @_;
+
+    my $cgi    = $self->cgi;
+    my $type   = $cgi->param('type') ? $cgi->param('type') : 'organism';
+    my $filter = $cgi->param('filter') || undef;
+    my $flevel = $cgi->param('filter_level') || undef;
+    my $fields = ();
+    if ($type eq 'organism') {
+	if ($filter && $flevel) {
+	    $fields = ['organism', 'md5_id', $flevel];
+	    $solr_query_str .= " AND ($flevel:$filter)";
+	} else {
+	    $fields = ['organism', 'md5_id'];
+	}
+    } elsif ($type eq 'function') {
+	$fields = ['function', 'md5_id'];
+    } elsif ($type eq 'ontology') {
+	if ($filter && $flevel) {
+	    $fields = ['organism', 'md5_id', $flevel];
+	    $solr_query_str .= " AND ($flevel:$filter)";
+	} else {
+	    $fields = ['organism', 'md5_id'];
+	}
+    } elsif ($type eq 'feature') {
+	$fields = ['md5_id'];
+    }
+
+    my ($data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$ann_ver, $solr_query_str, "", 0, 1000000000, $fields);
+    my %md5s_to_annot = ();
+    if ($type ne 'md5') {
+        foreach my $result (@$data) {
+            $md5s_to_annot{$result->{md5_id}}{$result->{$type}} = 1;
+        }
+    }
+
+    my $hs  = HTML::Strip->new();
+    for(my $i=0; $i<@{$md5s}; $i++) {
+	if ($type ne 'md5' && !exists $md5s_to_annot{$md5s->[$i]}) {
+	    next;
+	}
+	# pull data from indexed shock file
+	my $rec = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seeks->[$i].'&length='.$lens->[$i]);
+	chomp $rec;
+	foreach my $line (split(/\n/, $rec)) {
+	    my @tabs = split(/\t/, $line);
+	    if ($tabs[0]) {
+		my @out = ();
+		my $rid = $hs->parse($tabs[0]);
+		unless ($mgid && $rid) {
+		    next;
+		}
+		$hs->eof;
+		my $ann = [];
+		foreach my $key (keys %{$md5s_to_annot{$md5s->[$i]}}) {
+		    push @$ann, $key;
+		}
+		if ($type ne 'md5') {
+                    if ($filter && (! $flevel)) {
+                        my @matches = grep {/$filter/} @$ann;
+                        @$ann = @matches;
+                    }
+                    if (@$ann == 0) { next; }
+                }
+		if (($format eq 'sequence') && (@tabs == 13)) {
+		    @out = ('mgm'.$mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
+		} elsif ($format eq 'similarity') {
+		    @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
+		    $count += 1;
+		}
+		if ($type eq 'md5') {
+		    pop @out;
+		}
+		print join("\t", map {$_ || ''} @out)."\n";
+		$count += 1;
+	    }
+	}
+    }
+    return $count;
 }
 
 1;
