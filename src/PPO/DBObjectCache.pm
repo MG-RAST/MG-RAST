@@ -137,7 +137,7 @@ sub object_to_cache {
   }
 
   my $id = $object->_id();
-  unless (exists $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id} && ref $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id}) {
+  unless (ref $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id}) {
     $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id} = $object;
 
     if (scalar(@{$self->{'recent'}}) > SIZE) {
