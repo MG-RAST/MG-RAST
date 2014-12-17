@@ -175,6 +175,27 @@ sub instance {
         $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
     }
     $job = $job->[0];
+
+    # check if we are changing the sequence type
+    if (scalar(@$rest) == 3 && $rest->[1] eq 'changesequencetype') {
+      
+      # check if the user is allowed to change the data
+      if ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'user'))) {
+	
+	# check if the passed type is valid
+	my $valid_types = { "Amplicon" => 1,
+			    "MT" => 1,
+			    "WGS" => 1,
+			    "Unknown" => 1 };
+	if ($valid_types->{$rest->[2]}) {
+	  $job->sequence_type($rest->[2]);
+	} else {
+	  $self->return_data({"ERROR" => "Invalid sequence type passed (".$rest->[2].")."}, 404);
+	}
+      } else {
+	$self->return_data( {"ERROR" => "insufficient permissions to edit this data"}, 401 );
+      }
+    }
     
     # job is in pipeline, just view minimal info
     unless ($job->viewable) {
