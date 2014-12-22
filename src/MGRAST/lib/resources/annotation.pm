@@ -324,31 +324,35 @@ sub print_batch {
     my $filter = $cgi->param('filter') || undef;
     my $flevel = $cgi->param('filter_level') || undef;
     my $fields = ();
+    my $solr_key = "";
     if ($type eq 'organism') {
-	if ($filter && $flevel) {
-	    $fields = ['organism', 'md5_id', $flevel];
-	    $solr_query_str .= " AND ($flevel:$filter)";
-	} else {
-	    $fields = ['organism', 'md5_id'];
-	}
+        $solr_key = 'organism';
+        if ($filter && $flevel) {
+	        $fields = [$solr_key, 'md5_id', $flevel];
+	        $solr_query_str .= " AND ($flevel:$filter)";
+	    } else {
+	        $fields = [$solr_key, 'md5_id'];
+	    }
     } elsif ($type eq 'function') {
-	$fields = ['function', 'md5_id'];
+        $solr_key = 'function';
+        $fields = [$solr_key, 'md5_id'];
     } elsif ($type eq 'ontology') {
-	if ($filter && $flevel) {
-	    $fields = ['function', 'md5_id', $flevel];
-	    $solr_query_str .= " AND ($flevel:$filter)";
-	} else {
-	    $fields = ['function', 'md5_id'];
-	}
+        $solr_key = 'accession';
+        if ($filter && $flevel) {
+            $fields = [$solr_key, 'md5_id', $flevel];
+            $solr_query_str .= " AND ($flevel:$filter)";
+        } else {
+            $fields = [$solr_key, 'md5_id'];
+        }
     } elsif ($type eq 'feature') {
-	$fields = ['md5_id'];
+        $fields = ['md5_id'];
     }
 
     my ($data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$ann_ver, $solr_query_str, "", 0, 1000000000, $fields);
     my %md5s_to_annot = ();
     if ($type ne 'md5') {
         foreach my $result (@$data) {
-            $md5s_to_annot{$result->{md5_id}}{$result->{$type}} = 1;
+            $md5s_to_annot{$result->{md5_id}}{$result->{$solr_key}} = 1;
         }
     }
 
