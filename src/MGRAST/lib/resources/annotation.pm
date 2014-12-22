@@ -335,10 +335,10 @@ sub print_batch {
 	$fields = ['function', 'md5_id'];
     } elsif ($type eq 'ontology') {
 	if ($filter && $flevel) {
-	    $fields = ['organism', 'md5_id', $flevel];
+	    $fields = ['function', 'md5_id', $flevel];
 	    $solr_query_str .= " AND ($flevel:$filter)";
 	} else {
-	    $fields = ['organism', 'md5_id'];
+	    $fields = ['function', 'md5_id'];
 	}
     } elsif ($type eq 'feature') {
 	$fields = ['md5_id'];
