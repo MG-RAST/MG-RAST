@@ -416,15 +416,21 @@ sub prepare_data {
         # add metadata pointers
 	    eval {
 	        my $proj = $job->primary_project;
-	        $obj->{project} = ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}];
+	        if ($proj->{id}) {
+	            $obj->{project} = ["mgp".$proj->{id}, $url."/project/mgp".$proj->{id}];
+            }
 	    };
 	    eval {
 	        my $samp = $job->sample;
-	        $obj->{sample} = ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}];
+	        if ($samp->{ID}) {
+	            $obj->{sample} = ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}];
+            }
 	    };
 	    eval {
 	        my $lib = $job->library;
-	        $obj->{library} = ["mgl".$lib->{ID}, $url."/library/mgl".$lib->{ID}];
+	        if ($lib->{ID}) {
+	            $obj->{library} = ["mgl".$lib->{ID}, $url."/library/mgl".$lib->{ID}];
+            }
 	    };
 	    # get job info
 	    my $jstats  = $job->stats();
