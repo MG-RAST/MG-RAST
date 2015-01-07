@@ -41,24 +41,20 @@ sub track_page_view {
 
   my $visitor_id = $uid || &get_random_number();
 
-  my $utm_gif_location = "http://www.google-analytics.com/__utm.gif";
+  my $url = "http://www.google-analytics.com/collect";
 
   my $remote_address = "";
   if (exists($ENV{'REMOTE_ADDR'})) {
     $remote_address = $ENV{'REMOTE_ADDR'};
   }
 
-  # Construct the gif hit url.
-  my $utm_url = $utm_gif_location . '?' .
-      'utmwv=' . VERSION .
-      '&utmn=' . get_random_number() .
-      '&utmhn=' . uri_escape($domain_name) .
-      '&utmr=' . uri_escape($document_referer) .
-      '&utmp=' . uri_escape($document_path) .
-      '&utmac=' . $account .
-      '&utmcc=__utma%3D999.999.999.999.999.1%3B' .
-      '&utmvid=' . $visitor_id .
-      '&utmip=' . anonymize_ip($remote_address);
+  # Construct the payload
+  my $content = 'v=' . VERSION .
+    '&tid=' . $account .
+    '&cid=' . anonymize_ip($remote_address) .
+    '&t=pageview' . 
+    '&vid=' . $visitor_id .
+    '&dl=' . uri_escape($document_path);
 
   my $ua = LWP::UserAgent->new;
 
@@ -69,7 +65,7 @@ sub track_page_view {
     $ua->agent($ENV{'HTTP_USER_AGENT'});
   }
 
-  my $ga_output = $ua->get($utm_url);
+  my $ga_output = $ua->post($url, Content => $content);
 
   if (defined($debug) && !$ga_output->is_success) {
     print STDERR $ga_output->status_line;
