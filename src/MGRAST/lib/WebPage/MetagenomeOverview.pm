@@ -536,7 +536,7 @@ sub output {
   <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
   <p>Note that DRISEE is designed to examine sequencing error in raw whole genome shotgun sequence data. It assumes that adapter and/or barcode sequences have been removed, but that the sequence data have not been modified in any additional way. (e.g.) Assembly or merging, QC based triage or trimming will both reduce DRISEE's ability to provide an accurate assessment of error by removing error before it is analyzed.</p>~;
 
-  if (exists($job_stats->{drisee_score_raw}) && ($drisee_num == 0) && (! $is_rna)) {
+  if (($drisee_num == 0) && (! $is_rna)) {
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a></h3>
