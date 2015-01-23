@@ -192,8 +192,27 @@ sub query {
     if ($limit == 0) {
         $limit = 18446744073709551615;
     }
+
+    # check if we just want the private projects
+    if ($self->cgi->param('private')) {
+      unless ($self->user) {
+	$self->return_data({"ERROR" => "private option requires authentication"}, 400);
+      }
+      my $ids = [];
+      if ($self->cgi->param('edit')) {
+	$ids = $self->user->has_right_to(undef, 'edit', 'project');
+      } else {
+	$ids = $self->user->has_right_to(undef, 'view', 'project');
+      }
+      if (scalar(@$ids) && $ids->[0] eq '*') {
+	shift @$ids;
+      }
+      my $list = join(",", @$ids);
+      $total = scalar(@$ids);
+      $projects = $master->Project->get_objects( {$order => [undef, "id IN ($list) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    }
     # get all items the user has access to
-    if (exists $self->rights->{'*'}) {
+    elsif (exists $self->rights->{'*'}) {
         $total    = $master->Project->count_all();
         $projects = $master->Project->get_objects( {$order => [undef, "_id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset"]} );
     } else {
