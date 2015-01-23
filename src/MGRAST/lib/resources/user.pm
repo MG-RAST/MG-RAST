@@ -267,6 +267,25 @@ sub instance {
     if (defined $self->{cgi}->param('comment')) {
       $user->comment(uri_unescape($self->{cgi}->param('comment')));
     }
+
+    # preferences were passed
+    if (defined $rest->[1] && $rest->[1] eq "preferences") {
+      my $prefs = { 'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id, "pref" => $self->json->decode($self->cgi->param('prefs')) };
+      
+      # check if we already have a preferences node
+      my $shockprefs = $self->get_shock_query({'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id}, $self->mgrast_token);
+      
+      # we do, update the node
+      my $retval = {};
+      if (scalar(@$shockprefs)) {
+	$retval = $self->update_shock_node($shockprefs->[0]->{id}, $prefs, $self->mgrast_token);
+      }
+      # we don't, create a new node
+      else {
+	$retval = $self->set_shock_node("preferences", undef, $prefs, $self->mgrast_token);
+      }
+      $self->return_data( {"OK" => $retval}, 200 );
+    }
   }
 
   # check if this is a user deletion
@@ -403,6 +422,11 @@ sub instance {
     my $prefs = $master->Preferences->get_objects({ user => $user });
     $user->{preferences} = [];
     @{$user->{preferences}} = map { { name => $_->{name}, value => $_->{value} } } @$prefs;
+
+    my $shockprefs = $self->get_shock_query({'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id}, $self->mgrast_token);
+    if (scalar(@$shockprefs)) {
+      push(@{$user->{preferences}}, { name => 'shock', value => $shockprefs->[0]->{attributes}->{pref} } );
+    }
   }
   # get the users rights
   elsif ($verb eq 'rights') {
