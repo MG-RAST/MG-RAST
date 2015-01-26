@@ -345,6 +345,9 @@ sub print_batch {
             $fields = [$solr_key, 'md5_id'];
         }
     } elsif ($type eq 'feature') {
+        $solr_key = 'accession';
+        $fields = [$solr_key, 'md5_id'];
+    } else {
         $fields = ['md5_id'];
     }
 
