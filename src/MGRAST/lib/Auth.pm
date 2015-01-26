@@ -2,7 +2,6 @@ package Auth;
 
 use JSON;
 use CGI;
-use LWP::UserAgent;
 
 sub authenticate {
   my ($key) = @_;
@@ -23,57 +22,68 @@ sub authenticate {
       $key =~ s/^mggo4711//;
 
       use MIME::Base64;
+      use LWP::UserAgent;
+      use Conf;
       my ($u,$p) = split(/\:/, decode_base64($key));
       my $us = $master->User->init( { login => $u } );
       if (ref $us and crypt($p, $us->password) eq $us->password) {
         my $pref = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $us } );
-        if (scalar(@$pref)) { 
+        if (scalar(@$pref)) {
           if ($pref->[0]->value < time) {
               $pref->[0]->value(time + 1209600);
           }
           $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', user => $us } );
-	  my $cgi = new CGI;
-	  my $verbose = "";
-	  if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
-	    $verbose = ', "login": "'.$us->{login}.'", "firstname": "'.$us->{firstname}.'", "lastname": "'.$us->{lastname}.'", "email": "'.$us->{email}.'"';
+          my $cgi = new CGI;
+          my $verbose = "";
+          if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
+            $verbose = ', "login": "'.$us->{login}.'", "firstname": "'.$us->{firstname}.'", "lastname": "'.$us->{lastname}.'", "email": "'.$us->{email}.'"';
 
-	    # SHOCK preferences
-	    my $prefs = $master->Preferences->get_objects({ user => $user, name => "shock_pref_node" });
-	    if (scalar(@$prefs)) {
-	      my $nodeid = $prefs->[0]->{value};
-	      my $response = undef;
-	      eval {
-		my $json = new JSON;
-		my $agent = LWP::UserAgent->new;
-		my @args = ('Authorization', "OAuth ".$pref->[0]->value);
-		my $get = $agent->get($Conf::shock_url.'/node/'.$nodeid, @args);
-		$response = $json->decode( $get->content );
-	      };
-	      if ($@ || (! ref($response))) {
-		return undef;
-	      } elsif (exists($response->{error}) && $response->{error}) {
-		print $cgi->header(-type => 'application/json',
-				   -status => 500,
-				   -charset => 'UTF-8',
-				   -Access_Control_Allow_Origin => '*' );
-		print $json->encode({"ERROR" => "Unable to GET node $id from Shock: ".$response->{error}[0]}, $response->{status} );
-		exit;
-	      } else {
-		$verbose.=', "preferences": "'.$self-$response->{data}->{attributes}.'"';
-	      }
-	    }
-	  }
+            # SHOCK preferences
+            my $prefs = $master->Preferences->get_objects({ user => $us, name => "shock_pref_node" });
+            if (scalar(@$prefs)) {
+              my $nodeid = $prefs->[0]->{value};
+              my $response = undef;
+              my $json = new JSON;
+              $json = $json->utf8();
+              $json->max_size(0);
+              $json->allow_nonref;
+              my $agent = LWP::UserAgent->new;
+              eval {
+                my @args = ();#('Authorization', "OAuth ".$Conf::mgrast_oauth_token);
+                my $url = $Conf::shock_url.'/node/'.$nodeid;
+                my $get = $agent->get($url, @args);
+                $response = $json->decode( $get->content );
+              };
+              if ($@ || (! ref($response))) {
+                print $cgi->header(-type => 'application/json',
+                                   -status => 500,
+                                   -charset => 'UTF-8',
+                                   -Access_Control_Allow_Origin => '*' );
+                print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
+                exit;
+              } elsif (exists($response->{error}) && $response->{error}) {
+                print $cgi->header(-type => 'application/json',
+                                   -status => 500,
+                                   -charset => 'UTF-8',
+                                   -Access_Control_Allow_Origin => '*' );
+                print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
+                exit;
+              } else {
+                $verbose.=', "preferences": "'.$json->encode($response->{data}->{attributes}->{pref}).'"';
+              }
+            }
+          }
           print $cgi->header(-type => 'application/json',
                              -status => 200,
-			     -charset => 'UTF-8',
+                             -charset => 'UTF-8',
                              -Access_Control_Allow_Origin => '*' );
           print '{ "token": "'.$pref->[0]->value.'"'.$verbose.' }';
           exit;
         } else {
-	  return (undef, "api access not enabled for this user");
-	}
+          return (undef, "api access not enabled for this user");
+        }
       } else {
-	return (undef, "invalid MG-RAST credentials");
+        return (undef, "invalid MG-RAST credentials");
       }
   }
 

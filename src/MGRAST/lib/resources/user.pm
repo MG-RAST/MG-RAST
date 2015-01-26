@@ -277,9 +277,9 @@ sub instance {
       my $retval = {};
       if (scalar(@$pref_id)) {
 	$nodeid = $pref_id->[0]->{value};
-	$retval = $self->update_shock_node($nodeid, $prefs, $self->mgrast_token);
+	$retval = $self->update_shock_node($nodeid, $prefs);#, $self->mgrast_token);
       } else {
-	$retval = $self->set_shock_node("preferences", undef, $prefs, $self->mgrast_token);
+	$retval = $self->set_shock_node("preferences", undef, $prefs);#, $self->mgrast_token);
 	$master->Preferences->create({ user => $user, name => "shock_pref_node", value => $retval->{id} });
       }
       $self->return_data( {"OK" => $retval->{attributes}->{pref}}, 200 );
