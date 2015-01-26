@@ -2,6 +2,7 @@ package Auth;
 
 use JSON;
 use CGI;
+use LWP::UserAgent;
 
 sub authenticate {
   my ($key) = @_;
@@ -35,6 +36,32 @@ sub authenticate {
 	  my $verbose = "";
 	  if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
 	    $verbose = ', "login": "'.$us->{login}.'", "firstname": "'.$us->{firstname}.'", "lastname": "'.$us->{lastname}.'", "email": "'.$us->{email}.'"';
+
+	    # SHOCK preferences
+	    my $prefs = $master->Preferences->get_objects({ user => $user, name => "shock_pref_node" });
+	    if (scalar(@$prefs)) {
+	      my $nodeid = $prefs->[0]->{value};
+	      my $response = undef;
+	      eval {
+		my $json = new JSON;
+		my $agent = LWP::UserAgent->new;
+		my @args = ('Authorization', "OAuth ".$pref->[0]->value);
+		my $get = $agent->get($Conf::shock_url.'/node/'.$nodeid, @args);
+		$response = $json->decode( $get->content );
+	      };
+	      if ($@ || (! ref($response))) {
+		return undef;
+	      } elsif (exists($response->{error}) && $response->{error}) {
+		print $cgi->header(-type => 'application/json',
+				   -status => 500,
+				   -charset => 'UTF-8',
+				   -Access_Control_Allow_Origin => '*' );
+		print $json->encode({"ERROR" => "Unable to GET node $id from Shock: ".$response->{error}[0]}, $response->{status} );
+		exit;
+	      } else {
+		$verbose.=', "preferences": "'.$self-$response->{data}->{attributes}.'"';
+	      }
+	    }
 	  }
           print $cgi->header(-type => 'application/json',
                              -status => 200,

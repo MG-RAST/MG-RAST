@@ -272,19 +272,17 @@ sub instance {
     if (defined $rest->[1] && $rest->[1] eq "preferences") {
       my $prefs = { 'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id, "pref" => $self->json->decode($self->cgi->param('prefs')) };
       
-      # check if we already have a preferences node
-      my $shockprefs = $self->get_shock_query({'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id}, $self->mgrast_token);
-      
-      # we do, update the node
+      my $pref_id = $master->Preferences->get_objects({ user => $user, name => "shock_pref_node" });
+      my $nodeid;
       my $retval = {};
-      if (scalar(@$shockprefs)) {
-	$retval = $self->update_shock_node($shockprefs->[0]->{id}, $prefs, $self->mgrast_token);
-      }
-      # we don't, create a new node
-      else {
+      if (scalar(@$pref_id)) {
+	$nodeid = $pref_id->[0]->{value};
+	$retval = $self->update_shock_node($nodeid, $prefs, $self->mgrast_token);
+      } else {
 	$retval = $self->set_shock_node("preferences", undef, $prefs, $self->mgrast_token);
+	$master->Preferences->create({ user => $user, name => "shock_pref_node", value => $retval->{id} });
       }
-      $self->return_data( {"OK" => $retval}, 200 );
+      $self->return_data( {"OK" => $retval->{attributes}->{pref}}, 200 );
     }
   }
 
@@ -423,9 +421,19 @@ sub instance {
     $user->{preferences} = [];
     @{$user->{preferences}} = map { { name => $_->{name}, value => $_->{value} } } @$prefs;
 
-    my $shockprefs = $self->get_shock_query({'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id}, $self->mgrast_token);
-    if (scalar(@$shockprefs)) {
-      push(@{$user->{preferences}}, { name => 'shock', value => $shockprefs->[0]->{attributes}->{pref} } );
+    # check if we already have shock preferences
+    my $nodeid;
+    foreach my $p (@{$user->{preferences}}) {
+      if ($p->{name} eq "shock_pref_node") {
+	$nodeid = $p->{value};
+	last;
+      }
+    }
+    if ($nodeid) {
+      my $shockprefs = $self->get_shock_node($nodeid, $self->mgrast_token);
+      if ($shockprefs) {
+	push(@{$user->{preferences}}, { name => 'shock', value => $shockprefs->{attributes}->{pref} } );
+      }
     }
   }
   # get the users rights
