@@ -69,7 +69,7 @@ sub authenticate {
                 print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
                 exit;
               } else {
-                $verbose.=', "preferences": "'.$json->encode($response->{data}->{attributes}->{pref}).'"';
+                $verbose.=', "preferences": '.$json->encode($response->{data}->{attributes}->{pref});
               }
             }
           }
