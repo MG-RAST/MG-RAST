@@ -305,7 +305,7 @@ sub query {
         if ($self->user->has_star_right('view', 'metagenome')) {
             $solr_query_str .= "(status:private)";
         } else {
-            if (scalar(%{$self->rights}) > 0) {
+            if (scalar(keys %{$self->rights}) > 0) {
                 $solr_query_str .= "(status:private AND (".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights})."))";
             } else {
                 $return_empty_set = 1;
@@ -316,7 +316,7 @@ sub query {
             if ($self->user->has_star_right('view', 'metagenome')) {
                 $solr_query_str .= "(status:*)";
             } else {
-                if (scalar(%{$self->rights}) > 0) {
+                if (scalar(keys %{$self->rights}) > 0) {
                     $solr_query_str .= "((status:public) OR (status:private AND (".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights}).")))";
                 } else {
                     $solr_query_str .= '(status:public)';
