@@ -600,8 +600,8 @@ sub single_data {
   if ($mg_grp_sel eq 'groups') {
     my $joined_data = {};
     foreach my $row (@$result) {
-      my $id_string = join("|", @$row[1..8]);
       $row->[0] = $collections->{$row->[0]};
+      my $id_string = join("|", @$row[0..8]);
       if (exists($joined_data->{$id_string})) {
 	$row->[10] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[10]) + ($row->[9] * $row->[10])) / ($joined_data->{$id_string}->[9] + $row->[9]));
 	$row->[11] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[11]) + ($row->[9] * $row->[11])) / ($joined_data->{$id_string}->[9] + $row->[9]));
@@ -715,8 +715,8 @@ sub phylogenetic_data {
   if ($mg_grp_sel eq 'groups') {
     my $joined_data = {};
     foreach my $row (@$result) {
-      my $id_string = join("|", @$row[1..9]);
       $row->[0] = $collections->{$row->[0]};
+      my $id_string = join("|", @$row[0..9]);
       if (exists($joined_data->{$id_string})) {
 	$row->[12] = sprintf("%.2f", (($joined_data->{$id_string}->[10] * $joined_data->{$id_string}->[12]) + ($row->[10] * $row->[12])) / ($joined_data->{$id_string}->[10] + $row->[10]));
 	$row->[13] = sprintf("%.2f", (($joined_data->{$id_string}->[10] * $joined_data->{$id_string}->[13]) + ($row->[10] * $row->[13])) / ($joined_data->{$id_string}->[10] + $row->[10]));
@@ -861,8 +861,8 @@ sub metabolic_data {
   if ($mg_grp_sel eq 'groups') {
     my $joined_data = {};
     foreach my $row (@$all) {
-      my $id_string = join("|", @$row[1..4]);
       $row->[0] = $collections->{$row->[0]};
+      my $id_string = join("|", @$row[0..4]);
       if (exists($joined_data->{$id_string})) {
 	$row->[8] = sprintf("%.2f", (($joined_data->{$id_string}->[6] * $joined_data->{$id_string}->[8]) + ($row->[6] * $row->[8])) / ($joined_data->{$id_string}->[6] + $row->[6]));
 	$row->[9] = sprintf("%.2f", (($joined_data->{$id_string}->[6] * $joined_data->{$id_string}->[9]) + ($row->[6] * $row->[9])) / ($joined_data->{$id_string}->[6] + $row->[6]));
@@ -966,8 +966,8 @@ sub annotation_data {
   if ($mg_grp_sel eq 'groups') {
     my $joined_data = {};
     foreach my $row (@$result) {
-      my $id_string = join("|", @$row[1..2]);
       $row->[0] = $collections->{$row->[0]};
+      my $id_string = join("|", @$row[0..2]);
       if (exists($joined_data->{$id_string})) {
 	$row->[5] = sprintf("%.2f", (($joined_data->{$id_string}->[3] * $joined_data->{$id_string}->[5]) + ($row->[3] * $row->[5])) / ($joined_data->{$id_string}->[3] + $row->[3]));
 	$row->[6] = sprintf("%.2f", (($joined_data->{$id_string}->[3] * $joined_data->{$id_string}->[6]) + ($row->[3] * $row->[6])) / ($joined_data->{$id_string}->[3] + $row->[3]));
@@ -1053,8 +1053,8 @@ sub lca_data {
   if ($mg_grp_sel eq 'groups') {
     my $joined_data = {};
     foreach my $row (@$result) {
-      my $id_string = join("|", @$row[1..8]);
       $row->[0] = $collections->{$row->[0]};
+      my $id_string = join("|", @$row[0..8]);
       if (exists($joined_data->{$id_string})) {
 	$row->[10] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[10]) + ($row->[9] * $row->[10])) / ($joined_data->{$id_string}->[9] + $row->[9]));
 	$row->[11] = sprintf("%.2f", (($joined_data->{$id_string}->[9] * $joined_data->{$id_string}->[11]) + ($row->[9] * $row->[11])) / ($joined_data->{$id_string}->[9] + $row->[9]));
