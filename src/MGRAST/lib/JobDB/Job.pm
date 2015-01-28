@@ -10,6 +10,11 @@ use IO::File;
 use Fcntl ':flock';
 use MGRAST::Metadata;
 
+use JSON;
+use LWP::UserAgent;
+use Auth;
+use MIME::Base64;
+
 =pod
 
 =head1 NAME
@@ -84,121 +89,148 @@ sub name {
   return $self->SUPER::name() || 'unknown';
 }
 
+sub reserve_job_id {
+    my ($self, $user, $name, $file, $size, $md5) = @_;
+    
+    my $master = $self->_master();
+    unless (ref($master)) {
+        print STDRER "reserve_job_id called without a dbmaster reference";
+        return undef;
+    }
+    unless (ref($user)) {
+        print STDRER "reserve_job_id called without a user";
+        return undef;
+    }
+
+    # get next id
+    my $dbh = $master->db_handle;
+    my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
+    my $job_id  = $max->[0] + 1;
+    my $mg_id   = $max->[1] + 1;
+    my $options = { owner => $user,
+                    job_id => $job_id,
+                    metagenome_id => $mg_id,
+                    name => $name,
+                    file => $file,
+                    file_size_raw => $size,
+                    file_checksum_raw => $md5,
+                    server_version => 3 };
+    
+    # Connect to User/Rights DB
+    my $dbm = DBMaster->new(-database => $Conf::webapplication_db,
+  			                -backend  => $Conf::webapplication_backend,
+  			                -host     => $Conf::webapplication_host,
+  			                -user     => $Conf::webapplication_user,
+  	);
+  			 
+    # check rights
+    my $rights = ['view', 'edit', 'delete'];
+    foreach my $right_name (@$rights) {
+        my $objs = $dbm->Rights->get_objects({ scope     => $user->get_user_scope,
+  					                           data_type => 'metagenome',
+  					                           data_id   => $mg_id,
+  					                           name      => $right_name,
+  					                           granted   => 1 });
+        unless (@$objs > 0) {
+            my $right = $dbm->Rights->create({ scope     => $user->get_user_scope,
+  					                           data_type => 'metagenome',
+  					                           data_id   => $mg_id,
+  					                           name      => $right_name,
+  					                           granted   => 1 });
+            unless (ref $right) {
+  	            print STDRER "Unable to create Right $right_name - metagenome - $mg_id.";
+  	            return undef;
+            }
+        }
+    }
+    
+    # create job
+    my $job = $master->Job->create($options);
+    unless (ref $job) {
+        print STDRER "Can't create job\n";
+        return undef;
+    }
+    
+    return $job;
+}
+
 sub initialize {
-  my ($self, $user, $data) = @_;
-
-  my $master = $self->_master();
-  unless (ref($master)) {
-    print STDRER "reserve_job called without a dbmaster reference";
-    return undef;
-  }
-  unless (ref($user)) {
-    print STDRER "reserve_job called without a user";
-    return undef;
-  }
-
-  my $dbh = $master->db_handle;
-  my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
-  my $job_id  = $max->[0] + 1;
-  my $mg_id   = $max->[1] + 1;
-  my $options = { owner => $user, job_id => $job_id, metagenome_id => $mg_id, server_version => 3 };
-  my $params  = {};
- 
-  if (ref($data) eq "HASH") {
-    $params = $data;
-  }
-  elsif ((! ref($data)) && (-s $data)) {
-    my @lines = `cat $data`;
-    chomp @lines;
-    foreach my $line (@lines) {
-      my ($k, $v) = split(/\t/, $line);
-      $params->{$k} = $v;
+    my ($self, $user, $data, $job) = @_;
+    
+    my $master = $self->_master();
+    unless (ref($master)) {
+        print STDRER "initialize called without a dbmaster reference";
+        return undef;
     }
-  }
-
-  # hack due too same keys: 'sequence type' and 'sequence_type'
-  if (exists $params->{'sequence type'}) {
-    delete $params->{'sequence type'};
-  }
-  # sequence_type is currently a guess, add it
-  if (exists $params->{sequence_type}) {
-    $params->{sequence_type_guess} = $params->{sequence_type};
-  }
-
-  my $job_keys  = ['name','file','file_size','file_checksum','sequence_type'];
-  my $stat_keys = ['bp_count','sequence_count','average_length','standard_deviation_length','length_min','length_max','average_gc_content','standard_deviation_gc_content','average_gc_ratio','standard_deviation_gc_ratio','ambig_char_count','ambig_sequence_count','average_ambig_chars','drisee_score'];
-
-  foreach my $key (@$job_keys) {
-    if (exists $params->{$key}) {
-      if ($key =~ /^file_(size|checksum)/) {
-	$options->{$key.'_raw'} = $params->{$key};
-      } else {
-	$options->{$key} = $params->{$key};
-      }
+    
+    # get parmas from hash or file
+    my $params = {};
+    if (ref($data) eq "HASH") {
+        $params = $data;
     }
-  }
-
-  # Connect to User/Rights DB
-  my $dbm = DBMaster->new(-database => $Conf::webapplication_db,
-			  -backend  => $Conf::webapplication_backend,
-			  -host     => $Conf::webapplication_host,
-			  -user     => $Conf::webapplication_user,
-			 );
-  # check rights
-  my $rights = ['view', 'edit', 'delete'];
-  foreach my $right_name (@$rights) {
-    my $objs = $dbm->Rights->get_objects({ scope     => $user->get_user_scope,
-					   data_type => 'metagenome',
-					   data_id   => $mg_id,
-					   name      => $right_name,
-					   granted   => 1 });
-    unless (@$objs > 0) {
-      my $right = $dbm->Rights->create({ scope     => $user->get_user_scope,
-					 data_type => 'metagenome',
-					 data_id   => $mg_id,
-					 name      => $right_name,
-					 granted   => 1 });
-      unless (ref $right) {
-	print STDRER "Unable to create Right $right_name - metagenome - $mg_id.";
-	return undef;
-      }
+    elsif ((! ref($data)) && (-s $data)) {
+        my @lines = `cat $data`;
+        chomp @lines;
+        foreach my $line (@lines) {
+            my ($k, $v) = split(/\t/, $line);
+            $params->{$k} = $v;
+        }
     }
-  }
 
-  ### now create job
-  my $job = $master->Job->create($options);
-  unless (ref $job) {
-    print STDRER "Can't create job\n";
-    return undef;
-  }
+    # hack due too same keys: 'sequence type' and 'sequence_type'
+    if (exists $params->{'sequence type'}) {
+        delete $params->{'sequence type'};
+    }
+    # sequence_type is currently a guess, add it
+    if (exists $params->{sequence_type}) {
+        $params->{sequence_type_guess} = $params->{sequence_type};
+    }
+
+    # get job object
+    unless ($job && ref($job)) {
+        eval {
+            $job = $master->Job->reserve_job_id($user, $params->{name}, $params->{file}, $params->{file_size}, $params->{file_checksum});
+        };
+        if ($@ || (! $job)) {
+            print STDRER "Can't create job\n";
+            return undef;
+        }
+    }
+    
+    # add sequence type
+    if (exists $params->{sequence_type}) {
+        $job->sequence_type($params->{sequence_type});
+    }
+    
+    # add raw stats
+    my $stat_keys = ['bp_count', 'sequence_count', 'average_length', 'standard_deviation_length', 'length_min', 'length_max', 'average_gc_content', 'standard_deviation_gc_content', 'average_gc_ratio', 'standard_deviation_gc_ratio', 'ambig_char_count', 'ambig_sequence_count', 'average_ambig_chars', 'drisee_score'];
   
-  # store raw stats
-  foreach my $key (@$stat_keys) {
-    if (exists $params->{$key}) {
-      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
-    } elsif (exists $params->{$key.'_raw'}) {
-      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
+    foreach my $key (@$stat_keys) {
+        if (exists $params->{$key}) {
+            $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
+        } elsif (exists $params->{$key.'_raw'}) {
+            $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
+        }
     }
-  }
 
-  # store attributes
-  my $used_keys = {};
-  map { $used_keys->{$_} = 1 } @$job_keys;
-  map { $used_keys->{$_} = 1 } @$stat_keys;
-  map { $used_keys->{$_.'_raw'} = 1 } @$stat_keys;
+    # add attributes
+    my $used_keys = {metagenome_id => 1, name => 1, file => 1, file_size => 1, file_checksum => 1, sequence_type => 1};
+    map { $used_keys->{$_} = 1 } @$stat_keys;
   
-  foreach my $key (keys %$params) {
-    next if (exists $used_keys->{$key});
-    my $value = $params->{$key};
-    $value =~ s/\s+/_/g;
-    $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
-  }
-  $job->set_filter_options();
+    foreach my $key (keys %$params) {
+        my $clean_key = $key;
+        $clean_key =~ s/_raw$//;
+        next if (exists($used_keys->{$key}) || exists($used_keys->{$clean_key}));
+        my $value = $params->{$key};
+        $value =~ s/\s+/_/g;
+        $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
+    }
+    $job->set_filter_options();
 
-  # mark as 'upload'
-  $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
+    # mark as 'upload'
+    $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
 
-  return $job;
+    return $job;
 }
 
 sub reserve_job {
@@ -243,107 +275,6 @@ sub finish_upload {
     print STDERR "Can't find $cmd\n";
     return 0;
   }
-}
-
-=pod 
-
-=item * B<directory> ()
-
-Returns the full path the job directory (without a trailing slash).
-
-=cut
-
-sub directory {
-  my ($self) = @_;
-  return $Conf::mgrast_jobs.'/'.$self->job_id;
-}
-
-sub dir {
-  my ($self) = @_;
-  return $self->directory;
-}
-
-=pod 
-
-=item * B<download_dir> ()
-
-Returns the full path the download directory inside the job (without a trailing slash).
-
-=cut
-
-sub download_dir {
-    my ($self, $stage) = @_ ;
-    if ($stage) {
-	return $self->directory.'/analysis/';
-    }
-    return $self->directory.'/raw/';
-}
-
-=pod 
-
-=item * B<analysis_dir> ()
-
-Returns the full path the analysis directory inside the job (without a trailing slash).
-
-=cut
-
-sub analysis_dir {
-  my ($self) = @_;
-  unless (-d $self->directory.'/analysis') {
-    chdir($self->directory) or 
-      die("Unable to change directory to ".$self->directory.": $!");
-    mkdir "analysis", 0777 or 
-      die("Unable to create directory analysis in ".$self->directory.": $!");
-  }
-  return $self->directory.'/analysis';
-}
-
-=pod
-
-=item * B<download> ()
-
-Returns the name of the project
-
-=cut
-
-sub download {
-  my ($self , $stage_id , $file) = @_;
-
-  if ($file) {
-    if (open(FH, $self->download_dir($stage_id) . "/" . $file)) {
-      print "Content-Type:application/x-download\n";  
-      # print "Content-Length: " . length($content) . "\n";
-      print "Content-Disposition:attachment;filename=".$self->metagenome_id. "." . $file ."\n\n";
-      #print "<file name='".$self->metagenome_id. "." . $file ."'>";
-      while (<FH>) {
-	print $_ ;
-      }
-      return ( 1 , "" ) ;
-    }
-    else{
-      return ( 0 , "Could not open download file " . $self->download_dir($stage_id) ."'$file'" );
-    }
-  }
-  elsif (defined $stage_id){
-    # Download uploaded files
-    unless ($stage_id){ 
-      
-      opendir(DIR ,  $self->download_dir() ) ;
-      while (my $file = readdir DIR ){
-	next unless ($file =~/\.fna|\.fasta|\.sff|\.fastq|\.txt/) ;
-	print STDERR "Downloading file $file";
-	$self->download( '' , $file);
-      }
-      
-    }
-    
-    return ( 1 , "" ) ;
-  }
-  else{
-    # return list of download files
-  }
-  
-  return 1;
 }
 
 =pod
@@ -794,6 +725,7 @@ sub set_filter_options {
 
 job function that creates an options string based upon all tag / value pairs
 in JobAttributes for job and sets $job->{options} to its value.
+also adds 'user_name' and 'project_id' as tags
 format: tag1=value1&tag2=value2 ...
 returns options string
 
@@ -807,6 +739,10 @@ sub set_job_options {
 
   while ( my ($t, $v) = each %$job_data ) {
     push @job_opts, "$t=$v";
+  }
+  push @job_opts, "user_id=mgu".$self->owner->_id;
+  if ($self->primary_project) {
+      push @job_opts, "project_id=mgp".$self->primary_project->id;
   }
   my $opts_string  = join("&", @job_opts);
   $self->options($opts_string);
@@ -978,82 +914,117 @@ sub jobs_mixs_metadata_fast {
 #####################
 
 sub fetch_browsepage_in_progress {
-	my ($self, $user, $count_only) = @_;
-	my %stage_to_pos = ( 'upload' => 3,
-			     'preprocess' => 4,
-			     'dereplication' => 5,
-			     'screen' => 6,
-			     'genecalling' => 7,
-			     'cluster_aa90' => 8,
-			     'loadAWE' => 9,
-			     'sims' => 10,
-			     'loadDB' => 11,
-			     'done' => 12 );
+  my ($self, $user, $count_only) = @_;
+  
+  unless (ref($user) && $user->isa("WebServerBackend::User")) {
+      return [];
+  }
+  
+  # get mgrast token
+  #my $mgrast_token = undef;
+  #if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
+  #    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
+  #    my $rep = Auth::globus_token($key);
+  #    $mgrast_token = $rep ? $rep->{access_token} : undef;
+  #}
+  #### changed because globus has hard time handeling multiple tokens
+  my $mgrast_token = $Conf::mgrast_oauth_token || undef;
+  
+  # set json handle
+  my $agent = LWP::UserAgent->new;
+  my $json = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
 
-	my $selopt = "( viewable = 0 or viewable is null ) and metagenome_id is not null";
-	if (ref $user and ( $user->isa("WebServerBackend::User"))) {
-		unless ($user->has_star_right('edit', 'metagenome')){
-			$selopt .= ' and metagenome_id in ("';
-			my @userjobs = $self->get_jobs_for_user_fast($user, 'edit');
-			unless ( scalar @userjobs > 0 ) {
-				return [];
-			}
-			$selopt .= join('","', map { $_->{'metagenome_id'} } @userjobs).'")';
-		}
-	} else {
-		return [];
-	}
+  my $stage_titles = {
+               'upload'        => 'Upload', 
+		       'preprocess_qc' => 'Sequence Filtering',
+		       'dereplication' => 'Dereplication',
+		       'screen'        => 'Sequence Screening',
+		       'genecalling'   => 'Gene Calling',
+		       'cluster_aa90'  => 'Gene Clustering',
+		       'loadAWE'       => 'Calculating Sims',
+		       'sims'          => 'Processing Sims',
+		       'loadDB'        => 'Loading Database',
+		       'done'          => 'Finalizing Data' };
+  
+  # get awe data
+  my $stats = {};
+  eval {
+    my @args = ('Authorization', "OAuth ".$mgrast_token);
+    my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.user=mgu'.$user->{_id}, @args);
+    $stats = $json->decode( $get->content );
+  };
+  # awe is down, get minimal info from DB
+  if ($@ || (! $stats) || (exists($stats->{error}) && $stats->{error})) {
+    print STDERR "AWE job info retrieval failed for user ".$user->{_id}.": $@".($stats && $stats->{error} ? $stats->{error} : "")."\n";
 
-	# get job info
-	my $statement = "select _id, job_id, name, metagenome_id from Job where ".$selopt;
-	my $dbh = $self->_master()->db_handle();
-	my $sth = $dbh->prepare($statement);
-	$sth->execute;
-	my $jobdata = $sth->fetchall_arrayref();
-	$sth->finish;
+    # get job info
+    my $dbh = $self->_master()->db_handle();
+    my $sql = "select _id, job_id, name, metagenome_id from Job where owner=".$user->{_id}." and metagenome_id is not null and (viewable=0 or viewable is null)";
+    my $sth = $dbh->prepare($sql);
+    $sth->execute;
+    my $jobdata = $sth->fetchall_arrayref();
+    $sth->finish;
 
-	# get jobs to skip
-	my $statement = "select job from JobAttributes where tag='deleted' or tag='no_sims_found'";
-	my $sth = $dbh->prepare($statement);
-	$sth->execute;
-	my %skip = map { $_->[0], 1 } @{ $sth->fetchall_arrayref() };
-	$sth->finish;
+    # get jobs to skip
+    $sql = "select job from JobAttributes where tag='deleted' or tag='no_sims_found'";
+    $sth = $dbh->prepare($sql);
+    $sth->execute;
+    my %skip = map { $_->[0], 1 } @{ $sth->fetchall_arrayref() };
+    $sth->finish;
 
-	if ($count_only) {
-	  my $num = 0;
-	  map { $num += 1 } grep { ! exists $skip{$_->[0]} } @$jobdata;
-	  return $num;
-	} 
-	return [] unless scalar @$jobdata;
-
-	# get job stages
-	my $data = {};
-	my $statement = "select job, stage, status from PipelineStage where job in (".join(',',  map { $_->[0] } @$jobdata).") order by job";
-	my $sth = $dbh->prepare($statement);
-	$sth->execute;
-	while(my @row = $sth->fetchrow_array()){
-	        next if (exists $skip{$row[0]});
-		if(exists $data->{$row[0]}){
-			$data->{$row[0]}->[$stage_to_pos{$row[1]}] = $row[2];
-		} else {
-			$data->{$row[0]} = [];
-			$data->{$row[0]}->[$stage_to_pos{$row[1]}] = $row[2];
-		}
-	}
-	$sth->finish;
-
-	foreach my $jobrow (@$jobdata){
-	        next if (exists $skip{$jobrow->[0]});
-		$data->{$jobrow->[0]}->[0] = $jobrow->[1];
-		$data->{$jobrow->[0]}->[1] = $jobrow->[2];
-		$data->{$jobrow->[0]}->[2] = $jobrow->[3];
-	}
-
-	my $return_results = [];
-	foreach my $k (sort keys %$data){
-		push @$return_results, $data->{$k}; 
-	}
-	return $return_results;
+    # get display jobs: _id, job_id, name, metagenome_id
+    my %id2job = map { $_->[1], $_ } grep { ! exists $skip{$_->[0]} } @$jobdata;
+    
+    if ($count_only) {
+      return scalar(keys %id2job);
+    } else {
+      my $data_table = [];
+      foreach my $job_id (keys %id2job) {
+	    push(@$data_table, {
+	        job_id => $job_id,
+			metagenome_id => $id2job{$job_id}[3],
+			metagenome_name => $id2job{$job_id}[2],
+			states => [],
+			status => 'stage unknown: running' });
+      }
+      return $data_table;
+    }
+  # build progress from AWE
+  } else {
+    my $running = [];
+    foreach my $job (@{$stats->{data}}) {
+      unless (($job->{state} eq 'completed') || ($job->{state} eq 'deleted')) {
+        push @$running, $job;
+      }
+    }
+    if ($count_only) {
+      return scalar(@$running);
+    } else {
+      my $data_table = [];
+      foreach my $job (@$running) {
+	    my $row = {
+	        job_id => $job->{info}{userattr}{job_id},
+		    metagenome_id => $job->{info}{userattr}{id},
+		    metagenome_name => $job->{info}{userattr}{name},
+		    states => [],
+		    status => undef };
+	    my $i = 1;
+	    $row->{metagenome_id} =~ s/^mgm//;
+	    foreach my $stage (@{$job->{tasks}}) {
+	      if (! $row->{status} && ($stage->{remainwork} > 0 || $i == scalar(@{$job->{tasks}}))) {
+	        $row->{status} = ($stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}).": ".$stage->{state};
+	      }
+	      push(@{$row->{states}}, { stage => $stage_titles->{$stage->{cmd}->{description}} ? $stage_titles->{$stage->{cmd}->{description}} : $stage->{cmd}->{description}, status => $stage->{state} });
+	      $i++;
+	    }
+	    push(@$data_table, $row);
+      }
+      return $data_table;
+    }
+  }
 }
 
 sub fetch_browsepage_viewable {
@@ -1283,8 +1254,8 @@ sub get_timestamp {
 #################
 
 sub user_delete {
-  my ($self, $user) = @_;
-
+  my ($self, $user, $reason) = @_;
+  
   my $jobdbm = $self->_master();
   my $mgid = $self->metagenome_id;
 
@@ -1292,37 +1263,91 @@ sub user_delete {
     return(0, "Unable to delete metagenome '$mgid' as it has been made public.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
   }
 
-  unless( $user and $user->has_right(undef, 'delete', 'metagenome', $mgid) ) {
+  unless( $user && ($user->has_right(undef, 'delete', 'metagenome', $mgid) || $user->has_star_right('delete','metagenome')) ) {
     return (0, "Unable to delete metagenome '$mgid'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
   }
 
-  unless ($self->viewable) {
-    return (0, "Unable to delete metagenome '$mgid' because it is still processing.");
-  }
-
-  if($self->primary_project) {
+  # remove from project
+  if ($self->primary_project) {
     $self->primary_project->remove_job($self);
   }
 
   # using argument 0 does not work, argument 'null' sets viewable to 0
   $self->viewable('null');
 
-  $jobdbm->JobAttributes->create({ job => $self, tag => 'deleted', value => 'deleted by ' . $user->login });
+  # set status as deleted
+  my $message = $reason || 'deleted by '.$user->login;
+  $self->data('deleted', $message);
 
+  # delete rights
   my $webappdb = DBMaster->new(-database => $Conf::webapplication_db,
                                -backend  => $Conf::webapplication_backend,
                                -host     => $Conf::webapplication_host,
                                -user     => $Conf::webapplication_user);
-
-  my $job_rights = $webappdb->Rights->get_objects( { data_type => 'metagenome', data_id => $mgid  } );
+  my $job_rights = $webappdb->Rights->get_objects( { data_type => 'metagenome', data_id => $mgid } );
   foreach my $r (@$job_rights) {
     $r->delete;
   }
 
+  # delete analysis tables
   use MGRAST::Analysis;
-  my $analysisDB  = MGRAST::Analysis->new($self->_master->db_handle);
+  my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
   $analysisDB->delete_job($self->job_id);
 
+  ######## delete AWE / Shock ##########
+  
+  # get mgrast token
+  #my $mgrast_token = undef;
+  #if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
+  #    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
+  #    my $rep = Auth::globus_token($key);
+  #    $mgrast_token = $rep ? $rep->{access_token} : undef;
+  #}
+  #### changed because globus has hard time handeling multiple tokens
+  my $mgrast_token = $Conf::mgrast_oauth_token || undef;
+  
+  my @auth = ('Authorization', "OAuth ".$mgrast_token);
+  
+  # get handles
+  my $agent = LWP::UserAgent->new;
+  my $json  = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
+  
+  # get AWE job
+  my $ajobs = [];
+  eval {
+    my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.name='.$self->job_id, @auth);
+    $ajobs  = $json->decode( $get->content )->{data};
+  };
+  
+  # delete AWE job
+  if ($@) {
+    return (0, "Unable to delete metagenome '$mgid' from AWE: ".$@);
+  } else {
+    foreach my $j (@$ajobs) {
+      $agent->delete($Conf::awe_url.'/job/'.$j->{id}, @auth);
+    }
+  }
+  
+  # get shock nodes
+  my $nodes = [];
+  eval {
+    my $get = $agent->get($Conf::shock_url.'/node?query&limit=0&type=metagenome&id=mgm'.$mgid, @auth);
+    $nodes  = $json->decode( $get->content )->{data};
+  };
+  
+  # delete shock nodes
+  if ($@) {
+    return (0, "Unable to delete metagenome '$mgid' from Shock: ".$@);
+  } else {
+    # modify shock nodes
+    foreach my $n (@$nodes) {
+      $agent->delete($Conf::shock_url.'/node/'.$n->{id}, @auth);
+    }
+  }
+  
   return (1, "");
 }
 
@@ -1377,15 +1402,6 @@ sub delete {
   my $jobgroupjobs = $dbm->JobgroupJob->get_objects( { job => $self } );
   foreach my $jobgroupjob (@$jobgroupjobs) {
     $jobgroupjob->delete();
-  }
-
-  # delete the job directory
-  if (-d $self->directory) {
-    my $dir = $self->directory;
-    `rm -rf $dir`;
-    if (-d $dir) {
-      die "Could not delete job directory $dir: $@";
-    }
   }
 
   # delete self

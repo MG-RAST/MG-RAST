@@ -689,7 +689,7 @@ sub phylogenetic_data {
       while (my ($mgid, $jobid) = each %{$self->{mgdb}->_job_map}) {
 	    my $jobj  = $mgrast->Job->init( {job_id => $jobid} );
 	    my $alpha = $jobj->stats('alpha_diversity_shannon')->{'alpha_diversity_shannon'};
-	    my $curve = $self->{mgdb}->get_rarefaction_coords($jobid);
+	    my $curve = $self->{mgdb}->get_rarefaction_coords($jobj->metagenome_id);
 	    if ($alpha)  { $mgid_alpha->{$mgid} = $alpha; }
 	    if (@$curve) { $mgid_curve->{$mgid} = $curve; }
       }
@@ -1333,32 +1333,25 @@ sub workbench_export {
   my $md5_data = {};
   my $seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
   my $src_type = $self->{mgdb}->_sources->{$source}{type};
-  my $md5_ann  = $self->{mgdb}->annotation_for_md5s(\@md5s, [$source]); # [ id, md5, function, organism, source ]
+  my $md5_ann  = $self->{mgdb}->annotation_for_md5s(\@md5s, [$source]); # [ md5_id, id, md5, function, organism, source ]
 
   # ontology has no organism annotation
   if ($src_type eq 'ontology') {
     # seperate id->role mapping for subsystems
     if ($source eq 'Subsystems') {
       my $ss_map = $self->{mgdb}->get_hierarchy('ontology', 'Subsystems');
-      foreach my $x (@$md5_ann) {
-	    next unless ($ss_map->{$x->[0]});
-	    push @{ $md5_data->{$x->[1]} }, [ $ss_map->{$x->[0]}[2], $ss_map->{$x->[0]}[3] ];
-      }
+      map { push @{$md5_data->{$_->[2]}}, [$ss_map->{$_->[1]}[2], $ss_map->{$_->[1]}[3]] } grep { exists $ss_map->{$_->[1]} } @$md5_ann;
     } else {
-      foreach my $x (@$md5_ann) {
-	    push @{ $md5_data->{$x->[1]} }, [ $x->[0], $x->[2] ];
-      }
+      map { push @{$md5_data->{$_->[2]}}, [$_->[1], $_->[3]] } @$md5_ann;
     }
   }
   else {
-    foreach my $x (@$md5_ann) {
-      push @{ $md5_data->{$x->[1]} }, [ $x->[0], $x->[2].($x->[3] ? " [".$x->[3]."]" : '') ];
-    }
+    map { push @{$md5_data->{$_->[2]}}, [$_->[1], $_->[3].($_->[4] ? " [".$_->[4]."]" : '')] } @$md5_ann;
   }
 
   my @fastas = ();
   foreach my $s (@$seq_data) {
-    if (exists $md5_data->{$s->{md5}}) {
+    if ($s && exists($s->{md5}) && exists($md5_data->{$s->{md5}})) {
       $s->{sequence} =~ s/(.{60})/$1\n/g;
       foreach my $data ( @{$md5_data->{$s->{md5}}} ) {
 	    next unless ($data->[0]);
@@ -1396,12 +1389,12 @@ sub workbench_blat_output {
   my $funcs      = {};   # md5 => [ source, id, function ]
   my $orgshash   = {};   # md5 => organism
   my $ncbi_ids   = {};   # organism => tax_id
-  my $md5_ann    = $self->{mgdb}->annotation_for_md5s(\@md5s, $sources, 1); # [ id, md5, function, organism, source, tax_id ]
+  my $md5_ann    = $self->{mgdb}->annotation_for_md5s(\@md5s, $sources, 1); # [ md5_id, id, md5, function, organism, source, tax_id ]
 
-  map { $links_hash->{$_->[1]}{$_->[4]} = $_->[0] } @$md5_ann;
-  map { push @{$funcs->{$_->[1]}}, [ @$_[4,0,2] ] } grep { $_->[2] } @$md5_ann;
-  map { $orgshash->{$_->[1]} = $_->[3] } grep { $_->[3] } @$md5_ann;
-  map { $ncbi_ids->{$_->[3]} = $_->[5] } grep { $_->[3] && $_->[5] } @$md5_ann;
+  map { $links_hash->{$_->[2]}{$_->[5]} = $_->[1] } @$md5_ann;
+  map { push @{$funcs->{$_->[2]}}, [ @$_[5,1,3] ] } grep { $_->[3] } @$md5_ann;
+  map { $orgshash->{$_->[2]} = $_->[4] } grep { $_->[4] } @$md5_ann;
+  map { $ncbi_ids->{$_->[4]} = $_->[6] } grep { $_->[4] && $_->[6] } @$md5_ann;
   
   my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
   my $nr_seq_data = $self->{mgdb}->ach->md5s2sequences([keys %$funcs]); # fasta text
@@ -1565,10 +1558,16 @@ sub workbench_hits_table {
   my @metas = $cgi->param('comparison_metagenomes');
   my @srcs  = $cgi->param('comparison_sources');
   my @md5s  = split(/;/, $cgi->param('use_buffer'));
-  my @mglinks  = @metas;
-  my $has_ss   = first {$_ =~ /^Subsystems$/i} @srcs;
-  my $has_m5nr = first {$_ =~ /^M5NR$/i} @srcs;
-  my @ach_srcs = grep {$_ !~ /^M5NR$/i} @srcs;
+  my @mglinks   = @metas;
+  my $has_ss    = first {$_ =~ /^Subsystems$/i} @srcs;
+  my $has_m5nr  = first {$_ =~ /^M5NR$/i} @srcs;
+  my $has_m5rna = first {$_ =~ /^M5RNA$/i} @srcs;
+  my @ach_srcs  = grep {$_ !~ /^(M5NR|M5RNA)$/i} @srcs;
+
+  if ($has_m5rna) {
+      @srcs = ('RDP','Greengenes','SSU','LSU','ITS');
+      @ach_srcs = @srcs;
+  }
 
   $self->{mgdb}->set_jobs(\@metas);
   my $analysis_data = $self->{mgdb}->get_md5_data(\@md5s);
@@ -1577,7 +1576,8 @@ sub workbench_hits_table {
   my $md5_type      = $self->{mgdb}->type_for_md5s(\@md5s, 1);  # id => [md5, type]
   my $source_data   = {};   # md5 => [ source, id, function ]
   if (@ach_srcs > 0) {
-      map { push @{$source_data->{$_->[1]}}, [ @$_[4,0,2] ] } grep { $_->[2] } @{$self->{mgdb}->annotation_for_md5s(\@md5s, \@ach_srcs)};
+      # [ md5_id, id, md5, function, organism, source ]
+      map { push @{$source_data->{$_->[2]}}, [ @$_[5,1,3] ] } grep { $_->[3] } @{$self->{mgdb}->annotation_for_md5s(\@md5s, \@ach_srcs)};
   }
 
   my $html = "<p>Hits for " . scalar(@md5s) . " unique sequences within ";
@@ -1653,7 +1653,7 @@ sub workbench_hits_table {
 		  { name => 'align len std dev', sortable => 1, visible => 0,                               tooltip => 'standard deviation of<br>the alignment length of the hits' },
 		  { name => 'md5',               sortable => 1, visible => 0,                               tooltip => 'md5 checksum of hit sequence'  }
 	       ];
-    
+	       
   $table->columns($columns);
   $table->data(\@table_data);
   $html .= $table->output;
@@ -1674,16 +1674,17 @@ sub get_read_align {
   
   $self->{mgdb}->set_jobs([$mgid]);
   my $md5_map  = $self->{mgdb}->decode_annotation('md5', [$md5]);
+  my $md5sum   = $md5_map->{$md5};
   my $seq_data = $self->{mgdb}->md5s_to_read_sequences([$md5]); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
-  my @md5_seq  = split(/\n/, $self->{mgdb}->ach->md5s2sequences([ $md5_map->{$md5} ])); # fasta text
+  my @md5_seq  = split(/\n/, $self->{mgdb}->ach->md5s2sequences([$md5sum])); # fasta text
 
-  if ((@md5_seq == 2) && ($md5_seq[0] =~ /$md5/)) {
+  if ((@md5_seq == 2) && ($md5_seq[0] =~ /$md5sum/)) {
     my $md5_fasta = $Conf::temp."/".$md5."_".time.".faa";
     open(MD5F, ">$md5_fasta") || return $html;
     print MD5F join("\n", @md5_seq) . "\n";
     close MD5F;
     $html .= "<p>Hit alignment for ".scalar(@$seq_data)." read".((scalar(@$seq_data) > 1) ? "s" : "")." within metagenome ".$job->name()." ($mgid) against sequence ";
-    $html .= ($type ne 'rna') ? "<a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5'>$md5</a>" : $md5;
+    $html .= ($type ne 'rna') ? "<a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5sum'>$md5sum</a>" : $md5;
     $html .= "</p>";
     
     foreach my $s (@$seq_data) {
@@ -2100,6 +2101,9 @@ sub single_visual {
     } else {
       @$vbardata = map { $_ } @$data;
     }
+    foreach my $d (@$vbardata) {
+      $d = [ shift @$d, "source", @$d ];
+    }
     if ($cgi->param('single_bar_col')) {
       $cgi->param('single_bar_col', $cgi->param('single_bar_col') + 1);
     }
@@ -2108,7 +2112,7 @@ sub single_visual {
     if ($level > 8) {
       $noclick = 1;
     }
-    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level - 1, 10, ($cgi->param('top')||10), 'single', $fid, ($cgi->param('raw') || undef), $noclick);
+    my $dom_v = $self->data_to_vbar(undef, $vbardata, $level - 1, 9, ($cgi->param('top')||10), 'single', $fid, ($cgi->param('raw') || undef), $noclick);
 
     $settings .= "<i>$psettings</i><br>";
     # check for p-value calculation
@@ -2253,6 +2257,9 @@ sub single_visual {
       $download_data_string .= "\\n";
     }
 
+    $download_data_string =~ s/'/\&rsquo\;/g;
+    $download_data_string =~ s/"/\&rdquo\;/g;
+
     if ($level == 2) {
       $content .= "<div><div>Representative Organism Barchart $tabnum</div><div>";
       my $selnorm = "";
@@ -2374,7 +2381,7 @@ sub single_visual {
     }
 
     if ($cgi->param('high_res')) {
-      print $cgi->header();
+      print $cgi->header(-charset => 'UTF-8');
       print $cgi->start_html();
       $pt->size(2500);
       $pt->level_distance(100);
@@ -3072,6 +3079,8 @@ sub phylogeny_visual {
       }
       $download_data_string .= "\\n";
     }
+    $download_data_string =~ s/'/\&rsquo\;/g;
+    $download_data_string =~ s/"/\&rdquo\;/g;
 
     if ($level == 2) {
       $content .= "<div><div>Organism barchart $tabnum</div><div>";
@@ -3194,7 +3203,7 @@ sub phylogeny_visual {
     }
 
     if ($cgi->param('high_res')) {
-      print $cgi->header();
+      print $cgi->header(-charset => 'UTF-8');
       print $cgi->start_html();
       $pt->size(2500);
       $pt->level_distance(100);
@@ -3799,6 +3808,7 @@ sub metabolism_visual {
   $tabnum--;
 
   # mgid => md5 => abundance
+  #  0       1      2       3         4        5    6            7              8        9       10           11         12       13      14
   # mgid, level1, level2, level3, annotation, id, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
 
   unless (scalar(@$data)) {
@@ -4059,6 +4069,8 @@ sub metabolism_visual {
       }
       $download_data_string .= "\\n";
     }
+    $download_data_string =~ s/'/\&rsquo\;/g;
+    $download_data_string =~ s/"/\&rdquo\;/g;
 
     if ($level == 2) {
       $content .= "<div><div>Functional barchart $tabnum</div><div>";
@@ -4123,42 +4135,38 @@ sub metabolism_visual {
     }
     my $expanded_data = [];
     if (scalar(@comp_mgs) > 1) {
-      $pt->sample_names( [ @comp_mgs[0..1] ] );
+
+      $pt->sample_names( [ @comp_mgs ] );
       $pt->coloring_method('split');
       my $exp_hash = {};
+      my $anno_hash = {};
+      my $mg2num = {};
+
+      for (my $hh=0; $hh<scalar(@comp_mgs); $hh++) {
+      	$mg2num->{$comp_mgs[$hh]} = $hh;
+      }
+
       foreach my $row (@$data) {
 	next if ($row->[1] eq "-");
 	next if ($row->[1] eq "Clustering-based subsystems");
-	if ($row->[0] eq $comp_mgs[0]) {
-	  $exp_hash->{$row->[4]} = $row;
-	}
+	my $keystring = join("", @$row[1..4]);
+	$anno_hash->{$keystring} = [ @$row[1..4] ];
+      	unless (exists($exp_hash->{$keystring})) {
+      	  $exp_hash->{$keystring} = [];
+      	}
+      	$exp_hash->{$keystring}->[$mg2num->{$row->[0]}] = $row->[6];
       }
-      foreach my $row (@$data) {
-	next if ($row->[1] eq "-");
-	next if ($row->[1] eq "Clustering-based subsystems");
-	if ($row->[0] eq $comp_mgs[1]) {
-	  my $other = 0;
-	  if (exists($exp_hash->{$row->[4]})) {
-	    $other = $exp_hash->{$row->[4]}->[6];
-	    delete $exp_hash->{$row->[4]};
-	  }
-	  if ($row->[6] + $other > 0) {
-	    if ($has_three) {
-	      push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[3], $row->[4], [ $row->[6], $other ] ] );
-	    } else {
-	      push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[4], [ $row->[6], $other ] ] );
-	    }
-	  }
-	}
-      }
-      foreach my $key (keys(%$exp_hash)) {
-	my $row = $exp_hash->{$key};
-	if ($row->[6] > 0) {
-	  if ($has_three) {
-	    push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[3], $row->[4], [ 0, $row->[6] ] ] );
-	  } else {
-	    push(@$expanded_data, [ 'Metabolism', $row->[1], $row->[2], $row->[4], [ 0, $row->[6] ] ] );
-	  }
+
+      foreach my $key (sort(keys(%$exp_hash))) {
+      	my $vals = [];
+      	for (my $ii=0; $ii<scalar(@comp_mgs); $ii++) {
+      	  push(@$vals, $exp_hash->{$key}->[$ii] || 0);
+      	}
+      	my $row = $anno_hash->{$key};
+	if ($has_three) {
+	  push(@$expanded_data, [ 'Metabolism', $row->[0], $row->[1], $row->[2], $row->[3], $vals ] );
+	} else {
+	  push(@$expanded_data, [ 'Metabolism', $row->[0], $row->[1], $row->[3], $vals ] );
 	}
       }
     } else {
@@ -4192,7 +4200,7 @@ sub metabolism_visual {
     }
 
     if ($cgi->param('high_res')) {
-      print $cgi->header();
+      print $cgi->header(-charset => 'UTF-8');
       print $cgi->start_html();
       $pt->size(2500);
       $pt->level_distance(100);
@@ -4600,6 +4608,7 @@ sub metabolism_visual {
 	$content .= "'>";
 	close(D);
 	unlink $infile;
+	$cdata =~ s/'/\&\#39\;/g;
 
 	$content .= "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='$cdata'><input type='submit' value='download values used to generate this figure'></form>";
 
@@ -5153,6 +5162,8 @@ sub lca_visual {
       }
       $download_data_string .= "\\n";
     }
+    $download_data_string =~ s/'/\&rsquo\;/g;
+    $download_data_string =~ s/"/\&rdquo\;/g;
 
     if ($level == 2) {
       $content .= "<div><div>LCA barchart $tabnum</div><div>";
@@ -5269,7 +5280,7 @@ sub lca_visual {
     }
 
     if ($cgi->param('high_res')) {
-      print $cgi->header();
+      print $cgi->header(-charset => 'UTF-8');
       print $cgi->start_html();
       $pt->size(2500);
       $pt->level_distance(100);
@@ -5968,8 +5979,8 @@ sub data_to_vbar {
       }
     }
     if ($single) {
-      $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{raw} = $row->[9];
-      unless ($selsource = 'lca') {
+      $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{raw} += $row->[9];
+      unless ($selsource eq 'lca') {
 	map { $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{md5s}{$_} = 1 } @{$row->[-1]};
       }
     } else {
@@ -6514,7 +6525,13 @@ sub group_select {
     if ($self->application->session->user) {
       my $pp_ids = $self->application->session->user->has_right_to(undef, 'view', 'project');
       if (scalar(@$pp_ids)) {
-	push(@$projects, @{$rast->Project->get_objects_for_ids($pp_ids)});
+	my $ps = [];
+        foreach my $p (@{$rast->Project->get_objects_for_ids($pp_ids)}) {
+                if($p->{name}) {
+                        push(@$ps, $p);
+                }
+        }
+        push(@$projects, @$ps);
       }
     }
     my $pdata = [];
@@ -6569,8 +6586,47 @@ sub selectable_metagenomes {
   my $cache_key = "analysis_metagenomes_".($no_groups ? "nogroups" : "hasgroups")."_".($user ? $user->_id : "anonymous");
   my $cdata = $memd->get($cache_key);
   
+  my $colls = [];
+  my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
+									     user => $user,
+									     name => 'mgrast_collection' } );
+  if (scalar(@$coll_prefs) && (! $no_groups)) {
+    my $rast = $self->application->data_handle('MGRAST'); 
+    my $collections = {};
+    foreach my $collection_pref (@$coll_prefs) {
+      my ($name, $val) = split(/\|/, $collection_pref->{value});
+      if (! exists($collections->{$name})) {
+	$collections->{$name} = [];
+      }
+      my $pj = $rast->Job->get_objects( { job_id => $val })->[0];
+      push @{$collections->{$name}}, [ $pj->{metagenome_id}, $pj->{name} ];
+    }
+    foreach my $coll ( sort keys %$collections ) {
+      if ( @{$collections->{$coll}} == 0 ) { next; }
+      push(@$colls, { label => $coll." [".scalar(@{$collections->{$coll}})."]", value => join('||', map { $_->[0]."##".$_->[1] } @{$collections->{$coll}}) });
+    }
+  }    
+  
   if ($cdata) {
+    # there is cached data  
     $memd->disconnect_all;
+
+    # if there are collections, update them in the cache data
+    if ($user && scalar(@$colls)) {
+      my $found_colls = 0;
+      for (my $i=0; $i<scalar(@{$cdata->[1]}); $i++) {
+	if ($cdata->[1]->[$i] eq 'collections') {
+	  $cdata->[0]->[$i] = $colls;
+	  $found_colls = 1;
+	  last;
+	}
+      }
+      unless ($found_colls) {
+	push(@{$cdata->[1]}, "collections");
+	push(@{$cdata->[0]}, $colls);
+      }
+    }
+
     return @$cdata;
   }
 
@@ -6585,10 +6641,27 @@ sub selectable_metagenomes {
   my $rast = $self->application->data_handle('MGRAST'); 
   my $org_seen = {};
   my $metagenomespub = [];
-  my $colls = [];
   my $projs = [];
+  my $mgs = [];
   if (ref($rast)) {
     my $projects = $rast->Project->get_objects({ public => 1 });
+
+    if ($user) {
+      my $pp_ids = $self->application->session->user->has_right_to(undef, 'view', 'project');
+      if (scalar(@$pp_ids)) {
+        my $ps = [];
+        foreach my $p (@{$rast->Project->get_objects_for_ids($pp_ids)}) {
+	  if($p->{name}) {
+	    push(@$ps, $p);
+	  }
+        }
+        push(@$projects, @$ps);
+      }
+
+      my @mga = $rast->Job->get_jobs_for_user_fast($user, 'view', 1);
+      $mgs = \@mga;
+    }
+
     my $p_hash = {};
     %$p_hash = map { $_->{_id} => $_ } @$projects;
     my $pjs = $rast->ProjectJob->get_objects();
@@ -6623,47 +6696,6 @@ sub selectable_metagenomes {
     @$projs = sort { lc($a->{label}) cmp lc($b->{label}) } @$projs;
 
     if ($user) {
-      my @mga = $rast->Job->get_jobs_for_user_fast($user, 'view', 1);
-      my $mgs = \@mga;
-
-      # check for collections
-      my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
-										 user => $user,
-										 name => 'mgrast_collection' } );
-      if (scalar(@$coll_prefs) && (! $no_groups)) {
-	my $collections = {};
-	foreach my $collection_pref (@$coll_prefs) {
-	  my ($name, $val) = split(/\|/, $collection_pref->{value});
-	  if (! exists($collections->{$name})) {
-	    $collections->{$name} = [];
-	  }
-	  my $pj;
-	  foreach my $pmg (@$public_metagenomes) {
-	    if ($pmg->{job_id} == $val) {
-	      $pj = $pmg;
-	      last;
-	    }
-	  }
-	  unless ($pj) {
-	    foreach my $mg (@$mgs) {
-	      if (ref($mg) && (ref($mg) eq 'HASH')) {
-		if ($mg->{job_id} == $val) {
-		  $pj = $mg;
-		  last;
-		}
-	      }
-	    }
-	  }
-	  if ($pj) {
-	    push @{$collections->{$name}}, [ $pj->{metagenome_id}, $pj->{name} ];
-	  }
-	}
-	foreach my $coll ( sort keys %$collections ) {
-	  if ( @{$collections->{$coll}} == 0 ) { next; }
-	  push(@$colls, { label => $coll." [".scalar(@{$collections->{$coll}})."]", value => join('||', map { $_->[0]."##".$_->[1] } @{$collections->{$coll}}) });
-	}
-      }
-
       # build hash from all accessible metagenomes
       foreach my $mg_job (@$mgs) {
 	next if ($org_seen->{$mg_job->{metagenome_id}});
@@ -6676,6 +6708,7 @@ sub selectable_metagenomes {
       }
     }
   }
+
   my $groups = [];
   if (scalar(@$metagenomes)) {
     push(@$all_mgs, $metagenomes);

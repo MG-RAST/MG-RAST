@@ -40,6 +40,10 @@ Called when the web page is instanciated.
 sub init {
   my ($self) = @_;
 
+  # get the display jobs options -- default is 'all_jobs' which will include 'deleted' and 'no_sims_found' jobs, display_jobs = active will skip these
+  my $display_jobs = $self->application->cgi->param('display_jobs') || 'all_jobs';
+  $self->data('display_jobs', $display_jobs);
+
   $self->title("System Statistics");
 
   $self->application->register_component('Table', 'user_table');
@@ -58,7 +62,8 @@ sub init {
   $self->application->register_component('Ajax', 'ajax');
   $self->application->register_component('Table', 'FundingSources');
   $self->application->register_component('Table', 'FundingSourcesClean');
-  $self->application->register_component('Table', 'JobsMonth');
+  $self->application->register_component('Table', 'JobsMonthCompleted');
+  $self->application->register_component('Table', 'JobsMonthSubmitted');
 
   my $email_mapping = {
 		       "cdc.gov"     => "CDC" ,
@@ -367,7 +372,14 @@ sub output {
 
   foreach my $_id_job ( keys %$mgjobs ) 
   {
-      next if ($mgjobs->{$_id_job}{dead} || $mgjobs->{$_id_job}{deleted});
+      if ( $self->data('display_jobs') eq 'active' )
+      {
+	  # skip dead and deleted jobs when the 'active' option is selected
+	  if ( $mgjobs->{$_id_job}{dead} || $mgjobs->{$_id_job}{deleted} )
+	  {
+	      next;
+	  }
+      }
 
       my $_id_user = $mgjobs->{$_id_job}{owner};
       my $_id_org  = $mgjobs->{$_id_job}{organization}[-1] || '';
@@ -434,22 +446,22 @@ sub output {
 		      "<input type='button' value='status' onclick='execute_ajax(\"job_details\", \"job_details\", \"job=".$mgjobs->{$_id_job}{job_id}."\");'>",
 		    ];
 
-    my ($jyear_month) = $mgjobs->{$_id_job}{created_on} =~ /^(\d+\-\d+)/;
-    if (exists($tfmonths->{$jyear_month})) {
-      if ($mgjobs->{$_id_job}{bp} > 5000000 && $mgjobs->{$_id_job}{bp} < 50000000) {
-	$average_size_stats_filtered->[$tfmonths->{$jyear_month}]->[0]++;
-	$average_size_stats_filtered->[$tfmonths->{$jyear_month}]->[1] += $mgjobs->{$_id_job}{bp};
-	$size_distribution->[$tfmonths->{$jyear_month}]->[1] += $mgjobs->{$_id_job}{bp};
-      } elsif ($mgjobs->{$_id_job}{bp} > 50000000) {
-	$average_size_stats_filtered2->[$tfmonths->{$jyear_month}]->[0]++;
-	$average_size_stats_filtered2->[$tfmonths->{$jyear_month}]->[1] += $mgjobs->{$_id_job}{bp};
-	$size_distribution->[$tfmonths->{$jyear_month}]->[2] += $mgjobs->{$_id_job}{bp};
-      } else {
-	$average_size_stats->[$tfmonths->{$jyear_month}]->[0]++;
-	$average_size_stats->[$tfmonths->{$jyear_month}]->[1] += $mgjobs->{$_id_job}{bp};
-	$size_distribution->[$tfmonths->{$jyear_month}]->[0] += $mgjobs->{$_id_job}{bp};
+      my ($jyear_month) = $mgjobs->{$_id_job}{created_on} =~ /^(\d+\-\d+)/;
+      if (exists($tfmonths->{$jyear_month})) {
+	  if ($mgjobs->{$_id_job}{bp} > 5000000 && $mgjobs->{$_id_job}{bp} < 50000000) {
+	      $average_size_stats_filtered->[$tfmonths->{$jyear_month}]->[0]++;
+	      $average_size_stats_filtered->[$tfmonths->{$jyear_month}]->[1] += $mgjobs->{$_id_job}{bp};
+	      $size_distribution->[$tfmonths->{$jyear_month}]->[1] += $mgjobs->{$_id_job}{bp};
+	  } elsif ($mgjobs->{$_id_job}{bp} > 50000000) {
+	      $average_size_stats_filtered2->[$tfmonths->{$jyear_month}]->[0]++;
+	      $average_size_stats_filtered2->[$tfmonths->{$jyear_month}]->[1] += $mgjobs->{$_id_job}{bp};
+	      $size_distribution->[$tfmonths->{$jyear_month}]->[2] += $mgjobs->{$_id_job}{bp};
+	  } else {
+	      $average_size_stats->[$tfmonths->{$jyear_month}]->[0]++;
+	      $average_size_stats->[$tfmonths->{$jyear_month}]->[1] += $mgjobs->{$_id_job}{bp};
+	      $size_distribution->[$tfmonths->{$jyear_month}]->[0] += $mgjobs->{$_id_job}{bp};
+	  }
       }
-    }
 
       my $t1 = $mgjobs->{$_id_job}{created_on};
       my $t2 = $mgjobs->{$_id_job}{done_timestamp} || $mgjobs->{$_id_job}{error_timestamp} || $mgjobs->{$_id_job}{dead_timestamp} || $mgjobs->{$_id_job}{deleted_timestamp} || $thirtyone_days->[30]. ' 23:59:59';
@@ -1321,23 +1333,34 @@ sub output {
   
   ### job counts
 
-  my %month_counts;
+  my %month_counts_completed;   # completed AND viewable, i.e. completed and not deleted
+  my %month_counts_submitted;   # all jobs submitted -- includes incomplete, and deleted jobs
+
   foreach my $rec ( @$jdata )
   {
       my($creation_date, $bp, $seq_type, $viewable, $public, $last_stage_name, $last_stage_status, $last_stage_timestamp) = @$rec[0,4,5,6,7,17,18,19];
 
-      if ( $last_stage_name eq 'done' and $last_stage_status eq 'completed' and $viewable == 1 )
+      if ( $creation_date =~ /^20(\d\d-\d\d)/ )
       {
-	  if ( $creation_date =~ /^20(\d\d-\d\d)/ )
-	  {
-	      my $month = $1;
+	  my $month = $1;
 
-	      $month_counts{$month}{all}{bp}   += $bp;
-	      $month_counts{$month}{all}{jobs} += 1;
+	  $month_counts_submitted{$month}{all}{bp}   += $bp;
+	  $month_counts_submitted{$month}{all}{jobs} += 1;
+	  if ( $public )
+	  {
+	      $month_counts_submitted{$month}{public}{bp} += $bp;
+	      $month_counts_submitted{$month}{public}{jobs} += 1;
+	  }
+
+	  if ( $self->data('display_jobs') eq 'active' and 
+	       $last_stage_name eq 'done' and $last_stage_status eq 'completed' and $viewable == 1 )
+	  {
+	      $month_counts_completed{$month}{all}{bp}   += $bp;
+	      $month_counts_completed{$month}{all}{jobs} += 1;
 	      if ( $public )
 	      {
-		  $month_counts{$month}{public}{bp} += $bp;
-		  $month_counts{$month}{public}{jobs} += 1;
+		  $month_counts_completed{$month}{public}{bp} += $bp;
+		  $month_counts_completed{$month}{public}{jobs} += 1;
 	      }
 	  }
       }
@@ -1346,32 +1369,64 @@ sub output {
   # leaving out public job counts for now
   my $data_c = [];
 
-  foreach my $month ( sort keys %month_counts )
+  if ( $self->data('display_jobs') eq 'active' )
   {
-      my $all_gbp = sprintf("%.2f", $month_counts{$month}{all}{bp}/1000000000);
-      #my $pub_gbp = sprintf("%.2f", $month_counts{$month}{public}{bp});
-      
-      push @$data_c, [$month, $month_counts{$month}{all}{jobs}, $all_gbp];
+      foreach my $month ( sort keys %month_counts_completed )
+      {
+	  my $all_gbp = sprintf("%.2f", $month_counts_completed{$month}{all}{bp}/1000000000);
+	  #my $pub_gbp = sprintf("%.2f", $month_counts_completed{$month}{public}{bp});
+	  
+	  push @$data_c, [$month, $month_counts_completed{$month}{all}{jobs}, $all_gbp];
+      }
   }
 
-#  my $data_c  = $mgrast_dbh->selectall_arrayref("select substring(created_on,1,7) as Date, count(job_id) as Jobs from Job where job_id is not NULL group by Date");
-  my $table_c = $self->application->component('JobsMonth');
-#  my ($pie_c, $div_c) = &get_piechart("pie_c", "Jobs per Month", ['Month', 'Jobs'], $data_c, 20);
-  
-  $table_c->width(850);
-  if ( scalar(@$data_c) > 25 ) {
-    $table_c->show_top_browse(1);
-    $table_c->show_bottom_browse(1);
-    $table_c->show_clear_filter_button(1);
-    $table_c->items_per_page(25);
-    $table_c->show_select_items_per_page(1); 
+  my $data_d = [];
+
+  foreach my $month ( sort keys %month_counts_submitted )
+  {
+      my $all_gbp = sprintf("%.2f", $month_counts_submitted{$month}{all}{bp}/1000000000);
+      #my $pub_gbp = sprintf("%.2f", $month_counts_completed{$month}{public}{bp});
+      
+      push @$data_d, [$month, $month_counts_submitted{$month}{all}{jobs}, $all_gbp];
   }
-  $table_c->columns([ { name => 'Month', sortable => 1 },
-		      { name => 'Jobs', sortable => 1 },
+
+  my $table_c;
+  if ( $self->data('display_jobs') eq 'active' )
+  {
+      $table_c = $self->application->component('JobsMonthCompleted');
+#  my $data_c  = $mgrast_dbh->selectall_arrayref("select substring(created_on,1,7) as Date, count(job_id) as Jobs from Job where job_id is not NULL group by Date");
+#  my ($pie_c, $div_c) = &get_piechart("pie_c", "Jobs per Month", ['Month', 'Jobs'], $data_c, 20);
+
+      $table_c->width(850);
+      if ( scalar(@$data_c) > 25 ) {
+	  $table_c->show_top_browse(1);
+	  $table_c->show_bottom_browse(1);
+	  $table_c->items_per_page(25);
+	  $table_c->show_select_items_per_page(1); 
+      }
+      $table_c->columns([ { name => 'Month', sortable => 1 },
+			  { name => 'Jobs Completed', sortable => 1 },
+			  { name => 'Size (Gbp)', sortable => 1 },
+			  ]);    
+      $table_c->data($data_c);
+      $table_c->show_export_button({title => 'export', strip_html => 1});
+  }
+
+  my $table_d = $self->application->component('JobsMonthSubmitted');
+
+  $table_d->width(850);
+  if ( scalar(@$data_d) > 25 ) {
+    $table_d->show_top_browse(1);
+    $table_d->show_bottom_browse(1);
+    $table_d->items_per_page(25);
+    $table_d->show_select_items_per_page(1); 
+  }
+  $table_d->columns([ { name => 'Month', sortable => 1 },
+		      { name => 'Jobs Submitted', sortable => 1 },
 		      { name => 'Size (Gbp)', sortable => 1 },
 		    ]);    
-  $table_c->data($data_c);
-  $table_c->show_export_button({title => 'export', strip_html => 1});
+  $table_d->data($data_d);
+  $table_d->show_export_button({title => 'export', strip_html => 1});
 
   $html .= $pie_usr . $pie_job . $pie_gbp;
 
@@ -1385,14 +1440,38 @@ sub output {
   $html .= $div_job;
   $html .= $div_gbp;
 
-  my $div_id = 'columnchart_all_jobs';
-  $html .= $self->google_columnchart_all_jobs($div_id, $data_c);
-
-  my $all_jobs_chart = "
+  my $all_jobs_completed_chart = '';
+  if ( $self->data('display_jobs') eq 'active' )
+  {
+      my $div_id    = 'columnchart_all_jobs_completed';
+      my $button_id = 'columnchart_all_jobs_completed_button';
+      $html .= $self->google_columnchart_all_jobs($div_id, $data_c, $button_id);
+      
+      $all_jobs_completed_chart = "
 <table>
 <tr>
 <td align='left'>
-<form><input id='columnchart_all_jobs_button' type='button' value='switch to job count chart'></input></form>
+<form><input id='$button_id' type='button' value='switch to jobs completed count chart'></input></form>
+</td>
+</tr>
+<tr>
+<td>
+<div id='$div_id'></div>
+</td>
+</tr>
+</table>
+";
+  }
+
+  my $div_id    = 'columnchart_all_jobs_submitted';
+  my $button_id = 'columnchart_all_jobs_submitted_button';
+  $html .= $self->google_columnchart_all_jobs($div_id, $data_d, $button_id);
+
+  my $all_jobs_submitted_chart = "
+<table>
+<tr>
+<td align='left'>
+<form><input id='$button_id' type='button' value='switch to jobs submitted count chart'></input></form>
 </td>
 </tr>
 <tr>
@@ -1404,10 +1483,24 @@ sub output {
 ";
 
   $html .= "<h2>&raquo; Monthly Jobs History (based on creation date)</h2>\n";
-  $html .= $self->input_button('all_jobs_chart_button', 'all_jobs_chart', 'show chart', 'hide chart');
-  $html .= $self->input_button('monthly_jobs_table_button', 'monthly_jobs_table', 'show table', 'hide table');
-  $html .= "<div id='all_jobs_chart' style='display:none'>".$all_jobs_chart."</div>\n";
-  $html .= "<div id='monthly_jobs_table' style='display:none'>" . $table_c->output . "</div>\n";
+
+  if ( $self->data('display_jobs') eq 'active' )
+  {
+      $html .= $self->input_button('all_jobs_completed_chart_button', 'all_jobs_completed_chart', 'show jobs completed chart', 'hide jobs completed chart');
+      $html .= $self->input_button('monthly_jobs_completed_table_button', 'monthly_jobs_completed_table', 'show jobs completed table', 'hide jobs completed table');
+  }
+
+  $html .= $self->input_button('all_jobs_submitted_chart_button', 'all_jobs_submitted_chart', 'show jobs submitted chart', 'hide jobs submitted chart');
+  $html .= $self->input_button('monthly_jobs_submitted_table_button', 'monthly_jobs_submitted_table', 'show jobs submitted table', 'hide jobs submitted table');
+
+  if ( $self->data('display_jobs') eq 'active' )
+  {
+      $html .= "<div id='all_jobs_completed_chart' style='display:none'>".$all_jobs_completed_chart."</div>\n";
+      $html .= "<div id='monthly_jobs_completed_table' style='display:none'>" . $table_c->output . "</div>\n";
+  }
+
+  $html .= "<div id='all_jobs_submitted_chart' style='display:none'>".$all_jobs_submitted_chart."</div>\n";
+  $html .= "<div id='monthly_jobs_submitted_table' style='display:none'>" . $table_d->output . "</div>\n";
 
   $html .= "<br><br><br>";
   
@@ -1600,7 +1693,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#1A9641', '#A6D96A', '#FDAE61', '#D7191C'],
-hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}},
+hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 10}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
 isStacked: 1,
 animation:{
@@ -1695,7 +1788,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#1A9641', '#A6D96A', '#FDAE61', '#D7191C'],
-hAxis: {title: 'Job Creation Time (today)', textStyle: {fontSize:11}},
+hAxis: {title: 'Job Creation Time (today)', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 10}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
 isStacked: 1,
 animation:{
@@ -1796,7 +1889,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#A6D96A', '#D7191C'],
-hAxis: {title: 'Job Creation Date (non-contiguous)', textStyle: {fontSize:11}},
+hAxis: {title: 'Job Creation Date (non-contiguous)', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}},
 isStacked: 1,
 animation:{
@@ -1922,7 +2015,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#D7191C', '#A6D96A', '#1A9641'],
-hAxis: {title: 'Pipeline Stage', textStyle: {fontSize:11}},
+hAxis: {title: 'Pipeline Stage', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}, logScale: true},
 animation:{
   duration: 1000,
@@ -2001,10 +2094,9 @@ title: 'New users registered',
 height: 700,
 width: 1200,
 colors: ['#2B83BA'],
-hAxis: {title: 'Date', textStyle: {fontSize:11}},
+hAxis: {title: 'Date', textStyle: {fontSize:11}, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized'},
 };		  
-
         var chart = new google.visualization.ColumnChart(document.getElementById('$div_id'));
         chart.draw(data, options);
     }
@@ -2015,7 +2107,7 @@ END
 }
 
 sub google_columnchart_all_jobs {
-    my($self, $div_name, $data) = @_;
+    my($self, $div_name, $data, $button_id) = @_;
     
     #  @$data_c = [ [$month, $n_jobs, $n_gbp], [...], ...]
 
@@ -2067,7 +2159,7 @@ END
 height: 700,
 width: 1200,
 colors: ['#1A9641', '#D7191C', '#A6D96A'],
-hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}, showTextEvery: 3},
+hAxis: {title: 'Job Creation Date', textStyle: {fontSize:11}, showTextEvery: 3, slantedText: true},
 vAxis: {viewWindow: {min: 0, max: 1}, viewWindowMode: 'maximized', textStyle: {fontSize:11}, logScale: 'true'},
 isStacked: 1,
 animation:{
@@ -2078,7 +2170,7 @@ animation:{
 
   var current = 0;
   var chart = new google.visualization.ColumnChart(document.getElementById('$div_name'));
-  var button = document.getElementById('columnchart_all_jobs_button');
+  var button = document.getElementById('$button_id');
 
   function drawChart() {
     // Disabling the button while the chart is drawing.

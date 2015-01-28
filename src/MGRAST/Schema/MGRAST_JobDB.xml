@@ -207,10 +207,11 @@
     <scalar label="type" type="CHAR(32)" mandatory="1" />
     <scalar label="tag" type="CHAR(128)" mandatory="1" />
     <scalar label="value" type="TEXT" />
-    <unique_index>
-      <attribute label="type"/>
-      <attribute label="tag"/>
-    </unique_index>
+    <scalar label="value_id" type="TEXT" />
+    <scalar label="value_version" type="CHAR(32)" />
+    <index><attribute label="type"/></index>
+    <index><attribute label="tag"/></index>
+    <index><attribute label="value_version"/></index>
   </object>
   
   <object label="Measurement">

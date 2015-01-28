@@ -192,7 +192,9 @@ sub update_preferences {
 	}
       } else {
 	if (exists($prefs{$param})) {
-	  $prefs{$param}->value($cgi->param($param));
+          unless($param eq 'WebServiceKeyTdate' && $cgi->param($param) !~ /^\d+$/) {
+	    $prefs{$param}->value($cgi->param($param));
+          }
 	} else {
 	  $application->dbmaster->Preferences->create( { user => $user,
 							 name => $param,
@@ -319,7 +321,7 @@ sub web_services_key_generator {
   
   my $content = "<input id='pref_val_$name' type='text' readOnly=1 name='$name' size=25 value='" . $generated . "'>";
   if ($self->application->backend->name eq 'MGRAST' || $self->application->backend->name eq 'RNASEQRAST') {
-    my $timeout = 86400;
+    my $timeout = 604800;
     my $tdate = time + $timeout;
     my ($sec,$min,$hour,$mday,$mon,$year) = localtime($tdate);
     my $tdate_readable = ($year + 1900)." ".sprintf("%02d", $mon + 1)."-".sprintf("%02d", $mday)." ".sprintf("%02d", $hour).":".sprintf("%02d", $min).".".sprintf("%02d", $sec);

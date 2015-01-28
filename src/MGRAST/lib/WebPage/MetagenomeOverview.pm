@@ -60,40 +60,42 @@ sub init {
 
   # get the metagenome id
   my $id = $self->application->cgi->param('metagenome') || '';
+  unless ($id) {
+    $self->app->add_message('warning', "Metagenome ID is missing.");
+    return 1;
+  }
 
   # sanity check on job
-  if ($id) { 
-    my $mgrast = $self->application->data_handle('MGRAST');
-    my $jobs_array = $mgrast->Job->get_objects( { metagenome_id => $id } );
-    unless (@$jobs_array > 0) {
-      $self->app->add_message('warning', "Unable to retrieve the metagenome '$id'. This metagenome does not exist.");
-      return 1;
-    }
-    my $job = $jobs_array->[0];
-    my $user = $self->application->session->user;
-
-    if(! $job->public) {
-      if(! $user) {
-        $self->app->add_message('warning', 'Please log into MG-RAST to view private metagenomes.');
-        return 1;
-      } elsif(! $user->has_right(undef, 'view', 'metagenome', $id)) {
-        $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
-        return 1;
-      }
-    }
-
-    my $attr = $mgrast->JobAttributes->init({ job => $job, tag => 'deleted' });
-    if($attr) {
-      $self->app->add_message('warning', "Unable to view metagenome '$id' because it has been deleted.");
-      return 1;
-    }
-
-    unless ($job->viewable) {
-      $self->app->add_message('warning', "Unable to view metagenome '$id' because it is still processing.");
-      return 1;
-    }
-    $self->data('job', $job);
+  my $mgrast = $self->application->data_handle('MGRAST');
+  my $jobs_array = $mgrast->Job->get_objects( { metagenome_id => $id } );
+  unless (@$jobs_array > 0) {
+    $self->app->add_message('warning', "Unable to retrieve the metagenome '$id'. This metagenome does not exist.");
+    return 1;
   }
+  my $job = $jobs_array->[0];
+  my $user = $self->application->session->user;
+
+  if(! $job->public) {
+    if(! $user) {
+      $self->app->add_message('warning', 'Please log into MG-RAST to view private metagenomes.');
+      return 1;
+    } elsif(! $user->has_right(undef, 'view', 'metagenome', $id)) {
+      $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+      return 1;
+    }
+  }
+
+  my $attr = $mgrast->JobAttributes->init({ job => $job, tag => 'deleted' });
+  if($attr) {
+    $self->app->add_message('warning', "Unable to view metagenome '$id' because it has been deleted.");
+    return 1;
+  }
+
+  unless ($job->viewable) {
+    $self->app->add_message('warning', "Unable to view metagenome '$id' because it is still processing.");
+    return 1;
+  }
+  $self->data('job', $job);
 
   # init the metadata database
   my $mddb = MGRAST::Metadata->new();
@@ -256,6 +258,8 @@ sub output {
   my $raw_gc_std  = exists($job_stats->{standard_deviation_gc_content_raw}) ? $job_stats->{standard_deviation_gc_content_raw} : 0;
   my $qc_rna_gc_std = exists($job_stats->{standard_deviation_gc_content_preprocessed_rna}) ? $job_stats->{standard_deviation_gc_content_preprocessed_rna} : 0;
   my $qc_gc_std   = exists($job_stats->{standard_deviation_gc_content_preprocessed}) ? $job_stats->{standard_deviation_gc_content_preprocessed} : 0;
+  my $clusts      = exists($job_stats->{cluster_count_processed_aa}) ? $job_stats->{cluster_count_processed_aa} : (exists($job_stats->{cluster_count_processed}) ? $job_stats->{cluster_count_processed} : 0);
+  my $clust_seq   = exists($job_stats->{clustered_sequence_count_processed_aa}) ? $job_stats->{clustered_sequence_count_processed_aa} : (exists($job_stats->{clustered_sequence_count_processed}) ? $job_stats->{clustered_sequence_count_processed} : 0);
   my $r_clusts    = exists($job_stats->{cluster_count_processed_rna}) ? $job_stats->{cluster_count_processed_rna} : 0;
   my $r_clust_seq = exists($job_stats->{clustered_sequence_count_processed_rna}) ? $job_stats->{clustered_sequence_count_processed_rna} : 0;
   my $aa_reads    = exists($job_stats->{read_count_processed_aa}) ? $job_stats->{read_count_processed_aa} : 0;
@@ -271,9 +275,9 @@ sub output {
 
   my $is_rna = ($md_seq_type =~ /amplicon/i) ? 1 : 0;
   my $qc_fail_seqs  = $raw_seqs - $qc_seqs;
-  my $ann_rna_reads = $rna_sims ? ($rna_sims - $r_clusts) + $r_clust_seq : 0;
-  my $ann_aa_reads  = ($ann_reads && ($ann_reads > $ann_rna_reads)) ? $ann_reads - $ann_rna_reads : 0;
+  my $ann_aa_reads  = $aa_sims ? ($aa_sims - $clusts) + $clust_seq : 0;
   my $unkn_aa_reads = $aa_reads - $ann_aa_reads;
+  my $ann_rna_reads = $rna_sims ? ($rna_sims - $r_clusts) + $r_clust_seq : 0;
   my $unknown_all   = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads);
 
   if ($is_rna) {
@@ -282,26 +286,32 @@ sub output {
     $ann_aa_reads  = 0;
     $unknown_all   = $raw_seqs - ($qc_fail_seqs + $ann_rna_reads);
     if ($raw_seqs < ($qc_fail_seqs + $ann_rna_reads)) {
-	my $diff = ($qc_fail_seqs + $ann_rna_reads) - $raw_seqs;
-	$unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+	    my $diff = ($qc_fail_seqs + $ann_rna_reads) - $raw_seqs;
+	    $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
     }
   } else {
+      # get correct qc rna
+      if ($qc_rna_seqs > $qc_seqs) {
+          $ann_rna_reads = int((($qc_seqs * 1.0) / $qc_rna_seqs) * $ann_rna_reads);
+      }
       if ($unknown_all < 0) { $unknown_all = 0; }
       if ($raw_seqs < ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads)) {
-	my $diff = ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
-	$unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+	      my $diff = ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+	      $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
       }
       if (($unknown_all == 0) && ($raw_seqs < ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads))) {
-	my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
-	$unkn_aa_reads = ($diff > $unkn_aa_reads) ? 0 : $unkn_aa_reads - $diff;
+	      my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+	      $unkn_aa_reads = ($diff > $unkn_aa_reads) ? 0 : $unkn_aa_reads - $diff;
       }
       ## hack to make MT numbers add up
       if (($unknown_all == 0) && ($unkn_aa_reads == 0) && ($raw_seqs < ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads))) {
-	my $diff = ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
-	$ann_rna_reads = ($diff > $ann_rna_reads) ? 0 : $ann_rna_reads - $diff;
+	      my $diff = ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+	      $ann_rna_reads = ($diff > $ann_rna_reads) ? 0 : $ann_rna_reads - $diff;
       }
   }
 
+  ($qc_fail_seqs, $unknown_all, $unkn_aa_reads, $ann_aa_reads, $ann_rna_reads) =
+        (abs($qc_fail_seqs), abs($unknown_all), abs($unkn_aa_reads), abs($ann_aa_reads), abs($ann_rna_reads));
   # get charts
   my $colors = ["#6C6C6C","#dc3912","#ff9900","#109618","#3366cc","#990099"];
   my $summary_chart = $self->get_summary_chart($colors, $qc_fail_seqs, $unknown_all, $unkn_aa_reads, $ann_aa_reads, $ann_rna_reads);
@@ -319,7 +329,7 @@ sub output {
   unless ($is_rna) {
     $html .= "Of the remainder, ".format_number($ann_aa_reads)." sequences (".percent($ann_aa_reads,$raw_seqs).") contain predicted proteins with known functions and ".format_number($unkn_aa_reads)." sequences (".percent($unkn_aa_reads,$raw_seqs).") contain predicted proteins with unknown function. ";
   }
-  $html .= format_number($unknown_all)." sequences (".percent($unknown_all,$raw_seqs).") have no rRNA genes";
+  $html .= format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no rRNA genes";
   unless ($is_rna) {
     $html .= " or predicted proteins";
   }
@@ -390,8 +400,8 @@ sub output {
   }
 
   # sequence length histogram
-  my @len_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'raw') };
-  my @len_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'len', 'qc') };
+  my @len_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->metagenome_id, 'len', 'raw') };
+  my @len_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->metagenome_id, 'len', 'qc') };
   my $len_min = (@len_raw_hist && @len_qc_hist) ? min($len_raw_hist[0][0], $len_qc_hist[0][0]) : (@len_raw_hist ? $len_raw_hist[0][0] : (@len_qc_hist ? $len_qc_hist[0][0] : 0));
   my $len_max = (@len_raw_hist && @len_qc_hist) ? max($len_raw_hist[-1][0], $len_qc_hist[-1][0]) : (@len_raw_hist ? $len_raw_hist[-1][0] : (@len_qc_hist ? $len_qc_hist[-1][0] : 0));
   my $len_raw_bins = @len_raw_hist ? &get_bin_set(\@len_raw_hist, $len_min, $len_max, $self->data('bin_size')) : [];
@@ -468,7 +478,7 @@ sub output {
   $html .= "</li></ul></td></tr></table><br>";
 
   # technical text
-  $html .= "<br><a name='stats_ref'><table><tr><td>";
+  $html .= "<br><a name='stats_ref'></a><table><tr><td>";
   $html .= "<h3>Analysis Flowchart</h3><div style='width:375px;'>";
   if ($is_rna) {
     $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of the ".format_number($qc_rna_seqs)." sequences (totaling ".format_number($qc_rna_bps)." bps) that passed quality control, ".format_number($ann_rna_reads)." (".percent($ann_rna_reads,$qc_rna_seqs).") produced a total of ".format_number($rna_sims)." identified ribosomal RNAs.</p>";
@@ -526,7 +536,7 @@ sub output {
   <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
   <p>Note that DRISEE is designed to examine sequencing error in raw whole genome shotgun sequence data. It assumes that adapter and/or barcode sequences have been removed, but that the sequence data have not been modified in any additional way. (e.g.) Assembly or merging, QC based triage or trimming will both reduce DRISEE's ability to provide an accurate assessment of error by removing error before it is analyzed.</p>~;
 
-  if (exists($job_stats->{drisee_score_raw}) && ($drisee_num == 0) && (! $is_rna)) {
+  if (($drisee_num == 0) && (! $is_rna)) {
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a></h3>
@@ -537,8 +547,6 @@ $drisee_boilerplate
   } elsif (($drisee_num > 0) && (! $is_rna)) {
     my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
     my $drisee_score = sprintf("%.3f", $drisee_num);
-    my $drisee_info  = $self->get_drisee_info($job);
-    ## [ Input seqs, Processed bins, Processed seqs, Drisee score ]
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a>
@@ -556,7 +564,7 @@ $drisee_boilerplate
   <img src='./Html/clear.gif' onload='draw_position_on_range("drisee_bar_div", $drisee_num, $min, $max, $avg, $stdv);'>
   <div id='drisee_bar_div'></div>
   <p>The above image shows the range of total DRISEE percent errors in all of MG-RAST. The min, max, and mean values are shown, with the standard deviation ranges (&sigma; and 2&sigma;) in different shades. The total DRISEE percent error of this metagenome is shown in red.</p>
-  <p>DRISEE successfully calculated an error profile. DRISEE used ~.format_number($drisee_info->[0]).qq~ reads randomly selected from the ~.format_number($raw_seqs).qq~ reads in this sample. ~.format_number($drisee_info->[2]).qq~ duplicate reads were found with bins of 20 or more reads. A total of ~.format_number($drisee_info->[1]).qq~ such bins were detected</p>
+  <p>DRISEE successfully calculated an error profile.</p>
   $drisee_boilerplate
   $drisee_plot
 </div>~;
@@ -752,8 +760,8 @@ The image is currently dynamic. To be able to right-click/save the image, please
   }
 
   # sequence gc distribution
-  my @gc_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'gc', 'raw') };
-  my @gc_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->job_id, 'gc', 'qc') };
+  my @gc_raw_hist = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->metagenome_id, 'gc', 'raw') };
+  my @gc_qc_hist  = sort {$a->[0] <=> $b->[0]} @{ $mgdb->get_histogram_nums($job->metagenome_id, 'gc', 'qc') };
   my $gc_raw_bins = @gc_raw_hist ? &get_bin_set(\@gc_raw_hist, 0, 100, $self->data('bin_size')) : [];
   my $gc_qc_bins  = @gc_qc_hist  ? &get_bin_set(\@gc_qc_hist, 0, 100, $self->data('bin_size')) : [];
 
@@ -1014,7 +1022,7 @@ sub get_source_chart {
   my ($self, $job, $is_rna, $n_prot, $p_prot, $n_func, $p_func, $n_rna, $p_rna) = @_;
   
   my $mgdb = $self->data('mgdb');
-  my $src_stats = $mgdb->get_source_stats($job->job_id);
+  my $src_stats = $mgdb->get_source_stats($job->metagenome_id);
   my $src_html  = "";
   if (scalar(keys %$src_stats) > 0) {
     my $src_vbar  = $self->application->component('vbar1');
@@ -1117,7 +1125,7 @@ sub get_taxa_chart {
   my @taxa_levels = @{$self->data('tax_levels')};
   pop @taxa_levels;
   foreach my $tax (@taxa_levels) {
-    my $taxa_stats = $mgdb->get_taxa_stats($job->job_id, $tax);
+    my $taxa_stats = $mgdb->get_taxa_stats($mgid, $tax);
     unless (@$taxa_stats > 0) {
       @$taxa_stats = map { [$_->[1], $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_$tax")};
     }
@@ -1173,7 +1181,7 @@ sub get_func_charts {
   my $mgdb = $self->data('mgdb');
   my $mgid = $job->metagenome_id;
   my $jid  = $job->job_id;
-  my $src_stats = $mgdb->get_source_stats($job->job_id);
+  my $src_stats = $mgdb->get_source_stats($mgid);
   my $sources   = $mgdb->_sources();
   my $src_names = [];
   my $src_links = [];
@@ -1208,8 +1216,8 @@ sub get_func_charts {
 ~;
   my $func_charts = [];
   foreach my $name (@$src_names) {
-    my $func_stats = $mgdb->get_ontology_stats($job->job_id, $name);
-    my $func_total = sum @{$src_stats->{$name}->{evalue}};
+    my $func_stats = $mgdb->get_ontology_stats($mgid, $name);
+    my $func_total = sum map {$_->[1]} @$func_stats;
     if ((@$func_stats > 0) && ($func_stats->[0][0])) {
       my $data_rows  = join("\n", map { qq(data.addRow(["$_->[0]", $_->[1]]);) } @$func_stats);
       my $data_count = scalar @$func_stats;
@@ -1275,7 +1283,7 @@ sub draw_krona {
   my $type = $self->application->cgi->param('type');
 
   if ($type eq 'tax') {
-    my $taxa_stats = $mgdb->get_taxa_stats($jid, 'species'); # species, abundance
+    my $taxa_stats = $mgdb->get_taxa_stats($mgid, 'species'); # species, abundance
     unless (@$taxa_stats > 0) {
       @$taxa_stats = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_species")};
     }
@@ -1316,50 +1324,22 @@ sub draw_krona {
   }
 }
 
-sub get_drisee_info {
-  my ($self, $job) = @_;
-
-  my $dinfo = [];
-  my $info_file = $job->download_dir('qc').'075.drisee.info';
-  my @bin_stats = `tail -4 $info_file`;
-  chomp @bin_stats;
-
-  foreach my $line (@bin_stats) {
-    my ($key, $val) = split('\t', $line);
-    push @$dinfo, $val;
-  }
-  ## [ Input seqs, Processed bins, Processed seqs, Drisee score ]
-  return $dinfo;
-}
-
 sub get_drisee_chart {
   my ($self, $job) = @_;
 
   my $mgdb = $self->data('mgdb');
-  my $data = [];
-  
-  my $drisee = $mgdb->get_qc_stats($job->job_id, 'drisee');
-  unless ($drisee && (@$drisee > 2) && ($drisee->[0][0] eq '#')) {
+  my $drisee = $mgdb->get_qc_stats($job->metagenome_id, 'drisee');
+  unless ($drisee && exists($drisee->{percents}) && $drisee->{percents}{data}) {
     return "<p><em>Not yet computed</em></p>";
   }
 
   # data = [ pos, A, T, C, G, N, X, total ]
-  foreach my $row (@$drisee) {
-    my $x = shift @$row;
-    next if (($x eq '#') || (int($x) < 51));
-    my $sum = sum @$row;
-    if ($sum == 0) {
-        push @$data, [ $x, 0, 0, 0, 0, 0, 0, 0 ];
-    } else {
-        my @per = map { sprintf("%.2f", 100 * (($_ * 1.0) / $sum)) } @$row;
-        push @$data, [ $x, @per[6..11], sprintf("%.2f", sum(@per[6..11])) * 1.0 ];
-    }
-  }
-  my @down_data = @$data;
-  unshift @down_data, ['Position','A','T','C','G','N','InDel','Total'];
-  my $values_link = $self->chart_export_link($drisee, 'drisee_values', 'Download DRISEE values');
+  my @values_data = ($drisee->{counts}{columns}, @{$drisee->{counts}{data}});
+  my @down_data   = ($drisee->{percents}{columns}, @{$drisee->{percents}{data}});
+  
+  my $values_link = $self->chart_export_link(\@values_data, 'drisee_values', 'Download DRISEE values');
   my $drisee_link = $self->chart_export_link(\@down_data, 'drisee_plot', 'Download DRISEE plot');
-  my $drisee_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
+  my $drisee_rows = join(",\n", map { "[".join(',', @$_)."]" } @{$drisee->{percents}{data}});
   my $html = qq~
 <p>$values_link</p>
 <p>$drisee_link</p>
@@ -1394,22 +1374,22 @@ sub get_kmer_plot {
   my $jid  = $self->application->cgi->param('job');
   my $type = $self->application->cgi->param('type');
   my $size = $self->application->cgi->param('size');
-  my $kmer = $mgdb->get_qc_stats($jid, 'kmer.'.$size);
+  my $kmer = $mgdb->get_qc_stats($mgid, 'kmer');
   my @data = ();
   my ($xscale, $yscale, $xtext, $ytext);
 
-  unless ($kmer && (@$kmer > 1)) {
+  unless ($kmer && exists($kmer->{$size.'_mer'}) && $kmer->{$size.'_mer'}{data}) {
     return "<p><em>Not yet computed</em></p>";
   }
   # data = [ x, y ]
   if ($type eq 'abundance') {
-    @data = map { [ $_->[3], $_->[0] ] } @$kmer;
+    @data = map { [ $_->[3], $_->[0] ] } @{$kmer->{$size.'_mer'}{data}};
     ($xscale, $yscale, $xtext, $ytext) = ('log', 'log', 'sequence size', 'kmer coverage');
   } elsif ($type eq 'ranked') {
-    @data = map { [ $_->[3], (1 - (1.0 * $_->[5])) ] } @$kmer;
+    @data = map { [ $_->[3], (1 - (1.0 * $_->[5])) ] } @{$kmer->{$size.'_mer'}{data}};
     ($xscale, $yscale, $xtext, $ytext) = ('log', 'linear', 'sequence size', 'fraction of observed kmers');
   } elsif ($type eq 'spectrum') {
-    @data = map { [ $_->[0], $_->[1] ] } @$kmer;
+    @data = map { [ $_->[0], $_->[1] ] } @{$kmer->{$size.'_mer'}{data}};
     ($xscale, $yscale, $xtext, $ytext) = ('log', (($size == 6) ? 'linear' : 'log'), 'kmer coverage', 'number of kmers');
   } else {
     return "<p><em>Not yet computed</em></p>";
@@ -1448,29 +1428,18 @@ sub get_consensus_chart {
   my ($self, $job) = @_;
 
   my $mgdb = $self->data('mgdb');
-  my $data = [];
-  
-  my $consensus = $mgdb->get_qc_stats($job->job_id, 'consensus');
-  unless ($consensus && (@$consensus > 2)) {
-    return "";
-  }
+  my $consensus = $mgdb->get_qc_stats($job->metagenome_id, 'bp_profile');
 
-  # rows = [ pos, A, C, G, T, N, total ]
-  # data = [ pos, N, G, C, T, A ]
-  foreach my $row (@$consensus) {
-    next if (($row->[0] eq '#') || (! $row->[6]));
-    next if (($row->[0] > 100) && ($row->[6] < 1000));
-    my $sum = $row->[6];
-    if ($sum == 0) {
-        push @$data, [ $row->[0] + 1, 0, 0, 0, 0, 0 ];
-    } else {
-        my @per = map {  floor(100 * 100 * (($_ * 1.0) / $sum)) / 100 } @$row;
-        push @$data, [ $row->[0] + 1, $per[5], $per[3], $per[2], $per[4], $per[1] ];
-    }
+  unless ($consensus && exists($consensus->{percents}) && $consensus->{percents}{data}) {
+    return "<p><em>Not yet computed</em></p>";
   }
-  my $consensus_link = $self->chart_export_link($data, 'consensus_plot');
-  my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @$data);
-  my $num_bps = scalar(@$data);
+  
+  # rows = [ pos, A, T, C, G, N ]
+  # data = [ pos, N, G, C, T, A ]
+  my @data = map { [$_->[0], $_->[5], $_->[4], $_->[3], $_->[2], $_->[1]] } @{$consensus->{percents}{data}};
+  my $consensus_link = $self->chart_export_link(\@data, 'consensus_plot');
+  my $consensus_rows = join(",\n", map { "[".join(',', @$_)."]" } @data);
+  my $num_bps = scalar(@data);
 
   my $html .= qq~<a name='consensus_ref'></a>
 <h3>Nucleotide Position Histogram
@@ -1520,7 +1489,7 @@ sub get_abund_plot {
   my $jid   = $self->application->cgi->param('job');
   my $level = $self->application->cgi->param('level');
 
-  my $aplot = $mgdb->get_taxa_stats($jid, $level);
+  my $aplot = $mgdb->get_taxa_stats($mgid, $level);
   unless (@$aplot > 0) {
     @$aplot = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_$level")};
   }
@@ -1531,6 +1500,7 @@ sub get_abund_plot {
       @sort_plot = @sort_plot[0..49];
     }
     my $rap_data = join("~", map { $_->[0] .";;" . $_->[1] } @sort_plot);
+    $rap_data =~ s/'/\&\#39\;/g;
     my $rap_link = $self->chart_export_link(\@sort_plot, 'abundance_plot');
     
     $html = qq~
@@ -1570,7 +1540,7 @@ sub get_rare_curve {
   my $mgid = $self->application->cgi->param('metagenome');
   my $jid   = $self->application->cgi->param('job');
 
-  my $curve = $mgdb->get_rarefaction_coords($jid);
+  my $curve = $mgdb->get_rarefaction_coords($mgid);
   unless (@$curve > 0) {
     my $tmp = $mgdb->get_rarefaction_curve();
     if ($tmp && exists($tmp->{$mgid})) {
@@ -1640,7 +1610,7 @@ sub get_alpha {
   $html .= "<p>Alpha diversity summarizes the diversity of organisms in a sample with a single number. The alpha diversity of annotated samples can be estimated from the distribution of the species-level annotations.</p>";
   $html .= "<p>Annotated species richness is the number of distinct species annotations in the combined MG-RAST dataset. Shannon diversity is an abundance-weighted average of the logarithm of the relative abundances of annotated species. The species-level annotations are from all the annotation source databases used by MG-RAST.</p>";
 
-  my $sp_abund = $mgdb->get_taxa_stats($jid, 'species');
+  my $sp_abund = $mgdb->get_taxa_stats($mgid, 'species');
   if (@$sp_abund > 0) {
     $html .= "<p>" . $self->chart_export_link($sp_abund, 'species_anundance', 'Download source data') . "</p>";
   }
@@ -1797,7 +1767,7 @@ sub chart_export {
 
 sub chart_export_link {
   my ($self, $data, $name, $text) = @_;
-
+  
   $text = $text || "Download chart data";
   $name =~ s/\s+/_/g;
   $name =~ s/\W//g;

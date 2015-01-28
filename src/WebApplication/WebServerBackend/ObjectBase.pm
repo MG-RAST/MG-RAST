@@ -80,6 +80,7 @@ sub attributes {
      return {
 		firstname => [ DB_SCALAR, undef, 0, undef ],
 		email => [ DB_SCALAR, undef, 1, undef ],
+                email2 => [ DB_SCALAR, undef, 0, undef ],
 		password => [ DB_SCALAR, undef, 0, undef ],
 		comment => [ DB_SCALAR, undef, 0, undef ],
 		entry_date => [ DB_SCALAR, undef, 0, undef ],

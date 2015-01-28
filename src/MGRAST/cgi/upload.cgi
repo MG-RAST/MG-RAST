@@ -6,6 +6,7 @@ use JSON;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 use URI::Escape;
 
+use File::Basename;
 use WebApplicationDBHandle;
 use DBMaster;
 use Conf;
@@ -154,6 +155,9 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 			$files_to_filetype{$file} = 'gzip';
 		    } elsif ($basename =~ s/^(.*)\.bz2$/$1/) {
 			$files_to_filetype{$file} = 'bzip2';
+		    } else {
+			push(@{$data->[0]->{popup_messages}}, "Unable to decompress $file, not a valid file extension for decompression.");
+			next;
 		    }
 
                     my $lock_file1 = "$udir/$file.lock";
@@ -364,6 +368,7 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 		    while(my $line=<IN>) {
 			$line =~ s/\s+$//;
 			my @array = split(/\t/, $line);
+			next unless ($array[1]);
 			my $output_file = "$array[1]";
 			chomp $output_file;
 			if($filetype eq 'fastq') {
@@ -514,19 +519,24 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    } else {
         	`echo "computing sequence stats" > $lock_file`;
 		`touch "$udir/$sequence_file.stats_info"`;
-		my $file_suffix = $sequence_file =~ /^.*\.(.+)$/;
-		my $file_format   = &file_format($sequence_file, $udir, $file_type, $file_suffix);
-		my $file_size     = -s $udir."/".$sequence_file;
+		my ($file_name, $dirs, $file_suffix) = fileparse($sequence_file, qr/\.[^.]*/);
+		my $file_format = &file_format($sequence_file, $udir, $file_type, $file_suffix);
+		my $file_size   = -s $udir."/".$sequence_file;
+		$file_suffix =~ s/\.//;
+		$file_name = $file_name.'.'.$file_suffix;
 	    
-		my $info = { "type" => $file_type,
-			     "suffix" => $file_suffix,
-			     "file_type" => $file_format,
-			     "file_size" => $file_size };
+		my $info = {
+		    "type" => $file_type,
+			"suffix" => $file_suffix,
+			"file_name" => $file_name,
+			"file_type" => $file_format,
+			"file_size" => $file_size };
 	    
 		open(FH, ">$udir/$sequence_file.stats_info");
 		print FH "type\t$file_type\n";
 		print FH "suffix\t$file_suffix\n";
 		print FH "file_type\t$file_format\n";
+		print FH "file_name\t$file_name\n";
 		print FH "file_size\t$file_size\n";
 		close(FH);
 		`chmod 666 $udir/$sequence_file.stats_info`;
@@ -562,7 +572,8 @@ if (scalar(@rest) && $rest[0] eq 'user_inbox') {
 	    $data->[0]->{fileinfo}->{$file} = {};
 	}
 	$data->[0]->{fileinfo}->{$file}->{'creation date'} = &pretty_date($ctime);
-	$data->[0]->{fileinfo}->{$file}->{'file size'} = &pretty_size($size);
+	$data->[0]->{fileinfo}->{$file}->{'file size'} = $size;
+	#$data->[0]->{fileinfo}->{$file}->{'file size'} = &pretty_size($size);
     }
     
     # sort the returned files lexigraphically

@@ -168,11 +168,13 @@ sub delete {
   }
 
   # delete all organization memberships for this user
-  my $organization_memberships = $self->_master->OrganizationUsers( { user => $self } );
-  foreach (@$organization_memberships) {
-    $_->delete;
+  my $organization_memberships = $self->_master->OrganizationUsers->get_objects( { user => $self } );
+  if (ref($organization_memberships) eq "ARRAY") {
+    foreach (@$organization_memberships) {
+      $_->delete;
+    }
   }
-  
+
   return $self->SUPER::delete();
 
 }
@@ -394,7 +396,7 @@ sub grant_login_right {
   }
 
   # send mail
-  if (ref $backend_or_app && $backend_or_app->isa('WebApplication')) {
+  #if (ref $backend_or_app && $backend_or_app->isa('WebApplication')) {
     
     my $body = HTML::Template->new(filename => TMPL_PATH.'EmailAcceptAccount.tmpl',
 				   die_on_bad_params => 0);
@@ -410,7 +412,7 @@ sub grant_login_right {
 		       $WebConfig::APPLICATION_NAME.' - account request approved',
 		       $body->output,
 		    );
-  }
+  #}
   
   return $self;
 }
@@ -477,7 +479,7 @@ sub deny_login_right {
   }
 
   # clean up
-  unless (scalar(@{$self->rights})) {
+  unless (scalar(@{$self->rights}) > 1) {
     $self->delete();
     return undef;
   }

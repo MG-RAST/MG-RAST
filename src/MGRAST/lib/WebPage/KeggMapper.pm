@@ -349,12 +349,14 @@ sub selectable_metagenomes {
       push(@$metagenomespub, { label => $pmg->{name}." (".$pmg->{metagenome_id}.")", value => $pmg->{metagenome_id} });
     }
     if ($self->application->session->user) {
-      my $mgs = $rast->Job->get_jobs_for_user($self->application->session->user, 'view', 1);
+      my @mga = $rast->Job->get_jobs_for_user_fast($self->application->session->user, 'view', 1);
+      my $mgs = \@mga;
 
       # check for collections
       my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
 										 user => $self->application->session->user,
 										 name => 'mgrast_collection' } );
+
       if (scalar(@$coll_prefs) && (! $no_coll)) {
 	my $collections = {};
 	foreach my $collection_pref (@$coll_prefs) {
@@ -391,11 +393,10 @@ sub selectable_metagenomes {
 
       # build hash from all accessible metagenomes
       foreach my $mg_job (@$mgs) {
-	next if ($org_seen->{$mg_job->metagenome_id});
-	$org_seen->{$mg_job->metagenome_id} = 1;
-	next unless ($avail_hash->{$mg_job->job_id});
-	push(@$metagenomes, { label => $mg_job->name." (".$mg_job->metagenome_id.")", value => $mg_job->metagenome_id });
-
+	next if ($org_seen->{$mg_job->{metagenome_id}});
+        $org_seen->{$mg_job->{metagenome_id}} = 1;
+        next unless ($avail_hash->{$mg_job->{job_id}});
+        push(@$metagenomes, { label => ($mg_job->{name} || "")." (".$mg_job->{metagenome_id}.")", value => $mg_job->{metagenome_id}});
       }
     }
   }

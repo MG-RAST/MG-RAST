@@ -129,7 +129,7 @@ sub new {
   foreach my $p (@cgi_params) {
     my @plist = $cgi->param($p);
     foreach my $p1 (@plist) {
-      if ($p1 && reftype($p1) eq "") {
+      if ($p1 && defined(reftype($p1)) && (reftype($p1) eq "")) {
         $p1 = $hs->parse($p1);
       }
     }
@@ -1338,7 +1338,19 @@ sub get_user_info {
 	$info .= "<input type='text' title='Enter your login name here.' name='anonymous_login'>";
 	$info .= "<input type='submit' value='login' style='width:40px;cursor: pointer;' title='Click here to login!'>\n" .$self->page->end_form();
       } elsif ($self->fancy_login) { 
-	$info .= $self->page->start_form('login_form', { page => 'Login', action => 'perform_login' });
+
+	my $formstart = undef;
+	eval {
+	  use Conf;
+	  if ($Conf::secure_url) {
+	    $formstart = "<form method='post' id='login_form' enctype='multipart/form-data' action='".$Conf::secure_url.$self->url()."' style='margin: 0px; padding: 0px;'>\n".$self->cgi->hidden(-name=>'action', -id=>'action', -value=>'perform_login', -override=>1).$self->cgi->hidden(-name=>'page', -id=>'page', -value=>'Login', -override=>1);  
+	  }
+	};
+	if (! $formstart) {
+	  $formstart = $self->page->start_form('login_form', { action => 'perform_login', 'page' => 'Login' });
+	}
+
+	$info .= $formstart;
 	$info .= "<div id='login_box'><div id='login_left_txt'>EXISTING USERS &raquo;</div>";
 	$info .= "<div id='login_input_box'><div id='login_input_header'>LOGIN<a class='forgot' href='?page=Register' style='margin-left:32px;' title='click to register a new account'>REGISTER</a></div><div id='login_input_box'><input type='text' title='Enter your login name here.' name='login'></div></div>";
 	$info .= "<div id='login_input_box'>";
@@ -1520,6 +1532,9 @@ sub run {
 	eval { $content = $self->page->output; };
 	if ($@) {
 	  my $error = $@;
+	  if ($Conf::developer_mode) {
+	    $self->error("<h2>Error generating page output for $page.</h2>\n$error");
+	  }
 	}
 
 	# checking for any js calls via the JSCaller Web Component
@@ -1589,7 +1604,7 @@ sub run {
   # output, not ours.
   unless ($self->{transmitted}) {
     $self->{transmitted} = 1;
-    print $self->cgi->header( -cookie => $self->session->cookie );
+    print $self->cgi->header( -cookie => $self->session->cookie, -charset => 'UTF-8' );
     my $output = $self->layout->output;
     print $output;
   }

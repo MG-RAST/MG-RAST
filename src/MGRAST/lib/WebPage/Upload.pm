@@ -9,6 +9,7 @@ use Digest::MD5 qw(md5 md5_hex md5_base64);
 use JSON;
 use Encode;
 use Number::Format qw(format_bytes);
+use LWP::UserAgent;
 
 use Conf;
 use WebConfig;
@@ -123,6 +124,8 @@ sub output {
     }
   }
 
+  my $webkey = $self->current_webkey();
+
   my $user_project_ids = $user->has_right_to(undef, "edit", "project");
   my $projects = [];
   foreach my $pid (@$user_project_ids) {
@@ -149,7 +152,7 @@ sub output {
 <li><a href='http://metagenomics.anl.gov/metazen.cgi' target=_blank>Use MetaZen to create your metadata spreadsheet</a></li>
 <li><a href='http://www.youtube.com/watch?v=pAf19exJo4o&feature=youtu.be' target=_blank>Uploading a metagenome (Video)</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#inbox' target=_blank>Inbox explained</a></li>
-<li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#api_submission' target=_blank>Automated submission via our API</a></li>
+<li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Automated submission via our API</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#preparing_metadata' target=_blank>Preparing metadata</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#job_priority' target=_blank>Priority assignments explained</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#accession_numbers' target=_blank>Obtaining Accession numbers</a></li>
@@ -225,8 +228,8 @@ sub output {
                   <p>In addition to using your web browser for uploads to the system the following alternatives are available:</p>
                   <table>
                      <tr style='display: none;'><td width="125px"><b>ftp</b></td><td>ftp://incoming.metagenomics.anl.gov/<span id="ftp_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
-                     <tr><td>http://api.metagenomics.anl.gov/inbox/<span id="http_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
-                     <tr><td colspan=2 style='padding-top: 10px; padding-bottom: 10px;'><div id='generate_key'><input type='button' class='btn' onclick='generate_webkey();' value='generate webkey'></div></td></tr>
+                     <tr><td>http://api.metagenomics.anl.gov/1/inbox</td></tr>
+                     <tr><td colspan=2 style='padding-top: 10px; padding-bottom: 10px;'><div id='generate_key'><input type='button' class='btn' onclick='generate_webkey();' value='~. ($webkey->{key} ? ($webkey->{valid} ? "view webkey" : "re-activate webkey") : "generate webkey") . qq~'></div></td></tr>
                   </table>
                   <p><b>Note:</b> The <a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Blog</a> lists a number of examples for data transfer.</p>
 
@@ -243,7 +246,7 @@ sub output {
                    </tr>
                    <tr>
                      <td><input type="button" class="btn" style='width:130px;' value="unpack selected" onclick="unpack_files();"></td>
-                     <td width=250 style='vertical-align:middle;'>Unpacks selected zip, gzip, or tar files.</td>
+                     <td width=250 style='vertical-align:middle;'>Unpacks selected zip, gzip, bzip2, tar gzip, or tar bzip2 files.</td>
                      <td><input type="button" class="btn" style='width:130px;' value="demultiplex" onclick="demultiplex_files();"></td>
                      <td width=250 style='vertical-align:middle;'>Demultiplexes selected files.</td>
                    </tr>
@@ -256,7 +259,7 @@ sub output {
 			   <button style="display: none;" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Hidden join paired-ends button for enter key submission</button>
 			   <div class="modal-header">
 			     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-			     <h3 id="joinPairedEndsModalLabel">join paired-ends</h3>
+			     <h3 id="joinPairedEndsModalLabel">join fastq-formatted paired-ends</h3>
 		           </div>
 			   <div class="modal-body">
 			     <p>Select file 1 of your paired-ends:</p>
@@ -275,13 +278,13 @@ sub output {
 		           </div>
 			   <div class="modal-footer">
 			     <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
-			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Join Overlapping Paired-End Reads</button>
+			     <button class="btn btn-primary" style="background-color:#3A87AD;background-image:-moz-linear-gradient(center top , #3A87AD, #3A87AD);" onclick="join_paired_ends();" data-dismiss="modal" aria-hidden="true">Join FASTQ-formatted Paired-End Reads</button>
 		           </div>
 			 </div>
 		       </form>
                        <input type="button" class="btn" style='width:130px;' value="join paired-ends" data-toggle="modal" href="#joinPairedEndsModal"">
                      </td>
-                     <td width=250 style='vertical-align:middle;'>Joins overlapping paired-end reads.</td>
+                     <td width=250 style='vertical-align:middle;'>Joins FASTQ-formatted overlapping paired-end reads.</td>
                    </tr>
                  </table>
                  <br>
@@ -451,13 +454,14 @@ sub output {
 		    <div class="controls">
 		      <label class="select">
 			<select id="screening" name="screening">
-                           <option value="h_sapiens_asm">H. sapiens, NCBI v36</option>
-                           <option value="m_musculus_ncbi37">M. musculus, NCBI v37</option>
+                           <option value="h_sapiens">H. sapiens, NCBI v36</option>
+                           <option value="m_musculus">M. musculus, NCBI v37</option>
+                           <option value="r_norvegicus">R. norvegicus, UCSC rn4</option>
                            <option value="b_taurus">B. taurus, UMD v3.0</option>
-                           <option value="d_melanogaster_fb5_22">D. melanogaster, Flybase, r5.22</option>
+                           <option value="d_melanogaster">D. melanogaster, Flybase, r5.22</option>
                            <option value="a_thaliana">A. thaliana, TAIR, TAIR9</option>
                            <option value="e_coli">E. coli, NCBI, st. 536</option>
-                           <option value="s_scrofa_ncbi10.2">Sus scrofa, NCBI v10.2</option>
+                           <option value="s_scrofa">Sus scrofa, NCBI v10.2</option>
 			   <option value="none">none</option>
                         </select>
 			<br>Remove any host specific species sequences (e.g. plant, human or mouse) using DNA level matching with bowtie <a href='http://genomebiology.com/2009/10/3/R25' target='blank'>Langmead et al., Genome Biol. 2009, Vol 10, issue 3</a>
@@ -570,6 +574,31 @@ sub submit_to_mgrast {
   my $project_obj = undef;
   my $mddb = MGRAST::Metadata->new();
   my ($is_valid, $data, $log);
+  
+  # test if Shock-AWE are running
+  my $info  = undef;
+  my $agent = LWP::UserAgent->new;
+  my $json  = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
+  $agent->timeout(10);
+  eval {
+    my $get = $agent->get($Conf::shock_url);
+    $info = $json->decode($get->content);
+  };
+  if ($@ || ($info->{id} ne 'Shock')) {
+    $self->application->add_message('warning', "Unable to access MG-RAST data store. Please try again later.");
+    return undef;
+  }
+  eval {
+    my $get = $agent->get($Conf::awe_url);
+    $info = $json->decode($get->content);
+  };
+  if ($@ || ($info->{id} ne 'AWE')) {
+    $self->application->add_message('warning', "Unable to access MG-RAST pipeline. Please try again later.");
+    return undef;
+  }
 
   # get project name from metadata
   if ($mdata) {
@@ -597,13 +626,13 @@ sub submit_to_mgrast {
   # get project if exists from name or id
   if ($project_name) {
     my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
-    if (scalar(@$projects) && $user->has_right(undef, 'view', 'project', $projects->[0]->id)) {
+    if (scalar(@$projects) && $user->has_right(undef, 'edit', 'project', $projects->[0]->id)) {
       $project_obj = $projects->[0];
     }
   }
   elsif ($project_id) {
     my $projects = $jobdbm->Project->get_objects( { id => $project_id } );
-    if (scalar(@$projects) && $user->has_right(undef, 'view', 'project', $projects->[0]->id)) {
+    if (scalar(@$projects) && $user->has_right(undef, 'edit', 'project', $projects->[0]->id)) {
       $project_obj = $projects->[0];
     }
   }
@@ -637,17 +666,18 @@ sub submit_to_mgrast {
       my ($filename_base, $filename_ending) = $seqfile =~ /^(.*)\.(fasta|fa|ffn|frn|fna|fastq|fq)$/;
       my $subdir = "";
       if ($filename_base =~ /\//) {
-	($subdir, $filename_base) = $filename_base =~ /^(.*\/)(.*)/;
+	      ($subdir, $filename_base) = $filename_base =~ /^(.*\/)(.*)/;
       }
-      if ($filename_ending ne 'fastq') {
-	if ($filename_ending eq 'fq') {
-	  $filename_ending = 'fastq';	  
-	}
-	$filename_ending = 'fna';
-	`mv '$udir/$seqfile' '$udir/$subdir$filename_base.$filename_ending'`;
-	`mv '$udir/$seqfile.error_log' '$udir/$subdir$filename_base.$filename_ending.error_log'`;
-	`mv '$udir/$seqfile.stats_info' '$udir/$subdir$filename_base.$filename_ending.stats_info'`;
-	$seqfile = "$subdir$filename_base.$filename_ending";
+      if (($filename_ending ne 'fastq') || ($filename_ending ne 'fna')) {
+	      if ($filename_ending eq 'fq') {
+	          $filename_ending = 'fastq';	  
+	      } else {
+	          $filename_ending = 'fna';
+	      }
+	      `mv '$udir/$seqfile' '$udir/$subdir$filename_base.$filename_ending'`;
+	      `mv '$udir/$seqfile.error_log' '$udir/$subdir$filename_base.$filename_ending.error_log'`;
+	      `mv '$udir/$seqfile.stats_info' '$udir/$subdir$filename_base.$filename_ending.stats_info'`;
+          $seqfile = "$subdir$filename_base.$filename_ending";
       }
       my $name = $filename_base;
       # die if using metadata and no filename-library match
@@ -712,8 +742,9 @@ sub submit_to_mgrast {
   my $err_msgs = [];
   # create metadata collections
   if ($mdata) {
-    ($successfully_created_jobs, $err_msgs) = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
-    if(@$err_msgs != 0) {
+    (undef, $successfully_created_jobs, $err_msgs) = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
+    # only print err_msgs and return if not all jobs were successfully submitted
+    if(@$err_msgs != 0 && @{$successfully_created_jobs} != @{$jobs}) {
       my $msg = "WARNING: The user \"".$user->login."\" submitted jobs that failed. The following errors were generated:\n";      
       foreach my $err (@$err_msgs) {
         $msg .= $err."\n";
@@ -751,33 +782,23 @@ sub submit_to_mgrast {
     $self->application->add_message('warning', "Unable to find / create vaild project, aborting submission.");
     return undef;
   }
+  # reset job options to include project and other metadata if need
+  foreach my $job (@$jobs) {
+    $job->set_job_options();
+  }
 
   my $pid = fork();
-  
   # child
   if ($pid == 0) {
     close STDERR;
     close STDOUT;
     foreach my $job (@$successfully_created_jobs) {
-      my $create_job_script = $Conf::create_job;
-      my $seqfile = $job2seq->{$job->{job_id}};
-      my $jid = $job->{job_id};
-      my $is_fastq = ($job2type->{$job->{job_id}} eq 'fastq') ? " --fastq" : "";
-      my $options  = $job->{options} ? ' -o "'.$job->{options}.'"' : "";
-      my $result = `$create_job_script -j $jid -f "$udir/$seqfile"$options$is_fastq`;
-      
-      # check if the sequence file made it over to the jobdirectory, then delete it in the inbox
-      my $rawfile = $job->download_dir.$job->{job_id}.".";
-      if ($is_fastq) {
-	$rawfile .= "fastq";
-      } else {
-	$rawfile .= "fna";
-      }
-      if (-f $rawfile && (stat($rawfile))[7] == (stat("$udir/$seqfile"))[7]) {
-	`rm "$udir/$seqfile"`; 
-	`rm "$udir/$seqfile.error_log"`; 
-	`rm "$udir/$seqfile.stats_info"`; 
-      }
+        # new submission script, delete from inbox if successful
+        my $seqfile = $udir."/".$job2seq->{$job->{job_id}};
+        my $status  = system($Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_file ".$seqfile." > $seqfile.submit_log 2> $seqfile.error_log");
+        if ($status == 0) {
+            system("rm $seqfile $seqfile.stats_info $seqfile.submit_log $seqfile.error_log");
+        }
     }
     exit;
   }
@@ -833,16 +854,16 @@ sub check_for_duplicates {
     foreach my $file (@$missing_files) {
       $output .= "$file\n";
     }
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print $output;
   } elsif (@$dupes > 0) {
     $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tFile Size\t\tYour File\n---------------\t---------------\t---------------\n";
     map { $output .= join("\t", @$_)."\n" } @$dupes;
     $output .= "\nResubmitting jobs that already exist in MG-RAST reduces our resources and can delay the processing of jobs for all MG-RAST users.  Do you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print $output;
   } else {
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print "unique";
   }
   exit 0;
@@ -897,10 +918,10 @@ sub send_email_for_duplicate_submission {
       or die "Can't open Mail::Mailer: $!\n";
     print $mailer $msg;
     $mailer->close();
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print 1;
   } else {
-    print $cgi->header;
+    print $cgi->header(-charset => 'UTF-8');
     print 0;
   }
 
@@ -924,10 +945,10 @@ sub check_project_name {
     $projects = $jobdb->Project->get_objects({ id => $project_id });
   }
   if (scalar(@$projects) && ! $user->has_right(undef, 'edit', 'project', $projects->[0]->{id})) {
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print 0;
   } else {
-    print $cgi->header();
+    print $cgi->header(-charset => 'UTF-8');
     print 1;
   }
   exit 0;
@@ -952,7 +973,7 @@ sub read_status_file {
     chomp $msg;
   }
 
-  print $cgi->header;
+  print $cgi->header(-charset => 'UTF-8');
   print $msg;
   exit 0;
 }
@@ -979,8 +1000,8 @@ sub validate_metadata {
     if ($project_name) {
       my $jobdbm  = $application->data_handle('MGRAST');
       my $projects = $jobdbm->Project->get_objects( { name => $project_name } );
-      if (scalar(@$projects) && (! $user->has_right(undef, 'view', 'project', $projects->[0]->id))) {
-	print $cgi->header;
+      if (scalar(@$projects) && (! $user->has_right(undef, 'edit', 'project', $projects->[0]->id))) {
+	print $cgi->header(-charset => 'UTF-8');
 	print "0||taken||The project name you have chosen is already taken and you do not have edit rights to this project.\nPlease choose a different project name or ask the owner of the project for edit rights.";
 	exit 0;
       } else {
@@ -1041,9 +1062,36 @@ sub validate_metadata {
     }
     $formatted_data .= "<input type='button' class='btn' value='select new metadata file' onclick='selected_metadata_file=null;update_inbox();document.getElementById(\"sel_mdfile_info_div\").style.display = \"\";'>";
   }
-  print $cgi->header;
+  print $cgi->header(-charset => 'UTF-8');
   print $is_valid."||".$project_name."||".$formatted_data;
   exit 0;
+}
+
+sub current_webkey {
+  my ($self) = @_;
+
+  my $application = $self->application();
+  my $master = $application->dbmaster();
+  my $user = $application->session->user();
+  
+  my $existing_key = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
+  my $existing_date = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
+  
+  my $valid = 0;
+  my $key = 0;
+  my $date = 0;
+  
+  if (scalar(@$existing_key)) {
+    if ($existing_date->[0]->{value} > time) {
+      $valid = 1;
+    }
+    $key = $existing_key->[0]->{value};
+    $date = $existing_date->[0]->{value};
+  }
+
+  return { "key" => $key,
+	   "date" => $date,
+	   "valid" => $valid };
 }
 
 sub generate_webkey {
@@ -1054,13 +1102,27 @@ sub generate_webkey {
   my $master = $application->dbmaster();
   my $user = $application->session->user();
 
+  my $timeout = 60 * 60 * 24 * 7; # one week
+  
   my $generated = "";
+
+  my $webkey = { "key" => 0,
+		 "date" => 0,
+		 "valid" => 0 };
 
   my $existing_key = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
   my $existing_date = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
   if (scalar(@$existing_key) && ! $cgi->param('generate_new_key')) {
-    $existing_key = $existing_key->[0]->{value};
-    $existing_date = $existing_date->[0]->{value};
+    $webkey->{key} = $existing_key->[0]->{value};
+    $webkey->{date} = $existing_date->[0]->{value};
+    if ($webkey->{date} > time) {
+      $webkey->{valid} = 1;
+    }
+
+    if ($cgi->param('reactivate_key')) {
+      my $tdate = time + $timeout;
+      $existing_date->[0]->value($tdate);
+    }
   } else {
     my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
     while (length($generated) < 25) {
@@ -1075,7 +1137,6 @@ sub generate_webkey {
       }
       $preference = $master->Preferences->get_objects( { value => $generated } );
     }
-    my $timeout = 60 * 60 * 24 * 7; # one week
     my $tdate = time + $timeout;
 
     my $pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
@@ -1093,22 +1154,32 @@ sub generate_webkey {
       $pref = $master->Preferences->create( { 'user' => $user, 'name' => 'WebServicesKey' } );
     }
     $pref->value($generated);
-    $existing_key = $generated;
-    $existing_date = $tdate;
-
-    # create a symlink
-    
+    $webkey->{key} = $generated;
+    $webkey->{date} = $tdate;
+    $webkey->{valid} = 1;
   }
     
-  my $content = "<b>Your current WebKey:</b> <input type='text' readOnly=1 size=25 value='" . $existing_key . "'>";
+  my $content = "";
   
-  my ($sec,$min,$hour,$mday,$mon,$year) = localtime($existing_date);  
-  my $tdate_readable = ($year + 1900)." ".sprintf("%02d", $mon + 1)."-".sprintf("%02d", $mday)." ".sprintf("%02d", $hour).":".sprintf("%02d", $min).".".sprintf("%02d", $sec);
-  $content .= " <b>valid until</b>: <input type='text' readOnly=1 size=20 value='" . $tdate_readable . "'>";
-  $content .= " <input type='button' class='btn' value='generate new key' onclick='generate_webkey(1);'>";
-  $content .= "<img src='./Html/clear.gif' onload='document.getElementById(\"ftp_webkey\").innerHTML=\"" . $existing_key . "\";document.getElementById(\"http_webkey\").innerHTML=\"" . $existing_key . "\";'>";
+  if ($webkey->{valid}) {
 
-  print $cgi->header;
+    my ($sec,$min,$hour,$mday,$mon,$year) = localtime($webkey->{date});  
+    my $tdate_readable = ($year + 1900)." ".sprintf("%02d", $mon + 1)."-".sprintf("%02d", $mday)." ".sprintf("%02d", $hour).":".sprintf("%02d", $min).".".sprintf("%02d", $sec);
+
+    $content .= "<b>Your current WebKey:</b> <input type='text' readOnly=1 size=25 value='" . $webkey->{key} . "'>";
+    $content .= " &nbsp;&nbsp;&nbsp;<b>valid until</b>: <input type='text' readOnly=1 size=20 value='" . $tdate_readable . "'>";
+    $content .= "<br><input type='button' class='btn' value='extend key validity date' onclick='generate_webkey(null, 1);' style='margin-top: 5px; margin-left: 130px;'>";
+
+  } else {
+    $content .= "<b>Your current WebKey:</b> " . $webkey->{key};
+    $content .= "<br><span style='font-weight: bold; color: red; margin-top: 3px;'>your current key has timed out and is no longer valid!</span>";
+    $content .= "<br><input type='button' class='btn' value='re-activate key' onclick='generate_webkey(null, 1);'>";
+  }
+
+  $content .= " <input type='button' class='btn' value='generate new key' onclick='generate_webkey(1);' style='margin-top: 5px; margin-left: 50px;'>";
+#  $content .= "<img src='./Html/clear.gif' onload='document.getElementById(\"ftp_webkey\").innerHTML=\"" . $webkey->{key} . "\";document.getElementById(\"http_webkey\").innerHTML=\"" . $webkey->{key} . "\";'>";
+
+  print $cgi->header(-charset => 'UTF-8');
   print $content;
   exit 0;
 }

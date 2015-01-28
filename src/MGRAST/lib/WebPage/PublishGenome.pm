@@ -2,8 +2,13 @@ package MGRAST::WebPage::PublishGenome;
 
 use strict;
 use warnings;
+no warnings('once');
 
 use MGRAST::Metadata;
+
+use JSON;
+use LWP::UserAgent;
+use HTTP::Request;
 use Data::Dumper;
 
 use WebConfig;
@@ -55,6 +60,10 @@ sub init {
     $self->app->error("Unable to retrieve the job '$id'.");
     return;
   }
+  
+  # api info for making public
+  $self->data('api', "http://api.metagenomics.anl.gov");
+  
   $self->data('job', $job);
   $self->data('linkin', "http://metagenomics.anl.gov/linkin.cgi?metagenome=$id");
 }
@@ -230,7 +239,33 @@ sub publish {
   my $body    = "Dear $uname,\n\nYour metagenome '" . $job->name . "' ($mg_id) is now public. You can link to the metagenome using:\n" . $self->data('linkin') .
                 "\n\nThis is an automated message.  Please contact mg-rast\@mcs.anl.gov if you have any questions or concerns.";
   
-  $job->public(1);
+  ######## use API to make public ##########
+  my $response = undef;
+  my $agent = LWP::UserAgent->new;
+  my $json  = JSON->new;
+  $json = $json->utf8();
+  $json->max_size(0);
+  $json->allow_nonref;
+  
+  my $url  = $self->data('api')."/job/public";
+  my $data = {metagenome_id => 'mgm'.$job->{metagenome_id}};
+  my $req  = HTTP::Request->new(POST => $url);
+  $req->header('Content-Type' => 'application/json', 'auth' => $Conf::api_key);
+  $req->content($json->encode($data));
+  
+  eval {
+    my $post  = $agent->request($req);
+    $response = $json->decode($post->content);
+  };
+  if ($@ || (! ref($response))) {
+    $self->application->add_message('warning', "Could not make metagenome public: ".$@);
+    return "<pre>Could not make metagenome public: ".$@."</pre>";
+  } elsif (exists($response->{ERROR}) && $response->{ERROR}) {
+    $self->application->add_message('warning', "Could not make metagenome public: ". $response->{ERROR});
+    return "<pre>Could not make metagenome public: ".$response->{ERROR}."</pre>";
+  }
+  
+  # send email
   $user->send_email($from, $subject, $body);
 
   my $content = "<h1>" . $job->name . " ($mg_id) is publicly accessible.</h1>";

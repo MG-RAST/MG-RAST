@@ -179,9 +179,6 @@ sub output {
       $existing_account .= "<tr><td>Login<sup><span style='color: red;'>*</span></sup></td><td><input type='text' name='login' value='" . $login . "'></td></tr>";
       $existing_account .= "<tr><td>eMail<sup><span style='color: red;'>*</span></sup></td><td><input type='text' name='email' value='" . $email . "'></td></tr>";
       $existing_account .= "<tr><td>Group Name</td><td><input type='text' name='group' value='" . $group . "'><br><i>(only enter if assigned by a group administrator)</i></td></tr>";
-      if ($self->application->backend->name eq 'MGRAST') {
-	$existing_account .= "<tr><td>Add me to the MG-RAST mailing-list</td><td><input type='checkbox' name='mailinglist' checked='checked'><br><i>$mlist_msg</i></td></tr>";
-      }
       $existing_account .= "<tr><td>&nbsp;</td><td><input type='submit' class='button' value='Request'></td></tr>";
       $existing_account .= "</table>";
 
@@ -943,7 +940,7 @@ sub country_codes {
 	   'AG' => 'Antigua and Barbuda',
 	   'GT' => 'Guatemala',
 	   'MC' => 'Monaco',
-	   'GE' => 'Abkhazia',
+	   'GE' => 'Georgia',
 	   'CY' => 'Northern Cyprus',
 	   'LV' => 'Latvia',
 	   'MH' => 'Marshall Islands',
