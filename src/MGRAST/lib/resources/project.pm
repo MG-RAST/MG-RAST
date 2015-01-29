@@ -269,7 +269,7 @@ sub prepare_data {
 	      my $jdata = $project->metagenomes_summary();
 	      $obj->{metagenomes} = [];
 	      foreach my $row (@$jdata) {
-		push(@$obj->{metagenomes}, { metagenome_id => $row->[0],
+		push(@{$obj->{metagenomes}}, { metagenome_id => $row->[0],
 					     name => $row->[1],
 					     basepairs => $row->[2],
 					     sequences => $row->[3],
