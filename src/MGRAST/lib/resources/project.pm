@@ -264,27 +264,27 @@ sub prepare_data {
 	        my $fund = $metadata->{project_funding} || " - ";
 	        $obj->{metadata}       = $metadata;
 	        $obj->{description}    = $desc;
-	        $obj->{funding_source} = $fund;	
-            }
-	    if ($self->cgi->param('verbosity') eq 'summary') {
-	      my $jdata = $project->metagenomes_summary();
-	      $obj->{metagenomes} = [];
-	      foreach my $row (@$jdata) {
-		push(@{$obj->{metagenomes}}, { metagenome_id => $row->[0],
-					       name => $row->[1],
-					       basepairs => $row->[2],
-					       sequences => $row->[3],
-					       biome => $row->[4],
-					       feature => $row->[5],
-					       material => $row->[6],
-					       location => $row->[7],
-					       country => $row->[8],
-					       coordinates => $row->[9],
-					       sequence_type => $row->[10],
-					       sequencing_method => $row->[11] });
-	      }
-	      
-	    } elsif ($self->cgi->param('verbosity') ne 'minimal') {
+	        $obj->{funding_source} = $fund;
+		
+		if ($self->cgi->param('verbosity') eq 'summary') {
+		  my $jdata = $project->metagenomes_summary();
+		  $obj->{metagenomes} = [];
+		  foreach my $row (@$jdata) {
+		    push(@{$obj->{metagenomes}}, { metagenome_id => $row->[0],
+						   name => $row->[1],
+						   basepairs => $row->[2],
+						   sequences => $row->[3],
+						   biome => $row->[4],
+						   feature => $row->[5],
+						   material => $row->[6],
+						   location => $row->[7],
+						   country => $row->[8],
+						   coordinates => $row->[9],
+						   sequence_type => $row->[10],
+						   sequencing_method => $row->[11] });
+		  }
+		}
+            } elsif ($self->cgi->param('verbosity') ne 'minimal') {
 	        $self->return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
             }
         }
