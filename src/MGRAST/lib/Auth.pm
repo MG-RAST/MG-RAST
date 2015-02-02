@@ -49,7 +49,7 @@ sub authenticate {
               $json->allow_nonref;
               my $agent = LWP::UserAgent->new;
               eval {
-                my @args = ();#('Authorization', "OAuth ".$Conf::mgrast_oauth_token);
+                my @args = ('Authorization', "mgrast ".$pref->[0]->{value});
                 my $url = $Conf::shock_url.'/node/'.$nodeid;
                 my $get = $agent->get($url, @args);
                 $response = $json->decode( $get->content );
