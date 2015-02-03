@@ -270,6 +270,12 @@ sub instance {
 
     # preferences were passed
     if (defined $rest->[1] && $rest->[1] eq "preferences") {
+      my $userToken = $master->Preferences->get_objects({ user => $user, name => "WebServicesKey" });
+      if (scalar(@$userToken)) {
+	$userToken = $userToken->[0]->{value};
+      } else {
+	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+      }
       my $prefs = { 'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id, "pref" => $self->json->decode($self->cgi->param('prefs')) };
       
       my $pref_id = $master->Preferences->get_objects({ user => $user, name => "shock_pref_node" });
@@ -277,9 +283,9 @@ sub instance {
       my $retval = {};
       if (scalar(@$pref_id)) {
 	$nodeid = $pref_id->[0]->{value};
-	$retval = $self->update_shock_node($nodeid, $prefs);#, $self->mgrast_token);
+	$retval = $self->update_shock_node($nodeid, $prefs, $userToken, "mgrast");
       } else {
-	$retval = $self->set_shock_node("preferences", undef, $prefs);#, $self->mgrast_token);
+	$retval = $self->set_shock_node("preferences", undef, $prefs, $userToken, undef, "mgrast");
 	$master->Preferences->create({ user => $user, name => "shock_pref_node", value => $retval->{id} });
       }
       $self->return_data( {"OK" => $retval->{attributes}->{pref}}, 200 );
@@ -430,7 +436,17 @@ sub instance {
       }
     }
     if ($nodeid) {
-      my $shockprefs = $self->get_shock_node($nodeid, $self->mgrast_token);
+      my $userToken;
+      foreach my $p (@$prefs) {
+	if ($p->{name} eq "WebServicesKey") {
+	  $userToken = $p->{value};
+	  last;
+	}
+      }
+      unless ($userToken) {
+	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+      }
+      my $shockprefs = $self->get_shock_node($nodeid, $userToken, "mgrast");
       if ($shockprefs) {
 	push(@{$user->{preferences}}, { name => 'shock', value => $shockprefs->{attributes}->{pref} } );
       }
