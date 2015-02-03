@@ -436,7 +436,17 @@ sub instance {
       }
     }
     if ($nodeid) {
-      my $shockprefs = $self->get_shock_node($nodeid, $self->mgrast_token);
+      my $userToken;
+      foreach my $p (@$prefs) {
+	if ($p->{name} eq "WebServicesKey") {
+	  $userToken = $p->{value};
+	  last;
+	}
+      }
+      unless ($userToken) {
+	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+      }
+      my $shockprefs = $self->get_shock_node($nodeid, $userToken, "mgrast");
       if ($shockprefs) {
 	push(@{$user->{preferences}}, { name => 'shock', value => $shockprefs->{attributes}->{pref} } );
       }
