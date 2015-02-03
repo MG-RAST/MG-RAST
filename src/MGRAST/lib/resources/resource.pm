@@ -701,6 +701,36 @@ sub edit_shock_acl {
     }
 }
 
+# add or delete public from a node ACL
+sub edit_shock_public_acl {
+    my ($self, $id, $auth, $action, $acl, $authPrefix) = @_;
+
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+
+    my $response = undef;
+    my $url = $Conf::shock_url.'/node/'.$id.'/acl/public_'.$acl;
+    eval {
+        my $tmp = undef;
+        if ($action eq 'delete') {
+            $tmp = $self->agent->delete($url, 'Authorization' => "$authPrefix $auth");
+        } elsif ($action eq 'put') {
+            $tmp = $self->agent->put($url, 'Authorization' => "$authPrefix $auth");
+        } else {
+            $self->return_data( {"ERROR" => "Invalid Shock ACL action: $action"}, 500 );
+        }
+        $response = $self->json->decode( $tmp->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to $action public ACL for '$acl' to node $id in Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
 # create node with optional file and/or attributes
 # file is json struct by default
 sub set_shock_node {
