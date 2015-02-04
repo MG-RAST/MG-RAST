@@ -362,7 +362,7 @@ sub job_action {
                 my $attr = $n->{attributes};
                 $attr->{status} = 'public';
                 $self->update_shock_node($n->{id}, $attr, $self->mgrast_token);
-                $self->edit_shock_acl($n->{id}, $self->mgrast_token, 'mgrast', 'delete', 'read');
+                $self->edit_shock_public_acl($n->{id}, $self->mgrast_token, 'put', 'read');
             }
             # update db
             $job->public(1);
