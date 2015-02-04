@@ -18,12 +18,13 @@ sub new {
     # Add name / attributes
     $self->{name} = "job";
     $self->{job_actions} = {
-        reserve => 1,
-        create  => 1,
-        submit  => 1,
-        share   => 1,
-        public  => 1,
-        delete  => 1,
+        reserve  => 1,
+        create   => 1,
+        submit   => 1,
+        resubmit => 1,
+        share    => 1,
+        public   => 1,
+        delete   => 1,
         addproject => 1
     };
     $self->{attributes} = {
@@ -107,7 +108,7 @@ sub info {
 						},
 						{ 'name'        => "submit",
 				          'request'     => $self->cgi->url."/".$self->name."/submit",
-				          'description' => "Submit an existing MG-RAST job to AWE pipeline.",
+				          'description' => "Submit a MG-RAST job to AWE pipeline.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
 				          'attributes'  => $self->{attributes}{submit},
@@ -115,6 +116,17 @@ sub info {
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "input_id" => ["string", "shock node id of input sequence file"] } }
+						},
+						{ 'name'        => "resubmit",
+				          'request'     => $self->cgi->url."/".$self->name."/resubmit",
+				          'description' => "Re-submit an existing MG-RAST job to AWE pipeline.",
+				          'method'      => "PUT",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{submit},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "awe_id" => ["string", "awe job id of original job"] } }
 						},
 						{ 'name'        => "share",
 				          'request'     => $self->cgi->url."/".$self->name."/share",
@@ -299,11 +311,34 @@ sub job_action {
             if (@err) {
                 $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
             }
-            my (undef, $awe_id) = split(/\t/, $log[1]);
-            $data = {
-                awe_id => $awe_id,
-                log    => join("\n", @log)
-            };
+            my @aweid = grep { $_ =~ /^awe job/ } @log;
+            if (@aweid) {
+                my (undef, $aid) = split(/\t/, $aweid[0]);
+                $data = {
+                    awe_id => $aid,
+                    log    => join("\n", @log)
+                };
+            } else {
+                $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID"}, 500 );
+            }
+        } elsif ($action eq 'resubmit') {
+            my $cmd = $Conf::resubmit_to_awe." --job_id ".$job->{job_id}." --awe_id ".$post->{awe_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+            my @log = `$cmd 2>&1`;
+            chomp @log;
+            my @err = grep { $_ =~ /^ERROR/ } @log;
+            if (@err) {
+                $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
+            }
+            my @aweid = grep { $_ =~ /^awe job/ } @log;
+            if (@aweid) {
+                my (undef, $aid) = split(/\t/, $aweid[0]);
+                $data = {
+                    awe_id => $aid,
+                    log    => join("\n", @log)
+                };
+            } else {
+                $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID"}, 500 );
+            }
         } elsif ($action eq 'share') {
             # get user to share with
             my $share_user = undef;
