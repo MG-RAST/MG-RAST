@@ -19,7 +19,7 @@ sub new {
 			'website' => 'http://metagenomics.anl.gov/',
 			'SHOCK' => 'http://shock.metagenomics.anl.gov/',
 			'AWE' => 'http://140.221.67.236:8000/',
-			# 'M5NR' => 'http://140.221.67.212:8983/solr/',
+			'M5NR' => 'http://140.221.67.212:8983/solr/',
 			'solr' => 'http://140.221.67.239:8983/solr/',
 			'postgres' => 'db',
 			'mySQL' => 'db' };
@@ -27,7 +27,7 @@ sub new {
 							   ['website', 'MG-RAST website'],
 							   ['SHOCK', 'object storage'],
 							   ['AWE', 'worker engine'],
-							   #['M5NR', 'non-redundant sequence database'],
+							   ['M5NR', 'non-redundant sequence database'],
 							   ['solr', 'search engine'],
 							   ['postgres', 'analysis database'],
 							   ['mySQL', 'job database']
