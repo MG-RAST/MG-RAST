@@ -41,11 +41,11 @@ sub new {
                           "created"  => [ 'date', 'time the metagenome was first created' ],
                           "version"  => [ 'integer', 'version of the metagenome' ],
                           "status"   => [ 'cv', [['public', 'metagenome is public'],
-						                         ['private', 'metagenome is private'] ] ],
-						  "statistics" => [ 'hash', 'key value pairs describing statistics' ],
+						 ['private', 'metagenome is private'] ] ],
+			  "statistics" => [ 'hash', 'key value pairs describing statistics' ],
                           "sequence_type" => [ 'string', 'sequencing type' ],
                           "pipeline_parameters" => [ 'hash', 'key value pairs describing pipeline parameters' ]
-    };
+			};
     $self->{query} = { "id"        => [ 'string', 'unique metagenome identifier' ],
                        "url"       => [ 'uri', 'resource location of this object instance' ],
                        "name"      => [ 'string', 'name of metagenome' ],
