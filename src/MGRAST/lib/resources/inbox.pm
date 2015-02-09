@@ -720,7 +720,7 @@ sub verify_file_type {
     return ($file_type, "[error] file '$fname' is of unsupported file type '$file_type'.");
 }
 
-sub file_format {
+sub get_file_format {
     my ($self, $tempfile, $file_type, $file_suffix) = @_;
 
     if ($file_suffix eq 'qual') {
