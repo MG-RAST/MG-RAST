@@ -130,7 +130,7 @@ sub instance {
   $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
   
   # check the status service
-  $self->return_data($data, undef, 1);
+  $self->return_data($obj, undef, 1);
 }
 
 1;
