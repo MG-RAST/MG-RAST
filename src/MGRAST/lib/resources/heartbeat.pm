@@ -76,60 +76,61 @@ sub info {
 # the resource is called with a service parameter
 sub instance {
   my ($self) = @_;
-    
-    # check id format
-    my $rest = $self->rest;
-    my $id = $rest->[0];
-    if (! $self->{services}->{$id}) {
-        $self->return_data( {"ERROR" => "invalid service name: " . $rest->[0]}, 400 );
-    }
-
-    my $status = 0;
-
-    if ($self->{services}->{$id} eq 'db') {
-      if ($id eq 'postgres') {
-	my $dbh = DBI->connect(
-			       "DBI:Pg:database=mgrast_analysis;host=kharkov-1.igsb.anl.gov;sslcert=/homes/jbischof/tmp/.postgresql/postgresql.crt;sslkey=/homes/jbischof/tmp/.postgresql/postgresql.key",
-			       "mgrastprod",
-			       "rsTZ4etXYWqp2u"
-			      );
-	if ($dbh) {
-	  $status = 1;
-	}
-      } else {
-	my $jobcache_db = "JobDB";
-	my $jobcache_host = "kursk-3.mcs.anl.gov";
-	my $jobcache_user = "mgrast";
-	my $jobcache_password = "";
-	
-	my $mysql_client_key = "/mcs/bio/app-users/mgrastprod/.mysql/client-key.pem";
-	my $mysql_client_cert = "/mcs/bio/app-users/mgrastprod/.mysql/client-cert.pem";
-	my $mysql_ca_file = "/mcs/bio/app-users/mgrastprod/.mysql/ca-cert.pem";
-	
-	$dbh = DBI->connect("DBI:mysql:database=".$jobcache_db.";host=".$jobcache_host.";",
-			    $jobcache_user,
-			    $jobcache_password);
-	if ($dbh) {
-	  $status = 1;
-	}
+  
+  # check id format
+  my $rest = $self->rest;
+  my $id = $rest->[0];
+  if (! $self->{services}->{$id}) {
+    $self->return_data( {"ERROR" => "invalid service name: " . $rest->[0]}, 400 );
+  }
+  
+  my $status = 0;
+  
+  if ($self->{services}->{$id} eq 'db') {
+    if ($id eq 'postgres') {
+      my $dbh = DBI->connect(
+			     "DBI:Pg:database=mgrast_analysis;host=kharkov-1.igsb.anl.gov;sslcert=/homes/jbischof/tmp/.postgresql/postgresql.crt;sslkey=/homes/jbischof/tmp/.postgresql/postgresql.key",
+			     "mgrastprod",
+			     "rsTZ4etXYWqp2u"
+			    );
+      if ($dbh) {
+	$status = 1;
       }
     } else {
-      my $ua = $self->agent;
-      $ua->timeout(10);
+      my $jobcache_db = "JobDB";
+      my $jobcache_host = "kursk-3.mcs.anl.gov";
+      my $jobcache_user = "mgrast";
+      my $jobcache_password = "";
       
-      my $url = $self->{services}->{$id};
-      my $response = $ua->get($url);
-      if ($response->is_success) {
-        $status = 1;
+      my $mysql_client_key = "/mcs/bio/app-users/mgrastprod/.mysql/client-key.pem";
+      my $mysql_client_cert = "/mcs/bio/app-users/mgrastprod/.mysql/client-cert.pem";
+      my $mysql_ca_file = "/mcs/bio/app-users/mgrastprod/.mysql/ca-cert.pem";
+      
+      my $dbh = DBI->connect("DBI:mysql:database=".$jobcache_db.";host=".$jobcache_host.";",
+			     $jobcache_user,
+			     $jobcache_password);
+      if ($dbh) {
+	$status = 1;
       }
     }
-
-    $obj->{service} = $id;
-    $obj->{status} = $status;
-    $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
+  } else {
+    my $ua = $self->agent;
+    $ua->timeout(10);
     
-    # check the status service
-    $self->return_data($data, undef, 1);
+    my $url = $self->{services}->{$id};
+    my $response = $ua->get($url);
+    if ($response->is_success) {
+      $status = 1;
+    }
+  }
+  
+  my $obj = {};
+  $obj->{service} = $id;
+  $obj->{status} = $status;
+  $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
+  
+  # check the status service
+  $self->return_data($data, undef, 1);
 }
 
 1;
