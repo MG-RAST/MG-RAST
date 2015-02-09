@@ -8,35 +8,35 @@ use parent qw(resources::resource);
 
 # Override parent constructor
 sub new {
-    my ($class, @args) = @_;
-
-    # Call the constructor of the parent class
-    my $self = $class->SUPER::new(@args);
-    
-    # Add name / attributes
-    $self->{name} = "heartbeat";
-    $self->{services} = { 'FTP' => 'ftp://ftp.metagenomics.anl.gov',
-			  'website' => 'http://metagenomics.anl.gov/',
-			  'SHOCK' => 'http://shock.metagenomics.anl.gov/',
-			  'AWE' => 'http://140.221.67.236:8000/',
-			  # 'M5NR' => 'http://140.221.67.212:8983/solr/',
-			  'solr' => 'http://140.221.67.239:8983/solr/',
-			  'postgres' => 'db',
-			  'mySQL' => 'db' };
-    $self->{attributes} = { "service" => [ 'string', "cv", [ ['FTP', 'file server'],
-							     ['website', 'MG-RAST website'],
-							     ['SHOCK', 'object storage']
-							     ['AWE', 'worker engine'],
-							     #['M5NR', 'non-redundant sequence database'],
-							     ['solr', 'search engine'],
-							     ['postgres', 'analysis database'],
-							     ['mySQL', 'job database']
-							   ] ],
-                            "status"  => [ 'boolean', 'service is up or not' ],
-                            "url"     => [ 'url', 'resource location of this resource']
-                          };
-    return $self;
-  }
+  my ($class, @args) = @_;
+  
+  # Call the constructor of the parent class
+  my $self = $class->SUPER::new(@args);
+  
+  # Add name / attributes
+  $self->{name} = "heartbeat";
+  $self->{services} = { 'FTP' => 'ftp://ftp.metagenomics.anl.gov',
+			'website' => 'http://metagenomics.anl.gov/',
+			'SHOCK' => 'http://shock.metagenomics.anl.gov/',
+			'AWE' => 'http://140.221.67.236:8000/',
+			# 'M5NR' => 'http://140.221.67.212:8983/solr/',
+			'solr' => 'http://140.221.67.239:8983/solr/',
+			'postgres' => 'db',
+			'mySQL' => 'db' };
+  $self->{attributes} = { "service" => [ 'string', "cv", [ ['FTP', 'file server'],
+							   ['website', 'MG-RAST website'],
+							   ['SHOCK', 'object storage'],
+							   ['AWE', 'worker engine'],
+							   #['M5NR', 'non-redundant sequence database'],
+							   ['solr', 'search engine'],
+							   ['postgres', 'analysis database'],
+							   ['mySQL', 'job database']
+							 ] ],
+			  "status"  => [ 'boolean', 'service is up or not' ],
+			  "url"     => [ 'url', 'resource location of this resource']
+			};
+  return $self;
+}
 
 # resource is called without any parameters
 # this method must return a description of the resource
@@ -75,7 +75,7 @@ sub info {
 
 # the resource is called with a service parameter
 sub instance {
-    my ($self) = @_;
+  my ($self) = @_;
     
     # check id format
     my $rest = $self->rest;
