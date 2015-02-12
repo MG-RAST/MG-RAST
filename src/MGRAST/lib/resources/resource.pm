@@ -218,51 +218,55 @@ sub hierarchy {
     };
 }
 
-# hardcoded list of metagenome pipeline option keywords
+# hardcoded list of metagenome pipeline option keywords for submission
 sub pipeline_opts {
-    return [ 'assembled',
-             'bowtie',
-             'dereplicate',
-             'dynamic_trim',
-             'file_type',
-             'filter_ambig',
-             'filter_ln',
-             'max_ambig',
-             'max_ln',
-             'max_lqb',
-             'min_ln',
-             'min_qual',
-             'priority',
-             'screen_indexes',
-             'sequence_type_guess',
-             'sequencing_method_guess'
+    return [
+        'aa_pid',
+        'assembled',
+        'bowtie',
+        'dereplicate',
+        'dynamic_trim',
+        'fgs_type',
+        'file_type',
+        'filter_ambig',
+        'filter_ln',
+        'filter_ln_mult',
+        'max_ambig',
+        'max_lqb',
+        'min_qual',
+        'prefix_length',
+        'priority',
+        'rna_pid',
+        'screen_indexes',
+        'sequence_type',           # not in defaults
+        'sequencing_method_guess'  # not in defaults
     ];
 }
 
 # hardcoded list of metagenome pipeline paramters with defaults
 sub pipeline_defaults {
     return {
+        'aa_pid' => '90',
+        'assembled' => 'no',
+        'bowtie' => 'yes',
+        'dereplicate' => 'yes',
+        'dynamic_trim' => 'yes',
+        'fgs_type' => '454',
         'file_type' => 'fna',
+        'filter_ambig' => 'yes',
         'filter_ln' => 'yes',
         'filter_ln_mult' => '2.0',
-        'filter_ambig' => 'yes',
+        'm5nr_annotation_version' => '1',   # not in options
+        'm5rna_annotation_version' => '1',  # not in options
+        'm5nr_sims_version' => '1',         # not in options
+        'm5rna_sims_version' => '1',        # not in options
         'max_ambig' => '5',
-        'dynamic_trim' => 'yes',
-        'min_qual' => '15',
         'max_lqb' => '5',
-        'dereplicate' => 'yes',
+        'min_qual' => '15',
         'prefix_length' => '50',
-        'bowtie' => 'yes',
-        'screen_indexes' => 'h_sapiens_asm',
-        'fgs_type' => '454',
+        'priority' => 'never',
         'rna_pid' => '97',
-        'aa_pid' => '90',
-        'm5nr_sims_version' => '1',
-        'm5rna_sims_version' => '1',
-        'm5nr_annotation_version' => '1',
-        'm5rna_annotation_version' => '1',
-        'assembled' => 'no',
-        'publish_priority' => 'never'
+        'screen_indexes' => 'h_sapiens'
     };
 }
 
