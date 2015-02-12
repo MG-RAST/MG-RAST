@@ -291,13 +291,13 @@ sub file_info {
     
     # get info / update node
     my $stats_info = {
-        type      => $file_type,
-		suffix    => $file_suffix,
-		file_type => $file_format,
-		file_name => $node->{file}{name},
-		file_size => $node->{file}{size},
-		checksum  => $node->{file}{checksum}{md5}
-    };
+		      type      => $file_type,
+		      suffix    => $file_suffix,
+		      file_type => $file_format,
+		      file_name => $node->{file}{name},
+		      file_size => $node->{file}{size},
+		      checksum  => $node->{file}{checksum}{md5}
+		     };
     my $new_attr = $node->{attributes};
     if (exists $new_attr->{stats_info}) {
         map { $new_attr->{stats_info}{$_} = $stats_info->{$_} } keys %$stats_info;
@@ -544,7 +544,7 @@ sub view_inbox {
     my ($self) = @_;
 
     my $files = [];
-    my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => 'mgu'.$self->user->_id}, $self->mgrast_token);
+    my $inbox = $self->get_shock_query({'type' => 'inbox', 'user' => $self->user->login}, $self->mgrast_token);
     foreach my $node (@$inbox) {
         my $info = {
             'id'        => $node->{id},
@@ -651,7 +651,7 @@ sub submit_awe_template {
 sub node_from_id {
     my ($self, $uuid) = @_;
     my $node  = {};
-    my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => 'mgu'.$self->user->_id}, $self->mgrast_token);
+    my $inbox = $self->get_shock_query({'type' => 'inbox', 'user' => $self->user->login}, $self->mgrast_token);
     foreach my $n (@$inbox) {
         if ($n->{id} eq $uuid) {
             $node = $n;
