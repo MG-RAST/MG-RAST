@@ -442,7 +442,7 @@ sub prepare_data {
 	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;
 	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
-	    $pparams->{publish_priority} = (exists($jdata->{priority}) && $jdata->{priority}) ? $jdata->{priority} : 'never';
+	    $pparams->{priority} = (exists($jdata->{priority}) && $jdata->{priority}) ? $jdata->{priority} : 'never';
 	    # replace value defaults
 	    foreach my $tag (('max_ambig', 'min_qual', 'max_lqb', 'screen_indexes',
 	                      'm5nr_sims_version', 'm5rna_sims_version',

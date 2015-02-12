@@ -49,14 +49,16 @@ sub new {
     };
     $self->{create_param} = {
         'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
-        'input_id'      => ["string", "shock node id of input sequence file (optional)"],
-        'sequence_type' => ["cv", [["WGS", "whole genome shotgun sequenceing"],
-                                   ["Amplicon", "amplicon sequenceing"],
-                                   ["MT", "metatranscriptome sequenceing"]] ]
+        'input_id'      => ["string", "shock node id of input sequence file (optional)"]
     };
     my @input_stats = map { substr($_, 0, -4) } grep { $_ =~ /_raw$/ } @{$self->seq_stats};
     map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } grep { $_ !~ /drisee/ } @input_stats;
     map { $self->{create_param}{$_} = ['string', 'pipeline option'] } @{$self->pipeline_opts};
+    $self->{create_param}{sequence_type} = [
+        "cv", [["WGS", "whole genome shotgun sequenceing"],
+               ["Amplicon", "amplicon sequenceing"],
+               ["MT", "metatranscriptome sequenceing"]]
+    ];
     return $self;
 }
 
@@ -284,18 +286,53 @@ sub job_action {
                 my $nodeid = $post->{input_id};
                 eval {
                     my $node = $self->get_shock_node($nodeid, $self->mgrast_token);
-                    $post = $node->{attributes}{stats_info};
+                    # pull from stats_info and pipeline_info in attributes
+                    foreach my $x (('stats_info', 'pipeline_info')) {
+                        if (exists($node->{attributes}{$x}) && ref($node->{attributes}{$x})) {
+                            foreach my $k (keys %{$node->{attributes}{$x}}) {
+                                # only add values that are not already given
+                                if (! exists($post->{$k})) {
+                                    $post->{$k} = $node->{attributes}{$x}{$k};
+                                }
+                            }
+                        }
+                    }
                 };
+                delete $post->{input_id};
                 if ($@ || (! $post)) {
-                    $self->return_data( {"ERROR" => "unable to obtain sequence file statistics from shock node ".$nodeid}, 500 );
+                    $self->return_data( {"ERROR" => "unable to obtain sequence file info from shock node ".$nodeid}, 500 );
+                }
+            }
+            # set pipeline defaults if missing
+            foreach my $key (keys %{$self->pipeline_opts}) {
+                if (exists($self->pipeline_defaults->{$key}) && (! exists($post->{$key}))) {
+                    $post->{$key} = $self->pipeline_defaults->{$key};
+                }
+            }
+            # fix booleans
+            foreach my $key (keys %$post) {
+                if ($post->{$key} eq 'yes') {
+                    $post->{$key} = 1;
+                } elsif ($post->{$key} eq 'no') {
+                    $post->{$key} = 0;
                 }
             }
             # check params
+            delete $post->{metagenome_id};
             foreach my $key (keys %{$self->{create_param}}) {
-                unless (exists $post->{$key}) {
+                if (($key eq 'metagenome_id') || ($key eq 'input_id')) {
+                    continue;
+                }
+                if (! exists($post->{$key})) {
                     $self->return_data( {"ERROR" => "Missing required parameter '$key'"}, 404 );
                 }
             }
+            # calculate length trim
+        	$post->{max_ln} = int($post->{average_length} + ($post->{filter_ln_mult} * $post->{standard_deviation_length}));
+        	$post->{min_ln} = int($post->{average_length} - ($post->{filter_ln_mult} * $post->{standard_deviation_length}));
+        	if ($post->{min_ln} < 1) {
+        	    $post->{min_ln} = 1;
+        	}
             # create job
             $job  = $master->Job->initialize($self->user, $post, $job);
             $data = {
