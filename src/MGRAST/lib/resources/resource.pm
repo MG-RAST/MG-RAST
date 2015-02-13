@@ -935,10 +935,13 @@ sub get_shock_query {
 
 # submit job to awe
 sub post_awe_job {
-    my ($self, $workflow, $shock_auth, $awe_auth, $is_string, $authPrefix) = @_;
+    my ($self, $workflow, $shock_auth, $awe_auth, $is_string, $shockAuthPrefix, $aweAuthPrefix) = @_;
 
-    if (! $authPrefix) {
-      $authPrefix = "OAuth";
+    if (! $aweAuthPrefix) {
+        $aweAuthPrefix = "OAuth";
+    }
+    if (! $shockAuthPrefix) {
+        $shockAuthPrefix = "OAuth";
     }
 
     my $content = undef;
@@ -951,8 +954,8 @@ sub post_awe_job {
     my $response = undef;
     eval {
         my $post = $self->agent->post($Conf::awe_url.'/job',
-                                      'Datatoken', $shock_auth,
-                                      'Authorization', "$authPrefix ".$awe_auth,
+                                      'Datatoken', "$shockAuthPrefix ".$shock_auth,
+                                      'Authorization', "$aweAuthPrefix ".$awe_auth,
                                       'Content-Type', 'multipart/form-data',
                                       'Content', $content);
         $response = $self->json->decode( $post->content );
