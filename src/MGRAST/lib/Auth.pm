@@ -36,8 +36,7 @@ sub authenticate {
           my $cgi = new CGI;
           my $verbose = "";
           if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
-            $verbose = ', "login": "'.$us->{login}.'", "firstname": "'.$us->{firstname}.'", "lastname": "'.$us->{lastname}.'", "email": "'.$us->{email}.'"';
-
+            $verbose = ', "login":"'.$us->{login}.'", "firstname":"'.$us->{firstname}.'", "lastname":"'.$us->{lastname}.'", "email":"'.$us->{email}.'", "id":"mgu'.$us->{_id}.'"';
             # SHOCK preferences
             my $prefs = $master->Preferences->get_objects({ user => $us, name => "shock_pref_node" });
             if (scalar(@$prefs)) {
