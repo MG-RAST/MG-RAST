@@ -304,7 +304,7 @@ sub job_action {
                 }
             }
             # set pipeline defaults if missing
-            foreach my $key (keys %{$self->pipeline_opts}) {
+            foreach my $key (@{$self->pipeline_opts}) {
                 if (exists($self->pipeline_defaults->{$key}) && (! exists($post->{$key}))) {
                     $post->{$key} = $self->pipeline_defaults->{$key};
                 }
@@ -321,7 +321,7 @@ sub job_action {
             delete $post->{metagenome_id};
             foreach my $key (keys %{$self->{create_param}}) {
                 if (($key eq 'metagenome_id') || ($key eq 'input_id')) {
-                    continue;
+                    next;
                 }
                 if (! exists($post->{$key})) {
                     $self->return_data( {"ERROR" => "Missing required parameter '$key'"}, 404 );
@@ -356,7 +356,7 @@ sub job_action {
                     log    => join("\n", @log)
                 };
             } else {
-                $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID"}, 500 );
+                $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
             }
         } elsif ($action eq 'resubmit') {
             my $cmd = $Conf::resubmit_to_awe." --job_id ".$job->{job_id}." --awe_id ".$post->{awe_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
@@ -466,7 +466,7 @@ sub job_action {
             # add it
             my $status = $project->add_job($job);
             $data = {
-                project_id   => $project->{id},
+                project_id   => "mgp".$project->{id},
                 project_name => $project->{name},
                 status       => $status
             };
