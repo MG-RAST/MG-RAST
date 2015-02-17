@@ -175,8 +175,8 @@ sub instance {
 
   # check if this is an impersonation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
-    if ($self->User->has_right(undef, 'edit', 'user', '*')) {
-      my $impUser = $master->user->get_objects({ login => $rest->[1] });
+    if ($self->user->has_right(undef, 'edit', 'user', '*')) {
+      my $impUser = $master->User->get_objects({ login => $rest->[1] });
       if (scalar(@$impUser)) {
 	$impUser = $impUser->[0];
 	my $userToken = $master->Preferences->get_objects({ user => $impUser, name => "WebServicesKey" });
