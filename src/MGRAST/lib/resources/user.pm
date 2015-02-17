@@ -179,11 +179,12 @@ sub instance {
       my $impUser = $master->User->get_objects({ login => $rest->[1] });
       if (scalar(@$impUser)) {
 	$impUser = $impUser->[0];
+	my $timeout = 60 * 60 * 24 * 7;
 	my $userToken = $master->Preferences->get_objects({ user => $impUser, name => "WebServicesKey" });
 	if (scalar(@$userToken)) {
 	  $userToken = $userToken->[0]->{value};
 	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
-	  my $timeout = 60 * 60 * 24 * 7;
+	  $pref = $pref->[0];
 	  $pref->value(time + $timeout);
 	} else {
 	  my $generated = "";
@@ -202,19 +203,19 @@ sub instance {
 	  }
 	  my $tdate = time + $timeout;
 	  
-	  my $pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
+	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
 	  if (scalar(@$pref)) {
 	    $pref = $pref->[0];
 	  } else {
-	    $pref = $master->Preferences->create( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
+	    $pref = $master->Preferences->create( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
 	  }
 	  $pref->value($tdate);
 	  
-	  $pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
+	  $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServicesKey' } );
 	  if (scalar(@$pref)) {
 	    $pref = $pref->[0];
 	  } else {
-	    $pref = $master->Preferences->create( { 'user' => $user, 'name' => 'WebServicesKey' } );
+	    $pref = $master->Preferences->create( { 'user' => $impUser, 'name' => 'WebServicesKey' } );
 	  }
 	  $pref->value($generated);
 	  $userToken = $generated;
