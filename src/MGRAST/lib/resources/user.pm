@@ -173,6 +173,33 @@ sub instance {
     }
   }
 
+  # check if this is an impersonation
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
+    if ($self->user->has_right_to('edit', 'user', '*')) {
+      my $impUser = $master->user->get_objects({ login => $rest->[1] });
+      if (scalar(@$impUser)) {
+	$impUser = $impUser->[0];
+	my $userToken = $master->Preferences->get_objects({ user => $impUser, name => "WebServicesKey" });
+	if (scalar(@$userToken)) {
+	  $userToken = $userToken->[0]->{value};
+	} else {
+	  $self->return_data( {"ERROR" => "user token not found"}, 404 );
+	}
+	  
+	$self->return_data( { "login" => $impUser->{login},
+			      "firstname" => $impUser->{firstname},
+			      "lastname" => $impUser->{lastname},
+			      "email" => $impUser->{email},
+			      "id" => 'mgu'.$impUser->{_id},
+			      "token" => $userToken }, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "user not found"}, 404 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+    }
+  }
+
   # check if this is a reset password request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
     # passwords may only be reset with a valid recaptcha
