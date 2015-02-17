@@ -182,8 +182,42 @@ sub instance {
 	my $userToken = $master->Preferences->get_objects({ user => $impUser, name => "WebServicesKey" });
 	if (scalar(@$userToken)) {
 	  $userToken = $userToken->[0]->{value};
+	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
+	  my $timeout = 60 * 60 * 24 * 7;
+	  $pref->value(time + $timeout);
 	} else {
-	  $self->return_data( {"ERROR" => "user token not found"}, 404 );
+	  my $generated = "";
+	  my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+	  while (length($generated) < 25) {
+	    $generated .= substr($possible, (int(rand(length($possible)))), 1);
+	  }
+	  my $preference = $master->Preferences->get_objects( { value => $generated } );
+	  
+	  while (scalar(@$preference)) {
+	    $generated = "";
+	    while (length($generated) < 25) {
+	      $generated .= substr($possible, (int(rand(length($possible)))), 1);
+	    }
+	    $preference = $master->Preferences->get_objects( { value => $generated } );
+	  }
+	  my $tdate = time + $timeout;
+	  
+	  my $pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
+	  if (scalar(@$pref)) {
+	    $pref = $pref->[0];
+	  } else {
+	    $pref = $master->Preferences->create( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
+	  }
+	  $pref->value($tdate);
+	  
+	  $pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
+	  if (scalar(@$pref)) {
+	    $pref = $pref->[0];
+	  } else {
+	    $pref = $master->Preferences->create( { 'user' => $user, 'name' => 'WebServicesKey' } );
+	  }
+	  $pref->value($generated);
+	  $userToken = $generated;
 	}
 	  
 	$self->return_data( { "login" => $impUser->{login},
