@@ -355,6 +355,21 @@ sub job_action {
                     awe_id => $aid,
                     log    => join("\n", @log)
                 };
+                # update inbox attributes
+                my $node = $self->get_shock_node($post->{input_id}, $self->mgrast_token);
+                my $attr = $node->{attributes};
+                my $action = {
+                    id => $aid,
+                    name => "pipeline",
+                    status => "queued",
+                    start => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+                };
+                if (exists $attr->{actions}) {
+                    push @{$attr->{actions}}, $action;
+                } else {
+                    $attr->{actions} = [$action];
+                }
+                $self->update_shock_node($post->{input_id}, $attr, $self->mgrast_token);
             } else {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
             }
