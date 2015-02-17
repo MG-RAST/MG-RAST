@@ -212,6 +212,11 @@ sub authenticate {
       }
     }
   }
+
+  # check for MG-RAST default auth header
+  if ($auth_value =~ /^mgrast /) {
+    $auth_value =~ s/^mgrast //;
+  }
     
   # check for the preference setting for the defined authentication source and value
   my $preference = $master->Preferences->get_objects( { name => $auth_source, value => $auth_value } );
