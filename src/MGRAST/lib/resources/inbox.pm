@@ -298,23 +298,23 @@ sub file_info {
     
     # get info / update node
     my $stats_info = {
-		      type      => $file_type,
-		      suffix    => $file_suffix,
-		      file_type => $file_format,
-		      file_name => $node->{file}{name},
-		      file_size => $node->{file}{size},
-		      checksum  => $node->{file}{checksum}{md5}
-		     };
+        type      => $file_type,
+        suffix    => $file_suffix,
+        file_type => $file_format,
+        file_name => $node->{file}{name},
+        file_size => $node->{file}{size},
+        checksum  => $node->{file}{checksum}{md5}
+    };
     my $new_attr = $node->{attributes};
     if (exists $new_attr->{stats_info}) {
         map { $new_attr->{stats_info}{$_} = $stats_info->{$_} } keys %$stats_info;
     } else {
         $new_attr->{stats_info} = $stats_info;
     }
-    $node = $self->update_shock_node($node->{id}, $new_attr, $self->token, $self->{user_auth});
+    $node = $self->update_shock_node($uuid, $new_attr, $self->token, $self->{user_auth});
     # add mgrast to ACLs
     foreach my $acl (('read', 'write', 'delete')) {
-        $self->edit_shock_acl($node_id, $self->token, 'mgrast', 'put', $acl, $self->{user_auth});
+        $self->edit_shock_acl($uuid, $self->token, 'mgrast', 'put', $acl, $self->{user_auth});
     }
     
     # return data
