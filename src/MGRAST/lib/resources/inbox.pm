@@ -270,11 +270,14 @@ sub request {
     $self->info();
 }
 
+# this is a standalone request or is ran by other requests if missing
 sub file_info {
-    my ($self, $uuid) = @_;
+    my ($self, $uuid, $node, $return_node) = @_;
     
     # get and validate file
-    my $node = $self->node_from_id($uuid);
+    unless ($node && ref($node)) {
+        $node = $self->node_from_id($uuid);
+    }
     
     my ($file_type, $err_msg, $file_format);
     my $file_suffix = (split(/\./, $node->{file}{name}))[-1];
@@ -295,29 +298,37 @@ sub file_info {
     
     # get info / update node
     my $stats_info = {
-        type      => $file_type,
-		suffix    => $file_suffix,
-		file_type => $file_format,
-		file_name => $node->{file}{name},
-		file_size => $node->{file}{size},
-		checksum  => $node->{file}{checksum}{md5}
-    };
+		      type      => $file_type,
+		      suffix    => $file_suffix,
+		      file_type => $file_format,
+		      file_name => $node->{file}{name},
+		      file_size => $node->{file}{size},
+		      checksum  => $node->{file}{checksum}{md5}
+		     };
     my $new_attr = $node->{attributes};
     if (exists $new_attr->{stats_info}) {
         map { $new_attr->{stats_info}{$_} = $stats_info->{$_} } keys %$stats_info;
     } else {
         $new_attr->{stats_info} = $stats_info;
     }
-    $self->update_shock_node($node->{id}, $new_attr, $self->token, $self->{user_auth});
+    $node = $self->update_shock_node($node->{id}, $new_attr, $self->token, $self->{user_auth});
+    # add mgrast to ACLs
+    foreach my $acl (('read', 'write', 'delete')) {
+        $self->edit_shock_acl($node_id, $self->token, 'mgrast', 'put', $acl, $self->{user_auth});
+    }
     
     # return data
-    $self->return_data({
-        id         => 'mgu'.$self->user->_id,
-        user       => $self->user->login,
-        status     => $err_msg ? $err_msg : "file info completed sucessfully",
-        stats_info => $stats_info,
-        timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-    });
+    if ($return_node) {
+        return $node;
+    } else {
+        $self->return_data({
+            id         => 'mgu'.$self->user->_id,
+            user       => $self->user->login,
+            status     => $err_msg ? $err_msg : "file info completed sucessfully",
+            stats_info => $stats_info,
+            timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+        });
+    }
 }
 
 sub seq_stats {
@@ -325,6 +336,9 @@ sub seq_stats {
     
     # get and validate file
     my $node = $self->node_from_id($uuid);
+    unless (exists $node->{attributes}{stats_info}) {
+        $node = $self->file_info($uuid, $node, 1);
+    }
     my $file_type = $self->file_type_from_node($node);
     
     # Do template replacement of MG-RAST's AWE workflow for sequence stats
@@ -339,6 +353,7 @@ sub seq_stats {
         seq_file     => $node->{file}{name}
     };
     my $job = $self->submit_awe_template($info, $Conf::mgrast_seq_stats_workflow);
+    $self->add_node_action($node, $job, 'stats');
     
     # return data
     $self->return_data({
@@ -359,6 +374,9 @@ sub sff_to_fastq {
         $self->return_data( {"ERROR" => "this request type requires the sff_file parameter"}, 400 );
     }
     my $node = $self->node_from_id($uuid);
+    unless (exists $node->{attributes}{stats_info}) {
+        $node = $self->file_info($uuid, $node, 1);
+    }
     
     # Do template replacement of MG-RAST's AWE workflow for sff to fastq
     my $user_id = 'mgu'.$self->user->_id;
@@ -374,6 +392,7 @@ sub sff_to_fastq {
         fastq_file   => $node->{file}{name}.'.fastq'
     };
     my $job = $self->submit_awe_template($info, $Conf::mgrast_sff_to_fastq_workflow);
+    $self->add_node_action($node, $job, 'sff2fastq');
     
     # return data
     $self->return_data({
@@ -395,7 +414,13 @@ sub demultiplex {
         $self->return_data( {"ERROR" => "this request type requires both the seq_file and barcode_file parameters"}, 400 );
     }
     my $seq_node = $self->node_from_id($seq_file);
+    unless (exists $seq_node->{attributes}{stats_info}) {
+        $seq_node = $self->file_info($seq_file, $seq_node, 1);
+    }
     my $bar_node = $self->node_from_id($bar_file);
+    unless (exists $bar_node->{attributes}{stats_info}) {
+        $bar_node = $self->file_info($bar_file, $bar_node, 1);
+    }
     my $seq_type = $self->file_type_from_node($seq_node);
     
     # download barcode file to get number and names of barcoded pieces
@@ -446,6 +471,8 @@ sub demultiplex {
         outputs      => $output_text
     };
     my $job = $self->submit_awe_template($info, $Conf::mgrast_demultiplex_workflow);
+    $self->add_node_action($seq_node, $job, 'demultiplex');
+    $self->add_node_action($bar_node, $job, 'demultiplex');
     
     $self->return_data({
         id        => $user_id,
@@ -466,7 +493,15 @@ sub pair_join {
         $self->return_data( {"ERROR" => "this request type requires both the pair_file_1 and pair_file_2 parameters"}, 400 );
     }
     my $pair1_node = $self->node_from_id($pair1_file);
+    unless (exists $pair1_node->{attributes}{stats_info}) {
+        $pair1_node = $self->file_info($pair1_file, $pair1_node, 1);
+        $self->return_data( {"ERROR" => "Missing stats_info, run file_info request first on $pair1_file"}, 404 );
+    }
     my $pair2_node = $self->node_from_id($pair2_file);
+    unless (exists $pair2_node->{attributes}{stats_info}) {
+        $pair2_node = $self->file_info($pair2_file, $pair2_node, 1);
+        $self->return_data( {"ERROR" => "Missing stats_info, run file_info request first on $pair2_file"}, 404 );
+    }
     my $p1_type = $self->file_type_from_node($pair1_node);
     my $p2_type = $self->file_type_from_node($pair2_node);
     unless (($p1_type eq 'fastq') && ($p2_type eq 'fastq')) {
@@ -502,8 +537,11 @@ sub pair_join {
         if ($bc_count < 2) {
             $self->return_data( {"ERROR" => "barcode_count value must be greater than 1"}, 400 );
         }
-        # update template info
         my $index_node = $self->node_from_id($index_file);
+        unless (exists $index_node->{attributes}{stats_info}) {
+            $index_node = $self->file_info($index_file, $index_node, 1);
+        }
+        # update template info
         $status = "pair join and demultiplex is being run on files: ".$pair1_node->{id}.", ".$pair2_node->{id}.", ".$index_node->{id};
         $info->{job_name}   = $user_id.'_pairjoin_demultiplex';
         $info->{index_file} = $index_node->{file}{name};
@@ -526,6 +564,9 @@ sub pair_join {
             "attrfile": "userattr.json"
         });
         $job = $self->submit_awe_template($info, $Conf::mgrast_pair_join_demultiplex_workflow);
+        $self->add_node_action($pair1_node, $job, 'pairjoin_demultiplex');
+        $self->add_node_action($pair2_node, $job, 'pairjoin_demultiplex');
+        $self->add_node_action($pair2_node, $job, 'pairjoin_demultiplex');
     }
     # do pair-join only
     else {
@@ -533,6 +574,8 @@ sub pair_join {
         $info->{job_name} = $user_id.'_pairjoin';
         $info->{out_file} = $self->cgi->param('output') || $pair1_node->{file}{name}."_".$pair2_node->{file}{name}.".fastq";
         $job = $self->submit_awe_template($info, $Conf::mgrast_pair_join_workflow);
+        $self->add_node_action($pair1_node, $job, 'pairjoin');
+        $self->add_node_action($pair2_node, $job, 'pairjoin');
     }
     
     $self->return_data({
@@ -549,18 +592,9 @@ sub view_inbox {
 
     my $files = [];
     my $user_id = 'mgu'.$self->user->_id;
-    # all in inbox
+    # process inbox
     my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->token, $self->{user_auth});
-    # all in inbox viewable by mgrast
-    my %mgview = map {$_->{id}, $_} @{$self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->mgrast_token, "OAuth")};
-    # process inbox / add mgrast to ACLs if missing
     foreach my $node (@$inbox) {
-        if (! exists($mgview{ $node->{id} })) {
-            # PUT add mgrast to ACLs
-            foreach my $acl (('read', 'write', 'delete')) {
-                $self->edit_shock_acl($node->{id}, $self->token, 'mgrast', 'put', $acl, $self->{user_auth});
-            }
-        }
         my $info = {
             'id'        => $node->{id},
             'filename'  => $node->{file}{name},
@@ -568,9 +602,13 @@ sub view_inbox {
             'checksum'  => $node->{file}{checksum}{md5},
             'timestamp' => $node->{created_on}
         };
-        if (exists $node->{attributes}{stats_info}) {
-            $info->{stats_info} = $node->{attributes}{stats_info};
+        # get file_info / compute if missing
+        unless (exists $node->{attributes}{stats_info}) {
+            $node = $self->file_info($node->{id}, $node, 1);
         }
+        $info->{stats_info} = $node->{attributes}{stats_info};
+        # check if any pending actions
+        $self->update_node_actions($node);
         push @$files, $info;
     }
     $self->return_data({
@@ -627,21 +665,8 @@ sub upload_file {
             };
             # PUT attributes to node
             $node = $self->update_shock_node($node_id, $attr, $self->token, $self->{user_auth});
-            # PUT add mgrast to ACLs
-            foreach my $acl (('read', 'write', 'delete')) {
-                $self->edit_shock_acl($node_id, $self->token, 'mgrast', 'put', $acl, $self->{user_auth});
-            }
-            # return info
-            if ($node && ($node->{id} eq $node_id)) {
-                $self->return_data({
-                    id        => 'mgu'.$self->user->_id,
-                    user      => $self->user->login,
-                    status    => "data received successfully",
-                    timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-                });
-            } else {
-                $self->return_data({"ERROR" => "storing object failed - unable to update file with user info"}, 507);
-            }
+            # get / return file info
+            $self->file_info($node_id, $node);
         } else {
             $self->return_data( {"ERROR" => "storing object failed - could not obtain filehandle"}, 507 );
         }
@@ -664,7 +689,6 @@ sub submit_awe_template {
     unless ($job && $job->{state} && $job->{state} == "init") {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
     }
-    
     return $job;
 }
 
@@ -681,6 +705,53 @@ sub node_from_id {
         $self->return_data( {"ERROR" => "file id '$uuid' does not exist in your inbox"}, 404 );
     }
     return $node;
+}
+
+sub add_node_action {
+    my ($self, $node, $job, $name) = @_;
+    
+    my $attr = $node->{attributes};
+    my $actions = [];
+    if (exists $attr->{actions}) {
+        $actions = $attr->{actions};
+    }
+    push @$actions, {
+        id => $job->{id},
+        name => $name,
+        status => ($job->{state} eq 'init') ? 'queued' : $job->{state},
+        start => $job->{info}{submittime}
+    };
+    $attr->{actions} = $actions;
+    $self->update_shock_node($node->{id}, $attr, $self->token, $self->{user_auth});
+}
+
+sub update_node_actions {
+    my ($self, $node) = @_;
+    
+    # get actions
+    my $attr = $node->{attributes};
+    my $new_actions = [];
+    my $old_actions = [];
+    if (exists $attr->{actions}) {
+        $old_actions = $attr->{actions};
+    }
+    # check and update
+    foreach my $act (@$old_actions) {
+        # do nothing with completed
+        if ($act->{status} eq 'completed') {
+            push @$new_actions, $act;
+        } else {
+            my $job = $self->get_awe_job($act->{id}, $self->token, $self->{user_auth});
+            # drop it if deleted
+            if ($job->{state} ne 'deleted') {
+                $act->{status} = $job->{state};
+                push @$new_actions, $act;
+            }
+        }
+    }
+    # update node
+    $attr->{actions} = $new_actions;
+    $self->update_shock_node($node->{id}, $attr, $self->token, $self->{user_auth});
 }
 
 sub file_type_from_node {

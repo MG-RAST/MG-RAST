@@ -166,9 +166,72 @@ sub instance {
       $self->return_data( { "login" => $self->user->{login},
 			    "firstname" => $self->user->{firstname},
 			    "lastname" => $self->user->{lastname},
-			    "email" => $self->user->{email} }, 200 );
+			    "email" => $self->user->{email},
+			    "id" => 'mgu'.$self->user->{_id} }, 200 );
     } else {
       $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
+    }
+  }
+
+  # check if this is an impersonation
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
+    if ($self->user->has_right(undef, 'edit', 'user', '*')) {
+      my $impUser = $master->User->get_objects({ login => $rest->[1] });
+      if (scalar(@$impUser)) {
+	$impUser = $impUser->[0];
+	my $timeout = 60 * 60 * 24 * 7;
+	my $userToken = $master->Preferences->get_objects({ user => $impUser, name => "WebServicesKey" });
+	if (scalar(@$userToken)) {
+	  $userToken = $userToken->[0]->{value};
+	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
+	  $pref = $pref->[0];
+	  $pref->value(time + $timeout);
+	} else {
+	  my $generated = "";
+	  my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+	  while (length($generated) < 25) {
+	    $generated .= substr($possible, (int(rand(length($possible)))), 1);
+	  }
+	  my $preference = $master->Preferences->get_objects( { value => $generated } );
+	  
+	  while (scalar(@$preference)) {
+	    $generated = "";
+	    while (length($generated) < 25) {
+	      $generated .= substr($possible, (int(rand(length($possible)))), 1);
+	    }
+	    $preference = $master->Preferences->get_objects( { value => $generated } );
+	  }
+	  my $tdate = time + $timeout;
+	  
+	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
+	  if (scalar(@$pref)) {
+	    $pref = $pref->[0];
+	  } else {
+	    $pref = $master->Preferences->create( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
+	  }
+	  $pref->value($tdate);
+	  
+	  $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServicesKey' } );
+	  if (scalar(@$pref)) {
+	    $pref = $pref->[0];
+	  } else {
+	    $pref = $master->Preferences->create( { 'user' => $impUser, 'name' => 'WebServicesKey' } );
+	  }
+	  $pref->value($generated);
+	  $userToken = $generated;
+	}
+	  
+	$self->return_data( { "login" => $impUser->{login},
+			      "firstname" => $impUser->{firstname},
+			      "lastname" => $impUser->{lastname},
+			      "email" => $impUser->{email},
+			      "id" => 'mgu'.$impUser->{_id},
+			      "token" => $userToken }, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "user not found"}, 404 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
     }
   }
 
