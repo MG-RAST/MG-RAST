@@ -21,8 +21,12 @@ sub new {
     # Call the constructor of the parent class
     my $self = $class->SUPER::new(@args);
     
-    # Add name
+    # Add name / attributes
     $self->{name} = "inbox";
+    $self->{user_auth} = "mgrast";
+    if ($self->token =~ /globusonline/) {
+        $self->{user_auth} = "OAuth";
+    }
     return $self;
 }
 
@@ -283,7 +287,7 @@ sub file_info {
         # download first 2000 bytes of file for quick stats
         my $time = time;
         my $tempfile = $Conf::temp."/temp.".$node->{file}{name}.".".$time;
-        $self->get_shock_file($uuid, $tempfile, $self->mgrast_token, "length=2000");
+        $self->get_shock_file($uuid, $tempfile, $self->token, "length=2000", $self->{user_auth});
         ($file_type, $err_msg) = $self->verify_file_type($tempfile, $node->{file}{name});
         $file_format = $self->get_file_format($tempfile, $file_type, $file_suffix);
         unlink($tempfile);
@@ -304,7 +308,7 @@ sub file_info {
     } else {
         $new_attr->{stats_info} = $stats_info;
     }
-    $self->update_shock_node($node->{id}, $new_attr, $self->mgrast_token);
+    $self->update_shock_node($node->{id}, $new_attr, $self->token, $self->{user_auth});
     
     # return data
     $self->return_data({
@@ -400,7 +404,7 @@ sub demultiplex {
         $self->return_data( {"ERROR" => "barcode_count value must be greater than 1"}, 400 );
     }
     my $outfiles = {};
-    my $bar_text = $self->get_shock_file($bar_node->{id}, undef, $self->mgrast_token);
+    my $bar_text = $self->get_shock_file($bar_node->{id}, undef, $self->token, undef, $self->{user_auth});
     foreach my $line (split(/\n/, $bar_text)) {
         my ($b, $n) = split(/\t/, $line);
         my $fname = $n ? $n : $b;
@@ -544,8 +548,19 @@ sub view_inbox {
     my ($self) = @_;
 
     my $files = [];
-    my $inbox = $self->get_shock_query({'type' => 'inbox', 'user' => $self->user->login}, $self->mgrast_token);
+    # all in inbox
+    my $user_id = 'mgu'.$self->user->_id;
+    my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->token, $self->{user_auth});
+    # all in inbox viewable by mgrast
+    my %mgview = map {$_->{id}, $_} @{$self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->mgrast_token, "OAuth")};
+    # process inbox / add mgrast to ACLs if missing
     foreach my $node (@$inbox) {
+        if (! exists($mgview{ $node->{id} })) {
+            # PUT add mgrast to ACLs
+            foreach my $acl (('read', 'write', 'delete')) {
+                $self->edit_shock_acl($node->{id}, $self->token, 'mgrast', 'put', $acl, $self->{user_auth});
+            }
+        }
         my $info = {
             'id'        => $node->{id},
             'filename'  => $node->{file}{name},
@@ -559,7 +574,7 @@ sub view_inbox {
         push @$files, $info;
     }
     $self->return_data({
-        id        => 'mgu'.$self->user->_id,
+        id        => $user_id,
         user      => $self->user->login,
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
         files     => $files,
@@ -587,7 +602,7 @@ sub upload_file {
                     fh      => $io_handle,
                     headers => HTTP::Headers->new(
                         'Content_Type' => 'application/octet-stream',
-                        'Authorization' => 'OAuth '.$self->mgrast_token
+                        'Authorization' => $self->{user_auth}.' '.$self->token
                     )
                 );
                 my $req = LWP::UserAgent->new->request($post);
@@ -600,7 +615,7 @@ sub upload_file {
             }
             # PUT file name to node
             my $node_id = $response->{data}{id};
-            my $node = $self->update_shock_node_file_name($node_id, "".$fn, $self->mgrast_token);
+            my $node = $self->update_shock_node_file_name($node_id, "".$fn, $self->token, $self->{user_auth});
             unless ($node && ($node->{id} eq $node_id)) {
                 $self->return_data({"ERROR" => "storing object failed - unable to set file name"}, 507);
             }
@@ -611,7 +626,11 @@ sub upload_file {
                 email => $self->user->email
             };
             # PUT attributes to node
-            $node = $self->update_shock_node($node_id, $attr, $self->mgrast_token);
+            $node = $self->update_shock_node($node_id, $attr, $self->token, $self->{user_auth});
+            # PUT add mgrast to ACLs
+            foreach my $acl (('read', 'write', 'delete')) {
+                $self->edit_shock_acl($node_id, $self->token, 'mgrast', 'put', $acl, $self->{user_auth});
+            }
             # return info
             if ($node && ($node->{id} eq $node_id)) {
                 $self->return_data({
@@ -640,7 +659,8 @@ sub submit_awe_template {
     $tt->process($template, $info, \$awf) || die $tt->error();
     
     # Submit job to AWE and check for successful submission
-    my $job = $self->post_awe_job($awf, $self->mgrast_token, $self->mgrast_token, 1);
+    # mgrast owns awe job, user owns shock data
+    my $job = $self->post_awe_job($awf, $self->token, $self->mgrast_token, 1, $self->{user_auth}, "OAuth");
     unless ($job && $job->{state} && $job->{state} == "init") {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
     }
@@ -651,7 +671,7 @@ sub submit_awe_template {
 sub node_from_id {
     my ($self, $uuid) = @_;
     my $node  = {};
-    my $inbox = $self->get_shock_query({'type' => 'inbox', 'user' => $self->user->login}, $self->mgrast_token);
+    my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => 'mgu'.$self->user->_id}, $self->token, $self->{user_auth});
     foreach my $n (@$inbox) {
         if ($n->{id} eq $uuid) {
             $node = $n;
