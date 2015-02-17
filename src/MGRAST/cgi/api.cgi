@@ -148,12 +148,12 @@ else {
 
 # check for authentication
 my $user;
-if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_AUTHORIZATION') || $cgi->param('authorization')) {
+if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization')) {
     eval {
         require Auth;
         Auth->import();
         my $message;
-        ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_AUTHORIZATION') || $cgi->param('authorization'));
+        ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization'));
         unless($user) {
 	  unless ($message eq "valid kbase user") {
             print $cgi->header( -type => 'application/json',

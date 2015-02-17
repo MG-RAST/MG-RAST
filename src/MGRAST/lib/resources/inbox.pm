@@ -295,13 +295,13 @@ sub file_info {
     
     # get info / update node
     my $stats_info = {
-        type      => $file_type,
-		suffix    => $file_suffix,
-		file_type => $file_format,
-		file_name => $node->{file}{name},
-		file_size => $node->{file}{size},
-		checksum  => $node->{file}{checksum}{md5}
-    };
+		      type      => $file_type,
+		      suffix    => $file_suffix,
+		      file_type => $file_format,
+		      file_name => $node->{file}{name},
+		      file_size => $node->{file}{size},
+		      checksum  => $node->{file}{checksum}{md5}
+		     };
     my $new_attr = $node->{attributes};
     if (exists $new_attr->{stats_info}) {
         map { $new_attr->{stats_info}{$_} = $stats_info->{$_} } keys %$stats_info;
@@ -548,8 +548,8 @@ sub view_inbox {
     my ($self) = @_;
 
     my $files = [];
-    my $user_id = 'mgu'.$self->user->_id;
     # all in inbox
+    my $user_id = 'mgu'.$self->user->_id;
     my $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->token, $self->{user_auth});
     # all in inbox viewable by mgrast
     my %mgview = map {$_->{id}, $_} @{$self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->mgrast_token, "OAuth")};

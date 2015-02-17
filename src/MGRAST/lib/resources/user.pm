@@ -166,7 +166,8 @@ sub instance {
       $self->return_data( { "login" => $self->user->{login},
 			    "firstname" => $self->user->{firstname},
 			    "lastname" => $self->user->{lastname},
-			    "email" => $self->user->{email} }, 200 );
+			    "email" => $self->user->{email},
+			    "id" => 'mgu'.$self->user->{_id} }, 200 );
     } else {
       $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
     }
