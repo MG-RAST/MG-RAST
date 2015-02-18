@@ -347,7 +347,7 @@ sub file_info {
         $self->return_data({
             id         => 'mgu'.$self->user->_id,
             user       => $self->user->login,
-            status     => $err_msg ? $err_msg : $node->{attributes}{filename}." ($uuid) uploaded / updated",
+            status     => $err_msg ? $err_msg : $stats_info->{file_name}." ($uuid) uploaded / updated",
             stats_info => $stats_info,
             timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
         });
