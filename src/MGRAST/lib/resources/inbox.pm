@@ -347,7 +347,7 @@ sub file_info {
         $self->return_data({
             id         => 'mgu'.$self->user->_id,
             user       => $self->user->login,
-            status     => $err_msg ? $err_msg : $stats_info->{file_name}." ($uuid) uploaded / updated",
+            status     => $err_msg ? $err_msg : $node->{file}{name}." ($uuid) uploaded / updated",
             stats_info => $stats_info,
             timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
         });
@@ -382,7 +382,7 @@ sub seq_stats {
     $self->return_data({
         id        => $user_id,
         user      => $self->user->login,
-        status    => $node->{attributes}{filename}." ($uuid) stats computation is being run",
+        status    => $node->{file}{name}." ($uuid) stats computation is being run",
         awe_id    => $Conf::awe_url.'/job/'.$job->{id},
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     });
@@ -421,7 +421,7 @@ sub sff_to_fastq {
     $self->return_data({
         id        => $user_id,
         user      => $self->user->login,
-        status    => $node->{attributes}{filename}." ($uuid) sff to fastq is being run",
+        status    => $node->{file}{name}." ($uuid) sff to fastq is being run",
         awe_id    => $Conf::awe_url.'/job/'.$job->{id},
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     });
@@ -500,7 +500,7 @@ sub demultiplex {
     $self->return_data({
         id        => $user_id,
         user      => $self->user->login,
-        status    => $seq_node->{attributes}{filename}." ($seq_file) demultiplex is being run",
+        status    => $seq_node->{file}{name}." ($seq_file) demultiplex is being run",
         awe_id    => $Conf::awe_url.'/job/'.$job->{id},
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     });
@@ -714,7 +714,7 @@ sub delete_file {
     $self->return_data({
         id         => 'mgu'.$self->user->_id,
         user       => $self->user->login,
-        status     => $node->{attributes}{filename}." ($uuid) deleted",
+        status     => $node->{file}{name}." ($uuid) deleted",
         timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     }); 
 }
