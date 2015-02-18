@@ -820,6 +820,9 @@ sub get_file_format {
     if (($file_type =~ /^binary/) && ($file_suffix eq 'sff')) {
 	    return 'sff';
     }
+    if (($file_suffix eq 'xls') || ($file_suffix eq 'xlsx')) {
+        return 'excel'
+    }
     # identify fasta or fastq
     if ($file_type =~ /^ASCII/) {
 	    my @chars;
