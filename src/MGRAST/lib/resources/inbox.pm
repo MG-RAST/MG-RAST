@@ -291,7 +291,7 @@ sub file_info {
         my $time = time;
         my $tempfile = $Conf::temp."/temp.".$node->{file}{name}.".".$time;
         $self->get_shock_file($uuid, $tempfile, $self->token, "length=2000", $self->{user_auth});
-        ($file_type, $err_msg) = $self->verify_file_type($tempfile, $node->{file}{name});
+        ($file_type, $err_msg) = $self->verify_file_type($tempfile, $node->{file}{name}, $file_suffix);
         $file_format = $self->get_file_format($tempfile, $file_type, $file_suffix);
         unlink($tempfile);
     }
@@ -767,7 +767,7 @@ sub file_type_from_node {
 }
 
 sub verify_file_type {
-    my ($self, $tempfile, $fname) = @_;
+    my ($self, $tempfile, $fname, $file_suffix) = @_;
     # Need to do the 'safe-open' trick here, file might be hard to escape in the shell
     open(P, "-|", "file", "-b", "$tempfile") || $self->return_data( {"ERROR" => "unable to verify file type/format"}, 400 );
     my $file_type = <P>;
@@ -805,8 +805,8 @@ sub verify_file_type {
          ($file_type eq 'ASCII text, with CR line terminators') ||
          ($file_type eq 'ASCII text, with CRLF line terminators') ) {
         return ($file_type, "");
-    } else {
-        $file_type = "ASCII text, with invalid line terminators";
+    } elsif (($file_suffix eq 'xls') || ($file_suffix eq 'xlsx')) {
+        return ($file_type, "");
     }
     return ($file_type, "[error] file '$fname' is of unsupported file type '$file_type'.");
 }
