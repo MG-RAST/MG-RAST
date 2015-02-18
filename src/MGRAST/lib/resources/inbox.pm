@@ -285,6 +285,7 @@ sub request {
             } elsif ($self->rest->[0] eq 'pair_join_demultiplex') {
                 $self->pair_join(1);
             }
+        # deleting from inbox
         } elsif (($self->method eq 'DELETE') && (scalar(@{$self->rest}) > 0)) {
             $self->delete_file($self->rest->[0]);
         }
