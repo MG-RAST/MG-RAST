@@ -14,7 +14,7 @@
     "tasks": [
         {
             "cmd": {
-                "args": "[% retain %]-m 8 -p 10 -t . -r -i [% index_file %] -o [% prefix %].join.fastq @[% p1_file %] @[% p2_file %]",
+                "args": "[% retain %]-m 8 -p 10 -t . -r -i [% index_file %] -o [% out_file %].join.fastq @[% p1_file %] @[% p2_file %]",
                 "description": "merge mate-pairs",
                 "name": "pairend_join.py"
             },
@@ -34,7 +34,7 @@
                 }
             },
             "outputs": {
-                "[% prefix %].join.fastq": {
+                "[% out_file %].join.fastq": {
                     "host": "[% shock_url %]",
                     "node": "-",
                     "attrfile": "userattr.json"
@@ -51,7 +51,7 @@
         },
         {
             "cmd": {
-                "args": "-r -i @[% index_file %] -p [% prefix %] -o [% prefix %].barcodes.txt",
+                "args": "-r -i @[% index_file %] -p [% out_file %] -o [% out_file %].barcodes.txt",
                 "description": "build barcodes",
                 "name": "index2barcode.py"
             },
@@ -63,7 +63,7 @@
                 }
             },
             "outputs": {
-                "[% prefix %].barcodes.txt": {
+                "[% out_file %].barcodes.txt": {
                     "host": "[% shock_url %]",
                     "node": "-",
                     "attrfile": "userattr.json"
@@ -78,18 +78,18 @@
         },
         {
             "cmd": {
-                "args": "-f fastq -b @[% prefix %].barcodes.txt -i @[% prefix %].join.fastq",
+                "args": "-f fastq -b @[% out_file %].barcodes.txt -i @[% out_file %].join.fastq",
                 "description": "demultiplex",
                 "name": "demultiplex.py"
             },
             "dependsOn": ["0", "1"], 
             "inputs": {
-                "[% prefix %].join.fastq": {
+                "[% out_file %].join.fastq": {
                     "host": "[% shock_url %]",
                     "origin": "0",
                     "node": "-"
                 },
-                "[% prefix %].barcodes.txt": {
+                "[% out_file %].barcodes.txt": {
                     "host": "[% shock_url %]",
                     "origin": "1",
                     "node": "-"
