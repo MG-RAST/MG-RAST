@@ -442,6 +442,7 @@ sub process_file {
     # get metadata file
     my $tmp_dir = $Conf::temp;
     my $fname   = "";
+    my $node    = {};
         
     # uploaded
     if ($self->cgi->param('upload')) {
@@ -470,10 +471,10 @@ sub process_file {
     }
     # from shock node
     elsif ($self->cgi->param('node_id')) {
-        my $nid  = $self->cgi->param('node_id');
-        my $node = $self->get_shock_node($nid, $self->mgrast_token);
-        $fname   = $node->{file}{name};
-        my $res  = $self->get_shock_file($nid, "$tmp_dir/$fname", $self->mgrast_token);
+        my $nid = $self->cgi->param('node_id');
+        $node   = $self->get_shock_node($nid, $self->mgrast_token);
+        $fname  = $node->{file}{name};
+        my $res = $self->get_shock_file($nid, "$tmp_dir/$fname", $self->mgrast_token);
         unless ($res) {
             $self->return_data({"ERROR" => "Unable to retrieve file from Shock server"}, 500);
         }
@@ -489,6 +490,12 @@ sub process_file {
     # run different actions
     if ($type eq 'validate') {
         if ($is_valid) {
+            if ($node && ref($node)) {
+                # validate shock node
+                my $attr = $node->{attributes};
+                $attr->{data_type} = 'metadata';
+                $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
+            }
             delete $md_obj->{is_valid};
             $data = {is_valid => 1, message => undef, metadata => $md_obj};
         } else {
