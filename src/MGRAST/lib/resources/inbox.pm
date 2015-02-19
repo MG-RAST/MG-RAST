@@ -311,7 +311,6 @@ sub request {
         # deleting from inbox
         } elsif (($self->method eq 'DELETE') && (scalar(@{$self->rest}) == 1)) {
             $self->delete_file($self->rest->[0]);
-        }
         # rename file
         } elsif (($self->method eq 'PUT') && (scalar(@{$self->rest}) == 1)) {
             $self->rename_file($self->rest->[0]);
@@ -389,6 +388,7 @@ sub seq_stats {
     unless (exists $node->{attributes}{stats_info}) {
         $node = $self->file_info($uuid, $node, 1);
     }
+    my $user_id = 'mgu'.$self->user->_id;
     my $file_type = $self->file_type_from_node($node);
     if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} eq "sequence")) {
         $self->return_data({
@@ -400,7 +400,6 @@ sub seq_stats {
     }
     
     # Do template replacement of MG-RAST's AWE workflow for sequence stats
-    my $user_id = 'mgu'.$self->user->_id;
     my $info = {
         shock_url    => $Conf::shock_url,
         job_name     => $user_id.'_seqstats',
@@ -766,7 +765,7 @@ sub rename_file {
     }
     my $node = $self->node_from_id($uuid);
     my $attr = $node->{attributes};
-    $self->update_shock_node_file_name($uuid, $name, $self->token, $self->{user_auth})
+    $self->update_shock_node_file_name($uuid, $name, $self->token, $self->{user_auth});
     if (exists($attr->{stats_info}) && exists($attr->{stats_info}{file_name})) {
         $attr->{stats_info}{file_name} = $name;
         $node = $self->update_shock_node($uuid, $attr, $self->token, $self->{user_auth});
