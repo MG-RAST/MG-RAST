@@ -363,6 +363,14 @@ sub seq_stats {
         $node = $self->file_info($uuid, $node, 1);
     }
     my $file_type = $self->file_type_from_node($node);
+    if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} eq "sequence")) {
+        $self->return_data({
+            id        => $user_id,
+            user      => $self->user->login,
+            status    => $node->{file}{name}." ($uuid) stats computation has already been ran",
+            timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+        });
+    }
     
     # Do template replacement of MG-RAST's AWE workflow for sequence stats
     my $user_id = 'mgu'.$self->user->_id;
@@ -632,6 +640,7 @@ sub view_inbox {
         $info->{stats_info} = $node->{attributes}{stats_info};
         # check if any pending actions
         $self->update_node_actions($node);
+        $info->{actions} = $node->{attributes}{actions};
         push @$files, $info;
     }
     $self->return_data({
