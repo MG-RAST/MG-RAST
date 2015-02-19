@@ -14,7 +14,7 @@
     "tasks": [
         {
             "cmd": {
-                "args": "[% retain %]-m 8 -p 10 -t . -o [% out_file %] @[% p1_file %] @[% p2_file %]",
+                "args": "[% retain %]-m 8 -p 10 -t . -o [% out_file %].fastq @[% p1_file %] @[% p2_file %]",
                 "description": "merge mate-pairs",
                 "name": "pairend_join.py"
             },
@@ -30,7 +30,7 @@
                 }
             },
             "outputs": {
-                "[% out_file %]": {
+                "[% out_file %].fastq": {
                     "host": "[% shock_url %]",
                     "node": "-",
                     "attrfile": "userattr.json"
