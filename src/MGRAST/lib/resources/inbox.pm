@@ -8,6 +8,7 @@ use POSIX qw(strftime);
 use HTTP::Request::StreamingUpload;
 use HTTP::Headers;
 use LWP::UserAgent;
+use File::Basename;
 use Data::Dumper;
 use Template;
 
@@ -437,6 +438,7 @@ sub sff_to_fastq {
     
     # Do template replacement of MG-RAST's AWE workflow for sff to fastq
     my $user_id = 'mgu'.$self->user->_id;
+    my $basename = fileparse($node->{file}{name}, qr/\.[^.]*/);
     my $info = {
         shock_url    => $Conf::shock_url,
         job_name     => $user_id.'_sff2fastq',
@@ -446,7 +448,7 @@ sub sff_to_fastq {
         clientgroups => $Conf::mgrast_inbox_clientgroups,
         sff_file_id  => $node->{id},
         sff_file     => $node->{file}{name},
-        fastq_file   => $node->{file}{name}.'.fastq'
+        fastq_file   => $basename.'.fastq'
     };
     my $job = $self->submit_awe_template($info, $Conf::mgrast_sff_to_fastq_workflow);
     $self->add_node_action($node, $job, 'sff2fastq');
