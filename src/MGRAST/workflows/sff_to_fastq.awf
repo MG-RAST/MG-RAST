@@ -56,6 +56,7 @@
             "outputs": {
                 "[% fastq_file %]": {
                     "host": "[% shock_url %]",
+                    "origin": "0",
                     "node": "-",
                     "type": "update",
                     "attrfile": "output_attr.json"
