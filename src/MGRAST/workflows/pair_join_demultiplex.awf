@@ -41,10 +41,8 @@
                 }
             },
             "userattr": {
-                "file_format": "fastq",
-                "seq_format": "bp",
-                "parent_file_1": "[% p1_file_id %]",
-                "parent_file_2": "[% p2_file_id %]"
+                "parent_seq_file_1": "[% p1_file_id %]",
+                "parent_seq_file_2": "[% p2_file_id %]"
             },
             "taskid": "0",
             "totalwork": 1
@@ -70,23 +68,49 @@
                 }
             },
             "userattr": {
-                "file_format": "text",
-                "parent_file": "[% index_id %]"
+                "parent_index_file": "[% index_id %]"
             },
             "taskid": "1",
             "totalwork": 1
         },
         {
             "cmd": {
-                "args": "-f fastq -b @[% out_file %].barcodes.txt -i @[% out_file %].join.fastq",
-                "description": "demultiplex",
-                "name": "demultiplex.py"
+                "args": "-input=@[% out_file %].join.fastq -input_json=input_attr.json -output_json=output_attr.json -type=fastq",
+                "description": "sequence stats",
+                "name": "awe_seq_length_stats.pl"
             },
-            "dependsOn": ["0", "1"], 
+            "dependsOn": ["0"],
             "inputs": {
                 "[% out_file %].join.fastq": {
                     "host": "[% shock_url %]",
                     "origin": "0",
+                    "node": "-",
+                    "attrfile": "input_attr.json"
+                }
+            },
+            "outputs": {
+                "[% out_file %].join.fastq": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "output_attr.json"
+                }
+            },
+            "taskid": "2",
+            "totalwork": 1
+        }
+        {
+            "cmd": {
+                "args": "-f fastq -b @[% out_file %].barcodes.txt -i @[% out_file %].join.fastq",
+                "description": "demultiplex",
+                "name": "demultiplex.py"
+            },
+            "dependsOn": ["1", "2"], 
+            "inputs": {
+                "[% out_file %].join.fastq": {
+                    "host": "[% shock_url %]",
+                    "origin": "2",
                     "node": "-"
                 },
                 "[% out_file %].barcodes.txt": {
@@ -98,13 +122,12 @@
             "outputs": {[% outputs %]
             },
             "userattr": {
-                "file_format": "fastq",
-                "seq_format": "bp",
-                "parent_file_1": "[% p1_file_id %]",
-                "parent_file_2": "[% p2_file_id %]"
+                "parent_seq_file_1": "[% p1_file_id %]",
+                "parent_seq_file_2": "[% p2_file_id %]",
+                "parent_index_file": "[% index_id %]"
             },
-            "taskid": "0",
+            "taskid": "3",
             "totalwork": 1
-        }
+        }[% seq_stats %]
     ]
 }

@@ -32,12 +32,11 @@
             "outputs": {[% outputs %]
             },
             "userattr": {
-                "file_format": "[% file_type %]",
-                "seq_format": "bp",
-                "parent_file": "[% seq_file_id %]"
+                "parent_seq_file": "[% seq_file_id %]"
+                "parent_barcode_file": "[% bar_file_id %]"
             },
             "taskid": "0",
             "totalwork": 1
-        }
+        }[% seq_stats %]
     ]
 }
