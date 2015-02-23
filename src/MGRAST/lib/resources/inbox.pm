@@ -331,7 +331,7 @@ sub request {
                 $self->demultiplex();
             } elsif ($self->rest->[0] eq 'pairjoin') {
                 $self->pair_join();
-            } elsif ($self->rest->[0] eq 'pair_join_demultiplex') {
+            } elsif ($self->rest->[0] eq 'pairjoin_demultiplex') {
                 $self->pair_join(1);
             }
         # deleting from inbox
