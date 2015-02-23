@@ -37,8 +37,8 @@
                 }
             },
             "userattr": {
-                "parent_file_1": "[% p1_file_id %]",
-                "parent_file_2": "[% p2_file_id %]"
+                "parent_seq_file_1": "[% p1_file_id %]",
+                "parent_seq_file_2": "[% p2_file_id %]"
             },
             "taskid": "0",
             "totalwork": 1
