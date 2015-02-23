@@ -33,11 +33,36 @@
                 }
             },
             "userattr": {
-                "file_format": "fastq",
-                "seq_format": "bp",
-                "parent_file": "[% sff_file_id %]"
+                "parent_seq_file": "[% sff_file_id %]"
             },
             "taskid": "0",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "args": "-input=@[% fastq_file %] -input_json=input_attr.json -output_json=output_attr.json -type=fastq",
+                "description": "sequence stats",
+                "name": "awe_seq_length_stats.pl"
+            },
+            "dependsOn": ["0"],
+            "inputs": {
+                "[% fastq_file %]": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-",
+                    "attrfile": "input_attr.json"
+                }
+            },
+            "outputs": {
+                "[% fastq_file %]": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "output_attr.json"
+                }
+            },
+            "taskid": "1",
             "totalwork": 1
         }
     ]

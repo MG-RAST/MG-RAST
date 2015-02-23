@@ -860,6 +860,29 @@ sub get_shock_node {
     }
 }
 
+# delete node
+sub delete_shock_node {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->delete($Conf::shock_url.'/node/'.$id, @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to DELETE node $id from Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
 # get the shock preauth url for a file
 sub get_shock_preauth {
     my ($self, $id, $auth, $fn, $authPrefix) = @_;
@@ -997,6 +1020,29 @@ sub awe_job_action {
         $self->return_data( {"ERROR" => "Unable to PUT to AWE: ".$@}, 500 );
     } else {
         return $response;
+    }
+}
+
+# get job document
+sub get_awe_job {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->get($Conf::awe_url.'/job/'.$id, @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
     }
 }
 

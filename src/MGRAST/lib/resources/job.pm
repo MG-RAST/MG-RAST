@@ -303,11 +303,23 @@ sub job_action {
                     $self->return_data( {"ERROR" => "unable to obtain sequence file info from shock node ".$nodeid}, 500 );
                 }
             }
+            # fix assembly defaults
+            if (exists($post->{sequencing_method_guess}) && ($post->{sequencing_method_guess} eq "assembled")) {
+                $post->{assembled}    = 'yes';
+                $post->{filter_ln}    = 'no';
+                $post->{filter_ambig} = 'no';
+                $post->{dynamic_trim} = 'no';
+                $post->{dereplicate}  = 'no';
+                $post->{bowtie}       = 'no';
+            }
             # set pipeline defaults if missing
             foreach my $key (@{$self->pipeline_opts}) {
                 if (exists($self->pipeline_defaults->{$key}) && (! exists($post->{$key}))) {
                     $post->{$key} = $self->pipeline_defaults->{$key};
                 }
+            }
+            if ($post->{file_type} eq 'fasta') {
+                $post->{file_type} = 'fna';
             }
             # fix booleans
             foreach my $key (keys %$post) {
@@ -355,6 +367,21 @@ sub job_action {
                     awe_id => $aid,
                     log    => join("\n", @log)
                 };
+                # update inbox attributes
+                my $node = $self->get_shock_node($post->{input_id}, $self->mgrast_token);
+                my $attr = $node->{attributes};
+                my $action = {
+                    id => $aid,
+                    name => "pipeline",
+                    status => "queued",
+                    start => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+                };
+                if (exists $attr->{actions}) {
+                    push @{$attr->{actions}}, $action;
+                } else {
+                    $attr->{actions} = [$action];
+                }
+                $self->update_shock_node($post->{input_id}, $attr, $self->mgrast_token);
             } else {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
             }
