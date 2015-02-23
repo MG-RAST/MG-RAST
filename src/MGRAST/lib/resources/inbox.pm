@@ -240,21 +240,25 @@ sub request {
     
     # must have auth
     if ($self->user) {
-        # upload or view
-        if (scalar(@{$self->rest}) == 0) {
-            if ($self->method eq 'GET') {
-                $self->view_inbox();
-            } elsif ($self->method eq 'POST') {
-                $self->upload_file();
-            }
+      # upload or view
+      if (scalar(@{$self->rest}) == 0) {
+	if ($self->method eq 'GET') {
+	  $self->view_inbox();
+	} elsif ($self->method eq 'POST') {
+	  $self->upload_file();
+	}
         # inbox actions that don't make new nodes
-        } elsif (($self->method eq 'GET') && (scalar(@{$self->rest}) > 1)) {
-            if ($self->rest->[0] eq 'info') {
-                $self->file_info($self->rest->[1]);
-            } elsif ($self->rest->[0] eq 'stats') {
-                $self->seq_stats($self->rest->[1]);
-            }
-        # inbox actions that make new nodes
+      } elsif (($self->method eq 'GET') && (scalar(@{$self->rest}) > 0)) {
+	if($self->rest->[0] eq 'pending') {
+	  $self->view_inbox_actions();
+	}
+      } elsif (($self->method eq 'GET') && (scalar(@{$self->rest}) > 1)) {
+	  if ($self->rest->[0] eq 'info') {
+	    $self->file_info($self->rest->[1]);
+	  } elsif ($self->rest->[0] eq 'stats') {
+	    $self->seq_stats($self->rest->[1]);
+	  }
+	# inbox actions that make new nodes
         } elsif (($self->method eq 'POST') && (scalar(@{$self->rest}) > 0)) {
             if ($self->rest->[0] eq 'sff2fastq') {
                 $self->sff_to_fastq();
@@ -582,6 +586,27 @@ sub view_inbox {
     });
 }
 
+sub view_inbox_actions {
+    my ($self) = @_;
+
+    my $jobs = [];
+    my $user_id = 'mgu'.$self->user->_id;
+    my $params = { "info.user" => [$user_id],
+		   "info.clientgroups" => ["mgrast_inbox"] };
+    my $states = [ "completed", "deleted", "suspend", "in-progress", "pending", "queued" ];
+    my $requestedStates = [];
+    foreach my $state (@$states) {
+      if ($self->cgi->param($state)) {
+	push(@$requestedStates, $state);
+      }
+    }
+    if (scalar(@$requestedStates)) {
+      $params->{state} = $requestedStates;
+    }
+
+    $self->return_data($self->get_awe_query($params, $self->token, "mgrast"));
+}
+
 sub upload_file {
     my ($self) = @_;
 
@@ -661,7 +686,7 @@ sub submit_awe_template {
     # Submit job to AWE and check for successful submission
     # mgrast owns awe job, user owns shock data
     my $job = $self->post_awe_job($awf, $self->token, $self->mgrast_token, 1, $self->{user_auth}, "OAuth");
-    unless ($job && $job->{state} && $job->{state} == "init") {
+    unless ($job && $job->{state} && $job->{state} eq "init") {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
     }
     
