@@ -253,7 +253,9 @@ sub request {
                 $self->file_info($self->rest->[1]);
             } elsif ($self->rest->[0] eq 'stats') {
                 $self->seq_stats($self->rest->[1]);
-            }
+	      } elsif($self->rest->[0] eq 'pending') {
+		$self->view_inbox_actions();
+	      }
         # inbox actions that make new nodes
         } elsif (($self->method eq 'POST') && (scalar(@{$self->rest}) > 0)) {
             if ($self->rest->[0] eq 'sff2fastq') {
@@ -582,6 +584,16 @@ sub view_inbox {
     });
 }
 
+sub view_inbox_actions {
+    my ($self) = @_;
+
+    my $jobs = [];
+    my $user_id = 'mgu'.$self->user->_id;
+    my $params = {};
+
+    $self->return_data($self->get_awe_query($params, $self->token, "mgrast"));
+}
+
 sub upload_file {
     my ($self) = @_;
 
@@ -661,7 +673,7 @@ sub submit_awe_template {
     # Submit job to AWE and check for successful submission
     # mgrast owns awe job, user owns shock data
     my $job = $self->post_awe_job($awf, $self->token, $self->mgrast_token, 1, $self->{user_auth}, "OAuth");
-    unless ($job && $job->{state} && $job->{state} == "init") {
+    unless ($job && $job->{state} && $job->{state} eq "init") {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
     }
     
