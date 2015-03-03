@@ -429,7 +429,7 @@ sub shock_post_acl {
         map { $self->edit_shock_acl($id, $self->{nb_token}, $_, 'put', 'read') } @$access;
     } elsif ($self->{nb_token} && $self->{nb_info} && (@$access == 0)) {
         # public
-        $self->edit_shock_acl($id, $self->{nb_token}, $self->{nb_info}{username}, 'delete', 'read');
+        $self->edit_shock_public_acl($id, $self->{nb_token}, 'put', 'read');
     } else {
         # missing config
         print STDERR "Missing notebook config options\n";

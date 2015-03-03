@@ -166,9 +166,72 @@ sub instance {
       $self->return_data( { "login" => $self->user->{login},
 			    "firstname" => $self->user->{firstname},
 			    "lastname" => $self->user->{lastname},
-			    "email" => $self->user->{email} }, 200 );
+			    "email" => $self->user->{email},
+			    "id" => 'mgu'.$self->user->{_id} }, 200 );
     } else {
       $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
+    }
+  }
+
+  # check if this is an impersonation
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
+    if ($self->user->has_right(undef, 'edit', 'user', '*')) {
+      my $impUser = $master->User->get_objects({ login => $rest->[1] });
+      if (scalar(@$impUser)) {
+	$impUser = $impUser->[0];
+	my $timeout = 60 * 60 * 24 * 7;
+	my $userToken = $master->Preferences->get_objects({ user => $impUser, name => "WebServicesKey" });
+	if (scalar(@$userToken)) {
+	  $userToken = $userToken->[0]->{value};
+	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
+	  $pref = $pref->[0];
+	  $pref->value(time + $timeout);
+	} else {
+	  my $generated = "";
+	  my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+	  while (length($generated) < 25) {
+	    $generated .= substr($possible, (int(rand(length($possible)))), 1);
+	  }
+	  my $preference = $master->Preferences->get_objects( { value => $generated } );
+	  
+	  while (scalar(@$preference)) {
+	    $generated = "";
+	    while (length($generated) < 25) {
+	      $generated .= substr($possible, (int(rand(length($possible)))), 1);
+	    }
+	    $preference = $master->Preferences->get_objects( { value => $generated } );
+	  }
+	  my $tdate = time + $timeout;
+	  
+	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
+	  if (scalar(@$pref)) {
+	    $pref = $pref->[0];
+	  } else {
+	    $pref = $master->Preferences->create( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
+	  }
+	  $pref->value($tdate);
+	  
+	  $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServicesKey' } );
+	  if (scalar(@$pref)) {
+	    $pref = $pref->[0];
+	  } else {
+	    $pref = $master->Preferences->create( { 'user' => $impUser, 'name' => 'WebServicesKey' } );
+	  }
+	  $pref->value($generated);
+	  $userToken = $generated;
+	}
+	  
+	$self->return_data( { "login" => $impUser->{login},
+			      "firstname" => $impUser->{firstname},
+			      "lastname" => $impUser->{lastname},
+			      "email" => $impUser->{email},
+			      "id" => 'mgu'.$impUser->{_id},
+			      "token" => $userToken }, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "user not found"}, 404 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
     }
   }
 
@@ -266,6 +329,29 @@ sub instance {
     }
     if (defined $self->{cgi}->param('comment')) {
       $user->comment(uri_unescape($self->{cgi}->param('comment')));
+    }
+
+    # preferences were passed
+    if (defined $rest->[1] && $rest->[1] eq "preferences") {
+      my $userToken = $master->Preferences->get_objects({ user => $user, name => "WebServicesKey" });
+      if (scalar(@$userToken)) {
+	$userToken = $userToken->[0]->{value};
+      } else {
+	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+      }
+      my $prefs = { 'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id, "pref" => $self->json->decode($self->cgi->param('prefs')) };
+      
+      my $pref_id = $master->Preferences->get_objects({ user => $user, name => "shock_pref_node" });
+      my $nodeid;
+      my $retval = {};
+      if (scalar(@$pref_id)) {
+	$nodeid = $pref_id->[0]->{value};
+	$retval = $self->update_shock_node($nodeid, $prefs, $userToken, "mgrast");
+      } else {
+	$retval = $self->set_shock_node("preferences", undef, $prefs, $userToken, undef, "mgrast");
+	$master->Preferences->create({ user => $user, name => "shock_pref_node", value => $retval->{id} });
+      }
+      $self->return_data( {"OK" => $retval->{attributes}->{pref}}, 200 );
     }
   }
 
@@ -403,6 +489,31 @@ sub instance {
     my $prefs = $master->Preferences->get_objects({ user => $user });
     $user->{preferences} = [];
     @{$user->{preferences}} = map { { name => $_->{name}, value => $_->{value} } } @$prefs;
+
+    # check if we already have shock preferences
+    my $nodeid;
+    foreach my $p (@{$user->{preferences}}) {
+      if ($p->{name} eq "shock_pref_node") {
+	$nodeid = $p->{value};
+	last;
+      }
+    }
+    if ($nodeid) {
+      my $userToken;
+      foreach my $p (@$prefs) {
+	if ($p->{name} eq "WebServicesKey") {
+	  $userToken = $p->{value};
+	  last;
+	}
+      }
+      unless ($userToken) {
+	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+      }
+      my $shockprefs = $self->get_shock_node($nodeid, $userToken, "mgrast");
+      if ($shockprefs) {
+	push(@{$user->{preferences}}, { name => 'shock', value => $shockprefs->{attributes}->{pref} } );
+      }
+    }
   }
   # get the users rights
   elsif ($verb eq 'rights') {

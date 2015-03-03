@@ -192,8 +192,27 @@ sub query {
     if ($limit == 0) {
         $limit = 18446744073709551615;
     }
+
+    # check if we just want the private projects
+    if ($self->cgi->param('private')) {
+      unless ($self->user) {
+	$self->return_data({"ERROR" => "private option requires authentication"}, 400);
+      }
+      my $ids = [];
+      if ($self->cgi->param('edit')) {
+	$ids = $self->user->has_right_to(undef, 'edit', 'project');
+      } else {
+	$ids = $self->user->has_right_to(undef, 'view', 'project');
+      }
+      if (scalar(@$ids) && $ids->[0] eq '*') {
+	shift @$ids;
+      }
+      my $list = join(",", @$ids);
+      $total = scalar(@$ids);
+      $projects = $master->Project->get_objects( {$order => [undef, "id IN ($list) ORDER BY $order LIMIT $limit OFFSET $offset"]} );
+    }
     # get all items the user has access to
-    if (exists $self->rights->{'*'}) {
+    elsif (exists $self->rights->{'*'}) {
         $total    = $master->Project->count_all();
         $projects = $master->Project->get_objects( {$order => [undef, "_id IS NOT NULL ORDER BY $order LIMIT $limit OFFSET $offset"]} );
     } else {
@@ -239,13 +258,32 @@ sub prepare_data {
 	        $obj->{samples}   = \@samples;
 	        $obj->{libraries} = \@libraries;
             }
-            if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full')) {
+            if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full') || ($self->cgi->param('verbosity') eq 'summary')) {
 	        my $metadata  = $project->data();
 	        my $desc = $metadata->{project_description} || $metadata->{study_abstract} || " - ";
 	        my $fund = $metadata->{project_funding} || " - ";
 	        $obj->{metadata}       = $metadata;
 	        $obj->{description}    = $desc;
-	        $obj->{funding_source} = $fund;	
+	        $obj->{funding_source} = $fund;
+		
+		if ($self->cgi->param('verbosity') eq 'summary') {
+		  my $jdata = $project->metagenomes_summary();
+		  $obj->{metagenomes} = [];
+		  foreach my $row (@$jdata) {
+		    push(@{$obj->{metagenomes}}, { metagenome_id => $row->[0],
+						   name => $row->[1],
+						   basepairs => $row->[2],
+						   sequences => $row->[3],
+						   biome => $row->[4],
+						   feature => $row->[5],
+						   material => $row->[6],
+						   location => $row->[7],
+						   country => $row->[8],
+						   coordinates => $row->[9],
+						   sequence_type => $row->[10],
+						   sequencing_method => $row->[11] });
+		  }
+		}
             } elsif ($self->cgi->param('verbosity') ne 'minimal') {
 	        $self->return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
             }

@@ -305,7 +305,7 @@ sub query {
         if ($self->user->has_star_right('view', 'metagenome')) {
             $solr_query_str .= "(status:private)";
         } else {
-            if (scalar(%{$self->rights}) > 0) {
+            if (scalar(keys %{$self->rights}) > 0) {
                 $solr_query_str .= "(status:private AND (".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights})."))";
             } else {
                 $return_empty_set = 1;
@@ -316,7 +316,7 @@ sub query {
             if ($self->user->has_star_right('view', 'metagenome')) {
                 $solr_query_str .= "(status:*)";
             } else {
-                if (scalar(%{$self->rights}) > 0) {
+                if (scalar(keys %{$self->rights}) > 0) {
                     $solr_query_str .= "((status:public) OR (status:private AND (".join(" OR ", map {'id:mgm'.$_} keys %{$self->rights}).")))";
                 } else {
                     $solr_query_str .= '(status:public)';
@@ -442,7 +442,7 @@ sub prepare_data {
 	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;
 	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
-	    $pparams->{publish_priority} = (exists($jdata->{priority}) && $jdata->{priority}) ? $jdata->{priority} : 'never';
+	    $pparams->{priority} = (exists($jdata->{priority}) && $jdata->{priority}) ? $jdata->{priority} : 'never';
 	    # replace value defaults
 	    foreach my $tag (('max_ambig', 'min_qual', 'max_lqb', 'screen_indexes',
 	                      'm5nr_sims_version', 'm5rna_sims_version',
