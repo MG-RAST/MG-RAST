@@ -20,7 +20,7 @@ use File::Temp qw/ tempfile tempdir /;
 1;
 
 sub new {
-  my ($class, $job_dbh, $dbh) = @_;
+  my ($class, $job_dbh, $dbh, $version) = @_;
 
   # get ach object if have lib
   my $ach = undef;
@@ -102,7 +102,7 @@ sub new {
 	           id_src   => \%idsrc,  # hash: source_id => source_name
    	           src_id   => \%srcid,  # hash: source_name => source_id
 	           expire   => $Conf::web_memcache_expire || 172800, # use config or 48 hours
-	           version  => $Conf::m5nr_annotation_version || 1,
+	           version  => $version || $Conf::m5nr_annotation_version || 1,
 	           mgrast_token => $mgrast_token,
 	           jtbl => { md5      => 'job_md5s',
 	                     ontology => 'job_ontologies',
