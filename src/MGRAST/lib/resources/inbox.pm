@@ -372,7 +372,7 @@ sub seq_stats {
         $self->return_data({
             id        => $user_id,
             user      => $self->user->login,
-            status    => $node->{file}{name}." ($uuid) sequence stats computation has already been ran",
+            status    => $node->{file}{name}." ($uuid) sequence stats computation has already been run",
             timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
         });
     }
