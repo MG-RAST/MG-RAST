@@ -308,6 +308,10 @@ sub output {
 	      my $diff = ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
 	      $ann_rna_reads = ($diff > $ann_rna_reads) ? 0 : $ann_rna_reads - $diff;
       }
+      my $diff = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads);
+      if ($unknown_all < $diff) {
+	$unknown_all = $diff;
+      }
   }
 
   ($qc_fail_seqs, $unknown_all, $unkn_aa_reads, $ann_aa_reads, $ann_rna_reads) =
