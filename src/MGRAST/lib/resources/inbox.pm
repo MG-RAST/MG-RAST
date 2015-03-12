@@ -372,7 +372,7 @@ sub seq_stats {
         $self->return_data({
             id        => $user_id,
             user      => $self->user->login,
-            status    => $node->{file}{name}." ($uuid) sequence stats computation has already been ran",
+            status    => $node->{file}{name}." ($uuid) sequence stats computation has already been run",
             timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
         });
     }
@@ -476,7 +476,7 @@ sub demultiplex {
     my $num = 0;
     my $shock_url = $Conf::shock_url;
     my $output_text = "";
-    my $seq_stats_text = ""
+    my $seq_stats_text = "";
     foreach my $fname (keys %$outfiles) {
         $num += 1;
         $output_text .= qq(
