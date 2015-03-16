@@ -711,26 +711,39 @@ function check_submitable () {
 }
 
 function submit_job () {
-    document.getElementById("submit_job_button").disabled = true;
-  var seq_files = selected_sequence_files.join('|');
-  $.ajax({ async: false, type: "POST", url: "metagenomics.cgi", data: { page: "Upload", action: "check_for_duplicates", seqfiles: seq_files }, success: function (result) {
-      if (result == "unique") {
-	  document.forms.submission_form.submit();
-      } else if (result.match(/ERROR/) ) {
-        alert(result);
-        return false;
-      } else {
-	  if ( confirm(result) ) {
-              // If the user allows a duplicate to be loaded into the system, we call a perl subroutine that
-              //   will e-mail mg-rast@mcs.anl.gov if the duplicate is over 1GB in size (or whatever limit is set in Conf.pm)
-              $.ajax({ async: false, type: "POST", url: "metagenomics.cgi", data: { page: "Upload", action: "send_email_for_duplicate_submission", seqfiles: seq_files } });
-	      document.forms.submission_form.submit();
-	  } else {
-	      document.getElementById("submit_job_button").disabled = false;
-	      return false;
-	  }
-      }
-  }});
+    // test if AWE and SHOCK are up
+    jQuery.getJSON( "http://api.metagenomics.anl.gov/heartbeat/AWE", function(data) {
+	if (data.status != 1) {
+	    alert("Our submission pipeline is currently out of service. Please try again later.");
+	    return;
+	}
+	jQuery.getJSON( "http://api.metagenomics.anl.gov/heartbeat/SHOCK", function(data) {
+	    if (data.status != 1) {
+		alert("Our submission pipeline is currently out of service. Please try again later.");
+		return;
+	    }
+	    document.getElementById("submit_job_button").disabled = true;
+	    var seq_files = selected_sequence_files.join('|');
+	    $.ajax({ async: false, type: "POST", url: "metagenomics.cgi", data: { page: "Upload", action: "check_for_duplicates", seqfiles: seq_files }, success: function (result) {
+		if (result == "unique") {
+		    document.forms.submission_form.submit();
+		} else if (result.match(/ERROR/) ) {
+		    alert(result);
+		    return false;
+		} else {
+		    if ( confirm(result) ) {
+			// If the user allows a duplicate to be loaded into the system, we call a perl subroutine that
+			//   will e-mail mg-rast@mcs.anl.gov if the duplicate is over 1GB in size (or whatever limit is set in Conf.pm)
+			$.ajax({ async: false, type: "POST", url: "metagenomics.cgi", data: { page: "Upload", action: "send_email_for_duplicate_submission", seqfiles: seq_files } });
+			document.forms.submission_form.submit();
+		    } else {
+			document.getElementById("submit_job_button").disabled = false;
+			return false;
+		    }
+		}
+	    }});
+	});
+    });
 }
 
 function toggle (id) {

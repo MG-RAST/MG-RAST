@@ -52,6 +52,13 @@ sub new {
         organism => [ $self->source->{m5nr}, $self->source->{m5rna} ],
         ontology => $self->source->{ontology}
     };
+    $self->{ver_default} = 1;
+    $self->{version} = {
+        '1' => '20100309',
+        '7' => '20120401',
+        '9' => '20130801',
+        '10' => '20131215'
+    };
     map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{protein}};
     map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{rna}};
     return $self;
@@ -103,6 +110,7 @@ sub info {
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
                                                                                          'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} }
@@ -130,6 +138,7 @@ sub info {
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
                                                                                          'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} }
@@ -155,6 +164,7 @@ sub info {
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
                                                                                          'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
                                                                                          'hide_annotation' => [ 'boolean', "if true do not return feature metadata in 'rows' object, default is false" ],
+                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
                                                                                          'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} } }
@@ -285,6 +295,7 @@ sub prepare_data {
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $hide_an = $cgi->param('hide_annotation') ? 1 : 0;
+    my $version = $->cgi->param('version') || $self->{ver_default};
     my $leaf_node = 0;
     my $prot_func = 0;
     my $leaf_filter = 0;
@@ -314,8 +325,11 @@ sub prepare_data {
     }
 
     # initialize analysis obj with mgids
+    unless (exists $self->{version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    }
     my $master = $self->connect_to_datasource();
-    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
+    my $mgdb   = MGRAST::Analysis->new($master->db_handle, undef, $version);
     unless (ref($mgdb)) {
         return ({"ERROR" => "could not connect to analysis database"}, 500);
     }

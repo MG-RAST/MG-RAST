@@ -32,12 +32,12 @@ sub authenticate {
           if ($pref->[0]->value < time) {
               $pref->[0]->value(time + 1209600);
           }
+	  my $skeytimeout = $pref->[0]->value();
           $pref = $master->Preferences->get_objects( { name => 'WebServicesKey', user => $us } );
           my $cgi = new CGI;
           my $verbose = "";
           if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
-            $verbose = ', "login": "'.$us->{login}.'", "firstname": "'.$us->{firstname}.'", "lastname": "'.$us->{lastname}.'", "email": "'.$us->{email}.'"';
-
+            $verbose = ', "login":"'.$us->{login}.'", "firstname":"'.$us->{firstname}.'", "lastname":"'.$us->{lastname}.'", "email":"'.$us->{email}.'", "id":"mgu'.$us->{_id}.'"';
             # SHOCK preferences
             my $prefs = $master->Preferences->get_objects({ user => $us, name => "shock_pref_node" });
             if (scalar(@$prefs)) {
@@ -77,7 +77,7 @@ sub authenticate {
                              -status => 200,
                              -charset => 'UTF-8',
                              -Access_Control_Allow_Origin => '*' );
-          print '{ "token": "'.$pref->[0]->value.'"'.$verbose.' }';
+          print '{ "token": "'.$pref->[0]->value.'", "expiration": "'.$skeytimeout.'"'.$verbose.' }';
           exit;
         } else {
           return (undef, "api access not enabled for this user");
@@ -212,6 +212,11 @@ sub authenticate {
 	return (undef, "globus authentication did not validate");
       }
     }
+  }
+
+  # check for MG-RAST default auth header
+  if ($auth_value =~ /^mgrast /) {
+    $auth_value =~ s/^mgrast //;
   }
     
   # check for the preference setting for the defined authentication source and value

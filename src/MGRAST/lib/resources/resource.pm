@@ -59,6 +59,13 @@ sub new {
     #}
     #### changed because globus has hard time handeling multiple tokens
     my $mgrast_token = $Conf::mgrast_oauth_token || undef;
+    my $token;
+    if ($params->{cgi}->http('HTTP_AUTH') || $params->{cgi}->http('HTTP_Authorization')) {
+      $token = $params->{cgi}->http('HTTP_AUTH') || $params->{cgi}->http('HTTP_Authorization');
+      if ($params->{cgi}->http('HTTP_Authorization')) {
+	$token =~ s/^mgrast (.+)$/$1/;
+      }
+    }
 	
     # create object
     my $self = {
@@ -72,7 +79,7 @@ sub new {
         submethod     => $params->{submethod},
         resource      => $params->{resource},
         user          => $params->{user},
-        token         => $params->{cgi}->http('HTTP_AUTH') || undef,
+        token         => $token,
         mgrast_token  => $mgrast_token,
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
         json_rpc_id   => ($params->{json_rpc} && exists($params->{json_rpc_id})) ? $params->{json_rpc_id} : undef,
@@ -218,51 +225,55 @@ sub hierarchy {
     };
 }
 
-# hardcoded list of metagenome pipeline option keywords
+# hardcoded list of metagenome pipeline option keywords for submission
 sub pipeline_opts {
-    return [ 'assembled',
-             'bowtie',
-             'dereplicate',
-             'dynamic_trim',
-             'file_type',
-             'filter_ambig',
-             'filter_ln',
-             'max_ambig',
-             'max_ln',
-             'max_lqb',
-             'min_ln',
-             'min_qual',
-             'priority',
-             'screen_indexes',
-             'sequence_type_guess',
-             'sequencing_method_guess'
+    return [
+        'aa_pid',
+        'assembled',
+        'bowtie',
+        'dereplicate',
+        'dynamic_trim',
+        'fgs_type',
+        'file_type',
+        'filter_ambig',
+        'filter_ln',
+        'filter_ln_mult',
+        'max_ambig',
+        'max_lqb',
+        'min_qual',
+        'prefix_length',
+        'priority',
+        'rna_pid',
+        'screen_indexes',
+        'sequence_type',           # not in defaults
+        'sequencing_method_guess'  # not in defaults
     ];
 }
 
 # hardcoded list of metagenome pipeline paramters with defaults
 sub pipeline_defaults {
     return {
+        'aa_pid' => '90',
+        'assembled' => 'no',
+        'bowtie' => 'yes',
+        'dereplicate' => 'yes',
+        'dynamic_trim' => 'yes',
+        'fgs_type' => '454',
         'file_type' => 'fna',
+        'filter_ambig' => 'yes',
         'filter_ln' => 'yes',
         'filter_ln_mult' => '2.0',
-        'filter_ambig' => 'yes',
+        'm5nr_annotation_version' => '1',   # not in options
+        'm5rna_annotation_version' => '1',  # not in options
+        'm5nr_sims_version' => '1',         # not in options
+        'm5rna_sims_version' => '1',        # not in options
         'max_ambig' => '5',
-        'dynamic_trim' => 'yes',
-        'min_qual' => '15',
         'max_lqb' => '5',
-        'dereplicate' => 'yes',
+        'min_qual' => '15',
         'prefix_length' => '50',
-        'bowtie' => 'yes',
-        'screen_indexes' => 'h_sapiens_asm',
-        'fgs_type' => '454',
+        'priority' => 'never',
         'rna_pid' => '97',
-        'aa_pid' => '90',
-        'm5nr_sims_version' => '1',
-        'm5rna_sims_version' => '1',
-        'm5nr_annotation_version' => '1',
-        'm5rna_annotation_version' => '1',
-        'assembled' => 'no',
-        'publish_priority' => 'never'
+        'screen_indexes' => 'h_sapiens'
     };
 }
 
@@ -849,6 +860,29 @@ sub get_shock_node {
     }
 }
 
+# delete node
+sub delete_shock_node {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->delete($Conf::shock_url.'/node/'.$id, @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to DELETE node $id from Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
 # get the shock preauth url for a file
 sub get_shock_preauth {
     my ($self, $id, $auth, $fn, $authPrefix) = @_;
@@ -931,10 +965,13 @@ sub get_shock_query {
 
 # submit job to awe
 sub post_awe_job {
-    my ($self, $workflow, $shock_auth, $awe_auth, $is_string, $authPrefix) = @_;
+    my ($self, $workflow, $shock_auth, $awe_auth, $is_string, $shockAuthPrefix, $aweAuthPrefix) = @_;
 
-    if (! $authPrefix) {
-      $authPrefix = "OAuth";
+    if (! $aweAuthPrefix) {
+        $aweAuthPrefix = "OAuth";
+    }
+    if (! $shockAuthPrefix) {
+        $shockAuthPrefix = "OAuth";
     }
 
     my $content = undef;
@@ -947,8 +984,8 @@ sub post_awe_job {
     my $response = undef;
     eval {
         my $post = $self->agent->post($Conf::awe_url.'/job',
-                                      'Datatoken', $shock_auth,
-                                      'Authorization', "$authPrefix ".$awe_auth,
+                                      'Datatoken', "$shockAuthPrefix ".$shock_auth,
+                                      'Authorization', "$aweAuthPrefix ".$awe_auth,
                                       'Content-Type', 'multipart/form-data',
                                       'Content', $content);
         $response = $self->json->decode( $post->content );
@@ -983,6 +1020,29 @@ sub awe_job_action {
         $self->return_data( {"ERROR" => "Unable to PUT to AWE: ".$@}, 500 );
     } else {
         return $response;
+    }
+}
+
+# get job document
+sub get_awe_job {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->get($Conf::awe_url.'/job/'.$id, @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
     }
 }
 
