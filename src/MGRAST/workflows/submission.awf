@@ -1,0 +1,18 @@
+{
+    "info": {
+        "pipeline": "submission",
+        "name": "[% job_name %]",
+        "user": "[% user_id %]",
+        "clientgroups":"[% clientgroups %]",
+        "userattr": {
+            "type": "inbox",
+            "id": "[% user_id %]",
+            "user": "[% user_name %]",
+            "email": "[% user_email %]",
+            "submission": "[% submission_id %]"
+        }
+    },
+    "tasks": [
+        [% task_list %]
+    ]
+}
