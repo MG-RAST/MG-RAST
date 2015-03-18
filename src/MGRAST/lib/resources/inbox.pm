@@ -490,7 +490,10 @@ sub demultiplex {
             "cmd": {
                 "args": "-input=\@$fname.$seq_type -input_json=input_attr.json -output_json=output_attr.json -type=$seq_type",
                 "description": "sequence stats",
-                "name": "awe_seq_length_stats.pl"
+                "name": "awe_seq_length_stats.pl",
+		"environ" : {
+                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                }
             },
             "dependsOn": ["0"],
             "inputs": {
@@ -627,13 +630,16 @@ sub pair_join {
                 "cmd": {
                     "args": "-input=\@$fname -input_json=input_attr.json -output_json=output_attr.json -type=fastq",
                     "description": "sequence stats",
-                    "name": "awe_seq_length_stats.pl"
+                    "name": "awe_seq_length_stats.pl",
+		    "environ" : {
+			"public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+		    }
                 },
                 "dependsOn": ["3"],
                 "inputs": {
                     "$fname": {
                         "host": "$shock_url",
-                        "origin": "0",
+                        "origin": "3",
                         "node": "-",
                         "attrfile": "input_attr.json"
                     }
@@ -641,7 +647,7 @@ sub pair_join {
                 "outputs": {
                     "$fname": {
                         "host": "$shock_url",
-                        "origin": "0",
+                        "origin": "3",
                         "node": "-",
                         "type": "update",
                         "attrfile": "output_attr.json"
