@@ -59,6 +59,13 @@ sub new {
     #}
     #### changed because globus has hard time handeling multiple tokens
     my $mgrast_token = $Conf::mgrast_oauth_token || undef;
+    my $token;
+    if ($params->{cgi}->http('HTTP_AUTH') || $params->{cgi}->http('HTTP_Authorization')) {
+      $token = $params->{cgi}->http('HTTP_AUTH') || $params->{cgi}->http('HTTP_Authorization');
+      if ($params->{cgi}->http('HTTP_Authorization')) {
+	$token =~ s/^mgrast (.+)$/$1/;
+      }
+    }
 	
     # create object
     my $self = {
@@ -72,7 +79,7 @@ sub new {
         submethod     => $params->{submethod},
         resource      => $params->{resource},
         user          => $params->{user},
-        token         => $params->{cgi}->http('HTTP_AUTH') || undef,
+        token         => $token,
         mgrast_token  => $mgrast_token,
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
         json_rpc_id   => ($params->{json_rpc} && exists($params->{json_rpc_id})) ? $params->{json_rpc_id} : undef,
