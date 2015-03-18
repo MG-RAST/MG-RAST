@@ -954,6 +954,7 @@ sub get_shock_file {
         my $url = $Conf::shock_url.'/node/'.$id.'?download'.($index ? '&'.$index : '');
         $response = $self->agent->get($url, @args);
     };
+    
     if ($@ || (! $response)) {
         return (undef, "Unable to conect to Shock server");
     } elsif ($response->is_error) {
