@@ -100,7 +100,10 @@ sub template {
   }
 
   # get the shock template file
-  my $template_str = $self->get_shock_file($id, undef, $self->{token});
+  my ($template_str, $err) = $self->get_shock_file($id, undef, $self->{token});
+  if ($err) {
+      $self->return_data( {"ERROR" => $err}, 500 );
+  }
   my $json = JSON->new->allow_nonref;
   my $template = $json->decode($template_str);
   
@@ -347,7 +350,10 @@ sub data {
     $template_attributes = $template_node->{attributes};
 
     # getting file
-    my $template_str = $self->get_shock_file($template_id, undef, $self->{token});
+    my ($template_str, $err) = $self->get_shock_file($template_id, undef, $self->{token});
+    if ($err) {
+        $self->return_data( {"ERROR" => $err}, 500 );
+    }
     $template = $json->decode($template_str);
 
     # unless ($template_attributes->{data_type} eq 'template') {
@@ -359,12 +365,18 @@ sub data {
     $template_attributes = $template_node->{attributes};
 
     # getting file
-    my $template_str = $self->get_shock_file($Conf::mgrast_md_template_node_id, undef, $self->mgrast_token);
+    my ($template_str, $err) = $self->get_shock_file($Conf::mgrast_md_template_node_id, undef, $self->mgrast_token);
+    if ($err) {
+        $self->return_data( {"ERROR" => $err}, 500 );
+    }
     $template = $json->decode($template_str);
   }
   # check shock type to be template
 
-  my $data_str = $self->get_shock_file($data_id, undef, $self->{token});
+  my ($data_str, $err) = $self->get_shock_file($data_id, undef, $self->{token});
+  if ($err) {
+      $self->return_data( {"ERROR" => $err}, 500 );
+  }
   my $data = $json->decode($data_str);
 
   my $data_status = { "valid" => 1,
