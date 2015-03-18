@@ -492,7 +492,7 @@ sub demultiplex {
                 "description": "sequence stats",
                 "name": "awe_seq_length_stats.pl",
 		"environ" : {
-                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                    "public" : { "PERL5LIB" : "/root/pipeline/lib:/root/pipeline/conf" }
                 }
             },
             "dependsOn": ["0"],
@@ -632,7 +632,7 @@ sub pair_join {
                     "description": "sequence stats",
                     "name": "awe_seq_length_stats.pl",
 		    "environ" : {
-			"public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+			"public" : { "PERL5LIB" : "/root/pipeline/lib:/root/pipeline/conf" }
 		    }
                 },
                 "dependsOn": ["3"],

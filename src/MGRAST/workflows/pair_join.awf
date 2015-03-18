@@ -18,7 +18,7 @@
                 "description": "merge mate-pairs",
                 "name": "pairend_join.py",
                 "environ" : {
-                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                    "public" : { "PERL5LIB" : "/root/pipeline/lib:/root/pipeline/conf" }
                 }
             },
             "dependsOn": [],
@@ -52,7 +52,7 @@
                 "description": "sequence stats",
                 "name": "awe_seq_length_stats.pl",
                 "environ" : {
-                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                    "public" : { "PERL5LIB" : "/root/pipeline/lib:/root/pipeline/conf" }
                 }
             },
             "dependsOn": ["0"],
