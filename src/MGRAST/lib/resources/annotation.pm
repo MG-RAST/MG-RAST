@@ -306,7 +306,7 @@ sub prepare_data {
     }
     if($batch_count > 0) {
         my $solr_query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @md5s)."))";
-        $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, \@md5s, \@seeks, \@lens);
+        $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, $mgdb->_version, \@md5s, \@seeks, \@lens);
     }
 
     # cleanup
