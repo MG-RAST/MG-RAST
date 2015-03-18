@@ -509,7 +509,10 @@ sub prepare_data {
 sub clean_stats {
     my ($self, $stat_node_id) = @_;
     
-    my $stats = $self->json->decode($self->get_shock_file($stat_node_id, undef, $self->mgrast_token));
+    my ($stats, $err) = $self->json->decode($self->get_shock_file($stat_node_id, undef, $self->mgrast_token));
+    if ($err) {
+        $self->return_data( {"ERROR" => $err}, 500 );
+    }
     # seq stats
     foreach my $key (keys %{$stats->{sequence_stats}}) {
         $stats->{sequence_stats}{$key} = $self->toFloat($stats->{sequence_stats}{$key});

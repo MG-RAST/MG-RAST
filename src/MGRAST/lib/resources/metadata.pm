@@ -474,9 +474,9 @@ sub process_file {
         my $nid = $self->cgi->param('node_id');
         $node   = $self->get_shock_node($nid, $self->mgrast_token);
         $fname  = $node->{file}{name};
-        my $res = $self->get_shock_file($nid, "$tmp_dir/$fname", $self->mgrast_token);
-        unless ($res) {
-            $self->return_data({"ERROR" => "Unable to retrieve file from Shock server"}, 500);
+        my ($res, $err) = $self->get_shock_file($nid, "$tmp_dir/$fname", $self->mgrast_token);
+        if ($err) {
+            $self->return_data({"ERROR" => $err}, 500);
         }
     }
     # bad POST
