@@ -934,6 +934,7 @@ sub get_shock_preauth {
 }
 
 # write file content to given filepath, else return file content as string
+# returns tuple: (content, error_msg)
 sub get_shock_file {
     my ($self, $id, $file, $auth, $index, $authPrefix) = @_;
     
