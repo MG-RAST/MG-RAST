@@ -16,7 +16,10 @@
             "cmd": {
                 "args": "[% retain %]-m 8 -p 10 -t . -r -i [% index_file %] -o [% out_file %].join.fastq @[% p1_file %] @[% p2_file %]",
                 "description": "merge mate-pairs",
-                "name": "pairend_join.py"
+                "name": "pairend_join.py",
+                "environ" : {
+                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                }
             },
             "dependsOn": [],
             "inputs": {
@@ -51,7 +54,10 @@
             "cmd": {
                 "args": "-r -i @[% index_file %] -p [% out_file %] -o [% out_file %].barcodes.txt",
                 "description": "build barcodes",
-                "name": "index2barcode.py"
+                "name": "index2barcode.py",
+                "environ" : {
+                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                }
             },
             "dependsOn": [],
             "inputs": {
@@ -77,7 +83,10 @@
             "cmd": {
                 "args": "-input=@[% out_file %].join.fastq -input_json=input_attr.json -output_json=output_attr.json -type=fastq",
                 "description": "sequence stats",
-                "name": "awe_seq_length_stats.pl"
+                "name": "awe_seq_length_stats.pl",
+                "environ" : {
+                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                }
             },
             "dependsOn": ["0"],
             "inputs": {
@@ -104,7 +113,10 @@
             "cmd": {
                 "args": "-f fastq -b @[% out_file %].barcodes.txt -i @[% out_file %].join.fastq",
                 "description": "demultiplex",
-                "name": "demultiplex.py"
+                "name": "demultiplex.py",
+                "environ" : {
+                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                }
             },
             "dependsOn": ["1", "2"], 
             "inputs": {

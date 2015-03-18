@@ -16,7 +16,10 @@
             "cmd": {
                 "args": "-f [% file_type %] -b @[% bar_file %] -i @[% seq_file %]",
                 "description": "demultiplex",
-                "name": "demultiplex.py"
+                "name": "demultiplex.py",
+                "environ" : {
+                    "public" : { "BASH_ENV" : "/root/mgrast_env.sh" }
+                }
             },
             "dependsOn": [], 
             "inputs": {
