@@ -16,7 +16,10 @@
             "cmd": {
                 "args": "[% retain %]-m 8 -p 10 -t . -o [% out_file %].fastq @[% p1_file %] @[% p2_file %]",
                 "description": "merge mate-pairs",
-                "name": "pairend_join.py"
+                "name": "pairend_join.py",
+                "environ" : {
+                    "public" : { "PERL5LIB" : "/root/pipeline/lib:/root/pipeline/conf" }
+                }
             },
             "dependsOn": [],
             "inputs": {
@@ -47,7 +50,10 @@
             "cmd": {
                 "args": "-input=@[% out_file %].fastq -input_json=input_attr.json -output_json=output_attr.json -type=fastq",
                 "description": "sequence stats",
-                "name": "awe_seq_length_stats.pl"
+                "name": "awe_seq_length_stats.pl",
+                "environ" : {
+                    "public" : { "PERL5LIB" : "/root/pipeline/lib:/root/pipeline/conf" }
+                }
             },
             "dependsOn": ["0"],
             "inputs": {

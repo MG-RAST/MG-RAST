@@ -266,7 +266,11 @@ sub prepare_data {
 	    $obj->{permission}  = $node->{attributes}{permission} || 'edit';
 	    $obj->{description} = $node->{attributes}{description} || '';
         if ($self->cgi->param('verbosity') && ($self->cgi->param('verbosity') eq 'full')) {
-            $obj->{notebook} = $self->json->decode( encode_utf8($self->get_shock_file($obj->{id}, undef, $self->shock_auth())) );
+            my ($content, $err) = $self->get_shock_file($obj->{id}, undef, $self->shock_auth());
+            if ($err) {
+                $self->return_data( {"ERROR" => $err}, 500 );
+            }
+            $obj->{notebook} = $self->json->decode( encode_utf8($content) );
         }
         push @$objects, $obj;
     }
@@ -277,7 +281,11 @@ sub prepare_data {
 sub clone_notebook {
     my ($self, $node, $params) = @_;
     
-    my $file = $self->json->decode( encode_utf8($self->get_shock_file($node->{id}, undef, $self->shock_auth())) );
+    my ($file, $err) = $self->get_shock_file($node->{id}, undef, $self->shock_auth());
+    if ($err) {
+        $self->return_data( {"ERROR" => $err}, 500 );
+    }
+    $file = $self->json->decode( encode_utf8($file) );
     my $attr = { name => $node->{attributes}{name}.'_copy',
                  nbid => undef,
                  type => $node->{attributes}{type} ? $node->{attributes}{type} : 'generic',

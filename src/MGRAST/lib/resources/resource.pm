@@ -907,6 +907,7 @@ sub get_shock_preauth {
 }
 
 # write file content to given filepath, else return file content as string
+# returns tuple: (content, error_msg)
 sub get_shock_file {
     my ($self, $id, $file, $auth, $index, $authPrefix) = @_;
     
@@ -926,13 +927,16 @@ sub get_shock_file {
         my $url = $Conf::shock_url.'/node/'.$id.'?download'.($index ? '&'.$index : '');
         $response = $self->agent->get($url, @args);
     };
+    
     if ($@ || (! $response)) {
-        return undef;
+        return (undef, "Unable to conect to Shock server");
+    } elsif ($response->is_error) {
+        return (undef, $response->code.": ".$response->message);
     } elsif ($file) {
         close($fhdl);
-        return 1;
+        return (1, undef);
     } else {
-        return $response->content;
+        return ($response->content, undef);
     }
 }
 
