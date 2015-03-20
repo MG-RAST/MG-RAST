@@ -461,7 +461,10 @@ sub demultiplex {
     
     # download barcode file to get number and names of barcoded pieces
     my $outfiles = {};
-    my $bar_text = $self->get_shock_file($bar_node->{id}, undef, $self->token, undef, $self->{user_auth});
+    my ($bar_text, $err) = $self->get_shock_file($bar_node->{id}, undef, $self->token, undef, $self->{user_auth});
+    if ($err) {
+        $self->return_data( {"ERROR" => $err}, 500 );
+    }
     foreach my $line (split(/\n/, $bar_text)) {
         my ($b, $n) = split(/\t/, $line);
         my $fname = $n ? $n : $b;
@@ -849,7 +852,7 @@ sub submit_awe_template {
     # Submit job to AWE and check for successful submission
     # mgrast owns awe job, user owns shock data
     my $job = $self->post_awe_job($awf, $self->token, $self->mgrast_token, 1, $self->{user_auth}, "OAuth");
-    unless ($job && $job->{state} && $job->{state} eq "init") {
+    unless ($job && $job->{state} && ($job->{state} eq "init")) {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
     }
     return $job;
