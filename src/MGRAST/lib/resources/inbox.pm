@@ -461,7 +461,10 @@ sub demultiplex {
     
     # download barcode file to get number and names of barcoded pieces
     my $outfiles = {};
-    my $bar_text = $self->get_shock_file($bar_node->{id}, undef, $self->token, undef, $self->{user_auth});
+    my ($bar_text, $err) = $self->get_shock_file($bar_node->{id}, undef, $self->token, undef, $self->{user_auth});
+    if ($err) {
+        $self->return_data( {"ERROR" => $err}, 500 );
+    }
     foreach my $line (split(/\n/, $bar_text)) {
         my ($b, $n) = split(/\t/, $line);
         my $fname = $n ? $n : $b;
