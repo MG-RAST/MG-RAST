@@ -852,7 +852,7 @@ sub submit_awe_template {
     # Submit job to AWE and check for successful submission
     # mgrast owns awe job, user owns shock data
     my $job = $self->post_awe_job($awf, $self->token, $self->mgrast_token, 1, $self->{user_auth}, "OAuth");
-    unless ($job && $job->{state} && $job->{state} eq "init") {
+    unless ($job && $job->{state} && ($job->{state} eq "init")) {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
     }
     return $job;
