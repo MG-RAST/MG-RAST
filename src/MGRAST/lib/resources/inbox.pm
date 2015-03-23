@@ -273,8 +273,10 @@ sub request {
             if ($self->rest->[0] eq 'info') {
                 $self->file_info($self->rest->[1]);
             } elsif ($self->rest->[0] eq 'stats') {
-                $self->seq_stats($self->rest->[1]);
-            }
+	      $self->seq_stats($self->rest->[1]);
+	    } elsif ($self->rest->[0] eq 'cancel') {
+	      $self->cancel_inbox_action($self->rest[1]);
+	    }
         # inbox actions that make new nodes
         } elsif (($self->method eq 'POST') && (scalar(@{$self->rest}) > 0)) {
             if ($self->rest->[0] eq 'sff2fastq') {
@@ -743,6 +745,12 @@ sub view_inbox_actions {
         $params->{state} = $requestedStates;
     }
     $self->return_data($self->get_awe_query($params, $self->token, "mgrast"));
+}
+
+sub cancel_inbox_action {
+  my ($self, $id) = @_;
+  
+  $self->return_data($self->awe_job_action($id, "delete", $self->token, "mgrast"));
 }
 
 sub upload_file {
