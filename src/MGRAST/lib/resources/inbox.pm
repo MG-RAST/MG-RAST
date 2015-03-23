@@ -275,7 +275,7 @@ sub request {
             } elsif ($self->rest->[0] eq 'stats') {
 	      $self->seq_stats($self->rest->[1]);
 	    } elsif ($self->rest->[0] eq 'cancel') {
-	      $self->cancel_inbox_action($self->rest[1]);
+	      $self->cancel_inbox_action($self->rest->[1]);
 	    }
         # inbox actions that make new nodes
         } elsif (($self->method eq 'POST') && (scalar(@{$self->rest}) > 0)) {
