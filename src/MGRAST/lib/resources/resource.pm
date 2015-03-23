@@ -1015,8 +1015,11 @@ sub awe_job_action {
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
-        my $req = POST($Conf::awe_url.'/job/'.$id.'?'.$action, @args);
+        my $req = POST($Conf::awe_url.'/job/'.$id.($action ne 'delete' ? '?'.$action : ''), @args);
         $req->method('PUT');
+	if ($action eq 'delete') {
+	  $req->method('DELETE');
+	}
         my $put = $self->agent->request($req);
         $response = $self->json->decode( $put->content );
     };
