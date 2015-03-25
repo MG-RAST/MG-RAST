@@ -470,7 +470,7 @@ sub demultiplex {
     foreach my $line (split(/\n/, $bar_text)) {
         my ($b, $n) = split(/\t/, $line);
         my $fname = $n ? $n : $b;
-        $outfiles->{$fname} = 1;
+        $outfiles->{$fname.".".$seq_type} = 1;
     }
     if (scalar(keys %$outfiles) < 2) {
         $self->return_data( {"ERROR" => "number of barcodes in barcode_file must be greater than 1"}, 400 );
@@ -485,7 +485,7 @@ sub demultiplex {
     foreach my $fname (keys %$outfiles) {
         $num += 1;
         $output_text .= qq(
-        "$fname.$seq_type": {
+        "$fname": {
             "host": "$shock_url",
             "node": "-",
             "attrfile": "userattr.json"
@@ -493,7 +493,7 @@ sub demultiplex {
         $seq_stats_text .= qq(,
         {
             "cmd": {
-                "args": "-input=\@$fname.$seq_type -input_json=input_attr.json -output_json=output_attr.json -type=$seq_type",
+                "args": "-input=\@$fname -input_json=input_attr.json -output_json=output_attr.json -type=$seq_type",
                 "description": "sequence stats",
                 "name": "awe_seq_length_stats.pl",
 		"environ" : {
@@ -502,7 +502,7 @@ sub demultiplex {
             },
             "dependsOn": ["0"],
             "inputs": {
-                "$fname.$seq_type": {
+                "$fname": {
                     "host": "$shock_url",
                     "origin": "0",
                     "node": "-",
@@ -510,7 +510,7 @@ sub demultiplex {
                 }
             },
             "outputs": {
-                "$fname.$seq_type": {
+                "$fname": {
                     "host": "$shock_url",
                     "origin": "0",
                     "node": "-",
@@ -576,10 +576,12 @@ sub pair_join {
     unless (($p1_type eq 'fastq') && ($p2_type eq 'fastq')) {
         $self->return_data( {"ERROR" => "both input sequence files must be fastq format"}, 400 );
     }
+    my $p1_basename = fileparse($pair1_node->{file}{name}, qr/\.[^.]*/);
+    my $p2_basename = fileparse($pair2_node->{file}{name}, qr/\.[^.]*/);
     
     # Do template replacement of MG-RAST's AWE workflow for pairjoin
     my $user_id = 'mgu'.$self->user->_id;
-    my $output  = $self->cgi->param('output') || $pair1_node->{file}{name}."_".$pair2_node->{file}{name};
+    my $output  = $self->cgi->param('output') || $p1_basename."_".$p2_basename;
     my $info = {
         shock_url    => $Conf::shock_url,
         user_id      => $user_id,
