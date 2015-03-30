@@ -1029,7 +1029,7 @@ sub post_awe_job {
 
     my $content = undef;
     if ($is_string) {
-        $content = { upload => [undef, "seqstats.awf", Content => $workflow] }
+        $content = { upload => [undef, "workflow.awf", Content => $workflow] }
     } else {
         $content = [ upload => [$workflow] ];
     }
@@ -1045,7 +1045,7 @@ sub post_awe_job {
     };
 
     if ($@ || (! ref($response))) {
-        return [];
+        $self->return_data( {"ERROR" => "Unable to connect to AWE server"}, 500 );
     } elsif (exists($response->{error}) && $response->{error}) {
         $self->return_data( {"ERROR" => "Unable to submit to AWE: ".$response->{error}[0]}, $response->{status} );
     } else {

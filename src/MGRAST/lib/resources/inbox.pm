@@ -460,7 +460,7 @@ sub demultiplex {
     foreach my $fname (@$barfiles) {
         $num += 1;
         $output_text .= qq(
-        "$fname.$seq_type": {
+        "$fname": {
             "host": "$shock_url",
             "node": "-",
             "attrfile": "userattr.json"
@@ -521,10 +521,12 @@ sub pair_join {
     unless (($p1_type eq 'fastq') && ($p2_type eq 'fastq')) {
         $self->return_data( {"ERROR" => "both input sequence files must be fastq format"}, 400 );
     }
+    my $p1_basename = fileparse($pair1_node->{file}{name}, qr/\.[^.]*/);
+    my $p2_basename = fileparse($pair2_node->{file}{name}, qr/\.[^.]*/);
     
     # Do template replacement of MG-RAST's AWE workflow for pairjoin
     my $user_id = 'mgu'.$self->user->_id;
-    my $output  = $self->cgi->param('output') || $pair1_node->{file}{name}."_".$pair2_node->{file}{name};
+    my $output  = $self->cgi->param('output') || $p1_basename."_".$p2_basename;
     my $info = {
         shock_url    => $Conf::shock_url,
         user_id      => $user_id,

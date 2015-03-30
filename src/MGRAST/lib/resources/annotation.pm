@@ -306,7 +306,7 @@ sub prepare_data {
     }
     if($batch_count > 0) {
         my $solr_query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @md5s)."))";
-        $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, \@md5s, \@seeks, \@lens);
+        $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, $mgdb->_version, \@md5s, \@seeks, \@lens);
     }
 
     # cleanup
@@ -375,12 +375,9 @@ sub print_batch {
 	    # pull data from indexed shock file
 	    my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seeks->[$i].'&length='.$lens->[$i]);
 	    if ($err) {
-	        # cleanup and exit
-            $sth->finish;
-            $mgdb->_dbh->commit;
-            print "\nERROR downloading: $err\n";
-            exit 0;
-        }
+		    print "\nERROR downloading: $err\n";
+		    exit 0;
+	    }
 	    chomp $rec;
 	    foreach my $line (split(/\n/, $rec)) {
 	        my @tabs = split(/\t/, $line);

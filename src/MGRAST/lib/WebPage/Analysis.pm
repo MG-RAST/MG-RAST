@@ -69,6 +69,7 @@ sub init {
   $self->application->register_action($self, 'workbench_blat_output', 'workbench_blat_output');
   $self->application->register_action($self, 'qiime_export_visual', 'qiime_export_visual');
   $self->application->register_action($self, 'phylogeny_visual', 'phylogeny_visual');
+  $self->application->register_action($self, 'single_visual', 'single_visual');
 
   my $mgdb = MGRAST::Analysis->new( $self->app->data_handle('MGRAST')->db_handle );
   unless ($mgdb) {
