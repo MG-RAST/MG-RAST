@@ -295,7 +295,7 @@ sub prepare_data {
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $hide_an = $cgi->param('hide_annotation') ? 1 : 0;
-    my $version = $->cgi->param('version') || $self->{ver_default};
+    my $version = $cgi->param('version') || $self->{ver_default};
     my $leaf_node = 0;
     my $prot_func = 0;
     my $leaf_filter = 0;
