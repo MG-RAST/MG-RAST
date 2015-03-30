@@ -954,9 +954,8 @@ sub get_shock_file {
         my $url = $Conf::shock_url.'/node/'.$id.'?download'.($index ? '&'.$index : '');
         $response = $self->agent->get($url, @args);
     };
-    
     if ($@ || (! $response)) {
-        return (undef, "Unable to conect to Shock server");
+        return (undef, "Unable to connect to Shock server");
     } elsif ($response->is_error) {
         return (undef, $response->code.": ".$response->message);
     } elsif ($file) {
@@ -1267,7 +1266,10 @@ sub get_barcode_files {
     my ($self, $uuid, $auth, $authPrefix) = @_;
     
     my $bar_files = {};
-    my $bar_text = $self->get_shock_file($uuid, undef, $auth, undef, $authPrefix);
+    my ($bar_text, $err) = $self->get_shock_file($uuid, undef, $auth, undef, $authPrefix);
+    if ($err) {
+        $self->return_data( {"ERROR" => $err}, 400 );
+    }
     foreach my $line (split(/\n/, $bar_text)) {
         my ($b, $n) = split(/\t/, $line);
         my $fname = $n ? $n : $b;
