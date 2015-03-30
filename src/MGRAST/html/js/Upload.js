@@ -34,7 +34,7 @@ function stop(e){
 }
 
 function validateTextFields() {
-    var boxes = { "deviation": "positive_float",
+    var boxes = { "deviation": "float_greater_or_equal_to_one",
 		  "max_ambig": "int",
 		  "max_lqb": "int",
 		  "min_qual": "int" };
@@ -44,6 +44,14 @@ function validateTextFields() {
 	if (boxes.hasOwnProperty(i)) {
 	    var box = document.getElementById(i);
 	    switch (boxes[i]) {
+	    case "float_greater_or_equal_to_one":
+		if (box.value < 1 || (! box.value.match(/^\d+\.?(\d+)?$/))) {
+		    box.setAttribute('style', "border: 1px solid red; box-shadow: 0 0 7px red;");
+		    success = false;
+		} else {
+		    box.setAttribute('style', "");
+		}
+		break;
 	    case "positive_float":
 		if (box.value == 0 || (! box.value.match(/^\d+\.?(\d+)?$/))) {
 		    box.setAttribute('style', "border: 1px solid red; box-shadow: 0 0 7px red;");
