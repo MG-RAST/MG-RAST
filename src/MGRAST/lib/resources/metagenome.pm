@@ -165,20 +165,20 @@ sub instance {
     
     # overload id to be md5 of metagenome sequence file
     if (($rest->[0] eq 'md5') && (scalar(@$rest) > 1)) {
+        my $data = [];
         my $jobs = $master->Job->get_objects( {file_checksum_raw => $rest->[1]} );
-        unless ($jobs && @$jobs) {
-            $self->return_data( {"ERROR" => "no metagenomes exist with md5sum: ".$rest->[1]}, 404 );
-        }
-        my $valid_jobs = [];
-        foreach my $job (@$jobs) {
-            if ($job->{public} || exists($self->rights->{$job->{metagenome_id}}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
-                push @$valid_jobs, $job;
+        if ($jobs && @$jobs) {
+            my $valid_jobs = [];
+            foreach my $job (@$jobs) {
+                if ($job->{public} || exists($self->rights->{$job->{metagenome_id}}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
+                    push @$valid_jobs, $job;
+                }
             }
+            # return cached if exists
+            $self->return_cached();
+            # prepare data
+            $data = $self->prepare_data($valid_jobs, $verb);
         }
-        # return cached if exists
-        $self->return_cached();
-        # prepare data
-        my $data = $self->prepare_data($valid_jobs, $verb);
         my $obj = {
             version => 1,
             data => $data,
