@@ -433,6 +433,19 @@ sub submit {
     $submit_task->{taskid} = "$staskid";
     $submit_task->{dependsOn} = $seq_tids;
     $submit_task->{inputs}{$param_file} = {host => $Conf::shock_url, node => $param_node->{id}};
+    $submit_task->{outputs} = {
+        "awe_stdout.txt" => {
+            host => $Conf::shock_url,
+            node => "-",
+            attrfile => "userattr.json"
+        },
+        "awe_stderr.txt" => {
+            host => $Conf::shock_url,
+            node => "-",
+            attrfile => "userattr.json"
+        }
+    }
+    $submit_task->{userattr}{stage_name} = "submission";
     # metadata or project
     if ($metadata_obj && $md_json_node) {
         $submit_task->{cmd}{args} .= ' -metadata @'.$md_json_node->{file}{name};

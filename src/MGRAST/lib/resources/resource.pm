@@ -1449,6 +1449,7 @@ sub build_index_bc_task {
     }
     $idx_task->{outputs}{"$outprefix.barcodes"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     $idx_task->{cmd}{args} = '-r -i @'.$index." -p $outprefix -o $outprefix.barcodes";
+    $idx_task->{userattr}{stage_name} = "build_barcodes";
     
     return $idx_task;
 }
@@ -1489,6 +1490,7 @@ sub build_seq_stat_task {
         push @{$seq_task->{dependsOn}}, "$depend";
     }
     $seq_task->{userattr}{data_type} = "sequence";
+    $seq_task->{userattr}{stage_name} = "sequence_stats";
     
     # may be sff file, then return 2 tasks - final check
     if ($seq_type eq "sff") {
@@ -1531,6 +1533,7 @@ sub build_sff_fastq_task {
     my $basename = fileparse($sff, qr/\.[^.]*/);
     $sff_task->{outputs}{"$basename.fastq"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     $sff_task->{cmd}{args} = '-Q @'.$sff." -s $basename.fastq";
+    $sff_task->{userattr}{stage_name} = "sff_to_fastq";
     
     # add seq stats step - not sff file
     my ($seq_task) = $self->build_seq_stat_task($taskid+1, $taskid, "$basename.fastq", "fastq", $auth, $authPrefix);
@@ -1609,6 +1612,7 @@ sub build_pair_join_task {
     my $out_file = $outprefix.".fastq";
     $pj_task->{outputs}{$out_file} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     $pj_task->{cmd}{args} = $retain_opt.$index_opt.'-m 8 -p 10 -t . -r -o '.$out_file.' @'.$pair1.' @'.$pair2;
+    $pj_task->{userattr}{stage_name} = "pair_join";
     
     # build seq stats task - not sff file
     my ($seq_task) = build_seq_stat_task($taskid+1, $taskid, $out_file, "fastq", $auth, $authPrefix);
@@ -1666,6 +1670,7 @@ sub build_demultiplex_task {
     foreach my $fname (@$bc_names) {
         $dm_task->{outputs}{"$fname.$seq_type"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     }
+    $dm_task->{userattr}{stage_name} = "demultiplex";
     
     # add seq stats - not sff file
     my @tasks = ($dm_task);
