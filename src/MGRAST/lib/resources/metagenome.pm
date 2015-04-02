@@ -182,6 +182,7 @@ sub instance {
         my $obj = {
             version => 1,
             data => $data,
+            total_count => scalar(@$data),
             md5 => $rest->[1],
             user => $self->user ? $self->user->login : 'public'
         };
