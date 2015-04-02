@@ -1474,7 +1474,7 @@ sub build_seq_stat_task {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq = $seq_node->{file}{name};
-        $seq_type = $self->seq_type_from_node($seq_node);
+        $seq_type = $self->seq_type_from_node($seq_node, $auth, $authPrefix);
         $seq_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}, attrfile => "input_attr.json"};
         $seq_task->{outputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}, attrfile => "output_attr.json", type => "update"};
     } else {
@@ -1551,7 +1551,7 @@ sub build_pair_join_task {
         unless (exists $p1_node->{attributes}{stats_info}) {
             ($p1_node, undef) = $self->get_file_info(undef, $p1_node, $auth, $authPrefix);
         }
-        unless ($self->seq_type_from_node($p1_node) eq 'fastq') {
+        unless ($self->seq_type_from_node($p1_node, $auth, $authPrefix) eq 'fastq') {
             $self->return_data( {"ERROR" => "pair 1 file must be fastq format"}, 400 );
         }
         $pair1 = $p1_node->{file}{name};
@@ -1567,7 +1567,7 @@ sub build_pair_join_task {
         unless (exists $p2_node->{attributes}{stats_info}) {
             ($p2_node, undef) = $self->get_file_info(undef, $p2_node, $auth, $authPrefix);
         }
-        unless ($self->seq_type_from_node($p2_node) eq 'fastq') {
+        unless ($self->seq_type_from_node($p2_node, $auth, $authPrefix) eq 'fastq') {
             $self->return_data( {"ERROR" => "pair 2 file must be fastq format"}, 400 );
         }
         $pair2 = $p2_node->{file}{name};
@@ -1589,7 +1589,7 @@ sub build_pair_join_task {
             unless (exists $idx_node->{attributes}{stats_info}) {
                 ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
             }
-            unless ($self->seq_type_from_node($idx_node) eq 'fastq') {
+            unless ($self->seq_type_from_node($idx_node, $auth, $authPrefix) eq 'fastq') {
                 $self->return_data( {"ERROR" => "index file must be fastq format"}, 400 );
             }
             $index = $idx_node->{file}{name};
@@ -1632,7 +1632,7 @@ sub build_demultiplex_task {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq = $seq_node->{file}{name};
-        $seq_type = $self->seq_type_from_node($seq_node);
+        $seq_type = $self->seq_type_from_node($seq_node, $auth, $authPrefix);
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
         $dm_task->{userattr}{parent_seq_file} = $seq_node->{id};
     } else {
@@ -1687,7 +1687,7 @@ sub node_from_inbox_id {
 }
 
 sub seq_type_from_node {
-    my ($self, $node) = @_;
+    my ($self, $node, $auth, $authPrefix) = @_;
     unless (exists $node->{attributes}{stats_info}) {
         my $err_msg;
         ($node, $err_msg) = $self->get_file_info(undef, $node, $auth, $authPrefix);
