@@ -344,7 +344,7 @@ sub validate_metadata {
         user      => $self->user->login,
         status    => "",
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-    }
+    };
     my ($is_valid, $data, $log, $bar_id, $bar_count, $json_node) = $self->metadata_validation($uuid, 1, 1, $self->token, $self->user_auth);
     if ($is_valid) {
         $response->{status} = "valid metadata";
@@ -365,9 +365,10 @@ sub seq_stats {
     my $response = {
         id        => $self->{wf_info}{user_id},
         user      => $self->{wf_info}{user_name},
-        status    => $node->{file}{name}." ($uuid) sequence stats computation",
+        status    => "$uuid: sequence stats computation",
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     };
+    
     my $node = $self->node_from_inbox_id($uuid, $self->token, $self->user_auth);
     if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} eq "sequence")) {
         $response->{status} .= " has already been ran";
@@ -376,7 +377,7 @@ sub seq_stats {
     
     my @tasks = $self->build_seq_stat_task(0, -1, $uuid, undef, $self->token, $self->user_auth);
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_seqstats";
-    $self->{wf_info}{task_list} = join(",\n", @tasks);
+    $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
     $self->add_node_action(undef, $node, $job, 'stats');
@@ -398,7 +399,7 @@ sub sff_to_fastq {
     
     my @tasks = $self->build_sff_fastq_task(0, -1, $uuid, $self->token, $self->user_auth);
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_sff2fastq";
-    $self->{wf_info}{task_list} = join(",\n", @tasks);
+    $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
     $self->add_node_action($uuid, undef, $job, 'sff2fastq');
@@ -407,7 +408,7 @@ sub sff_to_fastq {
     $self->return_data({
         id        => $self->{wf_info}{user_id},
         user      => $self->{wf_info}{user_name},
-        status    => $node->{file}{name}." ($uuid) sff to fastq is being run",
+        status    => "$uuid: sff to fastq is being run",
         awe_id    => $Conf::awe_url.'/job/'.$job->{id},
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     });
@@ -424,8 +425,9 @@ sub demultiplex {
     }
     
     my @tasks = $self->build_demultiplex_task(0, -1, -1, $seq_file, $bar_file, 0, $self->token, $self->user_auth);
+    my $seq_name = (keys %{$tasks[0]{inputs}})[0];
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_demultiplex";
-    $self->{wf_info}{task_list} = join(",\n", @tasks);
+    $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
     $self->add_node_action($seq_file, undef, $job, 'demultiplex');
@@ -434,7 +436,7 @@ sub demultiplex {
     $self->return_data({
         id        => $self->{wf_info}{user_id},
         user      => $self->{wf_info}{user_name},
-        status    => $seq_node->{file}{name}." ($seq_file) demultiplex is being run",
+        status    => "$seq_file: demultiplex is being run",
         awe_id    => $Conf::awe_url.'/job/'.$job->{id},
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     });
@@ -467,10 +469,10 @@ sub pair_join {
         unless ($bc_count && ($bc_count > 1)) {
             $self->return_data( {"ERROR" => "barcode_count is required for mate-pair demultiplexing, must be greater than 1"}, 400 );
         }
-        my $bc_tid = scalar(@$tasks);
+        my $bc_tid = scalar(@tasks);
         push @tasks, $self->build_index_bc_task($bc_tid, -1, $index_file, $outprefix, $self->token, $self->user_auth);
-        my $dm_tid = scalar(@$tasks);
-        push @$tasks, $self->build_demultiplex_task($dm_tid, $bc_tid-1, $dm_tid-1, $outprefix.".fastq", $outprefix.".barcodes", $bc_count, $self->token, $self->user_auth);
+        my $dm_tid = scalar(@tasks);
+        push @tasks, $self->build_demultiplex_task($dm_tid, $bc_tid-1, $dm_tid-1, $outprefix.".fastq", $outprefix.".barcodes", $bc_count, $self->token, $self->user_auth);
         $status = "pair join and demultiplex is being run on files: $pair1_file, $pair2_file, $index_file";
         $action = "pairjoin_demultiplex";
     } else {
@@ -479,7 +481,7 @@ sub pair_join {
     }
     
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_".$action;
-    $self->{wf_info}{task_list} = join(",\n", @tasks);
+    $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
     
     $self->add_node_action($pair1_file, undef, $job, $action);
@@ -647,7 +649,7 @@ sub rename_file {
     unless ($name) {
         $self->return_data( {"ERROR" => "missing 'name' parameter"}, 400 );
     }
-    my $node = $self->node_from_inbox_id($uuid, $auth, $authPrefix);
+    my $node = $self->node_from_inbox_id($uuid, $self->token, $self->user_auth);
     my $attr = $node->{attributes};
     $self->update_shock_node_file_name($uuid, $name, $self->token, $self->user_auth);
     if (exists($attr->{stats_info}) && exists($attr->{stats_info}{file_name})) {
@@ -669,7 +671,7 @@ sub add_node_action {
     if ($node && ref($node)) {
         $uuid = $node->{id};
     } elsif ($uuid) {
-        $node = $self->node_from_inbox_id($uuid, $auth, $authPrefix);
+        $node = $self->node_from_inbox_id($uuid, $self->token, $self->user_auth);
     }
     
     my $attr = $node->{attributes};

@@ -437,7 +437,7 @@ sub submit {
         user_email    => $self->user->email,
         clientgroups  => $Conf::mgrast_inbox_clientgroups,
         submission_id => $uuid,
-        task_list     => join(",\n", $tasks)
+        task_list     => $self->json->encode($tasks)
     };
     my $job = $self->submit_awe_template($info, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
     

@@ -12,7 +12,5 @@
             "submission": "[% submission_id %]"
         }
     },
-    "tasks": [
-        [% task_list %]
-    ]
+    "tasks": [% task_list %]
 }
