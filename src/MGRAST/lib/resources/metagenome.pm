@@ -159,8 +159,34 @@ sub instance {
         $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
     }
     
-    # check id format
     my $rest = $self->rest;
+    
+    # overload id to be md5 of metagenome sequence file
+    if (($rest->[0] eq 'md5') && (scalar(@$rest) == 2)) {
+        my $jobs = $master->Job->get_objects( {file_checksum_raw => $rest->[1]} );
+        unless ($jobs && @$jobs) {
+            $self->return_data( {"ERROR" => "no metagenomes exist with md5sum: ".$rest->[1]}, 404 );
+        }
+        my $valid_jobs = [];
+        foreach my $job (@$jobs) {
+            if ($job->{public} || exists($self->rights->{$job->{metagenome_id}}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
+                push @$valid_jobs, $job;
+            }
+        }
+        # return cached if exists
+        $self->return_cached();
+        # prepare data
+        my $data = $self->prepare_data($valid_jobs, $verb);
+        my $obj = {
+            version => 1,
+            data => $data,
+            md5 => $rest->[1],
+            user => $self->user ? $self->user->login : 'public'
+        }
+        $self->return_data($obj, undef, 1); # cache this!
+    }
+    
+    # check id format
     my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
@@ -438,6 +464,10 @@ sub prepare_data {
 	    if (exists($jdata->{deleted}) && $jdata->{deleted}) {
 	        # this is a deleted job !!
 	        $self->return_data( {"ERROR" => "Metagenome mgm".$job->{metagenome_id}." does not exist: ".$jdata->{deleted}}, 400 );
+	    }
+	    # add submission id if exists
+	    if (exists $jdata->{submission}) {
+	        $obj->{submission} = $jdata->{submission};
 	    }
 	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;
