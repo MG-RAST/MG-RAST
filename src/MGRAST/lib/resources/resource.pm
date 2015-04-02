@@ -1127,15 +1127,13 @@ sub get_awe_query {
 }
 
 sub empty_awe_task {
-    my ($self, $bash_env) = @_;
-    return {
+    my ($self, $perl_lib) = @_;
+    my $task = {
         cmd => {
             args => "",
             description => "",
             name => "",
-            environ => {
-                public => {"BASH_ENV" => "/root/mgrast_env.sh"}
-            }
+            environ => {}
         },
         dependsOn => [],
         inputs    => {},
@@ -1144,6 +1142,10 @@ sub empty_awe_task {
         taskid    => "0",
         totalwork => 1
     };
+    if ($perl_lib) {
+        $task->{cmd}{environ}{public} = {"PERL5LIB" => "/root/pipeline/lib:/root/pipeline/conf"};
+    }
+    return $task;
 }
 
 ############################
@@ -1209,6 +1211,16 @@ sub kbase_idserver {
 #  inbox functions #
 ####################
 
+# add submission id to inbox node
+sub add_submission {
+    my ($node_id, $submit_id, $auth, $authPrefix) = @_;
+    my $node = $self->node_from_inbox_id($node_id, $auth, $authPrefix);
+    my $attr = $node->{attributes};
+    $attr->{submission} = $submit_id;
+    $node = $self->update_shock_node($node_id, $attr, $auth, $authPrefix);
+    $self->edit_shock_acl($node_id, $auth, 'mgrast', 'put', 'all', $authPrefix);
+}
+
 # this takes uuid or node
 sub get_file_info {
     my ($self, $uuid, $node, $auth, $authPrefix) = @_;
@@ -1268,7 +1280,7 @@ sub get_barcode_files {
     my $bar_files = {};
     my ($bar_text, $err) = $self->get_shock_file($uuid, undef, $auth, undef, $authPrefix);
     if ($err) {
-        $self->return_data( {"ERROR" => $err}, 400 );
+        $self->return_data( {"ERROR" => $err}, 500 );
     }
     foreach my $line (split(/\n/, $bar_text)) {
         my ($b, $n) = split(/\t/, $line);
@@ -1282,7 +1294,7 @@ sub get_barcode_files {
 }
 
 sub metadata_validation {
-    my ($self, $uuid, $is_inbox, $extract_barcodes, $auth, $authPrefix) = @_;
+    my ($self, $uuid, $is_inbox, $extract_barcodes, $auth, $authPrefix, $submit_id) = @_;
     
     # get and check node
     my $node = $self->get_shock_node($uuid, $auth, $authPrefix);
@@ -1304,6 +1316,9 @@ sub metadata_validation {
             file_size => $node->{file}{size},
             checksum  => $node->{file}{checksum}{md5}
         };
+        if ($submit_id) {
+            $attr->{submission} = $submit_id;
+        }
         $node = $self->update_shock_node($uuid, $new_attr, $auth, $authPrefix);
         $self->edit_shock_acl($uuid, $auth, 'mgrast', 'put', 'all', $authPrefix);
     }
@@ -1313,7 +1328,10 @@ sub metadata_validation {
     my $md_file = $Conf::temp."/".$node->{id}."_".$node->{file}{name};
     $self->get_shock_file($node->{id}, $md_file, $auth, undef, $authPrefix)
     my ($is_valid, $data, $log) = MGRAST::Metadata->validate_metadata($md_file);
-    my $bar_id, $bar_count;
+    
+    my $bar_id = undef;
+    my $bar_count = 0;
+    my $json_node = undef;
     
     if ($is_valid) {
         # check project permissions
@@ -1326,6 +1344,31 @@ sub metadata_validation {
         my $attr = $node->{attributes};
         $attr->{data_type} = 'metadata';
         $self->update_shock_node($node->{id}, $attr, $auth, $authPrefix);
+        # add metadata json format to inbox
+        if ($is_inbox && $self->user) {
+            my $md_basename = fileparse($seq, qr/\.[^.]*/);
+            my $md_string = $self->json->encode($data);
+            my $json_attr = {
+                type  => 'inbox',
+                id    => 'mgu'.$self->user->_id,
+                user  => $self->user->login,
+                email => $self->user->email,
+                data_type => 'metadata',
+                stats_info => {
+                    type      => 'ASCII text',
+                    suffix    => 'json',
+                    file_type => 'json',
+                    file_name => $md_basename.".json",
+                    file_size => length($md_string),
+                    checksum  => md5_hex($md_string)
+                }
+            };
+            if ($submit_id) {
+                $json_attr->{submission} = $submit_id;
+            }
+            $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix);
+            $self->edit_shock_acl($json_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
+        }
         # extract barcodes if exist
         my $barcodes = {};
         foreach my $sample ( @{$data->{samples}} ) {
@@ -1349,7 +1392,7 @@ sub metadata_validation {
             my $bar_data = join("\n", map { $_."\t".$barcodes->{$_} } keys %$barcodes)."\n";
             my $bar_attr = {
                 type  => 'inbox',
-                id    => $user_id,
+                id    => 'mgu'.$self->user->_id,
                 user  => $self->user->login,
                 email => $self->user->email,
                 stats_info => {
@@ -1362,16 +1405,18 @@ sub metadata_validation {
                     barcode_count => $bar_count
                 }
             };
+            if ($submit_id) {
+                $bar_attr->{submission} = $submit_id;
+            }
             my $bar_node = $self->set_shock_node($bar_name, $bar_data, $bar_attr, $auth, 1, $authPrefix);
             $bar_id = $bar_node->{id};
-            # add mgrast to ACLs
             $self->edit_shock_acl($bar_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
     } else {
         $data = $data->{data};
     }
     
-    return ($is_valid, $data, $log, $bar_id, $bar_count);
+    return ($is_valid, $data, $log, $bar_id, $bar_count, $json_node);
 }
 
 # if input node has no dependency, then value is -1 and it is a shock node id,
@@ -1394,22 +1439,27 @@ sub build_index_bc_task {
         }
         $index = $idx_node->{file}{name};
         $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => $idx_node->{id}};
-        $idx_task->{userattr} = {parent_index_file => $idx_node->{id}};
+        $idx_task->{userattr}{parent_index_file} = $idx_node->{id};
     } else {
         $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
         push @{$idx_task->{dependsOn}}, "$depend";
     }
     $idx_task->{outputs}{$output} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $idx_task->{cmd}{args} = '-r -i @'.$index.".fastq -p $outprefix -o $outprefix.barcodes";
+    $idx_task->{cmd}{args} = '-r -i @'.$index." -p $outprefix -o $outprefix.barcodes";
     
     return $idx_task;
 }
 
 # if input node has no dependency, then value is -1 and it is a shock node id,
 # otherwise shock node does not exist and its a filename
-# returns 1 task
+# returns array of 1 or 2 tasks
 sub build_seq_stat_task {
-    my ($self, $taskid, $depend, $seq, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend, $seq, $seq_type, $auth, $authPrefix) = @_;
+    
+    # may be sff file, then return 2 tasks
+    if ($seq_type eq "sff") {
+        return $self->build_sff_fastq_task($taskid, $depend, $seq, $auth, $authPrefix);
+    }
     
     my $seq_task = $self->empty_awe_task(1);
     $seq_task->{cmd}{description} = "sequence stats";
@@ -1424,16 +1474,26 @@ sub build_seq_stat_task {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq = $seq_node->{file}{name};
+        $seq_type = $self->seq_type_from_node($seq_node);
         $seq_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}, attrfile => "input_attr.json"};
         $seq_task->{outputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}, attrfile => "output_attr.json", type => "update"};
     } else {
+        unless ($seq_type) {
+            $seq_type = (split(/\./, $seq))[-1];
+        }
         $seq_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
         $seq_task->{outputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "output_attr.json", type => "update"};
         push @{$seq_task->{dependsOn}}, "$depend";
     }
-    $seq_task->{cmd}{args} = '-input=@'.$seq_file.' -input_json=input_attr.json -output_json=output_attr.json -type=fastq';
+    $seq_task->{userattr}{data_type} = "sequence";
     
-    return $seq_task;
+    # may be sff file, then return 2 tasks - final check
+    if ($seq_type eq "sff") {
+        return $self->build_sff_fastq_task($taskid, $depend, $seq, $auth, $authPrefix);
+    }
+    
+    $seq_task->{cmd}{args} = '-input=@'.$seq_file.' -input_json=input_attr.json -output_json=output_attr.json -type='.$seq_type;
+    return ($seq_task);
 }
 
 
@@ -1460,7 +1520,7 @@ sub build_sff_fastq_task {
         }
         $sff = $sff_node->{file}{name}
         $sff_task->{inputs}{$sff} = {host => $Conf::shock_url, node => $sff_node->{id}};
-        $sff_task->{userattr} = {parent_sff_file => $sff_node->{id}};
+        $sff_task->{userattr}{parent_sff_file} = $sff_node->{id};
     } else {
         $sff_task->{inputs}{$sff} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
         push @{$sff_task->{dependsOn}}, "$depend";
@@ -1469,8 +1529,8 @@ sub build_sff_fastq_task {
     $sff_task->{outputs}{"$basename.fastq"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     $sff_task->{cmd}{args} = '-Q @'.$sff." -s $basename.fastq";
     
-    # add seq stats step
-    my $seq_task = $self->build_seq_stat_task($taskid+1, $taskid, "$basename.fastq", $auth, $authPrefix)
+    # add seq stats step - not sff file
+    my ($seq_task) = $self->build_seq_stat_task($taskid+1, $taskid, "$basename.fastq", "fastq", $auth, $authPrefix)
     return ($sff_task, $seq_task);
 }
 
@@ -1547,9 +1607,8 @@ sub build_pair_join_task {
     $pj_task->{outputs}{$out_file} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     $pj_task->{cmd}{args} = $retain_opt.$idx_opt.'-m 8 -p 10 -t . -r -o '.$outf.' @'.$pair1.' @'.$pair2;
     
-    # build seq stats task
-    my $seq_task = build_seq_stat_task($taskid+1, $taskid, $out_file, $auth, $authPrefix);
-    
+    # build seq stats task - not sff file
+    my ($seq_task) = build_seq_stat_task($taskid+1, $taskid, $out_file, "fastq", $auth, $authPrefix);
     return ($pj_task, $seq_task);
 }
 
@@ -1559,7 +1618,7 @@ sub build_pair_join_task {
 sub build_demultiplex_task {
     my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $bc_num, $auth, $authPrefix) = @_;
     
-    my $seq_type = 'fastq';
+    my $seq_type = "";
     my $bc_names = [];
     my $dm_task  = $self->empty_awe_task(1);
     $dm_task->{cmd}{description} = "demultiplex";
@@ -1577,6 +1636,7 @@ sub build_demultiplex_task {
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
         $dm_task->{userattr}{parent_seq_file} = $seq_node->{id};
     } else {
+        $seq_type = (split(/\./, $seq))[-1];
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
         push @{$dm_task->{dependsOn}}, "$depend_seq";
     }
@@ -1600,16 +1660,17 @@ sub build_demultiplex_task {
     
     # build outputs
     push @$bc_names, "nobarcode.".$basename;
-    foreach my $fname (@$barfiles) {
+    foreach my $fname (@$bc_names) {
         $dm_task->{outputs}{"$fname.$seq_type"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     }
     
-    # add seq stats
+    # add seq stats - not sff file
     my @tasks = ($dm_task);
     my $depend = $taskid;
-    foreach my $fname (@$barfiles) {
+    foreach my $fname (@$bc_names) {
         $taskid += 1;
-        push @tasks, $self->build_seq_stat_task($taskid, $depend, "$fname.$seq_type", $auth, $authPrefix);
+        my ($seq_task) = $self->build_seq_stat_task($taskid, $depend, "$fname.$seq_type", $seq_type, $auth, $authPrefix);
+        push @tasks, $seq_task;
     }
     
     return @tasks;
