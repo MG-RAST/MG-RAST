@@ -159,10 +159,12 @@ sub instance {
         $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
     }
     
+    # get database
+    my $master = $self->connect_to_datasource();
     my $rest = $self->rest;
     
     # overload id to be md5 of metagenome sequence file
-    if (($rest->[0] eq 'md5') && (scalar(@$rest) == 2)) {
+    if (($rest->[0] eq 'md5') && (scalar(@$rest) > 1)) {
         my $jobs = $master->Job->get_objects( {file_checksum_raw => $rest->[1]} );
         unless ($jobs && @$jobs) {
             $self->return_data( {"ERROR" => "no metagenomes exist with md5sum: ".$rest->[1]}, 404 );
@@ -182,7 +184,7 @@ sub instance {
             data => $data,
             md5 => $rest->[1],
             user => $self->user ? $self->user->login : 'public'
-        }
+        };
         $self->return_data($obj, undef, 1); # cache this!
     }
     
@@ -191,9 +193,6 @@ sub instance {
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
-
-    # get database
-    my $master = $self->connect_to_datasource();
 
     # get data
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
