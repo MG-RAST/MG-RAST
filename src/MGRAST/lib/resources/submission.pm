@@ -124,12 +124,12 @@ sub info {
                       "screen_indexes" => [ "cv", ["h_sapiens", "Homo sapiens (default)"],
                                                   ["a_thaliana", "Arabidopsis thaliana"],
                                                   ["b_taurus", "Bos taurus"],
-                                                  ["d_melanogaster", ""],
-                                                  ["e_coli", "Drosophila melanogaster"],
+                                                  ["d_melanogaster", "Drosophila melanogaster"],
+                                                  ["e_coli", "Escherichia coli"],
                                                   ["m_musculus", "Mus musculus"],
                                                   ["r_norvegicus", "Rattus norvegicus"],
                                                   ["s_scrofa", "Sus scrofa"] ],
-                      "priority" => [ "cv", ["never", "Data will stay private (default)"]
+                      "priority" => [ "cv", ["never", "Data will stay private (default)"],
                                             ["immediately", "Data will be publicly accessible immediately after processing completion"],
                                             ["3months", "Data will be publicly accessible after 3 months"],
                                             ["6months", "Data will be publicly accessible after 6 months"],
@@ -140,22 +140,6 @@ sub info {
         ]
     };
     $self->return_data($content);
-}
-
-# Override parent request function
-sub request {
-    my ($self) = @_;
-    
-    # determine sub-module to use
-    if (scalar(@{$self->rest}) == 0) {
-        $self->info();
-    } elsif (exists $self->{job_actions}{ $self->rest->[0] }) {
-        $self->job_action($self->rest->[0]);
-    } elsif (($self->rest->[0] eq 'kb2mg') || ($self->rest->[0] eq 'mg2kb')) {
-        $self->id_lookup($self->rest->[0]);
-    } else {
-        $self->info();
-    }
 }
 
 # Override parent request function
@@ -202,17 +186,17 @@ sub submit {
     my ($self, $uuid) = @_;
     
     # inbox action options
-    $project_name   = $self->cgi->param('project_name') || "";
-    $project_id     = $self->cgi->param('project_id') || "";
-    $metadata_file  = $self->cgi->param('metadata_file') || "";
-    @seq_files      = $self->cgi->param('seq_files') || ();
-    $multiplex_file = $self->cgi->param('multiplex_file') || "";
-    $barcode_file   = $self->cgi->param('barcode_file') || "";
-    $pair_file_1    = $self->cgi->param('pair_file_1') || "";
-    $pair_file_2    = $self->cgi->param('pair_file_2') || "";
-    $index_file     = $self->cgi->param('index_file') || "";
-    $barcode_count  = $self->cgi->param('barcode_count') || 0;
-    $retain         = $self->cgi->param('retain') || "";
+    my $project_name   = $self->cgi->param('project_name') || "";
+    my $project_id     = $self->cgi->param('project_id') || "";
+    my $metadata_file  = $self->cgi->param('metadata_file') || "";
+    my @seq_files      = $self->cgi->param('seq_files') || ();
+    my $multiplex_file = $self->cgi->param('multiplex_file') || "";
+    my $barcode_file   = $self->cgi->param('barcode_file') || "";
+    my $pair_file_1    = $self->cgi->param('pair_file_1') || "";
+    my $pair_file_2    = $self->cgi->param('pair_file_2') || "";
+    my $index_file     = $self->cgi->param('index_file') || "";
+    my $barcode_count  = $self->cgi->param('barcode_count') || 0;
+    my $retain         = $self->cgi->param('retain') || "";
     # pipeline parameters
     my $pipeline_params = {
         # flags
@@ -250,7 +234,7 @@ sub submit {
             $response->{error} = ($mdata && (@$mdata > 0)) ? $mdata : $log;
             $self->return_data($response);
         }
-        $project_name = $data->{data}{project_name}{value};
+        $project_name = $mdata->{data}{project_name}{value};
         $metadata_obj = $mdata;
         $md_json_node = $json_node;
         # use extracted barcodes if mutiplex file
@@ -276,10 +260,13 @@ sub submit {
         }
         $project_id = $pid;
     }
+
+    my $master = $self->connect_to_datasource();
     my $pquery = $project_name ? {name => $project_name} : ($project_id ? {id => $project_id} : undef);
+
     if ($pquery) {
-        my $projects = $jobdbm->Project->get_objects($pquery);
-        if (scalar(@$projects) && $user->has_right(undef, 'edit', 'project', $projects->[0]->id)) {
+        my $projects = $master->Project->get_objects($pquery);
+        if (scalar(@$projects) && $self->user->has_right(undef, 'edit', 'project', $projects->[0]->id)) {
             $project_obj = $projects->[0];
             unless ($project_name) {
                 $project_name = $project_obj->{name};
@@ -288,7 +275,7 @@ sub submit {
     }
     # make project if no metadata
     if ((! $metadata_obj) && (! $project_obj) && $project_name) {
-        $project_obj = $jobdbm->Project->create_project($user, $project_name);
+        $project_obj = $master->Project->create_project($self->user, $project_name);
     }
     # verify it worked
     unless ($project_obj) {
@@ -318,7 +305,7 @@ sub submit {
         push @$tasks, $self->build_pair_join_task($pj_tid, $p2_tid-1, $idx_tid-1, $pj_tid-1, $p1_fname, $p2_fname, $idx_fname, $barcode_count, $outprefix, $retain, $self->token, $self->user_auth);
         # create barcode file - 1 task
         my $bc_tid = scalar(@$tasks);
-        push @$tasks, $self->build_index_bc_task($bc_tid, $pj_tid-1, $index, $outprefix, $self->token, $self->user_auth);
+        push @$tasks, $self->build_index_bc_task($bc_tid, $pj_tid-1, $idx_fname, $outprefix, $self->token, $self->user_auth);
         # demultiplex it - # of tasks = barcode_count + 1 (start at task 3)
         unless ($barcode_count && ($barcode_count > 0)) {
             $self->return_data( {"ERROR" => "barcode_count is required for mate-pair demultiplexing, must be greater than 1"}, 400 );
