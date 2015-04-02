@@ -49,7 +49,8 @@ sub new {
     };
     $self->{create_param} = {
         'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
-        'input_id'      => ["string", "shock node id of input sequence file (optional)"]
+        'input_id'      => ["string", "shock node id of input sequence file (optional)"],
+        'submission'    => ["string", "unique submission id (optional)"]
     };
     my @input_stats = map { substr($_, 0, -4) } grep { $_ =~ /_raw$/ } @{$self->seq_stats};
     map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } grep { $_ !~ /drisee/ } @input_stats;
@@ -353,7 +354,11 @@ sub job_action {
                 job_id    => $job->{job_id}
             };
         } elsif ($action eq 'submit') {
+            my $jdata = $job->data();
             my $cmd = $Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_node ".$post->{input_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+            if (exists $jdata->{submission}) {
+                $cmd .= " --submit_id ".$jdata->{submission};
+            }
             my @log = `$cmd 2>&1`;
             chomp @log;
             my @err = grep { $_ =~ /^ERROR/ } @log;
