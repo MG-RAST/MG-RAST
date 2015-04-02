@@ -455,12 +455,12 @@ sub submit {
         submission_id => $uuid,
         task_list     => $self->json->encode($tasks)
     };
-    my $job = $self->submit_awe_template($info, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($info, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, 1);
     
     $self->return_data({
         id         => $uuid,
         user       => 'mgu'.$self->user->_id,
-        status     => "",
+        status     => $job,
         timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     });
 }
