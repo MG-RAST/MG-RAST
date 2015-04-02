@@ -462,7 +462,8 @@ sub prepare_data {
 	    my $jdata   = $job->data();
 	    if (exists($jdata->{deleted}) && $jdata->{deleted}) {
 	        # this is a deleted job !!
-	        $self->return_data( {"ERROR" => "Metagenome mgm".$job->{metagenome_id}." does not exist: ".$jdata->{deleted}}, 400 );
+	        $obj->{status} = "deleted: ".$jdata->{deleted};
+	        #$self->return_data( {"ERROR" => "Metagenome mgm".$job->{metagenome_id}." does not exist: ".$jdata->{deleted}}, 400 );
 	    }
 	    # add submission id if exists
 	    if (exists $jdata->{submission}) {
