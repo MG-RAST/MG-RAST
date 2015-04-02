@@ -1000,7 +1000,7 @@ sub get_shock_query {
 # submit job to awe using a template
 # provided auth is for shock items
 sub submit_awe_template {
-    my ($self, $info, $template, $auth, $authPrefix) = @_;
+    my ($self, $info, $template, $auth, $authPrefix, $debug) = @_;
     
     # do template replacement
     my $tt = Template->new( ABSOLUTE => 1 );
@@ -1009,6 +1009,9 @@ sub submit_awe_template {
     
     # Submit job to AWE and check for successful submission
     # mgrast owns awe job, user owns shock data
+    if ($debug) {
+        return $awf;
+    }
     my $job = $self->post_awe_job($awf, $auth, $self->mgrast_token, 1, $authPrefix, "OAuth");
     unless ($job && $job->{state} && $job->{state} eq "init") {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
