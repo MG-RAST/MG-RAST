@@ -1213,7 +1213,7 @@ sub kbase_idserver {
 
 # add submission id to inbox node
 sub add_submission {
-    my ($node_id, $submit_id, $auth, $authPrefix) = @_;
+    my ($self, $node_id, $submit_id, $auth, $authPrefix) = @_;
     my $node = $self->node_from_inbox_id($node_id, $auth, $authPrefix);
     my $attr = $node->{attributes};
     $attr->{submission} = $submit_id;
@@ -1319,14 +1319,14 @@ sub metadata_validation {
         if ($submit_id) {
             $attr->{submission} = $submit_id;
         }
-        $node = $self->update_shock_node($uuid, $new_attr, $auth, $authPrefix);
+        $node = $self->update_shock_node($uuid, $attr, $auth, $authPrefix);
         $self->edit_shock_acl($uuid, $auth, 'mgrast', 'put', 'all', $authPrefix);
     }
     
     # validate metadata
     my $master = $self->connect_to_datasource();
     my $md_file = $Conf::temp."/".$node->{id}."_".$node->{file}{name};
-    $self->get_shock_file($node->{id}, $md_file, $auth, undef, $authPrefix)
+    $self->get_shock_file($node->{id}, $md_file, $auth, undef, $authPrefix);
     my ($is_valid, $data, $log) = MGRAST::Metadata->validate_metadata($md_file);
     
     my $bar_id = undef;
@@ -1337,7 +1337,7 @@ sub metadata_validation {
         # check project permissions
         my $project_name = $data->{data}{project_name}{value};
         my $projects = $master->Project->get_objects( { name => $project_name } );
-        if (scalar(@$projects) && (! $user->has_right(undef, 'edit', 'project', $projects->[0]->{id}))) {
+        if (scalar(@$projects) && (! $self->user->has_right(undef, 'edit', 'project', $projects->[0]->{id}))) {
             $self->return_data( {"ERROR" => "The project name you have chosen already exists and you do not have edit rights to this project"}, 401 );
         }
         # update node
@@ -1346,7 +1346,7 @@ sub metadata_validation {
         $self->update_shock_node($node->{id}, $attr, $auth, $authPrefix);
         # add metadata json format to inbox
         if ($is_inbox && $self->user) {
-            my $md_basename = fileparse($seq, qr/\.[^.]*/);
+            my $md_basename = fileparse($node->{file}{name}, qr/\.[^.]*/);
             my $md_string = $self->json->encode($data);
             my $json_attr = {
                 type  => 'inbox',
@@ -1383,7 +1383,7 @@ sub metadata_validation {
                 } else {
                     next;
                 }
-                $barcodes->{$basename} = $library->{data}{forward_barcodes}{value};
+                $barcodes->{$mg_name} = $library->{data}{forward_barcodes}{value};
             }
         }
         my $bar_count = scalar(keys(%$barcodes));
@@ -1444,7 +1444,7 @@ sub build_index_bc_task {
         $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
         push @{$idx_task->{dependsOn}}, "$depend";
     }
-    $idx_task->{outputs}{$output} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+    $idx_task->{outputs}{"$outprefix.barcodes"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     $idx_task->{cmd}{args} = '-r -i @'.$index." -p $outprefix -o $outprefix.barcodes";
     
     return $idx_task;
@@ -1492,7 +1492,7 @@ sub build_seq_stat_task {
         return $self->build_sff_fastq_task($taskid, $depend, $seq, $auth, $authPrefix);
     }
     
-    $seq_task->{cmd}{args} = '-input=@'.$seq_file.' -input_json=input_attr.json -output_json=output_attr.json -type='.$seq_type;
+    $seq_task->{cmd}{args} = '-input=@'.$seq.' -input_json=input_attr.json -output_json=output_attr.json -type='.$seq_type;
     return ($seq_task);
 }
 
@@ -1518,19 +1518,19 @@ sub build_sff_fastq_task {
         unless ($sff_node->{attributes}{stats_info}{file_type} eq 'sff') {
             $self->return_data( {"ERROR" => $sff_node->{file}{name}." (".$sff_node->{id}.") not a sff format file"}, 404 );
         }
-        $sff = $sff_node->{file}{name}
+        $sff = $sff_node->{file}{name};
         $sff_task->{inputs}{$sff} = {host => $Conf::shock_url, node => $sff_node->{id}};
         $sff_task->{userattr}{parent_sff_file} = $sff_node->{id};
     } else {
         $sff_task->{inputs}{$sff} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
         push @{$sff_task->{dependsOn}}, "$depend";
     }
-    my $basename = fileparse($seq, qr/\.[^.]*/);
+    my $basename = fileparse($sff, qr/\.[^.]*/);
     $sff_task->{outputs}{"$basename.fastq"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     $sff_task->{cmd}{args} = '-Q @'.$sff." -s $basename.fastq";
     
     # add seq stats step - not sff file
-    my ($seq_task) = $self->build_seq_stat_task($taskid+1, $taskid, "$basename.fastq", "fastq", $auth, $authPrefix)
+    my ($seq_task) = $self->build_seq_stat_task($taskid+1, $taskid, "$basename.fastq", "fastq", $auth, $authPrefix);
     return ($sff_task, $seq_task);
 }
 
@@ -1586,7 +1586,7 @@ sub build_pair_join_task {
         # index node exist - no dependencies
         if ($depend_idx < 0) {
             my $idx_node = $self->node_from_inbox_id($index, $auth, $authPrefix);
-            unless (exists $p1_node->{attributes}{stats_info}) {
+            unless (exists $idx_node->{attributes}{stats_info}) {
                 ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
             }
             unless ($self->seq_type_from_node($idx_node) eq 'fastq') {
@@ -1605,7 +1605,7 @@ sub build_pair_join_task {
     my $retain_opt = $retain ? "" : "-j ";
     my $out_file = $outprefix.".fastq";
     $pj_task->{outputs}{$out_file} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $pj_task->{cmd}{args} = $retain_opt.$idx_opt.'-m 8 -p 10 -t . -r -o '.$outf.' @'.$pair1.' @'.$pair2;
+    $pj_task->{cmd}{args} = $retain_opt.$index_opt.'-m 8 -p 10 -t . -r -o '.$out_file.' @'.$pair1.' @'.$pair2;
     
     # build seq stats task - not sff file
     my ($seq_task) = build_seq_stat_task($taskid+1, $taskid, $out_file, "fastq", $auth, $authPrefix);
@@ -1689,6 +1689,7 @@ sub node_from_inbox_id {
 sub seq_type_from_node {
     my ($self, $node) = @_;
     unless (exists $node->{attributes}{stats_info}) {
+        my $err_msg;
         ($node, $err_msg) = $self->get_file_info(undef, $node, $auth, $authPrefix);
         if ($err_msg) {
             $self->return_data( {"ERROR" => $err_msg}, 404 );
@@ -1713,6 +1714,7 @@ sub is_sff_file {
     }
     # get type
     unless (exists $node->{attributes}{stats_info}) {
+        my $err_msg;
         ($node, $err_msg) = $self->get_file_info(undef, $node, $auth, $authPrefix);
         if ($err_msg) {
             $self->return_data( {"ERROR" => $err_msg}, 404 );
