@@ -756,6 +756,24 @@ sub clean_value {
 
 =pod
 
+=item * B<get_unique_for_tag> (Scalar<tag>)
+
+Returns list of unique values for a specific tag from MetaDataEntry.
+
+=cut 
+
+sub get_unique_for_tag {
+  my ($self, $tag) = @_;
+  
+  $tag = lc( clean_value($tag) );
+  my $mddb = $self->{_handle};
+  my $tmp = $mddb->db_handle->selectcol_arrayref("SELECT DISTINCT value FROM MetaDataEntry WHERE tag=".$mddb->db_handle->quote($tag));
+  return ($tmp && @$tmp) ? $tmp : [];
+}
+
+
+=pod
+
 =item * B<get_all_for_tag> (Scalar<tag>, Boolean<no_ppo>)
 
 Returns all data for a specific tag from MetaDataEntry.
