@@ -444,7 +444,7 @@ sub submit {
             node => "-",
             attrfile => "userattr.json"
         }
-    }
+    };
     $submit_task->{userattr}{stage_name} = "submission";
     # metadata or project
     if ($metadata_obj && $md_json_node) {
