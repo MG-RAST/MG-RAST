@@ -434,6 +434,7 @@ sub prepare_data {
         $obj->{job_id} = $job->{job_id};
         $obj->{status} = ($verb eq 'pipeline') ? 'pipeline' : ($job->{public} ? 'public' : 'private');
         $obj->{created} = $job->{created_on};
+        $obj->{md5_checksum} = $job->{file_checksum_raw};
         $obj->{version} = 1;
         $obj->{project} = undef;
         $obj->{sample}  = undef;
@@ -469,6 +470,10 @@ sub prepare_data {
 	    # add submission id if exists
 	    if (exists $jdata->{submission}) {
 	        $obj->{submission} = $jdata->{submission};
+	    }
+	    # add pipeline id if exists
+	    if (exists $jdata->{pipeline_id}) {
+	        $obj->{pipeline_id} = $jdata->{pipeline_id};
 	    }
 	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;
