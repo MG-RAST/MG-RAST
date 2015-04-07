@@ -334,7 +334,7 @@ sub list_values {
     
     my $values = $mddb->get_unique_for_tag($label);
     if (@$values == 0) {
-        $self->return_data( {"ERROR" => "Invalid metadata label"}, 400 );
+        $self->return_data( {"ERROR" => "Invalid metadata label: ".$label}, 400 );
     }
     
     my $data = {
