@@ -269,8 +269,8 @@ sub query {
         if ($self->cgi->param($field)) {
 	  my @param = $self->cgi->param($field);
 	  foreach my $p (@param) {
-            push @url_params, $field."=".$self->cgi->param($field);
-            push @solr_fields, $field.':'.$self->cgi->param($field);
+            push @url_params, $field."=".$p;
+            push @solr_fields, $field.':'.$p;
 	  }
         }
     }
