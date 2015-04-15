@@ -267,8 +267,10 @@ sub query {
     # non-returnable query fields
     foreach my $field ('metadata', 'md5', 'function', 'organism') {
         if ($self->cgi->param($field)) {
+	  foreach my $p (@{$self->cgi->param($field)}) {
             push @url_params, $field."=".$self->cgi->param($field);
             push @solr_fields, $field.':'.$self->cgi->param($field);
+	  }
         }
     }
     # returnable query fields
