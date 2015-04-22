@@ -225,13 +225,13 @@ sub status {
         sequences => $seqs,              # inbox info of sequences for analysis pipeline
         preprocessing => [],             # info of preprocessing pipeline stages
         metagenomes => {}                # info of analysis pipeline stages per metagenome
-    }
+    };
     
     # status of preprocessing workflow
     foreach my $task (@{$submit->{tasks}}) {
         my $summery = {
             stage => $task->{cmd}{description},
-            inputs => [ keys $task->{inputs} ],
+            inputs => [ keys %{$task->{inputs}} ],
             status => $task->{state}
         };
         if ($task->{state} eq 'suspend') {
@@ -262,18 +262,16 @@ sub status {
 sub delete {
     my ($self, $uuid) = @_;
     
-    my $full = $self->cgi->param('full') ? 1 : 0;    
+    my $full  = $self->cgi->param('full') ? 1 : 0;    
     my $nodes = $self->submission_nodes($uuid);
-    my $jobs = $self->submission_jobs($uuid, $full);
+    my $jobs  = $self->submission_jobs($uuid, $full);
     
     # delete inbox nodes
-    my $nodes = $self->submission_nodes($uuid);
     foreach my $n (@{$nodes->{inbox}}) {
         $self->delete_shock_node($n->{id}, $self->token, $self->user_auth);
     }
     
     # delete inbox workflows
-    my $jobs = $self->submission_jobs($uuid, $full);
     if ($jobs->{submit}) {
         $self->delete_awe_job($jobs->{submit}{id}, $self->token, $self->user_auth);
     }
@@ -612,12 +610,12 @@ sub submission_nodes {
     my $inbox_query = {
         submission => $uuid,
         type => 'inbox',
-        id => user_id
+        id => $user_id
     };
     my $mgrast_query = {
         submission => $uuid,
         type => 'metagenome',
-        user => user_id
+        user => $user_id
     };
     my $inbox_nodes = $self->get_shock_query($inbox_query, $self->token, $self->user_auth);
     my $data = { inbox => $inbox_nodes->{data} || [] };
@@ -643,7 +641,7 @@ sub submission_jobs {
         "info.userattr.submission" => $uuid
     };
     my $inbox_jobs = $self->get_awe_query($inbox_query, $self->token, $self->user_auth);
-    my $submit = (@{$inbox_jobs->{data}} > 0) ? $inbox_jobs->{data}[0] || {};
+    my $submit = (scalar(@{$inbox_jobs->{data}}) > 0) ? $inbox_jobs->{data}[0] : {};
     my $data = { submit => $submit };
     if ($full) {
         my $mgrast_jobs = $self->get_awe_query($mgrast_query, $self->token, $self->user_auth);

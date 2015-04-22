@@ -1148,10 +1148,10 @@ sub get_awe_report {
         return "";
     } elsif (exists($response->{error}) && $response->{error}) {
         # special exception for lost workunit
-        if ($err =~ /no workunit found/) {
+        if ($response->{error}[0] =~ /no workunit found/) {
             return "";
         }
-        $self->return_data( {"ERROR" => "AWE error: "$response->{error}[0]}, $response->{status} );
+        $self->return_data( {"ERROR" => "AWE error: ".$response->{error}[0]}, $response->{status} );
     } else {
         return $response->{data};
     }
