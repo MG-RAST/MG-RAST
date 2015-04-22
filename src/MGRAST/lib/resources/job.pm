@@ -57,7 +57,8 @@ sub new {
     map { $self->{create_param}{$_} = ['string', 'pipeline option'] } @{$self->pipeline_opts};
     $self->{create_param}{sequence_type} = [
         "cv", [["WGS", "whole genome shotgun sequenceing"],
-               ["Amplicon", "amplicon sequenceing"],
+               ["Amplicon", "amplicon rRNA sequenceing"],
+               ["AmpliconGene", "amplicon gene sequenceing"],
                ["MT", "metatranscriptome sequenceing"]]
     ];
     return $self;
