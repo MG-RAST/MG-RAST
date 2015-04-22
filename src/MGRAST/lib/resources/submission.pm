@@ -197,8 +197,9 @@ sub status {
     my $nodes  = $self->submission_nodes($uuid, 1);
     my $jobs   = $self->submission_jobs($uuid, 1);
     my $submit = $jobs->{submit};
+    my $pnode  = $self->get_param_node($submit);
     
-    if (! $submit) {
+    unless (submit && $pnode) {
         $self->return_data({
             id         => $uuid,
             user       => 'mgu'.$self->user->_id,
@@ -209,7 +210,6 @@ sub status {
     
     # get submission info - parameters file
     my $info  = {};
-    my $pnode = $self->get_param_node($submit);
     foreach my $n (@{$nodes->{inbox}}) {
         if ($n->{id} eq $pnode) {
             my ($info_text, $err) = $self->get_shock_file($uuid, undef, $self->token, undef, $self->user_auth);
@@ -670,7 +670,11 @@ sub submission_jobs {
 
 sub get_param_node {
     my ($self, $job) = @_;
-    return $job->{tasks}[-1]{outputs}{$self->{param_file}}{node} || undef;
+    if ($job->{tasks} && (@{$job->{tasks}} > 0)) {
+        return $job->{tasks}[-1]{outputs}{$self->{param_file}}{node};
+    } else {
+        return undef;
+    }
 }
 
 sub parse_submit_output {
