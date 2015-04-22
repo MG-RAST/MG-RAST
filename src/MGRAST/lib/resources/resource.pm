@@ -978,7 +978,13 @@ sub get_shock_query {
     my $response = undef;
     my $query = '?query&limit=0';
     if ($params && (scalar(keys %$params) > 0)) {
-        map { $query .= '&'.$_.'='.$params->{$_} } keys %$params;
+        while (my ($key, $value) = each %$params) {
+            if (ref($value)) {
+                map { $query .= '&'.$key.'='.uri_escape($_) } @$value;
+            } else {
+                $query .= '&'.$key.'='.uri_escape($value);
+            }
+        }
     }
     eval {
         my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
@@ -1115,7 +1121,11 @@ sub get_awe_query {
     my $query = '?query&limit=0';
     if ($params && (scalar(keys %$params) > 0)) {
         while (my ($key, $value) = each %$params) {
-            map { $query .= '&'.$key.'='.uri_escape($_) } @$value;
+            if (ref($value)) {
+                map { $query .= '&'.$key.'='.uri_escape($_) } @$value;
+            } else {
+                $query .= '&'.$key.'='.uri_escape($value);
+            }
         }
     }
     eval {
