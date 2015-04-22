@@ -1111,7 +1111,7 @@ sub get_awe_query {
     }
 
     my $response = undef;
-    my $query = '?query';
+    my $query = '?query&limit=0';
     if ($params && (scalar(keys %$params) > 0)) {
         while (my ($key, $value) = each %$params) {
             map { $query .= '&'.$key.'='.uri_escape($_) } @$value;
@@ -1126,6 +1126,58 @@ sub get_awe_query {
         $self->return_data( {"ERROR" => "Unable to query AWE: ".$@}, 500 );
     } else {
         return $response;
+    }
+}
+
+# get workunit report
+sub get_awe_report {
+    my ($self, $id, $type, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $url = $Conf::awe_url.'/work/'.$id.'?report='.$type;
+        my $get = $self->agent->get($url, @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return "";
+    } elsif (exists($response->{error}) && $response->{error}) {
+        # special exception for lost workunit
+        if ($err =~ /no workunit found/) {
+            return "";
+        }
+        $self->return_data( {"ERROR" => "AWE error: "$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
+
+# delete job document
+sub delete_awe_job {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->delete($Conf::awe_url.'/job/'.$id, @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to DELETE job $id from AWE: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
     }
 }
 
@@ -1222,6 +1274,32 @@ sub add_submission {
     $attr->{submission} = $submit_id;
     $node = $self->update_shock_node($node_id, $attr, $auth, $authPrefix);
     $self->edit_shock_acl($node_id, $auth, 'mgrast', 'put', 'all', $authPrefix);
+}
+
+# get inbox object from shock node
+sub node_to_inbox {
+    my ($self, $node, $auth, $authPrefix) = @_;
+    my $info = {
+        'id'        => $node->{id},
+        'filename'  => $node->{file}{name},
+        'filesize'  => $node->{file}{size},
+        'checksum'  => $node->{file}{checksum}{md5},
+        'timestamp' => $node->{created_on}
+    };
+    # get file_info / compute if missing
+    unless (exists $node->{attributes}{stats_info}) {
+        ($node, undef) = $self->get_file_info(undef, $node, $auth, $authPrefix);
+    }
+    $info->{stats_info} = $node->{attributes}{stats_info};
+    # add data_type for validated files
+    if (exists $node->{attributes}{data_type}) {
+        $info->{data_type} = $node->{attributes}{data_type};
+    }
+    # add submission id if exists
+    if (exists $node->{attributes}{submission}) {
+        $info->{submission} = $node->{attributes}{submission};
+    }
+    return $info;
 }
 
 # this takes uuid or node
@@ -1398,6 +1476,7 @@ sub metadata_validation {
                 id    => 'mgu'.$self->user->_id,
                 user  => $self->user->login,
                 email => $self->user->email,
+                data_type => 'barcode',
                 stats_info => {
                     type      => 'ASCII text',
                     suffix    => 'barcodes',

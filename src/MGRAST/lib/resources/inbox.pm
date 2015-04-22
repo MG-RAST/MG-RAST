@@ -513,26 +513,7 @@ sub view_inbox {
     # process inbox
     my $files = [];
     foreach my $node (@$inbox) {
-        my $info = {
-            'id'        => $node->{id},
-            'filename'  => $node->{file}{name},
-            'filesize'  => $node->{file}{size},
-            'checksum'  => $node->{file}{checksum}{md5},
-            'timestamp' => $node->{created_on}
-        };
-        # get file_info / compute if missing
-        unless (exists $node->{attributes}{stats_info}) {
-            ($node, undef) = $self->get_file_info(undef, $node, $self->token, $self->user_auth);
-        }
-        $info->{stats_info} = $node->{attributes}{stats_info};
-        # add data_type for validated files
-        if (exists $node->{attributes}{data_type}) {
-            $info->{data_type} = $node->{attributes}{data_type};
-        }
-        # add submission id if exists
-        if (exists $node->{attributes}{submission}) {
-            $info->{submission} = $node->{attributes}{submission};
-        }
+        my $info = $self->node_to_inbox($node, $self->token, $self->user_auth);
         # check if any pending actions
         $self->update_node_actions($node);
         $info->{actions} = $node->{attributes}{actions};
