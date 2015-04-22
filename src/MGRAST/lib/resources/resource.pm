@@ -14,6 +14,7 @@ use LWP::UserAgent;
 use HTTP::Request::Common;
 use File::Basename;
 use Storable qw(dclone);
+use UUID::Tiny ":std";
 use Digest::MD5 qw(md5_hex md5_base64);
 use Template;
 
@@ -1897,12 +1898,10 @@ sub get_file_format {
 #  misc functions #
 ###################
 
-# I can't find a perl library that gives me random UUID !
 sub uuidv4 {
     my ($self) = @_;
-    my $uuid = `python -c "import uuid; print uuid.uuid4()"`;
-    chomp $uuid;
-    return $uuid;
+    my $uuid = create_uuid(UUID_V4);
+    return uuid_to_string($uuid);
 }
 
 sub toFloat {
