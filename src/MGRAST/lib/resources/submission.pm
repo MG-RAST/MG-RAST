@@ -199,7 +199,7 @@ sub status {
     my $submit = $jobs->{submit};
     my $pnode  = $self->get_param_node($submit);
     
-    unless (submit && $pnode) {
+    unless ($submit && $pnode) {
         $self->return_data({
             id         => $uuid,
             user       => 'mgu'.$self->user->_id,
