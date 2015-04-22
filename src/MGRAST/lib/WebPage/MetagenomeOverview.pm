@@ -295,7 +295,7 @@ sub output {
   # amplicon gene numbers
   elsif ($is_gene) {
       $ann_rna_reads = 0;
-      $unknown_all = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads)
+      $unknown_all = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads);
       if ($raw_seqs < ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads)) {
           my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads) - $raw_seqs;
           $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
