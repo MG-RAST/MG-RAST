@@ -198,6 +198,15 @@ sub status {
     my $jobs   = $self->submission_jobs($uuid, 1);
     my $submit = $jobs->{submit};
     
+    if (! $submit) {
+        $self->return_data({
+            id         => $uuid,
+            user       => 'mgu'.$self->user->_id,
+            status     => "No submission exists for given ID",
+            timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+        });
+    }
+    
     # get submission info - parameters file
     my $info  = {};
     my $pnode = $self->get_param_node($submit);
