@@ -21,6 +21,7 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "submission";
+    $self->{param_file} = "submission_parameters.json";
     return $self;
 }
 
@@ -197,15 +198,23 @@ sub status {
     my $jobs   = $self->submission_jobs($uuid, 1);
     my $submit = $jobs->{submit};
     
-    # get submission info
-    my $info = {};
-    my @last = values %{$submit->{tasks}[-1]{outputs}};
+    # get submission info - parameters file
+    my $info  = {};
+    my $pnode = $self->get_param_node($submit);
     foreach my $n (@{$nodes->{inbox}}) {
-        if ($n->{id} eq $last[0]{node}) {
-            $info = $n->{attributes};
+        if ($n->{id} eq $pnode) {
+            my ($info_text, $err) = $self->get_shock_file($uuid, undef, $self->token, undef, $self->user_auth);
+            if ($err) {
+                $self->return_data( {"ERROR" => $err}, 500 );
+            }
+            $info = $self->json->decode($info_text);
             last;
         }
     }
+    
+    # get submission results - either stdout from workunit if running or from shock if done
+    my $report = $self->get_awe_report($submit->{tasks}[-1]{taskid}.'_0', 'stdout', $self->token, $self->user_auth);
+    my $result = $self->parse_submit_output($report);
     
     # get submitted sequence files as inbox objects
     my $seqs = [];
@@ -223,6 +232,7 @@ sub status {
         type => $info->{input}{type},    # submission type
         inputs => $info->{input}{files}, # origional input files of submission
         sequences => $seqs,              # inbox info of sequences for analysis pipeline
+        submitted => $result,            # info on success or failer of sequences
         preprocessing => [],             # info of preprocessing pipeline stages
         metagenomes => {}                # info of analysis pipeline stages per metagenome
     };
@@ -235,7 +245,7 @@ sub status {
             status => $task->{state}
         };
         if ($task->{state} eq 'suspend') {
-            $summery->{error} = $self->get_awe_report($task->{taskid}.'_0', 'stderr') || 'unknown error';
+            $summery->{error} = $self->get_awe_report($task->{taskid}.'_0', 'stderr', $self->token, $self->user_auth) || 'unknown error';
         }
         push @{$output->{preprocessing}}, $summery;
     }
@@ -531,7 +541,6 @@ sub submit {
         submission => $uuid
     };
     my $param_str = $self->json->encode($param_obj);
-    my $param_file = "submission_parameters.json";
     my $param_attr = {
         type  => 'inbox',
         id    => $user_id,
@@ -543,12 +552,12 @@ sub submit {
             type      => 'ASCII text',
             suffix    => 'json',
             file_type => 'json',
-            file_name => $param_file,
+            file_name => $self->{param_file},
             file_size => length($param_str),
             checksum  => md5_hex($param_str)
         }
     };
-    my $param_node = $self->set_shock_node($param_file, $param_str, $param_attr, $self->token, 1, $self->user_auth);
+    my $param_node = $self->set_shock_node($self->{param_file}, $param_str, $param_attr, $self->token, 1, $self->user_auth);
     $self->edit_shock_acl($param_node->{id}, $self->token, 'mgrast', 'put', 'all', $self->user_auth);
     
     # add submission task
@@ -556,11 +565,11 @@ sub submit {
     my $submit_task = $self->empty_awe_task();
     $submit_task->{cmd}{description} = 'mg submit '.scalar(@$seq_files);
     $submit_task->{cmd}{name} = "awe_submit_to_mgrast.pl";
-    $submit_task->{cmd}{args} = '-input @'.$param_file;
+    $submit_task->{cmd}{args} = '-input @'.$self->{param_file};
     $submit_task->{cmd}{environ}{private} = {"USER_AUTH" => $self->token, "MGRAST_API" => $Conf::cgi_url};
     $submit_task->{taskid} = "$staskid";
     $submit_task->{dependsOn} = $seq_tids;
-    $submit_task->{inputs}{$param_file} = {host => $Conf::shock_url, node => $param_node->{id}};
+    $submit_task->{inputs}{$self->{param_file}} = {host => $Conf::shock_url, node => $param_node->{id}};
     $submit_task->{outputs} = {
         "awe_stdout.txt" => {
             host => $Conf::shock_url,
@@ -652,8 +661,26 @@ sub submission_jobs {
 
 sub get_param_node {
     my ($self, $job) = @_;
-    my @last = values %{$job->{tasks}[-1]{outputs}};
-    return $last[0]{node};
+    return $job->{tasks}[-1]{outputs}{$self->{param_file}}{node} || undef;
+}
+
+sub parse_submit_output {
+    my ($self, $report) = @_;
+    my $info = {};
+    if (! $report) {
+        return $info;
+    }
+    foreach my $line (split(/\n/, $report)) {
+        my ($type, @rest) = split(/\t/, $line);
+        if (scalar(@rest) == 1) {
+            push @{$info->{$type}}, $rest[0];
+        } elsif (scalar(@rest) > 1) {
+            push @{$info->{$type}}, \@rest;
+        } else {
+            next;
+        }
+    }
+    return $info;
 }
 
 1;

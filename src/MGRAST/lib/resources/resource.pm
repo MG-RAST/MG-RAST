@@ -1147,8 +1147,9 @@ sub get_awe_report {
     if ($@ || (! ref($response))) {
         return "";
     } elsif (exists($response->{error}) && $response->{error}) {
+        my $err = $response->{error}[0];
         # special exception for lost workunit
-        if ($response->{error}[0] =~ /no workunit found/) {
+        if (($err =~ /no workunit found/) || ($err =~ /log type.*not found/)) {
             return "";
         }
         $self->return_data( {"ERROR" => "AWE error: ".$response->{error}[0]}, $response->{status} );
