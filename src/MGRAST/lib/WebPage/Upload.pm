@@ -492,7 +492,7 @@ sub output {
 		      </label>
 		      <label class="text">
 			<input id="deviation" type="text" value="2.0" name="deviation">
-			Specify the multiplicator of standard deviation for length cutoff.
+			Specify the multiplier of standard deviation for length cutoff (must be 1.0 or greater).
 		      </label>
 		    </div>
 
@@ -711,6 +711,10 @@ sub submit_to_mgrast {
 	$info->{$key} = $val;
       }
       if ($filter_ln_mult) {
+        if (int($filter_ln_mult) < 1) {
+          $self->application->add_message('warning', "Filter length multiplier must be 1.0 or greater, aborting submission.");
+          return undef;
+        }
 	$info->{min_ln} = int($info->{average_length} - ($filter_ln_mult * $info->{standard_deviation_length}));
 	$info->{max_ln} = int($info->{average_length} + ($filter_ln_mult * $info->{standard_deviation_length}));
 	if ($info->{min_ln} < 1) { $info->{min_ln} = 1; }

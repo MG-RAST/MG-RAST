@@ -661,7 +661,7 @@ $drisee_boilerplate
   }
 
   # ontology hits distrubtion
-  if ($func_chart && (! $is_rna) && (! $is_rna)) {
+  if ($func_chart && (! $is_rna) && (! $is_gene)) {
     $html .= $func_chart
   }
 
@@ -1095,7 +1095,7 @@ sub get_source_chart {
       if ($src_num > 0) {
 	    my $pos = ($num - $src_num) + int($src_num / 2) - 1;
 	    if ($pos < 0) { $pos = 0; }
-	    groups{$pos} = $titles->{$type};
+	    $groups{$pos} = $titles->{$type};
 	    push @divs, $num;
       }
     }
