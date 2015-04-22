@@ -627,10 +627,10 @@ sub submission_nodes {
         user => $user_id
     };
     my $inbox_nodes = $self->get_shock_query($inbox_query, $self->token, $self->user_auth);
-    my $data = { inbox => $inbox_nodes->{data} || [] };
+    my $data = { inbox => $inbox_nodes || [] };
     if ($full) {
         my $mgrast_nodes = $self->get_shock_query($mgrast_query, $self->token, $self->user_auth);
-        $data->{mgrast} = $mgrast_nodes->{data} || [];
+        $data->{mgrast} = $mgrast_nodes || [];
     }
     return $data;
 }
