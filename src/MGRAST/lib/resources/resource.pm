@@ -948,7 +948,7 @@ sub get_shock_file {
     my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
     
     if ($file) {
-        open($fhdl, ">$file") || return undef;
+        open($fhdl, ">$file") || return ("", "Unable to open file $file");
         push @args, (':read_size_hint', 8192, ':content_cb', sub{ my ($chunk) = @_; print $fhdl $chunk; });
     }
     eval {
@@ -956,9 +956,9 @@ sub get_shock_file {
         $response = $self->agent->get($url, @args);
     };
     if ($@ || (! $response)) {
-        return (undef, "Unable to connect to Shock server");
+        return ("", "Unable to connect to Shock server");
     } elsif ($response->is_error) {
-        return (undef, $response->code.": ".$response->message);
+        return ("", $response->code.": ".$response->message);
     } elsif ($file) {
         close($fhdl);
         return (1, undef);
@@ -1169,6 +1169,30 @@ sub get_awe_report {
     }
 }
 
+# get report from completed or suspended task
+sub get_task_report {
+    my ($self, $task, $type, $auth, $authPrefix, $rank) = @_;
+    
+    if (! $rank) {
+        $rank = 0;
+    }
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+    
+    my $id = $task->{taskid}."_".$rank;
+    my $rtext = $self->get_awe_report($id, $type, $auth, $authPrefix);
+    my $rfile = "awe_".$type.".txt";
+    
+    # check shock if missing
+    if ((! $rtext) && exists($task->{outputs}) && exists($task->{outputs}{$rfile})) {
+        my $rnode = $task->{outputs}{$rfile}{node};
+        if ($rnode && ($rnode ne "-")) {
+            ($rtext, undef) = $self->get_shock_file($rnode, undef, $auth, undef, $authPrefix);
+        }
+    }
+    return $rtext || "";
+}
 
 # delete job document
 sub delete_awe_job {

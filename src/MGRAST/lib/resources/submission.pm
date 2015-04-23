@@ -222,7 +222,7 @@ sub status {
     }
     
     # get submission results - either stdout from workunit if running or from shock if done
-    my $report = $self->get_awe_report($submit->{tasks}[-1]{taskid}.'_0', 'stdout', $self->token, $self->user_auth);
+    my $report = $self->get_task_report($submit->{tasks}[-1], 'stdout', $self->token, $self->user_auth);
     my $result = $self->parse_submit_output($report);
     
     # get submitted sequence files as inbox objects
@@ -254,7 +254,7 @@ sub status {
             status => $task->{state}
         };
         if ($task->{state} eq 'suspend') {
-            $summery->{error} = $self->get_awe_report($task->{taskid}.'_0', 'stderr', $self->token, $self->user_auth) || 'unknown error';
+            $summery->{error} = $self->get_task_report($task, 'stderr', $self->token, $self->user_auth) || 'unknown error';
         }
         push @{$output->{preprocessing}}, $summery;
     }
@@ -287,11 +287,13 @@ sub delete {
     
     # delete inbox nodes
     foreach my $n (@{$nodes->{inbox}}) {
-        $self->delete_shock_node($n->{id}, $self->token, $self->user_auth);
+        if ($n->{id}) {
+            $self->delete_shock_node($n->{id}, $self->token, $self->user_auth);
+        }
     }
     
     # delete inbox workflows
-    if ($jobs->{submit}) {
+    if ($jobs->{submit} && $jobs->{submit}{id}) {
         $self->delete_awe_job($jobs->{submit}{id}, $self->token, $self->user_auth);
     }
     
@@ -299,7 +301,9 @@ sub delete {
     if ($full && (@{$jobs->{pipeline}} > 0)) {
         my $master = $self->connect_to_datasource();
         foreach my $j (@{$jobs->{pipeline}}) {
+            next unless ($j->{info}{userattr} && $j->{info}{userattr}{id});
             my ($id) = $j->{info}{userattr}{id} =~ /^mgm(\d+\.\d+)$/;
+            next unless ($id);
             if ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'metagenome')) {
                 my $job = $master->Job->get_objects( {metagenome_id => $id} );
                 if ($job && @$job) {
