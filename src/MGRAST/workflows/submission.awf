@@ -1,6 +1,6 @@
 {
     "info": {
-        "pipeline": "submission",
+        "pipeline": "[% pipeline %]",
         "name": "[% job_name %]",
         "user": "[% user_id %]",
         "clientgroups":"[% clientgroups %]",

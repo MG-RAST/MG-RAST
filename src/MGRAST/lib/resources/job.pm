@@ -236,7 +236,7 @@ sub job_action {
         if (exists $post->{input_id}) {
             my $nodeid = $post->{input_id};
             eval {
-                my $node = $self->get_shock_node($nodeid, $self->mgrast_token);
+                my $node = $self->get_shock_node($nodeid, $self->token, $self->user_auth);
                 $post->{file} = $node->{file}{name};
                 $post->{file_size} = $node->{file}{size};
                 $post->{file_checksum} = $node->{file}{checksum}{md5};
@@ -287,7 +287,7 @@ sub job_action {
             if (exists $post->{input_id}) {
                 my $nodeid = $post->{input_id};
                 eval {
-                    my $node = $self->get_shock_node($nodeid, $self->mgrast_token);
+                    my $node = $self->get_shock_node($nodeid, $self->token, $self->user_auth);
                     # pull from stats_info and pipeline_info in attributes
                     foreach my $x (('stats_info', 'pipeline_info')) {
                         if (exists($node->{attributes}{$x}) && ref($node->{attributes}{$x})) {
@@ -382,7 +382,7 @@ sub job_action {
                 $job->data("pipeline_id", $aid);
                 # update inbox attributes if submit
                 if ($post->{input_id} && ($action eq 'submit')) {
-                    my $node = $self->get_shock_node($post->{input_id}, $self->mgrast_token);
+                    my $node = $self->get_shock_node($post->{input_id}, $self->token, $self->user_auth);
                     my $attr = $node->{attributes};
                     my $action = {
                         id => $aid,
@@ -395,7 +395,8 @@ sub job_action {
                     } else {
                         $attr->{actions} = [$action];
                     }
-                    $self->update_shock_node($post->{input_id}, $attr, $self->mgrast_token);
+                    $self->update_shock_node($post->{input_id}, $attr, $self->token, $self->user_auth);
+                    $self->edit_shock_acl($post->{input_id}, $self->token, 'mgrast', 'put', 'all', $self->user_auth);
                 }
             } else {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
@@ -528,25 +529,6 @@ sub reserve_kbase_id {
         $self->return_data( {"ERROR" => "Unable to reserve KBase id for $mgid"}, 500 );
     }
     return $result->[0]->{$mgid};
-}
-
-sub get_post_data {
-    my ($self) = @_;
-    
-    # posted data
-    my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join(" ", $self->cgi->param('keywords'));
-    unless ($post_data) {
-        $self->return_data( {"ERROR" => "POST request missing data"}, 400 );
-    }
-    
-    my $pdata = {};
-    eval {
-        $pdata = $self->json->decode($post_data);
-    };
-    if ($@ || (scalar(keys %$pdata) == 0)) {
-        $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
-    }
-    return $pdata;
 }
 
 1;
