@@ -34,9 +34,10 @@ sub new {
         Cache::Memcached->import();
         $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache || ''], 'debug' => 0, 'compress_threshold' => 10_000};
     };
-    my $agent = LWP::UserAgent->new;
-    my $json  = JSON->new;
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
+    my $agent = LWP::UserAgent->new;
+    $agent->timeout(600);
+    my $json = JSON->new;
     $json = $json->utf8();
     $json->max_size(0);
     $json->allow_nonref;
@@ -468,6 +469,37 @@ sub check_pagination {
     }
     
 	return $object;
+}
+
+# get paramaters from POSTDATA or form fields
+sub get_post_data {
+    my ($self, $fields) = @_;
+    
+    my %data = ();
+    # get by paramaters first
+    # value may be array
+    if ($fields && (@$fields > 0)) {
+        foreach my $f (@$fields) {
+            my @val = $self->cgi->param($f);
+            if (@val) {
+                if (scalar(@val) == 1) {
+                    $data{$f} = $val[0];
+                } elsif (scalar(@val) > 1) {
+                    $data{$f} = \@val;
+                }
+            }
+        }
+    }
+    # get by posted data
+    my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join(" ", $self->cgi->param('keywords'));
+    if ($post_data) {
+        my $pdata = {};
+        eval {
+            $pdata = $self->json->decode($post_data);
+        };
+        @data{ keys %$pdata } = values %$pdata;
+    }
+    return \%data;
 }
 
 # return cached data if exists
@@ -1017,7 +1049,7 @@ sub submit_awe_template {
     # Submit job to AWE and check for successful submission
     # mgrast owns awe job, user owns shock data
     if ($debug) {
-        return $awf;
+        return $self->json->decode($awf);
     }
     my $job = $self->post_awe_job($awf, $auth, $self->mgrast_token, 1, $authPrefix, "OAuth");
     unless ($job && $job->{state} && $job->{state} eq "init") {
@@ -1400,14 +1432,16 @@ sub get_barcode_files {
         $self->return_data( {"ERROR" => $err}, 500 );
     }
     foreach my $line (split(/\n/, $bar_text)) {
+        next unless ($line);
         my ($b, $n) = split(/\t/, $line);
+        next unless ($b);
         my $fname = $n ? $n : $b;
         $bar_files->{$fname} = 1;
     }
     if (scalar(keys %$bar_files) < 2) {
         $self->return_data( {"ERROR" => "number of barcodes in barcode_file must be greater than 1"}, 400 );
     }
-    return keys %$bar_files;
+    return [keys %$bar_files];
 }
 
 sub metadata_validation {
@@ -1506,7 +1540,7 @@ sub metadata_validation {
         my $bar_count = scalar(keys(%$barcodes));
         if (($bar_count > 0) && $extract_barcodes && $self->user) {
             my $bar_name = fileparse($node->{file}{name}, qr/\.[^.]*/).".barcodes";
-            my $bar_data = join("\n", map { $_."\t".$barcodes->{$_} } keys %$barcodes)."\n";
+            my $bar_data = join("\n", map { $barcodes->{$_}."\t".$_ } keys %$barcodes)."\n";
             my $bar_attr = {
                 type  => 'inbox',
                 id    => 'mgu'.$self->user->_id,
@@ -1571,13 +1605,15 @@ sub build_index_bc_task {
 
 # if input node has no dependency, then value is -1 and it is a shock node id,
 # otherwise shock node does not exist and its a filename
-# returns array of 1 or 2 tasks
+# returns array of 1 or 2 tasks - may be sff file
 sub build_seq_stat_task {
     my ($self, $taskid, $depend, $seq, $seq_type, $auth, $authPrefix) = @_;
     
     # may be sff file, then return 2 tasks
-    if ($seq_type eq "sff") {
+    if ($seq_type && ($seq_type eq "sff")) {
         return $self->build_sff_fastq_task($taskid, $depend, $seq, $auth, $authPrefix);
+    } elsif ($seq_type && ($seq_type eq "fna")) {
+        $seq_type = "fasta";
     }
     
     my $seq_task = $self->empty_awe_task(1);
@@ -1592,8 +1628,16 @@ sub build_seq_stat_task {
         unless (exists $seq_node->{attributes}{stats_info}) {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
-        $seq = $seq_node->{file}{name};
         $seq_type = $self->seq_type_from_node($seq_node, $auth, $authPrefix);
+        # seq stats already ran, skip it
+        if (exists($seq_node->{attributes}{data_type}) &&
+            exists($seq_node->{attributes}{stats_info}{sequence_count}) &&
+            ($seq_node->{attributes}{data_type} eq 'sequence') &&
+            (($seq_node->{attributes}{stats_info}{sequence_count})*1 > 0) &&
+            (($seq_type eq 'fasta') || ($seq_type eq 'fastq'))) {
+            #$seq_task->{skip} = 1;
+        }
+        $seq = $seq_node->{file}{name};
         $seq_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}, attrfile => "input_attr.json"};
         $seq_task->{outputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}, attrfile => "output_attr.json", type => "update"};
     } else {
@@ -1730,7 +1774,7 @@ sub build_pair_join_task {
     $pj_task->{userattr}{stage_name} = "pair_join";
     
     # build seq stats task - not sff file
-    my ($seq_task) = build_seq_stat_task($taskid+1, $taskid, $out_file, "fastq", $auth, $authPrefix);
+    my ($seq_task) = $self->build_seq_stat_task($taskid+1, $taskid, $out_file, "fastq", $auth, $authPrefix);
     return ($pj_task, $seq_task);
 }
 
@@ -1921,7 +1965,7 @@ sub get_file_format {
         } elsif ($line =~ /^@/) {
 	        return 'fastq';
         } else {
-	        return 'malformed';
+	        return 'text';
 	    }
     } else {
 	    return 'unknown';
