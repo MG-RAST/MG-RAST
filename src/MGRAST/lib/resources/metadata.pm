@@ -46,6 +46,11 @@ sub new {
             "type" => ['string', 'this type'],
             "version" => ['string', 'version of this ontology']
         },
+        "view" => {
+            "label" => [ 'string', 'metadata label' ],
+            "total" => [ 'int', 'count of unique values' ],
+            "values" => [ 'list', ['string', 'metadata value'] ]
+        },
         "export" => {
             "id"        => [ 'string', 'unique object identifier' ],
             "name"      => [ 'string', 'human readable identifier' ],
@@ -132,6 +137,18 @@ sub info {
                                     'version' => ['string', 'version of ontology to use'] },
                                  'body'     => {},
                                  'options'  => {} }
+            },
+            { 'name'        => "view",
+              'request'     => $self->cgi->url."/".$self->name."/view/{label}",
+              'description' => "Returns list of unique metadata values for given label",
+              'example'     => [ $self->cgi->url."/".$self->name."/view/biome",
+                                 'all biome values' ],
+              'method'      => "GET",
+              'type'        => "synchronous",
+              'attributes'  => $self->attributes->{view},
+              'parameters'  => { 'options'  => {},
+                                 'required' => { "label" => ["string", "valid metadata label"] },
+                                 'body'     => {} }
             },
             { 'name'        => "export",
               'request'     => $self->cgi->url."/".$self->name."/export/{ID}",
@@ -229,6 +246,8 @@ sub request {
         $self->info();
     } elsif ($self->rest->[0] =~ /^(template|cv|ontology)$/) {
         $self->static($self->rest->[0]);
+    } elsif (($self->rest->[0] eq 'view') && (scalar(@{$self->rest}) == 2)) {
+        $self->list_values($self->rest->[1]);
     } elsif (($self->rest->[0] eq 'export') && (scalar(@{$self->rest}) == 2)) {
         $self->instance($self->rest->[1]);
     } elsif (($self->rest->[0] eq 'validate') && ($self->method eq 'GET')) {
@@ -302,6 +321,27 @@ sub static {
             $data->{$o->category_type}{$o->category}{$o->tag} = $info;
         }
     }
+    $self->return_data($data);
+}
+
+# the resource is called with a label parameter
+sub list_values {
+    my ($self, $label) = @_;
+    
+    # get database
+    my $master = $self->connect_to_datasource();
+    my $mddb = MGRAST::Metadata->new();
+    
+    my $values = $mddb->get_unique_for_tag($label);
+    if (@$values == 0) {
+        $self->return_data( {"ERROR" => "Invalid metadata label: ".$label}, 400 );
+    }
+    
+    my $data = {
+        label => $label,
+        total => scalar(@$values),
+        values => $values
+    };
     $self->return_data($data);
 }
 

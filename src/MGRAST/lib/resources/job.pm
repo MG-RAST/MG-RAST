@@ -49,14 +49,16 @@ sub new {
     };
     $self->{create_param} = {
         'metagenome_id' => ["string", "unique MG-RAST metagenome identifier"],
-        'input_id'      => ["string", "shock node id of input sequence file (optional)"]
+        'input_id'      => ["string", "shock node id of input sequence file (optional)"],
+        'submission'    => ["string", "unique submission id (optional)"]
     };
     my @input_stats = map { substr($_, 0, -4) } grep { $_ =~ /_raw$/ } @{$self->seq_stats};
     map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } grep { $_ !~ /drisee/ } @input_stats;
     map { $self->{create_param}{$_} = ['string', 'pipeline option'] } @{$self->pipeline_opts};
     $self->{create_param}{sequence_type} = [
         "cv", [["WGS", "whole genome shotgun sequenceing"],
-               ["Amplicon", "amplicon sequenceing"],
+               ["Amplicon", "amplicon rRNA sequenceing"],
+               ["AmpliconGene", "amplicon gene sequenceing"],
                ["MT", "metatranscriptome sequenceing"]]
     ];
     return $self;
@@ -352,8 +354,17 @@ sub job_action {
                 options   => $job->{options},
                 job_id    => $job->{job_id}
             };
-        } elsif ($action eq 'submit') {
-            my $cmd = $Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_node ".$post->{input_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+        } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
+            my $cmd;
+            if ($action eq 'resubmit') {
+                $cmd = $Conf::resubmit_to_awe." --job_id ".$job->{job_id}." --awe_id ".$post->{awe_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+            } else {
+                my $jdata = $job->data();
+                $cmd = $Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_node ".$post->{input_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+                if (exists $jdata->{submission}) {
+                    $cmd .= " --submit_id ".$jdata->{submission};
+                }
+            }
             my @log = `$cmd 2>&1`;
             chomp @log;
             my @err = grep { $_ =~ /^ERROR/ } @log;
@@ -367,41 +378,27 @@ sub job_action {
                     awe_id => $aid,
                     log    => join("\n", @log)
                 };
-                # update inbox attributes
-                my $node = $self->get_shock_node($post->{input_id}, $self->mgrast_token);
-                my $attr = $node->{attributes};
-                my $action = {
-                    id => $aid,
-                    name => "pipeline",
-                    status => "queued",
-                    start => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-                };
-                if (exists $attr->{actions}) {
-                    push @{$attr->{actions}}, $action;
-                } else {
-                    $attr->{actions} = [$action];
+                # update job attribute
+                $job->data("pipeline_id", $aid);
+                # update inbox attributes if submit
+                if ($post->{input_id} && ($action eq 'submit')) {
+                    my $node = $self->get_shock_node($post->{input_id}, $self->mgrast_token);
+                    my $attr = $node->{attributes};
+                    my $action = {
+                        id => $aid,
+                        name => "pipeline",
+                        status => "queued",
+                        start => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+                    };
+                    if (exists $attr->{actions}) {
+                        push @{$attr->{actions}}, $action;
+                    } else {
+                        $attr->{actions} = [$action];
+                    }
+                    $self->update_shock_node($post->{input_id}, $attr, $self->mgrast_token);
                 }
-                $self->update_shock_node($post->{input_id}, $attr, $self->mgrast_token);
             } else {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
-            }
-        } elsif ($action eq 'resubmit') {
-            my $cmd = $Conf::resubmit_to_awe." --job_id ".$job->{job_id}." --awe_id ".$post->{awe_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
-            my @log = `$cmd 2>&1`;
-            chomp @log;
-            my @err = grep { $_ =~ /^ERROR/ } @log;
-            if (@err) {
-                $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
-            }
-            my @aweid = grep { $_ =~ /^awe job/ } @log;
-            if (@aweid) {
-                my (undef, $aid) = split(/\t/, $aweid[0]);
-                $data = {
-                    awe_id => $aid,
-                    log    => join("\n", @log)
-                };
-            } else {
-                $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID"}, 500 );
             }
         } elsif ($action eq 'share') {
             # get user to share with
