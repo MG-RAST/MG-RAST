@@ -199,7 +199,7 @@ sub status {
         id         => $uuid,
         user       => 'mgu'.$self->user->_id,
         timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-    }
+    };
     
     # get data
     my $nodes  = $self->submission_nodes($uuid, 1);
@@ -435,7 +435,7 @@ sub submit {
         $project_obj = $master->Project->create_project($self->user, $project_name);
     }
     # verify it worked
-    unless ($project_obj) {
+    unless ($project_obj || $metadata_obj) {
         $self->return_data( {"ERROR" => "Missing project information, must have one of metadata_file, project_id, or project_name"}, 400 );
     }
     
@@ -565,6 +565,9 @@ sub submit {
         parameters => $pipeline_params,
         submission => $uuid
     };
+    if ($metadata_file) {
+        $param_obj->{metadata} = $metadata_file;
+    }
     my $param_str = $self->json->encode($param_obj);
     my $param_attr = {
         type  => 'inbox',
@@ -582,9 +585,6 @@ sub submit {
             checksum  => md5_hex($param_str)
         }
     };
-    if ($metadata_file) {
-        $param_obj->{metadata} = $metadata_file;
-    }
     my $param_node = $self->set_shock_node($self->{param_file}, $param_str, $param_attr, $self->token, 1, $self->user_auth);
     $self->edit_shock_acl($param_node->{id}, $self->token, 'mgrast', 'put', 'all', $self->user_auth);
     
