@@ -195,32 +195,38 @@ sub reserve {
 sub status {
     my ($self, $uuid) = @_;
     
+    my $response = {
+        id         => $uuid,
+        user       => 'mgu'.$self->user->_id,
+        timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+    }
+    
     # get data
     my $nodes  = $self->submission_nodes($uuid, 1);
     my $jobs   = $self->submission_jobs($uuid, 1);
     my $submit = $jobs->{submit};
     my $pnode  = $self->get_param_node($submit);
 
-    unless ($submit && $pnode) {
-        $self->return_data({
-            id         => $uuid,
-            user       => 'mgu'.$self->user->_id,
-            status     => "No submission exists for given ID",
-            timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-        });
+    if ((! $submit) || (! $pnode)) {
+        $response->{status} = "No submission exists for given ID";
+        $self->return_data($response);
+    } elsif ($submit->{state} eq 'deleted') {
+        $response->{status} = "Deleted submission";
+        $self->return_data($response);
     }
     
     # get submission info - parameters file
-    my $info  = {};
-    foreach my $n (@{$nodes->{inbox}}) {
-        if ($n->{id} eq $pnode) {
-            my ($info_text, $err) = $self->get_shock_file($n->{id}, undef, $self->token, undef, $self->user_auth);
-            if ($err) {
-                $self->return_data( {"ERROR" => "Unable to fetch Shock file ".$n->{id}.": ".$err}, 500 );
-            }
-            $info = $self->json->decode($info_text);
-            last;
+    my $info = {};
+    eval {
+        my ($info_text, $err) = $self->get_shock_file($pnode, undef, $self->token, undef, $self->user_auth);
+        if ($err) {
+            $self->return_data( {"ERROR" => "Unable to fetch Shock file $pnode: $err"}, 500 );
         }
+        $info = $self->json->decode($info_text);
+    };
+    if (! $info) {
+        $response->{status} = "Broken submission, missing parameter data $pnode";
+        $self->return_data($response);
     }
     
     # get submission results - either stdout from workunit if running or from shock if done
@@ -272,12 +278,8 @@ sub status {
         }
     }
     
-    $self->return_data({
-        id         => $uuid,
-        user       => 'mgu'.$self->user->_id,
-        status     => $output,
-        timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-    });
+    $response->{status} = $output;
+    $self->return_data($response);
 }
 
 sub delete {
@@ -580,6 +582,9 @@ sub submit {
             checksum  => md5_hex($param_str)
         }
     };
+    if ($metadata_file) {
+        $param_obj->{metadata} = $metadata_file;
+    }
     my $param_node = $self->set_shock_node($self->{param_file}, $param_str, $param_attr, $self->token, 1, $self->user_auth);
     $self->edit_shock_acl($param_node->{id}, $self->token, 'mgrast', 'put', 'all', $self->user_auth);
     
