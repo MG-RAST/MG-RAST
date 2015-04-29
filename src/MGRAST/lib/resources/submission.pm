@@ -33,6 +33,7 @@ sub new {
         "pair_file_1"    => [ "string", "RFC 4122 UUID for pair 1 file" ],
         "pair_file_2"    => [ "string", "RFC 4122 UUID for pair 2 file" ],
         "index_file"     => [ "string", "RFC 4122 UUID for optional index (barcode) file" ],
+        "mg_name"        => [ "string", "name of metagenome for pair-join"],
         "barcode_count"  => [ "int", "number of unique barcodes in index_file" ],
         "retain"         => [ "boolean", "If true retain non-overlapping sequences, default is false" ],
         # pipeline flags
@@ -336,6 +337,7 @@ sub submit {
     my $pair_file_1    = $post->{'pair_file_1'} || "";
     my $pair_file_2    = $post->{'pair_file_2'} || "";
     my $index_file     = $post->{'index_file'} || "";
+    my $mg_name        = $post->{'mg_name'} || "";
     my $barcode_count  = $post->{'barcode_count'} || 0;
     my $retain         = $post->{'retain'} ? 1 : 0;
     my $seq_files      = $post->{'seq_files'} || [];
@@ -450,7 +452,7 @@ sub submit {
         $self->add_submission($pair_file_1, $uuid, $self->token, $self->user_auth);
         $self->add_submission($pair_file_2, $uuid, $self->token, $self->user_auth);
         $self->add_submission($index_file, $uuid, $self->token, $self->user_auth);
-        my $outprefix = $self->uuidv4();
+        my $outprefix = $mg_name || $self->uuidv4();
         # need stats on input files, each one can be 1 or 2 tasks
         push @$tasks, $self->build_seq_stat_task(0, -1, $pair_file_1, undef, $self->token, $self->user_auth);
         my $p2_tid = scalar(@$tasks);
@@ -485,7 +487,7 @@ sub submit {
         };
         $self->add_submission($pair_file_1, $uuid, $self->token, $self->user_auth);
         $self->add_submission($pair_file_2, $uuid, $self->token, $self->user_auth);
-        my $outprefix = $self->uuidv4();
+        my $outprefix = $mg_name || $self->uuidv4();
         # need stats on input files, each one can be 1 or 2 tasks
         push @$tasks, $self->build_seq_stat_task(0, -1, $pair_file_1, undef, $self->token, $self->user_auth);
         my $p2_tid = scalar(@$tasks);
