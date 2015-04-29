@@ -1447,6 +1447,9 @@ sub get_barcode_files {
 sub metadata_validation {
     my ($self, $uuid, $is_inbox, $extract_barcodes, $auth, $authPrefix, $submit_id) = @_;
     
+    use MGRAST::Metadata;
+    my $mddb = MGRAST::Metadata->new();
+    
     # get and check node
     my $node = $self->get_shock_node($uuid, $auth, $authPrefix);
     my $file_suffix = (split(/\./, $node->{file}{name}))[-1];
@@ -1478,7 +1481,7 @@ sub metadata_validation {
     my $master = $self->connect_to_datasource();
     my $md_file = $Conf::temp."/".$node->{id}."_".$node->{file}{name};
     $self->get_shock_file($node->{id}, $md_file, $auth, undef, $authPrefix);
-    my ($is_valid, $data, $log) = MGRAST::Metadata->validate_metadata($md_file);
+    my ($is_valid, $data, $log) = $mddb->validate_metadata($md_file);
     
     my $bar_id = undef;
     my $bar_count = 0;
