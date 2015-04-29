@@ -1540,7 +1540,7 @@ sub metadata_validation {
                 $barcodes->{$mg_name} = $library->{data}{forward_barcodes}{value};
             }
         }
-        my $bar_count = scalar(keys(%$barcodes));
+        $bar_count = scalar(keys(%$barcodes));
         if (($bar_count > 0) && $extract_barcodes && $self->user) {
             my $bar_name = fileparse($node->{file}{name}, qr/\.[^.]*/).".barcodes";
             my $bar_data = join("\n", map { $barcodes->{$_}."\t".$_ } keys %$barcodes)."\n";
@@ -1570,7 +1570,6 @@ sub metadata_validation {
     } else {
         $data = $data->{data};
     }
-    
     return ($is_valid, $data, $log, $bar_id, $bar_count, $json_node);
 }
 
