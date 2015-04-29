@@ -375,8 +375,8 @@ sub print_batch {
 	    # pull data from indexed shock file
 	    my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seeks->[$i].'&length='.$lens->[$i]);
 	    if ($err) {
-		print "\nERROR downloading: $err\n";
-		exit 0;
+		    print "\nERROR downloading: $err\n";
+		    exit 0;
 	    }
 	    chomp $rec;
 	    foreach my $line (split(/\n/, $rec)) {

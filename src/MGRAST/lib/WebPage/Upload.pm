@@ -849,7 +849,7 @@ sub check_for_duplicates {
       }
       $file_size .= "\t";
       if ($dupe) {
-	push @$dupes, [$dupe, $file_size, $seqfile];
+	      push @$dupes, [$dupe, $file_size, $seqfile, $info->{file_checksum}];
       }
     }
   }
@@ -861,7 +861,7 @@ sub check_for_duplicates {
     print $cgi->header(-charset => 'UTF-8');
     print $output;
   } elsif (@$dupes > 0) {
-    $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tFile Size\t\tYour File\n---------------\t---------------\t---------------\n";
+    $output = "WARNING: The following selected files already exist in MG-RAST:\n\nExisting ID\tFile Size\t\tYour File\tMD5 checksum\n---------------\t---------------\t---------------\t---------------\n";
     map { $output .= join("\t", @$_)."\n" } @$dupes;
     $output .= "\nResubmitting jobs that already exist in MG-RAST reduces our resources and can delay the processing of jobs for all MG-RAST users.  Do you really wish to continue with this submission and create ".scalar(@$dupes)." duplicate metagenomes?";
     print $cgi->header(-charset => 'UTF-8');
@@ -907,12 +907,12 @@ sub send_email_for_duplicate_submission {
         $file_size = format_bytes($info->{file_size});
       }
       if ($dupe) {
-	push @$dupes, [$dupe, $file_size, $seqfile];
+	push @$dupes, [$dupe, $file_size, $seqfile, $info->{file_checksum}];
       }
     }
   }
   if (@$dupes > 0 && $max_byte_size > $Conf::dup_job_notification_size_limit) {
-    $msg = "WARNING: The user \"".$user->login."\" submitted files that already exist in MG-RAST:\n\nExisting ID, File Size, Their File\n--------------------------------------------------------------------------------\n";
+    $msg = "WARNING: The user \"".$user->login."\" submitted files that already exist in MG-RAST:\n\nExisting ID, File Size, Their File, MD5 checksum\n-----------------------------------------------------------------------------------------------\n";
     map { $msg .= join(", ", @$_)."\n" } @$dupes;
     my $mailer = Mail::Mailer->new();
     $mailer->open({ From    => "mg-rast\@mcs.anl.gov",
