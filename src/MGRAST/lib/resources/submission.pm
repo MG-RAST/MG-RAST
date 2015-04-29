@@ -199,7 +199,7 @@ sub status {
         id         => $uuid,
         user       => 'mgu'.$self->user->_id,
         timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-    }
+    };
     
     # get data
     my $nodes  = $self->submission_nodes($uuid, 1);
