@@ -81,6 +81,7 @@ sub info {
                       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                      'nocutoff' => ['boolean', 'if true, get data using no cutoffs'],
                       'source'   => ['cv', $self->{sources}],
                       'type'     => ['cv', [ ['organism', 'return organism data'],
 											  ['function', 'return functional data'],
@@ -148,6 +149,7 @@ sub prepare_data {
     $params->{evalue}   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
     $params->{identity} = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
     $params->{length}   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
+    $params->{nocutoff} = $cgi->param('nocutoff') ? 1 : 0;
   
     # get database
     my $master = $self->connect_to_datasource();
@@ -167,6 +169,16 @@ sub prepare_data {
     }
     if (int($params->{length}) < 1) {
         $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 500);
+    }
+    
+    if ($params->{nocutoff}) {
+        $params->{evalue}   = undef;
+        $params->{identity} = undef;
+        $params->{length}   = undef;
+    } else {
+        $params->{evalue}   = int($params->{evalue});
+        $params->{identity} = int($params->{identity});
+        $params->{length}   = int($params->{length});
     }
   
     # validate type / source
@@ -203,15 +215,15 @@ sub prepare_data {
         my $result = [];
         if ($params->{hit_type} eq 'all') {
             # my ($self, $sources, $eval, $ident, $alen, $with_taxid) = @_;
-            (undef, $result) = $mgdb->get_organisms_for_sources([$params->{source}], int($params->{evalue}), int($params->{identity}), int($params->{length}), 1);
+            (undef, $result) = $mgdb->get_organisms_for_sources([$params->{source}], $params->{evalue}, $params->{identity}, $params->{length}, 1);
             # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
         } elsif ($params->{hit_type} eq 'single') {
             # my ($self, $source, $eval, $ident, $alen, $with_taxid) = @_;
-            $result = $mgdb->get_organisms_unique_for_source($params->{source}, int($params->{evalue}), int($params->{identity}), int($params->{length}), 1);
+            $result = $mgdb->get_organisms_unique_for_source($params->{source}, $params->{evalue}, $params->{identity}, $params->{length}, 1);
             # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
         } elsif ($params->{hit_type} eq 'lca') {
             # my ($self, $eval, $ident, $alen) = @_;
-            $result = $mgdb->get_lca_data(int($params->{evalue}), int($params->{identity}), int($params->{length}));
+            $result = $mgdb->get_lca_data($params->{evalue}, $params->{identity}, $params->{length});
             # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
         }
         foreach my $row (@$result) {
@@ -230,7 +242,7 @@ sub prepare_data {
         $ttype = 'Function';
         my $function2ont = $mgdb->get_hierarchy('ontology', $params->{source});
         # my ($self, $source, $eval, $ident, $alen) = @_;
-        my (undef, $result) = $mgdb->get_ontology_for_source($params->{source}, int($params->{evalue}), int($params->{identity}), int($params->{length}));
+        my (undef, $result) = $mgdb->get_ontology_for_source($params->{source}, $params->{evalue}, $params->{identity}, $params->{length});
         # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
         foreach my $row (@$result) {
             next unless (exists $function2ont->{$row->[1]});
@@ -241,16 +253,25 @@ sub prepare_data {
     }
     elsif ($params->{type} eq 'feature') {
         $ttype = 'Gene';
-        my $md52id = {};
-        my $result = $mgdb->get_md5_data(undef, undef, undef, undef, 1);
-        # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
+        my $id2ann = {}; # md5_id => [ [accession, function, organism] ]
+        my $id2md5 = {}; # md5_id => md5
+        # mgid, md5_id, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
+        my $result = $mgdb->get_md5_data(undef, $params->{evalue}, $params->{identity}, $params->{length}, 1);
         my @md5s = map { $_->[1] } @$result;
-        my $mmap = $mgdb->decode_annotation('md5', \@md5s);
-        map { push @{$md52id->{$_->[1]}}, $_->[0] } @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) };
+        # md5_id, accession, md5, function, organism, source
+        foreach my $a ( @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) } ) {
+            $id2md5->{$a->[0]} = $a->[2];
+            push @{ $id2md5->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
+        }
         foreach my $row (@$result) {
-            my $md5 = $mmap->{$row->[1]};
-            next unless (exists $md52id->{$md5});
-            push(@$rows, { "id" => $md5, "metadata" => { $params->{source}." ID" => $md52id->{$md5} } });
+            my $mid = $row->[1];
+            next unless (exists $id2md5->{$mid});
+            my $metadata = {
+                accession => [ map {$_->[0]} @{$id2ann->{$mid}} ],
+                function  => [ map {$_->[1]} @{$id2ann->{$mid}} ],
+                organism  => [ map {$_->[2]} @{$id2ann->{$mid}} ]
+            };
+            push(@$rows, { "id" => $id2md5->{$mid}, "metadata" => $metadata });
             push(@$values, [ $self->toFloat($row->[2]), $self->toFloat($row->[3]), $self->toFloat($row->[5]), $self->toFloat($row->[7]) ]);
         }
     }
