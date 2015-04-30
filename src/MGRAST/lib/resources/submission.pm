@@ -267,15 +267,13 @@ sub status {
         push @{$output->{preprocessing}}, $summery;
     }
     
-    # completed, check children workflows - get current stage
-    if (($submit->{state} eq 'completed') && (@{$jobs->{pipeline}} > 0)) {
-        foreach my $pj (@{$jobs->{pipeline}}) {
-            my $summery = [];
-            foreach my $task (@{$pj->{tasks}}) {
-                push @$summery, { stage => $task->{cmd}{description}, status => $task->{state} };
-            }
-            $output->{metagenomes}{ $pj->{info}{userattr}{id} } = $summery;
+    # check children workflows - get current stage
+    foreach my $pj (@{$jobs->{pipeline}}) {
+        my $summery = [];
+        foreach my $task (@{$pj->{tasks}}) {
+            push @$summery, { stage => $task->{cmd}{description}, status => $task->{state} };
         }
+        $output->{metagenomes}{ $pj->{info}{userattr}{id} } = $summery;
     }
     
     $response->{status} = $output;

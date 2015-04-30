@@ -550,7 +550,7 @@ sub process_file {
         unless ($is_valid) {
             $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", @$log, @{$md_obj->{data}})}, 422);
         }
-        unless ($post->{metagenome} && @{$post->{metagenome}}) {
+        unless ($post->{metagenome} && (@{$post->{metagenome}} > 0)) {
             $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
         }
         if (($type eq 'update') && (! $post->{project})) {
@@ -565,16 +565,16 @@ sub process_file {
                 # get data
                 my $job = $master->Job->get_objects( {metagenome_id => $mgid} );
                 unless ($job && @$job) {
-                    $self->return_data( {"ERROR" => "metagenome id $id does not exist"}, 404 );
+                    $self->return_data( {"ERROR" => "Metagenome id $id does not exist"}, 404 );
                 }
                 $job = $job->[0];
                 # check rights
                 unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $mgid) || $self->user && $self->user->has_star_right('edit', 'metagenome'))) {
-                    $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+                    $self->return_data( {"ERROR" => "Insufficient permissions to view this data"}, 401 );
                 }
                 push @jobs, $job;
             } else {
-                $self->return_data( {"ERROR" => "invalid metagenome id format: ".$id}, 400 );
+                $self->return_data( {"ERROR" => "Invalid metagenome id format: ".$id}, 400 );
             }
         }
         
