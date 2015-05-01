@@ -199,7 +199,7 @@ sub list {
         "info.pipeline" => 'submission',
         "info.user" => $user_id
     };
-    my $submit_jobs = $self->get_awe_query({}, $self->token, $self->user_auth);
+    my $submit_jobs = $self->get_awe_query($submit_query, $self->token, $self->user_auth);
     
     # get / return summary
     foreach my $job (@{$submit_jobs->{data}}) {
