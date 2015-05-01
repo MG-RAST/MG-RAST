@@ -101,7 +101,7 @@ sub info {
                                           'type' => ['string', "type of submission"],
                                           'status' => ['string', "status of submission"],
                                           'timestamp' => ['string', "timestamp of submission creation"] },
-                                        "submission object" ]
+                                        "submission object" ]]
                                    ]
               },
               'parameters'  => {
