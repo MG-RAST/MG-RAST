@@ -202,9 +202,9 @@ sub list {
     my $submit_jobs = $self->get_awe_query({}, $self->token, $self->user_auth);
     
     # get / return summary
-    foreach my $job (@{$inbox_jobs->{data}}) {
+    foreach my $job (@{$submit_jobs->{data}}) {
         if ($job->{info}{userattr}{submission}) {
-            push @$submit_data {
+            push @$submit_data, {
                 id => $job->{info}{userattr}{submission},
                 type => $job->{info}{description},
                 status => $job->{state},
