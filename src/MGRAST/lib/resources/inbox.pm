@@ -354,6 +354,9 @@ sub validate_metadata {
             $response->{barcode_file} = $bar_id;
             $response->{barcode_count} = $bar_count;
         }
+        if ($json_node) {
+            $response->{extracted} = $json_node->{id};
+        }
     } else {
         $response->{status} = "invalid metadata";
         $response->{error} = ($data && (@$data > 0)) ? $data : $log;
@@ -531,13 +534,17 @@ sub view_inbox {
         $info->{actions} = $node->{attributes}{actions};
         push @$files, $info;
     }
-    $self->return_data({
-        id        => $user_id,
-        user      => $self->user->login,
-        timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
-        files     => $files,
-        url       => $self->cgi->url."/".$self->name
-    });
+    if ($uuid) {
+        $self->return_data($files->[0]);
+    } else {
+        $self->return_data({
+            id        => $user_id,
+            user      => $self->user->login,
+            timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
+            files     => $files,
+            url       => $self->cgi->url."/".$self->name
+        });
+    }
 }
 
 sub view_inbox_actions {
