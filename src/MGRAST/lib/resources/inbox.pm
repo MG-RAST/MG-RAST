@@ -35,17 +35,20 @@ sub new {
     $self->{id_attr} = {%{$self->{base_attr}}, ('awe_id' => ['string', "url/id of awe job" ])};
     $self->{states} = ["completed", "deleted", "suspend", "in-progress", "pending", "queued"];
     # build workflow
-    $self->{wf_info} = {
-        shock_url     => $Conf::shock_url,
-        job_name      => "",
-        user_id       => 'mgu'.$self->user->_id,
-        user_name     => $self->user->login,
-        user_email    => $self->user->email,
-        pipeline      => "inbox_action",
-        clientgroups  => $Conf::mgrast_inbox_clientgroups,
-        submission_id => undef,
-        task_list     => ""
-    };
+    $self->{wf_info} = {};
+    if ($self->user) {
+        $self->{wf_info} = {
+            shock_url     => $Conf::shock_url,
+            job_name      => "",
+            user_id       => 'mgu'.$self->user->_id,
+            user_name     => $self->user->login,
+            user_email    => $self->user->email,
+            pipeline      => "inbox_action",
+            clientgroups  => $Conf::mgrast_inbox_clientgroups,
+            submission_id => undef,
+            task_list     => ""
+        };
+    }
     
     return $self;
 }
