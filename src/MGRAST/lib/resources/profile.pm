@@ -348,6 +348,9 @@ sub prepare_data {
             }
 	    };
 	    my $node = $self->set_shock_node($obj->{id}.'.biom', $obj, $attr, $self->mgrast_token);
+	    if ($data->{public}) {
+	        $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');
+	    }
 	}
     
     return $obj;
