@@ -150,15 +150,6 @@ sub prepare_data {
     $params->{identity} = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
     $params->{length}   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     $params->{nocutoff} = $cgi->param('nocutoff') ? 1 : 0;
-  
-    # get database
-    my $master = $self->connect_to_datasource();
-    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
-    unless (ref($mgdb)) {
-        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
-    }
-    my $id = $data->{metagenome_id};
-    $mgdb->set_jobs([$id]);
     
     # validate cutoffs
     if (int($params->{evalue}) < 1) {
@@ -180,6 +171,45 @@ sub prepare_data {
         $params->{identity} = int($params->{identity});
         $params->{length}   = int($params->{length});
     }
+    
+    # check if cached in shock
+    my $id = $data->{metagenome_id};
+    my $shock_cached = 0;
+    if (($params->{type} eq 'feature') && $params->{nocutoff}) {
+        $shock_cached = 1;
+        my $info = {
+            id => 'mgm'.$id,
+            type => 'metagenome',
+            data_type => 'profile',
+            stage_name => 'done'
+        };
+        my $nodes = $self->get_shock_query($info, $self->mgrast_token);
+        foreach my $n (@$nodes) {
+            # its cached ! return the node file
+            if ($n->{attributes}{data_source} && ($n->{attributes}{data_source} eq $params->{source})) {
+                my ($content, $err) = $self->get_shock_file($n->{id}, undef, $self->mgrast_token);
+                if ($err) {
+                    $self->return_data( {"ERROR" => $err}, 500 );
+                }
+                my $response = undef;
+                eval {
+                    $response = $self->json->decode($content);
+                };
+                if ($@ || (! $response)) {
+                    $self->return_data( {"ERROR" => "Invalid BIOM format"}, 500 );
+                }
+                return $response;
+            }
+        }
+    }
+    
+    # get database
+    my $master = $self->connect_to_datasource();
+    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
+    unless (ref($mgdb)) {
+        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
+    }
+    $mgdb->set_jobs([$id]);
   
     # validate type / source
     my $all_srcs = {};
@@ -276,20 +306,51 @@ sub prepare_data {
         }
     }
   
-    my $obj  = { "id"                  => "mgm".$id.'_'.$params->{type}.'_'.$params->{source},
-	             "format"              => "Biological Observation Matrix 1.0",
-	             "format_url"          => "http://biom-format.org",
-	             "type"                => $ttype." table",
-	             "generated_by"        => "MG-RAST revision ".$Conf::server_version,
-	             "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-	             "matrix_type"         => "dense",
-	             "matrix_element_type" => "float",
-	             "shape"               => [ scalar(@$values), 4 ],
-	             "rows"                => $rows,
-	             "columns"             => $columns,
-	             "data"                => $values };
+    my $obj = {
+        "id"                  => "mgm".$id.'_'.$params->{type}.'_'.$params->{source},
+        "format"              => "Biological Observation Matrix 1.0",
+        "format_url"          => "http://biom-format.org",
+        "type"                => $ttype." table",
+        "generated_by"        => "MG-RAST revision ".$Conf::server_version,
+        "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+        "matrix_type"         => "dense",
+        "matrix_element_type" => "float",
+        "shape"               => [ scalar(@$values), 4 ],
+        "rows"                => $rows,
+        "columns"             => $columns,
+        "data"                => $values
+	};
+	
+	# cach it in shock if right type
+	if ($shock_cached) {
+	    my $attr = {
+	        id            => 'mgm'.$id,
+	        job_id        => $data->{job_id},
+	        created       => $data->{created_on},
+	        name          => $data->{name},
+	        owner         => 'mgu'.$data->{owner},
+	        sequence_type => $data->{sequence_type},
+	        status        => $data->{public} ? 'public' : 'private',
+	        project_id    => undef,
+	        project_name  => undef,
+            type          => 'metagenome',
+            data_type     => 'profile',
+            data_source   => $params->{source},
+            file_format   => 'biom',
+            stage_name    => 'done',
+            stage_id      => '999'
+	    };
+	    eval {
+	        my $proj = $data->primary_project;
+	        if ($proj->{id}) {
+	            $attr->{project_id} = 'mgp'.$proj->{id};
+	            $attr->{project_name} = $proj->{name};
+            }
+	    };
+	    my $node = $self->set_shock_node($obj->{id}.'.biom', $obj, $attr, $self->mgrast_token);
+	}
     
-  return $obj;
+    return $obj;
 }
 
 1;
