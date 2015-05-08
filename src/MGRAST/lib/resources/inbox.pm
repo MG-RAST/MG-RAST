@@ -35,17 +35,20 @@ sub new {
     $self->{id_attr} = {%{$self->{base_attr}}, ('awe_id' => ['string', "url/id of awe job" ])};
     $self->{states} = ["completed", "deleted", "suspend", "in-progress", "pending", "queued"];
     # build workflow
-    $self->{wf_info} = {
-        shock_url     => $Conf::shock_url,
-        job_name      => "",
-        user_id       => 'mgu'.$self->user->_id,
-        user_name     => $self->user->login,
-        user_email    => $self->user->email,
-        pipeline      => "inbox_action",
-        clientgroups  => $Conf::mgrast_inbox_clientgroups,
-        submission_id => undef,
-        task_list     => ""
-    };
+    $self->{wf_info} = {};
+    if ($self->user) {
+        $self->{wf_info} = {
+            shock_url     => $Conf::shock_url,
+            job_name      => "",
+            user_id       => 'mgu'.$self->user->_id,
+            user_name     => $self->user->login,
+            user_email    => $self->user->email,
+            pipeline      => "inbox_action",
+            clientgroups  => $Conf::mgrast_inbox_clientgroups,
+            submission_id => undef,
+            task_list     => ""
+        };
+    }
     
     return $self;
 }
@@ -354,6 +357,9 @@ sub validate_metadata {
             $response->{barcode_file} = $bar_id;
             $response->{barcode_count} = $bar_count;
         }
+        if ($json_node) {
+            $response->{extracted} = $json_node->{id};
+        }
     } else {
         $response->{status} = "invalid metadata";
         $response->{error} = ($data && (@$data > 0)) ? $data : $log;
@@ -531,13 +537,17 @@ sub view_inbox {
         $info->{actions} = $node->{attributes}{actions};
         push @$files, $info;
     }
-    $self->return_data({
-        id        => $user_id,
-        user      => $self->user->login,
-        timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
-        files     => $files,
-        url       => $self->cgi->url."/".$self->name
-    });
+    if ($uuid) {
+        $self->return_data($files->[0]);
+    } else {
+        $self->return_data({
+            id        => $user_id,
+            user      => $self->user->login,
+            timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
+            files     => $files,
+            url       => $self->cgi->url."/".$self->name
+        });
+    }
 }
 
 sub view_inbox_actions {

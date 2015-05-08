@@ -1494,10 +1494,6 @@ sub metadata_validation {
         if (scalar(@$projects) && (! $self->user->has_right(undef, 'edit', 'project', $projects->[0]->{id}))) {
             $self->return_data( {"ERROR" => "The project name you have chosen already exists and you do not have edit rights to this project"}, 401 );
         }
-        # update node
-        my $attr = $node->{attributes};
-        $attr->{data_type} = 'metadata';
-        $self->update_shock_node($node->{id}, $attr, $auth, $authPrefix);
         # add metadata json format to inbox
         if ($is_inbox && $self->user) {
             my $md_basename = fileparse($node->{file}{name}, qr/\.[^.]*/);
@@ -1523,6 +1519,14 @@ sub metadata_validation {
             $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix);
             $self->edit_shock_acl($json_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
+        # update origional metadata node
+        my $attr = $node->{attributes};
+        $attr->{data_type} = 'metadata';
+        if ($json_node) {
+            $attr->{extracted} = $json_node->{id};
+        }
+        $self->update_shock_node($node->{id}, $attr, $auth, $authPrefix);
+        
         # extract barcodes if exist
         my $barcodes = {};
         foreach my $sample ( @{$data->{samples}} ) {
