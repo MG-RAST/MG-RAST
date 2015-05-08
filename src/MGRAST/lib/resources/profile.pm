@@ -22,9 +22,9 @@ sub new {
     $self->{rights} = \%rights;
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{sources} = [
-        $self->source->{m5nr}[0],
+        $self->source->{m5nr},
         @{$self->source->{protein}},
-        $self->source->{m5rna}[0],
+        $self->source->{m5rna},
         @{$self->source->{rna}},
         @{$self->source->{ontology}}
     ];
