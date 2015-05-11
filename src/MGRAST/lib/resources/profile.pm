@@ -3,7 +3,9 @@ package resources::profile;
 use strict;
 use warnings;
 no warnings('once');
+
 use POSIX qw(strftime);
+use List::MoreUtils qw(natatime);
 
 use Conf;
 use MGRAST::Analysis;
@@ -288,11 +290,24 @@ sub prepare_data {
         # mgid, md5_id, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
         my $result = $mgdb->get_md5_data(undef, $params->{evalue}, $params->{identity}, $params->{length}, 1);
         my @md5s = map { $_->[1] } @$result;
-        # md5_id, accession, md5, function, organism, source
-        foreach my $a ( @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) } ) {
-            $id2md5->{$a->[0]} = $a->[2];
-            push @{ $id2md5->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
+        # from analysisdb => md5_id, accession, md5, function, organism, source
+        #foreach my $a ( @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) } ) {
+        #    $id2md5->{$a->[0]} = $a->[2];
+        #    push @{ $id2md5->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
+        #}
+        # from m5nr solr / by batch of 1000
+        my $fields = ['md5_id', 'md5', 'organism', 'function', 'accession'];
+        my $srcid  = $mgdb->_src_id->{$params->{source}};
+        my $iter   = natatime 1000, @md5s;
+        while (my @curr = $iter->()) {
+            my $query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @curr)."))";
+            my ($solr_data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$mgdb->_version, $query_str, "", 0, 1000000000, $fields);
+            foreach my $info (@$solr_data) {
+                $id2md5->{$info->{md5_id}} = $info->{md5};
+                push @{ $id2md5->{$info->{md5_id}} }, [ $info->{accession}, $info->{function}, $info->{organism} ];
+            }
         }
+        # add metadata to rows
         foreach my $row (@$result) {
             my $mid = $row->[1];
             next unless (exists $id2md5->{$mid});
