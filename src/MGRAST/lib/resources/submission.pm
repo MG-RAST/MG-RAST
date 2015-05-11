@@ -262,10 +262,10 @@ sub status {
     # get original input files as inbox objects
     my @in_ids = ();
     my $inputs = [];
-    if (ref($info->{files}) eq "HASH") {
-        @in_ids = values %{$info->{files}};
-    } elsif (ref($info->{files}) eq "ARRAY") {
-        @in_ids = @{$info->{files}};
+    if (ref($info->{input}{files}) eq "HASH") {
+        @in_ids = values %{$info->{input}{files}};
+    } elsif (ref($info->{input}{files}) eq "ARRAY") {
+        @in_ids = @{$info->{input}{files}};
     }
     foreach my $fid (@in_ids) {
         foreach my $n (@{$nodes->{inbox}}) {
