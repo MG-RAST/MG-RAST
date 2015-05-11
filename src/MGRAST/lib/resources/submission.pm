@@ -259,6 +259,23 @@ sub status {
     my $report = $self->get_task_report($submit->{tasks}[-1], 'stdout', $self->token, $self->user_auth);
     my $result = $self->parse_submit_output($report);
     
+    # get original input files as inbox objects
+    my @in_ids = ();
+    my $inputs = [];
+    if (ref($info->{files}) eq "HASH") {
+        @in_ids = values $info->{files};
+    } elsif (ref($info->{files}) eq "ARRAY") {
+        @in_ids = @{$info->{files}};
+    }
+    foreach my $fid (@in_ids) {
+        foreach my $n (@{$nodes->{inbox}}) {
+            if ($n->{id} eq $fid) {
+                push @$inputs, $self->node_to_inbox($n, $self->token, $self->user_auth);
+                last;
+            }
+        }
+    }
+    
     # get submitted sequence files as inbox objects
     my $seqs = [];
     foreach my $fname (@{$info->{files}}) {
@@ -272,12 +289,13 @@ sub status {
     
     # set output
     my $output = {
-        type => $info->{input}{type},    # submission type
-        inputs => $info->{input}{files}, # origional input files of submission
-        sequences => $seqs,              # inbox info of sequences for analysis pipeline
-        submitted => $result,            # info on success or failer of sequences
-        preprocessing => [],             # info of preprocessing pipeline stages
-        metagenomes => {}                # info of analysis pipeline stages per metagenome
+        type => $info->{input}{type}, # submission type
+        inputs => $inputs,            # inbox info of original input files of submission
+        sequences => $seqs,           # inbox info of sequences for analysis pipeline
+        submitted => $result,         # info on success or failer of sequences
+        preprocessing => [],          # info of preprocessing pipeline stages
+        metagenomes => [],            # info of analysis pipeline stages per metagenome
+        timestamp => $submit->{info}{submittime},  # submission time
     };
     
     # status of preprocessing workflow
@@ -295,11 +313,16 @@ sub status {
     
     # check children workflows - get current stage
     foreach my $pj (@{$jobs->{pipeline}}) {
-        my $summery = [];
-        foreach my $task (@{$pj->{tasks}}) {
-            push @$summery, { stage => $task->{cmd}{description}, status => $task->{state} };
-        }
-        $output->{metagenomes}{ $pj->{info}{userattr}{id} } = $summery;
+        my $tasknum = scalar(@{$pj->{tasks}});
+        my $summery = {
+            id => $pj->{info}{userattr}{id},
+            name => $pj->{info}{userattr}{name},
+            status => $pj->{state},
+            timestamp => $pj->{info}{submittime},
+            total => $tasknum,
+            completed => $tasknum - $pj->{remaintasks}
+        };
+        push @{$output->{metagenomes}}, $summery;
     }
     
     $response->{status} = $output;
