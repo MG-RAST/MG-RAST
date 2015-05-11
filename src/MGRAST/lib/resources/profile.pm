@@ -293,7 +293,7 @@ sub prepare_data {
         # from analysisdb => md5_id, accession, md5, function, organism, source
         #foreach my $a ( @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) } ) {
         #    $id2md5->{$a->[0]} = $a->[2];
-        #    push @{ $id2md5->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
+        #    push @{ $id2ann->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
         #}
         # from m5nr solr / by batch of 1000
         my $fields = ['md5_id', 'md5', 'organism', 'function', 'accession'];
@@ -304,7 +304,7 @@ sub prepare_data {
             my ($solr_data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$mgdb->_version, $query_str, "", 0, 1000000000, $fields);
             foreach my $info (@$solr_data) {
                 $id2md5->{$info->{md5_id}} = $info->{md5};
-                push @{ $id2md5->{$info->{md5_id}} }, [ $info->{accession}, $info->{function}, $info->{organism} ];
+                push @{ $id2ann->{$info->{md5_id}} }, [ $info->{accession}, $info->{function}, $info->{organism} ];
             }
         }
         # add metadata to rows
