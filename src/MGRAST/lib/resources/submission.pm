@@ -263,7 +263,7 @@ sub status {
     my @in_ids = ();
     my $inputs = [];
     if (ref($info->{files}) eq "HASH") {
-        @in_ids = values $info->{files};
+        @in_ids = values %{$info->{files}};
     } elsif (ref($info->{files}) eq "ARRAY") {
         @in_ids = @{$info->{files}};
     }
