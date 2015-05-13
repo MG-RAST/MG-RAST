@@ -3,7 +3,9 @@ package resources::profile;
 use strict;
 use warnings;
 no warnings('once');
+
 use POSIX qw(strftime);
+use List::MoreUtils qw(natatime);
 
 use Conf;
 use MGRAST::Analysis;
@@ -22,9 +24,9 @@ sub new {
     $self->{rights} = \%rights;
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
     $self->{sources} = [
-        $self->source->{m5nr}[0],
+        $self->source->{m5nr},
         @{$self->source->{protein}},
-        $self->source->{m5rna}[0],
+        $self->source->{m5rna},
         @{$self->source->{rna}},
         @{$self->source->{ontology}}
     ];
@@ -81,6 +83,7 @@ sub info {
                       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                      'nocutoff' => ['boolean', 'if true, get data using no cutoffs'],
                       'source'   => ['cv', $self->{sources}],
                       'type'     => ['cv', [ ['organism', 'return organism data'],
 											  ['function', 'return functional data'],
@@ -148,15 +151,7 @@ sub prepare_data {
     $params->{evalue}   = defined($cgi->param('evalue')) ? $cgi->param('evalue') : $self->{cutoffs}{evalue};
     $params->{identity} = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
     $params->{length}   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
-  
-    # get database
-    my $master = $self->connect_to_datasource();
-    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
-    unless (ref($mgdb)) {
-        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
-    }
-    my $id = $data->{metagenome_id};
-    $mgdb->set_jobs([$id]);
+    $params->{nocutoff} = $cgi->param('nocutoff') ? 1 : 0;
     
     # validate cutoffs
     if (int($params->{evalue}) < 1) {
@@ -168,6 +163,55 @@ sub prepare_data {
     if (int($params->{length}) < 1) {
         $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 500);
     }
+    
+    if ($params->{nocutoff}) {
+        $params->{evalue}   = undef;
+        $params->{identity} = undef;
+        $params->{length}   = undef;
+    } else {
+        $params->{evalue}   = int($params->{evalue});
+        $params->{identity} = int($params->{identity});
+        $params->{length}   = int($params->{length});
+    }
+    
+    # check if cached in shock
+    my $id = $data->{metagenome_id};
+    my $shock_cached = 0;
+    if (($params->{type} eq 'feature') && $params->{nocutoff}) {
+        $shock_cached = 1;
+        my $info = {
+            id => 'mgm'.$id,
+            type => 'metagenome',
+            data_type => 'profile',
+            stage_name => 'done'
+        };
+        my $nodes = $self->get_shock_query($info, $self->mgrast_token);
+        foreach my $n (@$nodes) {
+            # its cached ! return the node file
+            if ($n->{attributes}{data_source} && ($n->{attributes}{data_source} eq $params->{source})) {
+                my ($content, $err) = $self->get_shock_file($n->{id}, undef, $self->mgrast_token);
+                if ($err) {
+                    $self->return_data( {"ERROR" => $err}, 500 );
+                }
+                my $response = undef;
+                eval {
+                    $response = $self->json->decode($content);
+                };
+                if ($@ || (! $response)) {
+                    $self->return_data( {"ERROR" => "Invalid BIOM format"}, 500 );
+                }
+                return $response;
+            }
+        }
+    }
+    
+    # get database
+    my $master = $self->connect_to_datasource();
+    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
+    unless (ref($mgdb)) {
+        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
+    }
+    $mgdb->set_jobs([$id]);
   
     # validate type / source
     my $all_srcs = {};
@@ -203,15 +247,15 @@ sub prepare_data {
         my $result = [];
         if ($params->{hit_type} eq 'all') {
             # my ($self, $sources, $eval, $ident, $alen, $with_taxid) = @_;
-            (undef, $result) = $mgdb->get_organisms_for_sources([$params->{source}], int($params->{evalue}), int($params->{identity}), int($params->{length}), 1);
+            (undef, $result) = $mgdb->get_organisms_for_sources([$params->{source}], $params->{evalue}, $params->{identity}, $params->{length}, 1);
             # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
         } elsif ($params->{hit_type} eq 'single') {
             # my ($self, $source, $eval, $ident, $alen, $with_taxid) = @_;
-            $result = $mgdb->get_organisms_unique_for_source($params->{source}, int($params->{evalue}), int($params->{identity}), int($params->{length}), 1);
+            $result = $mgdb->get_organisms_unique_for_source($params->{source}, $params->{evalue}, $params->{identity}, $params->{length}, 1);
             # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
         } elsif ($params->{hit_type} eq 'lca') {
             # my ($self, $eval, $ident, $alen) = @_;
-            $result = $mgdb->get_lca_data(int($params->{evalue}), int($params->{identity}), int($params->{length}));
+            $result = $mgdb->get_lca_data($params->{evalue}, $params->{identity}, $params->{length});
             # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
         }
         foreach my $row (@$result) {
@@ -230,7 +274,7 @@ sub prepare_data {
         $ttype = 'Function';
         my $function2ont = $mgdb->get_hierarchy('ontology', $params->{source});
         # my ($self, $source, $eval, $ident, $alen) = @_;
-        my (undef, $result) = $mgdb->get_ontology_for_source($params->{source}, int($params->{evalue}), int($params->{identity}), int($params->{length}));
+        my (undef, $result) = $mgdb->get_ontology_for_source($params->{source}, $params->{evalue}, $params->{identity}, $params->{length});
         # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
         foreach my $row (@$result) {
             next unless (exists $function2ont->{$row->[1]});
@@ -241,34 +285,90 @@ sub prepare_data {
     }
     elsif ($params->{type} eq 'feature') {
         $ttype = 'Gene';
-        my $md52id = {};
-        my $result = $mgdb->get_md5_data(undef, undef, undef, undef, 1);
-        # mgid, md5, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, seek, length
+        my $id2ann = {}; # md5_id => [ [accession, function, organism] ]
+        my $id2md5 = {}; # md5_id => md5
+        # mgid, md5_id, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
+        my $result = $mgdb->get_md5_data(undef, $params->{evalue}, $params->{identity}, $params->{length}, 1);
         my @md5s = map { $_->[1] } @$result;
-        my $mmap = $mgdb->decode_annotation('md5', \@md5s);
-        map { push @{$md52id->{$_->[1]}}, $_->[0] } @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) };
+        # from analysisdb => md5_id, accession, md5, function, organism, source
+        #foreach my $a ( @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) } ) {
+        #    $id2md5->{$a->[0]} = $a->[2];
+        #    push @{ $id2ann->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
+        #}
+        # from m5nr solr / by batch of 1000
+        my $fields = ['md5_id', 'md5', 'organism', 'function', 'accession'];
+        my $srcid  = $mgdb->_src_id->{$params->{source}};
+        my $iter   = natatime 1000, @md5s;
+        while (my @curr = $iter->()) {
+            my $query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @curr)."))";
+            my ($solr_data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$mgdb->_version, $query_str, "", 0, 1000000000, $fields);
+            foreach my $info (@$solr_data) {
+                $id2md5->{$info->{md5_id}} = $info->{md5};
+                push @{ $id2ann->{$info->{md5_id}} }, [ $info->{accession}, $info->{function}, $info->{organism} ];
+            }
+        }
+        # add metadata to rows
         foreach my $row (@$result) {
-            my $md5 = $mmap->{$row->[1]};
-            next unless (exists $md52id->{$md5});
-            push(@$rows, { "id" => $md5, "metadata" => { $params->{source}." ID" => $md52id->{$md5} } });
+            my $mid = $row->[1];
+            next unless (exists $id2md5->{$mid});
+            my $metadata = {
+                accession => [ map {$_->[0]} @{$id2ann->{$mid}} ],
+                function  => [ map {$_->[1]} @{$id2ann->{$mid}} ],
+                organism  => [ map {$_->[2]} @{$id2ann->{$mid}} ]
+            };
+            push(@$rows, { "id" => $id2md5->{$mid}, "metadata" => $metadata });
             push(@$values, [ $self->toFloat($row->[2]), $self->toFloat($row->[3]), $self->toFloat($row->[5]), $self->toFloat($row->[7]) ]);
         }
     }
   
-    my $obj  = { "id"                  => "mgm".$id.'_'.$params->{type}.'_'.$params->{source},
-	             "format"              => "Biological Observation Matrix 1.0",
-	             "format_url"          => "http://biom-format.org",
-	             "type"                => $ttype." table",
-	             "generated_by"        => "MG-RAST revision ".$Conf::server_version,
-	             "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-	             "matrix_type"         => "dense",
-	             "matrix_element_type" => "float",
-	             "shape"               => [ scalar(@$values), 4 ],
-	             "rows"                => $rows,
-	             "columns"             => $columns,
-	             "data"                => $values };
+    my $obj = {
+        "id"                  => "mgm".$id.'_'.$params->{type}.'_'.$params->{source},
+        "format"              => "Biological Observation Matrix 1.0",
+        "format_url"          => "http://biom-format.org",
+        "type"                => $ttype." table",
+        "generated_by"        => "MG-RAST revision ".$Conf::server_version,
+        "date"                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+        "matrix_type"         => "dense",
+        "matrix_element_type" => "float",
+        "shape"               => [ scalar(@$values), 4 ],
+        "rows"                => $rows,
+        "columns"             => $columns,
+        "data"                => $values
+	};
+	
+	# cach it in shock if right type
+	if ($shock_cached) {
+	    my $attr = {
+	        id            => 'mgm'.$id,
+	        job_id        => $data->{job_id},
+	        created       => $data->{created_on},
+	        name          => $data->{name},
+	        owner         => 'mgu'.$data->{owner},
+	        sequence_type => $data->{sequence_type},
+	        status        => $data->{public} ? 'public' : 'private',
+	        project_id    => undef,
+	        project_name  => undef,
+            type          => 'metagenome',
+            data_type     => 'profile',
+            data_source   => $params->{source},
+            file_format   => 'biom',
+            stage_name    => 'done',
+            stage_id      => '999'
+	    };
+	    eval {
+	        my $proj = $data->primary_project;
+	        if ($proj->{id}) {
+	            $attr->{project_id} = 'mgp'.$proj->{id};
+	            $attr->{project_name} = $proj->{name};
+            }
+	    };
+	    my $node = $self->set_shock_node($obj->{id}.'.biom', $obj, $attr, $self->mgrast_token);
+	    if ($data->{public}) {
+	        $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');
+	    }
+	}
     
-  return $obj;
+    return $obj;
 }
 
 1;

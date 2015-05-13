@@ -1450,6 +1450,9 @@ sub get_barcode_files {
 sub metadata_validation {
     my ($self, $uuid, $is_inbox, $extract_barcodes, $auth, $authPrefix, $submit_id) = @_;
     
+    use MGRAST::Metadata;
+    my $mddb = MGRAST::Metadata->new();
+    
     # get and check node
     my $node = $self->get_shock_node($uuid, $auth, $authPrefix);
     my $file_suffix = (split(/\./, $node->{file}{name}))[-1];
@@ -1481,7 +1484,7 @@ sub metadata_validation {
     my $master = $self->connect_to_datasource();
     my $md_file = $Conf::temp."/".$node->{id}."_".$node->{file}{name};
     $self->get_shock_file($node->{id}, $md_file, $auth, undef, $authPrefix);
-    my ($is_valid, $data, $log) = MGRAST::Metadata->validate_metadata($md_file);
+    my ($is_valid, $data, $log) = $mddb->validate_metadata($md_file);
     
     my $bar_id = undef;
     my $bar_count = 0;
@@ -1494,10 +1497,6 @@ sub metadata_validation {
         if (scalar(@$projects) && (! $self->user->has_right(undef, 'edit', 'project', $projects->[0]->{id}))) {
             $self->return_data( {"ERROR" => "The project name you have chosen already exists and you do not have edit rights to this project"}, 401 );
         }
-        # update node
-        my $attr = $node->{attributes};
-        $attr->{data_type} = 'metadata';
-        $self->update_shock_node($node->{id}, $attr, $auth, $authPrefix);
         # add metadata json format to inbox
         if ($is_inbox && $self->user) {
             my $md_basename = fileparse($node->{file}{name}, qr/\.[^.]*/);
@@ -1523,6 +1522,14 @@ sub metadata_validation {
             $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix);
             $self->edit_shock_acl($json_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
+        # update origional metadata node
+        my $attr = $node->{attributes};
+        $attr->{data_type} = 'metadata';
+        if ($json_node) {
+            $attr->{extracted} = $json_node->{id};
+        }
+        $self->update_shock_node($node->{id}, $attr, $auth, $authPrefix);
+        
         # extract barcodes if exist
         my $barcodes = {};
         foreach my $sample ( @{$data->{samples}} ) {
@@ -1540,7 +1547,7 @@ sub metadata_validation {
                 $barcodes->{$mg_name} = $library->{data}{forward_barcodes}{value};
             }
         }
-        my $bar_count = scalar(keys(%$barcodes));
+        $bar_count = scalar(keys(%$barcodes));
         if (($bar_count > 0) && $extract_barcodes && $self->user) {
             my $bar_name = fileparse($node->{file}{name}, qr/\.[^.]*/).".barcodes";
             my $bar_data = join("\n", map { $barcodes->{$_}."\t".$_ } keys %$barcodes)."\n";
@@ -1570,7 +1577,6 @@ sub metadata_validation {
     } else {
         $data = $data->{data};
     }
-    
     return ($is_valid, $data, $log, $bar_id, $bar_count, $json_node);
 }
 
