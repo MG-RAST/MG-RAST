@@ -1644,7 +1644,7 @@ sub build_seq_stat_task {
             ($seq_node->{attributes}{data_type} eq 'sequence') &&
             (($seq_node->{attributes}{stats_info}{sequence_count})*1 > 0) &&
             (($seq_type eq 'fasta') || ($seq_type eq 'fastq'))) {
-            #$seq_task->{skip} = 1;
+            $seq_task->{skip} = 1;
         }
         $seq = $seq_node->{file}{name};
         $seq_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}, attrfile => "input_attr.json"};
