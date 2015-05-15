@@ -372,8 +372,11 @@ sub job_action {
                 $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
             }
             my @aweid = grep { $_ =~ /^awe job/ } @log;
+            my $aid   = "";
             if (@aweid) {
-                my (undef, $aid) = split(/\t/, $aweid[0]);
+                (undef, $aid) = split(/\t/, $aweid[0]);
+            }
+            if ($aid) {
                 $data = {
                     awe_id => $aid,
                     log    => join("\n", @log)
