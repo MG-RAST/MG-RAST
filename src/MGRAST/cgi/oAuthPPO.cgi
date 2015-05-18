@@ -145,7 +145,11 @@ unless ($cgi->param('action')) {
       exit 0;
     }
   } elsif ($cgi->param("action") eq "dialog") {
-      if ($cgi->param("client_id") && $cgi->param("redirect_url")) {
+      if ($cgi->param("client_id") && ($cgi->param("redirect_url") || $cgi->param("redirect_uri"))) {
+	  if ($cgi->param('redirect_uri')) {
+	      $cgi->param('redirect_url', $cgi->param('redirect_uri'));
+	  }
+	  my ($redirect_url) = $cgi->param('redirect_url') =~ /^(http[s]*\:\/\/[^\/]+)/;
 	my $res = $dbh->selectrow_arrayref("SELECT application FROM apps WHERE application=".$dbh->quote($cgi->param("client_id"))." AND url=".$dbh->quote($cgi->param('redirect_url')).";");
 	if ($dbh->err()) {
 	  warning_message($DBI::errstr);
@@ -172,7 +176,7 @@ unless ($cgi->param('action')) {
 	      } else {
 		$url .= "?";
 	      }
-	      print $cgi->redirect( -uri => $url."code=".$secret, -cookie=>$cookie);
+	      print $cgi->redirect( -uri => $url."code=".$secret.($cgi->param('state') ? "&state=".$cgi->param('state') : ""), -cookie=>$cookie);
 	      exit 0;				
 	    } else {
 		$res = $dbh->selectrow_arrayref("SELECT application, token FROM accepts WHERE application=".$dbh->quote($cgi->param("client_id"))." AND login='".$user->login."';");
@@ -207,6 +211,14 @@ unless ($cgi->param('action')) {
 	  print "redirect_url does not match client id";
 	  exit 0;
 	}
+      } else {
+	  $dbh->disconnect();
+	  print $cgi->header(-type => 'text/plain',
+			     -status => 400,
+			     -charset => 'UTF-8',
+			     -Access_Control_Allow_Origin => '*' );
+	  print "missing redirect_url";
+	  exit 0;
       }
     } elsif ($cgi->param("action") eq "token") {
       if ($cgi->param("client_id") && $cgi->param("client_secret") && $cgi->param("code")) {
