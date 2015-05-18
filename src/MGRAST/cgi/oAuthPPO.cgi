@@ -191,7 +191,7 @@ unless ($cgi->param('action')) {
 		    } else {
 			$url .= "?";
 		    }
-		    print $cgi->redirect( -uri => $url."code=".$res->[1], -cookie=>$cookie );
+		    print $cgi->redirect( -uri => $url."code=".$res->[1].($cgi->param('state') ? "&state=".$cgi->param('state') : ""), -cookie=>$cookie );
 		    exit 0;				
 		} else {
 		    auth_client_screen();
