@@ -606,6 +606,9 @@ sub process_file {
         # import or update
         my $mapbyid = $post->{map_by_id} ? 1 : 0;
         my ($pnum, $added, $err_msg) = $mddb->add_valid_metadata($self->user, $md_obj, \@jobs, $project_obj, $mapbyid);
+        if ($added && scalar(@$added)) {
+            @$added = map { 'mgm'.$_->{metagenome_id} } @$added;
+        }
         $data = {project => 'mgp'.$pnum, added => $added, errors => $err_msg};
     }
     
