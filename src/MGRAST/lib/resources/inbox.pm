@@ -529,6 +529,7 @@ sub view_inbox {
         $inbox = [ $self->node_from_inbox_id($uuid, $self->token, $self->user_auth) ];
     } else {
         $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->token, $self->user_auth);
+	push(@$inbox, @{$self->get_shock_query({'type' => 'inbox', 'id' => $self->user->{login}}, $self->token, $self->user_auth)});
     }
     # process inbox
     my $files = [];
