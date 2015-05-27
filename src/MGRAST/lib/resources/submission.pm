@@ -721,7 +721,7 @@ sub submission_nodes {
         owner => $user_id
     };
     my $inbox_nodes = $self->get_shock_query($inbox_query, $self->token, $self->user_auth);
-    push(@$inbox_nodes, @{$self->get_shock_query($inbox_query2, $self->token, $self->user_auth);
+    push(@$inbox_nodes, @{$self->get_shock_query($inbox_query2, $self->token, $self->user_auth)});
     my $data = { inbox => $inbox_nodes || [] };
     if ($full) {
         my $mgrast_nodes = $self->get_shock_query($mgrast_query, $self->mgrast_token);
