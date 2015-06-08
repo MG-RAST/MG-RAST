@@ -9,6 +9,7 @@ use JSON;
 use DBI;
 use LWP::UserAgent;
 
+my $job     = "";
 my $output  = "";
 my $dbhost  = "";
 my $dbname  = "";

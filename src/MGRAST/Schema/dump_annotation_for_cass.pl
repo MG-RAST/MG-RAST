@@ -52,10 +52,10 @@ foreach my $row (@$ontol) {
         push @ont, $o;
     }
     print ODUMPA join(",", map { '"'.$_.'"' } @ont)."\n";
-    print ODUMP1 join(",", map { '"'.$_.'"' } ($ont->[0], $ont->[2], $ont->[1]))."\n";
-    print ODUMP2 join(",", map { '"'.$_.'"' } ($ont->[0], $ont->[3], $ont->[1]))."\n";
-    print ODUMP3 join(",", map { '"'.$_.'"' } ($ont->[0], $ont->[4], $ont->[1]))."\n";
-    print ODUMP4 join(",", map { '"'.$_.'"' } ($ont->[0], $ont->[5], $ont->[1]))."\n";
+    if ($ont[2]) { print ODUMP1 join(",", map { '"'.$_.'"' } ($ont[0], $ont[2], $ont[1]))."\n"; }
+    if ($ont[3]) { print ODUMP2 join(",", map { '"'.$_.'"' } ($ont[0], $ont[3], $ont[1]))."\n"; }
+    if ($ont[4]) { print ODUMP3 join(",", map { '"'.$_.'"' } ($ont[0], $ont[4], $ont[1]))."\n"; }
+    if ($ont[5]) { print ODUMP4 join(",", map { '"'.$_.'"' } ($ont[0], $ont[5], $ont[1]))."\n"; }
 }
 close(ODUMPA);
 close(ODUMP1);
@@ -82,13 +82,13 @@ foreach my $row (@$taxa) {
         push @tax, $t;
     }
     print TDUMPA join(",", map { '"'.$_.'"' } @tax)."\n";
-    print TDUMP1 join(",", map { '"'.$_.'"' } ($tax->[1], $tax->[0]))."\n";
-    print TDUMP2 join(",", map { '"'.$_.'"' } ($tax->[2], $tax->[0]))."\n";
-    print TDUMP3 join(",", map { '"'.$_.'"' } ($tax->[3], $tax->[0]))."\n";
-    print TDUMP4 join(",", map { '"'.$_.'"' } ($tax->[4], $tax->[0]))."\n";
-    print TDUMP5 join(",", map { '"'.$_.'"' } ($tax->[5], $tax->[0]))."\n";
-    print TDUMP6 join(",", map { '"'.$_.'"' } ($tax->[6], $tax->[0]))."\n";
-    print TDUMP7 join(",", map { '"'.$_.'"' } ($tax->[7], $tax->[0]))."\n";
+    if ($tax[1]) { print TDUMP1 join(",", map { '"'.$_.'"' } ($tax[1], $tax[0]))."\n"; }
+    if ($tax[2]) { print TDUMP2 join(",", map { '"'.$_.'"' } ($tax[2], $tax[0]))."\n"; }
+    if ($tax[3]) { print TDUMP3 join(",", map { '"'.$_.'"' } ($tax[3], $tax[0]))."\n"; }
+    if ($tax[4]) { print TDUMP4 join(",", map { '"'.$_.'"' } ($tax[4], $tax[0]))."\n"; }
+    if ($tax[5]) { print TDUMP5 join(",", map { '"'.$_.'"' } ($tax[5], $tax[0]))."\n"; }
+    if ($tax[6]) { print TDUMP6 join(",", map { '"'.$_.'"' } ($tax[6], $tax[0]))."\n"; }
+    if ($tax[7]) { print TDUMP7 join(",", map { '"'.$_.'"' } ($tax[7], $tax[0]))."\n"; }
 }
 close(TDUMPA);
 close(TDUMP1);
