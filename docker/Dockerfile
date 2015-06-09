@@ -39,7 +39,7 @@ RUN apt-get install -y \
 RUN pip install gspread xlrd openpyxl lepl
 
 RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
-RUN cp /pipeline/lib/StreamingUpload.pm /MG-RAST/site/lib/StreamingUpload.pm
+
 
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
