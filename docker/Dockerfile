@@ -4,6 +4,7 @@ FROM httpd:2.4.12
 RUN apt-get update && apt-get install -y \
   git-core \
   libpq-dev \
+  make \
   perl-modules \
   liburi-perl \
   libwww-perl \
