@@ -12,12 +12,19 @@ RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   cd /MG-RAST && \
   make
 
+
+#RUN apt-get install -y PIPELINE_DEPENDENCIES HERE <------------------
+
+RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
+
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
   ln -s /MG-RAST/
 
 # Configuration in mounted directory
 RUN cd /MG-RAST/conf && ln -s /api-server/Conf.pm
+
+
 
 
 # Execute:
