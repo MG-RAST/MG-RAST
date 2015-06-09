@@ -5,7 +5,7 @@ use warnings;
 no warnings('once');
 
 use POSIX qw(strftime);
-use HTTP::Request::StreamingUpload;
+use StreamingUpload;
 use HTTP::Headers;
 use LWP::UserAgent;
 use File::Basename;
@@ -595,7 +595,7 @@ sub upload_file {
             my $response = undef;
             my $io_handle = $fh->handle;
             eval {
-                my $post = HTTP::Request::StreamingUpload->new(
+                my $post = StreamingUpload->new(
                     POST    => $Conf::shock_url.'/node',
                     fh      => $io_handle,
                     headers => HTTP::Headers->new(
