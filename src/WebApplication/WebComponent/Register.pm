@@ -950,7 +950,7 @@ sub country_codes {
 }
 
 sub recaptcha {
-  return '<script type="text/javascript" src="http://www.google.com/recaptcha/api/challenge?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z"></script><noscript><iframe src="http://www.google.com/recaptcha/api/noscript?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z" height="300" width="500" frameborder="0"></iframe><br><textarea name="recaptcha_challenge_field" rows="3" cols="40"></textarea><input type="hidden" name="recaptcha_response_field" value="manual_challenge"></noscript>';
+  return '<script type="text/javascript" src="https://www.google.com/recaptcha/api/challenge?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z"></script><noscript><iframe src="https://www.google.com/recaptcha/api/noscript?k=6Lf1FL4SAAAAAO3ToArzXm_cu6qvzIvZF4zviX2z" height="300" width="500" frameborder="0"></iframe><br><textarea name="recaptcha_challenge_field" rows="3" cols="40"></textarea><input type="hidden" name="recaptcha_response_field" value="manual_challenge"></noscript>';
 }
 
 sub check_answer {
@@ -958,7 +958,7 @@ sub check_answer {
   my $ua = LWP::UserAgent->new();
   $ua->env_proxy();
 
-  my $resp =  $ua->post( 'http://www.google.com/recaptcha/api/verify',
+  my $resp =  $ua->post( 'https://www.google.com/recaptcha/api/verify',
     {
       privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
       remoteip   => $ENV{'REMOTE_ADDR'},

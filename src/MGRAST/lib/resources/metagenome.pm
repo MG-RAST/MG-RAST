@@ -159,15 +159,41 @@ sub instance {
         $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
     }
     
-    # check id format
+    # get database
+    my $master = $self->connect_to_datasource();
     my $rest = $self->rest;
+    
+    # overload id to be md5 of metagenome sequence file
+    if (($rest->[0] eq 'md5') && (scalar(@$rest) > 1)) {
+        my $data = [];
+        my $jobs = $master->Job->get_objects( {file_checksum_raw => $rest->[1]} );
+        if ($jobs && @$jobs) {
+            my $valid_jobs = [];
+            foreach my $job (@$jobs) {
+                if ($job->{public} || exists($self->rights->{$job->{metagenome_id}}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
+                    push @$valid_jobs, $job;
+                }
+            }
+            # return cached if exists
+            $self->return_cached();
+            # prepare data
+            $data = $self->prepare_data($valid_jobs, $verb);
+        }
+        my $obj = {
+            version => 1,
+            data => $data,
+            total_count => scalar(@$data),
+            md5 => $rest->[1],
+            user => $self->user ? $self->user->login : 'public'
+        };
+        $self->return_data($obj, undef, 1); # cache this!
+    }
+    
+    # check id format
     my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
-
-    # get database
-    my $master = $self->connect_to_datasource();
 
     # get data
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
@@ -267,8 +293,11 @@ sub query {
     # non-returnable query fields
     foreach my $field ('metadata', 'md5', 'function', 'organism') {
         if ($self->cgi->param($field)) {
-            push @url_params, $field."=".$self->cgi->param($field);
-            push @solr_fields, $field.':'.$self->cgi->param($field);
+	  my @param = $self->cgi->param($field);
+	  foreach my $p (@param) {
+            push @url_params, $field."=".$p;
+            push @solr_fields, $field.':'.$p;
+	  }
         }
     }
     # returnable query fields
@@ -408,6 +437,7 @@ sub prepare_data {
         $obj->{job_id} = $job->{job_id};
         $obj->{status} = ($verb eq 'pipeline') ? 'pipeline' : ($job->{public} ? 'public' : 'private');
         $obj->{created} = $job->{created_on};
+        $obj->{md5_checksum} = $job->{file_checksum_raw};
         $obj->{version} = 1;
         $obj->{project} = undef;
         $obj->{sample}  = undef;
@@ -437,7 +467,16 @@ sub prepare_data {
 	    my $jdata   = $job->data();
 	    if (exists($jdata->{deleted}) && $jdata->{deleted}) {
 	        # this is a deleted job !!
-	        $self->return_data( {"ERROR" => "Metagenome mgm".$job->{metagenome_id}." does not exist: ".$jdata->{deleted}}, 400 );
+	        $obj->{status} = "deleted: ".$jdata->{deleted};
+	        #$self->return_data( {"ERROR" => "Metagenome mgm".$job->{metagenome_id}." does not exist: ".$jdata->{deleted}}, 400 );
+	    }
+	    # add submission id if exists
+	    if (exists $jdata->{submission}) {
+	        $obj->{submission} = $jdata->{submission};
+	    }
+	    # add pipeline id if exists
+	    if (exists $jdata->{pipeline_id}) {
+	        $obj->{pipeline_id} = $jdata->{pipeline_id};
 	    }
 	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;

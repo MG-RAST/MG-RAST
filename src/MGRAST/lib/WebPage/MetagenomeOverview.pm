@@ -273,13 +273,15 @@ sub output {
   my $alpha_num   = exists($job_stats->{alpha_diversity_shannon}) ? $job_stats->{alpha_diversity_shannon} : 0;
   my $drisee_num  = exists($job_stats->{drisee_score_raw}) ? $job_stats->{drisee_score_raw} : 0;
 
-  my $is_rna = ($md_seq_type =~ /amplicon/i) ? 1 : 0;
+  my $is_rna  = ($md_seq_type eq 'Amplicon') ? 1 : 0;
+  my $is_gene = ($md_seq_type eq 'AmpliconGene') ? 1 : 0;
   my $qc_fail_seqs  = $raw_seqs - $qc_seqs;
   my $ann_aa_reads  = $aa_sims ? ($aa_sims - $clusts) + $clust_seq : 0;
   my $unkn_aa_reads = $aa_reads - $ann_aa_reads;
   my $ann_rna_reads = $rna_sims ? ($rna_sims - $r_clusts) + $r_clust_seq : 0;
   my $unknown_all   = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads);
 
+  # amplicon rna numbers
   if ($is_rna) {
     $qc_fail_seqs  = $raw_seqs - $qc_rna_seqs;
     $unkn_aa_reads = 0;
@@ -289,7 +291,18 @@ sub output {
 	    my $diff = ($qc_fail_seqs + $ann_rna_reads) - $raw_seqs;
 	    $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
     }
-  } else {
+  }
+  # amplicon gene numbers
+  elsif ($is_gene) {
+      $ann_rna_reads = 0;
+      $unknown_all = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads);
+      if ($raw_seqs < ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads)) {
+          my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads) - $raw_seqs;
+          $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+      }
+  }
+  # wgs / mt numbers
+  else {
       # get correct qc rna
       if ($qc_rna_seqs > $qc_seqs) {
           $ann_rna_reads = int((($qc_seqs * 1.0) / $qc_rna_seqs) * $ann_rna_reads);
@@ -310,7 +323,7 @@ sub output {
       }
       my $diff = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads);
       if ($unknown_all < $diff) {
-	$unknown_all = $diff;
+	      $unknown_all = $diff;
       }
   }
 
@@ -319,7 +332,7 @@ sub output {
   # get charts
   my $colors = ["#6C6C6C","#dc3912","#ff9900","#109618","#3366cc","#990099"];
   my $summary_chart = $self->get_summary_chart($colors, $qc_fail_seqs, $unknown_all, $unkn_aa_reads, $ann_aa_reads, $ann_rna_reads);
-  my $source_chart  = $self->get_source_chart($job, $is_rna, format_number($aa_sims), percent($aa_sims,$aa_feats), format_number($aa_ontol), percent($aa_ontol,$aa_sims), format_number($ann_rna_reads), percent($ann_rna_reads,$raw_seqs));
+  my $source_chart  = $self->get_source_chart($job, $is_rna, $is_gene, format_number($aa_sims), percent($aa_sims,$aa_feats), format_number($aa_ontol), percent($aa_ontol,$aa_sims), format_number($ann_rna_reads), percent($ann_rna_reads,$raw_seqs));
   my $taxa_chart    = $self->get_taxa_chart($job);
   my $func_chart    = $self->get_func_charts($job, $aa_feats, $aa_sims);
   my $drisee_plot   = $self->get_drisee_chart($job);
@@ -328,16 +341,21 @@ sub output {
   # mg summary text
   $html .= "<a name='summary_ref'></a><table><tr><td>";
   $html .= "<h3>Metagenome Summary</h3><div style='width:450px;'>";
-  $html .= "<p>Dataset ".$job->name." was uploaded on ".$job_dt->mdy('/')." and contains ".format_number($raw_seqs)." sequences totaling ".format_number($raw_bps)." basepairs with an average length of ".format_number($raw_len_avg)." bps. The piechart below breaks down the uploaded sequences into ".($is_rna ? '3' : '5')." distinct categories.</p>";
-  $html .= "<p>".format_number($qc_fail_seqs)." sequences (".percent($qc_fail_seqs,$raw_seqs).") failed to pass the QC pipeline. Of the sequences that passed QC, ".format_number($ann_rna_reads)." sequences (".percent($ann_rna_reads,$raw_seqs).") contain ribosomal RNA genes. ";
-  unless ($is_rna) {
-    $html .= "Of the remainder, ".format_number($ann_aa_reads)." sequences (".percent($ann_aa_reads,$raw_seqs).") contain predicted proteins with known functions and ".format_number($unkn_aa_reads)." sequences (".percent($unkn_aa_reads,$raw_seqs).") contain predicted proteins with unknown function. ";
+  $html .= "<p>Dataset ".$job->name." was uploaded on ".$job_dt->mdy('/')." and contains ".format_number($raw_seqs)." sequences totaling ".format_number($raw_bps)." basepairs with an average length of ".format_number($raw_len_avg)." bps. The piechart below breaks down the uploaded sequences into ".($is_rna ? '3' : ($is_gene ? '4' : '5'))." distinct categories.</p>";
+  $html .= "<p>".format_number($qc_fail_seqs)." sequences (".percent($qc_fail_seqs,$raw_seqs).") failed to pass the QC pipeline. Of the sequences that passed QC, ";
+  # amplicon rna text
+  if ($is_rna) {
+      $html .= format_number($ann_rna_reads)." sequences (".percent($ann_rna_reads,$raw_seqs).") contain ribosomal RNA genes. ".format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no rRNA genes. ".format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no rRNA genes.</p>";
   }
-  $html .= format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no rRNA genes";
-  unless ($is_rna) {
-    $html .= " or predicted proteins";
+  # amplicon gene text
+  elsif ($is_gene) {
+      $html .= format_number($ann_aa_reads)." sequences (".percent($ann_aa_reads,$raw_seqs).") contain predicted proteins with known functions and ".format_number($unkn_aa_reads)." sequences (".percent($unkn_aa_reads,$raw_seqs).") contain predicted proteins with unknown function. ".format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no predicted proteins.</p>";
   }
-  $html .= ".</p><p>The analysis results shown on this page are computed by MG-RAST. Please note that authors may upload data that they have published their own analysis for, in such cases comparison within the MG-RAST framework can not be done.</p>";
+  # wgs / mt text
+  else {  
+      $html .= format_number($ann_rna_reads)." sequences (".percent($ann_rna_reads,$raw_seqs).") contain ribosomal RNA genes. Of the remainder, ".format_number($ann_aa_reads)." sequences (".percent($ann_aa_reads,$raw_seqs).") contain predicted proteins with known functions and ".format_number($unkn_aa_reads)." sequences (".percent($unkn_aa_reads,$raw_seqs).") contain predicted proteins with unknown function. ".format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no rRNA genes or predicted proteins.</p>";
+  }
+  $html .= "<p>The analysis results shown on this page are computed by MG-RAST. Please note that authors may upload data that they have published their own analysis for, in such cases comparison within the MG-RAST framework can not be done.</p>";
   $html .= "<p><a class='nav_top' target=_blank href='metagenomics.cgi?page=DownloadMetagenome&metagenome=$mgid'><img src='./Html/mg-download.png' style='width:20px;height:20px;' title='Download $mgid'></a>&nbsp;&nbsp;&nbsp;<span style='font-variant:small-caps'>download</span> data and annotations";
   $html .= "<br><a class='nav_top' target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'><img src='./Html/analysis.gif' style='width:20px;height:20px;' title='Analyze $mgid'></a>&nbsp;&nbsp;&nbsp;<span style='font-variant:small-caps'>analyze</span> annotations in detail.";
   $html .= "<br><a class='nav_top' href='#search_ref'><img src='./Html/lupe.png' style='width:20px;height:20px;' title='Search $mgid'></a>&nbsp;&nbsp;&nbsp;<span style='font-variant:small-caps'>search</span> through annotations.</p>";
@@ -390,7 +408,7 @@ sub output {
   $html .= "<li><a href='#alpha_ref'>Alpha Diversity</a></li>";
   $html .= "</ul>";
   # function
-  if ($func_chart && (! $is_rna)) {
+  if ($func_chart && (! $is_rna) && (! $is_gene)) {
     $html .= "<li style='padding-top:5px;'>Functional Breakdown</li>";
     $html .= "<ul style='margin:0;'><li><a href='#func_ref'>Functional Categories</a></li></ul>";
   }
@@ -484,10 +502,17 @@ sub output {
   # technical text
   $html .= "<br><a name='stats_ref'></a><table><tr><td>";
   $html .= "<h3>Analysis Flowchart</h3><div style='width:375px;'>";
+  # amplicon rna text
   if ($is_rna) {
-    $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of the ".format_number($qc_rna_seqs)." sequences (totaling ".format_number($qc_rna_bps)." bps) that passed quality control, ".format_number($ann_rna_reads)." (".percent($ann_rna_reads,$qc_rna_seqs).") produced a total of ".format_number($rna_sims)." identified ribosomal RNAs.</p>";
-  } else {
-    $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of those, dereplication identified ".format_number($derep_seqs)." sequences (".percent($derep_seqs,$raw_seqs)." of total) as artificial duplicate reads (ADRs). Of the ".format_number($qc_seqs)." sequences (totaling ".format_number($qc_bps)." bps) that passed quality control, ".format_number($aa_reads)." (".percent($aa_reads,$qc_seqs).") produced a total of ".format_number($aa_feats)." predicted protein coding regions. Of these ".format_number($aa_feats)." predicted protein features, ".format_number($aa_sims)." (".percent($aa_sims,$aa_feats)." of features) have been assigned an annotation using at least one of our protein databases (M5NR) and ".format_number($aa_feats-$aa_sims)." (".percent($aa_feats-$aa_sims,$aa_feats)." of features) have no significant similarities to the protein database (orfans). ".format_number($aa_ontol)." features (".percent($aa_ontol,$aa_sims)." of annotated features) were assigned to functional categories.</p>";
+      $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of the ".format_number($qc_rna_seqs)." sequences (totaling ".format_number($qc_rna_bps)." bps) that passed quality control, ".format_number($ann_rna_reads)." (".percent($ann_rna_reads,$qc_rna_seqs).") produced a total of ".format_number($rna_sims)." identified ribosomal RNAs.</p>";
+  }
+  # amplicon gene text
+  elsif ($is_gene) {
+      $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of the ".format_number($qc_seqs)." sequences (totaling ".format_number($qc_bps)." bps) that passed quality control, ".format_number($aa_reads)." (".percent($aa_reads,$qc_rna_seqs).") produced a total of ".format_number($aa_feats)." predicted protein coding regions. Of these ".format_number($aa_feats)." predicted protein features, ".format_number($aa_sims)." (".percent($aa_sims,$aa_feats)." of features) have been assigned an annotation using at least one of our protein databases (M5NR) and ".format_number($aa_feats-$aa_sims)." (".percent($aa_feats-$aa_sims,$aa_feats)." of features) have no significant similarities to the protein database (orfans).</p>";
+  }
+  # wgs / mt text
+  else {
+      $html .= "<p>".format_number($qc_fail_seqs)." sequences failed quality control. Of those, dereplication identified ".format_number($derep_seqs)." sequences (".percent($derep_seqs,$raw_seqs)." of total) as artificial duplicate reads (ADRs). Of the ".format_number($qc_seqs)." sequences (totaling ".format_number($qc_bps)." bps) that passed quality control, ".format_number($aa_reads)." (".percent($aa_reads,$qc_seqs).") produced a total of ".format_number($aa_feats)." predicted protein coding regions. Of these ".format_number($aa_feats)." predicted protein features, ".format_number($aa_sims)." (".percent($aa_sims,$aa_feats)." of features) have been assigned an annotation using at least one of our protein databases (M5NR) and ".format_number($aa_feats-$aa_sims)." (".percent($aa_feats-$aa_sims,$aa_feats)." of features) have no significant similarities to the protein database (orfans). ".format_number($aa_ontol)." features (".percent($aa_ontol,$aa_sims)." of annotated features) were assigned to functional categories.</p>";
   }
   $html .= "</td><td rowspan='3' style='padding-left:25px;'></td>";
 
@@ -498,6 +523,7 @@ sub output {
   $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Upload: Sequences Count</label><span style='width: 200px'>".format_number($raw_seqs)."</span></li>";
   $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Upload: Mean Sequence Length</label><span style='width: 200px'>".format_number($raw_len_avg)." &plusmn; ".format_number($raw_len_std)." bp</span></li>";
   $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Upload: Mean GC percent</label><span style='width: 200px'>".format_number($raw_gc_avg)." &plusmn; ".format_number($raw_gc_std)." %</span></li>";
+  # amplicon rna text
   if ($is_rna) {
     $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: bp Count</label><span style='width: 200px'>".format_number($qc_rna_bps)." bp</span></li>";
     $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: Sequences Count</label><span style='width: 200px'>".format_number($qc_rna_seqs)."</span></li>";
@@ -505,7 +531,18 @@ sub output {
     $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: Mean GC percent</label><span style='width: 200px'>".format_number($qc_rna_gc_avg)." &plusmn; ".format_number($qc_gc_std)." %</span></li>";
     $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Processed: Predicted rRNA Features</label><span style='width: 200px'>".format_number($rna_feats)."</span></li>";
     $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Alignment: Identified rRNA Features</label><span style='width: 200px'>".format_number($rna_sims)."</span></li>";
-  } else {
+  }
+  # amplicon rna text
+  elsif ($is_gene) {
+      $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: bp Count</label><span style='width: 200px'>".format_number($qc_bps)." bp</span></li>";
+      $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: Sequences Count</label><span style='width: 200px'>".format_number($qc_seqs)."</span></li>";
+      $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: Mean Sequence Length</label><span style='width: 200px'>".format_number($qc_len_avg)." &plusmn; ".format_number($qc_len_std)." bp</span></li>";
+      $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: Mean GC percent</label><span style='width: 200px'>".format_number($qc_gc_avg)." &plusmn; ".format_number($qc_gc_std)." %</span></li>";
+      $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Processed: Predicted Protein Features</label><span style='width: 200px'>".format_number($aa_feats)."</span></li>";
+      $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Alignment: Identified Protein Features</label><span style='width: 200px'>".format_number($aa_sims)."</span></li>";
+  }
+  # wgs / mt text
+  else {
     $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Artificial Duplicate Reads: Sequence Count</label><span style='width: 200px'>".format_number($derep_seqs)."</span></li>";
     $html .= "<li class='odd'><label style='text-align: left;white-space:nowrap;'>Post QC: bp Count</label><span style='width: 200px'>".format_number($qc_bps)." bp</span></li>";
     $html .= "<li class='even'><label style='text-align: left;white-space:nowrap;'>Post QC: Sequences Count</label><span style='width: 200px'>".format_number($qc_seqs)."</span></li>";
@@ -540,7 +577,7 @@ sub output {
   <p>DRISEE is a tool that utilizes artificial duplicate reads (ADRs) to provide a platform independent assessment of sequencing error in metagenomic (or genomic) sequencing data. DRISEE is designed to consider shotgun data. Currently, it is not appropriate for amplicon data.</p>
   <p>Note that DRISEE is designed to examine sequencing error in raw whole genome shotgun sequence data. It assumes that adapter and/or barcode sequences have been removed, but that the sequence data have not been modified in any additional way. (e.g.) Assembly or merging, QC based triage or trimming will both reduce DRISEE's ability to provide an accurate assessment of error by removing error before it is analyzed.</p>~;
 
-  if (($drisee_num == 0) && (! $is_rna)) {
+  if (($drisee_num == 0) && (! $is_rna) && (! $is_gene)) {
     $html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a></h3>
@@ -548,7 +585,7 @@ $drisee_refrence
 <p>DRISEE could not produce a profile; the sample failed to meet the minimal ADR requirements to calculate an error profile (see Keegan et al. 2012)</p>
 $drisee_boilerplate
 ~;
-  } elsif (($drisee_num > 0) && (! $is_rna)) {
+  } elsif (($drisee_num > 0) && (! $is_rna) && (! $is_gene)) {
     my ($min, $max, $avg, $stdv) = @{ $jobdbm->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
     my $drisee_score = sprintf("%.3f", $drisee_num);
     $html .= qq~<a name='drisee_ref'></a>
@@ -572,7 +609,7 @@ $drisee_boilerplate
   $drisee_boilerplate
   $drisee_plot
 </div>~;
-  } elsif ($is_rna) {
+  } elsif ($is_rna || $is_gene) {
 	$html .= qq~<a name='drisee_ref'></a>
 <h3>DRISEE
 <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#drisee' style='font-size:14px;padding-left:5px;'>[?]</a></h3>
@@ -624,7 +661,7 @@ $drisee_boilerplate
   }
 
   # ontology hits distrubtion
-  if ($func_chart && (! $is_rna)) {
+  if ($func_chart && (! $is_rna) && (! $is_gene)) {
     $html .= $func_chart
   }
 
@@ -1023,7 +1060,7 @@ sub get_summary_chart {
 }
 
 sub get_source_chart {
-  my ($self, $job, $is_rna, $n_prot, $p_prot, $n_func, $p_func, $n_rna, $p_rna) = @_;
+  my ($self, $job, $is_rna, $is_gene, $n_prot, $p_prot, $n_func, $p_func, $n_rna, $p_rna) = @_;
   
   my $mgdb = $self->data('mgdb');
   my $src_stats = $mgdb->get_source_stats($job->metagenome_id);
@@ -1041,24 +1078,25 @@ sub get_source_chart {
     my $num = 0;
     foreach my $type ( ('protein', 'ontology', 'rna') ) {
       next if ($is_rna && ($type ne 'rna'));
+      next if ($is_gene && ($type ne 'protein'));
       my $src_num = 0;
       foreach my $src (sort grep {$sources->{$_}->{type} eq $type} keys %$sources) {
-	my $src_total = 0;
-	next if ($src eq 'GO');
-	if (exists($src_stats->{$src}) && exists($src_stats->{$src}->{evalue})) {
-	  $num += 1;
-	  $src_num += 1;
-	  push @srcs, ($src =~ /^(LSU|SSU)$/) ? 'SILVA '.$src : $src;
-	  push @data, [ $src_stats->{$src}->{evalue} ];
-	  push @desc, $sources->{$src}->{description};
-	  push @chart, [ $src, sum @{$src_stats->{$src}->{evalue}} ];
-	}
+        my $src_total = 0;
+	    next if ($src eq 'GO');
+	    if (exists($src_stats->{$src}) && exists($src_stats->{$src}->{evalue})) {
+	      $num += 1;
+	      $src_num += 1;
+	      push @srcs, ($src =~ /^(LSU|SSU)$/) ? 'SILVA '.$src : $src;
+	      push @data, [ $src_stats->{$src}->{evalue} ];
+	      push @desc, $sources->{$src}->{description};
+	      push @chart, [ $src, sum @{$src_stats->{$src}->{evalue}} ];
+	    }
       }
       if ($src_num > 0) {
-	my $pos = ($num - $src_num) + int($src_num / 2) - 1;
-	if ($pos < 0) { $pos = 0; }
-	$groups{$pos} = $titles->{$type};
-	push @divs, $num;
+	    my $pos = ($num - $src_num) + int($src_num / 2) - 1;
+	    if ($pos < 0) { $pos = 0; }
+	    $groups{$pos} = $titles->{$type};
+	    push @divs, $num;
       }
     }
     pop @divs;
@@ -1066,7 +1104,9 @@ sub get_source_chart {
     my $pmd5s = format_number( $mgdb->ach->count4md5s('protein') );
     my $rmd5s = format_number( $mgdb->ach->count4md5s('rna') );
     my $link  = $self->chart_export_link(\@chart, 'source_hits');
-    my $ptext = $is_rna ? "" : "$n_prot ($p_prot) of the predicted protein features could be annotated with similarity to a protein of known function. $n_func ($p_func) of these annotated features could be placed in a functional hierarchy. ";
+    my $rtext = $is_gene ? "" : "$n_rna ($p_rna) of reads had similarity to ribosomal RNA genes. ";
+    my $ptext = $is_rna ? "" : "$n_prot ($p_prot) of the predicted protein features could be annotated with similarity to a protein of known function. ";
+    my $otext = ($is_gene || $is_rna) ? "" : "$n_func ($p_func) of these annotated features could be placed in a functional hierarchy. ";
 
     $src_vbar->width(700);
     $src_vbar->data(\@data);
@@ -1093,7 +1133,7 @@ sub get_source_chart {
     this.innerHTML = "show";
   }'>hide</a></h3>
 <div id='source_show'>
-<p>$ptext$n_rna ($p_rna) of reads had similarity to ribosomal RNA genes.</p>
+<p>$ptext$otext$rtext</p>
 <p>The graph below displays the number of features in this dataset that were annotated by the different databases below. These include protein databases, protein databases with functional hierarchy information, and ribosomal RNA databases. The bars representing annotated reads are colored by e-value range. Different databases have different numbers of hits, but can also have different types of annotation data.</p>
 <p>There are $pmd5s sequences in the M5NR protein database and $rmd5s sequences in the M5RNA ribosomal database. The M5NR protein database contains all the unique sequences from the below protein databases and the M5RNA ribosomal database contains all the unique sequences from the below ribosomal RNA databases.</p>
 <p>$link</p>

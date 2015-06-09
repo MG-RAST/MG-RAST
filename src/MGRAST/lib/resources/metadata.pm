@@ -46,6 +46,11 @@ sub new {
             "type" => ['string', 'this type'],
             "version" => ['string', 'version of this ontology']
         },
+        "view" => {
+            "label" => [ 'string', 'metadata label' ],
+            "total" => [ 'int', 'count of unique values' ],
+            "values" => [ 'list', ['string', 'metadata value'] ]
+        },
         "export" => {
             "id"        => [ 'string', 'unique object identifier' ],
             "name"      => [ 'string', 'human readable identifier' ],
@@ -133,6 +138,18 @@ sub info {
                                  'body'     => {},
                                  'options'  => {} }
             },
+            { 'name'        => "view",
+              'request'     => $self->cgi->url."/".$self->name."/view/{label}",
+              'description' => "Returns list of unique metadata values for given label",
+              'example'     => [ $self->cgi->url."/".$self->name."/view/biome",
+                                 'all biome values' ],
+              'method'      => "GET",
+              'type'        => "synchronous",
+              'attributes'  => $self->attributes->{view},
+              'parameters'  => { 'options'  => {},
+                                 'required' => { "label" => ["string", "valid metadata label"] },
+                                 'body'     => {} }
+            },
             { 'name'        => "export",
               'request'     => $self->cgi->url."/".$self->name."/export/{ID}",
               'description' => "Returns full nested metadata for a project in same format as template, or metadata for a single metagenome.",
@@ -148,7 +165,7 @@ sub info {
             { 'name'        => "import",
               'request'     => $self->cgi->url."/".$self->name."/import",
               'description' => "Create project with given metadata spreadsheet and metagenome IDs, either upload or shock node",
-              'example'     => [ 'curl -X POST -F "metagenomes=mgm12345,mgm67890" -F "upload=@metadata.xlsx" "'.$self->cgi->url."/".$self->name.'/import"',
+              'example'     => [ 'curl -X POST -F "metagenome=mgm12345" -F "metagenome=mgm67890" -F "upload=@metadata.xlsx" "'.$self->cgi->url."/".$self->name.'/import"',
                               	 "create project with metadata from file 'metadata.xlsx'" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -156,27 +173,27 @@ sub info {
               'parameters'  => { 'options'  => {},
                                  'required' => {},
                                  'body'     => {
-                                     "metagenomes" => ['string', 'comma separated list of unique metagenome IDs'],
-                                     "upload"      => ["file", "xlsx or xls format spreadsheet with metadata"],
-                                     "node_id"     => ["string", "shock node ID of metadata spreadsheet"]
+                                     "metagenome" => ['string', 'unique metagenome ID'],
+                                     "upload"     => ["file", "xlsx or xls format spreadsheet with metadata"],
+                                     "node_id"    => ["string", "shock node ID of metadata spreadsheet"]
                                 }}
             },
             { 'name'        => "update",
               'request'     => $self->cgi->url."/".$self->name."/update",
               'description' => "Update project with given metadata spreadsheet and metagenome IDs, either upload or shock node",
-              'example'     => [ 'curl -X POST -F "project=mgp128" -F "upload=@metadata.xlsx" "'.$self->cgi->url."/".$self->name.'/update"',
-                              	 "update project mgp128 with metadata from file 'metadata.xlsx'" ],
+              'example'     => [ 'curl -X POST -F "project=mgp123" -F "upload=@metadata.xlsx" "'.$self->cgi->url."/".$self->name.'/update"',
+                              	 "update project mgp123 with metadata from file 'metadata.xlsx'" ],
               'method'      => "POST",
               'type'        => "synchronous",
               'attributes'  => $self->attributes->{add},
               'parameters'  => { 'options'  => {},
                                  'required' => {},
                                  'body'     => {
-                                     "project"     => ["string", "unique project identifier"],
-                                     "metagenomes" => ['string', 'comma separated list of unique metagenome IDs'],
-                                     "upload"      => ["file", "xlsx or xls format spreadsheet with metadata"],
-                                     "node_id"     => ["string", "shock node ID of metadata spreadsheet"],
-                                     "map_by_id"   => ["boolean", "option to map metadata from spreadsheet to metagenomes using ID, default is name"]
+                                     "project"    => ["string", "unique project identifier"],
+                                     "metagenome" => ['string', 'unique metagenome ID'],
+                                     "upload"     => ["file", "xlsx or xls format spreadsheet with metadata"],
+                                     "node_id"    => ["string", "shock node ID of metadata spreadsheet"],
+                                     "map_by_id"  => ["boolean", "option to map metadata from spreadsheet to metagenomes using ID, default is name"]
                                 }}
             },
             { 'name'        => "validate",
@@ -229,6 +246,8 @@ sub request {
         $self->info();
     } elsif ($self->rest->[0] =~ /^(template|cv|ontology)$/) {
         $self->static($self->rest->[0]);
+    } elsif (($self->rest->[0] eq 'view') && (scalar(@{$self->rest}) == 2)) {
+        $self->list_values($self->rest->[1]);
     } elsif (($self->rest->[0] eq 'export') && (scalar(@{$self->rest}) == 2)) {
         $self->instance($self->rest->[1]);
     } elsif (($self->rest->[0] eq 'validate') && ($self->method eq 'GET')) {
@@ -302,6 +321,27 @@ sub static {
             $data->{$o->category_type}{$o->category}{$o->tag} = $info;
         }
     }
+    $self->return_data($data);
+}
+
+# the resource is called with a label parameter
+sub list_values {
+    my ($self, $label) = @_;
+    
+    # get database
+    my $master = $self->connect_to_datasource();
+    my $mddb = MGRAST::Metadata->new();
+    
+    my $values = $mddb->get_unique_for_tag($label);
+    if (@$values == 0) {
+        $self->return_data( {"ERROR" => "Invalid metadata label: ".$label}, 400 );
+    }
+    
+    my $data = {
+        label => $label,
+        total => scalar(@$values),
+        values => $values
+    };
     $self->return_data($data);
 }
 
@@ -438,15 +478,16 @@ sub process_file {
     my $data   = {};
     my $master = $self->connect_to_datasource();
     my $mddb   = MGRAST::Metadata->new();
+    my $post   = $self->get_post_data(["upload", "node_id", "project", "metagenome", "map_by_id"]);
     
     # get metadata file
     my $tmp_dir = $Conf::temp;
     my $fname   = "";
     my $node    = {};
-        
-    # uploaded
-    if ($self->cgi->param('upload')) {
-        $fname = $self->cgi->param('upload');
+    
+    # uploaded / not POST data
+    if ($post->{upload}) {
+        $fname = $post->{upload};
         if ($fname =~ /\.\./) {
             $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
         }
@@ -470,11 +511,13 @@ sub process_file {
         }
     }
     # from shock node
-    elsif ($self->cgi->param('node_id')) {
-        my $nid = $self->cgi->param('node_id');
-        $node   = $self->get_shock_node($nid, $self->mgrast_token);
-        $fname  = $node->{file}{name};
-        my ($res, $err) = $self->get_shock_file($nid, "$tmp_dir/$fname", $self->mgrast_token);
+    elsif ($post->{node_id}) {
+        $node = $self->get_shock_node($post->{node_id}, $self->token, $self->user_auth);
+        unless (exists $node->{attributes}{stats_info}) {
+            ($node, undef) = $self->get_file_info(undef, $node, $self->token, $self->user_auth);
+        }
+        $fname = $node->{file}{name};
+        my ($res, $err) = $self->get_shock_file($post->{node_id}, "$tmp_dir/$fname", $self->token, $self->user_auth);
         if ($err) {
             $self->return_data({"ERROR" => $err}, 500);
         }
@@ -487,15 +530,16 @@ sub process_file {
     # validate file
     my ($is_valid, $md_obj, $log) = $mddb->validate_metadata("$tmp_dir/$fname");
 
+    # is a shock node / update it
+    if ($is_valid && $node && ref($node)) {
+        my $attr = $node->{attributes};
+        $attr->{data_type} = 'metadata';
+        $self->update_shock_node($node->{id}, $attr, $self->token, $self->user_auth);
+    }
+
     # run different actions
     if ($type eq 'validate') {
         if ($is_valid) {
-            if ($node && ref($node)) {
-                # validate shock node
-                my $attr = $node->{attributes};
-                $attr->{data_type} = 'metadata';
-                $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
-            }
             delete $md_obj->{is_valid};
             $data = {is_valid => 1, message => undef, metadata => $md_obj};
         } else {
@@ -503,55 +547,50 @@ sub process_file {
         }
     }
     elsif (($type eq 'import') || ($type eq 'update')) {
-        unless ($self->cgi->param('metagenomes')) {
-            $self->return_data({"ERROR" => "Invalid parameters, requires metagenome ID list"}, 404);
-        }
         unless ($is_valid) {
             $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", @$log, @{$md_obj->{data}})}, 422);
         }
+        unless ($post->{metagenome} && (@{$post->{metagenome}} > 0)) {
+            $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
+        }
+        if (($type eq 'update') && (! $post->{project})) {
+            $self->return_data({"ERROR" => "Invalid parameters, update requires project ID"}, 404);
+        }
         
         # get metagenome objects
-        my @mgids = split(/,/, $self->cgi->param('metagenomes'));
-        my @jobs  = ();
-        foreach my $id (@mgids) {
+        my @jobs = ();
+        foreach my $id (@{$post->{metagenome}}) {
             if ($id =~ /^mgm(\d+\.\d+)$/) {
                 my $mgid = $1;
                 # get data
                 my $job = $master->Job->get_objects( {metagenome_id => $mgid} );
                 unless ($job && @$job) {
-                    $self->return_data( {"ERROR" => "metagenome id $id does not exist"}, 404 );
+                    $self->return_data( {"ERROR" => "Metagenome id $id does not exist"}, 404 );
                 }
                 $job = $job->[0];
                 # check rights
                 unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $mgid) || $self->user && $self->user->has_star_right('edit', 'metagenome'))) {
-                    $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+                    $self->return_data( {"ERROR" => "Insufficient permissions to view this data"}, 401 );
                 }
                 push @jobs, $job;
             } else {
-                $self->return_data( {"ERROR" => "invalid id format: ".$id}, 400 );
+                $self->return_data( {"ERROR" => "Invalid metagenome id format: ".$id}, 400 );
             }
         }
         
         # get project object (if exists)
         my $project_name = $md_obj->{data}{project_name}{value};
-        my $project_id   = exists($md_obj->{id}) ? $md_obj->{id} : '';
+        my $project_id   = ($type eq 'update') ? $post->{project} : (exists($md_obj->{id}) ? $md_obj->{id} : '');
         my $project_obj  = undef;
         
-        if ($type eq 'update') {
-            $project_id = $self->cgi->param('project');
-            unless ($project_id) {
-                $self->return_data({"ERROR" => "Invalid parameters, requires project ID"}, 404);
-            }
-        }
-        
-        # get project from id or name
+        # get project from id or name, or create it
         my $projects = [];
         if ($project_id) {
             if ($project_id =~ /^mgp(\d+)$/) {
-                my $pnum = $1;
+                my $pnum  = $1;
                 $projects = $master->Project->get_objects( {id => $pnum} );
             } else {
-                $self->return_data( {"ERROR" => "invalid id format: ".$project_id}, 400 );
+                $self->return_data( {"ERROR" => "invalid project id format: ".$project_id}, 400 );
             }
         } elsif ($project_name) {
             $projects = $master->Project->get_objects( {name => $project_name} );
@@ -560,13 +599,16 @@ sub process_file {
             $project_obj = $projects->[0];
             # check rights
             unless ($self->user && ($self->user->has_right(undef, 'edit', 'project', $project_obj->id) || $self->user->has_star_right('edit', 'project'))) {
-                $self->return_data( {"ERROR" => "insufficient permissions to edit this data"}, 401 );
+                $self->return_data( {"ERROR" => "insufficient permissions to edit this project"}, 401 );
             }
         }
         
         # import or update
-        my $mapbyid = $self->cgi->param('map_by_id') ? 1 : 0;
+        my $mapbyid = $post->{map_by_id} ? 1 : 0;
         my ($pnum, $added, $err_msg) = $mddb->add_valid_metadata($self->user, $md_obj, \@jobs, $project_obj, $mapbyid);
+        if ($added && scalar(@$added)) {
+            @$added = map { 'mgm'.$_->{metagenome_id} } @$added;
+        }
         $data = {project => 'mgp'.$pnum, added => $added, errors => $err_msg};
     }
     

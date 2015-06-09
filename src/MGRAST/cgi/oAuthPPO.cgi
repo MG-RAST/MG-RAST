@@ -91,6 +91,10 @@ if ($cgi->param('login') && $cgi->param('pass')) {
   }
 }
 
+if ($cgi->param('grant_type') && $cgi->param('grant_type') eq 'authorization_code') {
+    $cgi->param('action', 'token');
+}
+
 unless ($cgi->param('action')) {
   print $cgi->header(-cookie => $cookie, -charset => 'UTF-8' );
   print base_template();
@@ -145,7 +149,11 @@ unless ($cgi->param('action')) {
       exit 0;
     }
   } elsif ($cgi->param("action") eq "dialog") {
-      if ($cgi->param("client_id") && $cgi->param("redirect_url")) {
+      if ($cgi->param("client_id") && ($cgi->param("redirect_url") || $cgi->param("redirect_uri"))) {
+	  if ($cgi->param('redirect_uri')) {
+	      $cgi->param('redirect_url', $cgi->param('redirect_uri'));
+	  }
+	  my ($redirect_url) = $cgi->param('redirect_url') =~ /^(http[s]*\:\/\/[^\/]+)/;
 	my $res = $dbh->selectrow_arrayref("SELECT application FROM apps WHERE application=".$dbh->quote($cgi->param("client_id"))." AND url=".$dbh->quote($cgi->param('redirect_url')).";");
 	if ($dbh->err()) {
 	  warning_message($DBI::errstr);
@@ -172,7 +180,7 @@ unless ($cgi->param('action')) {
 	      } else {
 		$url .= "?";
 	      }
-	      print $cgi->redirect( -uri => $url."code=".$secret, -cookie=>$cookie);
+	      print $cgi->redirect( -uri => $url."code=".$secret.($cgi->param('state') ? "&state=".$cgi->param('state') : ""), -cookie=>$cookie);
 	      exit 0;				
 	    } else {
 		$res = $dbh->selectrow_arrayref("SELECT application, token FROM accepts WHERE application=".$dbh->quote($cgi->param("client_id"))." AND login='".$user->login."';");
@@ -187,7 +195,7 @@ unless ($cgi->param('action')) {
 		    } else {
 			$url .= "?";
 		    }
-		    print $cgi->redirect( -uri => $url."code=".$res->[1], -cookie=>$cookie );
+		    print $cgi->redirect( -uri => $url."code=".$res->[1].($cgi->param('state') ? "&state=".$cgi->param('state') : ""), -cookie=>$cookie );
 		    exit 0;				
 		} else {
 		    auth_client_screen();
@@ -200,13 +208,37 @@ unless ($cgi->param('action')) {
 	  }
 	} else {
 	  $dbh->disconnect();
-	  print $cgi->header(-type => 'text/plain',
-			     -status => 400,
-			     -charset => 'UTF-8',
-			     -Access_Control_Allow_Origin => '*' );
-	  print "redirect_url does not match client id";
+	  if ($cgi->param('format') && ($cgi->param('format') eq 'json')) {
+	      print $cgi->header(-type => 'text/json',
+				 -status => 200,
+				 -charset => 'UTF-8',
+				 -Access_Control_Allow_Origin => '*' );
+	      print '{ "error": "redirect_url does not match client id" }';
+	  } else {
+	      print $cgi->header(-type => 'text/plain',
+				 -status => 400,
+				 -charset => 'UTF-8',
+				 -Access_Control_Allow_Origin => '*' );
+	      print "redirect_url does not match client id";
+	  }
 	  exit 0;
 	}
+      } else {
+	  $dbh->disconnect();
+	  if ($cgi->param('format') && ($cgi->param('format') eq 'json')) {
+	      print $cgi->header(-type => 'text/json',
+				 -status => 200,
+				 -charset => 'UTF-8',
+				 -Access_Control_Allow_Origin => '*' );
+	      print '{ "error": "missing redirect_url" }';
+	  } else {
+	      print $cgi->header(-type => 'text/plain',
+				 -status => 400,
+				 -charset => 'UTF-8',
+				 -Access_Control_Allow_Origin => '*' );
+	      print "missing redirect_url";
+	  }
+	  exit 0;
       }
     } elsif ($cgi->param("action") eq "token") {
       if ($cgi->param("client_id") && $cgi->param("client_secret") && $cgi->param("code")) {
@@ -220,20 +252,36 @@ unless ($cgi->param('action')) {
 	  $user = $master->User->init( { login => $login } );
 	  unless (ref($user)) {
 	  $dbh->disconnect();
-	  print $cgi->header(-type => 'text/plain',
-			     -status => 400,
-			     -charset => 'UTF-8',
-			     -Access_Control_Allow_Origin => '*' );
-	  print "invalid user code";
+	  if ($cgi->param('format') && ($cgi->param('format') eq 'json')) {
+	      print $cgi->header(-type => 'text/json',
+				 -status => 200,
+				 -charset => 'UTF-8',
+				 -Access_Control_Allow_Origin => '*' );
+	      print '{ "error": "invalid user code" }';
+	  } else {
+	      print $cgi->header(-type => 'text/plain',
+				 -status => 400,
+				 -charset => 'UTF-8',
+				 -Access_Control_Allow_Origin => '*' );
+	      print "invalid user code";
+	  }
 	  exit 0;
 	  }
 	} else {
 	  $dbh->disconnect();
-	  print $cgi->header(-type => 'text/plain',
-			     -status => 400,
-			     -charset => 'UTF-8',
-			     -Access_Control_Allow_Origin => '*' );
-	  print "invalid code";
+	  if ($cgi->param('format') && ($cgi->param('format') eq 'json')) {
+	      print $cgi->header(-type => 'text/json',
+				 -status => 200,
+				 -charset => 'UTF-8',
+				 -Access_Control_Allow_Origin => '*' );
+	      print '{ "error": "invalid code" }';
+	  } else {
+	      print $cgi->header(-type => 'text/plain',
+				 -status => 400,
+				 -charset => 'UTF-8',
+				 -Access_Control_Allow_Origin => '*' );
+	      print "invalid code";
+	  }
 	  exit 0;
 	}
 
@@ -254,19 +302,35 @@ unless ($cgi->param('action')) {
 	}
 	
 	$dbh->disconnect();
-	print $cgi->header(-type => 'text/plain',
-			   -status => 200,
-			   -charset => 'UTF-8',
-			   -Access_Control_Allow_Origin => '*' );
-	print "access_token=$token|".$user->login;
+	if ($cgi->param('format') && ($cgi->param('format') eq 'json')) {
+	    print $cgi->header(-type => 'text/json',
+			       -status => 200,
+			       -charset => 'UTF-8',
+			       -Access_Control_Allow_Origin => '*' );
+	    print '{ "access_token": "'.$token.'", "user": "'.$user->login.'" }';
+	} else {
+	    print $cgi->header(-type => 'text/plain',
+			       -status => 200,
+			       -charset => 'UTF-8',
+			       -Access_Control_Allow_Origin => '*' );
+	    print "access_token=$token|".$user->login;
+	}
 	exit 0;	
       } else {
 	$dbh->disconnect();
-	print $cgi->header(-type => 'text/plain',
-			   -status => 400,
-			   -charset => 'UTF-8',
-			   -Access_Control_Allow_Origin => '*' );
-	print "missing parameter";
+	if ($cgi->param('format') && ($cgi->param('format') eq 'json')) {
+	    print $cgi->header(-type => 'text/json',
+			       -status => 200,
+			       -charset => 'UTF-8',
+			       -Access_Control_Allow_Origin => '*' );
+	    print '{ "error": "missing parameter" }';
+	} else {
+	    print $cgi->header(-type => 'text/plain',
+			       -status => 400,
+			       -charset => 'UTF-8',
+			       -Access_Control_Allow_Origin => '*' );
+	    print "missing parameter";
+	}
 	exit 0;
       }
     } else {
