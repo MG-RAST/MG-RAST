@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
   git-core \
   libpq-dev \
   make \
+  wget \
   perl-modules \
   liburi-perl \
   libwww-perl \
