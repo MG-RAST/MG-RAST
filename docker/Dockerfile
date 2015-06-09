@@ -51,7 +51,7 @@ RUN mkdir -p /sites/1/ && \
 RUN cd /MG-RAST/conf && ln -s /api-server/Conf.pm && \
   cd /pipeline/conf && ln -s /api-server/PipelineAWE_Conf.pm
 
-# m5nr blast files
+# m5nr blast files - 2.6 GB & 11.7 GB
 RUN mkdir -p /m5nr/20100309 && \
   cd /m5nr/20100309 && \
   wget ftp://ftp.metagenomics.anl.gov/data/MD5nr/20100309/md5nr.blast.tgz && \
