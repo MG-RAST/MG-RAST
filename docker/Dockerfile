@@ -1,9 +1,27 @@
 FROM httpd:2.4.12
 
+# MG-RAST dependencies
 RUN apt-get update && apt-get install -y \
   git-core \
+  libpq-dev
+  perl-modules \
   liburi-perl \
-  libwww-perl 
+  libwww-perl \
+  libjson-perl \
+  libdbi-perl \
+  libdbd-mysql-perl \
+  libdbd-pg-perl \
+  libdigest-md5-perl \
+  libfile-slurp-perl \
+  libhtml-strip-perl \
+  liblist-moreutils-perl \
+  libcache-memcached-perl \
+  libhtml-template-perl \
+  libdigest-md5-perl \
+  libdigest-md5-file-perl \
+  libdatetime-perl \
+  liblist-allutils-perl \
+  libposix-strptime-perl
 
 
 RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
@@ -12,10 +30,16 @@ RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   cd /MG-RAST && \
   make
 
+# pipeline dependencies
+RUN apt-get install -y \
+  python-dev \
+  python-pip \
+  libtemplate-perl
 
-#RUN apt-get install -y PIPELINE_DEPENDENCIES HERE <------------------
+RUN pip install gspread xlrd openpyxl lepl
 
 RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
+RUN cp /pipeline/lib/StreamingUpload.pm /MG-RAST/site/lib/StreamingUpload.pm
 
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
@@ -23,8 +47,7 @@ RUN mkdir -p /sites/1/ && \
 
 # Configuration in mounted directory
 RUN cd /MG-RAST/conf && ln -s /api-server/Conf.pm
-
-
+RUN cd /pipeline/conf && ln -s /api-server/PipelineAWE_Conf.pm
 
 
 # Execute:
