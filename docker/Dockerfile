@@ -50,6 +50,18 @@ RUN mkdir -p /sites/1/ && \
 RUN cd /MG-RAST/conf && ln -s /api-server/Conf.pm && \
   cd /pipeline/conf && ln -s /api-server/PipelineAWE_Conf.pm
 
+# m5nr blast files
+RUN mkdir -p /m5nr/20100309 && \
+  cd /m5nr/20100309 && \
+  wget ftp://ftp.metagenomics.anl.gov/data/MD5nr/20100309/md5nr.blast.tgz && \
+  tar zxvf md5nr.blast.tgz && \
+  rm md5nr.blast.tgz
+
+RUN mkdir -p /m5nr/20131215 && \
+  cd /m5nr/20131215 && \
+  wget ftp://ftp.metagenomics.anl.gov/data/MD5nr/20131215/md5nr.blast.tgz && \
+  tar zxvf md5nr.blast.tgz && \
+  rm md5nr.blast.tgz
 
 # Execute:
 # /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
