@@ -656,7 +656,8 @@ sub md5s2sequences {
     
     # get seqs
     eval {
-        foreach my $line (`fastacmd -d $m5nr -i $tfile -l 0 -t T -p T`) {
+        my $fastacmd = $Conf::fastacmd;
+        foreach my $line (`$fastacmd -d $m5nr -i $tfile -l 0 -t T -p T`) {
             if ((! $line) || ($line =~ /^\s+$/) || ($line =~ /^\[fastacmd\]/)) {
                 next;
             }
