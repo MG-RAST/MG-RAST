@@ -710,12 +710,18 @@ sub submission_nodes {
         type => 'inbox',
         id => $user_id
     };
+    my $inbox_query2 = {
+        submission => $uuid,
+        type => 'inbox',
+        id => $self->user->{login}
+    };
     my $mgrast_query = {
         submission => $uuid,
         type => 'metagenome',
         owner => $user_id
     };
     my $inbox_nodes = $self->get_shock_query($inbox_query, $self->token, $self->user_auth);
+    push(@$inbox_nodes, @{$self->get_shock_query($inbox_query2, $self->token, $self->user_auth)});
     my $data = { inbox => $inbox_nodes || [] };
     if ($full) {
         my $mgrast_nodes = $self->get_shock_query($mgrast_query, $self->mgrast_token);

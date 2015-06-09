@@ -1106,8 +1106,11 @@ sub awe_job_action {
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
-        my $req = POST($Conf::awe_url.'/job/'.$id.'?'.$action, @args);
+        my $req = POST($Conf::awe_url.'/job/'.$id.($action ne 'delete' ? '?'.$action : ''), @args);
         $req->method('PUT');
+	if ($action eq 'delete') {
+	  $req->method('DELETE');
+	}
         my $put = $self->agent->request($req);
         $response = $self->json->decode( $put->content );
     };
@@ -1853,7 +1856,7 @@ sub node_from_inbox_id {
     my ($self, $uuid, $auth, $authPrefix) = @_;
     my $node = $self->get_shock_node($uuid, $auth, $authPrefix);
     unless ( exists($node->{attributes}{type}) && ($node->{attributes}{type} eq 'inbox') &&
-             exists($node->{attributes}{id}) && ($node->{attributes}{id} eq 'mgu'.$self->user->_id) ) {
+             exists($node->{attributes}{id}) && (($node->{attributes}{id} eq 'mgu'.$self->user->_id) || ($node->{attributes}{id} eq $self->user->{login})) ) {
         $self->return_data( {"ERROR" => "file id '$uuid' does not exist in your inbox"}, 404 );
     }
     return $node;
