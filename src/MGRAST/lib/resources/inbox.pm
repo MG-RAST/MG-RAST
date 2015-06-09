@@ -304,9 +304,11 @@ sub request {
             } elsif ($self->rest->[0] eq 'validate') {
                 $self->validate_metadata($self->rest->[1]);
             } elsif ($self->rest->[0] eq 'stats') {
-                $self->seq_stats($self->rest->[1]);
-            }
-        # inbox actions that run through AWE
+	      $self->seq_stats($self->rest->[1]);
+	    } elsif ($self->rest->[0] eq 'cancel') {
+	      $self->cancel_inbox_action($self->rest->[1]);
+	    }
+        # inbox actions that make new nodes
         } elsif (($self->method eq 'POST') && (scalar(@{$self->rest}) > 0)) {
             if ($self->rest->[0] eq 'rename') {
                 $self->rename_file();
@@ -527,6 +529,7 @@ sub view_inbox {
         $inbox = [ $self->node_from_inbox_id($uuid, $self->token, $self->user_auth) ];
     } else {
         $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->token, $self->user_auth);
+	push(@$inbox, @{$self->get_shock_query({'type' => 'inbox', 'id' => $self->user->{login}}, $self->token, $self->user_auth)});
     }
     # process inbox
     my $files = [];
@@ -569,6 +572,12 @@ sub view_inbox_actions {
         $params->{state} = $requestedStates;
     }
     $self->return_data($self->get_awe_query($params, $self->token, "mgrast"));
+}
+
+sub cancel_inbox_action {
+  my ($self, $id) = @_;
+  
+  $self->return_data($self->awe_job_action($id, "delete", $self->token, "mgrast"));
 }
 
 sub upload_file {
