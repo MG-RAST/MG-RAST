@@ -3,7 +3,7 @@ FROM httpd:2.4.12
 # MG-RAST dependencies
 RUN apt-get update && apt-get install -y \
   git-core \
-  libpq-dev
+  libpq-dev \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -46,8 +46,8 @@ RUN mkdir -p /sites/1/ && \
   ln -s /MG-RAST/
 
 # Configuration in mounted directory
-RUN cd /MG-RAST/conf && ln -s /api-server/Conf.pm
-RUN cd /pipeline/conf && ln -s /api-server/PipelineAWE_Conf.pm
+RUN cd /MG-RAST/conf && ln -s /api-server/Conf.pm && \
+  cd /pipeline/conf && ln -s /api-server/PipelineAWE_Conf.pm
 
 
 # Execute:
