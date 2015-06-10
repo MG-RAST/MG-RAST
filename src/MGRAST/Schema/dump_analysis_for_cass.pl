@@ -65,11 +65,13 @@ $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 my @batch_set = ();
 my $batch_count = 0;
 my $md5_count = 0;
+my $batch_num = 0;
 while (my @row = $sth->fetchrow_array()) {
     push @batch_set, \@row;
     $batch_count += 1;
     $md5_count += 1;
     if ($batch_count == 1000) {
+        $batch_num += 1;
         my @output = process_batch(\@batch_set, $m5nr."/m5nr_".$version."/select");
         foreach my $line (@output) {
             print DUMP join(",", map { '"'.$_.'"' } @$line)."\n";
@@ -79,7 +81,8 @@ while (my @row = $sth->fetchrow_array()) {
     }
 }
 if (@batch_set > 0) {
-    my @output = process_batch(\@batch_set, $m5nr."/m5nr_".$version);
+    $batch_num += 1;
+    my @output = process_batch(\@batch_set, $m5nr."/m5nr_".$version."/select");
     foreach my $line (@output) {
         print DUMP join(",", map { '"'.$_.'"' } @$line)."\n";
     }
@@ -109,7 +112,7 @@ sub process_batch {
         if ($@) {
             # try again !!!
             if ($try >= 3) {
-                print STDERR "Failed 3 times at md5 # $md5_count\n".$@."\n".$result->content."\n";
+                print STDERR "Failed 3 times at md5 $md5_count (batch $batch_num)\n".$@."\n".$result->content."\n";
                 $dbh->disconnect;
                 exit 1;
             } else {
@@ -134,7 +137,8 @@ sub process_batch {
             push @{ $org->{$ann->{source}} }, cescape($ann->{organism} || "");
         }
         my $out = [ $version, $job,
-                    $ea, $ia, $la, $md5, $es, $is, $ls,
+                    $ea, $ia, $la, $md5,
+                    $es, $is, $ls,
                     $abund, $seek, $len,
                     ($prot ? 'true' : 'false'),
                     cstring($acc),
