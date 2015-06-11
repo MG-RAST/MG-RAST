@@ -127,6 +127,8 @@ sub process_batch {
     foreach my $set (@batch_set) {
         my ($mid, $abund, $ea, $ia, $la, $es, $is, $ls, $seek, $len, $prot) = @$set;
         next unless ($data->{$mid});
+        next if (int($ea) > 0);
+        $ea = $ea * -1;
         my $md5 = $data->{$mid}[0]{md5};
         my $acc = {};
         my $fun = {};

@@ -1,5 +1,8 @@
 
-use MGRAST_analysis;
+CREATE KEYSPACE IF NOT EXISTS mgrast_analysis
+    WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 };
+
+use mgrast_analysis;
 
 CREATE TYPE source_info (
     accession list<text>,
@@ -67,6 +70,7 @@ CREATE TABLE IF NOT EXISTS job_md5s (
     organism map<text, frozen<list<text>>>,
     PRIMARY KEY ((version, job), exp_avg, ident_avg, len_avg, md5)
 );
+COPY job_md5s (version, job, exp_avg, ident_avg, len_avg, md5, exp_stdv, ident_stdv, len_stdv, abundance, seek, length, is_protein, accession, function, organism) FROM '/mnt/src/job_data.1595';
 
 CREATE TABLE IF NOT EXISTS job_lcas (
     version int,
