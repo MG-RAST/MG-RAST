@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y \
   git-core \
   libpq-dev \
   make \
-  wget \
+  curl \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -48,21 +48,13 @@ RUN mkdir -p /sites/1/ && \
   ln -s /MG-RAST/
 
 # Configuration in mounted directory
-RUN cd /MG-RAST/conf && ln -s /api-server/Conf.pm && \
-  cd /pipeline/conf && ln -s /api-server/PipelineAWE_Conf.pm
+RUN cd /MG-RAST/conf && ln -s /api-server/conf/Conf.pm && \
+  cd /pipeline/conf && ln -s /api-server/conf/PipelineAWE_Conf.pm
 
-# m5nr blast files - 2.6 GB & 11.7 GB
-RUN mkdir -p /m5nr/20100309 && \
-  cd /m5nr/20100309 && \
-  wget ftp://ftp.metagenomics.anl.gov/data/MD5nr/20100309/md5nr.blast.tgz && \
-  tar zxvf md5nr.blast.tgz && \
-  rm md5nr.blast.tgz
-
-RUN mkdir -p /m5nr/20131215 && \
-  cd /m5nr/20131215 && \
-  wget ftp://ftp.metagenomics.anl.gov/data/MD5nr/20131215/md5nr.blast.tgz && \
-  tar zxvf md5nr.blast.tgz && \
-  rm md5nr.blast.tgz
+# m5nr blast files in mounted dir
+RUN mkdir -p /m5nr && \
+  ln -s /api-server/data/20100309 /m5nr/20100309 && \
+  ln -s /api-server/data/20131215 /m5nr/20131215
 
 # Execute:
 # /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
