@@ -15,6 +15,11 @@ Get config: (private mcs git repo)
 if cd /home/core/mgrast-config; then git pull; else cd /home/core/ ; git clone git@git.mcs.anl.gov:mgrast-config.git ; fi
 ```
 
+Download data
+```bash
+docker run -t -i --name api -v /media/ephemeral/api-server-data:/m5nr mgrast/api:${TAG} /MG-RAST/bin/download_m5nr_blast.sh
+docker rm api
+```
 
 Start container:
 ```bash
