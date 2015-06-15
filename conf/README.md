@@ -18,5 +18,5 @@ if cd /home/core/mgrast-config; then git pull; else cd /home/core/ ; git clone g
 
 Start container:
 ```bash
-docker run -t -i --name api -v /home/core/mgrast-config/services/api-server:/api-server-conf -v /media/ephemeral/api-server-data:/api-server-data -p 80:80 mgrast/api:${TAG} /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
+docker run -t -i --name api -v /home/core/mgrast-config/services/api-server:/api-server-conf -v /media/ephemeral/api-server-data:/m5nr -p 80:80 mgrast/api:${TAG} /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
 ```
