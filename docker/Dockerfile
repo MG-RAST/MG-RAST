@@ -48,8 +48,8 @@ RUN mkdir -p /sites/1/ && \
   ln -s /MG-RAST/
 
 # Configuration in mounted directory
-RUN cd /MG-RAST/conf && ln -s /api-server/conf/Conf.pm && \
-  cd /pipeline/conf && ln -s /api-server/conf/PipelineAWE_Conf.pm
+RUN cd /MG-RAST/conf && ln -s /api-server-conf/Conf.pm && \
+  cd /pipeline/conf && ln -s /api-server-conf/PipelineAWE_Conf.pm
 
 # m5nr blast files in mounted dir
 RUN mkdir -p /m5nr && \
