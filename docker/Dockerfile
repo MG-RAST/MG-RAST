@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y \
   libdigest-md5-file-perl \
   libdatetime-perl \
   liblist-allutils-perl \
-  libposix-strptime-perl
+  libposix-strptime-perl \
+  libuuid-tiny-perl
 
 
 RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
