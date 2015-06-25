@@ -2346,21 +2346,21 @@ sub single_visual {
 	  push(@$vals, $exp_hash->{$key}->[$ii] || 0);
 	}
 	my $row = $spec_hash->{$key};
-	foreach my $r (@$row) {
-	  if ($r =~ /derived/) {
-	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
-	  }
-	}
+	#foreach my $r (@$row) {
+	#  if ($r =~ /derived/) {
+	#    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
+	#  }
+	#}
 	push(@$expanded_data, [ @$row, $vals ] );
       }    
     } else {
       foreach my $row (@$data) {
 	next if ($tree_domain_filter && $tree_domain_filter ne $row->[1]);
-	foreach my $r (@$row) {
-	  if ($r =~ /derived/) {
-	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
-	  }
-	}
+	#foreach my $r (@$row) {
+	#  if ($r =~ /derived/) {
+	#    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
+	#  }
+	#}
 	push(@$expanded_data, [ @$row[1..9] ] );
       }
     }
@@ -3168,21 +3168,21 @@ sub phylogeny_visual {
 	  push(@$vals, $exp_hash->{$key}->[$ii] || 0);
 	}
 	my $row = $spec_hash->{$key};
-	foreach my $r (@$row) {
-	  if ($r =~ /derived/) {
-	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
-	  }
-	}
+	#foreach my $r (@$row) {
+	#  if ($r =~ /derived/) {
+	#    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
+	#  }
+	#}
 	push(@$expanded_data, [ @$row, $vals ] );
       }    
     } else {
       foreach my $row (@$data) {
 	next if ($tree_domain_filter && $tree_domain_filter ne $row->[2]);
-	foreach my $r (@$row) {
-	  if ($r =~ /derived/) {
-	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
-	  }
-	}
+	#foreach my $r (@$row) {
+	#  if ($r =~ /derived/) {
+	#    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
+	#  }
+	#}
 	push(@$expanded_data, [ @$row[2..10] ] );
       }
     }
@@ -5231,36 +5231,36 @@ sub lca_visual {
       my $mg2num = {};
 
       for (my $hh=0; $hh<scalar(@comp_mgs); $hh++) {
-	$mg2num->{$comp_mgs[$hh]} = $hh;
+	    $mg2num->{$comp_mgs[$hh]} = $hh;
       }
       foreach my $row (@$data) {
-	$spec_hash->{$row->[8]} = [ @$row[1..8] ];
-	unless (exists($exp_hash->{$row->[8]})) {
-	  $exp_hash->{$row->[8]} = [];
-	}
-	$exp_hash->{$row->[8]}->[$mg2num->{$row->[0]}] = $row->[9];
+	    $spec_hash->{$row->[8]} = [ @$row[1..8] ];
+	    unless (exists($exp_hash->{$row->[8]})) {
+	      $exp_hash->{$row->[8]} = [];
+	    }
+	    $exp_hash->{$row->[8]}->[$mg2num->{$row->[0]}] = $row->[9];
       }
       foreach my $key (sort(keys(%$exp_hash))) {
-	my $vals = [];
-	for (my $ii=0; $ii<scalar(@comp_mgs); $ii++) {
-	  push(@$vals, $exp_hash->{$key}->[$ii] || 0);
-	}
-	my $row = $spec_hash->{$key};
-	foreach my $r (@$row) {
-	  if ($r =~ /derived/) {
-	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
-	  }
-	}
-	push(@$expanded_data, [ @$row, $vals ] );
+	    my $vals = [];
+	    for (my $ii=0; $ii<scalar(@comp_mgs); $ii++) {
+	      push(@$vals, $exp_hash->{$key}->[$ii] || 0);
+	    }
+	    my $row = $spec_hash->{$key};
+	    #foreach my $r (@$row) {
+    	#  if ($r =~ /derived/) {
+	    #    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
+	    #  }
+	    #}
+	    push(@$expanded_data, [ @$row, $vals ] );
       }
     } else {
       foreach my $row (@$data) {
-	foreach my $r (@$row) {
-	  if ($r =~ /derived/) {
-	    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
-	  }
-	}
-	push(@$expanded_data, [ @$row[1..9] ] );
+	    #foreach my $r (@$row) {
+	    #  if ($r =~ /derived/) {
+	    #    (undef, $r) = $r =~ /^(unclassified \(derived from )(.+)(\))$/;
+	    #  }
+	    #}
+	    push(@$expanded_data, [ @$row[1..9] ] );
       }
     }
     @$expanded_data = sort { $b->[8] <=> $a->[8] } @$expanded_data;
