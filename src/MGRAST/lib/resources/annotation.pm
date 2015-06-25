@@ -350,7 +350,16 @@ sub print_batch {
     } else {
         $fields = ['md5_id'];
     }
-
+    
+    # test if m5nr-solr is up
+    my $ua = $self->agent;
+    $ua->timeout(10);
+    my $response = $ua->get($Conf::m5nr_solr);
+    unless ($response->is_success) {
+        print "\nERROR downloading: M5NR annotation service is unavailable.\n";
+	    exit 0;
+    }
+    # now query m5nr-solr
     my ($data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$ann_ver, $solr_query_str, "", 0, 1000000000, $fields);
     my %md5s_to_annot = ();
     if ($type ne 'md5') {
@@ -358,7 +367,7 @@ sub print_batch {
             $md5s_to_annot{$result->{md5_id}}{$result->{$solr_key}} = 1;
         }
     }
-
+    
     my $hs = HTML::Strip->new();
     my $seek_num = scalar(@$seeks);
     my $len_num  = scalar(@$lens);

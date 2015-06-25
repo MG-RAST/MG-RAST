@@ -143,6 +143,7 @@ foreach my $md5 (@$pmd5s) {
         $lca =~ s/\"/\\"/g;
     }
     foreach my $d (@$data) {
+        next unless ($d->[1]);
         # source => [[ accession, function, organism ]]
         $d->[2] =~ s/\'/''/g;
         $d->[3] =~ s/\'/''/g;
@@ -183,6 +184,7 @@ foreach my $md5 (@$rmd5s) {
         $lca =~ s/\"/\\"/g;
     }
     foreach my $d (@$data) {
+        next unless ($d->[1]);
         # source => [[ accession, function, organism ]]
         $d->[2] =~ s/\'/''/g;
         $d->[3] =~ s/\'/''/g;
@@ -211,6 +213,7 @@ foreach my $md5 (@$omd5s) {
     my $mid  = $data->[0][0];
     my $srcs = {};
     foreach my $d (@$data) {
+        next unless ($d->[1]);
         # source => [[ accession, function ]]
         $d->[2] =~ s/\'/''/g;
         $d->[3] =~ s/\'/''/g;

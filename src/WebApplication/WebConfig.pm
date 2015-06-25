@@ -42,7 +42,7 @@ our $NODB   = undef;
 # Default values for the web application
 #
 our $APPLICATION_NAME = 'MG-RAST';
-our $APPLICATION_URL  = 'http://metagenomics.anl.gov/';
+our $APPLICATION_URL  = "$Conf::cgi_url/";
 our $ADMIN_EMAIL = 'mg-rast@mcs.anl.gov';
 
 #
@@ -50,10 +50,7 @@ our $ADMIN_EMAIL = 'mg-rast@mcs.anl.gov';
 # to web applications a backend depends on. 
 # rf. to User->grant_login_right
 #
-our $LOGIN_DEPENDENCIES = { 'RAST'       => [ 'SeedViewer', 'MGRAST', 'PRAST' ],
-			    'SeedViewer' => [ 'RAST', 'MGRAST', 'PRAST' ],
-			    'MGRAST'     => [ 'RAST', 'SeedViewer', 'PRAST' ],
-			    'PRAST'      => [ 'RAST', 'SeedViewer', 'MGRAST' ] };
+our $LOGIN_DEPENDENCIES = { 'MGRAST'     => [] };
 
 
 #
