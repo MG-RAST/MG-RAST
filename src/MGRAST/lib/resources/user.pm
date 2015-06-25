@@ -1087,7 +1087,7 @@ sub create_user {
   $abody->param('LOGIN', $user->login);
   $abody->param('EMAIL_USER', $user->email);
   $abody->param('APPLICATION_NAME', "MG-RAST");
-  $abody->param('APPLICATION_URL', "http://metagenomics.anl.gov");
+  $abody->param('APPLICATION_URL', $Conf::cgi_url);
   $abody->param('EMAIL_ADMIN', "mg-rast\@mcs.anl.gov");
   $abody->param('URL', $url);
   if ($cgi->param('country')) {
@@ -1122,7 +1122,7 @@ sub create_user {
   $ubody->param('LOGIN', $user->{login});
   $ubody->param('EMAIL_USER', $user->{email});
   $ubody->param('APPLICATION_NAME', "MG-RAST");
-  $ubody->param('APPLICATION_URL', "http://metagenomics.anl.gov");
+  $ubody->param('APPLICATION_URL', $Conf::cgi_url);
   $ubody->param('EMAIL_ADMIN', "mg-rast\@mcs.anl.gov");
   
   $user->send_email( "mg-rast\@mcs.anl.gov",
@@ -1145,7 +1145,7 @@ sub set_password {
     $body->param('LOGIN', $user->{login});
     $body->param('NEWPASSWORD', $password);
     $body->param('APPLICATION_NAME', "MG-RAST");
-    $body->param('APPLICATION_URL', "http://metagenomics.anl.gov");
+    $body->param('APPLICATION_URL', $Conf::cgi_url);
     $body->param('EMAIL_ADMIN', "mg-rast\@mcs.anl.gov");
     
     $user->send_email( "mg-rast\@mcs.anl.gov",
