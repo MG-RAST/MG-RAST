@@ -61,7 +61,7 @@ def main(args):
     found = set()
     for i in range(opts.count):
         ints = random_array(opts.batch)
-        query = "SELECT * FROM annot_by_id WHERE id IN ("+",".join(map(str, ints))+");"
+        query = "SELECT * FROM md5_id_annotation WHERE id IN ("+",".join(map(str, ints))+");"
         if mode == "sql":
             cursor = handle.cursor()
             cursor.execute(query)
