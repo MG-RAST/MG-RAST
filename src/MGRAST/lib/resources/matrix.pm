@@ -488,12 +488,12 @@ sub prepare_data {
                     # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
                     my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen), 1);
                     # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
-                    @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[9] !~ /^(\-|unclassified)/} @$info;
+                    @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
                     map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
                     map { $self->{org2tid}->{$_->[9]} = $_->[19] } @$info;
                 } else {
                     # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
-                    @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} grep {$_->[1] !~ /^(\-|unclassified)/} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
+                    @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
                     # mgid, hier_annotation, value
                 }
             } elsif ($htype eq 'single') {
@@ -501,7 +501,7 @@ sub prepare_data {
                 my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen), 1);
                 # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
                 if ($leaf_node) {
-                    @$matrix = map {[ $_->[8], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[8] !~ /^(\-|unclassified)/} @$info;
+                    @$matrix = map {[ $_->[8], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
                     map { $self->{org2tax}->{$_->[8]} = [ @$_[1..8] ] } @$info;
                     map { $self->{org2tid}->{$_->[8]} = $_->[17] } @$info;
                 } else {
@@ -509,7 +509,7 @@ sub prepare_data {
                     $lvl_idx += 1;
                     my $merged = {};
                     foreach my $set (@$info) {
-                        next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
+                        next if ($set->[$lvl_idx] =~ /^\-/);
                         if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
                             $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
                         } else {
@@ -532,7 +532,6 @@ sub prepare_data {
                 $lvl_idx += 1;
                 my $merged = {};
                 foreach my $set (@$info) {
-                    next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
                     if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
                         $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
                     } else {
