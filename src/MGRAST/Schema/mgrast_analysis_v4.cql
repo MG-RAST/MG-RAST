@@ -1,5 +1,8 @@
 
-use MGRAST_analysis;
+CREATE KEYSPACE IF NOT EXISTS mgrast_analysis
+    WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 };
+
+use mgrast_analysis;
 
 CREATE TYPE source_info (
     accession list<text>,
@@ -19,6 +22,25 @@ CREATE TYPE lca_info (
     md5s int,
     level int
 );
+
+CREATE TABLE job_test (
+    version int,
+    job int,
+    exp_avg float,
+    md5 text,
+    data text,
+    PRIMARY KEY ((version, job), exp_avg, md5)
+);
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 10, 50, 'foo', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 10, 50, 'bar', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 10, 60, 'foo', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 10, 70, 'foo', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 10, 70, 'bar', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 20, 50, 'foo', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 20, 50, 'bar', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 20, 60, 'foo', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 20, 70, 'foo', 'hello world');
+INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 20, 70, 'bar', 'hello world');
 
 CREATE TABLE IF NOT EXISTS job_md5s (
     version int,
@@ -66,7 +88,8 @@ CREATE TABLE IF NOT EXISTS job_md5s (
     function map<text, frozen<list<text>>>,
     organism map<text, frozen<list<text>>>,
     PRIMARY KEY ((version, job), exp_avg, ident_avg, len_avg, md5)
-);
+) WITH CLUSTERING ORDER BY (exp_avg DESC, ident_avg DESC, len_avg DESC);
+COPY job_md5s (version, job, exp_avg, ident_avg, len_avg, md5, exp_stdv, ident_stdv, len_stdv, abundance, seek, length, is_protein, accession, function, organism) FROM '/mnt/src/job_data.1595';
 
 CREATE TABLE IF NOT EXISTS job_lcas (
     version int,
