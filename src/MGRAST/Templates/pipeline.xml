@@ -31,13 +31,12 @@
   </stage>
   <stage num='440'>
     <input>The input sequence data for this step is in the file 425.search.rna.fna.</input>
-    <description>Sequences are clustered at 97% identity using qiime-uclust. The clustering process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
+    <description>Sequences are clustered at 97% identity using cd-hit. The clustering process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
     <output><file>The FASTA formatted file 440.cluster.rna97.fna contains sequence clusters that have at least 70% identity to ribosomal sequences and have sequences within 97% identity.</file></output>
     <output>
       <file>The tab-delimited file 440.cluster.rna97.mapping identifies the sequence clusters and the sequences which describe them, each line describes a single cluster.</file>
-      <column>Cluster ID, e.g. rna97_998</column>
-      <column>Representative read ID, e.g. 11909294</column>
-      <column>List of IDs for other reads in the cluster, e.g. 11898451,11944918</column>
+      <column>Representative sequence ID, including hit location and strand, e.g. 11954908_1_121_+</column>
+      <column>List of IDs, including hit location and strand, for other sequences in the cluster, e.g. 11898451_1_119_+,11944918_19_121_+</column>
       <column>List of percentage identities to the representative read sequence, e.g. 97.5%,100.0%</column>
     </output>
   </stage>
@@ -62,13 +61,12 @@
   </stage>
   <stage num='550'>
     <input>The input sequence data for this step is in the file 350.genecalling.coding.faa.</input>
-    <description>Protein coding sequences identified with FragGeneScan are clustered at 90% identity with qiime-uclust. This process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
-    <output><file>The amino acid sequence FASTA formatted file 550.cluster.aa90.faa contains the translations of one sequence from each cluster (by cluster ids starting with aa90_) and all the unclustered (singleton) sequences with the original sequence ID.</file></output>
+    <description>Protein coding sequences identified with FragGeneScan are clustered at 90% identity with cd-hit. This process does not remove any sequences but instead makes the similarity search step easier. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.</description>
+    <output><file>The amino acid sequence FASTA formatted file 550.cluster.aa90.faa contains the translations of one sequence from each cluster (the representative or seed sequence ID) and all the unclustered (singleton) sequences with the original sequence ID.</file></output>
     <output>
       <file>The tab-delimited file 550.cluster.aa90.mapping identifies the sequence clusters and the sequences which describe them, each line describes a single cluster.</file>
-      <column>Cluster ID, e.g. aa90_3270</column>
-      <column>Protein coding sequence ID including hit location and strand, e.g. 11954908_1_121_+</column>
-      <column>List of sequence ids including hit location and strand for other genes in the cluster, e.g. 11898451_1_119_+,11944918_19_121_+</column>
+      <column>Protein coding representative sequence ID, including hit location and strand, e.g. 11954908_1_121_+</column>
+      <column>List of IDs, including hit location and strand, for other genes in the cluster, e.g. 11898451_1_119_+,11944918_19_121_+</column>
       <column>List of percentage identities to the representative gene sequence, e.g. 97.5%,100.0%</column>
     </output>
   </stage>

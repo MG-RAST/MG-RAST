@@ -1604,7 +1604,15 @@ sub run {
   # output, not ours.
   unless ($self->{transmitted}) {
     $self->{transmitted} = 1;
-    print $self->cgi->header( -cookie => $self->session->cookie, -charset => 'UTF-8' );
+    use CGI::Cookie;
+    my $c2 = "";
+    if ($self->session->{user}) {
+      $c2 = $self->session->{user}->{login}."|".$self->session->{user}->{firstname}." ".$self->session->{user}->{lastname};
+    }
+    print $self->cgi->header( -cookie => [ $self->session->cookie, CGI::Cookie->new( -name    => 'WUID',
+										     -value   => $c2,
+										     -expires => "+10d" ) ], -charset => 'UTF-8' );
+
     my $output = $self->layout->output;
     print $output;
   }

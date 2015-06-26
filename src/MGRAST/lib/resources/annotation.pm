@@ -306,7 +306,7 @@ sub prepare_data {
     }
     if($batch_count > 0) {
         my $solr_query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @md5s)."))";
-        $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, \@md5s, \@seeks, \@lens);
+        $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, $mgdb->_version, \@md5s, \@seeks, \@lens);
     }
 
     # cleanup
@@ -350,7 +350,16 @@ sub print_batch {
     } else {
         $fields = ['md5_id'];
     }
-
+    
+    # test if m5nr-solr is up
+    my $ua = $self->agent;
+    $ua->timeout(10);
+    my $response = $ua->get($Conf::m5nr_solr);
+    unless ($response->is_success) {
+        print "\nERROR downloading: M5NR annotation service is unavailable.\n";
+	    exit 0;
+    }
+    # now query m5nr-solr
     my ($data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$ann_ver, $solr_query_str, "", 0, 1000000000, $fields);
     my %md5s_to_annot = ();
     if ($type ne 'md5') {
@@ -358,48 +367,57 @@ sub print_batch {
             $md5s_to_annot{$result->{md5_id}}{$result->{$solr_key}} = 1;
         }
     }
-
-    my $hs  = HTML::Strip->new();
-    for(my $i=0; $i<@{$md5s}; $i++) {
-	if ($type ne 'md5' && !exists $md5s_to_annot{$md5s->[$i]}) {
-	    next;
-	}
-	# pull data from indexed shock file
-	my $rec = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seeks->[$i].'&length='.$lens->[$i]);
-	chomp $rec;
-	foreach my $line (split(/\n/, $rec)) {
-	    my @tabs = split(/\t/, $line);
-	    if ($tabs[0]) {
-		my @out = ();
-		my $rid = $hs->parse($tabs[0]);
-		unless ($mgid && $rid) {
-		    next;
-		}
-		$hs->eof;
-		my $ann = [];
-		foreach my $key (keys %{$md5s_to_annot{$md5s->[$i]}}) {
-		    push @$ann, $key;
-		}
-		if ($type ne 'md5') {
-                    if ($filter && (! $flevel)) {
-                        my @matches = grep {/$filter/} @$ann;
-                        @$ann = @matches;
-                    }
-                    if (@$ann == 0) { next; }
-                }
-		if (($format eq 'sequence') && (@tabs == 13)) {
-		    @out = ('mgm'.$mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
-		} elsif ($format eq 'similarity') {
-		    @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
-		    $count += 1;
-		}
-		if ($type eq 'md5') {
-		    pop @out;
-		}
-		print join("\t", map {$_ || ''} @out)."\n";
-		$count += 1;
+    
+    my $hs = HTML::Strip->new();
+    my $seek_num = scalar(@$seeks);
+    my $len_num  = scalar(@$lens);
+    
+    for (my $i=0; $i<@{$md5s}; $i++) {
+	    if ( ($type ne 'md5') && (! exists($md5s_to_annot{$md5s->[$i]})) ) {
+	        # missing md5
+	        next;
 	    }
-	}
+	    if ( ($seek_num <= $i) || ($len_num <= $i) ) {
+	        # missing seek or length
+	        next;
+	    }
+	    # pull data from indexed shock file
+	    my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seeks->[$i].'&length='.$lens->[$i]);
+	    if ($err) {
+		    print "\nERROR downloading: $err\n";
+		    exit 0;
+	    }
+	    chomp $rec;
+	    foreach my $line (split(/\n/, $rec)) {
+	        my @tabs = split(/\t/, $line);
+	        unless ($tabs[0]) { next; }
+		    my @out = ();
+		    my $rid = $hs->parse($tabs[0]);
+		    unless ($rid) { next; }
+		    $hs->eof;
+		    my $ann = [];
+		    foreach my $key (keys %{$md5s_to_annot{$md5s->[$i]}}) {
+		        push @$ann, $key;
+		    }
+		    if ($type ne 'md5') {
+                if ($filter && (! $flevel)) {
+                    my @matches = grep {/$filter/} @$ann;
+                    @$ann = @matches;
+                }
+                if (@$ann == 0) { next; }
+            }
+		    if (($format eq 'sequence') && (@tabs == 13)) {
+		        @out = ('mgm'.$mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
+		    } elsif ($format eq 'similarity') {
+		        @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
+		        $count += 1;
+		    }
+		    if ($type eq 'md5') {
+                pop @out;
+		    }
+		    print join("\t", map {$_ || ''} @out)."\n";
+		    $count += 1;
+	    }
     }
     return $count;
 }

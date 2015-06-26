@@ -15,8 +15,8 @@ sub new {
   
   # Add name / attributes
   $self->{name} = "heartbeat";
-  $self->{services} = { 'FTP' => 'ftp://ftp.metagenomics.anl.gov',
-			'website' => 'http://metagenomics.anl.gov/',
+  $self->{services} = { 'FTP' => $Conf::ftp_download,
+			'website' => $Conf::cgi_url,
 			'SHOCK' => $Conf::shock_url,
 			'AWE' => $Conf::awe_url,
 			'M5NR' => $Conf::m5nr_solr,

@@ -52,6 +52,13 @@ sub new {
         organism => [ $self->source->{m5nr}, $self->source->{m5rna} ],
         ontology => $self->source->{ontology}
     };
+    $self->{ver_default} = 1;
+    $self->{version} = {
+        '1' => '20100309',
+        '7' => '20120401',
+        '9' => '20130801',
+        '10' => '20131215'
+    };
     map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{protein}};
     map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{rna}};
     return $self;
@@ -103,6 +110,7 @@ sub info {
                                                                                          'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
                                                                                          'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} }
@@ -130,6 +138,7 @@ sub info {
                                                                                          'filter_source' => [ 'cv', $self->{sources}{organism} ],
                                                                                          'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                                                                                          'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
                                                                                          'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} }
@@ -155,6 +164,7 @@ sub info {
                                                                                          'id' => [ "string", "one or more metagenome or project unique identifier" ],
                                                                                          'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
                                                                                          'hide_annotation' => [ 'boolean', "if true do not return feature metadata in 'rows' object, default is false" ],
+                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
                                                                                          'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
                                                                          'required' => {},
                                                                          'body'     => {} } }
@@ -285,6 +295,7 @@ sub prepare_data {
     my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $hide_an = $cgi->param('hide_annotation') ? 1 : 0;
+    my $version = $cgi->param('version') || $self->{ver_default};
     my $leaf_node = 0;
     my $prot_func = 0;
     my $leaf_filter = 0;
@@ -314,8 +325,11 @@ sub prepare_data {
     }
 
     # initialize analysis obj with mgids
+    unless (exists $self->{version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    }
     my $master = $self->connect_to_datasource();
-    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
+    my $mgdb   = MGRAST::Analysis->new($master->db_handle, undef, $version);
     unless (ref($mgdb)) {
         return ({"ERROR" => "could not connect to analysis database"}, 500);
     }
@@ -474,12 +488,12 @@ sub prepare_data {
                     # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
                     my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen), 1);
                     # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
-                    @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[9] !~ /^(\-|unclassified)/} @$info;
+                    @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
                     map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
                     map { $self->{org2tid}->{$_->[9]} = $_->[19] } @$info;
                 } else {
                     # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
-                    @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} grep {$_->[1] !~ /^(\-|unclassified)/} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
+                    @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
                     # mgid, hier_annotation, value
                 }
             } elsif ($htype eq 'single') {
@@ -487,7 +501,7 @@ sub prepare_data {
                 my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen), 1);
                 # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
                 if ($leaf_node) {
-                    @$matrix = map {[ $_->[8], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {$_->[8] !~ /^(\-|unclassified)/} @$info;
+                    @$matrix = map {[ $_->[8], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
                     map { $self->{org2tax}->{$_->[8]} = [ @$_[1..8] ] } @$info;
                     map { $self->{org2tid}->{$_->[8]} = $_->[17] } @$info;
                 } else {
@@ -495,7 +509,7 @@ sub prepare_data {
                     $lvl_idx += 1;
                     my $merged = {};
                     foreach my $set (@$info) {
-                        next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
+                        next if ($set->[$lvl_idx] =~ /^\-/);
                         if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
                             $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
                         } else {
@@ -518,7 +532,6 @@ sub prepare_data {
                 $lvl_idx += 1;
                 my $merged = {};
                 foreach my $set (@$info) {
-                    next if ($set->[$lvl_idx] =~ /^(\-|unclassified)/);
                     if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
                         $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
                     } else {
