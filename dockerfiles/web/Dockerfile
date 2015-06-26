@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p /sites/ && \
   cd /sites/ && \ 
   git clone -b master https://github.com/MG-RAST/MG-RAST.git && \ 
-  cd MG-RASTv4 && \
+  cd MG-RAST && \
   make && \
   ln -s /config/Conf.pm /usr/share/perl5/Conf.pm 
 
