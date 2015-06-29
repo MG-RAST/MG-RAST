@@ -59,4 +59,4 @@ RUN mkdir -p /m5nr && \
   ln -s /api-server-data/20131215 /m5nr/20131215
 
 # Execute:
-# /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
+# /usr/local/apache2/bin/httpd -DFOREGROUND -f /api-server-conf/httpd.conf
