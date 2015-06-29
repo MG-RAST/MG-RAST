@@ -44,7 +44,7 @@ RUN cd /sites/ && git clone https://github.com/MG-RAST/metazen.git && \
   make
 
 # certificates need to be in daemon home directory
-RUN ln -s /config/.postgresql/ /usr/sbin/.postgresql
+RUN ln -s /config/postgresql/ /usr/sbin/.postgresql
 
 # docker run -t -i --name web -v /home/core/mgrast-config/services/web_v3/:/config -p 80:80 httpd:2.4.12 bash
 
