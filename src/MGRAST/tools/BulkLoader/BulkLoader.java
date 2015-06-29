@@ -8,8 +8,7 @@ import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
 
-import org.supercsv.io.CsvListReader;
-import org.supercsv.prefs.CsvPreference;
+import com.opencsv.CSVReader;
 
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.dht.Murmur3Partitioner;
@@ -79,6 +78,23 @@ public class BulkLoader {
                                     ") VALUES (" +
                                         "?, ?, ?, ?, ?, ?, ?, ?" +
                                     ")", keyspace, table);
+        } else if (table.equals("job_md5s")) {
+            schema = String.format("CREATE TABLE %s.%s (" +
+                                        "version int, " +
+                                        "job int, " +
+                                        "source text, " +
+                                        "md5 text, " +
+                                        "data frozen<md5_info>, " +
+                                        "accession list<text>, " +
+                                        "function list<text>, " +
+                                        "organism list<text>, " +
+                                        "PRIMARY KEY ((version, job), source, md5) " +
+                                    ")", keyspace, table);
+            insert = String.format("INSERT INTO %s.%s (" +
+                                        "version, job, source, md5, data, accession, function, organism" +
+                                    ") VALUES (" +
+                                        "?, ?, ?, ?, ?, ?, ?, ?" +
+                                    ")", keyspace, table);
         } else {
             System.out.println("Unsupported table type: " + table);
             System.exit(1);
@@ -107,35 +123,32 @@ public class BulkLoader {
         
         // set cvs reader / parser
         try (
-            BufferedReader reader = new BufferedReader(new FileReader(filename));
-            CsvListReader csvReader = new CsvListReader(reader, CsvPreference.STANDARD_PREFERENCE);
+            CSVReader csvReader = new CSVReader(new FileReader(filename));
         ) {
-            csvReader.getHeader(true); // skip the header
-        
             // Write to SSTable while reading data
-            List<String> line;
-            while ((line = csvReader.read()) != null) {
+            String[] line;
+            while ((line = csvReader.readNext()) != null) {
                 // We use Java types here based on
                 // http://www.datastax.com/drivers/java/2.0/com/datastax/driver/core/DataType.Name.html#asJavaClass%28%29
                 if (table.equals("md5_id_annotation")) {
-                    writer.addRow(Integer.parseInt(line.get(0)),
-                                  line.get(1),
-                                  line.get(2),
-                                  Boolean.valueOf(line.get(3)),
-                                  line.get(4),
-                                  parseList(line.get(5)),
-                                  parseList(line.get(6)),
-                                  parseList(line.get(7)),
-                                  parseList(line.get(8)));
+                    writer.addRow(Integer.parseInt(line[0]),
+                                  line[1],
+                                  line[2],
+                                  Boolean.valueOf(line[3]),
+                                  line[4],
+                                  parseList(line[5]),
+                                  parseList(line[6]),
+                                  parseList(line[7]),
+                                  parseList(line[8]));
                 } else if (table.equals("md5_annotation")) {
-                    writer.addRow(line.get(0),
-                                  line.get(1),
-                                  Boolean.valueOf(line.get(2)),
-                                  line.get(3),
-                                  parseList(line.get(4)),
-                                  parseList(line.get(5)),
-                                  parseList(line.get(6)),
-                                  parseList(line.get(7)));
+                    writer.addRow(line[0],
+                                  line[1],
+                                  Boolean.valueOf(line[2]),
+                                  line[3],
+                                  parseList(line[4]),
+                                  parseList(line[5]),
+                                  parseList(line[6]),
+                                  parseList(line[7]));
                 }
                 // Print nK
                 lineNumber += 1;
