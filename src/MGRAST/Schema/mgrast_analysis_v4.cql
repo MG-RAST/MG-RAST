@@ -12,9 +12,15 @@ CREATE TYPE source_info (
 
 CREATE TYPE md5_info (
     abundance int,
+    exp_avg float,
+    ident_avg float,
+    len_avg float,
+    exp_stdv float,
+    ident_stdv float,
+    len_stdv float,
     seek bigint,
     length int,
-    annotation map<text, frozen <source_info>>
+    is_protein boolean
 );
 
 CREATE TYPE lca_info (
@@ -42,6 +48,7 @@ INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 20, 60, 'foo'
 INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 20, 70, 'foo', 'hello world');
 INSERT INTO job_test (version, job, exp_avg, md5, data) VALUES (1, 20, 70, 'bar', 'hello world');
 
+### version 1 ###
 CREATE TABLE IF NOT EXISTS job_md5s (
     version int,
     job int,
@@ -70,6 +77,7 @@ CREATE TABLE IF NOT EXISTS job_lcas (
 
 # see: http://docs.datastax.com/en/cql/3.1/cql/cql_using/use-slice-partition.html
 
+### version 2 ###
 CREATE TABLE IF NOT EXISTS job_md5s (
     version int,
     job int,
@@ -106,4 +114,18 @@ CREATE TABLE IF NOT EXISTS job_lcas (
     level int,
     PRIMARY KEY ((version, job), exp_avg, ident_avg, len_avg, lca)
 );
+
+### version 3 ###
+CREATE TABLE IF NOT EXISTS job_md5s (
+    version int,
+    job int,
+    source text,
+    md5 text,
+    data frozen<md5_info>,
+    accession list<text>,
+    function list<text>,
+    organism list<text>,
+    PRIMARY KEY ((version, job), source, md5)
+);
+    
 
