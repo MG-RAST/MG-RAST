@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS md5_annotation (
     source text,
     is_protein boolean,
     single text,
-    lca text,
+    lca list<text>,
     accession list<text>,
     function list<text>,
     organism list<text>,
