@@ -1,6 +1,6 @@
 
 CREATE KEYSPACE IF NOT EXISTS m5nr_v1
-    WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 };
+    WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 };
 
 use m5nr_v1;
 
