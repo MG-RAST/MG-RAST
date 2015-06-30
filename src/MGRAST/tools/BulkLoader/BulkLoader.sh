@@ -6,7 +6,7 @@ TABLE=''
 INFILE=''
 OUTDIR=''
 JAVA=`which java`
-JARS="/root/cassandra/lib /root/opencsv"
+JARS="/root/cassandra/lib/*"
 
 while getopts hk:t:i:o: option; do
     case "${option}"
@@ -46,10 +46,7 @@ if [ -z "$CASSANDRA_CONFIG" ]; then
 fi
 
 # set classpath
-CLASSPATH=".:$CASSANDRA_CONFIG"
-for path in $JARS; do
-    CLASSPATH="$CLASSPATH:$path/*"
-done
+CLASSPATH=".:$CASSANDRA_CONFIG:$JARS"
 
 # Compile
 echo "compile: javac -cp $CLASSPATH BulkLoader.java"
