@@ -6,7 +6,7 @@ TABLE=''
 INFILE=''
 OUTDIR=''
 JAVA=`which java`
-JARS="/root/cassandra/lib /root/super-csv"
+JARS="/root/cassandra/lib /root/opencsv"
 
 while getopts hk:t:i:o: option; do
     case "${option}"

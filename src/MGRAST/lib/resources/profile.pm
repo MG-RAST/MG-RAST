@@ -285,7 +285,7 @@ sub prepare_data {
     }
     elsif ($params->{type} eq 'feature') {
         $ttype = 'Gene';
-        my $id2ann = {}; # md5_id => [ [accession, function, organism] ]
+        my $id2ann = {}; # md5_id => { accession => [], function => [], organism => [], ontology => [] }
         my $id2md5 = {}; # md5_id => md5
         # mgid, md5_id, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
         my $result = $mgdb->get_md5_data(undef, $params->{evalue}, $params->{identity}, $params->{length}, 1);
@@ -296,27 +296,33 @@ sub prepare_data {
         #    push @{ $id2ann->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
         #}
         # from m5nr solr / by batch of 1000
-        my $fields = ['md5_id', 'md5', 'organism', 'function', 'accession'];
-        my $srcid  = $mgdb->_src_id->{$params->{source}};
-        my $iter   = natatime 1000, @md5s;
+        my $fields = ['md5_id', 'md5', 'organism', 'function', 'accession', 'source', 'type'];
+        my $squery = "source:".$params->{source};
+        if ($params->{source} eq "SEED") {
+            $squery .= " OR source:Subsystems";
+        } elsif ($params->{source} eq "KEGG") {
+            $squery .= " OR source:KO";
+        }
+        my $iter = natatime 1000, @md5s;
         while (my @curr = $iter->()) {
-            my $query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @curr)."))";
+            my $query_str = "(object:annotation) AND ($squery) AND (md5_id:(".join(" OR ", @curr)."))";
             my ($solr_data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$mgdb->_version, $query_str, "", 0, 1000000000, $fields);
             foreach my $info (@$solr_data) {
                 $id2md5->{$info->{md5_id}} = $info->{md5};
-                push @{ $id2ann->{$info->{md5_id}} }, [ $info->{accession}, $info->{function}, $info->{organism} ];
+                if ($info->{source} eq $params->{source}) {
+                    push @{ $id2ann->{$info->{md5_id}}{accession} }, $info->{accession};
+                    push @{ $id2ann->{$info->{md5_id}}{function} }, $info->{function};
+                    push @{ $id2ann->{$info->{md5_id}}{organism} }, $info->{organism};
+                } elsif ($info->{type} eq "ontology") {
+                    push @{ $id2ann->{$info->{md5_id}}{ontology} }, $info->{accession};
+                }
             }
         }
         # add metadata to rows
         foreach my $row (@$result) {
             my $mid = $row->[1];
             next unless (exists $id2md5->{$mid});
-            my $metadata = {
-                accession => [ map {$_->[0]} @{$id2ann->{$mid}} ],
-                function  => [ map {$_->[1]} @{$id2ann->{$mid}} ],
-                organism  => [ map {$_->[2]} @{$id2ann->{$mid}} ]
-            };
-            push(@$rows, { "id" => $id2md5->{$mid}, "metadata" => $metadata });
+            push(@$rows, { "id" => $id2md5->{$mid}, "metadata" => $id2ann->{$mid} });
             push(@$values, [ $self->toFloat($row->[2]), $self->toFloat($row->[3]), $self->toFloat($row->[5]), $self->toFloat($row->[7]) ]);
         }
     }
