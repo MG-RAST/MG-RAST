@@ -52,3 +52,10 @@ export TAG=`date +"%Y%m%d.%H%M"`
 docker build --force-rm --no-cache --rm -t  mgrast/v3-web:${TAG} https://raw.githubusercontent.com/MG-RAST/MG-RAST/master/dockerfiles/web/Dockerfile
 ```
 
+### API server
+
+```bash
+export TAG=`date +"%Y%m%d.%H%M"`
+docker build --force-rm --no-cache --rm -t  mgrast/api:${TAG}  https://raw.githubusercontent.com/MG-RAST/MG-RAST/master/dockerfiles/api/Dockerfile
+```
+
