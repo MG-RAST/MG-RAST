@@ -25,7 +25,8 @@ RUN apt-get update && apt-get install -y \
   libstatistics-descriptive-perl \
   libcaptcha-recaptcha-perl \
   libxml-simple-perl \
-  libdatetime-perl
+  libdatetime-perl \
+  libclass-isa-perl
 
 # v3 website
 RUN cd / && \ 
