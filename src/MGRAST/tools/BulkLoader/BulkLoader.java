@@ -43,7 +43,7 @@ public class BulkLoader {
         System.out.println("outdir: "+outdir);
         
         // Schema and Insert for bulk load
-        if (table.equals("md5_id_annotation")) {
+        if (table.equals("id_annotation")) {
             schema = String.format("CREATE TABLE %s.%s (" +
                                         "id int, " +
                                         "source text, " +
@@ -130,7 +130,7 @@ public class BulkLoader {
             while ((line = csvReader.readNext()) != null) {
                 // We use Java types here based on
                 // http://www.datastax.com/drivers/java/2.0/com/datastax/driver/core/DataType.Name.html#asJavaClass%28%29
-                if (table.equals("md5_id_annotation")) {
+                if (table.equals("id_annotation")) {
                     writer.addRow(Integer.parseInt(line[0]),
                                   line[1],
                                   line[2],

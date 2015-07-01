@@ -1,0 +1,17 @@
+
+use m5nr_v[% version %];
+
+COPY ontologies (source, name, level1, level2, level3, level4) FROM '[% data_dir %]/m5nr_v[% version %].ontology.all';
+COPY ont_level1 (source, level1, name) FROM '[% data_dir %]/m5nr_v[% version %].ontology.level1';
+COPY ont_level2 (source, level2, name) FROM '[% data_dir %]/m5nr_v[% version %].ontology.level2';
+COPY ont_level3 (source, level3, name) FROM '[% data_dir %]/m5nr_v[% version %].ontology.level3';
+COPY ont_level4 (source, level4, name) FROM '[% data_dir %]/m5nr_v[% version %].ontology.level4';
+
+COPY organisms_ncbi (name, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, ncbi_tax_id) FROM '[% data_dir %]/m5nr_v[% version %].taxonomy.all';
+COPY tax_domain (tax_domain, name) FROM '[% data_dir %]/m5nr_v[% version %].taxonomy.domain';
+COPY tax_phylum (tax_phylum, name) FROM '[% data_dir %]/m5nr_v[% version %].taxonomy.phylum';
+COPY tax_class (tax_class, name) FROM '[% data_dir %]/m5nr_v[% version %].taxonomy.class';
+COPY tax_order (tax_order, name) FROM '[% data_dir %]/m5nr_v[% version %].taxonomy.order';
+COPY tax_family (tax_family, name) FROM '[% data_dir %]/m5nr_v[% version %].taxonomy.family';
+COPY tax_genus (tax_genus, name) FROM '[% data_dir %]/m5nr_v[% version %].taxonomy.genus';
+COPY tax_species (tax_species, name) FROM '[% data_dir %]/m5nr_v[% version %].taxonomy.species';

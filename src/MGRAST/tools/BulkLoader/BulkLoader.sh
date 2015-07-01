@@ -1,17 +1,18 @@
 #!/bin/sh
 
 HELP=0
+CASS_DIR=''
 KEYSPACE=''
 TABLE=''
 INFILE=''
 OUTDIR=''
 JAVA=`which java`
-JARS="/root/cassandra/lib/*"
 
-while getopts hk:t:i:o: option; do
+while getopts hc:k:t:i:o: option; do
     case "${option}"
         in
             h) HELP=1;;
+            c) CASS_DIR=${OPTARG};;
             k) KEYSPACE=${OPTARG};;
             t) TABLE=${OPTARG};;
             i) INFILE=${OPTARG};;
@@ -19,7 +20,7 @@ while getopts hk:t:i:o: option; do
     esac
 done
 
-USAGE="Usage: BulkLoader.sh [-h] -k <keyspace> -t <table> -i <csv_file> -o <output dir>"
+USAGE="Usage: BulkLoader.sh [-h] -c <cassandra dir> -k <keyspace> -t <table> -i <csv_file> -o <output dir>"
 
 # check options
 if [ $HELP -eq 1 ]; then
@@ -37,16 +38,14 @@ if [ ! -f "$INFILE" ]; then
     exit
 fi
 if [ -z "$OUTDIR" ]; then
-    OUTDIR=/mnt/sstable
+    OUTDIR=/data/sstable
 fi
-
-# check env
-if [ -z "$CASSANDRA_CONFIG" ]; then
-    CASSANDRA_CONFIG=/root/cassandra/conf/cassandra.yaml
+if [ -z "$CASS_DIR" ]; then
+    CASS_DIR=/opt/cassandra
 fi
 
 # set classpath
-CLASSPATH=".:$CASSANDRA_CONFIG:$JARS"
+CLASSPATH=".:$CASS_DIR/conf/cassandra.yaml:$CASS_DIR/lib/*"
 
 # Compile
 echo "compile: javac -cp $CLASSPATH BulkLoader.java"
