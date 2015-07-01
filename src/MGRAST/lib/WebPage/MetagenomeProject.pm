@@ -129,7 +129,7 @@ sub output {
       $self->{is_editor} = 1;
     }
     
-    my $proj_link = "http://metagenomics.anl.gov/linkin.cgi?project=".$self->{project_id};
+    my $proj_link = $Conf::cgi_url."linkin.cgi?project=".$self->{project_id};
     $html .= "<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " (ID ".$project->id.")": "")."</h1>";
     $html .= "<p><table>";
     $html .= "<tr><td><b>Visibility</b></td><td style='padding-left:15px;'>".($project->public ? 'Public' : 'Private')."</td></tr>";

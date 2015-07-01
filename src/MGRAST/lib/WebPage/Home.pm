@@ -58,7 +58,7 @@ sub output {
   if ($is_old) {
     $content .= qq~<script>
  function bookmark(url, title) {
-   if (confirm('The URL you are using to reach this page is deprecated.\\nThe new URL is:\\n\\n\\thttp://metagenomics.anl.gov/\\n\\nWould you like to bookmark the new location?')) {
+   if (confirm('The URL you are using to reach this page is deprecated.\\nThe new URL is:\\n\\n\\t~.$Conf::cgi_url.qq~\\n\\nWould you like to bookmark the new location?')) {
      var url = url || location.protocol + '//' + location.host;
      var title = title || location.host;
      if(document.all) {
@@ -69,7 +69,7 @@ sub output {
    }
    return false;
  }
- </script><img src='./Html/clear.gif' onload='bookmark("http://metagenomics.anl.gov/", "MG-RAST");'>~;
+ </script><img src='./Html/clear.gif' onload='bookmark("~.$Conf::cgi_url.qq~", "MG-RAST");'>~;
   }
 
   $content .= "<div class='clear' style='height:30px;'></div>";
