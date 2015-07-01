@@ -515,7 +515,7 @@ sub reformat_template {
   use JSON;
   my $ua = LWP::UserAgent->new;
   my $json = new JSON;
-  my $data = $json->decode($ua->get('http://api.metagenomics.anl.gov/1/metadata/template')->content);
+  my $data = $json->decode($ua->get(($Conf::api_url || 'http://api.metagenomics.anl.gov/1/').'metadata/template')->content);
 
   my $template = { "name" => "mgrast",
 		   "label" => "MG-RAST",

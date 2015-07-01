@@ -73,7 +73,7 @@ sub init {
   $self->data('default', $default);
 
   # api info for download
-  $self->data('api', "http://api.metagenomics.anl.gov");
+  $self->data('api', $Conf::api_url || "http://api.metagenomics.anl.gov");
 
   # get to metagenome using the metagenome ID
   if ( $cgi->param('metagenome') ) {

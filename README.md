@@ -43,3 +43,12 @@ For the bioinformatics software and databases used in MG-RAST please see
 
 ### INSTRUCTIONS 
 type make
+
+
+### web-v3 docker
+
+```bash
+export TAG=`date +"%Y%m%d.%H%M"`
+docker build --force-rm --no-cache --rm -t  mgrast/v3-web:${TAG} https://raw.githubusercontent.com/MG-RAST/MG-RAST/master/dockerfiles/web/Dockerfile
+```
+

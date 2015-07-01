@@ -137,7 +137,7 @@ sub object_to_cache {
   }
 
   my $id = $object->_id();
-  unless (ref $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id}) {
+  unless ($id && ref($self->{'_cache'}->{$backend}->{$db}->{$class}->{$id})) {
     $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id} = $object;
 
     if (scalar(@{$self->{'recent'}}) > SIZE) {
@@ -216,8 +216,7 @@ sub delete_object {
   my $class = $object->_class();
   my $id = $object->_id();
 
-  if (exists $self->{'_cache'}->{$backend}->{$db}->{$class} and
-      exists $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id}) {
-    delete $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id};
+  if ($id && exists($self->{'_cache'}->{$backend}->{$db}->{$class}) && exists($self->{'_cache'}->{$backend}->{$db}->{$class}->{$id})) {
+      delete $self->{'_cache'}->{$backend}->{$db}->{$class}->{$id};
   }
 }

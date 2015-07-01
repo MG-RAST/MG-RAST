@@ -10,6 +10,7 @@ use JSON;
 use LWP::UserAgent;
 use HTTP::Request;
 use Data::Dumper;
+use Conf;
 
 use WebConfig;
 use base qw( WebPage );
@@ -62,10 +63,10 @@ sub init {
   }
   
   # api info for making public
-  $self->data('api', "http://api.metagenomics.anl.gov");
+  $self->data('api', $Conf::api_url || "http://api.metagenomics.anl.gov");
   
   $self->data('job', $job);
-  $self->data('linkin', "http://metagenomics.anl.gov/linkin.cgi?metagenome=$id");
+  $self->data('linkin', $Conf::cgi_url."linkin.cgi?metagenome=$id");
 }
 
 
