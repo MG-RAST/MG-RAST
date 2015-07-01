@@ -64,6 +64,7 @@ RUN cd / && \
 # certificates need to be in daemon home directory
 RUN ln -s /config/postgresql/ /usr/sbin/.postgresql
 
+# docker run -t -i --name web -v /home/core/mgrast-config/services/web_v3/:/config -p 80:80 httpd:2.4.12 bash
 # Start
-#bash -c "/bin/chmod 600 /config/postgresql/* ; /bin/chown daemon:daemon /config/postgresql/* ; /usr/local/apache2/bin/apachectl -f /config/httpd.conf -D FOREGROUND"
+# bash -c "/bin/chmod 600 /config/postgresql/*; /bin/chown daemon:daemon /config/postgresql/*; /usr/local/apache2/bin/apachectl -f /config/httpd.conf -D FOREGROUND"
 
