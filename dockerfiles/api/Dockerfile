@@ -27,8 +27,8 @@ RUN apt-get update && apt-get install -y \
   libdatetime-perl \
   liblist-allutils-perl \
   libposix-strptime-perl \
-  libuuid-tiny-perl
-
+  libuuid-tiny-perl \
+  libclass-isa-perl
 
 RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   cd / && \
