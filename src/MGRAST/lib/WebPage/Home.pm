@@ -117,7 +117,7 @@ function forward_to_search (e) {
   $content .= "<a href='?page=Register' title='Register a new account'><div style='float:left; cursor: pointer;padding-top:5px;'>".$register."</div></a>";  
   $content .= "<a href='?page=Contact' title='Click here for contact information'><div style='float:left; cursor: pointer;padding-top:5px;'>".$contact."</div></a>";
   $content .= "<a href='http://blog.metagenomics.anl.gov' title='Click here for support and FAQs'><div style='float:left; cursor: pointer;padding-top:5px;'>".$help."</div></a>";
-  $content .= "<a href='?page=Upload' title='Upload a new metagenome'><div style='float:left; cursor: pointer;padding-top:5px; margin-right:20px;'>".$upload."</div></a>";
+  $content .= "<a href='./Html/mgmainv3.html?mgpage=upload' title='Upload a new metagenome'><div style='float:left; cursor: pointer;padding-top:5px; margin-right:20px;'>".$upload."</div></a>";
   $content .= "<a href='http://blog.metagenomics.anl.gov/' target=_blank><div style='float:left; cursor: pointer;padding-top:5px;'>".$news."</div></a>";
   $content .= "</div>";
   $content .= "<div class='clear'></div>";
@@ -176,13 +176,7 @@ END
 
   $content .= "<a href=\"http://www.biomedcentral.com/1471-2105/9/386\" target=\"_blank\"><p style='border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; color: white; padding: 5px 0px 3px 10px; color: white; font-size:14; background-color: #5281B0; width: 100px; float: left; margin-right: 10px; top: -12px; position: relative;'>cite MG-RAST</p></a><a href=\"http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004008\" target=\"_blank\" style=\"float: right;\"><p style='border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; color: white; padding: 5px 0px 3px 10px; color: white; font-size:14; background-color: #5281B0; width: 120px; float: left; margin-right: 10px; top: -12px; position: relative;'>cite MG-RAST API</p></a>";
 
-  #$content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'><em>The Metagenomics RAST server - A public resource for the automatic phylogenetic and functional analysis of metagenomes</em> F. Meyer, D. Paarmann, M. D'Souza, R. Olson , E. M. Glass, M. Kubal, T. Paczian , A. Rodriguez , R. Stevens, A. Wilke, J. Wilkening, R. A. Edwards<br/><em>BMC Bioinformatics 2008, 9:386
-#, [<a href=\"http://www.biomedcentral.com/1471-2105/9/386\" target=\"_blank\">article</a>]</em></p>";
-
-  #$content .= "<p style='text-align: center; float: right;'><span style='font-size: 11px; color: white;'>powered by</span><br><img style='width: 50px;' src='./Html/kbase_logo.png'></p>";
-
   my $logos = "<img src='./Html/argonne_header_logo.jpg' style='padding-top: 15px; width: 150px;'>";
-  # news - logos
 
   return $content;
 }
@@ -198,36 +192,6 @@ sub speedometer {
     my ($speed, $mileage, $trip, $togo) = split(/\t/, $line);
 
     $content .= "<table style='background-color: #2f2f2f; position: absolute; right: 22px; top: 78px; color: rgb(143, 188, 63); font-family: Verdana,Arial,sans-serif;'><tr><td colspan=3 align=center style='font-size: 9pt;font-weight: bold;'>pipeline status</td></tr><tr title='analysis speed in basepairs/second'><td align=right style='font-size: 8pt;'>$speed</td><td align=left style='font-size: 8pt;'>bp/s</td><td align=left style='font-size: 8pt;'>speed</td></tr><tr title='data analyzed in the last 30 days'><td align=right style='font-size: 8pt;'>$trip</td><td align=left style='font-size: 8pt;'>Mbp</td><td align=left style='font-size: 8pt;'>last 30 days</td></tr><tr title='data left to be processed'><td align=right style='font-size: 8pt;'>$togo</td><td align=left style='font-size: 8pt;'>Mbp</td><td align=left style='font-size: 8pt;'>in queue</td></tr><tr title='total amount of data analyzed'><td align=right style='font-size: 8pt;'>$mileage</td><td align=left style='font-size: 8pt;'>Mbp</td><td align=left style='font-size: 8pt;'>total</td></tr></table>";
-
-    # my @trip1 = split(//, $trip);
-#     while (scalar(@trip1) < 7) {
-#       unshift(@trip1, "0");
-#     }
-#     $trip = '<table><tr>';# style="margin-left: 36px;"
-#     foreach my $t (@trip1) {
-#       $trip .= "<td style='font-size: 10px; border: 1px solid black; background-color: white; font-weight: bold; width: 12px; text-align: center;'>$t</td>";
-#     }
-#     $trip .= '</tr></table>';  
-#     my @togo1 = split(//, $togo);
-#     while (scalar(@togo1) < 7) {
-#       unshift(@togo1, "0");
-#     }
-#     $togo = '<table><tr>';# style="margin-left: 36px;"
-#     foreach my $t (@togo1) {
-#       $togo .= "<td style='font-size: 10px; border: 1px solid black; background-color: white; font-weight: bold; width: 12px; text-align: center;'>$t</td>";
-#     }
-#     $togo .= '</tr></table>';
-#     my @mileage1 = split(//, $mileage);
-#     while (scalar(@mileage1) < 7) {
-#       unshift(@mileage1, "0");
-#     }
-#     $mileage = '<table><tr>';
-#     foreach my $t (@mileage1) {
-#       $mileage .= "<td style='font-size: 10px; border: 1px solid black; background-color: white; font-weight: bold; width: 12px; text-align: center;'>$t</td>";
-#     }
-#     $mileage .= '</tr></table>';
-    
-#     $content .= "<table style='background-color: #2f2f2f; position: absolute; right: 22px; top: 79px; color: rgb(143, 188, 63); font-weight: bold; font-family: Verdana,Arial,sans-serif;'><tr title='analysis speed in basepairs/second'><td style='font-size: 10px; text-align: right;'>$speed</td><td style='font-size: 10px; vertical-align: middle;'>bp/s</td><td style='font-size: 10px; vertical-align: middle;'>speed</td></tr><tr title='data analyzed in the last 30 days'><td>$trip</td><td style='font-size: 10px; vertical-align: middle;'>Mbp</td><td style='font-size: 10px; vertical-align: middle;'>last 30 days</td></tr><tr title='data left to be processed'><td>$togo</td><td style='font-size: 10px; vertical-align: middle;'>Mbp</td><td style='font-size: 10px; vertical-align: middle;'>in queue</td></tr><tr title='total amount of data analyzed'><td>$mileage</td><td style='font-size: 10px; vertical-align: middle;'>Mbp</td><td style='font-size: 10px; vertical-align: middle;'>total</td></tr></table>";
   }
 
   return $content;
