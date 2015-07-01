@@ -126,7 +126,7 @@ open(MDUMP, ">$output.annotation.md5") or die "Couldn't open $output.annotation.
 
 print STDERR "Dumping protein data ...\n";
 foreach my $md5 (@$pmd5s) {
-    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.source, a.id, f.name, o.name FROM md5_protein a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
+    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.name, a.id, f.name, o.name FROM md5_protein a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
     next unless ($data && @$data);
     my $mid  = $data->[0][0];
     my $srcs = {};
@@ -167,7 +167,7 @@ foreach my $md5 (@$pmd5s) {
 
 print STDERR "Dumping rna data ...\n";
 foreach my $md5 (@$rmd5s) {
-    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.source, a.id, f.name, o.name FROM md5_rna a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
+    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.name, a.id, f.name, o.name FROM md5_rna a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
     next unless ($data && @$data);
     my $mid  = $data->[0][0];
     my $srcs = {};
@@ -208,7 +208,7 @@ foreach my $md5 (@$rmd5s) {
 
 print STDERR "Dumping ontology data ...\n";
 foreach my $md5 (@$omd5s) {
-    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.source, a.id, f.name FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
+    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.name, a.id, f.name FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
     next unless ($data && @$data);
     my $mid  = $data->[0][0];
     my $srcs = {};
@@ -228,7 +228,7 @@ foreach my $md5 (@$omd5s) {
         $acc =~ s/\"/\\"/g;
         $fun =~ s/\"/\\"/g;
         print IDUMP join(",", map { '"'.$_.'"' } ($mid, $src, $md5, "true", "", "[]", $acc, $fun, ""))."\n";
-        print MDUMP join(",", map { '"'.$_.'"' } ($md5, $src, "true", "", "[]", $acc, $fun. ""))."\n";
+        print MDUMP join(",", map { '"'.$_.'"' } ($md5, $src, "true", "", "[]", $acc, $fun, ""))."\n";
     }
 }
 

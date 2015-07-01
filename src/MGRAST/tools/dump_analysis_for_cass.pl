@@ -129,53 +129,42 @@ sub process_batch {
         next unless ($data->{$mid});
         next if (int($ea) > 0);
         $ea = $ea * -1;
-        my $md5 = $data->{$mid}[0]{md5};
-        my $acc = {};
-        my $fun = {};
-        my $org = {};
+        my $md5  = $data->{$mid}[0]{md5};
+        my $srcs = {};
+        my $md5_info = {
+            "abundance"  => $abund,
+            "exp_avg"    => $ea,
+            "ident_avg"  => $ia,
+            "len_avg"    => $la,
+            "exp_stdv"   => $es,
+            "ident_stdv" => $is,
+            "len_stdv"   => $ls,
+            "seek"       => defined($seek) ? $seek : "",
+            "length"     => defined($len) ? $len : "",
+            "is_protein" => $prot ? 'true' : 'false'
+        };
+        
         foreach my $ann (@{$data->{$mid}}) {
-            push @{ $acc->{$ann->{source}} }, cescape($ann->{accession} || "");
-            push @{ $fun->{$ann->{source}} }, cescape($ann->{function} || "");
-            push @{ $org->{$ann->{source}} }, cescape($ann->{organism} || "");
+            next unless ($ann->{source});
+            # source => [[ accession, function, organism ]]
+            $ann->{accession} =~ s/\'/''/g;
+            $ann->{function}  =~ s/\'/''/g;
+            $ann->{organism}  =~ s/\'/''/g;
+            push @{$srcs->{$ann->{source}}}, [ $ann->{accession}, $ann->{function}, $ann->{organism} ];
         }
-        my $out = [ $version, $job,
-                    $ea, $ia, $la, $md5,
-                    $es, $is, $ls,
-                    $abund, $seek, $len,
-                    ($prot ? 'true' : 'false'),
-                    cstring($acc),
-                    cstring($fun),
-                    cstring($org)
-                  ];
-        push @output, $out;
+        foreach my $src (keys %$srcs) {
+            my @acc = map { $_->[0] } @{$srcs->{$src}};
+            my @fun = map { $_->[1] } @{$srcs->{$src}};
+            my @org = map { $_->[2] } @{$srcs->{$src}};
+            my $acc = "[".join(",", map { "'".$_."'" } @acc)."]";
+            my $fun = "[".join(",", map { "'".$_."'" } @fun)."]";
+            my $org = "[".join(",", map { "'".$_."'" } @org)."]";
+            $acc =~ s/\"/\\"/g;
+            $fun =~ s/\"/\\"/g;
+            $org =~ s/\"/\\"/g;
+            my $out = [ $version, $job, $src, $md5, $json->encode($md5_info), $acc, $fun, $org ];
+            push @output, $out;
+        }
     }
-    
     return @output;
-}
-
-sub cescape {
-    my ($text) = @_;
-    $text =~ s/\'/''/g;
-    $text =~ s/\"/\\"/g;
-    return $text;
-}
-
-sub cstring {
-    my ($obj) = @_;
-    my $str = "{";
-    foreach my $key (keys %$obj) {
-        my $has_data = 0;
-        foreach my $v (@{$obj->{$key}}) {
-            if ($v) {
-                $has_data = 1;
-                last;
-            }
-        }
-        if ($has_data) {
-            $str .= "'".$key."':[".join(",", map {"'".$_."'"} @{$obj->{$key}})."],";
-        }
-    }
-    chop $str;
-    $str .= "}";
-    return $str;
 }

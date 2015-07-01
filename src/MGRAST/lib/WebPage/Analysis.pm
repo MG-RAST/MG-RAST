@@ -6603,8 +6603,8 @@ sub selectable_metagenomes {
       push @{$collections->{$name}}, [ $pj->{metagenome_id}, $pj->{name} ];
     }
     foreach my $coll ( sort keys %$collections ) {
-      if ( @{$collections->{$coll}} == 0 ) { next; }
-      push(@$colls, { label => $coll." [".scalar(@{$collections->{$coll}})."]", value => join('||', map { $_->[0]."##".$_->[1] } @{$collections->{$coll}}) });
+      if ( (! $coll) || (! $collections->{$coll}) || (@{$collections->{$coll}} == 0) ) { next; }
+      push(@$colls, { label => $coll." [".scalar(@{$collections->{$coll}})."]", value => join('||', map { ($_->[0] || "")."##".($_->[1] || "") } @{$collections->{$coll}}) });
     }
   }    
   

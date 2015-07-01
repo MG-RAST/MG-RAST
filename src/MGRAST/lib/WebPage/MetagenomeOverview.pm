@@ -146,7 +146,7 @@ sub output {
   my $mddb = $self->data('mddb');
   my $user = $self->application->session->user;
   my $job_id  = $job->job_id;
-  my $mg_link = "http://metagenomics.anl.gov/linkin.cgi?metagenome=$mgid";
+  my $mg_link = $Conf::cgi_url."linkin.cgi?metagenome=$mgid";
 
   # get project information
   my $project_link   = "";

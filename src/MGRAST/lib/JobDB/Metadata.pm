@@ -2,6 +2,7 @@ package JobDB::Metadata;
 
 use strict;
 use warnings;
+use Conf;
 
 1;
 
@@ -130,7 +131,7 @@ sub get_data {
     $obj->{id} = "mgm".$job->{metagenome_id};
     $obj->{about} = "mobedac metagenome";
     $obj->{name} = $job->{name};
-    $obj->{url} = 'http://metagenomics.anl.gov/linkin.cgi?id='.$obj->{id};
+    $obj->{url} = $Conf::cgi_url.'linkin.cgi?id='.$obj->{id};
     $obj->{version} = $job->{server_version};
     $obj->{creation} = $job->{created_on};
 #    $obj->{sample} = $job->sample->{ID};

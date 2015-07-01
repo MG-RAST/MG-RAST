@@ -1,3 +1,5 @@
+# MG-RAST API
+
 FROM httpd:2.4.12
 
 # MG-RAST dependencies
@@ -6,6 +8,7 @@ RUN apt-get update && apt-get install -y \
   libpq-dev \
   make \
   curl \
+  r-base \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -40,9 +43,7 @@ RUN apt-get install -y \
   libtemplate-perl
 
 RUN pip install gspread xlrd openpyxl lepl
-
 RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
-
 
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
@@ -58,4 +59,4 @@ RUN mkdir -p /m5nr && \
   ln -s /api-server-data/20131215 /m5nr/20131215
 
 # Execute:
-# /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
+# /usr/local/apache2/bin/httpd -DFOREGROUND -f /api-server-conf/httpd.conf
