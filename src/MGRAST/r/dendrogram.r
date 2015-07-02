@@ -97,10 +97,10 @@ MGRAST_dendrograms <<- function(
   }
   
 ###### load the neccessary packages
-  if (produce_figures==TRUE)
-    {
-      suppressPackageStartupMessages(library(Cairo)) # (### indicates commented out to prevent production of the figure)
-    }
+#  if (produce_figures==TRUE)
+#    {
+#      suppressPackageStartupMessages(library(Cairo)) # (### indicates commented out to prevent production of the figure)
+#    }
 ##### by default, hclust(dist(object)) will produce a row dendrogram of the object 
 ##### get the element counts for the imported object (this will be for the row dendrogram)
 ##### and for the 90 degree rotated version (for the column dendrogram)   
@@ -124,14 +124,14 @@ MGRAST_dendrograms <<- function(
   input_object_row_cluster <- hclust(find_dist(input_object, dist_method), method = clust_method)
   input_object_clustered_row_order <- input_object_row_cluster$order
 
-  if (produce_figures==TRUE)
-    {
-      row_dendrogram_filename = paste(output_files_prefix, ".dist-", dist_method, "_clust-", clust_method, ".row_dendrogram.png")
-      row_dendrogram_filename = gsub(" ", "", row_dendrogram_filename)
-      CairoPNG(row_dendrogram_filename, width = row_dendrogram_width , height = row_dendrogram_height , units = "px")
-      plot(input_object_row_cluster, labels = input_object_row_cluster$labels, hang = -1, ann = FALSE, yaxs = "i") # THIS WORKS
-      dev.off()
-    }
+  # if (produce_figures==TRUE)
+  #   {
+  #     row_dendrogram_filename = paste(output_files_prefix, ".dist-", dist_method, "_clust-", clust_method, ".row_dendrogram.png")
+  #     row_dendrogram_filename = gsub(" ", "", row_dendrogram_filename)
+  #     CairoPNG(row_dendrogram_filename, width = row_dendrogram_width , height = row_dendrogram_height , units = "px")
+  #     plot(input_object_row_cluster, labels = input_object_row_cluster$labels, hang = -1, ann = FALSE, yaxs = "i") # THIS WORKS
+  #     dev.off()
+  #   }
   row_labels = matrix(0,1,(dim(matrix(input_object_row_cluster$labels))[1]))
 
   for(i in 1:(dim(matrix(input_object_row_cluster$labels))[1]))
@@ -142,14 +142,14 @@ MGRAST_dendrograms <<- function(
   input_object_col_cluster <- hclust(find_dist(input_object_rot_90, dist_method), method = clust_method)
   input_object_clustered_col_order <- input_object_col_cluster$order
 
-  if (produce_figures==TRUE)
-    {
-      col_dendrogram_filename = paste(output_files_prefix, ".dist-", dist_method, "_clust-", clust_method, ".column_dendrogram.png")
-      col_dendrogram_filename = gsub(" ", "", col_dendrogram_filename)
-      CairoPNG(col_dendrogram_filename, width = col_dendrogram_width , height = col_dendrogram_height , units = "px")
-      plot(input_object_col_cluster, labels = input_object_col_cluster$labels, hang = -1, ann = FALSE, yaxs = "i")
-      dev.off()
-    }
+  # if (produce_figures==TRUE)
+  #   {
+  #     col_dendrogram_filename = paste(output_files_prefix, ".dist-", dist_method, "_clust-", clust_method, ".column_dendrogram.png")
+  #     col_dendrogram_filename = gsub(" ", "", col_dendrogram_filename)
+  #     CairoPNG(col_dendrogram_filename, width = col_dendrogram_width , height = col_dendrogram_height , units = "px")
+  #     plot(input_object_col_cluster, labels = input_object_col_cluster$labels, hang = -1, ann = FALSE, yaxs = "i")
+  #     dev.off()
+  #   }
   col_labels = matrix(0,1,(dim(matrix(input_object_col_cluster$labels))[1]))
 
   for(i in 1:(dim(matrix(input_object_col_cluster$labels))[1]))

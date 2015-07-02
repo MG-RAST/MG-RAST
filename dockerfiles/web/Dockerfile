@@ -45,7 +45,9 @@ RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
 
 # 3rd party dependencies
 RUN mkdir -p /tools && \
-  apt-get install -y gcc wget r-base
+  apt-get install -y gcc wget r-base r-cran-nlme r-cran-ecodist && \
+  echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
+  echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods")' | R --no-save
 RUN cd /tools && \
   wget circos.ca/distribution/circos-0.67-7.tgz && \
   tar zxvf circos-0.67-7.tgz && \

@@ -131,15 +131,15 @@ MGRAST_preprocessing <<- function(file_in,     # name of the input file (tab del
 ###### write the log transformed and centered data to a file
   write.table(log2_cent_data, file=file_out, sep="\t", col.names = NA, row.names = TRUE, quote = FALSE)
 
-  if (produce_fig == TRUE){  # optional - produce an out put image
-    suppressPackageStartupMessages(library(Cairo))
-    CairoPNG(image_out, width = figure_width, height = figure_height, pointsize = 12, res = fiure_res , units = "px")    
-    split.screen(c(2,1))
-    screen(1)
-    boxplot(input_data, main = raw_data_boxplot_title, las=2)
-    screen(2)
-    boxplot(log2_cent_data, main = centered_data_boxplot_title, las=2)
-    dev.off()
-  }
+#  if (produce_fig == TRUE){  # optional - produce an out put image
+#    suppressPackageStartupMessages(library(Cairo))
+#    CairoPNG(image_out, width = figure_width, height = figure_height, pointsize = 12, res = fiure_res , units = "px")    
+#    split.screen(c(2,1))
+#    screen(1)
+#    boxplot(input_data, main = raw_data_boxplot_title, las=2)
+#    screen(2)
+#    boxplot(log2_cent_data, main = centered_data_boxplot_title, las=2)
+#    dev.off()
+#  }
  
 }

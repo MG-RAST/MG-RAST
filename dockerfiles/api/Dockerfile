@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
   libpq-dev \
   make \
   curl \
-  r-base \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -36,12 +35,16 @@ RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   cd /MG-RAST && \
   make
 
+# R dependencies
+apt-get install -y r-base r-cran-nlme r-cran-ecodist && \
+  echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
+  echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods")' | R --no-save
+
 # pipeline dependencies
 RUN apt-get install -y \
   python-dev \
   python-pip \
   libtemplate-perl
-
 RUN pip install gspread xlrd openpyxl lepl
 RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
 

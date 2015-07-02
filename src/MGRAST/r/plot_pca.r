@@ -33,31 +33,31 @@ MGRAST_plot_pca <<- function(file_in,
   
   my_pcaRes <<- pca(input_object, nPcs = num_PCs)                                                   # Run pca and create pcaRes object
   
-  if (produce_fig == TRUE){                                                                         # option to produce figure
-
-    suppressPackageStartupMessages(library(Cairo))
-    
-    CairoPNG(image_out, width = figure_width, height = figure_height, pointsize = 12, res = figure_res , units = "px")
-
-    plot(my_pcaRes@loadings[,PC1],
-         my_pcaRes@loadings[,PC2],    
-         cex.axis = axis_cex,
-         cex.lab = lab_cex,
-         main = image_title,
-         type = "p",
-         col = points_color,
-         xlab = paste(PC1, "R^2 =", round(my_pcaRes@R2[PC1], 4)),
-         ylab = paste(PC2, "R^2 =", round(my_pcaRes@R2[PC2], 4))
-         )
-
-    if (points_color != 0){ 
-      points(my_pcaRes@loadings[,PC1], my_pcaRes@loadings[,PC2], col = points_color, pch=19, cex=2 )
-      # color in the points if the points_color option has a value other than NA
-      # pch, integer values that indicate different point types (19 is a filled circle)
-    }
-    
-    text(my_pcaRes@loadings[,PC1], my_pcaRes@loadings[,PC2], labels=rownames(my_pcaRes@loadings), cex = points_text_cex)
-  } 
+  # if (produce_fig == TRUE){                                                                         # option to produce figure
+  # 
+  #   suppressPackageStartupMessages(library(Cairo))
+  #   
+  #   CairoPNG(image_out, width = figure_width, height = figure_height, pointsize = 12, res = figure_res , units = "px")
+  # 
+  #   plot(my_pcaRes@loadings[,PC1],
+  #        my_pcaRes@loadings[,PC2],    
+  #        cex.axis = axis_cex,
+  #        cex.lab = lab_cex,
+  #        main = image_title,
+  #        type = "p",
+  #        col = points_color,
+  #        xlab = paste(PC1, "R^2 =", round(my_pcaRes@R2[PC1], 4)),
+  #        ylab = paste(PC2, "R^2 =", round(my_pcaRes@R2[PC2], 4))
+  #        )
+  # 
+  #   if (points_color != 0){ 
+  #     points(my_pcaRes@loadings[,PC1], my_pcaRes@loadings[,PC2], col = points_color, pch=19, cex=2 )
+  #     # color in the points if the points_color option has a value other than NA
+  #     # pch, integer values that indicate different point types (19 is a filled circle)
+  #   }
+  #   
+  #   text(my_pcaRes@loadings[,PC1], my_pcaRes@loadings[,PC2], labels=rownames(my_pcaRes@loadings), cex = points_text_cex)
+  # } 
   
   write.table(my_pcaRes@R2,        file=file_out, sep="\t", col.names=FALSE, row.names=TRUE, append = FALSE)
   write.table(loadings(my_pcaRes), file=file_out, sep="\t", col.names=FALSE, row.names=TRUE, append = TRUE)
