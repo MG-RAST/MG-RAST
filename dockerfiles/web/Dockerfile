@@ -51,7 +51,8 @@ RUN mkdir -p /tools && \
 RUN cd /tools && \
   wget circos.ca/distribution/circos-0.67-7.tgz && \
   tar zxvf circos-0.67-7.tgz && \
-  rm -f circos-0.67-7.tgz
+  rm -f circos-0.67-7.tgz && \
+  ln -s /usr/bin/env /bin/env
 RUN cd /tools && \
   git clone https://github.com/wltrimbl/FGS.git FragGeneScan && \
   cd FragGeneScan && \
