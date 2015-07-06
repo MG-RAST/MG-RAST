@@ -43,16 +43,32 @@ RUN apt-get install -y python-dev python-pip
 RUN pip install gspread xlrd openpyxl lepl
 RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
 
-# 3rd party dependencies
+# 3rd party dependency: R
 RUN mkdir -p /tools && \
   apt-get install -y gcc wget r-base r-cran-nlme r-cran-ecodist && \
   echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
   echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods")' | R --no-save
+
+# 3rd party dependency: circos
 RUN cd /tools && \
   wget circos.ca/distribution/circos-0.67-7.tgz && \
   tar zxvf circos-0.67-7.tgz && \
   rm -f circos-0.67-7.tgz && \
-  ln -s /usr/bin/env /bin/env
+  ln -s /usr/bin/env /bin/env && \
+  apt-get install -y \
+  libreadonly-perl \
+  libmath-bezier-perl \
+  libset-intspan-perl \
+  libconfig-general-perl \
+  libclone-perl \
+  libfont-ttf-perl \
+  libmath-round-perl \
+  libstatistics-basic-perl \
+  libsvg-perl \
+  libtext-format-perl \
+  libmath-vecstat-perl
+
+# 3rd party dependency: FragGeneScan  
 RUN cd /tools && \
   git clone https://github.com/wltrimbl/FGS.git FragGeneScan && \
   cd FragGeneScan && \
