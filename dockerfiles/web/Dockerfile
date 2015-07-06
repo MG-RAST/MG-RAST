@@ -50,23 +50,23 @@ RUN mkdir -p /tools && \
   echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods")' | R --no-save
 
 # 3rd party dependency: circos
-RUN cd /tools && \
-  wget circos.ca/distribution/circos-0.67-7.tgz && \
-  tar zxvf circos-0.67-7.tgz && \
-  rm -f circos-0.67-7.tgz && \
-  ln -s /usr/bin/env /bin/env && \
-  apt-get install -y \
-  libreadonly-perl \
-  libmath-bezier-perl \
-  libset-intspan-perl \
-  libconfig-general-perl \
-  libclone-perl \
-  libfont-ttf-perl \
-  libmath-round-perl \
-  libstatistics-basic-perl \
-  libsvg-perl \
-  libtext-format-perl \
-  libmath-vecstat-perl
+#RUN cd /tools && \
+#  wget circos.ca/distribution/circos-0.67-7.tgz && \
+#  tar zxvf circos-0.67-7.tgz && \
+#  rm -f circos-0.67-7.tgz && \
+#  ln -s /usr/bin/env /bin/env && \
+#  apt-get install -y \
+#  libreadonly-perl \
+#  libmath-bezier-perl \
+#  libset-intspan-perl \
+#  libconfig-general-perl \
+#  libclone-perl \
+#  libfont-ttf-perl \
+#  libmath-round-perl \
+#  libstatistics-basic-perl \
+#  libsvg-perl \
+#  libtext-format-perl \
+#  libmath-vecstat-perl
 
 # 3rd party dependency: FragGeneScan  
 RUN cd /tools && \
