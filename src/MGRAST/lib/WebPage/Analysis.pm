@@ -135,9 +135,8 @@ sub output {
 relationships between functions (COG, NOG, SEED, subsystems, KEGG)
 '>Hierarchical Classification</div>";
   $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"annotation\");' name='tool_entry' id='annotation_tool' title='Report abundances using protein databases that include all functional labels'>All Annotations</div>";
-  $tools .= "<div class='category_tool'>Other</div>";
-  $tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"recruitment_plot\");' name='tool_entry' id='recruitment_plot_tool' title='Recruits sequences to proteins in a reference genome 
-'>Recruitment Plot</div>";
+  #$tools .= "<div class='category_tool'>Other</div>";
+  #$tools .= "<div class='inactive_tool' style='padding-left:20px' onclick='choose_tool(\"recruitment_plot\");' name='tool_entry' id='recruitment_plot_tool' title='Recruits sequences to proteins in a reference genome'>Recruitment Plot</div>";
 
   my $html = "<input type='hidden' id='metagenome' value='$metagenome'>".$application->component('ajax')->output."<table class='analysis'><tr><td class='tool'><div id='tool' class='tool'>".$tools."<div id='progress_div'></div></div></td><td class='select'><div id='select' class='select'>".$self->phylogeny_select."</div></td><td class='buff'></td></tr><tr><td colspan=3 class='display'><div id='display' class='display'>";
 
