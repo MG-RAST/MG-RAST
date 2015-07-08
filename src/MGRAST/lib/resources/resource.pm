@@ -32,7 +32,7 @@ sub new {
     eval {
         require Cache::Memcached;
         Cache::Memcached->import();
-        $memd = new Cache::Memcached {'servers' => [$Conf::web_memcache || ''], 'debug' => 0, 'compress_threshold' => 10_000};
+        $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000};
     };
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
     my $agent = LWP::UserAgent->new;

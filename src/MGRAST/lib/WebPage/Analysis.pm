@@ -6513,7 +6513,7 @@ sub group_select {
   my ($self) = @_;
   
   my $user = $self->application->session->user;
-  my $memd = new Cache::Memcached {'servers' => [ $Conf::web_memcache || "kursk-2.mcs.anl.gov:11211" ], 'debug' => 0, 'compress_threshold' => 10_000, };
+  my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "analysis_groups_".($user ? $user->_id : "anonymous");
   my $cdata = $memd->get($cache_key);
 
