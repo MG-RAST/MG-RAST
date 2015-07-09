@@ -36,7 +36,7 @@ RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   make
 
 # R dependencies
-apt-get install -y r-base r-cran-nlme r-cran-ecodist && \
+RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist && \
   echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
   echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods")' | R --no-save
 
