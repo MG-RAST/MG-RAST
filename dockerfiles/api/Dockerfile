@@ -58,6 +58,9 @@ RUN mkdir -p /sites/1/ && \
 RUN cd /MG-RAST/conf && ln -s /api-server-conf/Conf.pm && \
   cd /pipeline/conf && ln -s /api-server-conf/PipelineAWE_Conf.pm
 
+# certificates need to be in daemon home directory
+RUN ln -s /api-server-conf/postgresql/ /usr/sbin/.postgresql
+
 # m5nr blast files in mounted dir
 RUN mkdir -p /m5nr && \
   ln -s /api-server-data/20100309 /m5nr/20100309 && \
