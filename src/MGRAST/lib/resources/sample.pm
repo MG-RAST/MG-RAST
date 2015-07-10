@@ -132,11 +132,16 @@ sub query {
     my $sample_map   = {};
     my $job_sam_map  = {};
     my $job_sample   = $dbh->selectall_arrayref("SELECT sample, metagenome_id, public FROM Job WHERE viewable=1");
-    map { $job_sam_map->{$_->[0]} = 1 } @$job_sample;
     map { $sample_map->{$_->[0]} = {id => $_->[1], name => $_->[2], entry_date => $_->[3]} } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='sample'")};
   
     # add samples with job: public or rights
-    map { $samples_hash->{"mgs".$sample_map->{$_->[0]}} = $sample_map->{$_->[0]} } grep { ($_->[2] == 1) || exists($self->rights->{$_->[1]}) || exists($self->rights->{'*'}) } @$job_sample;
+    foreach my $js (@$job_sample) {
+        next unless ($js && $sample_map->{$js->[0]});
+        $job_sam_map->{$js->[0]} = 1;
+        if (($js->[2] == 1) || exists($self->rights->{$js->[1]}) || exists($self->rights->{'*'})) {
+            $samples_hash->{"mgs".$sample_map->{$js->[0]}} = $sample_map->{$js->[0]};
+        }
+    }
     # add samples with no job
     map { $samples_hash->{"mgs".$sample_map->{$_}} = $sample_map->{$_} } grep { ! exists $job_sam_map->{$_} } keys %$sample_map;
     my $samples = [];

@@ -129,11 +129,16 @@ sub query {
     my $library_map    = {};
     my $job_lib_map    = {};
     my $job_library    = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job WHERE viewable=1");
-    map { $job_lib_map->{$_->[0]} = 1 } @$job_library;
     map { $library_map->{$_->[0]} = {id => $_->[1], name => $_->[2], entry_date => $_->[3]} } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='library'")};
   
     # add libraries with job: public or rights
-    map { $libraries_hash->{"mgl".$library_map->{$_->[0]}} = $library_map->{$_->[0]} } grep { ($_->[2] == 1) || exists($self->rights->{$_->[1]}) || exists($self->rights->{'*'}) } @$job_library;
+    foreach my $jl (@$job_library) {
+        next unless ($library_map->{$jl->[0]});
+        $job_lib_map->{$jl->[0]} = 1
+        if (($jl->[2] == 1) || exists($self->rights->{$jl->[1]}) || exists($self->rights->{'*'})) {
+            $libraries_hash->{"mgl".$library_map->{$jl->[0]}} = $library_map->{$jl->[0]};
+        }
+    }
     # add libraries with no job
     map { $libraries_hash->{"mgl".$library_map->{$_}} = $library_map->{$_} } grep { ! exists $job_lib_map->{$_} } keys %$library_map;
     my $libraries = [];
