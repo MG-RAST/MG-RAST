@@ -33,10 +33,12 @@ RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   cd / && \
   git clone -b api https://github.com/MG-RAST/MG-RAST.git && \
   cd /MG-RAST && \
-  make
+  make && \
+  cd site/CGI && \
+  rm -fv metagenomics.cgi linkin.cgi m5nr.cgi m5nr_rest.cgi
 
 # R dependencies
-apt-get install -y r-base r-cran-nlme r-cran-ecodist && \
+RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist && \
   echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
   echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods")' | R --no-save
 
