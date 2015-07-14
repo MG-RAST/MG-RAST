@@ -6,7 +6,6 @@ use strict;
 use warnings;
 
 use Conf;
-use Cache::Memcached;
 use Number::Format;
 
 1;
@@ -124,26 +123,8 @@ function forward_to_search (e) {
   $content .= "<div class='clear'></div>";
 
   my $formater = new Number::Format(-thousands_sep   => ',');
-  my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000, };
-  my $cache_key = "bpcount";
-  my $cdata = $memd->get("bpcount");
-  my $bpcount  = 0;
-  if($cdata) {
-    $bpcount = $cdata;
-  } else {
-    $bpcount = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_bp() / 1000000000000), 2);
-    $memd->set("bpcount", $bpcount, 7200);
-  }
-  my $seqcount = 0;
-  $cdata = $memd->get("seqcount");
-  if($cdata) {
-    $seqcount = $cdata;
-  } else {
-    $seqcount = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_sequences() / 1000000000), 2);
-    $memd->set("seqcount", $seqcount, 7200);
-  }
-  $memd->disconnect_all;
-
+  my $bpcount  = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_bp() / 1000000000000), 2);
+  my $seqcount = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_sequences() / 1000000000), 2);
   my $jobcount =  $formater->format_number($self->app->data_handle('MGRAST')->Job->count_all());
   my $publiccount = $formater->format_number($self->app->data_handle('MGRAST')->Job->count_public());
 
