@@ -34,6 +34,8 @@ RUN cd / && \
   cd MG-RAST && \
   make && \
   ln -s /config/Conf.pm /MG-RAST/conf/Conf.pm && \
+  rm -f /MG-RAST/site/CGI/Html/js/config.js && \
+  ln -s /config/config.js /MG-RAST/site/CGI/Html/js/config.js && \
   cd site/CGI && \
   rm -fv api.cgi m5nr.cgi m5nr_rest.cgi
 
