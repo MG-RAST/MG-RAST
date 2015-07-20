@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y \
 
 # v3 website
 RUN cd / && \ 
-  git clone --recursive -b master https://github.com/MG-RAST/MG-RAST.git && \ 
+  git clone -b master https://github.com/MG-RAST/MG-RAST.git && \ 
   cd MG-RAST && \
   make && \
   ln -s /config/Conf.pm /MG-RAST/conf/Conf.pm && \
@@ -38,7 +38,7 @@ RUN cd / && \
   rm -fv api.cgi m5nr.cgi m5nr_rest.cgi
 
 # v4-uploader for v3
-RUN cd / && git clone https://github.com/MG-RAST/MG-RASTv4.git && mv /MG-RASTv4/* /MG-RAST/site/CGI/Html/
+RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && mv /MG-RASTv4/* /MG-RAST/site/CGI/Html/
 
 # pipeline dependencies
 RUN apt-get install -y python-dev python-pip
