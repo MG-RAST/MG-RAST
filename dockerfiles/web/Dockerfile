@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y \
 
 # v3 website
 RUN cd / && \ 
-  git clone -b master https://github.com/MG-RAST/MG-RAST.git && \ 
+  git clone --recursive -b master https://github.com/MG-RAST/MG-RAST.git && \ 
   cd MG-RAST && \
   make && \
   ln -s /config/Conf.pm /MG-RAST/conf/Conf.pm && \
