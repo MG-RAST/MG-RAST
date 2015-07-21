@@ -19,7 +19,7 @@ sub new {
       'FTP' => $Conf::ftp_download,
       'website' => $Conf::cgi_url,
       'SHOCK' => $Conf::shock_url,
-      'SHOCHDB' => $Conf::shock_mongo_url,
+      'SHOCKDB' => $Conf::shock_mongo_url,
       'AWE' => $Conf::awe_url,
       'AWEDB' => $Conf::awe_mongo_url,
       'M5NR' => $Conf::m5nr_solr,
