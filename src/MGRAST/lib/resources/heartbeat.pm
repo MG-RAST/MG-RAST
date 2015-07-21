@@ -15,18 +15,25 @@ sub new {
   
   # Add name / attributes
   $self->{name} = "heartbeat";
-  $self->{services} = { 'FTP' => $Conf::ftp_download,
-			'website' => $Conf::cgi_url,
-			'SHOCK' => $Conf::shock_url,
-			'AWE' => $Conf::awe_url,
-			'M5NR' => $Conf::m5nr_solr,
-			'solr' => $Conf::job_solr,
-			'postgres' => 'db',
-			'mySQL' => 'db' };
-  $self->{attributes} = { "service" => [ 'string', "cv", [ ['FTP', 'file server'],
+  $self->{services} = {
+      'FTP' => $Conf::ftp_download,
+      'website' => $Conf::cgi_url,
+      'SHOCK' => $Conf::shock_url,
+      'SHOCHDB' => $Conf::shock_mongo_url,
+      'AWE' => $Conf::awe_url,
+      'AWEDB' => $Conf::awe_mongo_url,
+      'M5NR' => $Conf::m5nr_solr,
+      'solr' => $Conf::job_solr,
+      'postgres' => 'db',
+      'mySQL' => 'db'
+  };
+  $self->{attributes} = { "service" => [ 'string', "cv", [
+                               ['FTP', 'file server'],
 							   ['website', 'MG-RAST website'],
 							   ['SHOCK', 'object storage'],
+							   ['SHOCKDB', 'object storage mongodb'],
 							   ['AWE', 'worker engine'],
+							   ['AWEDB', 'worker engine mongodb'],
 							   ['M5NR', 'non-redundant sequence database'],
 							   ['solr', 'search engine'],
 							   ['postgres', 'analysis database'],

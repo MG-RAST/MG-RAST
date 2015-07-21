@@ -34,11 +34,13 @@ RUN cd / && \
   cd MG-RAST && \
   make && \
   ln -s /config/Conf.pm /MG-RAST/conf/Conf.pm && \
+  rm -f /MG-RAST/site/CGI/Html/js/config.js && \
+  ln -s /config/config.js /MG-RAST/site/CGI/Html/js/config.js && \
   cd site/CGI && \
   rm -fv api.cgi m5nr.cgi m5nr_rest.cgi
 
 # v4-uploader for v3
-RUN cd / && git clone https://github.com/MG-RAST/MG-RASTv4.git && mv /MG-RASTv4/* /MG-RAST/site/CGI/Html/
+RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && mv /MG-RASTv4/* /MG-RAST/site/CGI/Html/
 
 # pipeline dependencies
 RUN apt-get install -y python-dev python-pip
