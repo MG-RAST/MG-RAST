@@ -40,7 +40,7 @@ RUN cd / && \
   rm -fv api.cgi m5nr.cgi m5nr_rest.cgi
 
 # v4-uploader for v3
-RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && mv /MG-RASTv4/* /MG-RAST/site/CGI/Html/
+RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && cp -r /MG-RASTv4/* /MG-RAST/site/CGI/Html/
 
 # pipeline dependencies
 RUN apt-get install -y python-dev python-pip
