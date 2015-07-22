@@ -38,7 +38,7 @@ RUN cd / && \
   rm -fv api.cgi m5nr.cgi m5nr_rest.cgi
 
 # v4-uploader for v3
-RUN cd / && git clone https://github.com/MG-RAST/MG-RASTv4.git && mv /MG-RASTv4/* /MG-RAST/site/CGI/Html/
+RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && cp -r /MG-RASTv4/* /MG-RAST/site/CGI/Html/
 
 # pipeline dependencies
 RUN apt-get install -y python-dev python-pip
@@ -64,8 +64,10 @@ RUN cd / && \
   cd metazen && \
   make
 
-# certificates need to be in daemon home directory
-RUN ln -s /config/postgresql/ /usr/sbin/.postgresql
+# symlinks for certificates (need to be in daemon home directory) and config.js
+RUN ln -s /config/postgresql/ /usr/sbin/.postgresql && \
+  rm -f /MG-RAST/site/CGI/Html/js/config.js && \
+  ln -s /config/config.js /MG-RAST/site/CGI/Html/js/config.js
 
 # docker run -t -i --name web -v /home/core/mgrast-config/services/web_v3/:/config -p 80:80 httpd:2.4.12 bash
 # Start
