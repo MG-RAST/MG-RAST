@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
   libposix-strptime-perl \
   libuuid-tiny-perl \
   libmongodb-perl \
+  libfreezethaw-perl \
   libclass-isa-perl
 
 RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
