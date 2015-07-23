@@ -163,11 +163,18 @@ sub instance {
   # check if this is an authentication request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'authenticate') {
     if ($self->user) {
+      my $userToken = $master->Preferences->get_objects({ user => $self->user, name => "WebServicesKey" });
+      if (scalar(@$userToken)) {
+	$userToken = $userToken->[0]->{value};
+      } else {
+	$userToken = undef;
+      }
       $self->return_data( { "login" => $self->user->{login},
 			    "firstname" => $self->user->{firstname},
 			    "lastname" => $self->user->{lastname},
 			    "email" => $self->user->{email},
-			    "id" => 'mgu'.$self->user->{_id} }, 200 );
+			    "id" => 'mgu'.$self->user->{_id},
+			    "token" => $userToken }, 200 );
     } else {
       $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
     }
@@ -240,10 +247,11 @@ sub instance {
     # passwords may only be reset with a valid recaptcha
     my $ua = $self->{agent};
     $ua->env_proxy();
-    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/verify', { privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
-									  remoteip   => $ENV{'REMOTE_ADDR'},
-									  challenge  => $self->{cgi}->param('challenge'),
-									  response   => $self->{cgi}->param('response') }
+    my $version = $self->{cgi}->param('version') && $self->{cgi}->param('version') == 2 ? 'site' : '';
+    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+										      remoteip   => $ENV{'REMOTE_ADDR'},
+										      challenge  => $self->{cgi}->param('challenge'),
+										      response   => $self->{cgi}->param('response') }
 			);
     if ( $resp->is_success ) {
       my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
@@ -272,10 +280,11 @@ sub instance {
     # users may only be created with a valid recaptcha
     my $ua = $self->{agent};
     $ua->env_proxy();
-    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/verify', { privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
-									  remoteip   => $ENV{'REMOTE_ADDR'},
-									  challenge  => $rest->[0],
-									  response   => $self->{cgi}->param('response') }
+    my $version = $rest->[0] eq 'recaptcha' ? 'site' : '';
+    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+										      remoteip   => $ENV{'REMOTE_ADDR'},
+										      challenge  => $rest->[0] eq 'recaptcha' ? undef : $rest->[0],
+										      response   => $self->{cgi}->param('response') }
 			);
     if ( $resp->is_success ) {
       my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
