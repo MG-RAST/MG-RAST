@@ -1220,10 +1220,12 @@ sub get_task_report {
     my $rfile = "awe_".$type.".txt";
     
     # check shock if missing
-    if ((! $rtext) && exists($task->{outputs}) && exists($task->{outputs}{$rfile})) {
-        my $rnode = $task->{outputs}{$rfile}{node};
-        if ($rnode && ($rnode ne "-")) {
-            ($rtext, undef) = $self->get_shock_file($rnode, undef, $auth, undef, $authPrefix);
+    if ((! $rtext) && exists($task->{outputs})) {
+        foreach my $out (@{$task->{outputs}}) {
+            if (($out->{filename} eq $rfile) && $out->{node} && ($out->{node} ne "-")) {
+                ($rtext, undef) = $self->get_shock_file($out->{node}, undef, $auth, undef, $authPrefix);
+                last;
+            }
         }
     }
     return $rtext || "";
