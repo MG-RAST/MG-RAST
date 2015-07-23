@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use MongoDB;
 use parent qw(resources::resource);
 
 # Override parent constructor
@@ -15,18 +16,25 @@ sub new {
   
   # Add name / attributes
   $self->{name} = "heartbeat";
-  $self->{services} = { 'FTP' => $Conf::ftp_download,
-			'website' => $Conf::cgi_url,
-			'SHOCK' => $Conf::shock_url,
-			'AWE' => $Conf::awe_url,
-			'M5NR' => $Conf::m5nr_solr,
-			'solr' => $Conf::job_solr,
-			'postgres' => 'db',
-			'mySQL' => 'db' };
-  $self->{attributes} = { "service" => [ 'string', "cv", [ ['FTP', 'file server'],
+  $self->{services} = {
+      'FTP' => $Conf::ftp_download,
+      'website' => $Conf::cgi_url,
+      'SHOCK' => $Conf::shock_url,
+      'SHOCKDB' => 'mongo',
+      'AWE' => $Conf::awe_url,
+      'AWEDB' => 'mongo',
+      'M5NR' => $Conf::m5nr_solr,
+      'solr' => $Conf::job_solr,
+      'postgres' => 'db',
+      'mySQL' => 'db'
+  };
+  $self->{attributes} = { "service" => [ 'string', "cv", [
+                               ['FTP', 'file server'],
 							   ['website', 'MG-RAST website'],
 							   ['SHOCK', 'object storage'],
+							   ['SHOCKDB', 'object storage mongodb'],
 							   ['AWE', 'worker engine'],
+							   ['AWEDB', 'worker engine mongodb'],
 							   ['M5NR', 'non-redundant sequence database'],
 							   ['solr', 'search engine'],
 							   ['postgres', 'analysis database'],
@@ -94,7 +102,7 @@ sub instance {
 			     $Conf::mgrast_dbpass
 			    );
       if ($dbh) {
-	$status = 1;
+	      $status = 1;
       }
     } else {
       my $jobcache_db = $Conf::mgrast_jobcache_db;
@@ -105,13 +113,23 @@ sub instance {
 			     $jobcache_user,
 			     $jobcache_password);
       if ($dbh) {
-	$status = 1;
+	      $status = 1;
       }
     }
+  } elsif ($self->{services}->{$id} eq 'mongo') {
+      my ($host, $port);
+      if ($id eq 'SHOCKDB') {
+          ($host, $port) = split(/:/, $Conf::shock_mongo_url);
+      } elsif ($id eq 'AWEDB') {
+          ($host, $port) = split(/:/, $Conf::awe_mongo_url);
+      }
+      my $client = MongoDB::MongoClient->new(host => $host, port => $port);
+      if ($client) {
+        $status = 1;
+      }
   } else {
     my $ua = $self->agent;
     $ua->timeout(10);
-    
     my $url = $self->{services}->{$id};
     my $response = $ua->get($url);
     if ($response->is_success) {

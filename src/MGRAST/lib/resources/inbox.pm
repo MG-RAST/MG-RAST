@@ -727,11 +727,26 @@ sub update_node_actions {
             push @$new_actions, $act;
         } else {
             my $job = $self->get_awe_job($act->{id}, $self->token, $self->user_auth);
-            # drop it if deleted
-            if ($job->{state} ne 'deleted') {
-                $act->{status} = ($job->{state} eq 'init') ? 'queued' : $job->{state};
-                push @$new_actions, $act;
+            # drop if deleted
+            if ($job->{state} eq 'deleted') {
+                next;
             }
+            # get error if suspend
+            if ($job->{state} eq 'suspend') {
+                my $error = "";
+                foreach my $task (@{$job->{tasks}}) {
+                    if ($task->{state} eq 'suspend') {
+                       $error = $self->get_task_report($task, 'stderr', $self->token, $self->user_auth);
+                       if (! $error) {
+                           $error = $self->get_task_report($task, 'stdout', $self->token, $self->user_auth);
+                       }
+                       last;
+                    }
+                }
+                $act->{error} = $error;
+            }
+            $act->{status} = ($job->{state} eq 'init') ? 'queued' : $job->{state};
+            push @$new_actions, $act;
         }
     }
     # update node
