@@ -303,7 +303,7 @@ sub status {
     foreach my $task (@{$submit->{tasks}}) {
         my $summery = {
             stage => $task->{cmd}{description},
-            inputs => [ keys %{$task->{inputs}} ],
+            inputs => [ map { $_->{filename} } @{$task->{inputs}} ],
             status => $task->{state}
         };
         if ($task->{state} eq 'suspend') {
@@ -757,10 +757,13 @@ sub submission_jobs {
 sub get_param_node {
     my ($self, $job) = @_;
     if ($job->{tasks} && (@{$job->{tasks}} > 0)) {
-        return $job->{tasks}[-1]{inputs}{$self->{param_file}}{node};
-    } else {
-        return undef;
+        foreach my $out (@{$job->{tasks}[-1]{inputs}}) {
+            if ($out->{filename} eq $self->{param_file}) {
+                return $out->{node};
+            }
+        }
     }
+    return undef;
 }
 
 sub parse_submit_output {
