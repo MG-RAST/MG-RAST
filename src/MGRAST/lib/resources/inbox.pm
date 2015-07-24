@@ -529,7 +529,7 @@ sub view_inbox {
         $inbox = [ $self->node_from_inbox_id($uuid, $self->token, $self->user_auth) ];
     } else {
         $inbox = $self->get_shock_query({'type' => 'inbox', 'id' => $user_id}, $self->token, $self->user_auth);
-	push(@$inbox, @{$self->get_shock_query({'type' => 'inbox', 'id' => $self->user->{login}}, $self->token, $self->user_auth)});
+	    push(@$inbox, @{$self->get_shock_query({'type' => 'inbox', 'id' => $self->user->{login}}, $self->token, $self->user_auth)});
     }
     # process inbox
     my $files = [];
@@ -571,13 +571,12 @@ sub view_inbox_actions {
     if (scalar(@$requestedStates)) {
         $params->{state} = $requestedStates;
     }
-    $self->return_data($self->get_awe_query($params, $self->token, "mgrast"));
+    $self->return_data($self->get_awe_query($params, $self->token, $self->user_auth));
 }
 
 sub cancel_inbox_action {
   my ($self, $id) = @_;
-  
-  $self->return_data($self->awe_job_action($id, "delete", $self->token, "mgrast"));
+  $self->return_data($self->awe_job_action($id, "delete", $self->token, $self->user_auth));
 }
 
 sub upload_file {

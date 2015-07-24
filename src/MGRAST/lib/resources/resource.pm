@@ -1051,7 +1051,7 @@ sub submit_awe_template {
     if ($debug) {
         return $self->json->decode($awf);
     }
-    my $job = $self->post_awe_job($awf, $auth, $self->mgrast_token, 1, $authPrefix, "OAuth");
+    my $job = $self->post_awe_job($awf, $auth, $auth, 1, $authPrefix, $authPrefix);
     unless ($job && $job->{state} && $job->{state} eq "init") {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
     }
@@ -1220,10 +1220,12 @@ sub get_task_report {
     my $rfile = "awe_".$type.".txt";
     
     # check shock if missing
-    if ((! $rtext) && exists($task->{outputs}) && exists($task->{outputs}{$rfile})) {
-        my $rnode = $task->{outputs}{$rfile}{node};
-        if ($rnode && ($rnode ne "-")) {
-            ($rtext, undef) = $self->get_shock_file($rnode, undef, $auth, undef, $authPrefix);
+    if ((! $rtext) && exists($task->{outputs})) {
+        foreach my $out (@{$task->{outputs}}) {
+            if (($out->{filename} eq $rfile) && $out->{node} && ($out->{node} ne "-")) {
+                ($rtext, undef) = $self->get_shock_file($out->{node}, undef, $auth, undef, $authPrefix);
+                last;
+            }
         }
     }
     return $rtext || "";
