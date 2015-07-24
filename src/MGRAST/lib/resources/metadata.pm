@@ -278,6 +278,7 @@ sub static {
     my $data = {};
     # get versions for ontologies
     if ($type eq 'version') {
+        my $mddb  = MGRAST::Metadata->new();
         my $label = $self->cgi->param('label') || '';
         if ($label && exists($self->{ontologies}{$label})) {
             $data = $mddb->cv_ontology_versions($label);
@@ -307,7 +308,7 @@ sub static {
                 latest_version => $latest,
                 ontology => {},
                 ont_info => {},
-                select => $mddb->get_cv_all();
+                select => $mddb->get_cv_all()
             };
             while ( ($label, $ver) = each(%$latest) ) {
                 if (exists $self->{ontologies}{$label}) {
