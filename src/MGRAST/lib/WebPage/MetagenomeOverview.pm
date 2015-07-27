@@ -179,8 +179,12 @@ sub output {
   # short info
   my $html = $self->application->component('ajax')->output;
   $html .= "<p><table><tr>";
-  $html .= "<td style='font-size:large;'><b>MG-RAST ID</b></td>";
-  $html .= "<td style='font-size:large;'>&nbsp;&nbsp;&nbsp;$mgid".($user && $user->is_admin('MGRAST') ? " (".$job->job_id.")" : "")."</td>";
+  if ($job->public) {
+    $html .= "<td style='font-size:large;'><b>MG-RAST ID</b></td>";
+    $html .= "<td style='font-size:large;'>&nbsp;&nbsp;&nbsp;$mgid".($user && $user->is_admin('MGRAST') ? " (".$job->job_id.")" : "")."</td>";
+  } else {
+    $html .= "<td style='font-size:large;'>Internal Identifier</td><td style='font-size:large;'>".$job->job_id."</td>";
+  }
   $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' style='color:rgb(82, 129, 176);' target=_blank href='metagenomics.cgi?page=DownloadMetagenome&metagenome=$mgid'><img src='./Html/mg-download.png' style='width:20px;height:20px;' title='Download $mgid'> Download</a></td>";
   $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' style='color:rgb(82, 129, 176);' target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'><img src='./Html/analysis.gif' style='width:20px;height:20px;' title='Analyze $mgid'> Analyze</a></td>";
   $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' style='color:rgb(82, 129, 176);' href='#search_ref'><img src='./Html/lupe.png' style='width:20px;height:20px;' title='Search $mgid'> Search</a></td>";
@@ -193,7 +197,7 @@ sub output {
     $html .= "<tr><td><b>Organization</b></td><td>".($self->{meta_info}->{PI_organization}||"")."</td></tr>";
   }
   $html .= "<tr><td><b>Visibility</b></td><td>".($job->public ? 'Public' : 'Private')."</td></tr>";
-  $html .= "<tr><td><b>Static Link</b></td><td><a href='$mg_link'>$mg_link</a></td></tr>";
+  $html .= "<tr><td><b>Static Link</b></td><td>".($job->public ? "<a href='$mg_link'>$mg_link</a>" : "You need to <a href='?page=PublishGenome&metagenome=$mgid'>make this metagenome public</a> to publicly link it.")."</td></tr>";
   $html .= "</table></div><div style='float: right'><table>";
   $html .= "<tr><td><b>NCBI Project ID</b></td><td>".($md_ext_ids->{ncbi} ? join(", ", map { "<a href='http://www.ncbi.nlm.nih.gov/genomeprj/".$_."' target=_blank>".$_."</a>" } grep {$_ =~ /^\d+$/} split(/, /, $md_ext_ids->{ncbi})) : "-")."</td></tr>";
   $html .= "<tr><td><b>GOLD ID</b></td><td>".($md_ext_ids->{gold} ? join(", ", map { "<a href='http://genomesonline.org/cgi-bin/GOLD/bin/GOLDCards.cgi?goldstamp=".$_."' target=_blank>".$_."</a>" } grep {$_ =~ /^gm\d+$/i} split(/, /, $md_ext_ids->{gold})) : "-")."</td></tr>";
