@@ -133,7 +133,7 @@ sub info {
               'type'        => "synchronous",
               'attributes'  => $self->attributes->{ontology},
               'parameters'  => { 'required' => {
-                                    'label'   => ['string', 'ontology name'],
+                                    'name'    => ['string', 'ontology name'],
                                     'version' => ['string', 'version of ontology to use'] },
                                  'body'     => {},
                                  'options'  => {} }
@@ -306,6 +306,7 @@ sub static {
             my $latest = $mddb->cv_latest_version();
             $data = {
                 latest_version => $latest,
+                versions => $mddb->cv_ontology_versions(),
                 ontology => {},
                 ont_info => {},
                 select => $mddb->get_cv_all()
@@ -320,9 +321,9 @@ sub static {
     # get ontology data
     } elsif ($type eq 'ontology') {
         my $ver  = $self->cgi->param('version') || '';
-        my $name = $self->cgi->param('label') || '';
+        my $name = $self->cgi->param('name') || '';
         unless ($ver && $name) {
-            $self->return_data( {"ERROR" => "'label' and 'version' are required parameters"}, 404 );
+            $self->return_data( {"ERROR" => "'name' and 'version' are required parameters"}, 404 );
         }
         my $nodes = $self->get_shock_query({'type'=>'ontology', 'name'=>$name, 'version'=>$ver});
         unless ($nodes && (@$nodes == 1)) {
