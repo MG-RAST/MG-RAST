@@ -183,7 +183,7 @@ sub output {
     $html .= "<td style='font-size:large;'><b>MG-RAST ID</b></td>";
     $html .= "<td style='font-size:large;'>&nbsp;&nbsp;&nbsp;$mgid".($user && $user->is_admin('MGRAST') ? " (".$job->job_id.")" : "")."</td>";
   } else {
-    $html .= "<td></td><td></td>";
+    $html .= "<td>Internal Identifier</td><td>".$job->job_id."</td>";
   }
   $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' style='color:rgb(82, 129, 176);' target=_blank href='metagenomics.cgi?page=DownloadMetagenome&metagenome=$mgid'><img src='./Html/mg-download.png' style='width:20px;height:20px;' title='Download $mgid'> Download</a></td>";
   $html .= "<td>&nbsp;&nbsp;&nbsp;<a class='nav_top' style='color:rgb(82, 129, 176);' target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'><img src='./Html/analysis.gif' style='width:20px;height:20px;' title='Analyze $mgid'> Analyze</a></td>";
