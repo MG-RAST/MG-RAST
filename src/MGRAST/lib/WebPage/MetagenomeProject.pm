@@ -497,7 +497,7 @@ sub job_list {
   if (@complete > 0) {
     my @c_mgids  = map { $_->[0] } @complete;
     my $metadata = $self->data('mddb')->get_metadata_for_tables(\@c_mgids, 1, 1);
-    my $header   = [ { name => 'MG-RAST ID', filter => 1, visible => 0 }, 	 
+    my $header   = [ { name => 'MG-RAST ID', filter => 1, visible => ($project->public ? 1 : 0) }, 	 
 		     { name => 'Metagenome Name', filter => 1, sortable => 1 },
 		     { name => 'bp Count', sortable => 1, filter => 1, operators => ['less','more'] },
 		     { name => 'Sequence Count', sortable => 1, filter => 1, operators => ['less','more'] },
