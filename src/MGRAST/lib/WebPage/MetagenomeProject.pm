@@ -130,7 +130,7 @@ sub output {
     }
     
     my $proj_link = $Conf::cgi_url."linkin.cgi?project=".$self->{project_id};
-    $html .= "<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " (ID ".$project->id.")": "")."</h1>";
+    $html .= "<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " <span style='color: blue;'>(ID ".$project->id.")</span>": "")."</h1>";
     $html .= "<p><table>";
     $html .= "<tr><td><b>Visibility</b></td><td style='padding-left:15px;'>".($project->public ? 'Public' : 'Private')."</td></tr>";
     $html .= "<tr><td><b>Static Link</b></td><td style='padding-left:15px;'>".($project->public ? "<a href='$proj_link'>$proj_link</a>" : "You need to <a href=# onclick='document.getElementById(\"make_public_link\").click();'>make this project public</a> to publicly link it.")."</td></tr></table>";
