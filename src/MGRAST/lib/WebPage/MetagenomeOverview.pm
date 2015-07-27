@@ -181,7 +181,7 @@ sub output {
   $html .= "<p><table><tr>";
   if ($job->public) {
     $html .= "<td style='font-size:large;'><b>MG-RAST ID</b></td>";
-    $html .= "<td style='font-size:large;'>&nbsp;&nbsp;&nbsp;$mgid".($user && $user->is_admin('MGRAST') ? " (".$job->job_id.")" : "")."</td>";
+    $html .= "<td style='font-size:large;'>&nbsp;&nbsp;&nbsp;$mgid".($user && $user->is_admin('MGRAST') ? " <span style='color: blue;'>(".$job->job_id.")</span>" : "")."</td>";
   } else {
     $html .= "<td style='font-size:large;'>Internal Identifier</td><td style='font-size:large;'>".$job->job_id."</td>";
   }
