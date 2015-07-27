@@ -6,6 +6,7 @@ no warnings('once');
 
 use Conf;
 use Data::Dumper;
+use Cache::Memcached;
 use parent qw(resources::resource);
 use WebApplicationDBHandle;
 
@@ -80,26 +81,46 @@ sub instance {
       close(MSG);
     }
 
-    my $inf_msg;
+    my $inf_msg = "";
     my $motd_file = "MG-RAST.motd";
     if (-f $motd_file && open(FILE, $motd_file)) {
-      $inf_msg = "";
       while (<FILE>) {
-	$inf_msg .= $_;
+	      $inf_msg .= $_;
       }
       close FILE;
     }
+    
+    # cache DB counts
+    my $counts = {};
+    my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000 };
+    my $cache_key = "mgcounts";
+    my $cdata = $memd->get("mgcounts");
 
+    if ($cdata) {
+        $counts = $cdata;
+    } else {
+        $counts = {
+            "metagenomes" => $master->Job->count_all(),
+            "public_metagenomes" => $master->Job->count_public(),
+            "sequences" => $master->Job->count_total_sequences(),
+            "basepairs" => $master->Job->count_total_bp()
+        };
+        $memd->set("mgcounts", $counts, 7200);
+    }
+    $memd->disconnect_all;
+    
     # prepare data
-    my $data = { "id" => "MG-RAST",
-		 "version" => $Conf::server_version,
-		 "status" => $dis_msg ? "server down" : "ok",
-		 "info" => $dis_msg ? $dis_msg : $inf_msg,
-		 "metagenomes" => $master->Job->count_all(),
-		 "public_metagenomes" => $master->Job->count_public(),
-		 "sequences" => $master->Job->count_total_sequences(),
-		 "basepairs" => $master->Job->count_total_bp(),
-		 "url" => $self->cgi->url."/".$self->name."/MG-RAST" };
+    my $data = {
+        "id" => "MG-RAST",
+        "version" => $Conf::server_version,
+        "status" => $dis_msg ? "server down" : "ok",
+        "info" => $dis_msg ? $dis_msg : $inf_msg,
+        "metagenomes" => $counts->{metagenomes},
+        "public_metagenomes" => $counts->{public_metagenomes},
+        "sequences" => $counts->{sequences},
+        "basepairs" => $counts->{basepairs},
+        "url" => $self->cgi->url."/".$self->name."/MG-RAST"
+    };
 
     $self->return_data($data);
 }
