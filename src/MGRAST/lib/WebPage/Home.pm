@@ -132,18 +132,18 @@ function forward_to_search (e) {
       $counts = $cdata;
   } else {
       $counts = {
-          "metagenomes" => $master->Job->count_all(),
-          "public_metagenomes" => $master->Job->count_public(),
-          "sequences" => $master->Job->count_total_sequences(),
-          "basepairs" => $master->Job->count_total_bp()
+          "metagenomes" => $self->app->data_handle('MGRAST')->Job->count_all(),
+          "public_metagenomes" => $self->app->data_handle('MGRAST')->Job->count_public(),
+          "sequences" => $self->app->data_handle('MGRAST')->Job->count_total_sequences(),
+          "basepairs" => $self->app->data_handle('MGRAST')->Job->count_total_bp()
       };
       $memd->set("mgcounts", $counts, 7200);
   }
   $memd->disconnect_all;
   
-  my $formater = new Number::Format(-thousands_sep   => ',');
-  my $bpcount = $formater->format_number($counts->{basepairs} / 1000000000000), 2);
-  my $seqcount = $formater->format_number($counts->{sequences} / 1000000000), 2);
+  my $formater = new Number::Format(-thousands_sep => ',');
+  my $bpcount = $formater->format_number(($counts->{basepairs} / 1000000000000), 2);
+  my $seqcount = $formater->format_number(($counts->{sequences} / 1000000000), 2);
   my $jobcount = $formater->format_number($counts->{metagenomes});
   my $publiccount = $formater->format_number($counts->{public_metagenomes});
 
