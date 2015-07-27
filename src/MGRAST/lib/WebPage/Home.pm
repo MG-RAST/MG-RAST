@@ -123,29 +123,29 @@ function forward_to_search (e) {
   $content .= "</div>";
   $content .= "<div class='clear'></div>";
 
-  my $formater = new Number::Format(-thousands_sep   => ',');
-  my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000, };
-  my $cache_key = "bpcount";
-  my $cdata = $memd->get("bpcount");
-  my $bpcount  = 0;
-  if($cdata) {
-    $bpcount = $cdata;
+  my $counts = {};
+  my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000 };
+  my $cache_key = "mgcounts";
+  my $cdata = $memd->get("mgcounts");
+
+  if ($cdata) {
+      $counts = $cdata;
   } else {
-    $bpcount = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_bp() / 1000000000000), 2);
-    $memd->set("bpcount", $bpcount, 7200);
-  }
-  my $seqcount = 0;
-  $cdata = $memd->get("seqcount");
-  if($cdata) {
-    $seqcount = $cdata;
-  } else {
-    $seqcount = $formater->format_number(($self->app->data_handle('MGRAST')->Job->count_total_sequences() / 1000000000), 2);
-    $memd->set("seqcount", $seqcount, 7200);
+      $counts = {
+          "metagenomes" => $master->Job->count_all(),
+          "public_metagenomes" => $master->Job->count_public(),
+          "sequences" => $master->Job->count_total_sequences(),
+          "basepairs" => $master->Job->count_total_bp()
+      };
+      $memd->set("mgcounts", $counts, 7200);
   }
   $memd->disconnect_all;
-
-  my $jobcount =  $formater->format_number($self->app->data_handle('MGRAST')->Job->count_all());
-  my $publiccount = $formater->format_number($self->app->data_handle('MGRAST')->Job->count_public());
+  
+  my $formater = new Number::Format(-thousands_sep   => ',');
+  my $bpcount = $formater->format_number($counts->{basepairs} / 1000000000000), 2);
+  my $seqcount = $formater->format_number($counts->{sequences} / 1000000000), 2);
+  my $jobcount = $formater->format_number($counts->{metagenomes});
+  my $publiccount = $formater->format_number($counts->{public_metagenomes});
 
   $content .= "<div style='background:white; width:650px; padding:10px;-webkit-border-radius-topright: 5px;-webkit-border-radius-bottomleft: 5px;-webkit-border-radius-bottomright: 5px;-moz-border-radius-bottomleft:5px;-moz-border-radius-bottomright:5px;-moz-border-radius-topright:5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; color:#848484; font-size:14;'>";
 
