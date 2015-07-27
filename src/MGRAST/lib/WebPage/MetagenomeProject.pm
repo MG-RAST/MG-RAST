@@ -130,10 +130,10 @@ sub output {
     }
     
     my $proj_link = $Conf::cgi_url."linkin.cgi?project=".$self->{project_id};
-    $html .= "<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " (ID ".$project->id.")": "")."</h1>";
+    $html .= "<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " <span style='color: blue;'>(ID ".$project->id.")</span>": "")."</h1>";
     $html .= "<p><table>";
     $html .= "<tr><td><b>Visibility</b></td><td style='padding-left:15px;'>".($project->public ? 'Public' : 'Private')."</td></tr>";
-    $html .= "<tr><td><b>Static Link</b></td><td style='padding-left:15px;'><a href='$proj_link'>$proj_link</a></td></tr></table>";
+    $html .= "<tr><td><b>Static Link</b></td><td style='padding-left:15px;'>".($project->public ? "<a href='$proj_link'>$proj_link</a>" : "You need to <a href=# onclick='document.getElementById(\"make_public_link\").click();'>make this project public</a> to publicly link it.")."</td></tr></table>";
 
     if ($self->{is_editor}) {
       my $editable_jobs = 0;
@@ -164,17 +164,17 @@ sub output {
     }
   } else {
     document.getElementById("public_div").style.display = "none";
-  }'>Make Public</a></li>~;
+  }' id='make_public_link'>Make Public</a></li>~;
       } else {
-	if (exists $meta_hash->{ebi_submission}) {
-	  if ($meta_hash->{ebi_submission} eq 'submitted') {
-	    $html .= qq~<li><a>project </a></li>~;	  
-	  } else {
-	    $html .= qq~<li><a>EBI submission in progress</a></li>~;
-	  }
-	} else {
-	  $html .= qq~<li><a style='cursor:pointer;' onclick='submitToEBI();'>Submit to EBI</a></li>~;
-	}
+	# if (exists $meta_hash->{ebi_submission}) {
+	#   if ($meta_hash->{ebi_submission} eq 'submitted') {
+	#     $html .= qq~<li><a>project </a></li>~;	  
+	#   } else {
+	#     $html .= qq~<li><a>EBI submission in progress</a></li>~;
+	#   }
+	# } else {
+	#   $html .= qq~<li><a style='cursor:pointer;' onclick='submitToEBI();'>Submit to EBI</a></li>~;
+	# }
       }
       $html .= qq~
 <li><a style='cursor:pointer;' onclick='
@@ -497,7 +497,7 @@ sub job_list {
   if (@complete > 0) {
     my @c_mgids  = map { $_->[0] } @complete;
     my $metadata = $self->data('mddb')->get_metadata_for_tables(\@c_mgids, 1, 1);
-    my $header   = [ { name => 'MG-RAST ID', filter => 1 }, 	 
+    my $header   = [ { name => 'MG-RAST ID', filter => 1, visible => ($project->public ? 1 : 0) }, 	 
 		     { name => 'Metagenome Name', filter => 1, sortable => 1 },
 		     { name => 'bp Count', sortable => 1, filter => 1, operators => ['less','more'] },
 		     { name => 'Sequence Count', sortable => 1, filter => 1, operators => ['less','more'] },
@@ -520,6 +520,7 @@ sub job_list {
 	close FH;
       }
       $row->[0] = "<a target=_blank href='?page=MetagenomeOverview&metagenome=$mid'>$mid</a>";
+      $row->[1] = "<a target=_blank href='?page=MetagenomeOverview&metagenome=$mid'>".$row->[1]."</a>";
     }
    
     my $ptable = $self->application->component('jobs_table');
@@ -1277,7 +1278,7 @@ sub make_public_info {
     $html .= "<p style='font-variant: normal;'><b>Warning:</b> Making data publicly available is final and cannot be undone.</p>";
     $html .= $self->start_form('makepublicform', { project => $project->id, action => 'make_project_public' });
     $html .= $list_select->output();
-    $html .= "<input type='checkbox' name='submitToEBI' checked=checked> submit to EBI";
+#    $html .= "<input type='checkbox' name='submitToEBI' checked=checked> submit to EBI";
     $html .= "<p>By clicking the button below, you confirm that you have the copyright for the selected metagenomes and this project.</p>";
     $html .= "<input type='button' value='make public' onclick='if(confirm(\"Do you really want to make this project and the selected metagenomes public?\")){list_select_select_all(\"".$list_select->id."\");document.forms.makepublicform.submit();}'><br><br>";
     $html .= $self->end_form();

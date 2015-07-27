@@ -121,7 +121,7 @@ sub info {
                                  'body'     => {},
                                  'options'  => {
                                      'label'   => ['string', 'metadata label'],
-                                     'version' => ['string', 'version of CV select list or ontology to use']
+                                     'version' => ['string', 'version of CV ontology to use']
                                 }}
             },
             { 'name'        => "ontology",
@@ -137,6 +137,18 @@ sub info {
                                     'version' => ['string', 'version of ontology to use'] },
                                  'body'     => {},
                                  'options'  => {} }
+            },
+            { 'name'        => "version",
+              'request'     => $self->cgi->url."/".$self->name."/version",
+              'description' => "Returns all versions available for given ontology name.",
+              'example'     => [ $self->cgi->url."/".$self->name."/version?name=biome",
+                                 'metadata version lookup' ],
+              'method'      => "GET",
+              'type'        => "synchronous",
+              'attributes'  => {},
+              'parameters'  => { 'options'  => { 'label' => ['string', 'metadata label'] },
+                                 'required' => {},
+                                 'body'     => {} }
             },
             { 'name'        => "view",
               'request'     => $self->cgi->url."/".$self->name."/view/{label}",
@@ -244,7 +256,7 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif ($self->rest->[0] =~ /^(template|cv|ontology)$/) {
+    } elsif ($self->rest->[0] =~ /^(template|cv|ontology|version)$/) {
         $self->static($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'view') && (scalar(@{$self->rest}) == 2)) {
         $self->list_values($self->rest->[1]);
@@ -264,8 +276,17 @@ sub static {
     my ($self, $type) = @_;
     
     my $data = {};
+    # get versions for ontologies
+    if ($type eq 'version') {
+        my $mddb  = MGRAST::Metadata->new();
+        my $label = $self->cgi->param('label') || '';
+        if ($label && exists($self->{ontologies}{$label})) {
+            $data = $mddb->cv_ontology_versions($label);
+        } else {
+            $data = $mddb->cv_ontology_versions();
+        }
     # get CV data
-    if ($type eq 'cv') {
+    } elsif ($type eq 'cv') {
         my $ver   = $self->cgi->param('version') || '';
         my $label = $self->cgi->param('label') || '';
         my $mddb  = MGRAST::Metadata->new();
@@ -274,24 +295,26 @@ sub static {
             if (exists $self->{ontologies}{$label}) {
                 $data = $mddb->get_cv_ontology($label, $ver);
             } else {
-                $data = $mddb->get_cv_select($label, $ver);
+                # select options as versionless
+                $data = $mddb->get_cv_select($label);
             }
             if (! $data) {
                 $self->return_data( {"ERROR" => "No CV exists for the given combination of options"}, 404 );
             }
-        # get all latest version
+        # get all, latest version ontology only
         } else {
             my $latest = $mddb->cv_latest_version();
-            $data = { latest_version => $latest,
-                      ontology => {},
-                      ont_info => {},
-                      select => {} };
+            $data = {
+                latest_version => $latest,
+                versions => $mddb->cv_ontology_versions(),
+                ontology => {},
+                ont_info => {},
+                select => $mddb->get_cv_all()
+            };
             while ( ($label, $ver) = each(%$latest) ) {
                 if (exists $self->{ontologies}{$label}) {
                     $data->{ontology}{$label} = $mddb->get_cv_ontology($label, $ver);
                     $data->{ont_info}{$label} = $mddb->cv_ontology_info($label, $ver);
-                } else {
-                    $data->{select}{$label} = $mddb->get_cv_select($label, $ver);
                 }
             }
         }

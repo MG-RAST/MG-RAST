@@ -1051,7 +1051,7 @@ sub submit_awe_template {
     if ($debug) {
         return $self->json->decode($awf);
     }
-    my $job = $self->post_awe_job($awf, $auth, $self->mgrast_token, 1, $authPrefix, "OAuth");
+    my $job = $self->post_awe_job($awf, $auth, $auth, 1, $authPrefix, $authPrefix);
     unless ($job && $job->{state} && $job->{state} eq "init") {
         $self->return_data( {"ERROR" => "job could not be submitted"}, 500 );
     }
