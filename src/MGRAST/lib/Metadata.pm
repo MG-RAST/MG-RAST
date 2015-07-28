@@ -82,7 +82,7 @@ sub get_cv_all {
 sub get_cv_select {
   my ($self, $tag) = @_;
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='select'");
+  my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT value FROM MetaDataCV WHERE tag='$tag' AND type='select'");
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
@@ -97,12 +97,9 @@ sub get_cv_ontology {
 }
 
 sub cv_ontology_info {
-  my ($self, $tag, $version) = @_;
-  if (! $version) {
-      $version = $self->cv_latest_version($tag);
-  }
+  my ($self, $tag) = @_;
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectrow_arrayref("SELECT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ont_info' AND value_version='$version'");
+  my $tmp = $dbh->selectrow_arrayref("SELECT DISTINCT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ont_info'");
   return ($tmp && @$tmp) ? $tmp : ['', ''];
 }
 
@@ -110,11 +107,11 @@ sub cv_ontology_versions {
     my ($self, $tag) = @_;
     my $dbh = $self->{_handle}->db_handle;
     if ($tag) {
-        my $tmp = $dbh->selectcol_arrayref("SELECT distinct value_version FROM MetaDataCV WHERE tag='$tag' AND type='ontology'");
+        my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT value_version FROM MetaDataCV WHERE tag='$tag' AND type='ontology'");
         return ($tmp && @$tmp) ? $tmp : [];
     } else {
         my $data = {};
-        my $tmp = $dbh->selectall_arrayref("SELECT distinct tag, value_version FROM MetaDataCV WHERE type='ontology'");
+        my $tmp = $dbh->selectall_arrayref("SELECT DISTINCT tag, value_version FROM MetaDataCV WHERE type='ontology'");
         if ($tmp && @$tmp) {
             foreach my $x (@$tmp) {
                 push @{ $data->{$x->[0]} }, $x->[1];
