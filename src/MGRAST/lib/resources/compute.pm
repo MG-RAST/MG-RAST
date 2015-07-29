@@ -345,7 +345,7 @@ sub normalize {
     my ($self, $fname, $json) = @_;
     
     my $time = time;
-    my $src  = $Conf::bin."/preprocessing.r";
+    my $src  = $Conf::bin."/norm_deseq.r";
     my $fout = $Conf::temp."/rdata.normalize.".$time;
     my $rcmd = qq(source("$src")
 MGRAST_preprocessing(
