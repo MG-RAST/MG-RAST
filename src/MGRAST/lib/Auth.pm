@@ -20,6 +20,15 @@ sub authenticate {
 
   if ($key =~ /^mggo4711/) {
       $key =~ s/^mggo4711//;
+      
+      unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
+	print $cgi->header(-type => 'application/json',
+			   -status => 401,
+			   -charset => 'UTF-8',
+			   -Access_Control_Allow_Origin => '*' );
+	print $json->encode({"ERROR" => "Insecure authorization protocol."}, $response->{status} );
+	exit;
+      }
 
       use MIME::Base64;
       use LWP::UserAgent;
@@ -89,6 +98,16 @@ sub authenticate {
 
   # this is KBase
   if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
+
+    unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
+      print $cgi->header(-type => 'application/json',
+			 -status => 401,
+			 -charset => 'UTF-8',
+			 -Access_Control_Allow_Origin => '*' );
+      print $json->encode({"ERROR" => "Insecure authorization protocol."}, $response->{status} );
+      exit;
+    }
+
     my $json = new JSON;
     my $cgi = new CGI;
 
