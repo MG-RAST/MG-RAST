@@ -314,7 +314,7 @@ sub static {
             while ( ($label, $ver) = each(%$latest) ) {
                 if (exists $self->{ontologies}{$label}) {
                     $data->{ontology}{$label} = $mddb->get_cv_ontology($label, $ver);
-                    $data->{ont_info}{$label} = $mddb->cv_ontology_info($label, $ver);
+                    $data->{ont_info}{$label} = $mddb->cv_ontology_info($label);
                 }
             }
         }
