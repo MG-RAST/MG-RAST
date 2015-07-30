@@ -29,6 +29,11 @@ sub new {
             "ep"      => [ 'hash', [{'key' => ['string', 'environmental package type'],
                            'value' => ['hash', 'hash of metadata objects by label']}, 'eps and their metadata'] ]
         },
+        "version" => {
+            "material" => [ 'list', ['string', 'version number'] ],
+            "feature"  => [ 'list', ['string', 'version number'] ],
+            "biome"    => [ 'list', ['string', 'version number'] ]
+        },
         "cv" => {
             "ontology" => [ 'hash', [{'key' => ['string', 'metadata label'],
                             'value' => ['list', [ 'list', ['string', 'ontology term and ID'] ]]}, 'list of CV terms for metadata'] ],
@@ -145,7 +150,7 @@ sub info {
                                  'metadata version lookup' ],
               'method'      => "GET",
               'type'        => "synchronous",
-              'attributes'  => {},
+              'attributes'  => $self->attributes->{version},
               'parameters'  => { 'options'  => { 'label' => ['string', 'metadata label'] },
                                  'required' => {},
                                  'body'     => {} }
@@ -243,7 +248,7 @@ sub info {
                                                            ['env_package', 'label belongs to env_package metadata']]],
                                    	 'label'    => ['string', 'metadata label'],
                                    	 'value'    => ['string', 'metadata value'],
-                                   	 'version'  => ['string', 'version of CV select list or ontology to use']
+                                   	 'version'  => ['string', 'version of CV ontology to use']
                                 }}
             } ]
     };
@@ -481,7 +486,7 @@ sub validate_value {
     }
     # test it
     else {
-        my ($is_valid, $err_msg) = @{ $mddb->validate_value($cat, $label, $value) };
+        my ($is_valid, $err_msg) = @{ $mddb->validate_value($cat, $label, $value, $ver) };
         if ($is_valid) {
 	        $data = {is_valid => 1, message => undef};
         } else {
