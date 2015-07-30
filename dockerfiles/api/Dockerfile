@@ -40,9 +40,9 @@ RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   rm -fv metagenomics.cgi linkin.cgi m5nr.cgi m5nr_rest.cgi
 
 # R dependencies
-RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist && \
+RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-cran-xml && \
   echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
-  echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods")' | R --no-save
+  echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods"); biocLite("preprocessCore"); biocLite("DESeq")' | R --no-save
 
 # pipeline dependencies
 RUN apt-get install -y \

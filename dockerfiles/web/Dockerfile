@@ -47,9 +47,9 @@ RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
 
 # 3rd party dependency: R
 RUN mkdir -p /tools && \
-  apt-get install -y gcc wget r-base r-cran-nlme r-cran-ecodist && \
+  apt-get install -y gcc wget r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-cran-xml && \
   echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
-  echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods")' | R --no-save
+  echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods"); biocLite("preprocessCore"); biocLite("DESeq")' | R --no-save
 
 # 3rd party dependency: FragGeneScan  
 RUN cd /tools && \

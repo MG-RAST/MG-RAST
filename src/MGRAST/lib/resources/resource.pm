@@ -1153,7 +1153,10 @@ sub get_awe_query {
     }
 
     my $response = undef;
-    my $query = '?query&limit=0';
+    my $query = '?query';
+    unless (exists $params->{'limit'}) {
+        $query .= '&limit=0';
+    }
     if ($params && (scalar(keys %$params) > 0)) {
         while (my ($key, $value) = each %$params) {
             if (ref($value)) {
