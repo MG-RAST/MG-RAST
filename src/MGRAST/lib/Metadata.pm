@@ -237,20 +237,27 @@ sub validate_value {
     if ($tag =~ /country$/) {
         $tag = 'country';
     }
-    my %cvs = map {$_, 1} @{ $self->get_cv_select($tag, $version) };
+    my %cvs = map {$_, 1} @{ $self->get_cv_select($tag) };
     return exists($cvs{lc($val)}) ? [1, ''] : [0, 'not one of: '.join(', ', sort keys %cvs)];
   } elsif ($type eq 'ontology') {
-    my $cvi = $self->cv_ontology_info($tag, $version);
+    unless ($version) {
+        $version = $self->cv_latest_version($tag);
+    }
+    my %cvv = map {$_, 1} @{ $self->cv_ontology_versions($tag) };
+    unless (exists $cvv{$version}) {
+        return [0, "invalid version '$version' for label '$tag'"];
+    }
+    my $cvi = $self->cv_ontology_info($tag);
     my $cvo = $self->get_cv_ontology($tag, $version);
     my %oid = map {$_->[1], 1} @$cvo;
     my %oname = map {$_->[0], 1} @$cvo;
     if (exists($oname{$val}) || exists($oid{$val})) {
         return [1, '']
     } else {
-        return [0, 'not part of: '.$cvi->[0]];
+        return [0, "not part of $tag: ".$cvi->[0]];
     }
   } else {
-    return [0, 'unknown type'];
+    return [0, "unknown category '$cat'"];
   }
 }
 

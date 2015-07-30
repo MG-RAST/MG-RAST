@@ -21,7 +21,7 @@ sub authenticate {
   if ($key =~ /^mggo4711/) {
       $key =~ s/^mggo4711//;
       
-      unless ($ENV{'SCRIPT_URI'} =~ /^https/}) {
+      unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
 	print $cgi->header(-type => 'application/json',
 			   -status => 401,
 			   -charset => 'UTF-8',

@@ -2533,7 +2533,7 @@ sub single_visual {
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
       my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-      print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
+      print $prefh "source(\"".$Conf::bin."/norm_deseq.r\")\n";
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
 
@@ -3492,7 +3492,7 @@ sub phylogeny_visual {
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
       my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-      print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
+      print $prefh "source(\"".$Conf::bin."/norm_deseq.r\")\n";
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
       my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
@@ -4478,7 +4478,7 @@ sub metabolism_visual {
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
       my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-      print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
+      print $prefh "source(\"".$Conf::bin."/norm_deseq.r\")\n";
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
       my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
@@ -5518,7 +5518,7 @@ sub lca_visual {
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
       my ($prefh, $prefn) =  tempfile( "rpreprocessXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
-      print $prefh "source(\"".$Conf::bin."/preprocessing.r\")\n";
+      print $prefh "source(\"".$Conf::bin."/norm_deseq.r\")\n";
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
       
