@@ -22,12 +22,7 @@ sub authenticate {
       $key =~ s/^mggo4711//;
       
       unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
-	print $cgi->header(-type => 'application/json',
-			   -status => 401,
-			   -charset => 'UTF-8',
-			   -Access_Control_Allow_Origin => '*' );
-	print $json->encode({"ERROR" => "Insecure authorization protocol."}, $response->{status} );
-	exit;
+          return (undef, "insecure protocol");
       }
 
       use MIME::Base64;
@@ -100,12 +95,7 @@ sub authenticate {
   if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
 
     unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
-      print $cgi->header(-type => 'application/json',
-			 -status => 401,
-			 -charset => 'UTF-8',
-			 -Access_Control_Allow_Origin => '*' );
-      print $json->encode({"ERROR" => "Insecure authorization protocol."}, $response->{status} );
-      exit;
+        return (undef, "insecure protocol");
     }
 
     my $json = new JSON;
