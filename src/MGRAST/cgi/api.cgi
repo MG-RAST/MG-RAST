@@ -160,7 +160,7 @@ if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authoriza
 				-status => 401,
 				-charset => 'UTF-8',
     	                        -Access_Control_Allow_Origin => '*' );
-            print $json->encode( {"ERROR"=> "authentication failed  - $message"} );
+            print $json->encode( {"ERROR"=> "authentication failed - $message"} );
             exit 0;
 	  }
         }

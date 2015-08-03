@@ -93,6 +93,7 @@ if ($cgi->param('login') && $cgi->param('pass')) {
 
 if ($cgi->param('grant_type') && $cgi->param('grant_type') eq 'authorization_code') {
     $cgi->param('action', 'token');
+    $cgi->param('format', 'json');
 }
 
 unless ($cgi->param('action')) {
@@ -154,7 +155,7 @@ unless ($cgi->param('action')) {
 	      $cgi->param('redirect_url', $cgi->param('redirect_uri'));
 	  }
 	  my ($redirect_url) = $cgi->param('redirect_url') =~ /^(http[s]*\:\/\/[^\/]+)/;
-	my $res = $dbh->selectrow_arrayref("SELECT application FROM apps WHERE application=".$dbh->quote($cgi->param("client_id"))." AND url=".$dbh->quote($cgi->param('redirect_url')).";");
+	my $res = $dbh->selectrow_arrayref("SELECT application FROM apps WHERE application=".$dbh->quote($cgi->param("client_id"))." AND url=".$dbh->quote($redirect_url).";");
 	if ($dbh->err()) {
 	  warning_message($DBI::errstr);
 	  exit 0;
