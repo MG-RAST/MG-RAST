@@ -93,6 +93,7 @@ if ($cgi->param('login') && $cgi->param('pass')) {
 
 if ($cgi->param('grant_type') && $cgi->param('grant_type') eq 'authorization_code') {
     $cgi->param('action', 'token');
+    $cgi->param('format', 'json');
 }
 
 unless ($cgi->param('action')) {
