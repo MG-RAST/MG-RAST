@@ -20,6 +20,10 @@ sub authenticate {
 
   if ($key =~ /^mggo4711/) {
       $key =~ s/^mggo4711//;
+      
+      unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
+          return (undef, "insecure protocol");
+      }
 
       use MIME::Base64;
       use LWP::UserAgent;
@@ -89,6 +93,11 @@ sub authenticate {
 
   # this is KBase
   if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
+
+    unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
+        return (undef, "insecure protocol");
+    }
+
     my $json = new JSON;
     my $cgi = new CGI;
 

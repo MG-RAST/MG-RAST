@@ -82,7 +82,7 @@ sub get_cv_all {
 sub get_cv_select {
   my ($self, $tag) = @_;
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectcol_arrayref("SELECT value FROM MetaDataCV WHERE tag='$tag' AND type='select'");
+  my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT value FROM MetaDataCV WHERE tag='$tag' AND type='select'");
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
@@ -97,12 +97,9 @@ sub get_cv_ontology {
 }
 
 sub cv_ontology_info {
-  my ($self, $tag, $version) = @_;
-  if (! $version) {
-      $version = $self->cv_latest_version($tag);
-  }
+  my ($self, $tag) = @_;
   my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectrow_arrayref("SELECT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ont_info' AND value_version='$version'");
+  my $tmp = $dbh->selectrow_arrayref("SELECT DISTINCT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ont_info'");
   return ($tmp && @$tmp) ? $tmp : ['', ''];
 }
 
@@ -110,11 +107,11 @@ sub cv_ontology_versions {
     my ($self, $tag) = @_;
     my $dbh = $self->{_handle}->db_handle;
     if ($tag) {
-        my $tmp = $dbh->selectcol_arrayref("SELECT distinct value_version FROM MetaDataCV WHERE tag='$tag' AND type='ontology'");
+        my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT value_version FROM MetaDataCV WHERE tag='$tag' AND type='ontology'");
         return ($tmp && @$tmp) ? $tmp : [];
     } else {
         my $data = {};
-        my $tmp = $dbh->selectall_arrayref("SELECT distinct tag, value_version FROM MetaDataCV WHERE type='ontology'");
+        my $tmp = $dbh->selectall_arrayref("SELECT DISTINCT tag, value_version FROM MetaDataCV WHERE type='ontology'");
         if ($tmp && @$tmp) {
             foreach my $x (@$tmp) {
                 push @{ $data->{$x->[0]} }, $x->[1];
@@ -240,20 +237,27 @@ sub validate_value {
     if ($tag =~ /country$/) {
         $tag = 'country';
     }
-    my %cvs = map {$_, 1} @{ $self->get_cv_select($tag, $version) };
+    my %cvs = map {$_, 1} @{ $self->get_cv_select($tag) };
     return exists($cvs{lc($val)}) ? [1, ''] : [0, 'not one of: '.join(', ', sort keys %cvs)];
   } elsif ($type eq 'ontology') {
-    my $cvi = $self->cv_ontology_info($tag, $version);
+    unless ($version) {
+        $version = $self->cv_latest_version($tag);
+    }
+    my %cvv = map {$_, 1} @{ $self->cv_ontology_versions($tag) };
+    unless (exists $cvv{$version}) {
+        return [0, "invalid version '$version' for label '$tag'"];
+    }
+    my $cvi = $self->cv_ontology_info($tag);
     my $cvo = $self->get_cv_ontology($tag, $version);
     my %oid = map {$_->[1], 1} @$cvo;
     my %oname = map {$_->[0], 1} @$cvo;
     if (exists($oname{$val}) || exists($oid{$val})) {
         return [1, '']
     } else {
-        return [0, 'not part of: '.$cvi->[0]];
+        return [0, "not part of $tag: ".$cvi->[0]];
     }
   } else {
-    return [0, 'unknown type'];
+    return [0, "unknown category '$cat'"];
   }
 }
 
