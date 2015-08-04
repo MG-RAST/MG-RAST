@@ -329,7 +329,7 @@ sub output {
 		      sanitize($row->{'feature'}),
 		      sanitize($row->{'material'}),
 		      sanitize($row->{'env_package'}),
-		      sanitize($row->{'sequence_type'}),
+		      $row->{'sequence_type'} || 'Unknown',
 		      $row->{'altitude'},
 		      $row->{'depth'},
 		      sanitize($row->{'location'}),
