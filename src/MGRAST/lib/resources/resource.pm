@@ -1607,8 +1607,8 @@ sub build_index_merge_task {
         $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => $idx_node->{id}};
         $idx_task->{userattr}{parent_index_file} = $idx_node->{id};
     } else {
-        $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
-        push @{$idx_task->{dependsOn}}, "$depend";
+        $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx"};
+        push @{$idx_task->{dependsOn}}, "$depend_idx";
     }
     # seq node exist - no dependencies
     if ($depend_seq < 0) {
@@ -1621,12 +1621,12 @@ sub build_index_merge_task {
         $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
         $idx_task->{userattr}{parent_index_file} = $seq_node->{id};
     } else {
-        $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
-        push @{$idx_task->{dependsOn}}, "$depend";
+        $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
+        push @{$idx_task->{dependsOn}}, "$depend_seq";
     }
     
     $idx_task->{outputs}{$outfile} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $idx_task->{cmd}{args} = '-i @'.$index.' -s @'.$seq.' -o '$outfile;
+    $idx_task->{cmd}{args} = '-i @'.$index.' -s @'.$seq.' -o '.$outfile;
     $idx_task->{userattr}{stage_name} = "merge_index";
     
     return $idx_task;
