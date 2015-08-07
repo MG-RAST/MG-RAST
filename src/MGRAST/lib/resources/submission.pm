@@ -35,7 +35,7 @@ sub new {
         "pair_file_2"    => [ "string", "RFC 4122 UUID for pair 2 file" ],
         "index_file"     => [ "string", "RFC 4122 UUID for index (barcode) file" ],
         "mg_name"        => [ "string", "name of metagenome for pair-join"],
-        "rc_index"       => [ "boolean", "If true barcodes in index file are reverse compliment of mapping file, default is false" ]
+        "rc_index"       => [ "boolean", "If true barcodes in index file are reverse compliment of mapping file, default is false" ],
         "retain"         => [ "boolean", "If true retain non-overlapping sequences, default is false" ],
         # pipeline flags
         "assembled"    => [ "boolean", "if true sequences are assembeled, default is false" ],
