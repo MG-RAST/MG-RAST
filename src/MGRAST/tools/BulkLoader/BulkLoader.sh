@@ -38,14 +38,15 @@ if [ ! -f "$INFILE" ]; then
     exit
 fi
 if [ -z "$OUTDIR" ]; then
-    OUTDIR=/data/sstable
+    OUTDIR=/var/lib/cassandra/sstable
 fi
 if [ -z "$CASS_DIR" ]; then
     CASS_DIR=/opt/cassandra
 fi
 
 # set classpath
-CLASSPATH=".:$CASS_DIR/conf/cassandra.yaml:$CASS_DIR/lib/*"
+THIS_DIR=`pwd`
+CLASSPATH=".:$THIS_DIR/*:$CASS_DIR/conf/cassandra.yaml:$CASS_DIR/lib/*"
 
 # Compile
 echo "compile: javac -cp $CLASSPATH BulkLoader.java"
