@@ -24,17 +24,18 @@ sub new {
     $self->{param_file} = "submission_parameters.json";
     $self->{submit_params} = {
         # inbox action options
+        "debug"          => [ "boolean", "if true return workflow document instead of submitting"],
         "project_name"   => [ "string", "unique MG-RAST project name" ],
         "project_id"     => [ "string", "unique MG-RAST project identifier" ],
         "metadata_file"  => [ "string", "RFC 4122 UUID for metadata file" ],
         "seq_files"      => [ "list", ["string", "RFC 4122 UUID for sequence file"] ],
         "multiplex_file" => [ "string", "RFC 4122 UUID for file to demultiplex" ],
-        "barcode_file"   => [ "string", "RFC 4122 UUID for barcode file" ],
+        "barcode_file"   => [ "string", "RFC 4122 UUID for barcode mapping file" ],
         "pair_file_1"    => [ "string", "RFC 4122 UUID for pair 1 file" ],
         "pair_file_2"    => [ "string", "RFC 4122 UUID for pair 2 file" ],
-        "index_file"     => [ "string", "RFC 4122 UUID for optional index (barcode) file" ],
+        "index_file"     => [ "string", "RFC 4122 UUID for index (barcode) file" ],
         "mg_name"        => [ "string", "name of metagenome for pair-join"],
-        "barcode_count"  => [ "int", "number of unique barcodes in index_file" ],
+        "rc_index"       => [ "boolean", "If true barcodes in index file are reverse compliment of mapping file, default is false" ]
         "retain"         => [ "boolean", "If true retain non-overlapping sequences, default is false" ],
         # pipeline flags
         "assembled"    => [ "boolean", "if true sequences are assembeled, default is false" ],
@@ -385,6 +386,7 @@ sub submit {
     my $uuid = $self->uuidv4();
     my $post = $self->get_post_data([ keys %{$self->{submit_params}} ]);
     # inbox action options
+    my $debug          = $post->{'debug'} ? 1 : 0;
     my $project_name   = $post->{'project_name'} || "";
     my $project_id     = $post->{'project_id'} || "";
     my $metadata_file  = $post->{'metadata_file'} || "";
@@ -394,7 +396,7 @@ sub submit {
     my $pair_file_2    = $post->{'pair_file_2'} || "";
     my $index_file     = $post->{'index_file'} || "";
     my $mg_name        = $post->{'mg_name'} || "";
-    my $barcode_count  = $post->{'barcode_count'} || 0;
+    my $rc_index       = $post->{'rc_index'} ? 1 : 0;
     my $retain         = $post->{'retain'} ? 1 : 0;
     my $seq_files      = $post->{'seq_files'} || [];
     if ($seq_files && (! ref($seq_files))) {
@@ -496,18 +498,20 @@ sub submit {
     # figure out pre-pipeline workflow
     my @submit = ();
     my $tasks = [];
-    if ($pair_file_1 && $pair_file_2 && $index_file) {
+    if ($pair_file_1 && $pair_file_2 && $index_file && $barcode_file) {
         $input = {
             'type'  => "pairjoin_demultiplex",
             'files' => {
                 'pair1' => $pair_file_1,
                 'pair2' => $pair_file_2,
-                'index' => $index_file
+                'index' => $index_file,
+                'barcode' => $barcode_file
             }
         };
         $self->add_submission($pair_file_1, $uuid, $self->token, $self->user_auth);
         $self->add_submission($pair_file_2, $uuid, $self->token, $self->user_auth);
         $self->add_submission($index_file, $uuid, $self->token, $self->user_auth);
+        $self->add_submission($barcode_file, $uuid, $self->token, $self->user_auth);
         my $outprefix = $mg_name || $self->uuidv4();
         # need stats on input files, each one can be 1 or 2 tasks
         push @$tasks, $self->build_seq_stat_task(0, -1, $pair_file_1, undef, $self->token, $self->user_auth);
@@ -519,19 +523,13 @@ sub submit {
         push @$tasks, $self->build_seq_stat_task($idx_tid, -1, $index_file, undef, $self->token, $self->user_auth);
         my $pj_tid = scalar(@$tasks);
         my $idx_fname = (keys %{$tasks->[$pj_tid-1]->{outputs}})[0];
-        # pair join - this is 2 tasks, dependent on previous tasks        
-        # $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $bc_num, $outprefix, $retain, $auth, $authPrefix
-        push @$tasks, $self->build_pair_join_task($pj_tid, $p2_tid-1, $idx_tid-1, $pj_tid-1, $p1_fname, $p2_fname, $idx_fname, $barcode_count, $outprefix, $retain, $self->token, $self->user_auth);
-        # create barcode file - 1 task
-        my $bc_tid = scalar(@$tasks);
-        push @$tasks, $self->build_index_bc_task($bc_tid, $pj_tid-1, $idx_fname, $outprefix, $self->token, $self->user_auth);
+        # pair join - this is 2 tasks, dependent on previous tasks  
+        # $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $outprefix, $retain, $auth, $authPrefix
+        push @$tasks, $self->build_pair_join_task($pj_tid, $p2_tid-1, $idx_tid-1, $pj_tid-1, $p1_fname, $p2_fname, $idx_fname, $outprefix, $retain, $self->token, $self->user_auth);
         # demultiplex it - # of tasks = barcode_count + 1 (start at task 3)
-        unless ($barcode_count && ($barcode_count > 0)) {
-            $self->return_data( {"ERROR" => "barcode_count is required for mate-pair demultiplexing, must be greater than 1"}, 400 );
-        }
         my $dm_tid = scalar(@$tasks);
-        # $taskid, $depend_seq, $depend_bc, $seq, $barcode, $bc_num, $auth, $authPrefix
-        @submit = $self->build_demultiplex_task($dm_tid, $bc_tid-1, $dm_tid-1, $outprefix.".fastq", $outprefix.".barcodes", $barcode_count, $self->token, $self->user_auth);
+        # $taskid, $depend_seq, $depend_bc, $seq, $barcode, $rc_bar, $auth, $authPrefix
+        @submit = $self->build_demultiplex_task($dm_tid, $dm_tid-1, -1, $outprefix.".fastq", $barcode_file, $rc_index, $self->token, $self->user_auth);
         push @$tasks, @submit;
     } elsif ($pair_file_1 && $pair_file_2) {
         $input = {
@@ -552,8 +550,8 @@ sub submit {
         my $pj_tid = scalar(@$tasks);
         my $p2_fname = (keys %{$tasks->[$pj_tid-1]->{outputs}})[0];
         # pair join - this is 2 tasks, dependent on previous tasks
-        # $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $bc_num, $outprefix, $retain, $auth, $authPrefix
-        @submit = $self->build_pair_join_task($pj_tid, $p2_tid-1, $pj_tid-1, undef, $p1_fname, $p2_fname, undef, undef, $outprefix, $retain, $self->token, $self->user_auth);
+        # $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $outprefix, $retain, $auth, $authPrefix
+        @submit = $self->build_pair_join_task($pj_tid, $p2_tid-1, $pj_tid-1, undef, $p1_fname, $p2_fname, undef, $outprefix, $retain, $self->token, $self->user_auth);
         push @$tasks, @submit;
     } elsif ($multiplex_file && $barcode_file) {
         $input = {
@@ -567,12 +565,20 @@ sub submit {
         $self->add_submission($barcode_file, $uuid, $self->token, $self->user_auth);
         # need stats on input file, can be 1 or 2 tasks
         push @$tasks, $self->build_seq_stat_task(0, -1, $multiplex_file, undef, $self->token, $self->user_auth);
+        my $mult_fname = (keys %{$tasks->[0]->{outputs}})[0];
+        my $index_fname = undef;
+        # is this illumina format with index file?
+        if ($index_file) {
+            $input->{files}{index} = $index_file;
+            $self->add_submission($index_file, $uuid, $self->token, $self->user_auth);
+            push @$tasks, $self->build_seq_stat_task(1, -1, $index_file, undef, $self->token, $self->user_auth);
+            $index_fname = (keys %{$tasks->[1]->{outputs}})[0];
+        }
         my $dm_tid = scalar(@$tasks);
-        my $mult_fname = (keys %{$tasks->[$dm_tid-1]->{outputs}})[0];
-        # just demultiplex - # of tasks = barcode_count + 1 (start at task 0)
-        # $taskid, $depend_seq, $depend_bc, $seq, $barcode, $bc_num, $auth, $authPrefix
-        @submit = $self->build_demultiplex_task($dm_tid, $dm_tid-1, -1, $mult_fname, $barcode_file, 0, $self->token, $self->user_auth);
-        push @$tasks, @submit
+        # just demultiplex - # of tasks = barcode_count + 1 (start at task 1/2)
+        # $taskid, $depend_seq, $depend_bc, $seq, $barcode, $rc_bar, $auth, $authPrefix
+        @submit = $self->build_demultiplex_task($dm_tid, 0, -1, $mult_fname, $barcode_file, $rc_index, $self->token, $self->user_auth);
+        push @$tasks, @submit;
     } elsif (scalar(@$seq_files) > 0) {
         $input = {
             'type'  => "simple",
@@ -694,7 +700,7 @@ sub submit {
         submission_id => $uuid,
         task_list     => $self->json->encode($tasks)
     };
-    my $job = $self->submit_awe_template($info, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, 0);
+    my $job = $self->submit_awe_template($info, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
     
     $response->{job} = $job;
     $response->{info} = $param_obj;
