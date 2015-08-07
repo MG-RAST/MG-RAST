@@ -169,7 +169,7 @@ sub instance {
       unless (scalar(@$userToken)) {
 	my $wkey = "";
 	my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-	while (length($generated) < 25) {
+	while (length($wkey) < 25) {
 	  $wkey .= substr($possible, (int(rand(length($possible)))), 1);
 	}
 	$userToken = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKey", value => $wkey }) ];
