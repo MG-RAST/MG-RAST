@@ -655,7 +655,7 @@ sub submit {
     $submit_task->{cmd}{description} = 'mg submit '.scalar(@$sub_files);
     $submit_task->{cmd}{name} = "awe_submit_to_mgrast.pl";
     $submit_task->{cmd}{args} = '-input @'.$self->{param_file};
-    $submit_task->{cmd}{environ}{private} = {"USER_AUTH" => $self->token, "MGRAST_API" => $Conf::api_url};
+    $submit_task->{cmd}{environ}{private} = {"USER_AUTH" => $self->token, "MGRAST_API" => $self->cgi->url};
     $submit_task->{taskid} = "$staskid";
     $submit_task->{dependsOn} = $sub_tids;
     $submit_task->{outputs} = {
