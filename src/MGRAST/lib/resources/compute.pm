@@ -43,6 +43,7 @@ sub new {
                                                           ] ],
       				                  'pco' => ['list', ['float', 'average principal component value']] }
       				      };
+    $self->{norm} = ["DESeq_blind","standardize","quantile","DESeq_per_condition","DESeq_pooled","DESeq_pooled_CR"];
     $self->{distance} = ["bray-curtis", "euclidean", "maximum", "manhattan", "canberra", "minkowski", "difference"];
     $self->{cluster} = ["ward", "single", "complete", "mcquitty", "median", "centroid"];
     $self->{significance} = ["Kruskal-Wallis", "t-test-paired", "Wilcoxon-paired", "t-test-unpaired", "Mann-Whitney-unpaired-Wilcoxon", "ANOVA-one-way"];
@@ -94,7 +95,8 @@ sub info {
 							                 'required' => {},
 							                 'body'     => { "data" => ['list', ['list', ['int', 'raw value']]],
           							                         "rows" => ['list', ['string', 'row id']],
-          							                         "columns" => ['list', ['string', 'column id']] } }
+          							                         "columns" => ['list', ['string', 'column id']],
+          							                         "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]] } }
 						},
 						{ 'name'        => "significance",
 				          'request'     => $self->cgi->url."/".$self->name."/significance",
@@ -111,6 +113,7 @@ sub info {
           							                         "columns" => ['list', ['string', 'column id']],
           							                         "groups" =>  ['list', ['string', 'group name']],
           							                         "test" => ['cv', [map {[$_, $_." significance testing method"]} @{$self->{significance}}]],
+          							                         "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
           							                         "raw" => ["boolean", "option to use raw data (not normalize)"] } }
 						},
 						{ 'name'        => "heatmap",
@@ -128,6 +131,7 @@ sub info {
            							                         "columns" => ['list', ['string', 'column id']],
      							                             "cluster" => ['cv', [map {[$_, $_." cluster method"]} @{$self->{cluster}}]],
      							                             "distance" => ['cv', [map {[$_, $_." distance method"]} @{$self->{distance}}]],
+     							                             "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
      							                             "raw" => ["boolean", "option to use raw data (not normalize)"] } }
 						},
 						{ 'name'        => "pcoa",
@@ -144,6 +148,7 @@ sub info {
             							                     "rows" => ['list', ['string', 'row id']],
             							                     "columns" => ['list', ['string', 'column id']],
 							                                 "distance" => ['cv', [map {[$_, $_." distance method"]} @{$self->{distance}}]],
+							                                 "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
 							                                 "raw" => ["boolean", "option to use raw data (not normalize)"] } }
 						}
 				     ]
@@ -213,6 +218,7 @@ sub abundance_compute {
     # paramaters
     my $raw = $self->cgi->param('raw') || 0;
     my $test = $self->cgi->param('test') || 'Kruskal-Wallis';
+    my $norm = $self->cgi->param('norm') || 'DESeq_blind';
     my $cluster = $self->cgi->param('cluster') || 'ward';
     my $distance = $self->cgi->param('distance') || 'bray-curtis';
     my $groups = $self->cgi->param('groups') ? [split(/,/, $self->cgi->param('groups'))] : [];
@@ -226,6 +232,7 @@ sub abundance_compute {
             my $json_data = $self->json->decode($post_data);
             if (exists $json_data->{raw}) { $raw = $json_data->{raw}; }
             if (exists $json_data->{test}) { $test = $json_data->{test}; }
+            if (exists $json_data->{norm}) { $norm = $json_data->{norm}; }
             if (exists $json_data->{cluster}) { $cluster = $json_data->{cluster}; }
             if (exists $json_data->{distance}) { $distance = $json_data->{distance}; }
             $data = $json_data->{data};
@@ -272,6 +279,12 @@ sub abundance_compute {
     }
     
     # check cv
+    unless (any {$_ eq $test} @{$self->{significance}}) {
+        $self->return_data({"ERROR" => "test '$test' is invalid, use one of: ".join(",", @{$self->{significance}})}, 400);
+    }
+    unless (any {$_ eq $norm} @{$self->{norm}}) {
+        $self->return_data({"ERROR" => "norm '$norm' is invalid, use one of: ".join(",", @{$self->{norm}})}, 400);
+    }
     unless (any {$_ eq $cluster} @{$self->{cluster}}) {
         $self->return_data({"ERROR" => "cluster '$cluster' is invalid, use one of: ".join(",", @{$self->{cluster}})}, 400);
     }
@@ -282,26 +295,26 @@ sub abundance_compute {
     my $data;
     # nomalize
     if ($type eq 'normalize') {
-        $data = $self->normalize($infile, 1);
+        $data = $self->normalize($infile, $norm, 1);
     }
     # significance
     elsif ($type eq 'significance') {
         if (! $raw) {
-            $infile = $self->normalize($infile);
+            $infile = $self->normalize($infile, $norm);
         }
         $data = $self->significance($infile, $groups, $test, 1);
     }
     # heatmap
     elsif ($type eq 'heatmap') {
         if (! $raw) {
-            $infile = $self->normalize($infile);
+            $infile = $self->normalize($infile, $norm);
         }
         $data = $self->heatmap($infile, $distance, $cluster, 1);
     }
     # pcoa
     elsif ($type eq 'pcoa') {
         if (! $raw) {
-            $infile = $self->normalize($infile);
+            $infile = $self->normalize($infile, $norm);
         }
         $data = $self->pcoa($infile, $distance, 1);
     }
@@ -342,13 +355,14 @@ sub form_file {
 }
 
 sub normalize {
-    my ($self, $fname, $json) = @_;
+    my ($self, $fname, $method, $json) = @_;
     
     my $time = time;
     my $src  = $Conf::bin."/norm_deseq.r";
     my $fout = $Conf::temp."/rdata.normalize.".$time;
     my $rcmd = qq(source("$src")
 MGRAST_preprocessing(
+    norm_method="$method",
     file_in="$fname",
     file_out="$fout",
     produce_fig=FALSE )

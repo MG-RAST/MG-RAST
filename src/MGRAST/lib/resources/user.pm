@@ -164,7 +164,22 @@ sub instance {
   if (scalar(@$rest) == 1 && $rest->[0] eq 'authenticate') {
     if ($self->user) {
       my $userToken  = $master->Preferences->get_objects({ user => $self->user, name => "WebServicesKey" });
-      my $experation = $master->Preferences->get_objects({ user => $self->user, name => "WebServiceKeyTdate" });
+      my $expiration = $master->Preferences->get_objects({ user => $self->user, name => "WebServiceKeyTdate" });
+      if (! scalar(@$userToken) || $expiration->[0]->{value} < time) {
+	my $t = time + (1000 * 60 * 60 * 24 * 7);
+	my $wkey = "";
+	my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+	while (length($wkey) < 25) {
+	  $wkey .= substr($possible, (int(rand(length($possible)))), 1);
+	}
+	if (scalar(@$userToken)) {
+	  $userToken->[0]->value($wkey);
+	  $expiration->[0]->value($t);
+	} else {
+	  $userToken = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKey", value => $wkey }) ];
+	  $expiration = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKeyTdate", value => $t }) ];
+	}
+      }
       my $data = {
           "login" => $self->user->{login},
           "firstname" => $self->user->{firstname},
@@ -172,7 +187,7 @@ sub instance {
           "email" => $self->user->{email},
           "id" => 'mgu'.$self->user->{_id},
           "token" => scalar(@$userToken) ? $userToken->[0]->{value} : undef,
-          "expiration" => scalar(@$experation) ? $experation->[0]->{value} : undef
+          "expiration" => scalar(@$expiration) ? $expiration->[0]->{value} : undef
       };
       $self->return_data( $data, 200 );
     } else {

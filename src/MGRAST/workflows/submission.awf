@@ -3,7 +3,8 @@
         "pipeline": "[% pipeline %]",
         "name": "[% job_name %]",
         "user": "[% user_id %]",
-        "clientgroups":"[% clientgroups %]",
+        "clientgroups": "[% clientgroups %]",
+        "description": "[% description %]",
         "userattr": {
             "type": "inbox",
             "id": "[% user_id %]",
