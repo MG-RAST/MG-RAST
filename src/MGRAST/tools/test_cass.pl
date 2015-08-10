@@ -37,8 +37,7 @@ unless (($host && $name) || $solr) {
     print STDERR $usage; exit 1;
 }
 
-py_eval(<<'END');
-
+my $python = q(
 import random
 from cassandra.cluster import Cluster
 from cassandra.policies import RetryPolicy
@@ -65,8 +64,9 @@ class TestCass(object):
         for r in rows:
             found.append(r.md5)
         return found
+);
 
-END
+py_eval($python);
 
 my $md5s = {};
 my $start = time;
@@ -86,7 +86,7 @@ foreach my $i (1..$count) {
     if ($solr) {
         my $query = "md5_id:(".join(" OR ", @$random_ids).")";
         my $sdata = "q=*%3A*&fq=".$query."&start=0&rows=1000000000&wt=json&fl=".$fields;
-        my $res = $json->decode( $agent->post($solr, Content => $sSdata)->content );
+        my $res = $json->decode( $agent->post($solr, Content => $sdata)->content );
         map { $md5s->{$_->{md5}} = 1 } @{$res->{response}{docs}};
     } else {
         map { $md5s->{$_} = 1 } @{ $tester->get_records($random_ids) };

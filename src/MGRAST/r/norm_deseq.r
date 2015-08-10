@@ -186,9 +186,9 @@ quickly"
       plot.new()
       split.screen(c(2,1))
       screen(1)
-      graphics::boxplot(input_data.og, main=(paste(input_name," RAW", sep="", collapse="")), las=2, cex.axis=0.5)
+      graphics::boxplot(input_data.og, main=(paste("RAW", sep="", collapse="")), las=2, cex.axis=0.5)
       screen(2)
-      graphics::boxplot(input_data, main=(paste(input_name," PREPROCESSED (", norm_method, " norm)", sep="", collapse="")),las=2, cex.axis=0.5)
+      graphics::boxplot(input_data, main=(paste("PREPROCESSED (", norm_method, " norm)", sep="", collapse="")),las=2, cex.axis=0.5)
       dev.off()
       boxplot_message <- paste("output boxplot:       ", boxplots_file, "\n", sep="", collapse="")
     }
