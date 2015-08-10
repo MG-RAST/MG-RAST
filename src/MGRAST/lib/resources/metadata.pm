@@ -271,6 +271,8 @@ sub request {
         $self->validate_value();
     } elsif (($self->rest->[0] =~ /^(validate|import|update)$/) && ($self->method eq 'POST')) {
         $self->process_file($self->rest->[0]);
+    } elsif ($self->rest->[0] eq 'google') {
+      $self->google($self->rest->[1]);
     } else {
         $self->info();
     }
@@ -641,6 +643,35 @@ sub process_file {
     }
     
     $self->return_data($data);
+}
+
+sub google {
+  my ($self, $id) = @_;
+
+  # if there is an id, create the preference
+  if ($id) {
+    my $pref = $self->user->_master->Preferences->create({ user => $self->user,
+							   name => 'UploadMetadataNode',
+							   value => $id });
+    if (ref($pref)) {
+      $self->return_data({"OK" => "preference created"}, 200);
+    } else {
+      $self->return_data({"ERROR" => "unable to create preference node"}, 500);
+    }
+  }
+  # otherwise, return the file
+  else {
+  
+    my $nodeid = $self->user->_master->Preferences->get_objects({ user => $self->user,
+								  name => 'UploadMetadataNode' });
+    unless (scalar(@$nodeid)) {
+      $self->return_data({"ERROR" => "no upload metadata node for user found"}, 404);
+    }
+    
+    $nodeid = $nodeid->[0]->value;
+    
+    $self->return_shock_file($nodeid, undef, "metadata", $self->token, $self->user_auth);
+  }
 }
 
 1;
