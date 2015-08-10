@@ -165,17 +165,21 @@ sub instance {
     if ($self->user) {
       my $userToken  = $master->Preferences->get_objects({ user => $self->user, name => "WebServicesKey" });
       my $expiration = $master->Preferences->get_objects({ user => $self->user, name => "WebServiceKeyTdate" });
-      my $t = time + (1000 * 60 * 60 * 24 * 7);
-      unless (scalar(@$userToken)) {
+      if (! scalar(@$userToken) || $expiration->[0]->{value} < time) {
+	my $t = time + (1000 * 60 * 60 * 24 * 7);
 	my $wkey = "";
 	my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 	while (length($wkey) < 25) {
 	  $wkey .= substr($possible, (int(rand(length($possible)))), 1);
 	}
-	$userToken = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKey", value => $wkey }) ];
-	$expiration = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKeyTdate", value => $t }) ];
+	if (scalar(@$userToken)) {
+	  $userToken->[0]->value($wkey);
+	  $expiration->[0]->value($t);
+	} else {
+	  $userToken = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKey", value => $wkey }) ];
+	  $expiration = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKeyTdate", value => $t }) ];
+	}
       }
-      $expiration->[0]->value($t);
       my $data = {
           "login" => $self->user->{login},
           "firstname" => $self->user->{firstname},
