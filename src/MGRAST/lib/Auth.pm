@@ -41,7 +41,7 @@ sub authenticate {
 	  }
 	
 	  $master->Preferences->create({ user => $us, name => "WebServicesKey", value => $wkey });
-	  $pref = [ $master->Preferences->create({ user => $us, name => "WebServicesKeyTdate", value => $t }) ];
+	  $pref = [ $master->Preferences->create({ user => $us, name => "WebServiceKeyTdate", value => $t }) ];
 	}
 	if ($pref->[0]->value < time) {
 	  $pref->[0]->value(time + 1209600);

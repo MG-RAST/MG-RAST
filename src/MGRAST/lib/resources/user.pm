@@ -177,7 +177,7 @@ sub instance {
 	  $expiration->[0]->value($t);
 	} else {
 	  $userToken = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKey", value => $wkey }) ];
-	  $expiration = [ $master->Preferences->create({ user => $self->user, name => "WebServicesKeyTdate", value => $t }) ];
+	  $expiration = [ $master->Preferences->create({ user => $self->user, name => "WebServiceKeyTdate", value => $t }) ];
 	}
       }
       my $data = {
