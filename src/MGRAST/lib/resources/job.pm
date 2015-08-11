@@ -334,7 +334,7 @@ sub job_action {
             # check params
             delete $post->{metagenome_id};
             foreach my $key (keys %{$self->{create_param}}) {
-                if (($key eq 'metagenome_id') || ($key eq 'input_id')) {
+                if (($key eq 'metagenome_id') || ($key eq 'input_id') || ($key eq 'submission')) {
                     next;
                 }
                 if (! exists($post->{$key})) {
@@ -381,8 +381,8 @@ sub job_action {
                     awe_id => $aid,
                     log    => join("\n", @log)
                 };
-                # update job attribute
-                $job->data("pipeline_id", $aid);
+                # update job attribute - something is broken, have submit script do this
+                #$job->data("pipeline_id", $aid);
                 # update inbox attributes if submit
                 if ($post->{input_id} && ($action eq 'submit')) {
                     my $node = $self->get_shock_node($post->{input_id}, $self->token, $self->user_auth);
