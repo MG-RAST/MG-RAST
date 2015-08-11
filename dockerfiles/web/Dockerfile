@@ -28,14 +28,6 @@ RUN apt-get update && apt-get install -y \
   libdatetime-perl \
   libclass-isa-perl
 
-# setup sendmail
-RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
-  cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
-  pkill -9 sendmail && \
-  postconf -e relayhost=[smtp.mcs.anl.gov] && \
-  /etc/init.d/postfix restart && \
-  exit 0
-
 # v3 website
 RUN cd / && \ 
   git clone -b master https://github.com/MG-RAST/MG-RAST.git && \ 
@@ -71,6 +63,11 @@ RUN cd /tools && \
   cd FragGeneScan && \
   make clean && \
   make fgs
+
+# setup sendmail
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
+  cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
+  postconf -e relayhost=[smtp.mcs.anl.gov]
 
 # metazen
 RUN cd / && \
