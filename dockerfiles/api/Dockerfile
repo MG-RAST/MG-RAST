@@ -33,11 +33,9 @@ RUN apt-get update && apt-get install -y \
   libclass-isa-perl
 
 # setup sendmail
-RUN apt-get -y install postfix && \
-  cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
-  pkill -9 sendmail && \
-  postconf -e relayhost=[smtp.mcs.anl.gov] && \
-  exit 0
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix
+RUN cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf
+RUN postconf -e relayhost=[smtp.mcs.anl.gov]
 
 RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   cd / && \
