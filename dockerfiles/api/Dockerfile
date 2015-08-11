@@ -32,14 +32,6 @@ RUN apt-get update && apt-get install -y \
   libtemplate-perl \
   libclass-isa-perl
 
-# setup sendmail
-RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
-  cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
-  pkill -9 sendmail && \
-  postconf -e relayhost=[smtp.mcs.anl.gov] && \
-  /etc/init.d/postfix restart && \
-  exit 0
-
 RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   cd / && \
   git clone -b api https://github.com/MG-RAST/MG-RAST.git && \
@@ -63,6 +55,11 @@ RUN apt-get install -y python-dev python-pip && \
 
 ENV PERL_MM_USE_DEFAULT 1
 RUN cpan Inline::Python
+
+# setup sendmail
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
+  cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
+  postconf -e relayhost=[smtp.mcs.anl.gov]
 
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
