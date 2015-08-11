@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y \
   libuuid-tiny-perl \
   libmongodb-perl \
   libfreezethaw-perl \
+  libtemplate-perl \
   libclass-isa-perl
 
 RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
@@ -45,18 +46,22 @@ RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-c
   echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods"); biocLite("preprocessCore"); biocLite("DESeq")' | R --no-save
 
 # pipeline dependencies
-RUN apt-get install -y \
-  python-dev \
-  python-pip \
-  libtemplate-perl
-RUN pip install gspread xlrd openpyxl lepl cassandra-driver
-RUN cd / && \
+RUN apt-get install -y python-dev python-pip && \
+  pip install gspread xlrd openpyxl lepl cassandra-driver
+  cd / && \
   git clone https://github.com/MG-RAST/pipeline.git && \
   cd pipeline && \
   ln -s /MG-RAST/site/CGI/Tmp temp
 
 ENV PERL_MM_USE_DEFAULT 1
 RUN cpan Inline::Python
+
+# setup sendmail
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
+  cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
+  pkill -9 sendmail && \
+  postconf -e relayhost=[smtp.mcs.anl.gov] && \
+  /etc/init.d/postfix restart
 
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
