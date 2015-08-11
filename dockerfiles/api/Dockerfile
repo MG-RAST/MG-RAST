@@ -50,7 +50,9 @@ RUN apt-get install -y \
   python-pip \
   libtemplate-perl
 RUN pip install gspread xlrd openpyxl lepl cassandra-driver
-RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
+RUN cd / && \
+  git clone https://github.com/MG-RAST/pipeline.git && \
+  mkdir -p /pipeline/temp
 
 ENV PERL_MM_USE_DEFAULT 1
 RUN cpan Inline::Python
