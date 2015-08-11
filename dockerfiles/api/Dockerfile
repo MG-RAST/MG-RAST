@@ -36,7 +36,9 @@ RUN apt-get update && apt-get install -y \
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
   cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
   pkill -9 sendmail && \
-  postconf -e relayhost=[smtp.mcs.anl.gov]
+  postconf -e relayhost=[smtp.mcs.anl.gov] && \
+  /etc/init.d/postfix restart && \
+  exit 0
 
 RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   cd / && \
