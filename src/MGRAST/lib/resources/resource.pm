@@ -1283,6 +1283,52 @@ sub empty_awe_task {
 #  other server functions  #
 ############################
 
+sub cassandra_m5nr_handle {
+    my ($self, $keyspace, $hosts) = @_;
+    
+    unless ($keyspace && $hosts && (@$hosts > 0)) {
+        $self->return_data( {"ERROR" => "Unable to connect to cassandra cluster"}, 500 );
+    }
+
+    use Inline::Python qw(py_eval);
+    my $python = q(
+    from cassandra.cluster import Cluster
+    from cassandra.policies import RetryPolicy
+    from cassandra.query import dict_factory
+
+    class CassHandle(object):
+        def __init__(self, keyspace, hosts):
+            self.keyspace = keyspace
+            self.handle = Cluster(
+                contact_points = self.hosts,
+                default_retry_policy = RetryPolicy()
+            )
+        def get_records_by_id(self, ids, source):
+            found = []
+            query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s';"%(",".join(map(str, ids)), source)
+            session = self.handle.connect(self.keyspace)
+            session.row_factory = dict_factory
+            rows = session.execute(query)
+            for r in rows:
+                r['is_protein'] = 1 if r['is_protein'] else 0
+                found.append(r)
+            return found
+        def get_records_by_md5(self, md5s, source):
+            found = []
+            query = "SELECT * FROM md5_annotation WHERE md5 IN (%s) AND source='%s';"%("'{0}'".format("','".join(md5s)), source)
+            session = self.handle.connect(self.keyspace)
+            session.row_factory = dict_factory
+            rows = session.execute(query)
+            for r in rows:
+                r['is_protein'] = 1 if r['is_protein'] else 0
+                found.append(r)
+            return found
+    );
+    
+    py_eval($python);
+    return Inline::Python::Object->new('__main__', 'CassHandle', $keyspace, $hosts);
+}
+
 sub get_solr_query {
     my ($self, $method, $server, $collect, $query, $sort, $offset, $limit, $fields) = @_;
     
@@ -1588,16 +1634,16 @@ sub metadata_validation {
 # if input node has no dependency, then value is -1 and it is a shock node id,
 # otherwise shock node does not exist and its a filename
 # returns 1 task
-sub build_index_bc_task {
-    my ($self, $taskid, $depend, $index, $outprefix, $auth, $authPrefix) = @_;
+sub build_index_merge_task {
+    my ($self, $taskid, $depend_idx, $depend_seq, $index, $seq, $outfile, $auth, $authPrefix) = @_;
     
     my $idx_task = $self->empty_awe_task(1);
-    $idx_task->{cmd}{description} = "build barcodes";
-    $idx_task->{cmd}{name} = "index2barcode.py";
+    $idx_task->{cmd}{description} = "merge index barcodes";
+    $idx_task->{cmd}{name} = "merge_index.py";
     $idx_task->{taskid} = "$taskid";
     
     # index node exist - no dependencies
-    if ($depend < 0) {
+    if ($depend_idx < 0) {
         # get / verify nodes
         my $idx_node = $self->node_from_inbox_id($index, $auth, $authPrefix);
         unless (exists $idx_node->{attributes}{stats_info}) {
@@ -1607,12 +1653,27 @@ sub build_index_bc_task {
         $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => $idx_node->{id}};
         $idx_task->{userattr}{parent_index_file} = $idx_node->{id};
     } else {
-        $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
-        push @{$idx_task->{dependsOn}}, "$depend";
+        $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx"};
+        push @{$idx_task->{dependsOn}}, "$depend_idx";
     }
-    $idx_task->{outputs}{"$outprefix.barcodes"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $idx_task->{cmd}{args} = '-r -i @'.$index." -p $outprefix -o $outprefix.barcodes";
-    $idx_task->{userattr}{stage_name} = "build_barcodes";
+    # seq node exist - no dependencies
+    if ($depend_seq < 0) {
+        # get / verify nodes
+        my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
+        unless (exists $seq_node->{attributes}{stats_info}) {
+            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
+        }
+        $seq = $seq_node->{file}{name};
+        $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
+        $idx_task->{userattr}{parent_index_file} = $seq_node->{id};
+    } else {
+        $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
+        push @{$idx_task->{dependsOn}}, "$depend_seq";
+    }
+    
+    $idx_task->{outputs}{$outfile} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+    $idx_task->{cmd}{args} = '-i @'.$index.' -s @'.$seq.' -o '.$outfile;
+    $idx_task->{userattr}{stage_name} = "merge_index";
     
     return $idx_task;
 }
@@ -1717,7 +1778,7 @@ sub build_sff_fastq_task {
 # otherwise shock node does not exist and its a filename
 # returns array of 2 tasks
 sub build_pair_join_task {
-    my ($self, $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $bc_num, $outprefix, $retain, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $outprefix, $retain, $auth, $authPrefix) = @_;
     
     my $pj_task = $self->empty_awe_task(1);
     $pj_task->{cmd}{description} = "merge mate-pairs";
@@ -1758,10 +1819,7 @@ sub build_pair_join_task {
     }
     # has index file
     my $index_opt = "";
-    if ($index && $bc_num) {
-        if ($bc_num < 2) {
-            $self->return_data( {"ERROR" => "barcode_count value must be greater than 1"}, 400 );
-        }
+    if ($index) {
         # index node exist - no dependencies
         if ($depend_idx < 0) {
             my $idx_node = $self->node_from_inbox_id($index, $auth, $authPrefix);
@@ -1784,7 +1842,7 @@ sub build_pair_join_task {
     my $retain_opt = $retain ? "" : "-j ";
     my $out_file = $outprefix.".fastq";
     $pj_task->{outputs}{$out_file} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $pj_task->{cmd}{args} = $retain_opt.$index_opt.'-m 8 -p 10 -t . -r -o '.$out_file.' @'.$pair1.' @'.$pair2;
+    $pj_task->{cmd}{args} = $retain_opt.$index_opt.'-m 8 -p 10 -t . -o '.$out_file.' @'.$pair1.' @'.$pair2;
     $pj_task->{userattr}{stage_name} = "pair_join";
     
     # build seq stats task - not sff file
@@ -1796,7 +1854,7 @@ sub build_pair_join_task {
 # otherwise shock node does not exist and its a filename
 # returns array of 2 or more tasks
 sub build_demultiplex_task {
-    my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $bc_num, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $rc_bar, $auth, $authPrefix) = @_;
     
     my $seq_type = "";
     my $bc_names = [];
@@ -1832,11 +1890,11 @@ sub build_demultiplex_task {
         $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
         $dm_task->{userattr}{parent_barcode_file} = $bc_node->{id};
     } else {
-        $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => "-", origin => "$depend_bc"};
-        push @{$dm_task->{dependsOn}}, "$depend_bc";
-        @$bc_names = map { "$basename.$_" } (1..$bc_num);
-    }    
-    $dm_task->{cmd}{args} = '-f '.$seq_type.' -b @'.$barcode.' -i @'.$seq;
+        $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
+    }
+    
+    my $rc_bar_opt = $rc_bar ? "" : "-r ";
+    $dm_task->{cmd}{args} = $rc_bar_opt.'-f '.$seq_type.' -b @'.$barcode.' -i @'.$seq;
     
     # build outputs
     push @$bc_names, "nobarcode.".$basename;

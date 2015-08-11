@@ -44,9 +44,12 @@ RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && \
   cp -v /MG-RASTv4/mgmainv3.html /MG-RAST/site/CGI/Html/
 
 # pipeline dependencies
-RUN apt-get install -y python-dev python-pip
-RUN pip install gspread xlrd openpyxl lepl
-RUN cd / && git clone https://github.com/MG-RAST/pipeline.git
+RUN apt-get install -y python-dev python-pip && \
+  pip install gspread xlrd openpyxl lepl && \
+  cd / && \
+  git clone https://github.com/MG-RAST/pipeline.git && \
+  cd pipeline && \
+  ln -s /MG-RAST/site/CGI/Tmp temp
 
 # 3rd party dependency: R
 RUN mkdir -p /tools && \
@@ -60,6 +63,13 @@ RUN cd /tools && \
   cd FragGeneScan && \
   make clean && \
   make fgs
+
+# setup sendmail
+RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
+  cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
+  pkill -9 sendmail && \
+  postconf -e relayhost=[smtp.mcs.anl.gov] && \
+  /etc/init.d/postfix restart
 
 # metazen
 RUN cd / && \
