@@ -334,7 +334,7 @@ sub job_action {
             # check params
             delete $post->{metagenome_id};
             foreach my $key (keys %{$self->{create_param}}) {
-                if (($key eq 'metagenome_id') || ($key eq 'input_id')) {
+                if (($key eq 'metagenome_id') || ($key eq 'input_id') || ($key eq 'submission')) {
                     next;
                 }
                 if (! exists($post->{$key})) {
