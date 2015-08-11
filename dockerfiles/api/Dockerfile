@@ -47,7 +47,7 @@ RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-c
 
 # pipeline dependencies
 RUN apt-get install -y python-dev python-pip && \
-  pip install gspread xlrd openpyxl lepl cassandra-driver
+  pip install gspread xlrd openpyxl lepl cassandra-driver && \
   cd / && \
   git clone https://github.com/MG-RAST/pipeline.git && \
   cd pipeline && \
@@ -78,4 +78,5 @@ RUN mkdir -p /m5nr && \
   ln -s /api-server-data/20131215 /m5nr/20131215
 
 # Execute:
+# /etc/init.d/postfix start
 # /usr/local/apache2/bin/httpd -DFOREGROUND -f /api-server-conf/httpd.conf
