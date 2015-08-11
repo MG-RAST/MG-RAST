@@ -52,7 +52,8 @@ RUN apt-get install -y \
 RUN pip install gspread xlrd openpyxl lepl cassandra-driver
 RUN cd / && \
   git clone https://github.com/MG-RAST/pipeline.git && \
-  mkdir -p /pipeline/temp
+  cd pipeline && \
+  ln -s /MG-RAST/site/CGI/Tmp temp
 
 ENV PERL_MM_USE_DEFAULT 1
 RUN cpan Inline::Python
