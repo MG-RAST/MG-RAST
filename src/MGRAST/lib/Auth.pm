@@ -69,19 +69,21 @@ sub authenticate {
 	      $response = $json->decode( $get->content );
 	    };
 	    if ($@ || (! ref($response))) {
-	      print $cgi->header(-type => 'application/json',
-				 -status => 500,
-				 -charset => 'UTF-8',
-				 -Access_Control_Allow_Origin => '*' );
-	      print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
-	      exit;
+	      # print $cgi->header(-type => 'application/json',
+	      # 			 -status => 500,
+	      # 			 -charset => 'UTF-8',
+	      # 			 -Access_Control_Allow_Origin => '*' );
+	      # print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
+	      # exit;
+	      $verbose.=', "preferences": "ERROR - SHOCK server unavailable"';
 	    } elsif (exists($response->{error}) && $response->{error}) {
-	      print $cgi->header(-type => 'application/json',
-				 -status => 500,
-				 -charset => 'UTF-8',
-				 -Access_Control_Allow_Origin => '*' );
-	      print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
-	      exit;
+	      # print $cgi->header(-type => 'application/json',
+	      # 			 -status => 500,
+	      # 			 -charset => 'UTF-8',
+	      # 			 -Access_Control_Allow_Origin => '*' );
+	      # print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
+	      # exit;
+	      $verbose.=', "preferences": "ERROR - '.$response->{error}.'"';
 	    } else {
 	      $verbose.=', "preferences": '.$json->encode($response->{data}->{attributes}->{pref});
 	    }
