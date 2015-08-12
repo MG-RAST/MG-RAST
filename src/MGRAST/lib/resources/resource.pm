@@ -1485,12 +1485,25 @@ sub get_barcode_files {
     if ($err) {
         $self->return_data( {"ERROR" => $err}, 500 );
     }
-    foreach my $line (split(/\n/, $bar_text)) {
-        next unless ($line);
-        my ($b, $n) = split(/\t/, $line);
-        next unless ($b);
-        my $fname = $n ? $n : $b;
-        $bar_files->{$fname} = 1;
+    my @lines = split(/\n/, $bar_text);
+    # QIIME barcode format
+    if ($lines[0] =~ /^\#SampleID\tBarcodeSequence/) {
+        shift @lines;
+        foreach my $line (@lines) {
+            next unless ($line);
+            my @parts = split(/\t/, $line);
+            $bar_files->{$parts[0]} = 1;
+        }
+    }
+    # simple barcode format
+    else {
+        foreach my $line (@lines) {
+            next unless ($line);
+            my ($b, $n) = split(/\t/, $line);
+            next unless ($b);
+            my $fname = $n ? $n : $b;
+            $bar_files->{$fname} = 1;
+        }
     }
     if (scalar(keys %$bar_files) < 2) {
         $self->return_data( {"ERROR" => "number of barcodes in barcode_file must be greater than 1"}, 400 );
