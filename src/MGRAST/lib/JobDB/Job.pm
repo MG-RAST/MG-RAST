@@ -491,8 +491,7 @@ sub stats {
   
   if (defined($value) and $tag) {
     my $jstat = $self->_master->JobStatistics->get_objects( { job   => $self,
-							      tag   => $tag,
-							      value => $value
+							      tag   => $tag
 							    });
     if (ref $jstat and scalar @$jstat) {
       $jstat->[0]->value($value);
@@ -589,8 +588,7 @@ sub stage {
   
   if ($value and $tag) {
     my $jstat = $self->_master->PipelineStage->get_objects( { job    => $self,
-							      stage  => $tag,
-							      status => $value,
+							      stage  => $tag
 							    });
     # update existing stage-status
     if ( ref($jstat) and scalar(@$jstat) ) {
@@ -648,8 +646,7 @@ sub data {
       return 0;
     }
     my $jstat = $self->_master->JobAttributes->get_objects( { job   => $self,
-							      tag   => $tag,
-							      value => $value
+							      tag   => $tag
 							    });
     if (ref $jstat and scalar @$jstat) {
       $jstat->[0]->value($value);
