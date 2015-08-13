@@ -837,6 +837,37 @@ sub set_shock_node {
     }
 }
 
+# add a file to existing shock node
+# file is json struct by default
+sub put_shock_file {
+    my ($self, $name, $file, $node, $auth, $not_json, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+    my $response = undef;
+    my $file_str = $not_json ? $file : $self->json->encode($file);
+    my $content->{upload} = [undef, $name, Content => $file_str];
+    eval {
+        my @args = (
+            $auth ? ('Authorization', "$authPrefix $auth") : (),
+            'Content_Type', 'multipart/form-data',
+            $content ? ('Content', $content) : ()
+        );
+        my $req = POST($Conf::shock_url.'/node/'.$node, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
 # set node file_name
 sub update_shock_node_file_name {
     my ($self, $id, $fname, $auth, $authPrefix) = @_;
