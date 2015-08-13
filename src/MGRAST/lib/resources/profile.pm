@@ -296,25 +296,34 @@ sub prepare_data {
         #    push @{ $id2ann->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
         #}
         # from m5nr solr / by batch of 1000
-        my $fields = ['md5_id', 'md5', 'organism', 'function', 'accession', 'source', 'type'];
-        my $squery = "source:".$params->{source};
-        if ($params->{source} eq "SEED") {
-            $squery .= " OR source:Subsystems";
-        } elsif ($params->{source} eq "KEGG") {
-            $squery .= " OR source:KO";
+        #my $fields = ['md5_id', 'md5', 'organism', 'function', 'accession', 'source', 'type'];
+        #my $squery = "source:".$params->{source};
+        #if ($params->{source} eq "SEED") {
+        #    $squery .= " OR source:Subsystems";
+        #} elsif ($params->{source} eq "KEGG") {
+        #    $squery .= " OR source:KO";
+        #}
+        my $qsource = $params->{source};
+        if ($qsource eq "SEED") {
+            $qsource = "Subsystems";
+        } elsif ($qsource eq "KEGG") {
+            $qsource = "KO";
         }
+        my $ver  = $Conf::m5nr_annotation_version || 1;
+        my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
         my $iter = natatime 1000, @md5s;
         while (my @curr = $iter->()) {
-            my $query_str = "(object:annotation) AND ($squery) AND (md5_id:(".join(" OR ", @curr)."))";
-            my ($solr_data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$mgdb->_version, $query_str, "", 0, 1000000000, $fields);
-            foreach my $info (@$solr_data) {
-                $id2md5->{$info->{md5_id}} = $info->{md5};
+            #my $query_str = "(object:annotation) AND ($squery) AND (md5_id:(".join(" OR ", @curr)."))";
+            #my ($solr_data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$mgdb->_version, $query_str, "", 0, 1000000000, $fields);
+            my $cass_data = $chdl->get_records_by_id(@curr, $qsource);
+            foreach my $info (@$cass_data) {
+                $id2md5->{$info->{id}} = $info->{md5};
                 if ($info->{source} eq $params->{source}) {
-                    push @{ $id2ann->{$info->{md5_id}}{accession} }, $info->{accession};
-                    push @{ $id2ann->{$info->{md5_id}}{function} }, $info->{function};
-                    push @{ $id2ann->{$info->{md5_id}}{organism} }, $info->{organism};
+                    $id2ann->{$info->{id}}{accession} = $info->{accession};
+                    $id2ann->{$info->{id}}{function}  = $info->{function};
+                    $id2ann->{$info->{id}}{organism}  = $info->{organism};
                 } elsif ($info->{type} eq "ontology") {
-                    push @{ $id2ann->{$info->{md5_id}}{ontology} }, $info->{accession};
+                    $id2ann->{$info->{id}}{ontology} = $info->{accession};
                 }
             }
         }

@@ -248,25 +248,27 @@ sub instance {
     
     # if asynchronous call, fork the process and return the process id.  otherwise, prepare and return data.
     if($self->cgi->param('asynchronous')) {
+        my $attr = {
+            type => "temp",
+            url_id => $self->url_id,
+            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous"
+        };
+        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token);
         my $pid = fork();
         # child - get data and dump it
         if ($pid == 0) {
-            my $fname = $Conf::temp.'/'.$$.'.json';
             close STDERR;
             close STDOUT;
             my ($data, $code) = $self->prepare_data(\@mgids, $type);
             if ($code) {
                 $data->{STATUS} = $code;
             }
-            open(FILE, ">$fname");
-            print FILE $self->json->encode($data);
-            close FILE;
+            $self->put_shock_file($data->{id}.".biom", $data, $node->{id}, $self->mgrast_token);
             exit 0;
         }
         # parent - end html session
         else {
-            my $fname = $Conf::temp.'/'.$pid.'.json';
-            $self->return_data({"status" => "Submitted", "id" => $pid, "url" => $self->cgi->url."/status/".$pid});
+            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
         }
     } else {
         # prepare data

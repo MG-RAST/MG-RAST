@@ -37,6 +37,7 @@ RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
   git clone -b api https://github.com/MG-RAST/MG-RAST.git && \
   cd /MG-RAST && \
   make && \
+  make api-doc && \
   cd site/CGI && \
   rm -fv metagenomics.cgi linkin.cgi m5nr.cgi m5nr_rest.cgi
 
