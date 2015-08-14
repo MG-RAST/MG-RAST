@@ -242,17 +242,21 @@ sub instance {
     }
     # unique list and sort it - sort required for proper caching
     my @mgids = sort keys %mgids;
-
-    # return cached if exists
-    $self->return_cached();
     
-    # if asynchronous call, fork the process and return the process id.  otherwise, prepare and return data.
+    # asynchronous call, fork the process and return the process id.
+    # caching is done with shock, not memcache
     if($self->cgi->param('asynchronous')) {
         my $attr = {
             type => "temp",
             url_id => $self->url_id,
             owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous"
         };
+        # already cashed in shock - we are done
+        my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
+        if ($nodes && (@$nodes > 0)) {
+            $self->return_data({"status" => "done", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+        }
+        # need to create new node and fork
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token);
         my $pid = fork();
         # child - get data and dump it
@@ -270,7 +274,11 @@ sub instance {
         else {
             $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
         }
-    } else {
+    }
+    # synchronous call, prepare then return data, cached in memcache
+    else {
+        # return cached if exists
+        $self->return_cached();
         # prepare data
         my ($data, $code) = $self->prepare_data(\@mgids, $type);
         $self->return_data($data, $code, 1); # cache this!
