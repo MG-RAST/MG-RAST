@@ -78,7 +78,7 @@ sub instance {
     
     # get node
     my $uuid = $self->rest->[0];
-    my $node = $self->get_shock_node($self->rest->[0], $self->mgrast_token);
+    my $node = $self->get_shock_node($uuid, $self->mgrast_token);
     if (! $node) {
         $self->return_data( {"ERROR" => "process id $uuid does not exist"}, 404 );
     }
@@ -98,8 +98,6 @@ sub instance {
             }
             $obj->{data} = $self->json->decode($content);
         }
-        $self->{url_id} = $node->{attributes}{url_id}; # override url_id with parent
-        $self->return_data($obj, undef, 1); # cache this for parent call
     }
     
     $self->return_data($obj);
