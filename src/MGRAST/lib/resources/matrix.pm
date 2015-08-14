@@ -251,10 +251,10 @@ sub instance {
             url_id => $self->url_id,
             owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous"
         };
-        # already cashed in shock - we are done
+        # already cashed in shock - say submitted in case its running
         my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
         if ($nodes && (@$nodes > 0)) {
-            $self->return_data({"status" => "done", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+            $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
         # need to create new node and fork
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token);
