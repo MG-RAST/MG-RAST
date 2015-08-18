@@ -837,6 +837,37 @@ sub set_shock_node {
     }
 }
 
+# add a file to existing shock node
+# file is json struct by default
+sub put_shock_file {
+    my ($self, $name, $file, $node, $auth, $not_json, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+    my $response = undef;
+    my $file_str = $not_json ? $file : $self->json->encode($file);
+    my $content->{upload} = [undef, $name, Content => $file_str];
+    eval {
+        my @args = (
+            $auth ? ('Authorization', "$authPrefix $auth") : (),
+            'Content_Type', 'multipart/form-data',
+            $content ? ('Content', $content) : ()
+        );
+        my $req = POST($Conf::shock_url.'/node/'.$node, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
 # set node file_name
 sub update_shock_node_file_name {
     my ($self, $id, $fname, $auth, $authPrefix) = @_;
@@ -1292,38 +1323,41 @@ sub cassandra_m5nr_handle {
 
     use Inline::Python qw(py_eval);
     my $python = q(
-    from cassandra.cluster import Cluster
-    from cassandra.policies import RetryPolicy
-    from cassandra.query import dict_factory
+from cassandra.cluster import Cluster
+from cassandra.policies import RetryPolicy
+from cassandra.query import dict_factory
 
-    class CassHandle(object):
-        def __init__(self, keyspace, hosts):
-            self.keyspace = keyspace
-            self.handle = Cluster(
-                contact_points = self.hosts,
-                default_retry_policy = RetryPolicy()
-            )
-        def get_records_by_id(self, ids, source):
-            found = []
-            query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s';"%(",".join(map(str, ids)), source)
-            session = self.handle.connect(self.keyspace)
-            session.row_factory = dict_factory
-            rows = session.execute(query)
-            for r in rows:
-                r['is_protein'] = 1 if r['is_protein'] else 0
-                found.append(r)
-            return found
-        def get_records_by_md5(self, md5s, source):
-            found = []
-            query = "SELECT * FROM md5_annotation WHERE md5 IN (%s) AND source='%s';"%("'{0}'".format("','".join(md5s)), source)
-            session = self.handle.connect(self.keyspace)
-            session.row_factory = dict_factory
-            rows = session.execute(query)
-            for r in rows:
-                r['is_protein'] = 1 if r['is_protein'] else 0
-                found.append(r)
-            return found
-    );
+class CassHandle(object):
+    def __init__(self, keyspace, hosts):
+        self.timeout = 300
+        self.keyspace = keyspace
+        self.handle = Cluster(
+            contact_points = hosts,
+            default_retry_policy = RetryPolicy()
+        )
+    def get_records_by_id(self, ids, source):
+        found = []
+        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s';"%(",".join(map(str, ids)), source)
+        session = self.handle.connect(self.keyspace)
+        session.default_timeout = self.timeout
+        session.row_factory = dict_factory
+        rows = session.execute(query)
+        for r in rows:
+            r['is_protein'] = 1 if r['is_protein'] else 0
+            found.append(r)
+        return found
+    def get_records_by_md5(self, md5s, source):
+        found = []
+        query = "SELECT * FROM md5_annotation WHERE md5 IN (%s) AND source='%s';"%("'{0}'".format("','".join(md5s)), source)
+        session = self.handle.connect(self.keyspace)
+        session.default_timeout = self.timeout
+        session.row_factory = dict_factory
+        rows = session.execute(query)
+        for r in rows:
+            r['is_protein'] = 1 if r['is_protein'] else 0
+            found.append(r)
+        return found
+);
     
     py_eval($python);
     return Inline::Python::Object->new('__main__', 'CassHandle', $keyspace, $hosts);
