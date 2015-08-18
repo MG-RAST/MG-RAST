@@ -1323,38 +1323,38 @@ sub cassandra_m5nr_handle {
 
     use Inline::Python qw(py_eval);
     my $python = q(
-    from cassandra.cluster import Cluster
-    from cassandra.policies import RetryPolicy
-    from cassandra.query import dict_factory
+from cassandra.cluster import Cluster
+from cassandra.policies import RetryPolicy
+from cassandra.query import dict_factory
 
-    class CassHandle(object):
-        def __init__(self, keyspace, hosts):
-            self.keyspace = keyspace
-            self.handle = Cluster(
-                contact_points = self.hosts,
-                default_retry_policy = RetryPolicy()
-            )
-        def get_records_by_id(self, ids, source):
-            found = []
-            query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s';"%(",".join(map(str, ids)), source)
-            session = self.handle.connect(self.keyspace)
-            session.row_factory = dict_factory
-            rows = session.execute(query)
-            for r in rows:
-                r['is_protein'] = 1 if r['is_protein'] else 0
-                found.append(r)
-            return found
-        def get_records_by_md5(self, md5s, source):
-            found = []
-            query = "SELECT * FROM md5_annotation WHERE md5 IN (%s) AND source='%s';"%("'{0}'".format("','".join(md5s)), source)
-            session = self.handle.connect(self.keyspace)
-            session.row_factory = dict_factory
-            rows = session.execute(query)
-            for r in rows:
-                r['is_protein'] = 1 if r['is_protein'] else 0
-                found.append(r)
-            return found
-    );
+class CassHandle(object):
+    def __init__(self, keyspace, hosts):
+        self.keyspace = keyspace
+        self.handle = Cluster(
+            contact_points = self.hosts,
+            default_retry_policy = RetryPolicy()
+        )
+    def get_records_by_id(self, ids, source):
+        found = []
+        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s';"%(",".join(map(str, ids)), source)
+        session = self.handle.connect(self.keyspace)
+        session.row_factory = dict_factory
+        rows = session.execute(query)
+        for r in rows:
+            r['is_protein'] = 1 if r['is_protein'] else 0
+            found.append(r)
+        return found
+    def get_records_by_md5(self, md5s, source):
+        found = []
+        query = "SELECT * FROM md5_annotation WHERE md5 IN (%s) AND source='%s';"%("'{0}'".format("','".join(md5s)), source)
+        session = self.handle.connect(self.keyspace)
+        session.row_factory = dict_factory
+        rows = session.execute(query)
+        for r in rows:
+            r['is_protein'] = 1 if r['is_protein'] else 0
+            found.append(r)
+        return found
+);
     
     py_eval($python);
     return Inline::Python::Object->new('__main__', 'CassHandle', $keyspace, $hosts);
