@@ -315,14 +315,14 @@ sub prepare_data {
         while (my @curr = $iter->()) {
             #my $query_str = "(object:annotation) AND ($squery) AND (md5_id:(".join(" OR ", @curr)."))";
             #my ($solr_data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$mgdb->_version, $query_str, "", 0, 1000000000, $fields);
-            my $cass_data = $chdl->get_records_by_id(@curr, $qsource);
+            my $cass_data = $chdl->get_records_by_id(\@curr, $qsource);
             foreach my $info (@$cass_data) {
                 $id2md5->{$info->{id}} = $info->{md5};
                 if ($info->{source} eq $params->{source}) {
                     $id2ann->{$info->{id}}{accession} = $info->{accession};
                     $id2ann->{$info->{id}}{function}  = $info->{function};
                     $id2ann->{$info->{id}}{organism}  = $info->{organism};
-                } elsif ($info->{type} eq "ontology") {
+                } elsif ($params->{type} eq "ontology") {
                     $id2ann->{$info->{id}}{ontology} = $info->{accession};
                 }
             }
