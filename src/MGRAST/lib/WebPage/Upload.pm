@@ -67,6 +67,8 @@ Returns the html output of the page.
 
 sub output {
   my ($self) = @_;
+
+  return "<p>This URL is deprecated. Please <a href='Html/mgmainv3.html?mgpage=upload'>click here</a> and then update your bookmark.</p>";
   
   my $application = $self->application;
   my $cgi         = $application->cgi;
