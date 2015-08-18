@@ -381,26 +381,6 @@ sub job_action {
                     awe_id => $aid,
                     log    => join("\n", @log)
                 };
-                # update job attribute - something is broken, have submit script do this
-                #$job->data("pipeline_id", $aid);
-                # update inbox attributes if submit
-                if ($post->{input_id} && ($action eq 'submit')) {
-                    my $node = $self->get_shock_node($post->{input_id}, $self->token, $self->user_auth);
-                    my $attr = $node->{attributes};
-                    my $action = {
-                        id => $aid,
-                        name => "pipeline",
-                        status => "queued",
-                        start => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-                    };
-                    if (exists $attr->{actions}) {
-                        push @{$attr->{actions}}, $action;
-                    } else {
-                        $attr->{actions} = [$action];
-                    }
-                    $self->update_shock_node($post->{input_id}, $attr, $self->token, $self->user_auth);
-                    $self->edit_shock_acl($post->{input_id}, $self->token, 'mgrast', 'put', 'all', $self->user_auth);
-                }
             } else {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
             }
