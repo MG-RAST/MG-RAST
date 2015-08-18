@@ -2678,7 +2678,7 @@ sub single_visual {
 
 	my $max_val = max @values;
 	$max_val  = ($max_val < 1) ? 1 : $max_val;
-	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp_url."/$boxfile", "width=600");
+	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp."/$boxfile", "width=600");
 	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
 	if (! defined($cgi->param('raw'))) {
 	  $content .= "</div></div>";
@@ -2797,7 +2797,7 @@ sub single_visual {
 	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
 	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
 	$content .= $img_control;
-	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table>".&inlineImage($Conf::temp_url."/$boxfile", "width=600");
+	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table>".&inlineImage($Conf::temp."/$boxfile", "width=600");
 	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
 	if (! defined($cgi->param('raw'))) {
 	  $content .= "</div></div>";
@@ -3631,7 +3631,7 @@ sub phylogeny_visual {
 
 	my $max_val = max @values;
 	$max_val  = ($max_val < 1) ? 1 : $max_val;
-	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp_url."/$boxfile", "width=600");
+	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp."/$boxfile", "width=600");
 	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
 	$tabnum++;
       }
@@ -3745,7 +3745,7 @@ sub phylogeny_visual {
 	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
 	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
 	$content .= $img_control;
-	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table>".&inlineImage($Conf::temp_url."/$boxfile", "width=600");
+	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table>".&inlineImage($Conf::temp."/$boxfile", "width=600");
 	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
 	$tabnum++;
       }
@@ -4616,7 +4616,7 @@ sub metabolism_visual {
 
 	my $max_val = max @values;
 	$max_val  = ($max_val < 1) ? 1 : $max_val;
-	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp_url."/$boxfile", "width=600");
+	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp."/$boxfile", "width=600");
 	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
 	$tabnum++;
       }
@@ -4729,7 +4729,7 @@ sub metabolism_visual {
 	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
 	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
 	$content .= $img_control;
-	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table>".&inlineImage($Conf::temp_url."/$boxfile", "width=600");
+	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table>".&inlineImage($Conf::temp."/$boxfile", "width=600");
 	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/></div></div>";
 	$tabnum++;
       }
@@ -5661,7 +5661,7 @@ sub lca_visual {
 	
 	my $max_val = max @values;
 	$max_val  = ($max_val < 1) ? 1 : $max_val;
-	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp_url."/$boxfile", "width=600");
+	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp."/$boxfile", "width=600");
 	$content .= "<img src='./Html/clear.gif' onload='draw_heatmap(\"heatmap_canvas_$tabnum\", \"$tabnum\", \"$max_val\"); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
 	if (! defined($cgi->param('raw'))) {
 	  $content .= "</div></div>";
@@ -5780,7 +5780,7 @@ sub lca_visual {
 	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
 	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
 	$content .= $img_control;
-	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table>".&inlineImage($Conf::temp_url."/$boxfile", "width=600");
+	$content .= "<table><tr><td><div id='pca_canvas_$tabnum'></div></td><td>$data_download_button".$comp_control.$group_control."</td></tr></table>".&inlineImage($Conf::temp."/$boxfile", "width=600");
 	$content .= "<img src='./Html/clear.gif' onload='draw_pca(\"pca_canvas_$tabnum\", \"$tabnum\", 1,2); document.getElementById(\"progress_div\").innerHTML=\"\";'/>";
 	if (! defined($cgi->param('raw'))) {
 	  $content .= "</div></div>";
@@ -5824,7 +5824,7 @@ sub recruitment_plot_visual {
     my $allctg    = $self->{mgdb}->ach->org2contignum($orgid);
     my $plotctg   = $self->{mgdb}->ach->org2contignum($orgid, $self->data('min_ctg_len'));
 
-    $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><p></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p>~.&inlineImage("$Conf::temp_url/$file.png", 'width=960 onmouseover="TJPzoom(this);"').qq~</p></div></div></div>~;
+    $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><p></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p>~.&inlineImage("$Conf::temp/$file.png", 'width=960 onmouseover="TJPzoom(this);"').qq~</p></div></div></div>~;
     $tabnum++;
   }
   elsif ($cgi->param('vis_type') eq 'table') {
@@ -6830,7 +6830,7 @@ sub google_colors {
   return ["#3366cc","#dc3912","#ff9900","#109618","#990099","#0099c6","#dd4477","#66aa00","#b82e2e","#316395","#994499",
 	  "#22aa99","#aaaa11","#6633cc","#e67300","#8b0707","#651067","#329262","#5574a6","#3b3eac","#b77322","#16d620",
 	  "#b91383","#f4359e","#9c5935","#a9c413","#2a778d","#668d1c","#bea413","#0c5922","#743411"];
-}/homes/paczian/public_html/MG-RAST/site/CGI
+}
 
 ##################
 # css / js
@@ -6849,8 +6849,8 @@ sub inlineImage {
   my ($path, $params) = @_;
   
   if (open(IMAGE, $path)) {
-    $image = do{ local $/ = undef; <IMAGE>; };
-    $encoded = encode_base64($image);
+    my $image = do{ local $/ = undef; <IMAGE>; };
+    my $encoded = encode_base64($image);
     close IMAGE;
     unlink $path;
     return '<img src="data:image/png;base64,'.$encoded.'" '.$params.'>';
