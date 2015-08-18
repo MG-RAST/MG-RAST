@@ -1329,15 +1329,17 @@ from cassandra.query import dict_factory
 
 class CassHandle(object):
     def __init__(self, keyspace, hosts):
+        self.timeout = 300
         self.keyspace = keyspace
         self.handle = Cluster(
-            contact_points = self.hosts,
+            contact_points = hosts,
             default_retry_policy = RetryPolicy()
         )
     def get_records_by_id(self, ids, source):
         found = []
         query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s';"%(",".join(map(str, ids)), source)
         session = self.handle.connect(self.keyspace)
+        session.default_timeout = self.timeout
         session.row_factory = dict_factory
         rows = session.execute(query)
         for r in rows:
@@ -1348,6 +1350,7 @@ class CassHandle(object):
         found = []
         query = "SELECT * FROM md5_annotation WHERE md5 IN (%s) AND source='%s';"%("'{0}'".format("','".join(md5s)), source)
         session = self.handle.connect(self.keyspace)
+        session.default_timeout = self.timeout
         session.row_factory = dict_factory
         rows = session.execute(query)
         for r in rows:
