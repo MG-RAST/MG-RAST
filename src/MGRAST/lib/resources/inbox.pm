@@ -31,16 +31,17 @@ sub new {
         'status'    => ['string', "status message"],
         'timestamp' => ['string', "timestamp for return of this query"]
     };
-    $self->{view_attr} = {%{$self->{base_attr}}, (
-        'files' => [ 'list', [ 'object', [
+    $self->{view_attr} = {
+        %{$self->{base_attr}}, (
+            'files' => [ 'list', [ 'object', [
                         { 'filename'  => [ 'string', "path of file from within user inbox" ],
                           'filesize'  => [ 'string', "disk size of file in bytes" ],
                           'checksum'  => [ 'string', "md5 checksum of file"],
                           'timestamp' => [ 'string', "timestamp of file" ]
                         },
                         "list of file objects"] ]
-                   ]
-    );
+            ])
+    };
     $self->{stat_attr} = {%{$self->{base_attr}}, ('stats_info' => ['hash', 'key value pairs describing file info'])};
     $self->{id_attr} = {%{$self->{base_attr}}, ('awe_id' => ['string', "url/id of awe job" ])};
     $self->{states} = ["completed", "deleted", "suspend", "in-progress", "pending", "queued"];
