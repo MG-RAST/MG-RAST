@@ -45,7 +45,8 @@ RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && \
 
 # pipeline dependencies
 RUN apt-get install -y python-dev python-pip && \
-  pip install gspread xlrd openpyxl lepl && \
+  pip install openpyxl==1.8.6 && \
+  pip install gspread xlrd lepl && \
   cd / && \
   git clone https://github.com/MG-RAST/pipeline.git && \
   cd pipeline && \
