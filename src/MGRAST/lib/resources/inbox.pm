@@ -706,13 +706,13 @@ sub unpack_file {
         'Content_Type', 'multipart/form-data',
         'Content', $content
     );
-    my $post = $self->agent->post($Conf::shock_url.'/node', @args);
+    my $req = $self->agent->post($Conf::shock_url.'/node', @args);
     my $response = undef;
     eval {
-        $response = $self->json->decode( $post->content );
+        $response = $self->json->decode( $req->content );
     };
     if ($@ || (! ref($response))) {
-        $self->return_data( {"ERROR" => "Unable to unpack file $uuid: ".$post->content}, 500 );
+        $self->return_data( {"ERROR" => "Unable to unpack file $uuid: ".$req->content}, 500 );
     } elsif (exists($response->{error}) && $response->{error}) {
         $self->return_data( {"ERROR" => "Unable to unpack file $uuid: ".$response->{error}[0]}, $response->{status} );
     }
@@ -723,9 +723,9 @@ sub unpack_file {
     }
     
     # convert to inbox
-    my @files = map { $self->node_to_inbox($node, $self->token, $self->user_auth) } @{$response->{data}};
+    my @files = map { $self->node_to_inbox($_, $self->token, $self->user_auth) } @{$response->{data}};
     $self->return_data({
-        id        => $user_id,
+        id        => 'mgu'.$self->user->_id,
         user      => $self->user->login,
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
         files     => \@files
