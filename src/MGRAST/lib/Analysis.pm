@@ -1511,6 +1511,9 @@ sub get_organisms_unique_for_source {
             $mg_org_data->{$row->[0]}{$org} = [ 1, @$row[2..8], [$row->[1]] ];
         }
     }
+    if (scalar(keys %$all_orgs) == 0) {
+        return [];
+    }
 
     my $ctax = $with_taxid ? ',ncbi_tax_id' : '';
     my $qtax = $with_taxid ? " AND ncbi_tax_id IS NOT NULL" : '';
