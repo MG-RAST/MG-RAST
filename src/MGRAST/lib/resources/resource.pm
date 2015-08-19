@@ -1466,8 +1466,17 @@ sub get_file_info {
         return undef;
     }
     
-    my ($file_type, $err_msg, $file_format);
-    my $file_suffix = (split(/\./, $node->{file}{name}))[-1];
+    my ($file_type, $err_msg, $file_format, $file_suffix);
+    my @file_parts = split(/\./, $node->{file}{name});
+    if (scalar(@file_parts) == 1) {
+        $file_suffix = ""
+    } else {
+        $file_suffix = $file_parts[-1];
+        # tar excetions
+        if ( (($file_suffix eq "gz") || ($file_suffix eq "bz2")) && (scalar(@file_parts) > 2) && ($file_parts[-2] eq "tar") ) {
+            $file_suffix = "tar.".$file_suffix;
+        }
+    }
     
     if (int($node->{file}{size}) == 0) {
         # zero sized file
@@ -2044,8 +2053,15 @@ sub verify_file_type {
          ($file_type eq 'ASCII text, with CRLF line terminators') ) {
         return ($file_type, "");
     } elsif (($file_suffix eq 'xls') || ($file_suffix eq 'xlsx')) {
-        return ($file_type, "");
+        return ("binary excel spreadsheet file", "");
+    } elsif (($file_suffix eq 'tar') || ($file_suffix eq 'zip')) {
+        return ("binary $file_suffix archive file", "")
+    } elsif (($file_suffix eq 'gz') || ($file_suffix eq 'bz2')) {
+        return ("binary $file_suffix compressed file", "")
+    } elsif (($file_suffix eq 'tar.gz') || ($file_suffix eq 'tar.bz2')) {
+        return ("binary ".(split(/\./, $file_suffix))[1]." compressed tar archive file", "")
     }
+    
     return ($file_type, "[error] file '$fname' is of unsupported file type '$file_type'.");
 }
 
@@ -2058,7 +2074,10 @@ sub get_file_format {
 	    return 'sff';
     }
     if (($file_suffix eq 'xls') || ($file_suffix eq 'xlsx')) {
-        return 'excel'
+        return 'excel';
+    }
+    if (($file_type =~ /^binary/) && ($file_suffix =~ /tar|zip|gz|bz2$/)) {
+        return $file_suffix;
     }
     # identify fasta or fastq
     if ($file_type =~ /^ASCII/) {

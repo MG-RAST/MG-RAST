@@ -45,6 +45,7 @@ sub new {
     $self->{stat_attr} = {%{$self->{base_attr}}, ('stats_info' => ['hash', 'key value pairs describing file info'])};
     $self->{id_attr} = {%{$self->{base_attr}}, ('awe_id' => ['string', "url/id of awe job" ])};
     $self->{states} = ["completed", "deleted", "suspend", "in-progress", "pending", "queued"];
+    $self->{archive} = {"zip" => 1, "tar" => 1, "tar.gz" => 1, "tar.bz2" => 1};
     # build workflow
     $self->{wf_info} = {};
     if ($self->user) {
@@ -158,8 +159,8 @@ sub info {
                                   "keep" => [ "boolean", "If true keeps archive file when complete, default is to delete."],
                                   "format" => [ "cv", ["zip", "zip archive file - default"],
                                                       ["tar", "tar archive file"],
-                                                      ["tar-gzip", "gzip compressed tar archive file"],
-                                                      ["tar-bzip2", "bzip2 compressed tar archive file"] ] },
+                                                      ["tar.gz", "gzip compressed tar archive file"],
+                                                      ["tar.bz2", "bzip2 compressed tar archive file"] ] },
                   'body'     => {}
               }
             },
@@ -675,18 +676,8 @@ sub unpack_file {
     my $keep = exists($post->{'keep'}) ? $post->{'keep'} : 0;
     my $format = exists($post->{'format'}) ? $post->{'format'} : "zip";
     
-    # get format
-    my $aformat = "";
-    if ($format eq "zip") {
-        $aformat = "zip";
-    } elsif ($format eq "tar") {
-        $aformat = "tar";
-    } elsif ($format eq "tar-gzip") {
-        $aformat = "tar.gz";
-    } elsif ($format eq "tar-bzip2") {
-        $aformat = "tar.bz2";
-    } else {
-        $self->return_data( {"ERROR" => "invalid format type, use one of: zip, tar, tar-gzip, tar-bzip2"}, 400 );
+    unless (exists $self->{archive}->{$format}) {
+        $self->return_data( {"ERROR" => "invalid format type, use one of: ".join(", ", keys %{$self->{archive}})}, 400 );
     }
     
     # special unpack POST
