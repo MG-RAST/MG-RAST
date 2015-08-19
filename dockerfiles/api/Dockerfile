@@ -48,7 +48,8 @@ RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-c
 
 # pipeline dependencies
 RUN apt-get install -y python-dev python-pip && \
-  pip install gspread xlrd openpyxl lepl cassandra-driver && \
+  pip install openpyxl==1.8.6 && \
+  pip install gspread xlrd lepl cassandra-driver && \
   cd / && \
   git clone https://github.com/MG-RAST/pipeline.git && \
   cd pipeline && \

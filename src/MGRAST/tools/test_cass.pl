@@ -41,9 +41,11 @@ my $python = q(
 import random
 from cassandra.cluster import Cluster
 from cassandra.policies import RetryPolicy
+from cassandra.query import dict_factory
 
 class TestCass(object):
     def __init__(self, host, name):
+        self.timeout = 300
         self.max_int = 24468843
         self.name = name
         self.hosts = host.split(",")
@@ -51,6 +53,10 @@ class TestCass(object):
             contact_points = self.hosts,
             default_retry_policy = RetryPolicy()
         )
+        self.session = self.handle.connect(self.name)
+        self.session.default_timeout = self.timeout
+        self.session.row_factory = dict_factory
+        self.prep = self.session.prepare("SELECT * FROM id_annotation WHERE id IN ?")
     def random_array(self, size):
         array = []
         for i in range(size):
@@ -58,11 +64,9 @@ class TestCass(object):
         return array
     def get_records(self, ids):
         found = []
-        query = "SELECT * FROM id_annotation WHERE id IN ("+",".join(map(str, ids))+");"
-        session = self.handle.connect(self.name)
-        rows = session.execute(query)
+        rows = self.session.execute(self.prep, [set(ids)])
         for r in rows:
-            found.append(r.md5)
+            found.append(r["md5"])
         return found
 );
 
