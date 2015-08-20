@@ -283,9 +283,9 @@ sub prepare_data {
     if ($filter && $flevel) {
         my $tmph = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
         if ($type eq "organism") {
-            %filter_list = map {} @{$tmph->get_organism_by_taxa($flevel, $filter)};
+            %filter_list = map { $_, 1 } @{$tmph->get_organism_by_taxa($flevel, $filter)};
         } elsif ($type eq "ontology") {
-            %filter_list = map {} @{$tmph->get_ontology_by_level($source, $flevel, $filter)};
+            %filter_list = map { $_, 1 } @{$tmph->get_ontology_by_level($source, $flevel, $filter)};
         }
         $tmph->close();
     }
