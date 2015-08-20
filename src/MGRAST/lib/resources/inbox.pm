@@ -5,7 +5,8 @@ use warnings;
 no warnings('once');
 
 use POSIX qw(strftime);
-use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
+use IO::Uncompress::Gunzip;
+use IO::Uncompress::Bunzip2;
 use StreamingUpload;
 use HTTP::Headers;
 use LWP::UserAgent;
@@ -631,16 +632,19 @@ sub upload_file {
         if (defined $fh) {
             # POST upload content to shock using file handle
             # data POST, not form
-            my $response = undef;
-            my $io_handle = $fh->handle;
             my $buffer;
             if ($comp eq "gzip") {
                 $fn =~ s/\.gz$//;
-                gunzip $io_handle => \$buffer;
+                $buffer = IO::Uncompress::Gunzip->new($fh->handle);
+            } elsif ($comp eq "bzip2") {
+                $fn =~ s/\.bz2$//;
+                $buffer = IO::Uncompress::Bunzip2->new($fh->handle);
             } else {
-                $buffer = $io_handle;
+                $buffer = $fh->handle;
             }
             
+            my $req = undef;
+            my $response = undef;
             eval {
                 my $post = StreamingUpload->new(
                     POST    => $Conf::shock_url.'/node',
@@ -650,13 +654,17 @@ sub upload_file {
                         'Authorization' => $self->user_auth.' '.$self->token
                     )
                 );
-                my $req = LWP::UserAgent->new->request($post);
+                $req = LWP::UserAgent->new->request($post);
                 $response = $self->json->decode( $req->content );
             };
             if ($@ || (! ref($response))) {
-                $self->return_data({"ERROR" => "Unable to connect to Shock server"}, 507);
+                if (ref($req)) {
+                    $self->return_data({"ERROR" => "Unable to upload: ".$req->content}, 507);
+                } else {
+                    $self->return_data({"ERROR" => "Unable to upload: ".$@}, 507);
+                }
             } elsif (exists($response->{error}) && $response->{error}) {
-                $self->return_data({"ERROR" => "Unable to POST to Shock: ".$response->{error}[0]}, $response->{status});
+                $self->return_data({"ERROR" => "Unable to upload: ".$response->{error}[0]}, $response->{status});
             }
             # PUT file name to node
             my $node_id = $response->{data}{id};
