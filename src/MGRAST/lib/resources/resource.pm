@@ -1339,7 +1339,7 @@ class CassHandle(object):
         self.id_prep = self.session.prepare("SELECT * FROM id_annotation WHERE id IN ? AND source=?")
     def get_records_by_id(self, ids, source):
         found = []
-        rows = self.session.execute(self.id_prep, [set(ids), source])
+        rows = self.session.execute(self.id_prep, [ids, source])
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
