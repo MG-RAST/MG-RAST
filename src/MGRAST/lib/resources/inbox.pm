@@ -636,7 +636,7 @@ sub upload_file {
             my $buffer;
             if ($comp eq "gzip") {
                 $fn =~ s/\.gz$//;
-                gunzip $input => \$buffer;
+                gunzip $io_handle => \$buffer;
             } else {
                 $buffer = $io_handle;
             }
@@ -702,7 +702,7 @@ sub unpack_file {
     };
     my $content = {
         unpack_node => $uuid,
-        archive_format => $aformat,
+        archive_format => $format,
         attributes_str => $self->json->encode($attr)
     };
     my @args = (
