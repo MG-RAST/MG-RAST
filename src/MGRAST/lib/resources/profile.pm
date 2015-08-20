@@ -290,19 +290,7 @@ sub prepare_data {
         # mgid, md5_id, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
         my $result = $mgdb->get_md5_data(undef, $params->{evalue}, $params->{identity}, $params->{length}, 1);
         my @md5s = map { $_->[1] } @$result;
-        # from analysisdb => md5_id, accession, md5, function, organism, source
-        #foreach my $a ( @{ $mgdb->annotation_for_md5s(\@md5s, [$params->{source}]) } ) {
-        #    $id2md5->{$a->[0]} = $a->[2];
-        #    push @{ $id2ann->{$a->[0]} }, [ $a->[1], $a->[3], $a->[4] ];
-        #}
-        # from m5nr solr / by batch of 1000
-        #my $fields = ['md5_id', 'md5', 'organism', 'function', 'accession', 'source', 'type'];
-        #my $squery = "source:".$params->{source};
-        #if ($params->{source} eq "SEED") {
-        #    $squery .= " OR source:Subsystems";
-        #} elsif ($params->{source} eq "KEGG") {
-        #    $squery .= " OR source:KO";
-        #}
+        
         my $qsource = $params->{source};
         if ($qsource eq "SEED") {
             $qsource = "Subsystems";
@@ -313,8 +301,6 @@ sub prepare_data {
         my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
         my $iter = natatime 1000, @md5s;
         while (my @curr = $iter->()) {
-            #my $query_str = "(object:annotation) AND ($squery) AND (md5_id:(".join(" OR ", @curr)."))";
-            #my ($solr_data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$mgdb->_version, $query_str, "", 0, 1000000000, $fields);
             my $cass_data = $chdl->get_records_by_id(\@curr, $qsource);
             foreach my $info (@$cass_data) {
                 $id2md5->{$info->{id}} = $info->{md5};
