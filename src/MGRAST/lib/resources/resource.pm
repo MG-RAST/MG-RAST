@@ -1328,30 +1328,39 @@ from cassandra.policies import RetryPolicy
 from cassandra.query import dict_factory
 
 class CassHandle(object):
-    def __init__(self, keyspace, hosts):
+    def __init__(self, keyspace, hosts, table=None):
         self.handle = Cluster(
             contact_points = hosts,
             default_retry_policy = RetryPolicy()
         )
         self.session = self.handle.connect(keyspace)
         self.session.default_timeout = 300
-        self.session.row_factory = dict_factory
-        self.id_prep = self.session.prepare("SELECT * FROM id_annotation WHERE id IN ? AND source=?")
-        self.md5_prep = self.session.prepare("SELECT * FROM md5_annotation WHERE md5 IN ? AND source=?")
+        if table == 'id_annotation':
+            self.session.row_factory = dict_factory
+            self.prep = self.session.prepare("SELECT * FROM %s WHERE id IN ? AND source=?"%table)
     def get_records_by_id(self, ids, source):
         found = []
-        rows = self.session.execute(self.id_prep, [set(ids), source])
+        rows = self.session.execute(self.prep, [set(ids), source])
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
         return found
-    def get_records_by_md5(self, md5s, source):
+    def get_organism_by_taxa(self, taxa, name):
         found = []
-        rows = self.session.execute(self.md5_prep, [set(md5s), source])
+        prep = self.session.prepare("SELECT * FROM tax_%s WHERE tax_%s = ?"%(taxa, taxa))
+        rows = self.session.execute(prep, [name])
         for r in rows:
-            r['is_protein'] = 1 if r['is_protein'] else 0
-            found.append(r)
+            found.append(r.name)
         return found
+    def get_ontology_by_level(self, source, level, name):
+        found = []
+        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ? AND %s = ?"%(level, level))
+        rows = self.session.execute(prep, [source, name])
+        for r in rows:
+            found.append(r.name)
+        return found
+    def close(self):
+        self.handle.shutdown()
 );
     
     py_eval($python);

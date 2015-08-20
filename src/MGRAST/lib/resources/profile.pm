@@ -297,8 +297,7 @@ sub prepare_data {
         } elsif ($qsource eq "KEGG") {
             $qsource = "KO";
         }
-        my $ver  = $Conf::m5nr_annotation_version || 1;
-        my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
+        my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr, "id_annotation");
         my $iter = natatime 1000, @md5s;
         while (my @curr = $iter->()) {
             my $cass_data = $chdl->get_records_by_id(\@curr, $qsource);
@@ -313,6 +312,7 @@ sub prepare_data {
                 }
             }
         }
+        $chdl->close();
         # add metadata to rows
         foreach my $row (@$result) {
             my $mid = $row->[1];
