@@ -297,7 +297,7 @@ sub prepare_data {
         } elsif ($qsource eq "KEGG") {
             $qsource = "KO";
         }
-        my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr, "id_annotation");
+        my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
         my $iter = natatime 1000, @md5s;
         while (my @curr = $iter->()) {
             my $cass_data = $chdl->get_records_by_id(\@curr, $qsource);

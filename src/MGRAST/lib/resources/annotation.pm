@@ -277,21 +277,18 @@ sub prepare_data {
     my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
     print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
     print join("\t", @head)."\n";
-    
+        
+    # get cassandra handle / prepare statement
+    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
     # get filter list
     my %filter_list = ();
     if ($filter && $flevel) {
-        my $tmph = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
         if ($type eq "organism") {
-            %filter_list = map { $_, 1 } @{$tmph->get_organism_by_taxa($flevel, $filter)};
+            %filter_list = map { $_, 1 } @{$chdl->get_organism_by_taxa($flevel, $filter)};
         } elsif ($type eq "ontology") {
-            %filter_list = map { $_, 1 } @{$tmph->get_ontology_by_level($source, $flevel, $filter)};
+            %filter_list = map { $_, 1 } @{$chdl->get_ontology_by_level($source, $flevel, $filter)};
         }
-        $tmph->close();
     }
-        
-    # get cassandra handle / prepare statement
-    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr, "id_annotation");
     
     # start query
     my $sth = $mgdb->_dbh->prepare($query);
