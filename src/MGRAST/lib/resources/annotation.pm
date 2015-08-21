@@ -305,7 +305,7 @@ sub prepare_data {
         }
         $md5_set->{$md5} = [$seek, $len];
         $batch_count++;
-        if ($batch_count == 1000) {
+        if ($batch_count == 500) {
             $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list);
             $md5_set = {};
             $batch_count = 0;
@@ -358,6 +358,9 @@ sub print_batch {
         
         # pull data from indexed shock file
         my ($seek, $len) = $md5s->{$set->{id}};
+        unless (defined($seek) && defined($len)) {
+            next;
+        }
         my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seek.'&length='.$len);
 	    if ($err) {
 		    print "\nERROR downloading: $err\n";
