@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
   git-core \
   libpq-dev \
   make \
+  curl \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -66,6 +67,11 @@ RUN cd /tools && \
   cd FragGeneScan && \
   make clean && \
   make fgs
+
+# kegg map data
+RUN mkdir -p /data && \
+  curl -s "http://shock.metagenomics.anl.gov/node/da268d29-918c-4205-8884-e6f3b175fe58?download" | tar -xvf - -C /data
+  
 
 # setup sendmail
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
