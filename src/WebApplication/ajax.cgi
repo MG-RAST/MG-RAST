@@ -2,7 +2,8 @@ use strict;
 use warnings;
 use CGI;
 use WebComponent::Ajax;
-
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
 use IO::Handle;
 #open(TICKLOG, ">/dev/pts/9") or open(TICKLOG, ">&STDERR");
 #TICKLOG->autoflush(1);

@@ -3,13 +3,15 @@ use warnings;
 no warnings 'once';
 
 use CGI;
-
 use WebApplication;
 use WebMenu;
 use WebLayout;
 use WebConfig;
 
 use Conf;
+
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
 
 my $cgi = new CGI();
 if ($cgi->url =~ /^https/) {

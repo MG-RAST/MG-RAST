@@ -11,6 +11,9 @@ use URI::Escape;
 use constant GA_ACCOUNT => 'UA-39491359-1';
 use constant VERSION => '4.4sp';
 
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
+
 # Track a page view, updates all the cookies and campaign tracker,
 # makes a server side request to Google Analytics and writes the transparent
 # gif byte data to the response.

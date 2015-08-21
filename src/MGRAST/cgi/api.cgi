@@ -4,6 +4,9 @@ use Conf;
 use Data::Dumper;
 use URI::Escape;
 
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
+
 # create cgi and json objects
 my $cgi  = new CGI;
 my $json = new JSON;
