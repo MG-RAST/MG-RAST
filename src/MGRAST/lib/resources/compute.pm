@@ -135,7 +135,7 @@ sub info {
 							                                 "distance" => ['cv', [map {[$_, $_." distance method"]} @{$self->{distance}}]],
 							                                 "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
 							                                 "raw" => ["boolean", "option to use raw data (not normalize)"] } }
-						}
+						},
 						{ 'name'        => "heatmap",
 				          'request'     => $self->cgi->url."/".$self->name."/heatmap",
 				          'description' => "Calculate a dendrogram for given input data.",
