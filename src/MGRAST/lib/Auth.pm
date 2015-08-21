@@ -3,6 +3,9 @@ package Auth;
 use JSON;
 use CGI;
 
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
+
 sub authenticate {
   my ($key) = @_;
 

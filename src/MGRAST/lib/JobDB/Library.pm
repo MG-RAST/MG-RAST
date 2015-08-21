@@ -125,6 +125,8 @@ sub get_data {
   my $meta_data_collections = $self->_master->MetaDataCollection->get_objects( $params );
 
   use CGI;
+  $CGI::LIST_CONTEXT_WARN = 0;
+  $CGI::Application::LIST_CONTEXT_WARN = 0;
   my $cgi = new CGI;
   my $url_base = $cgi->url;
 

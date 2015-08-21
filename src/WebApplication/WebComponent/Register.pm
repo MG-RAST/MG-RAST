@@ -11,6 +11,9 @@ use HTML::Strip;
 use LWP::UserAgent;
 use CGI;
 
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
+
 use base qw( WebComponent );
 
 1;

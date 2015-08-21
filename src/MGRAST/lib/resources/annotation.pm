@@ -277,112 +277,91 @@ sub prepare_data {
     my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
     print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
     print join("\t", @head)."\n";
+        
+    # get cassandra handle / prepare statement
+    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
+    # get filter list
+    my %filter_list = ();
+    if ($filter && $flevel) {
+        if ($type eq "organism") {
+            %filter_list = map { $_, 1 } @{$chdl->get_organism_by_taxa($flevel, $filter)};
+        } elsif ($type eq "ontology") {
+            %filter_list = map { $_, 1 } @{$chdl->get_ontology_by_level($source, $flevel, $filter)};
+        }
+    }
     
     # start query
     my $sth = $mgdb->_dbh->prepare($query);
     $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
-
+    
     # loop through indexes and print data
-    my $srcid = $mgdb->_src_id->{$source};
     my $count = 0;
-    my @md5s = ();
-    my @seeks = ();
-    my @lens = ();
+    my $md5_set = {};
     my $batch_count = 0;
     while (my @row = $sth->fetchrow_array()) {
         my ($md5, $seek, $len) = @row;
-        push @md5s, $md5;
-        push @seeks, $seek;
-        push @lens, $len;
+        unless (defined($seek) && defined($len)) {
+            next;
+        }
+        $md5_set->{$md5} = [$seek, $len];
         $batch_count++;
-        if($batch_count == 1000) {
-            my $solr_query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @md5s)."))";
-            $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, $mgdb->_version, \@md5s, \@seeks, \@lens);
-            @md5s = ();
-            @seeks = ();
-            @lens = ();
+        if ($batch_count == 500) {
+            $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list);
+            $md5_set = {};
             $batch_count = 0;
         }
     }
-    if($batch_count > 0) {
-        my $solr_query_str = "(source_id:$srcid) AND (md5_id:(".join(" OR ", @md5s)."))";
-        $count = $self->print_batch($count, $node_id, $format, $mgid, $solr_query_str, $mgdb->_version, \@md5s, \@seeks, \@lens);
+    if ($batch_count > 0) {
+        $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list);
     }
 
     # cleanup
     $sth->finish;
     $mgdb->_dbh->commit;
+    $chdl->close();
     print "Download complete. $count rows retrieved\n";
     exit 0;
 }
 
 sub print_batch {
-    my ($self, $count, $node_id, $format, $mgid, $solr_query_str, $ann_ver, $md5s, $seeks, $lens) = @_;
-
-    my $cgi    = $self->cgi;
-    my $type   = $cgi->param('type') ? $cgi->param('type') : 'organism';
-    my $filter = $cgi->param('filter') || undef;
-    my $flevel = $cgi->param('filter_level') || undef;
-    my $fields = ();
-    my $solr_key = "";
-    if ($type eq 'organism') {
-        $solr_key = 'organism';
-        if ($filter && $flevel) {
-	        $fields = [$solr_key, 'md5_id', $flevel];
-	        $solr_query_str .= " AND ($flevel:$filter)";
-	    } else {
-	        $fields = [$solr_key, 'md5_id'];
-	    }
-    } elsif ($type eq 'function') {
-        $solr_key = 'function';
-        $fields = [$solr_key, 'md5_id'];
-    } elsif ($type eq 'ontology') {
-        $solr_key = 'accession';
-        if ($filter && $flevel) {
-            $fields = [$solr_key, 'md5_id', $flevel];
-            $solr_query_str .= " AND ($flevel:$filter)";
+    my ($self, $chdl, $node_id, $format, $mgid, $source, $md5s, $filter_list) = @_;
+    
+    my $type = $self->cgi->param('type') || 'organism';
+    my $count = 0;
+    
+    # get / process annotations per md5
+    my @md5s = keys %$md5s;
+    my $data = $chdl->get_records_by_id(\@md5s, $source);
+    foreach my $set (@$data) {
+        # get annotation list
+        my $ann = [];
+        if ($type eq 'organism') {
+            if ($filter_list) {
+                @$ann = grep { $filter_list->{$_} } @{$set->{organism}};
+            } else {
+                $ann = $set->{organism};
+            }
+        } elsif ($type eq 'function') {
+            $ann = $set->{function};
+        } elsif ($type eq 'feature') {
+            $ann = $set->{accession};
+        } elsif ($type eq 'ontology') {
+            if ($filter_list) {
+                @$ann = grep { $filter_list->{$_} } @{$set->{accession}};
+            } else {
+                $ann = $set->{accession};
+            }
         } else {
-            $fields = [$solr_key, 'md5_id'];
+            push @$ann, $set->{md5};
         }
-    } elsif ($type eq 'feature') {
-        $solr_key = 'accession';
-        $fields = [$solr_key, 'md5_id'];
-    } else {
-        $fields = ['md5_id'];
-    }
-    
-    # test if m5nr-solr is up
-    my $ua = $self->agent;
-    $ua->timeout(10);
-    my $response = $ua->get($Conf::m5nr_solr);
-    unless ($response->is_success) {
-        print "\nERROR downloading: M5NR annotation service is unavailable.\n";
-	    exit 0;
-    }
-    # now query m5nr-solr
-    my ($data, $row_count) = $self->get_solr_query("POST", $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$ann_ver, $solr_query_str, "", 0, 1000000000, $fields);
-    my %md5s_to_annot = ();
-    if ($type ne 'md5') {
-        foreach my $result (@$data) {
-            $md5s_to_annot{$result->{md5_id}}{$result->{$solr_key}} = 1;
+        if (@$ann == 0) { next; }
+        
+        # pull data from indexed shock file
+        my ($seek, $len) = $md5s->{$set->{id}};
+        unless (defined($seek) && defined($len)) {
+            next;
         }
-    }
-    
-    my $hs = HTML::Strip->new();
-    my $seek_num = scalar(@$seeks);
-    my $len_num  = scalar(@$lens);
-    
-    for (my $i=0; $i<@{$md5s}; $i++) {
-	    if ( ($type ne 'md5') && (! exists($md5s_to_annot{$md5s->[$i]})) ) {
-	        # missing md5
-	        next;
-	    }
-	    if ( ($seek_num <= $i) || ($len_num <= $i) ) {
-	        # missing seek or length
-	        next;
-	    }
-	    # pull data from indexed shock file
-	    my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seeks->[$i].'&length='.$lens->[$i]);
+        my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seek.'&length='.$len);
 	    if ($err) {
 		    print "\nERROR downloading: $err\n";
 		    exit 0;
@@ -392,20 +371,8 @@ sub print_batch {
 	        my @tabs = split(/\t/, $line);
 	        unless ($tabs[0]) { next; }
 		    my @out = ();
-		    my $rid = $hs->parse($tabs[0]);
+		    my $rid = $tabs[0];
 		    unless ($rid) { next; }
-		    $hs->eof;
-		    my $ann = [];
-		    foreach my $key (keys %{$md5s_to_annot{$md5s->[$i]}}) {
-		        push @$ann, $key;
-		    }
-		    if ($type ne 'md5') {
-                if ($filter && (! $flevel)) {
-                    my @matches = grep {/$filter/} @$ann;
-                    @$ann = @matches;
-                }
-                if (@$ann == 0) { next; }
-            }
 		    if (($format eq 'sequence') && (@tabs == 13)) {
 		        @out = ('mgm'.$mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
 		    } elsif ($format eq 'similarity') {

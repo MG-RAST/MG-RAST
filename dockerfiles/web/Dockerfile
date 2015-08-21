@@ -41,7 +41,9 @@ RUN cd / && \
 RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && \
   cp -vr /MG-RASTv4/* /MG-RAST/site/CGI/Html/ && \
   rm -vf /MG-RAST/site/CGI/Html/*.html && \
-  cp -v /MG-RASTv4/mgmainv3.html /MG-RAST/site/CGI/Html/
+  cp -v /MG-RASTv4/mgmainv3.html /MG-RAST/site/CGI/Html/ && \
+  rm -vf /MG-RAST/site/CGI/Html/js/config.js && \
+  ln -s /config/config.js /MG-RAST/site/CGI/Html/js/config.js
 
 # pipeline dependencies
 RUN apt-get install -y python-dev python-pip && \
