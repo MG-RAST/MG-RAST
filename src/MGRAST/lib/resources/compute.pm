@@ -30,6 +30,9 @@ sub new {
                             significance => { 'data' => ['list', ['list', ['float', 'significance value']]],
                                               'rows' => ['list', ['string', 'row name']],
                                               'columns' => ['list', ['string', 'column name']] },
+                            distance => { 'data' => ['list', ['list', ['float', 'distance value']]],
+                                          'rows' => ['list', ['string', 'row id']],
+                                          'columns' => ['list', ['string', 'column id']] },
                             heatmap => { 'data' => ['list', ['list', ['float', 'normalized value']]],
                                          'rows' => ['list', ['string', 'row id']],
                                          'columns' => ['list', ['string', 'column id']],
@@ -116,6 +119,23 @@ sub info {
           							                         "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
           							                         "raw" => ["boolean", "option to use raw data (not normalize)"] } }
 						},
+						{ 'name'        => "distance",
+				          'request'     => $self->cgi->url."/".$self->name."/distance",
+				          'description' => "Calculate a distance matrix for given input data.",
+				          'example'     => [ 'curl -X POST -d \'{distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/distance"',
+                 				             "retrieve distance matrix of normalized input abundances using 'euclidean' distance method" ],
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{distance},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "data" => ['list', ['list', ['float', 'raw or normalized value']]],
+            							                     "rows" => ['list', ['string', 'row id']],
+            							                     "columns" => ['list', ['string', 'column id']],
+							                                 "distance" => ['cv', [map {[$_, $_." distance method"]} @{$self->{distance}}]],
+							                                 "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
+							                                 "raw" => ["boolean", "option to use raw data (not normalize)"] } }
+						}
 						{ 'name'        => "heatmap",
 				          'request'     => $self->cgi->url."/".$self->name."/heatmap",
 				          'description' => "Calculate a dendrogram for given input data.",
@@ -166,7 +186,7 @@ sub request {
         $self->info();
     } elsif (($self->rest->[0] eq 'alphadiversity') && $self->rest->[1]) {
         $self->diversity_compute($self->rest->[1]);
-    } elsif (any {$self->rest->[0] eq $_} ('normalize', 'significance', 'heatmap', 'pcoa')) {
+    } elsif (any {$self->rest->[0] eq $_} ('normalize', 'significance', 'distance', 'heatmap', 'pcoa')) {
         $self->abundance_compute($self->rest->[0]);
     } elsif (any {$self->rest->[0] eq $_} ('stats', 'drisee', 'kmer')) {
         $self->sequence_compute($self->rest->[0]);
@@ -304,6 +324,13 @@ sub abundance_compute {
         }
         $data = $self->significance($infile, $groups, $test, 1);
     }
+    # distance
+    elsif ($type eq 'distance') {
+        if (! $raw) {
+            $infile = $self->normalize($infile, $norm);
+        }
+        $data = $self->distance($infile, $distance, 1);
+    }
     # heatmap
     elsif ($type eq 'heatmap') {
         if (! $raw) {
@@ -390,6 +417,26 @@ group_stats_plot(
     order_by=NULL,
     order_decreasing=TRUE,
     my_grouping=$grps )
+);
+    $self->run_r($rcmd);
+    if ($json) {
+        return $self->parse_matrix($fout);
+    } else {
+        return $fout;
+    }
+}
+
+sub distance {
+    my ($self, $fname, $dist, $json) = @_;
+    
+    my $time = time;
+    my $src  = $Conf::bin."/calc_distance.r";
+    my $fout = $Conf::temp."/rdata.distance.".$time;
+    my $rcmd = qq(source("$src")
+MGRAST_distance(
+    file_in="$fname",
+    file_out="$fout",
+    dist_method="$dist" )
 );
     $self->run_r($rcmd);
     if ($json) {
