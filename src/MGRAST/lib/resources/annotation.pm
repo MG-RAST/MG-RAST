@@ -330,7 +330,8 @@ sub print_batch {
     my $count = 0;
     
     # get / process annotations per md5
-    my $data = $chdl->get_records_by_id([keys %$md5s], $source);
+    my @md5s = keys %$md5s;
+    my $data = $chdl->get_records_by_id(\@md5s, $source);
     foreach my $set (@$data) {
         # get annotation list
         my $ann = [];
