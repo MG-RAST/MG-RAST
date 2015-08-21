@@ -18,6 +18,9 @@ use UUID::Tiny ":std";
 use Digest::MD5 qw(md5_hex md5_base64);
 use Template;
 
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
+
 1;
 
 ###################################################
@@ -1336,10 +1339,10 @@ class CassHandle(object):
         self.session = self.handle.connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = dict_factory
-        self.id_prep = self.session.prepare("SELECT * FROM id_annotation WHERE id IN ? AND source=?")
     def get_records_by_id(self, ids, source):
         found = []
-        rows = self.session.execute(self.id_prep, [ids, source])
+        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        rows = self.session.execute(query)
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)

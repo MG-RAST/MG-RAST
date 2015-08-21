@@ -56,7 +56,7 @@ class TestCass(object):
         self.session = self.handle.connect(self.name)
         self.session.default_timeout = self.timeout
         self.session.row_factory = dict_factory
-        self.prep = self.session.prepare("SELECT * FROM id_annotation WHERE id IN ? AND source=?")
+        #self.prep = self.session.prepare("SELECT * FROM id_annotation WHERE id IN ? AND source=?")
     def random_array(self, size):
         array = []
         for i in range(size):
@@ -64,7 +64,8 @@ class TestCass(object):
         return array
     def get_records(self, ids, source):
         found = []
-        rows = self.session.execute(self.prep, [ids, source])
+        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        rows = self.session.execute(query)
         for r in rows:
             found.append(r["md5"])
         return found
