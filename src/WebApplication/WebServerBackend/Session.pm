@@ -13,6 +13,9 @@ use Digest::MD5;
 use Time::Local;
 use FreezeThaw qw( freeze thaw );
 
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
+
 use constant MAX_SESSION_ENTRIES => 3;
 use constant SESSION_TIMEOUT => '+2h';
 use constant SESSION_TIMEOUT_SECS => 2*3600;

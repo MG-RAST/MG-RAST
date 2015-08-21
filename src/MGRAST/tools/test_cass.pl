@@ -56,15 +56,16 @@ class TestCass(object):
         self.session = self.handle.connect(self.name)
         self.session.default_timeout = self.timeout
         self.session.row_factory = dict_factory
-        self.prep = self.session.prepare("SELECT * FROM id_annotation WHERE id IN ?")
+        #self.prep = self.session.prepare("SELECT * FROM id_annotation WHERE id IN ? AND source=?")
     def random_array(self, size):
         array = []
         for i in range(size):
             array.append(random.randint(1, self.max_int))
         return array
-    def get_records(self, ids):
+    def get_records(self, ids, source):
         found = []
-        rows = self.session.execute(self.prep, [set(ids)])
+        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        rows = self.session.execute(query)
         for r in rows:
             found.append(r["md5"])
         return found
@@ -93,7 +94,7 @@ foreach my $i (1..$count) {
         my $res = $json->decode( $agent->post($solr, Content => $sdata)->content );
         map { $md5s->{$_->{md5}} = 1 } @{$res->{response}{docs}};
     } else {
-        map { $md5s->{$_} = 1 } @{ $tester->get_records($random_ids) };
+        map { $md5s->{$_} = 1 } @{ $tester->get_records($random_ids, 'RefSeq') };
     }
 }
 print STDERR "\n";

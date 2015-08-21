@@ -24,6 +24,9 @@ use HTML::Strip;
 
 use Conf;
 
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
+
 my $allow_application = 0;
 my $allow_user = 0;
 
