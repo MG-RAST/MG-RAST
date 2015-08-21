@@ -273,7 +273,9 @@ sub prepare_data {
     }
     my $node_id = $sim_node->[0]{id};
     
-    # print html and line headers
+    # print html and line headers - no buffering to stdout
+    select STDOUT;
+    $| = 1;
     my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
     print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
     print join("\t", @head)."\n";
@@ -330,8 +332,7 @@ sub print_batch {
     my $count = 0;
     
     # get / process annotations per md5
-    my @md5s = keys %$md5s;
-    my $data = $chdl->get_records_by_id(\@md5s, $source);
+    my $data = $chdl->get_records_by_id([keys %$md5s], $source);
     foreach my $set (@$data) {
         # get annotation list
         my $ann = [];
@@ -357,10 +358,7 @@ sub print_batch {
         if (@$ann == 0) { next; }
         
         # pull data from indexed shock file
-        my ($seek, $len) = $md5s->{$set->{id}};
-        unless (defined($seek) && defined($len)) {
-            next;
-        }
+        my ($seek, $len) = @{$md5s->{$set->{id}}};
         my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seek.'&length='.$len);
 	    if ($err) {
 		    print "\nERROR downloading: $err\n";
