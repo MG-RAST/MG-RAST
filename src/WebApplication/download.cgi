@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 use CGI;
+$CGI::LIST_CONTEXT_WARN = 0;
+$CGI::Application::LIST_CONTEXT_WARN = 0;
 
 my $cgi = new CGI();
 
