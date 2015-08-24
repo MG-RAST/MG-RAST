@@ -337,7 +337,7 @@ sub print_batch {
         # get annotation list
         my $ann = [];
         if ($type eq 'organism') {
-            if ($filter_list) {
+            if (%$filter_list) {
                 @$ann = grep { $filter_list->{$_} } @{$set->{organism}};
             } else {
                 $ann = $set->{organism};
@@ -347,7 +347,7 @@ sub print_batch {
         } elsif ($type eq 'feature') {
             $ann = $set->{accession};
         } elsif ($type eq 'ontology') {
-            if ($filter_list) {
+            if (%$filter_list) {
                 @$ann = grep { $filter_list->{$_} } @{$set->{accession}};
             } else {
                 $ann = $set->{accession};
