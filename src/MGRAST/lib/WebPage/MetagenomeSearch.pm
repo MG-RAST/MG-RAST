@@ -235,7 +235,6 @@ sub output {
   
   my $scripts  = qq~
 <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
-<script type="text/javascript" src="Html/js/config.js"></script>
 <script type="text/javascript">
 \$(document).ready( function() {
   var qList = $qlist;
@@ -1451,5 +1450,5 @@ sub require_css {
 }
 
 sub require_javascript {
-  return [ "$Conf::cgi_url/Html/MetagenomeSearch.js" ];
+  return [ "$Conf::cgi_url/Html/config.js", "$Conf::cgi_url/Html/MetagenomeSearch.js" ];
 }

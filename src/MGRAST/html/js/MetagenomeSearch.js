@@ -1,4 +1,4 @@
-var api_url = RetinaConfig ? RetinaConfig.mgrast_api + "/metagenome?verbosity=mixs&" : 'http://api.metagenomics.anl.gov/1/metagenome?verbosity=mixs&';
+var api_url = typeof RetinaConfig === "undefined" ? 'http://api.metagenomics.anl.gov/1/metagenome?verbosity=mixs&' : RetinaConfig.mgrast_api + "/metagenome?verbosity=mixs&";
 var datastore = {};
 var result = 'result'; // div where results are to be displayed
 var saved_params = {};
