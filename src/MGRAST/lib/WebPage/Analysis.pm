@@ -5981,7 +5981,7 @@ sub data_to_vbar {
       }
     }
     if ($single) {
-      $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{raw} += $row->[9];
+      $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{raw} += $row->[$countrow];
       unless ($selsource eq 'lca') {
 	map { $counts->{$row->[0]}{$row->[$colnum]}{$selsource}{md5s}{$_} = 1 } @{$row->[-1]};
       }
