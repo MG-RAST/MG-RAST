@@ -1074,253 +1074,253 @@ sub lca_data {
   return $result;
 }
 
-sub recruitment_plot_data {
-  my ($self, $name, $mgid, $divid) =@_;
+# sub recruitment_plot_data {
+#   my ($self, $name, $mgid, $divid) =@_;
+# 
+#   my $cgi    = $self->application->cgi;
+#   my $orgid  = $cgi->param('ref_genome');
+#   my $eval   = $cgi->param('evalue_range');
+#   my $mgdb   = $self->{mgdb};
+#   my $source = $self->data('rplot_source');
+#   my $cutoff = undef;
+# 
+#   if ($eval =~ /e-(\d+)$/) {
+#     $cutoff = $1;
+#   }
+# 
+#   my @data = ();
+#   my %uniq = ();
+#   my $link = $mgdb->link_for_source($source);
+#   my %md5_data = map { $_->[1], [ @$_[2..10] ] } @{ $mgdb->get_md5_data_for_organism_source($name, $source, $cutoff) };
+# 
+#   foreach ( @{ $mgdb->ach->org2contig_data($orgid, 1) } ) {
+#     my ($ctg, $md5, $id, $func, $low, $high, $strand, $clen) = @$_;
+#     $strand = ($strand == 1) ? "+" : "-";
+#     if (exists $md5_data{$md5}) {
+#       $uniq{$md5} = 1;
+#       my @curr_data = @{ $md5_data{$md5} };
+#       my ($num, $seek, $len) = @curr_data[0,7,8];
+#       my $read_l = qq~<a style='cursor:pointer' onclick='execute_ajax("get_reads_table", "read_div$divid", "metagenome=$mgid&md5=$md5&seek=$seek&length=$len&type=protein");'>$num</a>~;
+#       my $id_l   = $link ? "<a target=_blank href='".$link.$id."'>".$id."</a>" : $id;
+#       push @data, [ $id_l, $func, $read_l, $low, $high, $strand, $ctg, $clen, @curr_data[1..6], $md5 ];
+#     }
+#   }
+# 
+#   return (\@data, scalar(keys %uniq));
+# }
 
-  my $cgi    = $self->application->cgi;
-  my $orgid  = $cgi->param('ref_genome');
-  my $eval   = $cgi->param('evalue_range');
-  my $mgdb   = $self->{mgdb};
-  my $source = $self->data('rplot_source');
-  my $cutoff = undef;
-
-  if ($eval =~ /e-(\d+)$/) {
-    $cutoff = $1;
-  }
-
-  my @data = ();
-  my %uniq = ();
-  my $link = $mgdb->link_for_source($source);
-  my %md5_data = map { $_->[1], [ @$_[2..10] ] } @{ $mgdb->get_md5_data_for_organism_source($name, $source, $cutoff) };
-
-  foreach ( @{ $mgdb->ach->org2contig_data($orgid, 1) } ) {
-    my ($ctg, $md5, $id, $func, $low, $high, $strand, $clen) = @$_;
-    $strand = ($strand == 1) ? "+" : "-";
-    if (exists $md5_data{$md5}) {
-      $uniq{$md5} = 1;
-      my @curr_data = @{ $md5_data{$md5} };
-      my ($num, $seek, $len) = @curr_data[0,7,8];
-      my $read_l = qq~<a style='cursor:pointer' onclick='execute_ajax("get_reads_table", "read_div$divid", "metagenome=$mgid&md5=$md5&seek=$seek&length=$len&type=protein");'>$num</a>~;
-      my $id_l   = $link ? "<a target=_blank href='".$link.$id."'>".$id."</a>" : $id;
-      push @data, [ $id_l, $func, $read_l, $low, $high, $strand, $ctg, $clen, @curr_data[1..6], $md5 ];
-    }
-  }
-
-  return (\@data, scalar(keys %uniq));
-}
-
-sub recruitment_plot_graph {
-  my ($self, $name, $mapname) = @_;
-
-  my $cgi    = $self->application->cgi;
-  my $orgid  = $cgi->param('ref_genome');
-  my $eval   = $cgi->param('evalue_range');
-  my $log    = $cgi->param('scale');
-  my $mgdb   = $self->{mgdb};
-  my $source = $self->data('rplot_source');
-  my $colors = ['blue','green','yellow','orange','red'];
-  my $evals  = $self->get_evals;
-  my $cutoff = $self->get_eval_index($eval);
-  my $eval_set = [];
-
-  @$evals  = @$evals[$cutoff..4];
-  @$colors = @$colors[$cutoff..4];
-
-  my $unique_str     = join('_', ( join("_", @{$mgdb->_jobs}), $orgid, $eval, $log ));
-  my $circos_file    = "circos_$unique_str";
-  my $config_file    = "$Conf::temp/circos_$unique_str.conf";
-  my $karyotype_file = "$Conf::temp/karyotype_$unique_str.txt";
-  my $fwd_gene_file  = "$Conf::temp/genes_fwd_$unique_str.txt";
-  my $rev_gene_file  = "$Conf::temp/genes_rev_$unique_str.txt";
-  my $evals_file     = "$Conf::temp/evals_$unique_str.txt";
-
-  if ((-s $config_file) && (-s $karyotype_file) && (-s $fwd_gene_file) && (-s $rev_gene_file) && (-s $evals_file)) {
-    my ($prev_evals, $prev_stats) = $self->get_data_from_config($config_file);
-    for (my $j=0; $j<@$prev_evals; $j++) { push @$eval_set, [ $evals->[$j], $prev_evals->[$j], $colors->[$j] ]; }
-    if (-s "$Conf::temp/$circos_file.png") {
-      return [$circos_file, $eval_set, $prev_stats];
-    } else {
-      my $r = system($Conf::circos_path." -conf $config_file -silent");
-      return ($r == 0) ? [$circos_file, $eval_set, $prev_stats] : ["Circos failed: $?",  []];
-    }
-  }
-  
-  my $num_frag = $mgdb->get_abundance_for_organism_source($name, $source);
-  my $contigs  = $mgdb->ach->org2contigs($orgid);
-  if (scalar @$contigs == 0) { return ["No contigs available for $name", []]; }
-
-  my (%ctg_name, %job_data);
-  my %ctg_len = map { $_->[0], $_->[1] } @$contigs;
-  
-  my @eval_sums = (0, 0, 0, 0, 0);
-  @eval_sums = @eval_sums[$cutoff..4];
-  
-  my $md5_evals = $mgdb->get_md5_evals_for_organism_source($name, $source);
-  foreach my $md5 (keys %$md5_evals) {
-    my @e = @{ $md5_evals->{$md5} };
-    @e    = @e[$cutoff..4];
-    for (my $i=0; $i<@e; $i++) { $eval_sums[$i] += $e[$i]; }
-    $job_data{$md5} = \@e;
-  }
-
-  my $i = 1;
-  open(KARF, ">$karyotype_file") || return ["Unable to open $karyotype_file", []];
-  foreach (sort {$ctg_len{$a} <=> $ctg_len{$b}} keys %ctg_len) {
-    print KARF "chr - chr$i $_ 0 $ctg_len{$_} vlblue url=$_\n";
-    $ctg_name{$_} = "chr$i";
-    $i++;
-  }
-  close KARF;
-
-  open(FGF, ">$fwd_gene_file") || return ["Unable to open $fwd_gene_file", []];
-  open(RGF, ">$rev_gene_file") || return ["Unable to open $rev_gene_file", []];
-  open(EVF, ">$evals_file")    || return ["Unable to open $evals_file", []];
-
-  my (@gene, @hit);
-  my $max_pos  = 0;
-  my $max_neg  = 0;
-  my $num_feat = 0;
-  my $num_hit  = 0;
-  foreach ( @{ $mgdb->ach->org2contig_data($orgid) } ) {
-    my @vals = ();
-    my ($ctg, $md5, $id, $low, $high, $strand, $clen) = @$_;
-    $num_feat += 1;
-
-    @gene = ( $ctg_name{$ctg}, $low, $high, "color=" . (exists($job_data{$md5}) ? "red" : "black") );
-    if (exists $job_data{$md5}) {
-      $num_hit += 1;
-      @vals = map { $self->get_log($log, $_) } @{ $job_data{$md5} };
-      @hit  = ( $ctg_name{$ctg}, $low, $high );
-    }
-
-    if ($strand == 1) {      
-      print FGF join(" ", @gene) . "\n";
-      if (exists $job_data{$md5}) {
-	my $sum  = sum @vals;
-	$max_pos = max ($max_pos, $sum);
-	print EVF join(" ", @hit) . " " . join(",", @vals) . " id=$id\n";
-      }
-    }
-    elsif ($strand == -1) {
-      print RGF join(" ", @gene) . "\n";
-      if (exists $job_data{$md5}) {
-	@vals    = map { $_ * -1 } @vals;
-	my $sum  = sum @vals;
-	$max_neg = min ($max_neg, $sum);
-	print EVF join(" ", @hit) . " " . join(",", @vals) . " id=$id\n";
-      }
-    }
-  }
-  close FGF;
-  close RGF;
-  close EVF;
-
-  my $color_str = join(",", @$colors);
-  my $evals_str = join(",", @eval_sums);
-  my $stats_str = join(",", ($num_frag, $num_hit, $num_feat));
-  my $axis_size = int( ($max_pos + abs($max_neg)) / 20 ) || 1;
-
-  open(CFG, ">$config_file") || return ["Unable to open $config_file", []];
-  print CFG qq~
-<colors>
-<<include etc/colors.conf>>
-</colors>
-<fonts>
-<<include etc/fonts.conf>>
-</fonts>
-<<include $Conf::config/ideogram.conf>>
-<<include $Conf::config/ticks.conf>>
-
-karyotype = $karyotype_file
-
-<image>
-dir  = $Conf::temp
-file = $circos_file.png
-image_map_use  = yes
-image_map_name = $mapname
-radius         = 960p
-background     = white
-angle_offset   = -90
-</image>
-
-chromosomes_units           = 1000
-chromosomes_display_default = yes
-
-<plots>
-<plot>
-show   = yes
-type   = tile
-file   = $fwd_gene_file
-layers = 1
-margin = 0.0001u
-r0     = 1.1r
-r1     = 1.15r
-thickness   = 15
-padding     = 5
-orientation = out
-background  = no
-layers_overflow  = collapse
-stroke_thickness = 0
-stroke_color     = white
-</plot>
-<plot>
-show   = yes
-type   = tile
-file   = $rev_gene_file
-layers = 1
-margin = 0.0001u
-r0     = 0.91r
-r1     = 0.97r
-thickness   = 15
-padding     = 5
-orientation = in
-background  = no
-layers_overflow  = collapse
-stroke_thickness = 0
-stroke_color     = white
-</plot>
-<plot>
-url  = [id]
-show = yes
-file = $evals_file
-type = histogram
-r0   = 0.35r
-r1   = 0.90r
-min  = $max_neg
-max  = $max_pos
-color      = white
-fill_color = $color_str
-fill_under = yes
-thickness  = 0
-sort_bin_values = no
-orientation    = out
-extend_bin     = no
-axis           = yes
-axis_color     = vlgrey
-axis_thickness = 1
-axis_spacing   = $axis_size
-</plot>
-</plots>
-
-anglestep     = 0.5
-minslicestep  = 10
-beziersamples = 40
-debug         = no
-warnings      = no
-imagemap      = no
-units_ok      = bupr
-units_nounit  = n
-
-#evals $evals_str
-#stats $stats_str
-~;
-  close CFG;
-
-  my $cmd = $Conf::circos_path." -conf ".$config_file." -silent 2>&1";
-  my $msg = `$cmd`;
-  for (my $j=0; $j<@eval_sums; $j++) { push @$eval_set, [ $evals->[$j], $eval_sums[$j], $colors->[$j] ]; }
-  return $msg ? ["ERROR: $msg",  [], undef] : [$circos_file, $eval_set, [$num_frag, $num_hit, $num_feat]];
-}
+# sub recruitment_plot_graph {
+#   my ($self, $name, $mapname) = @_;
+# 
+#   my $cgi    = $self->application->cgi;
+#   my $orgid  = $cgi->param('ref_genome');
+#   my $eval   = $cgi->param('evalue_range');
+#   my $log    = $cgi->param('scale');
+#   my $mgdb   = $self->{mgdb};
+#   my $source = $self->data('rplot_source');
+#   my $colors = ['blue','green','yellow','orange','red'];
+#   my $evals  = $self->get_evals;
+#   my $cutoff = $self->get_eval_index($eval);
+#   my $eval_set = [];
+# 
+#   @$evals  = @$evals[$cutoff..4];
+#   @$colors = @$colors[$cutoff..4];
+# 
+#   my $unique_str     = join('_', ( join("_", @{$mgdb->_jobs}), $orgid, $eval, $log ));
+#   my $circos_file    = "circos_$unique_str";
+#   my $config_file    = "$Conf::temp/circos_$unique_str.conf";
+#   my $karyotype_file = "$Conf::temp/karyotype_$unique_str.txt";
+#   my $fwd_gene_file  = "$Conf::temp/genes_fwd_$unique_str.txt";
+#   my $rev_gene_file  = "$Conf::temp/genes_rev_$unique_str.txt";
+#   my $evals_file     = "$Conf::temp/evals_$unique_str.txt";
+# 
+#   if ((-s $config_file) && (-s $karyotype_file) && (-s $fwd_gene_file) && (-s $rev_gene_file) && (-s $evals_file)) {
+#     my ($prev_evals, $prev_stats) = $self->get_data_from_config($config_file);
+#     for (my $j=0; $j<@$prev_evals; $j++) { push @$eval_set, [ $evals->[$j], $prev_evals->[$j], $colors->[$j] ]; }
+#     if (-s "$Conf::temp/$circos_file.png") {
+#       return [$circos_file, $eval_set, $prev_stats];
+#     } else {
+#       my $r = system($Conf::circos_path." -conf $config_file -silent");
+#       return ($r == 0) ? [$circos_file, $eval_set, $prev_stats] : ["Circos failed: $?",  []];
+#     }
+#   }
+#   
+#   my $num_frag = $mgdb->get_abundance_for_organism_source($name, $source);
+#   my $contigs  = $mgdb->ach->org2contigs($orgid);
+#   if (scalar @$contigs == 0) { return ["No contigs available for $name", []]; }
+# 
+#   my (%ctg_name, %job_data);
+#   my %ctg_len = map { $_->[0], $_->[1] } @$contigs;
+#   
+#   my @eval_sums = (0, 0, 0, 0, 0);
+#   @eval_sums = @eval_sums[$cutoff..4];
+#   
+#   my $md5_evals = $mgdb->get_md5_evals_for_organism_source($name, $source);
+#   foreach my $md5 (keys %$md5_evals) {
+#     my @e = @{ $md5_evals->{$md5} };
+#     @e    = @e[$cutoff..4];
+#     for (my $i=0; $i<@e; $i++) { $eval_sums[$i] += $e[$i]; }
+#     $job_data{$md5} = \@e;
+#   }
+# 
+#   my $i = 1;
+#   open(KARF, ">$karyotype_file") || return ["Unable to open $karyotype_file", []];
+#   foreach (sort {$ctg_len{$a} <=> $ctg_len{$b}} keys %ctg_len) {
+#     print KARF "chr - chr$i $_ 0 $ctg_len{$_} vlblue url=$_\n";
+#     $ctg_name{$_} = "chr$i";
+#     $i++;
+#   }
+#   close KARF;
+# 
+#   open(FGF, ">$fwd_gene_file") || return ["Unable to open $fwd_gene_file", []];
+#   open(RGF, ">$rev_gene_file") || return ["Unable to open $rev_gene_file", []];
+#   open(EVF, ">$evals_file")    || return ["Unable to open $evals_file", []];
+# 
+#   my (@gene, @hit);
+#   my $max_pos  = 0;
+#   my $max_neg  = 0;
+#   my $num_feat = 0;
+#   my $num_hit  = 0;
+#   foreach ( @{ $mgdb->ach->org2contig_data($orgid) } ) {
+#     my @vals = ();
+#     my ($ctg, $md5, $id, $low, $high, $strand, $clen) = @$_;
+#     $num_feat += 1;
+# 
+#     @gene = ( $ctg_name{$ctg}, $low, $high, "color=" . (exists($job_data{$md5}) ? "red" : "black") );
+#     if (exists $job_data{$md5}) {
+#       $num_hit += 1;
+#       @vals = map { $self->get_log($log, $_) } @{ $job_data{$md5} };
+#       @hit  = ( $ctg_name{$ctg}, $low, $high );
+#     }
+# 
+#     if ($strand == 1) {      
+#       print FGF join(" ", @gene) . "\n";
+#       if (exists $job_data{$md5}) {
+#   my $sum  = sum @vals;
+#   $max_pos = max ($max_pos, $sum);
+#   print EVF join(" ", @hit) . " " . join(",", @vals) . " id=$id\n";
+#       }
+#     }
+#     elsif ($strand == -1) {
+#       print RGF join(" ", @gene) . "\n";
+#       if (exists $job_data{$md5}) {
+#   @vals    = map { $_ * -1 } @vals;
+#   my $sum  = sum @vals;
+#   $max_neg = min ($max_neg, $sum);
+#   print EVF join(" ", @hit) . " " . join(",", @vals) . " id=$id\n";
+#       }
+#     }
+#   }
+#   close FGF;
+#   close RGF;
+#   close EVF;
+# 
+#   my $color_str = join(",", @$colors);
+#   my $evals_str = join(",", @eval_sums);
+#   my $stats_str = join(",", ($num_frag, $num_hit, $num_feat));
+#   my $axis_size = int( ($max_pos + abs($max_neg)) / 20 ) || 1;
+# 
+#   open(CFG, ">$config_file") || return ["Unable to open $config_file", []];
+#   print CFG qq~
+# <colors>
+# <<include etc/colors.conf>>
+# </colors>
+# <fonts>
+# <<include etc/fonts.conf>>
+# </fonts>
+# <<include $Conf::config/ideogram.conf>>
+# <<include $Conf::config/ticks.conf>>
+# 
+# karyotype = $karyotype_file
+# 
+# <image>
+# dir  = $Conf::temp
+# file = $circos_file.png
+# image_map_use  = yes
+# image_map_name = $mapname
+# radius         = 960p
+# background     = white
+# angle_offset   = -90
+# </image>
+# 
+# chromosomes_units           = 1000
+# chromosomes_display_default = yes
+# 
+# <plots>
+# <plot>
+# show   = yes
+# type   = tile
+# file   = $fwd_gene_file
+# layers = 1
+# margin = 0.0001u
+# r0     = 1.1r
+# r1     = 1.15r
+# thickness   = 15
+# padding     = 5
+# orientation = out
+# background  = no
+# layers_overflow  = collapse
+# stroke_thickness = 0
+# stroke_color     = white
+# </plot>
+# <plot>
+# show   = yes
+# type   = tile
+# file   = $rev_gene_file
+# layers = 1
+# margin = 0.0001u
+# r0     = 0.91r
+# r1     = 0.97r
+# thickness   = 15
+# padding     = 5
+# orientation = in
+# background  = no
+# layers_overflow  = collapse
+# stroke_thickness = 0
+# stroke_color     = white
+# </plot>
+# <plot>
+# url  = [id]
+# show = yes
+# file = $evals_file
+# type = histogram
+# r0   = 0.35r
+# r1   = 0.90r
+# min  = $max_neg
+# max  = $max_pos
+# color      = white
+# fill_color = $color_str
+# fill_under = yes
+# thickness  = 0
+# sort_bin_values = no
+# orientation    = out
+# extend_bin     = no
+# axis           = yes
+# axis_color     = vlgrey
+# axis_thickness = 1
+# axis_spacing   = $axis_size
+# </plot>
+# </plots>
+# 
+# anglestep     = 0.5
+# minslicestep  = 10
+# beziersamples = 40
+# debug         = no
+# warnings      = no
+# imagemap      = no
+# units_ok      = bupr
+# units_nounit  = n
+# 
+# #evals $evals_str
+# #stats $stats_str
+# ~;
+#   close CFG;
+# 
+#   my $cmd = $Conf::circos_path." -conf ".$config_file." -silent 2>&1";
+#   my $msg = `$cmd`;
+#   for (my $j=0; $j<@eval_sums; $j++) { push @$eval_set, [ $evals->[$j], $eval_sums[$j], $colors->[$j] ]; }
+#   return $msg ? ["ERROR: $msg",  [], undef] : [$circos_file, $eval_set, [$num_frag, $num_hit, $num_feat]];
+# }
 
 sub workbench_export {
   my ($self) = @_;
@@ -1399,7 +1399,7 @@ sub workbench_blat_output {
   map { $ncbi_ids->{$_->[4]} = $_->[6] } grep { $_->[4] && $_->[6] } @$md5_ann;
   
   my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
-  my $nr_seq_data = $self->{mgdb}->ach->md5s2sequences([keys %$funcs]); # fasta text
+  my $nr_seq_data = "";#$self->{mgdb}->ach->md5s2sequences([keys %$funcs]); # fasta text
 
   my %fastas = ();
   foreach my $s (@$mg_seq_data) {
@@ -1678,7 +1678,7 @@ sub get_read_align {
   my $md5_map  = $self->{mgdb}->decode_annotation('md5', [$md5]);
   my $md5sum   = $md5_map->{$md5};
   my $seq_data = $self->{mgdb}->md5s_to_read_sequences([$md5]); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
-  my @md5_seq  = split(/\n/, $self->{mgdb}->ach->md5s2sequences([$md5sum])); # fasta text
+  my @md5_seq  = ();#split(/\n/, $self->{mgdb}->ach->md5s2sequences([$md5sum])); # fasta text
 
   if ((@md5_seq == 2) && ($md5_seq[0] =~ /$md5sum/)) {
     my $md5_fasta = $Conf::temp."/".$md5."_".time.".faa";
@@ -5793,93 +5793,93 @@ sub lca_visual {
   return $content;
 }
 
-sub recruitment_plot_visual {
-  my ($self) = @_;
-
-  my $cgi   = $self->application->cgi;
-  my $orgid = $cgi->param('ref_genome');
-  my $mgid  = $cgi->param('metagenome');
-  my $eval  = $cgi->param('evalue_range');
-  my $map   = "circosmap";
-  my $tabnum  = $cgi->param('tabnum') || 2;
-  my $content = "";
-  $tabnum--;
-
-  unless ($mgid) {
-    return "<div><div>Error</div><div>".clear_progress_image()."<p>No metagenome selected.</p></div></div>";
-  }
-  unless ($orgid) {
-    return "<div><div>No Data</div><div>".clear_progress_image()."<p>No refrence organisms available for the selected metagenome(s).</p></div></div>";
-  }
-
-  $self->{mgdb}->set_jobs([$mgid]);
-  my $name_map = $self->{mgdb}->decode_annotation('organism', [$orgid]);
-  my $name = $name_map->{$orgid} ? $name_map->{$orgid} : '';
-
-  if ($cgi->param('vis_type') eq 'circle') {
-    my ($file, $evals, $stats) = @{ $self->recruitment_plot_graph($name, $map) };
-    if (@$evals == 0) { return "<div><div>Error</div><div><p>$file</p></div></div>"; }
-
-    my $eval_hist = $self->evalue_histogram($evals);
-    my $allctg    = $self->{mgdb}->ach->org2contignum($orgid);
-    my $plotctg   = $self->{mgdb}->ach->org2contignum($orgid, $self->data('min_ctg_len'));
-
-    $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><p></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p>~.&inlineImage("$Conf::temp/$file.png", 'width=960 onmouseover="TJPzoom(this);"').qq~</p></div></div></div>~;
-    $tabnum++;
-  }
-  elsif ($cgi->param('vis_type') eq 'table') {
-    my $newid = int(rand(100000));
-    my ($data, $num_md5s) = $self->recruitment_plot_data($name, $mgid, $newid);
-    # id, low, high, strand, ctg, clen, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, abundance, md5
-
-    my $jname = '';
-    my $job  = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $mgid });
-    if (ref($job)) {
-      $jname = $job->name()." ($mgid)";
-    }
-
-    my $settings = "<p>Contig information for $num_md5s unique sequences within metagenome <a target=_blank href='metagenomics.cgi?page=MetagenomeOverview&metagenome=$mgid' title='$jname'>$mgid</a> for organism $name" . (($eval ne 'None') ? " with a maximum e-value of $eval" : "") . "</p>";
-
-    my $t = $self->application->component('t1');
-    ## nasty id manipulation to allow for multiple tables
-    $self->application->component('TableHoverComponent'.$t->id)->id($newid);
-    $self->application->{component_index}->{'TableHoverComponent'.$newid} = $self->application->component('TableHoverComponent'.$t->id);
-    $self->application->component('TableAjaxComponent'.$t->id)->id($newid);
-    $self->application->{component_index}->{'TableAjaxComponent'.$newid} = $self->application->component('TableAjaxComponent'.$t->id);
-    $t->id($newid);
-    ##
-    $t->show_select_items_per_page(1);
-    $t->show_top_browse(1);
-    $t->show_bottom_browse(1);
-    $t->items_per_page(15);
-    $t->show_column_select(1);
-    $t->show_export_button({ title => 'download this table', strip_html => 1, hide_invisible_columns => 1});
-
-    my $columns = [ { name => $self->data('rplot_source').' id', sortable => 1, filter => 1, tooltip => 'database source ID of the hit' },
-		    { name => 'function',          sortable => 1, filter => 1, tooltip => 'functional annotation of sequence' },
-		    { name => '# reads hit',       sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of sequence features with a hit' },
-		    { name => 'start position',    sortable => 1 },
-		    { name => 'end position',      sortable => 1 },
-		    { name => 'strand',            sortable => 1, filter => 1, operator => 'combobox' },
-		    { name => 'contig name',       sortable => 1, filter => 1, operator => 'combobox' },
-		    { name => 'contig length',     sortable => 1 },
-		    { name => 'avg eValue',        sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average exponent of<br>the evalue of the hits' },
-		    { name => 'eValue std dev',    sortable => 1, visible => 0, tooltip => 'standard deviation of the evalue<br>, showing exponent only' },
-		    { name => 'avg % ident',       sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average percent identity of the hits' },
-		    { name => '% ident std dev',   sortable => 1, visible => 0, tooltip => 'standard deviation of<br>the percent identity of the hits' },
-		    { name => 'avg align len',     sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average alignment length of the hits' },
-		    { name => 'align len std dev', sortable => 1, visible => 0, tooltip => 'standard deviation of<br>the alignment length of the hits' },
-		    { name => 'md5',               visible => 0,                tooltip => 'md5 checksum of hit sequence'  }
-	       ];
-    
-    $t->columns($columns);
-    $t->data($data);
-    $content .= qq~<div><div>Recruitment Plot Table $tabnum</div><div>~.clear_progress_image().$settings.$t->output.qq~<div id='read_div$newid'></div></div></div>~;
-    $tabnum++;
-  }
-
-  return $content;
-}
+# sub recruitment_plot_visual {
+#   my ($self) = @_;
+# 
+#   my $cgi   = $self->application->cgi;
+#   my $orgid = $cgi->param('ref_genome');
+#   my $mgid  = $cgi->param('metagenome');
+#   my $eval  = $cgi->param('evalue_range');
+#   my $map   = "circosmap";
+#   my $tabnum  = $cgi->param('tabnum') || 2;
+#   my $content = "";
+#   $tabnum--;
+# 
+#   unless ($mgid) {
+#     return "<div><div>Error</div><div>".clear_progress_image()."<p>No metagenome selected.</p></div></div>";
+#   }
+#   unless ($orgid) {
+#     return "<div><div>No Data</div><div>".clear_progress_image()."<p>No refrence organisms available for the selected metagenome(s).</p></div></div>";
+#   }
+# 
+#   $self->{mgdb}->set_jobs([$mgid]);
+#   my $name_map = $self->{mgdb}->decode_annotation('organism', [$orgid]);
+#   my $name = $name_map->{$orgid} ? $name_map->{$orgid} : '';
+# 
+#   if ($cgi->param('vis_type') eq 'circle') {
+#     my ($file, $evals, $stats) = @{ $self->recruitment_plot_graph($name, $map) };
+#     if (@$evals == 0) { return "<div><div>Error</div><div><p>$file</p></div></div>"; }
+# 
+#     my $eval_hist = $self->evalue_histogram($evals);
+#     my $allctg    = $self->{mgdb}->ach->org2contignum($orgid);
+#     my $plotctg   = $self->{mgdb}->ach->org2contignum($orgid, $self->data('min_ctg_len'));
+# 
+#     $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><p></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p>~.&inlineImage("$Conf::temp/$file.png", 'width=960 onmouseover="TJPzoom(this);"').qq~</p></div></div></div>~;
+#     $tabnum++;
+#   }
+#   elsif ($cgi->param('vis_type') eq 'table') {
+#     my $newid = int(rand(100000));
+#     my ($data, $num_md5s) = $self->recruitment_plot_data($name, $mgid, $newid);
+#     # id, low, high, strand, ctg, clen, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, abundance, md5
+# 
+#     my $jname = '';
+#     my $job  = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $mgid });
+#     if (ref($job)) {
+#       $jname = $job->name()." ($mgid)";
+#     }
+# 
+#     my $settings = "<p>Contig information for $num_md5s unique sequences within metagenome <a target=_blank href='metagenomics.cgi?page=MetagenomeOverview&metagenome=$mgid' title='$jname'>$mgid</a> for organism $name" . (($eval ne 'None') ? " with a maximum e-value of $eval" : "") . "</p>";
+# 
+#     my $t = $self->application->component('t1');
+#     ## nasty id manipulation to allow for multiple tables
+#     $self->application->component('TableHoverComponent'.$t->id)->id($newid);
+#     $self->application->{component_index}->{'TableHoverComponent'.$newid} = $self->application->component('TableHoverComponent'.$t->id);
+#     $self->application->component('TableAjaxComponent'.$t->id)->id($newid);
+#     $self->application->{component_index}->{'TableAjaxComponent'.$newid} = $self->application->component('TableAjaxComponent'.$t->id);
+#     $t->id($newid);
+#     ##
+#     $t->show_select_items_per_page(1);
+#     $t->show_top_browse(1);
+#     $t->show_bottom_browse(1);
+#     $t->items_per_page(15);
+#     $t->show_column_select(1);
+#     $t->show_export_button({ title => 'download this table', strip_html => 1, hide_invisible_columns => 1});
+# 
+#     my $columns = [ { name => $self->data('rplot_source').' id', sortable => 1, filter => 1, tooltip => 'database source ID of the hit' },
+#           { name => 'function',          sortable => 1, filter => 1, tooltip => 'functional annotation of sequence' },
+#           { name => '# reads hit',       sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of sequence features with a hit' },
+#           { name => 'start position',    sortable => 1 },
+#           { name => 'end position',      sortable => 1 },
+#           { name => 'strand',            sortable => 1, filter => 1, operator => 'combobox' },
+#           { name => 'contig name',       sortable => 1, filter => 1, operator => 'combobox' },
+#           { name => 'contig length',     sortable => 1 },
+#           { name => 'avg eValue',        sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average exponent of<br>the evalue of the hits' },
+#           { name => 'eValue std dev',    sortable => 1, visible => 0, tooltip => 'standard deviation of the evalue<br>, showing exponent only' },
+#           { name => 'avg % ident',       sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average percent identity of the hits' },
+#           { name => '% ident std dev',   sortable => 1, visible => 0, tooltip => 'standard deviation of<br>the percent identity of the hits' },
+#           { name => 'avg align len',     sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average alignment length of the hits' },
+#           { name => 'align len std dev', sortable => 1, visible => 0, tooltip => 'standard deviation of<br>the alignment length of the hits' },
+#           { name => 'md5',               visible => 0,                tooltip => 'md5 checksum of hit sequence'  }
+#          ];
+#     
+#     $t->columns($columns);
+#     $t->data($data);
+#     $content .= qq~<div><div>Recruitment Plot Table $tabnum</div><div>~.clear_progress_image().$settings.$t->output.qq~<div id='read_div$newid'></div></div></div>~;
+#     $tabnum++;
+#   }
+# 
+#   return $content;
+# }
 
 sub qiime_export_visual {
   my ($self) = @_;
