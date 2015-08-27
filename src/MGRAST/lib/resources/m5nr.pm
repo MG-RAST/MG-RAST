@@ -429,6 +429,9 @@ sub static {
     # validate version
     $self->check_version($version);
     
+    # return cached if exists
+    $self->return_cached();
+    
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->hierarchy->{ontology}};
         my @src_map  = map { $_->[0] } @{$self->source->{ontology}};
@@ -511,7 +514,7 @@ sub static {
     }
     my $obj = { data => $data, version => $version, url => $url };
     
-    $self->return_data($obj);
+    $self->return_data($obj, undef, 1); # cache this!
 }
 
 # return query data: annotation object

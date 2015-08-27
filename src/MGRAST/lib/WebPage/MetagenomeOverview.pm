@@ -1336,13 +1336,13 @@ sub draw_krona {
       @$taxa_stats = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_species")};
     }
     if (@$taxa_stats > 0) {
-      my $taxons = {};#$mgdb->ach->get_taxonomy4level_full("tax_species", 1);
+      my $taxons = $mgdb->get_taxa_stats("species");
       my $names  = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species'];
       my $result = [];
       foreach my $tax (@$taxa_stats) {
-	if (exists $taxons->{$tax->[0]}) {
-	  push @$result, [ $mgid, @{$taxons->{$tax->[0]}}, $tax->[1], 1 ];
-	}
+          if (exists $taxons->{$tax->[0]}) {
+              push @$result, [ $mgid, @{$taxons->{$tax->[0]}}, $tax->[1], 1 ];
+          }
       }
       my $krona_data = array2json($result, 2);
       my $krona_name = '["' . join('","', @$names) . '"]';

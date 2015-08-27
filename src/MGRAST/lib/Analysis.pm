@@ -2107,7 +2107,7 @@ sub get_m5nr_sequences_from_md5s {
         return "";
     }
     
-    my $response = undef;
+    my $response = "";
     my $url   = $self->_api."/m5nr/md5";
     my $pdata = $self->_json->encode({
         version  => $self->_version,
@@ -2120,10 +2120,41 @@ sub get_m5nr_sequences_from_md5s {
         my $post = $self->_agent->post($url, Content => $pdata);
         $response = $post->content;
     };
-    if ($@ || (! ref($response))) {
+    if ($@ || (! $response)) {
         return "";
     } elsif (exists($response->{ERROR}) && $response->{ERROR}) {
         return "";
     }
     return $response;
 }
+
+sub get_taxa_to_level {
+    my ($self, $taxa) = @_;
+    
+    my $data = {};
+    my $response = undef;
+    my $url = $self->_api."/m5nr/taxonomy?version=".$self->_version."&min_level=".$taxa;
+    
+    eval {
+        my $get = $self->_agent->get($url);
+        $response = $self->_json->decode($get->content);
+    };
+    if ($response && $response->{data} && @{$response->{data}}) {
+        foreach my $set ( @{$response->{data}} ) {
+            $data->{$set->{$taxa}} = [];
+            foreach my $name (('domain', 'phylum', 'class', 'order', 'family', 'genus', 'species')) {
+                if ($name eq $taxa) {
+                    last;
+                }
+                if (exists $set->{$name}) {
+                    push @{ $data->{$set->{$taxa}} }, $set->{$name};
+                } else {
+                    push @{ $data->{$set->{$taxa}} }, "";
+                }
+            }
+        }
+    }
+    # taxa => [ hierarchy from domain to one higher than taxa ]
+    return $data;
+}
+
