@@ -131,7 +131,7 @@ sub output {
   }
 
   # get font
-  my $courier = '/soft/packages/fonts/Verdana.ttf';  
+  my $courier = "$Conf::ROOT/fonts/Verdana.ttf";  
 
   my $thick = $self->{thick} || 3;
   $self->image->setThickness($thick);
