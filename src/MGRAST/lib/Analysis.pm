@@ -87,6 +87,7 @@ sub new {
   # create object
   my $self = { dbh      => $dbh,     # job data db_handle
 	          # ach      => $ach,     # ach/babel object
+	           api      => $Conf::api_url || "http://api.metagenomics.anl.gov";
 	           jcache   => $job_dbh, # job cache db_handle
 	           agent    => $agent,   # LWP agent handle
 	           memd     => $memd,    # memcached handle
@@ -133,6 +134,10 @@ sub _dbh {
 #  my ($self) = @_;
 #  return $self->{ach};
 #}
+sub _api {
+  my ($self) = @_;
+  return $self->{api};
+}
 sub _jcache {
   my ($self) = @_;
   return $self->{jcache};
@@ -2092,4 +2097,33 @@ sub _get_md5s_for_annotation {
     $self->_dbh->commit;
     return [ keys %$md5s ];
     # [ md5 ]
+}
+
+# return fasta text
+sub get_m5nr_sequences_from_md5s {
+    my ($self, $md5s) = @_;
+    
+    unless ($md5s && (@md5s > 0)) {
+        return "";
+    }
+    
+    my $response = undef;
+    my $url   = $self->_api."/m5nr/md5";
+    my $pdata = $self->_json->encode({
+        version  => $self->_version,
+        sequence => 1,
+        format   => 'fasta',
+        data     => $md5s
+    });
+
+    eval {
+        my $post = $self->_agent->post($url, Content => $pdata);
+        $response = $post->content;
+    };
+    if ($@ || (! ref($response))) {
+        return "";
+    } elsif (exists($response->{ERROR}) && $response->{ERROR}) {
+        return "";
+    }
+    return $response;
 }

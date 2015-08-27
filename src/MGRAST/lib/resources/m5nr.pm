@@ -318,6 +318,8 @@ sub info {
                                                     'offset' => ['integer','zero based index of the first data object to be returned'],
                                                     'order'  => ['string','name of the attribute the returned data is ordered by'],
                                                     'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
+                                                    'format' => ['cv', [['fasta', 'return sequences in fasta format'],
+                                                                        ['json', 'return sequences in json struct']] ],
                                                     'version' => ['integer', 'M5NR version, default '.$self->{default}]
       					                        },
       							                'required' => {},
