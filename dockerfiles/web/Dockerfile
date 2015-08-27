@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
   libpq-dev \
   make \
   curl \
+  rsyslog \
   perl-modules \
   liburi-perl \
   libwww-perl \
