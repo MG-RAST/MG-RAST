@@ -121,7 +121,7 @@ sub new {
 sub DESTROY {
    my ($self) = @_;
    if ($self->{dbh})    { $self->{dbh}->disconnect; }
-   if ($self->{ach})    { $self->{ach}->DESTROY; }
+   #if ($self->{ach})    { $self->{ach}->DESTROY; }
    if ($self->{jcache}) { $self->{jcache}->disconnect; }
 }
 
@@ -129,10 +129,10 @@ sub _dbh {
   my ($self) = @_;
   return $self->{dbh};
 }
-sub ach {
-  my ($self) = @_;
-  return $self->{ach};
-}
+#sub ach {
+#  my ($self) = @_;
+#  return $self->{ach};
+#}
 sub _jcache {
   my ($self) = @_;
   return $self->{jcache};
@@ -1123,20 +1123,20 @@ sub get_organism_abundance_for_source {
     return $data;
 }
 
-sub get_organisms_with_contig_for_source {
-    my ($self, $src, $num, $len) = @_;
-
-    if ($self->ach) {
-        my $job_orgs = $self->get_organism_abundance_for_source($src);
-        my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[0]}] }
-                            grep { exists $job_orgs->{$_->[0]} }
-                                @{ $self->ach->get_organism_with_contig_list($num, $len) };
-        # [ org_id, org_name, abundance ]
-        return \@job_ctgs;
-    } else {
-        return [];
-    }
-}
+# sub get_organisms_with_contig_for_source {
+#     my ($self, $src, $num, $len) = @_;
+# 
+#     if ($self->ach) {
+#         my $job_orgs = $self->get_organism_abundance_for_source($src);
+#         my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[0]}] }
+#                             grep { exists $job_orgs->{$_->[0]} }
+#                                 @{ $self->ach->get_organism_with_contig_list($num, $len) };
+#         # [ org_id, org_name, abundance ]
+#         return \@job_ctgs;
+#     } else {
+#         return [];
+#     }
+# }
 
 sub get_md5_evals_for_organism_source {
     my ($self, $org, $src) = @_;
