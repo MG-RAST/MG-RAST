@@ -131,7 +131,7 @@ sub output {
   }
 
   # get font
-  my $courier = "$Conf::MGRAST/fonts/Verdana.ttf";  
+  my $courier = "$Conf::SITE/fonts/Verdana.ttf";  
 
   my $thick = $self->{thick} || 3;
   $self->image->setThickness($thick);
