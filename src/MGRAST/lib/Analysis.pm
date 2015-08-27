@@ -87,7 +87,7 @@ sub new {
   # create object
   my $self = { dbh      => $dbh,     # job data db_handle
 	          # ach      => $ach,     # ach/babel object
-	           api      => $Conf::api_url || "http://api.metagenomics.anl.gov";
+	           api      => $Conf::api_url || "http://api.metagenomics.anl.gov",
 	           jcache   => $job_dbh, # job cache db_handle
 	           agent    => $agent,   # LWP agent handle
 	           memd     => $memd,    # memcached handle
@@ -2103,7 +2103,7 @@ sub _get_md5s_for_annotation {
 sub get_m5nr_sequences_from_md5s {
     my ($self, $md5s) = @_;
     
-    unless ($md5s && (@md5s > 0)) {
+    unless ($md5s && (@$md5s > 0)) {
         return "";
     }
     
