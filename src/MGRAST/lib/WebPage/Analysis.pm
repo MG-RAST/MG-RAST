@@ -1433,7 +1433,7 @@ sub workbench_blat_output {
   close $nr_file;
   my $fgs_cmd = $Conf::fraggenescan_executable." -s $fgs_infile_name -o " . $fgs_infile_name . ".fgs -w 0 -t 454_30";
   `$fgs_cmd`;
-  my $blat_cmd = "blat -prot -out=blast ".$nr_file_name." ".$fgs_infile_name.".fgs.faa ".$fgs_infile_name.".blat.out";
+  my $blat_cmd = $Conf::blat_executable." -prot -out=blast ".$nr_file_name." ".$fgs_infile_name.".fgs.faa ".$fgs_infile_name.".blat.out";
   `$blat_cmd`;
 
   my $fgs_output = "";
