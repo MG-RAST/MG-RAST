@@ -23,12 +23,12 @@ sub new {
   my ($class, $job_dbh, $dbh, $version) = @_;
 
   # get ach object if have lib
-  my $ach = undef;
-  eval {
-      require Babel::lib::Babel;
-      Babel::lib::Babel->import();
-      $ach = new Babel::lib::Babel;
-  };
+  # my $ach = undef;
+  # eval {
+  #     require Babel::lib::Babel;
+  #     Babel::lib::Babel->import();
+  #     $ach = new Babel::lib::Babel;
+  # };
   
   # get memcache object
   my $memd = undef;
@@ -86,7 +86,7 @@ sub new {
   
   # create object
   my $self = { dbh      => $dbh,     # job data db_handle
-	           ach      => $ach,     # ach/babel object
+	          # ach      => $ach,     # ach/babel object
 	           jcache   => $job_dbh, # job cache db_handle
 	           agent    => $agent,   # LWP agent handle
 	           memd     => $memd,    # memcached handle
