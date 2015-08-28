@@ -318,6 +318,8 @@ sub info {
                                                     'offset' => ['integer','zero based index of the first data object to be returned'],
                                                     'order'  => ['string','name of the attribute the returned data is ordered by'],
                                                     'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
+                                                    'format' => ['cv', [['fasta', 'return sequences in fasta format'],
+                                                                        ['json', 'return sequences in json struct']] ],
                                                     'version' => ['integer', 'M5NR version, default '.$self->{default}]
       					                        },
       							                'required' => {},
@@ -427,6 +429,9 @@ sub static {
     # validate version
     $self->check_version($version);
     
+    # return cached if exists
+    $self->return_cached();
+    
     if ($type eq 'ontology') {
         my @ont_hier = map { $_->[0] } @{$self->hierarchy->{ontology}};
         my @src_map  = map { $_->[0] } @{$self->source->{ontology}};
@@ -509,7 +514,7 @@ sub static {
     }
     my $obj = { data => $data, version => $version, url => $url };
     
-    $self->return_data($obj);
+    $self->return_data($obj, undef, 1); # cache this!
 }
 
 # return query data: annotation object

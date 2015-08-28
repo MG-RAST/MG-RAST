@@ -1399,7 +1399,7 @@ sub workbench_blat_output {
   map { $ncbi_ids->{$_->[4]} = $_->[6] } grep { $_->[4] && $_->[6] } @$md5_ann;
   
   my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
-  my $nr_seq_data = "";#$self->{mgdb}->ach->md5s2sequences([keys %$funcs]); # fasta text
+  my $nr_seq_data = $self->{mgdb}->get_m5nr_sequences_from_md5s([keys %$funcs]); # fasta text
 
   my %fastas = ();
   foreach my $s (@$mg_seq_data) {
@@ -1433,7 +1433,7 @@ sub workbench_blat_output {
   close $nr_file;
   my $fgs_cmd = $Conf::fraggenescan_executable." -s $fgs_infile_name -o " . $fgs_infile_name . ".fgs -w 0 -t 454_30";
   `$fgs_cmd`;
-  my $blat_cmd = "blat -prot -out=blast ".$nr_file_name." ".$fgs_infile_name.".fgs.faa ".$fgs_infile_name.".blat.out";
+  my $blat_cmd = $Conf::blat_executable." -prot -out=blast ".$nr_file_name." ".$fgs_infile_name.".fgs.faa ".$fgs_infile_name.".blat.out";
   `$blat_cmd`;
 
   my $fgs_output = "";
@@ -1678,7 +1678,7 @@ sub get_read_align {
   my $md5_map  = $self->{mgdb}->decode_annotation('md5', [$md5]);
   my $md5sum   = $md5_map->{$md5};
   my $seq_data = $self->{mgdb}->md5s_to_read_sequences([$md5]); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
-  my @md5_seq  = ();#split(/\n/, $self->{mgdb}->ach->md5s2sequences([$md5sum])); # fasta text
+  my @md5_seq  = split(/\n/, $self->{mgdb}->get_m5nr_sequences_from_md5s([$md5sum])); # fasta text
 
   if ((@md5_seq == 2) && ($md5_seq[0] =~ /$md5sum/)) {
     my $md5_fasta = $Conf::temp."/".$md5."_".time.".faa";
