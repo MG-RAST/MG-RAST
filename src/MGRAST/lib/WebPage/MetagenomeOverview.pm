@@ -1336,7 +1336,7 @@ sub draw_krona {
       @$taxa_stats = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_genus")};
     }
     if (@$taxa_stats > 0) {
-      my $taxons = $mgdb->get_taxa_level("genus");
+      my $taxons = $mgdb->get_taxa_to_level("genus");
       my $names  = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus'];
       my $result = [];
       foreach my $tax (@$taxa_stats) {
