@@ -71,11 +71,10 @@ RUN cd /tools && \
   make fgs
 
 # 3rd party dependency: blat
-RUN mkdir -p /blat && \
-  cd /blat && \
+RUN cd /tools && \
   curl -s -O http://hgwdev.cse.ucsc.edu/~kent/exe/linux/blatSuite.zip && \
   unzip blatSuite.zip && \
-  mv blat /tools/blat
+  rm -f blatSuite.zip
 
 # kegg map data
 RUN mkdir -p /data && \
