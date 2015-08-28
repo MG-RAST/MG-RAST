@@ -1331,18 +1331,18 @@ sub draw_krona {
   my $type = $self->application->cgi->param('type');
 
   if ($type eq 'tax') {
-    my $taxa_stats = $mgdb->get_taxa_stats($mgid, 'species'); # species, abundance
+    my $taxa_stats = $mgdb->get_taxa_stats($mgid, 'genus'); # genus, abundance
     unless (@$taxa_stats > 0) {
-      @$taxa_stats = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_species")};
+      @$taxa_stats = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_genus")};
     }
     if (@$taxa_stats > 0) {
-      my $taxons = {};#$mgdb->ach->get_taxonomy4level_full("tax_species", 1);
-      my $names  = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species'];
+      my $taxons = $mgdb->get_taxa_to_level("genus");
+      my $names  = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus'];
       my $result = [];
       foreach my $tax (@$taxa_stats) {
-	if (exists $taxons->{$tax->[0]}) {
-	  push @$result, [ $mgid, @{$taxons->{$tax->[0]}}, $tax->[1], 1 ];
-	}
+          if (exists $taxons->{$tax->[0]}) {
+              push @$result, [ $mgid, @{$taxons->{$tax->[0]}}, $tax->[1], 1 ];
+          }
       }
       my $krona_data = array2json($result, 2);
       my $krona_name = '["' . join('","', @$names) . '"]';
