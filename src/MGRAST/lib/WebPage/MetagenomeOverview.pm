@@ -1105,8 +1105,8 @@ sub get_source_chart {
     }
     pop @divs;
     my %divs  = map {$_, 1} @divs;
-    my $pmd5s = format_number( $mgdb->ach->count4md5s('protein') );
-    my $rmd5s = format_number( $mgdb->ach->count4md5s('rna') );
+#    my $pmd5s = format_number( $mgdb->ach->count4md5s('protein') );
+#    my $rmd5s = format_number( $mgdb->ach->count4md5s('rna') );
     my $link  = $self->chart_export_link(\@chart, 'source_hits');
     my $rtext = $is_gene ? "" : "$n_rna ($p_rna) of reads had similarity to ribosomal RNA genes. ";
     my $ptext = $is_rna ? "" : "$n_prot ($p_prot) of the predicted protein features could be annotated with similarity to a protein of known function. ";
@@ -1138,9 +1138,9 @@ sub get_source_chart {
   }'>hide</a></h3>
 <div id='source_show'>
 <p>$ptext$otext$rtext</p>
-<p>The graph below displays the number of features in this dataset that were annotated by the different databases below. These include protein databases, protein databases with functional hierarchy information, and ribosomal RNA databases. The bars representing annotated reads are colored by e-value range. Different databases have different numbers of hits, but can also have different types of annotation data.</p>
-<p>There are $pmd5s sequences in the M5NR protein database and $rmd5s sequences in the M5RNA ribosomal database. The M5NR protein database contains all the unique sequences from the below protein databases and the M5RNA ribosomal database contains all the unique sequences from the below ribosomal RNA databases.</p>
-<p>$link</p>
+<p>The graph below displays the number of features in this dataset that were annotated by the different databases below. These include protein databases, protein databases with functional hierarchy information, and ribosomal RNA databases. The bars representing annotated reads are colored by e-value range. Different databases have different numbers of hits, but can also have different types of annotation data.</p>~;
+#<p>There are $pmd5s sequences in the M5NR protein database and $rmd5s sequences in the M5RNA ribosomal database. The M5NR protein database contains all the unique sequences from the below protein databases and the M5RNA ribosomal database contains all the unique sequences from the below ribosomal RNA databases.</p>
+$src_html .= qq~<p>$link</p>
 <table><tr><td>~.$src_vbar->output."</td><tr><td>".$src_vbar->legend."</td></tr></table></div><br>";
   }
   return $src_html;
@@ -1331,18 +1331,18 @@ sub draw_krona {
   my $type = $self->application->cgi->param('type');
 
   if ($type eq 'tax') {
-    my $taxa_stats = $mgdb->get_taxa_stats($mgid, 'species'); # species, abundance
+    my $taxa_stats = $mgdb->get_taxa_stats($mgid, 'genus'); # genus, abundance
     unless (@$taxa_stats > 0) {
-      @$taxa_stats = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_species")};
+      @$taxa_stats = map { [$_->[1],  $_->[2]] } @{$mgdb->get_abundance_for_tax_level("tax_genus")};
     }
     if (@$taxa_stats > 0) {
-      my $taxons = $mgdb->ach->get_taxonomy4level_full("tax_species", 1);
-      my $names  = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species'];
+      my $taxons = $mgdb->get_taxa_to_level("genus");
+      my $names  = ['Domain', 'Phylum', 'Class', 'Order', 'Family', 'Genus'];
       my $result = [];
       foreach my $tax (@$taxa_stats) {
-	if (exists $taxons->{$tax->[0]}) {
-	  push @$result, [ $mgid, @{$taxons->{$tax->[0]}}, $tax->[1], 1 ];
-	}
+          if (exists $taxons->{$tax->[0]}) {
+              push @$result, [ $mgid, @{$taxons->{$tax->[0]}}, $tax->[1], 1 ];
+          }
       }
       my $krona_data = array2json($result, 2);
       my $krona_name = '["' . join('","', @$names) . '"]';

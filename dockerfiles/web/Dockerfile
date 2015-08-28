@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
   libpq-dev \
   make \
   curl \
+  zip \
+  rsyslog \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -67,6 +69,13 @@ RUN cd /tools && \
   cd FragGeneScan && \
   make clean && \
   make fgs
+
+# 3rd party dependency: blat
+RUN mkdir -p /blat && \
+  cd /blat && \
+  curl -s -O http://hgwdev.cse.ucsc.edu/~kent/exe/linux/blatSuite.zip && \
+  unzip blatSuite.zip && \
+  mv blat /tools/blat
 
 # kegg map data
 RUN mkdir -p /data && \

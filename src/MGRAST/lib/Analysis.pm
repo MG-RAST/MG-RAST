@@ -23,12 +23,12 @@ sub new {
   my ($class, $job_dbh, $dbh, $version) = @_;
 
   # get ach object if have lib
-  my $ach = undef;
-  eval {
-      require Babel::lib::Babel;
-      Babel::lib::Babel->import();
-      $ach = new Babel::lib::Babel;
-  };
+  # my $ach = undef;
+  # eval {
+  #     require Babel::lib::Babel;
+  #     Babel::lib::Babel->import();
+  #     $ach = new Babel::lib::Babel;
+  # };
   
   # get memcache object
   my $memd = undef;
@@ -86,7 +86,8 @@ sub new {
   
   # create object
   my $self = { dbh      => $dbh,     # job data db_handle
-	           ach      => $ach,     # ach/babel object
+	          # ach      => $ach,     # ach/babel object
+	           api      => $Conf::api_url || "http://api.metagenomics.anl.gov",
 	           jcache   => $job_dbh, # job cache db_handle
 	           agent    => $agent,   # LWP agent handle
 	           memd     => $memd,    # memcached handle
@@ -121,7 +122,7 @@ sub new {
 sub DESTROY {
    my ($self) = @_;
    if ($self->{dbh})    { $self->{dbh}->disconnect; }
-   if ($self->{ach})    { $self->{ach}->DESTROY; }
+   #if ($self->{ach})    { $self->{ach}->DESTROY; }
    if ($self->{jcache}) { $self->{jcache}->disconnect; }
 }
 
@@ -129,9 +130,13 @@ sub _dbh {
   my ($self) = @_;
   return $self->{dbh};
 }
-sub ach {
+#sub ach {
+#  my ($self) = @_;
+#  return $self->{ach};
+#}
+sub _api {
   my ($self) = @_;
-  return $self->{ach};
+  return $self->{api};
 }
 sub _jcache {
   my ($self) = @_;
@@ -1123,20 +1128,20 @@ sub get_organism_abundance_for_source {
     return $data;
 }
 
-sub get_organisms_with_contig_for_source {
-    my ($self, $src, $num, $len) = @_;
-
-    if ($self->ach) {
-        my $job_orgs = $self->get_organism_abundance_for_source($src);
-        my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[0]}] }
-                            grep { exists $job_orgs->{$_->[0]} }
-                                @{ $self->ach->get_organism_with_contig_list($num, $len) };
-        # [ org_id, org_name, abundance ]
-        return \@job_ctgs;
-    } else {
-        return [];
-    }
-}
+# sub get_organisms_with_contig_for_source {
+#     my ($self, $src, $num, $len) = @_;
+# 
+#     if ($self->ach) {
+#         my $job_orgs = $self->get_organism_abundance_for_source($src);
+#         my @job_ctgs = map { [$_->[0], $_->[1], $job_orgs->{$_->[0]}] }
+#                             grep { exists $job_orgs->{$_->[0]} }
+#                                 @{ $self->ach->get_organism_with_contig_list($num, $len) };
+#         # [ org_id, org_name, abundance ]
+#         return \@job_ctgs;
+#     } else {
+#         return [];
+#     }
+# }
 
 sub get_md5_evals_for_organism_source {
     my ($self, $org, $src) = @_;
@@ -2093,3 +2098,66 @@ sub _get_md5s_for_annotation {
     return [ keys %$md5s ];
     # [ md5 ]
 }
+
+# return fasta text
+sub get_m5nr_sequences_from_md5s {
+    my ($self, $md5s) = @_;
+    
+    unless ($md5s && (@$md5s > 0)) {
+        return "";
+    }
+    
+    my $response = "";
+    my $url   = $self->_api."/m5nr/md5";
+    my $pdata = $self->_json->encode({
+        version  => $self->_version,
+        sequence => 1,
+        format   => 'fasta',
+        data     => $md5s
+    });
+
+    eval {
+        my $post = $self->_agent->post($url, Content => $pdata);
+        $response = $post->content;
+    };
+    if ($@ || (! $response)) {
+        return "";
+    } elsif (exists($response->{ERROR}) && $response->{ERROR}) {
+        return "";
+    }
+    return $response;
+}
+
+sub get_taxa_to_level {
+    my ($self, $taxa) = @_;
+    
+    my $data = {};
+    my $response = undef;
+    my $url = $self->_api."/m5nr/taxonomy?version=".$self->_version."&min_level=".$taxa;
+    
+    eval {
+        my $get = $self->_agent->get($url);
+        $response = $self->_json->decode($get->content);
+    };
+    if ($response && $response->{data} && @{$response->{data}}) {
+        foreach my $set ( @{$response->{data}} ) {
+            unless (exists $set->{$taxa}) {
+                next;
+            }
+            $data->{$set->{$taxa}} = [];
+            foreach my $name (('domain', 'phylum', 'class', 'order', 'family', 'genus', 'species')) {
+                if ($name eq $taxa) {
+                    last;
+                }
+                if (exists $set->{$name}) {
+                    push @{ $data->{$set->{$taxa}} }, $set->{$name};
+                } else {
+                    push @{ $data->{$set->{$taxa}} }, "";
+                }
+            }
+        }
+    }
+    # taxa => [ hierarchy from domain to one higher than taxa ]
+    return $data;
+}
+

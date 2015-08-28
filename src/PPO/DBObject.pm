@@ -6,6 +6,7 @@ package DBObject;
 
 use strict;
 use warnings;
+no warnings 'redefine';
 
 use Carp;
 use Class::ISA;
