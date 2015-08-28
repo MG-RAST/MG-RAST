@@ -2141,6 +2141,9 @@ sub get_taxa_to_level {
     };
     if ($response && $response->{data} && @{$response->{data}}) {
         foreach my $set ( @{$response->{data}} ) {
+            unless (exists $set->{$taxa}) {
+                next;
+            }
             $data->{$set->{$taxa}} = [];
             foreach my $name (('domain', 'phylum', 'class', 'order', 'family', 'genus', 'species')) {
                 if ($name eq $taxa) {
