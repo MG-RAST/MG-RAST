@@ -193,23 +193,28 @@ sub list {
     my ($self) = @_;
     
     # get all submission jobs
+    my $is_admin = $self->user->is_admin('MGRAST') ? 0 : 1;
     my $user_id = 'mgu'.$self->user->_id;
     my $submit_data = [];
-    my $submit_query = {
-        "info.pipeline" => 'submission',
-        "info.user" => $user_id
-    };
+    my $submit_query = { "info.pipeline" => 'submission'};
+    if (! $is_admin) {
+        $submit_query->{"info.user"} = $user_id;
+    }
     my $submit_jobs = $self->get_awe_query($submit_query, $self->token, $self->user_auth);
     
     # get / return summary
     foreach my $job (@{$submit_jobs->{data}}) {
         if ($job->{info}{userattr}{submission}) {
-            push @$submit_data, {
+            my $sdata = {
                 id => $job->{info}{userattr}{submission},
                 type => $job->{info}{description},
                 status => $job->{state},
                 timestamp => $job->{info}{submittime}
             };
+            if ($is_admin) {
+                $sdata->{user} = $job->{info}{user};
+            }
+            push @$submit_data, $sdata;
         }
     }
     $self->return_data({
@@ -228,10 +233,11 @@ sub status {
         user       => 'mgu'.$self->user->_id,
         timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     };
+    my $is_admin = $self->user->is_admin('MGRAST') ? 0 : 1;
     
     # get data
-    my $nodes  = $self->submission_nodes($uuid, 1);
-    my $jobs   = $self->submission_jobs($uuid, 1);
+    my $nodes  = $self->submission_nodes($uuid, 1, $is_admin);
+    my $jobs   = $self->submission_jobs($uuid, 1, $is_admin);
     my $submit = $jobs->{submit};
     my $pnode  = $self->get_param_node($submit);
 
@@ -708,24 +714,26 @@ sub submit {
 }
 
 sub submission_nodes {
-    my ($self, $uuid, $full) = @_;
+    my ($self, $uuid, $full, $is_admin) = @_;
     
     my $user_id = 'mgu'.$self->user->_id;
     my $inbox_query = {
         submission => $uuid,
-        type => 'inbox',
-        id => $user_id
+        type => 'inbox'
     };
     my $inbox_query2 = {
         submission => $uuid,
-        type => 'inbox',
-        id => $self->user->{login}
+        type => 'inbox'
     };
     my $mgrast_query = {
         submission => $uuid,
-        type => 'metagenome',
-        owner => $user_id
+        type => 'metagenome'
     };
+    if (! $is_admin) {
+        $inbox_query->{id} = $user_id;
+        $inbox_query2->{id} = $self->user->{login};
+        $mgrast_query->{owner} = $user_id;
+    }
     my $inbox_nodes = $self->get_shock_query($inbox_query, $self->token, $self->user_auth);
     push(@$inbox_nodes, @{$self->get_shock_query($inbox_query2, $self->token, $self->user_auth)});
     my $data = { inbox => $inbox_nodes || [] };
@@ -737,19 +745,21 @@ sub submission_nodes {
 }
 
 sub submission_jobs {
-    my ($self, $uuid, $full) = @_;
+    my ($self, $uuid, $full, $is_admin) = @_;
     
     my $user_id = 'mgu'.$self->user->_id;
     my $inbox_query = {
         "info.pipeline" => 'submission',
-        "info.user" => $user_id,
         "info.userattr.submission" => $uuid
     };
     my $mgrast_query = {
         "info.pipeline" => 'mgrast-prod',
-        "info.user" => $user_id,
         "info.userattr.submission" => $uuid
     };
+    if (! $is_admin) {
+        $inbox_query->{"info.user"} = $user_id;
+        $mgrast_query->{"info.user"} = $user_id;
+    }
     my $inbox_jobs = $self->get_awe_query($inbox_query, $self->token, $self->user_auth);
     my $submit = (scalar(@{$inbox_jobs->{data}}) > 0) ? $inbox_jobs->{data}[0] : {};
     my $data = { submit => $submit };
