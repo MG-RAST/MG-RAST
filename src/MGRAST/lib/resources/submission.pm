@@ -193,7 +193,7 @@ sub list {
     my ($self) = @_;
     
     # get all submission jobs
-    my $is_admin = $self->user->is_admin('MGRAST') ? 0 : 1;
+    my $is_admin = $self->user->is_admin('MGRAST') ? 1 : 0;
     my $user_id = 'mgu'.$self->user->_id;
     my $submit_data = [];
     my $submit_query = { "info.pipeline" => 'submission'};
@@ -233,7 +233,7 @@ sub status {
         user       => 'mgu'.$self->user->_id,
         timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     };
-    my $is_admin = $self->user->is_admin('MGRAST') ? 0 : 1;
+    my $is_admin = $self->user->is_admin('MGRAST') ? 1 : 0;
     
     # get data
     my $nodes  = $self->submission_nodes($uuid, 1, $is_admin);
