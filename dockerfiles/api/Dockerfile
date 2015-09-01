@@ -61,7 +61,8 @@ RUN cpan Inline::Python
 # setup sendmail
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
   cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
-  postconf -e relayhost=[smtp.mcs.anl.gov]
+  postconf -e relayhost=[smtp.mcs.anl.gov] && \
+  postconf -e myorigin=mcs.anl.gov
 
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
