@@ -9,7 +9,7 @@ MGRAST_do_stats <<- function (data_file,
                                 "t-test-un-paired", "Mann-Whitney_un-paired-Wilcoxon",
                                 "ANOVA-one-way", "Kruskal-Wallis"
                                 ),
-                              file_out)
+                              file_out)as.double
   
 {
 
@@ -110,14 +110,14 @@ MGRAST_do_stats <<- function (data_file,
           }
         }
       }
-      output_table[my_row, group] <<- as.real(sd(group_sample_counts))
+      output_table[my_row, group] <<- as.double(sd(group_sample_counts))
     }
 
     if(identical(sig_test, "t-test-un-paired")){   # <-- new
       prep_two_groups(row_data)
       ttest_unpaired_output = t.test(group_1_data, group_2_data)
-      t_unpaired_stat_value = as.real(ttest_unpaired_output["statistic"])
-      t_unpaired_p_value = as.real(ttest_unpaired_output["p.value"])
+      t_unpaired_stat_value = as.double(ttest_unpaired_output["statistic"])
+      t_unpaired_p_value = as.double(ttest_unpaired_output["p.value"])
       output_table[my_row, num_groups+1] <<- t_unpaired_stat_value
       output_table[my_row, num_groups+2] <<- t_unpaired_p_value 
     }
@@ -125,8 +125,8 @@ MGRAST_do_stats <<- function (data_file,
     else if(identical(sig_test, "t-test-paired")){   # <-- new
       prep_two_groups(row_data)
       ttest_paired_output = t.test(group_1_data, group_2_data, paired = TRUE)
-      t_paired_stat_value = as.real(ttest_paired_output["statistic"])
-      t_paired_p_value = as.real(ttest_paired_output["p.value"])
+      t_paired_stat_value = as.double(ttest_paired_output["statistic"])
+      t_paired_p_value = as.double(ttest_paired_output["p.value"])
       
       output_table[my_row, num_groups+1] <<- t_paired_stat_value
       output_table[my_row, num_groups+2] <<- t_paired_p_value
@@ -135,9 +135,9 @@ MGRAST_do_stats <<- function (data_file,
     else if (identical(sig_test, "ANOVA-one-way")){
       anova_output = anova(aov(values~ind, data=row_data)) 
       anova_F = anova_output["F value"]
-      F_value = as.real(anova_F[1,1]) 
+      F_value = as.double(anova_F[1,1]) 
       anova_p = anova_output["Pr(>F)"]
-      anova_p_value = as.real(anova_p[1,1])
+      anova_p_value = as.double(anova_p[1,1])
       output_table[my_row, num_groups+1] <<- F_value 
       output_table[my_row, num_groups+2] <<- anova_p_value
     }
@@ -145,8 +145,8 @@ MGRAST_do_stats <<- function (data_file,
     else if (identical(sig_test, "Mann-Whitney_un-paired-Wilcoxon")){
       prep_two_groups(row_data)
       MWhitney_output = wilcox.test(group_1_data, group_2_data, exact=TRUE) # x -> s in text
-      MWhitney_stat_value = as.real(MWhitney_output["statistic"])
-      MWhitney_p_value = as.real(MWhitney_output["p.value"])
+      MWhitney_stat_value = as.double(MWhitney_output["statistic"])
+      MWhitney_p_value = as.double(MWhitney_output["p.value"])
       output_table[my_row, num_groups+1] <<- MWhitney_stat_value
       output_table[my_row, num_groups+2] <<- MWhitney_p_value
     }
@@ -154,16 +154,16 @@ MGRAST_do_stats <<- function (data_file,
     else if (identical(sig_test, "Wilcoxon-paired")){   # <-- new
       prep_two_groups(row_data)
       wilcox_output = wilcox.test(group_1_data, group_2_data, exact=TRUE, paired=TRUE) # x -> s in text
-      wilcox_stat_value = as.real(wilcox_output["statistic"])
-      wilcox_p_value = as.real(wilcox_output["p.value"])
+      wilcox_stat_value = as.double(wilcox_output["statistic"])
+      wilcox_p_value = as.double(wilcox_output["p.value"])
       output_table[my_row, num_groups+1] <<- wilcox_stat_value
       output_table[my_row, num_groups+2] <<- wilcox_p_value
     }
     
     else if (identical(sig_test, "Kruskal-Wallis")){
       kruskal_output = kruskal.test(row_data[,1], row_data[,2])
-      kruskal_K_value = as.real(kruskal_output["statistic"])
-      kruskal_p_value = as.real(kruskal_output["p.value"])
+      kruskal_K_value = as.double(kruskal_output["statistic"])
+      kruskal_p_value = as.double(kruskal_output["p.value"])
       output_table[my_row, num_groups+1] <<- kruskal_K_value
       output_table[my_row, num_groups+2] <<- kruskal_p_value
     }
