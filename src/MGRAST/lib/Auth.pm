@@ -106,10 +106,6 @@ sub authenticate {
   # this is KBase
   if ($key =~ /globusonline/ || $key =~ /^kbgo4711/) {
 
-    unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
-        return (undef, "insecure protocol");
-    }
-
     my $json = new JSON;
     my $cgi = new CGI;
 
@@ -118,6 +114,11 @@ sub authenticate {
     
     # this is a key, not a token, obtain a token
     if ($key =~ /^kbgo4711/) {
+
+      unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
+        return (undef, "insecure protocol");
+      }
+
       $key =~ s/^kbgo4711//;
       $ustruct = globus_token($key);
       if ($ustruct) {
