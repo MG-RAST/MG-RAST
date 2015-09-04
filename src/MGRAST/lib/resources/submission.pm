@@ -49,19 +49,19 @@ sub new {
         "max_lqb"   => [ "int", "maximum number of low-quality bases per read, default is 5" ],
         "min_qual"  => [ "int", "quality threshold for low-quality bases, default is 15" ],
         "filter_ln_mult" => [ "float", "sequence length filtering multiplier, default is 2.0" ],
-        "screen_indexes" => [ "cv", ["h_sapiens", "Homo sapiens (default)"],
-                                    ["a_thaliana", "Arabidopsis thaliana"],
-                                    ["b_taurus", "Bos taurus"],
-                                    ["d_melanogaster", "Drosophila melanogaster"],
-                                    ["e_coli", "Escherichia coli"],
-                                    ["m_musculus", "Mus musculus"],
-                                    ["r_norvegicus", "Rattus norvegicus"],
-                                    ["s_scrofa", "Sus scrofa"] ],
-        "priority" => [ "cv", ["never", "Data will stay private (default)"],
-                              ["immediately", "Data will be publicly accessible immediately after processing completion"],
-                              ["3months", "Data will be publicly accessible after 3 months"],
-                              ["6months", "Data will be publicly accessible after 6 months"],
-                              ["date", "Data will be publicly accessible eventually"] ]
+        "screen_indexes" => [ "cv", [["h_sapiens", "Homo sapiens (default)"],
+                                     ["a_thaliana", "Arabidopsis thaliana"],
+                                     ["b_taurus", "Bos taurus"],
+                                     ["d_melanogaster", "Drosophila melanogaster"],
+                                     ["e_coli", "Escherichia coli"],
+                                     ["m_musculus", "Mus musculus"],
+                                     ["r_norvegicus", "Rattus norvegicus"],
+                                     ["s_scrofa", "Sus scrofa"]] ],
+        "priority" => [ "cv", [["never", "Data will stay private (default)"],
+                               ["immediately", "Data will be publicly accessible immediately after processing completion"],
+                               ["3months", "Data will be publicly accessible after 3 months"],
+                               ["6months", "Data will be publicly accessible after 6 months"],
+                               ["date", "Data will be publicly accessible eventually"]] ]
     };
     return $self;
 }
