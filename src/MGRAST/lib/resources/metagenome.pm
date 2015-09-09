@@ -90,7 +90,7 @@ sub new {
             'function'    => ["string", "search parameter: query string for function"],
             'organism'    => ["string", "search parameter: query string for organism"]
         )
-    }
+    };
     
     return $self;
 }
