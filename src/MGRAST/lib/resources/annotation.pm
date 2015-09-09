@@ -283,6 +283,7 @@ sub prepare_data {
     # get cassandra handle / prepare statement
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
     # get filter list
+    # filter_list is all taxa names that match filter for given filter_level (organism, ontology only)
     my %filter_list = ();
     if ($filter && $flevel) {
         if ($type eq "organism") {
@@ -308,13 +309,13 @@ sub prepare_data {
         $md5_set->{$md5} = [$seek, $len];
         $batch_count++;
         if ($batch_count == 500) {
-            $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list);
+            $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list, $filter);
             $md5_set = {};
             $batch_count = 0;
         }
     }
     if ($batch_count > 0) {
-        $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list);
+        $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list, $filter);
     }
 
     # cleanup
@@ -326,7 +327,7 @@ sub prepare_data {
 }
 
 sub print_batch {
-    my ($self, $chdl, $node_id, $format, $mgid, $source, $md5s, $filter_list) = @_;
+    my ($self, $chdl, $node_id, $format, $mgid, $source, $md5s, $filter_list, $filter) = @_;
     
     my $type = $self->cgi->param('type') || 'organism';
     my $count = 0;
@@ -339,16 +340,28 @@ sub print_batch {
         if ($type eq 'organism') {
             if (%$filter_list) {
                 @$ann = grep { $filter_list->{$_} } @{$set->{organism}};
+            } elsif ($filter) {
+                @$ann = grep { /$filter/i } @{$set->{organism}};
             } else {
                 $ann = $set->{organism};
             }
         } elsif ($type eq 'function') {
-            $ann = $set->{function};
+            if ($filter) {
+                @$ann = grep { /$filter/i } @{$set->{function}};
+            } else {
+                $ann = $set->{function};
+            }
         } elsif ($type eq 'feature') {
-            $ann = $set->{accession};
+            if ($filter) {
+                @$ann = grep { /$filter/i } @{$set->{accession}};
+            } else {
+                $ann = $set->{accession};
+            }
         } elsif ($type eq 'ontology') {
             if (%$filter_list) {
                 @$ann = grep { $filter_list->{$_} } @{$set->{accession}};
+            } elsif ($filter) {
+                @$ann = grep { /$filter/i } @{$set->{accession}};
             } else {
                 $ann = $set->{accession};
             }

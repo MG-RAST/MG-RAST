@@ -436,7 +436,10 @@ sub connect_to_datasource {
     if ($@ || $error || (! $master)) {
         $self->return_data({ "ERROR" => "resource database offline" }, 503);
     } else {
-        return $master;
+      if (ref $self->user) {
+	$master->{_user} = $self->user;
+      }
+      return $master;
     }
 }
 
@@ -1347,20 +1350,29 @@ class CassHandle(object):
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
         return found
-    def get_organism_by_taxa(self, taxa, name):
-        found = []
-        prep = self.session.prepare("SELECT * FROM tax_%s WHERE tax_%s = ?"%(taxa, taxa))
-        rows = self.session.execute(prep, [name])
+    def get_organism_by_taxa(self, taxa, match=None):
+        # if match is given, return subset that contains match, else all
+        found = set()
+        tname = "tax_"+taxa
+        query = "SELECT %s FROM %s"%(tname, tname)
+        rows = self.session.execute(query)
         for r in rows:
-            found.append(r['name'])
-        return found
-    def get_ontology_by_level(self, source, level, name):
-        found = []
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ? AND %s = ?"%(level, level))
-        rows = self.session.execute(prep, [source, name])
+            if match and (match.lower() in r[tname].lower()):
+                found.add(r[tname])
+            elif match is None:
+                found.add(r[tname])
+        return list(found)
+    def get_ontology_by_level(self, source, level, match=None):
+        # if match is given, return subset that contains match, else all
+        found = set()
+        prep = self.session.prepare("SELECT %s FROM ont_%s WHERE source = ?"%(level, level))
+        rows = self.session.execute(prep, [source])
         for r in rows:
-            found.append(r['name'])
-        return found
+            if match and (match.lower() in r[level].lower()):
+                found.add(r[level])
+            elif match is None:
+                found.add(r[level])
+        return list(found)
     def close(self):
         self.handle.shutdown()
 );
