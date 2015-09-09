@@ -25,49 +25,73 @@ sub new {
     $self->{name} = "metagenome";
     $self->{mgdb} = undef;
     $self->{rights} = \%rights;
-    $self->{cv} = { verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
-                    direction => {'asc' => 1, 'desc' => 1},
-                    status => {'both' => 1, 'public' => 1, 'private' => 1},
-                    match => {'any' => 1, 'all' => 1}
+    $self->{cv} = {
+        verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
+        direction => {'asc' => 1, 'desc' => 1},
+        status    => {'both' => 1, 'public' => 1, 'private' => 1},
+        match     => {'any' => 1, 'all' => 1}
     };
-    $self->{instance} = { "id"       => [ 'string', 'unique metagenome identifier' ],
-                          "url"      => [ 'uri', 'resource location of this object instance' ],
-                          "name"     => [ 'string', 'name of metagenome' ],
-                          "library"  => [ 'reference library', 'reference to the related library object' ],
-                          "sample"   => [ 'reference sample', 'reference to the related sample object' ],
-                          "project"  => [ 'reference project', 'reference to the project object' ],
-                          "metadata" => [ 'hash', 'key value pairs describing all metadata' ],
-                          "mixs"     => [ 'hash', 'key value pairs describing MIxS metadata' ],
-                          "created"  => [ 'date', 'time the metagenome was first created' ],
-                          "version"  => [ 'integer', 'version of the metagenome' ],
-                          "status"   => [ 'cv', [['public', 'metagenome is public'],
-						                         ['private', 'metagenome is private'] ] ],
-						  "statistics" => [ 'hash', 'key value pairs describing statistics' ],
-                          "sequence_type" => [ 'string', 'sequencing type' ],
-                          "pipeline_parameters" => [ 'hash', 'key value pairs describing pipeline parameters' ]
+    # return object for instance
+    $self->{instance} = {
+        "id"       => [ 'string', 'unique metagenome identifier' ],
+        "url"      => [ 'uri', 'resource location of this object instance' ],
+        "name"     => [ 'string', 'name of metagenome' ],
+        "library"  => [ 'reference library', 'reference to the related library object' ],
+        "sample"   => [ 'reference sample', 'reference to the related sample object' ],
+        "project"  => [ 'reference project', 'reference to the project object' ],
+        "metadata" => [ 'hash', 'key value pairs describing all metadata' ],
+        "mixs"     => [ 'hash', 'key value pairs describing MIxS metadata' ],
+        "created"  => [ 'date', 'time the metagenome was first created' ],
+        "version"  => [ 'integer', 'version of the metagenome' ],
+        "status"   => [ 'cv', [['public', 'metagenome is public'], ['private', 'metagenome is private']] ],
+        "statistics" => [ 'hash', 'key value pairs describing statistics' ],
+        "sequence_type" => [ 'string', 'sequencing type' ],
+        "pipeline_parameters" => [ 'hash', 'key value pairs describing pipeline parameters' ]
     };
-    $self->{query} = { "id"        => [ 'string', 'unique metagenome identifier' ],
-                       "url"       => [ 'uri', 'resource location of this object instance' ],
-                       "name"      => [ 'string', 'name of metagenome' ],
-                       "biome"     => [ 'string', 'environmental biome, EnvO term' ],
-                       "feature"   => [ 'string', 'environmental feature, EnvO term' ],
-                       "material"  => [ 'string', 'environmental material, EnvO term' ],
-                       "country"   => [ 'string', 'country where sample taken' ],
-                       "location"  => [ 'string', 'location where sample taken' ],
-                       "longitude" => [ 'string', 'longitude where sample taken' ],
-                       "latitude"  => [ 'string', 'latitude where sample taken' ],
-                       "created"   => [ 'date', 'time the metagenome was first created' ],
-                       "status"    => [ 'cv', [['public', 'metagenome is public'],
-						                       ['private', 'metagenome is private']] ],
-					   "env_package_type" => [ 'string', 'environmental package of sample, GSC term' ],
-					   "project_id"       => [ 'string', 'id of project containing metagenome' ],
-                       "project_name"     => [ 'string', 'name of project containing metagenome' ],
-                       "PI_firstname"     => [ 'string', 'principal investigator\'s first name' ],
-                       "PI_lastname"      => [ 'string', 'principal investigator\'s last name' ],
-                       "sequence_type"    => [ 'string', 'sequencing type' ],
-                       "seq_method"       => [ 'string', 'sequencing method' ],
-                       "collection_date"  => [ 'string', 'date sample collected' ]
+    # returnable search terms
+    $self->{terms} = {
+        "id"        => ['string', 'unique metagenome identifier'],
+        "name"      => [ 'string', 'name of metagenome' ],
+        "biome"     => [ 'string', 'environmental biome, EnvO term' ],
+        "feature"   => [ 'string', 'environmental feature, EnvO term' ],
+        "material"  => [ 'string', 'environmental material, EnvO term' ],
+        "country"   => [ 'string', 'country where sample taken' ],
+        "location"  => [ 'string', 'location where sample taken' ],
+        "longitude" => [ 'string', 'longitude where sample taken' ],
+        "latitude"  => [ 'string', 'latitude where sample taken' ],
+        "created"   => [ 'date', 'time the metagenome was first created' ],
+        "env_package_type" => [ 'string', 'environmental package of sample, GSC term' ],
+        "project_id"       => [ 'string', 'id of project containing metagenome' ],
+        "project_name"     => [ 'string', 'name of project containing metagenome' ],
+        "PI_firstname"     => [ 'string', 'principal investigator\'s first name' ],
+        "PI_lastname"      => [ 'string', 'principal investigator\'s last name' ],
+        "sequence_type"    => [ 'string', 'sequencing type' ],
+        "seq_method"       => [ 'string', 'sequencing method' ],
+        "collection_date"  => [ 'string', 'date sample collected' ]
     };
+    # return object for query
+    $self->{query}  = {
+        %{$self->{terms}},
+        (
+            "url"     => ['uri', 'resource location of this object instance'],
+            "status"  => ['cv', [['public', 'metagenome is public'], ['private', 'metagenome is private']]]
+        )
+    };
+    # all search terms
+    $self->{search} = {
+        %{$self->{terms}},
+        (
+            'metadata'    => ["string", "search parameter: query string for any metadata field"],
+            'project'     => ["string", "search parameter: query string for a project metadata field"],
+            'sample'      => ["string", "search parameter: query string for a sample metadata field"],
+            'library'     => ["string", "search parameter: query string for a library metadata field"],
+            'env_package' => ["string", "search parameter: query string for an env_package metadata field"],
+            'md5'         => ["string", "search parameter: md5 checksum of feature sequence"],
+            'function'    => ["string", "search parameter: query string for function"],
+            'organism'    => ["string", "search parameter: query string for organism"]
+        )
+    }
+    
     return $self;
 }
 
@@ -107,25 +131,25 @@ sub info {
                                                              "url"     => ['uri', 'resource location of this object instance'],
                                                              "total_count" => ["integer","total number of available data items"] },
                                           'parameters' => { 'options' => {
-                                                                'metadata'  => ["string", "search parameter: query string for any metadata field"],
-                                                                'md5'       => ["string", "search parameter: md5 checksum of feature sequence"],
-                                                                'function'  => ["string", "search parameter: query string for function"],
-                                                                'organism'  => ["string", "search parameter: query string for organism"],
-                                                                'limit'     => ["integer", "maximum number of items requested"],
-                                                                'offset'    => ["integer", "zero based index of the first data object to be returned"],
-                                                                'order'     => ["string", "metagenome object field to sort by (default is id)"],
-                                                                'direction' => ['cv', [['asc','sort by ascending order'],
-                                                                                       ['desc','sort by descending order']]],
-                                                                'match' => ['cv', [['all','return metagenomes that match all search parameters'],
-                                                                                   ['any','return metagenomes that match any search parameters']]],
-                                                                'status' => ['cv', [['both','returns all data (public and private) user has access to view'],
-                                                                                    ['public','returns all public data'],
-                                                                                    ['private','returns private data user has access to view']]],
-                                                                'verbosity' => ['cv', [['minimal','returns only minimal information'],
-                                                                                       ['mixs','returns all GSC MIxS metadata'],
-                                                                                       ['metadata','returns minimal with metadata'],
-                                                                                       ['stats','returns minimal with statistics'],
-                                                                                       ['full','returns all metadata and statistics']] ] },
+                                                                %{$self->{search}},
+                                                                (
+                                                                    'limit'       => ["integer", "maximum number of items requested"],
+                                                                    'offset'      => ["integer", "zero based index of the first data object to be returned"],
+                                                                    'order'       => ["string", "metagenome object field to sort by (default is id)"],
+                                                                    'direction'   => ['cv', [['asc','sort by ascending order'],
+                                                                                             ['desc','sort by descending order']]],
+                                                                    'match'  => ['cv', [['all','return metagenomes that match all search parameters'],
+                                                                                        ['any','return metagenomes that match any search parameters']]],
+                                                                    'status' => ['cv', [['both','returns all data (public and private) user has access to view'],
+                                                                                        ['public','returns all public data'],
+                                                                                        ['private','returns private data user has access to view']]],
+                                                                    'verbosity' => ['cv', [['minimal','returns only minimal information'],
+                                                                                           ['mixs','returns all GSC MIxS metadata'],
+                                                                                           ['metadata','returns minimal with metadata'],
+                                                                                           ['stats','returns minimal with statistics'],
+                                                                                           ['full','returns all metadata and statistics']] ]
+                                                                )
+                                                            },
                                                             'required' => {},
                                                             'body'     => {} }
                                         },
@@ -248,17 +272,20 @@ sub query {
     my $master = $self->connect_to_datasource();
     
     # get paramaters
-    my $verb   = $self->cgi->param('verbosity') || 'minimal';
     my $limit  = $self->cgi->param('limit') || 10;
     my $offset = $self->cgi->param('offset') || 0;
     my $order  = $self->cgi->param('order') || "id";
     my $dir    = $self->cgi->param('direction') || 'asc';
     my $match  = $self->cgi->param('match') || 'all';
     my $status = $self->cgi->param('status') || 'both';
+    my $verb   = $self->cgi->param('verbosity') || 'minimal';
     
     # check CV
-    unless (exists $self->{cv}{verbosity}{$verb}) {
-        $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
+    if (($limit > 1000) || ($limit < 1)) {
+        $self->return_data({"ERROR" => "Limit must be less than 1,000 and greater than 0 ($limit) for query."}, 404);
+    }
+    unless (exists $self->{terms}{$order}) {
+        $self->return_data({"ERROR" => "Invalid order entered ($order) for query."}, 404);
     }
     unless (exists $self->{cv}{direction}{$dir}) {
         $self->return_data({"ERROR" => "Invalid direction entered ($dir) for query."}, 404);
@@ -269,42 +296,34 @@ sub query {
     unless (exists $self->{cv}{status}{$status}) {
         $self->return_data({"ERROR" => "Invalid status entered ($status) for query."}, 404);
     }
-    unless (exists $self->{query}{$order}) {
-        $self->return_data({"ERROR" => "Invalid order entered ($order) for query."}, 404);
-    }
-    if (($limit > 10000) || ($limit < 1)) {
-        $self->return_data({"ERROR" => "Limit must be less than 10,000 and greater than 0 ($limit) for query."}, 404);
+    unless (exists $self->{cv}{verbosity}{$verb}) {
+        $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
     }
 
     # explicitly setting the default CGI parameters for returned url strings
-    $self->cgi->param('verbosity', $verb);
     $self->cgi->param('limit', $limit);
     $self->cgi->param('offset', $offset);
     $self->cgi->param('order', $order);
     $self->cgi->param('direction', $dir);
     $self->cgi->param('match', $match);
     $self->cgi->param('status', $status);
+    $self->cgi->param('verbosity', $verb);
     
     # get query fields
     my @url_params = ();
     my @solr_fields = ();
-    # non-returnable query fields
-    foreach my $field ('metadata', 'md5', 'function', 'organism') {
+    
+    # all query fields
+    foreach my $field (keys %{$self->{search}}) {
         if ($self->cgi->param($field)) {
-	  my @param = $self->cgi->param($field);
-	  foreach my $p (@param) {
-            push @url_params, $field."=".$p;
-            push @solr_fields, $field.':'.$p;
-	  }
+            my @param = $self->cgi->param($field);
+            foreach my $p (@param) {
+                push @url_params, $field."=".$p;
+                push @solr_fields, $field.':'.$p;
+            }
         }
     }
-    # returnable query fields
-    foreach my $field (grep {($_ ne 'status') && ($_ ne 'url')} keys %{$self->{query}}) {
-        if ($self->cgi->param($field)) {
-            push @url_params, $field."=".$self->cgi->param($field);
-            push @solr_fields, $field.':'.$self->cgi->param($field);
-        }
-    }
+    
     # sequence stat fields
     foreach my $field (@{$self->seq_stats}) {
         if ($self->cgi->param($field)) {
