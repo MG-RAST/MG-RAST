@@ -217,23 +217,34 @@ function export_table (id, unfiltered, strip_html, hide_invisible_columns) {
     var noapo = new RegExp("'","g");
     data_string = data_string.replace(noapo, "&#39;");
   }
-  var dform = document.createElement("form");
-  dform.setAttribute("method", "post");
-  dform.setAttribute("action", dcgiPath());
-  var fn_hidden = document.createElement("input");
-  fn_hidden.setAttribute("type", "hidden");
-  fn_hidden.setAttribute("name", "filename");
-  fn_hidden.setAttribute("value", "table.tsv");
-  var content_hidden = document.createElement("input");
-  content_hidden.setAttribute("type", "hidden");
-  content_hidden.setAttribute("name", "content");
-  content_hidden.setAttribute("value", data_string);
-  dform.appendChild(fn_hidden);
-  dform.appendChild(content_hidden);
-  var p = document.getElementById('table_'+id).parentNode;
-  p.appendChild(dform);
-  dform.submit();
-  p.removeChild(dform);
+  
+    try {
+	data_string = window.btoa(data);
+    } catch (err) {
+	var utftext = "";
+	for(var n=0; n<data_string.length; n++) {
+	    var c=data_string.charCodeAt(n);
+	    if (c<128)
+		utftext += String.fromCharCode(c);
+            else if((c>127) && (c<2048)) {
+		utftext += String.fromCharCode((c>>6)|192);
+		utftext += String.fromCharCode((c&63)|128);}
+	    else {
+		utftext += String.fromCharCode((c>>12)|224);
+		utftext += String.fromCharCode(((c>>6)&63)|128);
+		utftext += String.fromCharCode((c&63)|128);}
+	}
+	data_string = window.btoa(utftext);
+    }
+
+    data_string = 'data:application/octet-stream;base64,'+data_string;
+	
+    var anchor = document.createElement('a');
+    anchor.setAttribute('download', "table.tsv");
+    anchor.setAttribute('href', data_string);
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
 }
 
 /* export the currently filtered table to a cgi form and submit it */

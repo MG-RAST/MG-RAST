@@ -174,8 +174,6 @@ sub instance {
                     push @$valid_jobs, $job;
                 }
             }
-            # return cached if exists
-            $self->return_cached();
             # prepare data
             $data = $self->prepare_data($valid_jobs, $verb);
         }
@@ -186,7 +184,7 @@ sub instance {
             md5 => $rest->[1],
             user => $self->user ? $self->user->login : 'public'
         };
-        $self->return_data($obj, undef, 1); # cache this!
+        $self->return_data($obj);
     }
     
     # check id format

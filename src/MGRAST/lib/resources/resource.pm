@@ -436,7 +436,10 @@ sub connect_to_datasource {
     if ($@ || $error || (! $master)) {
         $self->return_data({ "ERROR" => "resource database offline" }, 503);
     } else {
-        return $master;
+      if (ref $self->user) {
+	$master->{_user} = $self->user;
+      }
+      return $master;
     }
 }
 
