@@ -471,6 +471,32 @@ sub count_public {
   return ( $result->[0] ) ;
 }
 
+sub set_job_data {
+    my ($self, $type, $data) = @_;
+    
+    unless ($data && %$data) {
+        return 0;
+    }
+    
+    my $jid = $self->_id;
+    my $dbh = $self->_master->db_handle;
+    my $table;
+    
+    if ($type eq 'statistics') {
+        $table = 'JobStatistics';
+    } elsif ($type eq 'attributes') {
+        $table = 'JobAttributes';
+    } else {
+        return 0;
+    }
+    
+    my $query = $dbh->prepare(qq(insert into $table (`tag`,`value`,`job`,`_job_db`) values (?, ?, $jid, 2) on duplicate key update value = ?));
+    while ( my ($tag, $val) = each(%$data) ) {
+        $query->execute($tag, $val, $val) || return 0;
+    }
+    return 1;
+}
+
 # new method section
 
 =pod
