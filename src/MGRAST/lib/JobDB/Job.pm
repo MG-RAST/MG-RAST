@@ -1134,7 +1134,7 @@ sub fetch_browsepage_viewable {
       $row->{longitude}   = exists($samp->{data}{longitude}) ? $samp->{data}{longitude} : '';
       $row->{temperature} = exists($samp->{data}{temperature}) ? $samp->{data}{temperature} : '';
       $row->{ph}          = exists($samp->{data}{ph}) ? $samp->{data}{ph} : '';
-      $row->{health_disease_stat} = exists($samp->{data}{health_disease_stat}) ? $samp->{data}{health_disease_stat} : '';
+      $row->{health_disease_stat} = exists($samp->{data}{health_disease_stat}) ? $samp->{data}{health_disease_stat} : 'NA';
     }
     if (exists $jmd->{$job->[1]}{library}) {
       my $lib = $jmd->{$job->[1]}{library};
