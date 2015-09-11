@@ -271,6 +271,7 @@ sub request {
 sub job_data {
     my ($self, $type, $mgid) = @_;
     
+    my $master = $self->connect_to_datasource();
     # check id format
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if (! $id) {
