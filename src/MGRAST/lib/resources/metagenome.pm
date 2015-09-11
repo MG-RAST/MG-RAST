@@ -31,6 +31,13 @@ sub new {
         status    => {'both' => 1, 'public' => 1, 'private' => 1},
         match     => {'any' => 1, 'all' => 1}
     };
+    $self->{valid_types} = {
+        "Amplicon"     => 1,
+        "AmpliconGene" => 1,
+        "MT"           => 1,
+        "WGS"          => 1,
+        "Unknown"      => 1
+    };
     # return object for instance
     $self->{instance} = {
         "id"       => [ 'string', 'unique metagenome identifier' ],
@@ -226,23 +233,17 @@ sub instance {
 
     # check if we are changing the sequence type
     if (scalar(@$rest) == 3 && $rest->[1] eq 'changesequencetype') {
-      
-      # check if the user is allowed to change the data
-      if ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'user'))) {
-	
-	# check if the passed type is valid
-	my $valid_types = { "Amplicon" => 1,
-			    "MT" => 1,
-			    "WGS" => 1,
-			    "Unknown" => 1 };
-	if ($valid_types->{$rest->[2]}) {
-	  $job->sequence_type($rest->[2]);
-	} else {
-	  $self->return_data({"ERROR" => "Invalid sequence type passed (".$rest->[2].")."}, 404);
-	}
-      } else {
-	$self->return_data( {"ERROR" => "insufficient permissions to edit this data"}, 401 );
-      }
+        # check if the user is allowed to change the data
+        if ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'user'))) {
+            # check if the passed type is valid
+            if ($self->{valid_types}->{$rest->[2]}) {
+                $job->sequence_type($rest->[2]);
+            } else {
+                $self->return_data({"ERROR" => "Invalid sequence type passed (".$rest->[2].")."}, 404);
+            }
+        } else {
+            $self->return_data( {"ERROR" => "insufficient permissions to edit this data"}, 401 );
+        }
     }
     
     # job is in pipeline, just view minimal info
