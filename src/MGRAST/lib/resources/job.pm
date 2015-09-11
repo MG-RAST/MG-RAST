@@ -274,11 +274,11 @@ sub job_data {
     # check id format
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if (! $id) {
-        $self->return_data( {"ERROR" => "invalid id format: $mgid", 400 );
+        $self->return_data( {"ERROR" => "invalid id format: $mgid"}, 400 );
     }
     # check rights
     unless ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome'))) {
-        $self->return_data( {"ERROR" => "insufficient permissions for metagenome $mgid", 401 );
+        $self->return_data( {"ERROR" => "insufficient permissions for metagenome $mgid"}, 401 );
     }
     # get data
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
@@ -293,7 +293,7 @@ sub job_data {
     } elsif ($type eq "attributes") {
         $data = $job->data();
     } else {
-        $self->return_data( {"ERROR" => "invalid job data type: $type", 400 );
+        $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
     }
     
     $self->return_data({
