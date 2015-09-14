@@ -257,8 +257,9 @@ sub prepare_data {
 	    my $project_permissions = $rightmaster->get_rows("SELECT Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name FROM Rights, UserHasScope, User, Scope WHERE data_type='project' AND data_id=".$project->{_id}." AND Rights.scope=UserHasScope.scope AND Rights.scope=Scope._id AND UserHasScope.user=User._id;", [], undef, {});
 	    my $mgids = $project->all_metagenome_ids;
 	    my $metagenome_permissions = scalar(@$mgids) ? $rightmaster->get_rows("SELECT Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name FROM Rights, UserHasScope, User, Scope WHERE data_type='project' AND data_id IN ('".join("', '", @$mgids)."') AND Rights.scope=UserHasScope.scope AND Rights.scope=Scope._id AND UserHasScope.user=User._id;", [], undef, {}) : [];
-	    $obj->{metagenome_permissions} = $metagenome_permissions;
-	    $obj->{project_permissions} = $project_permissions;
+	    $obj->{permissions} = { metagenome => [], project => [] };
+	    $obj->{permissions}->{metagenome} = $metagenome_permissions;
+	    $obj->{permissions}->{project} = $project_permissions;
 	    return [ $obj ];
 	  }
 
