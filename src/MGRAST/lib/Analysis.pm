@@ -2122,7 +2122,7 @@ sub get_m5nr_sequences_from_md5s {
     };
     if ($@ || (! $response)) {
         return "";
-    } elsif (exists($response->{ERROR}) && $response->{ERROR}) {
+    } elsif ($response =~ /ERROR/) {
         return "";
     }
     return $response;
