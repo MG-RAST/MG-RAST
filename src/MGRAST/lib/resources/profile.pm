@@ -23,6 +23,7 @@ sub new {
     $self->{name} = "profile";
     $self->{rights} = \%rights;
     $self->{cutoffs} = { evalue => '5', identity => '60', length => '15' };
+    $self->{batch_size} = 250;
     $self->{sources} = [
         $self->source->{m5nr},
         @{$self->source->{protein}},
@@ -298,7 +299,7 @@ sub prepare_data {
             $qsource = "KO";
         }
         my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
-        my $iter = natatime 1000, @md5s;
+        my $iter = natatime $self->{batch_size}, @md5s;
         while (my @curr = $iter->()) {
             my $cass_data = $chdl->get_records_by_id(\@curr, $qsource);
             foreach my $info (@$cass_data) {
