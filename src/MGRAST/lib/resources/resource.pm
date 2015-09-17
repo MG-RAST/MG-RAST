@@ -1353,25 +1353,26 @@ class CassHandle(object):
     def get_organism_by_taxa(self, taxa, match=None):
         # if match is given, return subset that contains match, else all
         found = set()
-        tname = "tax_"+taxa
-        query = "SELECT %s FROM %s"%(tname, tname)
+        tname = "tax_"+taxa.lower()
+        query = "SELECT * FROM "+tname
         rows = self.session.execute(query)
         for r in rows:
             if match and (match.lower() in r[tname].lower()):
-                found.add(r[tname])
+                found.add(r['name'])
             elif match is None:
-                found.add(r[tname])
+                found.add(r['name'])
         return list(found)
     def get_ontology_by_level(self, source, level, match=None):
         # if match is given, return subset that contains match, else all
         found = set()
-        prep = self.session.prepare("SELECT %s FROM ont_%s WHERE source = ?"%(level, level))
+        level = level.lower()
+        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
         rows = self.session.execute(prep, [source])
         for r in rows:
             if match and (match.lower() in r[level].lower()):
-                found.add(r[level])
+                found.add(r['name'])
             elif match is None:
-                found.add(r[level])
+                found.add(r['name'])
         return list(found)
     def close(self):
         self.handle.shutdown()

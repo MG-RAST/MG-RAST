@@ -25,7 +25,9 @@ sub new {
         share    => 1,
         public   => 1,
         delete   => 1,
-        addproject => 1
+        addproject => 1,
+        statistics => 1,
+        attributes => 1
     };
     $self->{attributes} = {
         reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
@@ -42,6 +44,9 @@ sub new {
         addproject => { "project_id"   => [ "string", "unique MG-RAST project identifier" ],
                         "project_name" => [ "string", "MG-RAST project name" ],
                         "status"       => [ 'string', 'status of action' ] },
+        data  => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
+                   "job_id"        => [ "int", "unique MG-RAST job identifier" ],
+                   "data"          => [ 'hash', 'key value pairs of job data' ] },
         kb2mg => { "found" => [ 'int', 'number of input ids that have an alias' ],
                    "data"  => [ 'hash', 'key value pairs of KBase id to MG-RAST id' ] },
         mg2kb => { "found" => [ 'int', 'number of input ids that have an alias' ],
@@ -78,7 +83,7 @@ sub info {
 				          'request'     => $self->cgi->url."/".$self->name,
 				          'description' => "Returns description of parameters and attributes.",
 				          'method'      => "GET",
-				          'type'        => "synchronous",  
+				          'type'        => "synchronous",
 				          'attributes'  => "self",
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
@@ -177,6 +182,48 @@ sub info {
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "project_id" => ["string", "unique MG-RAST project identifier"] } }
 						},
+						{ 'name'        => "statistics",
+				          'request'     => $self->cgi->url."/".$self->name."/statistics/{ID}",
+				          'description' => "Return current job statistics",
+				          'method'      => "GET",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{data},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => { "id" => ["string","unique MG-RAST metagenome identifier"] },
+							                 'body'     => {} }
+						},
+						{ 'name'        => "statistics",
+				          'request'     => $self->cgi->url."/".$self->name."/statistics",
+				          'description' => "Add to job statistics",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{data},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "statistics"    => ["hash", "key value pairs for new statistics"] } }
+						},
+						{ 'name'        => "attributes",
+				          'request'     => $self->cgi->url."/".$self->name."/attributes/{ID}",
+				          'description' => "Return current job attributes",
+				          'method'      => "GET",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{data},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => { "id" => ["string","unique MG-RAST metagenome identifier"] },
+							                 'body'     => {} }
+						},
+						{ 'name'        => "attributes",
+				          'request'     => $self->cgi->url."/".$self->name."/attributes",
+				          'description' => "Add to job attributes",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{data},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+     							                             "attributes"    => ["hash", "key value pairs for new attributes"] } }
+						},
 						{ 'name'        => "kb2mg",
 				          'request'     => $self->cgi->url."/".$self->name."/kb2mg",
 				          'description' => "Return a mapping of KBase ids to MG-RAST ids",
@@ -210,6 +257,8 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
+    } elsif (($self->method eq 'GET') && (scalar(@{$self->rest}) > 1)) {
+        $self->job_data($self->rest->[0], $self->rest->[1]);
     } elsif (exists $self->{job_actions}{ $self->rest->[0] }) {
         $self->job_action($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'kb2mg') || ($self->rest->[0] eq 'mg2kb')) {
@@ -217,6 +266,42 @@ sub request {
     } else {
         $self->info();
     }
+}
+
+sub job_data {
+    my ($self, $type, $mgid) = @_;
+    
+    my $master = $self->connect_to_datasource();
+    # check id format
+    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
+    if (! $id) {
+        $self->return_data( {"ERROR" => "invalid id format: $mgid"}, 400 );
+    }
+    # check rights
+    unless ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome'))) {
+        $self->return_data( {"ERROR" => "insufficient permissions for metagenome $mgid"}, 401 );
+    }
+    # get data
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        $self->return_data( {"ERROR" => "id $mgid does not exist"}, 404 );
+    }
+    $job = $job->[0];
+    
+    my $data = {};
+    if ($type eq "statistics") {
+        $data = $job->stats();
+    } elsif ($type eq "attributes") {
+        $data = $job->data();
+    } else {
+        $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
+    }
+    
+    $self->return_data({
+        metagenome_id => 'mgm'.$job->metagenome_id,
+        job_id        => $job->job_id,
+        data          => $data
+    });
 }
 
 sub job_action {
@@ -272,7 +357,7 @@ sub job_action {
             $self->return_data( {"ERROR" => "invalid id format: ".$post->{metagenome_id}}, 400 );
         }
         # check rights
-        unless ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'metagenome')) {
+        unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'metagenome'))) {
             $self->return_data( {"ERROR" => "insufficient permissions for metagenome ".$post->{metagenome_id}}, 401 );
         }
         # get data
@@ -477,6 +562,13 @@ sub job_action {
                 project_id   => "mgp".$project->{id},
                 project_name => $project->{name},
                 status       => $status
+            };
+        } elsif (($action eq "statistics") || ($action eq "attributes")) {
+            my $success = $job->set_job_data($action, $post->{$action});
+            $data = {
+                metagenome_id => 'mgm'.$job->metagenome_id,
+                job_id        => $job->job_id,
+                success       => $success
             };
         }
     }
