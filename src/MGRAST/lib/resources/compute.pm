@@ -122,7 +122,7 @@ sub info {
 						{ 'name'        => "distance",
 				          'request'     => $self->cgi->url."/".$self->name."/distance",
 				          'description' => "Calculate a distance matrix for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/distance"',
+				          'example'     => [ 'curl -X POST -d \'{"distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/distance"',
                  				             "retrieve distance matrix of normalized input abundances using 'euclidean' distance method" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
