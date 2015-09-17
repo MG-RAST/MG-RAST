@@ -101,28 +101,28 @@ sub info {
           							                         "columns" => ['list', ['string', 'column id']],
           							                         "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]] } }
 						},
-						{ 'name'        => "significance",
-				          'request'     => $self->cgi->url."/".$self->name."/significance",
-				          'description' => "Calculate significance values for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{"test":"Kruskal-Wallis","groups":["whale","whale","cow","cow"],'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/significance"',
-             				                 "retrieve significance values for input abundances and groups using the 'Kruskal-Wallis' significance test" ],
-				          'method'      => "POST",
-				          'type'        => "synchronous",
-				          'attributes'  => $self->{attributes}{significance},
-				          'parameters'  => { 'options'  => {},
-							                 'required' => {},
-							                 'body'     => { "data" => ['list', ['list', ['int', 'raw value']]],
-          							                         "rows" => ['list', ['string', 'row id']],
-          							                         "columns" => ['list', ['string', 'column id']],
-          							                         "groups" =>  ['list', ['string', 'group name']],
-          							                         "test" => ['cv', [map {[$_, $_." significance testing method"]} @{$self->{significance}}]],
-          							                         "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
-          							                         "raw" => ["boolean", "option to use raw data (not normalize)"] } }
-						},
+                        # { 'name'        => "significance",
+                        #                         'request'     => $self->cgi->url."/".$self->name."/significance",
+                        #                         'description' => "Calculate significance values for given input data.",
+                        #                         'example'     => [ 'curl -X POST -d \'{"test":"Kruskal-Wallis","groups":["whale","whale","cow","cow"],'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/significance"',
+                        #                                            "retrieve significance values for input abundances and groups using the 'Kruskal-Wallis' significance test" ],
+                        #                         'method'      => "POST",
+                        #                         'type'        => "synchronous",
+                        #                         'attributes'  => $self->{attributes}{significance},
+                        #                         'parameters'  => { 'options'  => {},
+                        #                    'required' => {},
+                        #                    'body'     => { "data" => ['list', ['list', ['int', 'raw value']]],
+                        #                                                                "rows" => ['list', ['string', 'row id']],
+                        #                                                                "columns" => ['list', ['string', 'column id']],
+                        #                                                                "groups" =>  ['list', ['string', 'group name']],
+                        #                                                                "test" => ['cv', [map {[$_, $_." significance testing method"]} @{$self->{significance}}]],
+                        #                                                                "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
+                        #                                                                "raw" => ["boolean", "option to use raw data (not normalize)"] } }
+                        # },
 						{ 'name'        => "distance",
 				          'request'     => $self->cgi->url."/".$self->name."/distance",
 				          'description' => "Calculate a distance matrix for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/distance"',
+				          'example'     => [ 'curl -X POST -d \'{"distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/distance"',
                  				             "retrieve distance matrix of normalized input abundances using 'euclidean' distance method" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -318,12 +318,12 @@ sub abundance_compute {
         $data = $self->normalize($infile, $norm, 1);
     }
     # significance
-    elsif ($type eq 'significance') {
-        if (! $raw) {
-            $infile = $self->normalize($infile, $norm);
-        }
-        $data = $self->significance($infile, $groups, $test, 1);
-    }
+    # elsif ($type eq 'significance') {
+    #     if (! $raw) {
+    #         $infile = $self->normalize($infile, $norm);
+    #     }
+    #     $data = $self->significance($infile, $groups, $test, 1);
+    # }
     # distance
     elsif ($type eq 'distance') {
         if (! $raw) {

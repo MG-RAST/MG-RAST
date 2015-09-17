@@ -28,7 +28,7 @@ sub new {
                       [ "md5", "return md5sum data" ]];
     $self->{cutoffs}  = { evalue => '5', identity => '60', length => '15' };
     $self->{m5nr_ver} = "1";
-    $self->{m5nr_max} = 10000;
+    $self->{batch_size} = 250;
     $self->{attributes} = { sequence => {
                                 "col_01" => ['string', 'sequence id'],
                                 "col_02" => ['string', 'm5nr id (md5sum)'],
@@ -308,7 +308,7 @@ sub prepare_data {
         }
         $md5_set->{$md5} = [$seek, $len];
         $batch_count++;
-        if ($batch_count == 500) {
+        if ($batch_count == $self->{batch_size}) {
             $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list, $filter);
             $md5_set = {};
             $batch_count = 0;
