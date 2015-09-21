@@ -1350,20 +1350,30 @@ class CassHandle(object):
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
         return found
-    def get_organism_by_taxa(self, taxa, name):
-        found = []
-        prep = self.session.prepare("SELECT * FROM tax_%s WHERE tax_%s = ?"%(taxa, taxa))
-        rows = self.session.execute(prep, [name])
+    def get_organism_by_taxa(self, taxa, match=None):
+        # if match is given, return subset that contains match, else all
+        found = set()
+        tname = "tax_"+taxa.lower()
+        query = "SELECT * FROM "+tname
+        rows = self.session.execute(query)
         for r in rows:
-            found.append(r['name'])
-        return found
-    def get_ontology_by_level(self, source, level, name):
-        found = []
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ? AND %s = ?"%(level, level))
-        rows = self.session.execute(prep, [source, name])
+            if match and (match.lower() in r[tname].lower()):
+                found.add(r['name'])
+            elif match is None:
+                found.add(r['name'])
+        return list(found)
+    def get_ontology_by_level(self, source, level, match=None):
+        # if match is given, return subset that contains match, else all
+        found = set()
+        level = level.lower()
+        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+        rows = self.session.execute(prep, [source])
         for r in rows:
-            found.append(r['name'])
-        return found
+            if match and (match.lower() in r[level].lower()):
+                found.add(r['name'])
+            elif match is None:
+                found.add(r['name'])
+        return list(found)
     def close(self):
         self.handle.shutdown()
 );
