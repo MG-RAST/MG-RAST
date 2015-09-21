@@ -17,7 +17,7 @@ sub new {
   # Add name / attributes
   $self->{name} = "heartbeat";
   $self->{services} = {
-      'FTP' => $Conf::ftp_download,
+      'FTP' => 'ftp://'.$Conf::ftp_download,
       'website' => $Conf::cgi_url,
       'SHOCK' => $Conf::shock_url,
       'SHOCKDB' => 'mongo',
