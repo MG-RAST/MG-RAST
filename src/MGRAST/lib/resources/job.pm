@@ -24,7 +24,9 @@ sub new {
         resubmit => 1,
         share    => 1,
         public   => 1,
+        viewable => 1,
         delete   => 1,
+        solr     => 1,
         addproject => 1,
         statistics => 1,
         attributes => 1
