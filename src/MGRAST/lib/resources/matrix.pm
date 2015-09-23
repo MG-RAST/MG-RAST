@@ -455,7 +455,7 @@ sub prepare_data {
     # validate metagenome type combinations
     # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
     my $num_amp = 0;
-    map { $num_amp += 1 } grep { $mgdb->_type_map->{$_} eq 'Amplicon' } @$data;
+    map { $num_amp += 1 } grep { $mgdb->_type_map->{$_} && ($mgdb->_type_map->{$_} eq 'Amplicon') } @$data;
     if ($num_amp) {
         if ($num_amp != scalar(@$data)) {
             return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, 400);
