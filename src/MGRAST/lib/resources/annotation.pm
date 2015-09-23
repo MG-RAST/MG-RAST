@@ -388,7 +388,6 @@ sub print_batch {
 		        @out = ('mgm'.$mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
 		    } elsif ($format eq 'similarity') {
 		        @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
-		        $count += 1;
 		    }
 		    if ($type eq 'md5') {
                 pop @out;
