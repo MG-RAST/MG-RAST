@@ -107,6 +107,11 @@ sub instance {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
 
+    if (scalar(@$rest) == 2 && $rest->[1] eq 'updateright') {
+      $self->updateRight($rest->[0]);
+      return;
+    }
+
     # get database
     my $master = $self->connect_to_datasource();
 
@@ -254,7 +259,7 @@ sub prepare_data {
 	      $self->return_data({"ERROR" => "verbosity option permissions only allowed for single projects"}, 400);
 	    }
 	    my $rightmaster = $self->user->_master->backend;
-	    my $project_permissions = $rightmaster->get_rows("Rights, UserHasScope, User, Scope WHERE data_type='project' AND data_id='".$project->{_id}."' AND Rights.scope=UserHasScope.scope AND Rights.scope=Scope._id AND UserHasScope.user=User._id;", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name"]);
+	    my $project_permissions = $rightmaster->get_rows("Rights, UserHasScope, User, Scope WHERE data_type='project' AND data_id='".$project->{id}."' AND Rights.scope=UserHasScope.scope AND Rights.scope=Scope._id AND UserHasScope.user=User._id;", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name"]);
 	    my $mgids = $project->all_metagenome_ids;
 	    my $metagenome_permissions = scalar(@$mgids) ? $rightmaster->get_rows("Rights, UserHasScope, User, Scope WHERE data_type='metagenome' AND data_id IN ('".join("', '", @$mgids)."') AND Rights.scope=UserHasScope.scope AND Rights.scope=Scope._id AND UserHasScope.user=User._id;", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name"]) : [];
 	    $obj->{permissions} = { metagenome => [], project => [] };
@@ -305,6 +310,69 @@ sub prepare_data {
         push @$objects, $obj;      
     }
     return $objects;
+}
+
+sub updateRight {
+  ($self, $pid) = @_;
+
+  my $type = $self->cgi->param('type');
+  my $name = $self->cgi->param('name');
+  my $scope = $self->cgi->param('scope');
+  my $action = $self->cgi->param('action');
+  my $id = $self->cgi->param('id');
+
+  # check for valid params
+  if ($type ne "project" && $type ne "metagenome") {
+    $self->return_data( {"ERROR" => "Invalid type parameter. Valid types are metagenome and project."}, 400 );
+  }
+  if ($name ne "edit" && $name ne "view") {
+    $self->return_data( {"ERROR" => "Invalid name parameter. Valid names are view and edit."}, 400 );
+  }
+
+  # check permission
+  unless ($self->user->has_right(undef, "edit", "project", $pid)) {
+    $self->return_data( {"ERROR" => "insufficient permissions to change permissions"}, 401 );
+  }
+
+  # check if the user is trying to remove their own right
+  if ($self->user->get_user_scope_name() eq $scope && $type eq 'project' && $action eq 'remove') {
+    $self->return_data( {"ERROR" => "You cannot remove your own permissions"}, 400 );
+  }
+
+  # get the user database
+  my $umaster = $self->user->_master;
+
+  # get the desired scope
+  my $rscope = $umaster->Scope->get_object({ name => $scope });
+  unless (ref $rscope) {
+    $self->return_data( {"ERROR" => "Scope not found"}, 400 );
+  }
+
+  # check if the permission already exists
+  my $right = $umaster->Rights->get_object({ data_type => $type, name => $name, scope => $rscope, data_id => $id });
+
+  # check for add or remove of permission
+  if ($action eq 'add') {
+    if (ref $right) {
+      $right->granted(1);
+    } else {
+      my $new_right = $self->user->_master->Rights->create({ data_type => $type, name => $name, scope => $rscope, data_id => $id, granted => 1, delegated => 1 });
+      unless (ref $new_right) {
+	$self->return_data( {"ERROR" => "Could not create permission"}, 500 );
+      }
+    }
+  } elsif ($action eq 'remove') {
+    if (ref($right)) {
+      $right->delete;
+    } else {
+      $self->return_data( {"ERROR" => "permission not found"}, 400 );
+    }
+  } else {
+    $self->return_data( {"ERROR" => "Invalid action parameter. Valid actions are 'add' and 'remove'."}, 400 );
+  }
+
+  # all went well, return success
+  $self->return_data( {"OK" => "The permission has been updated."}, 200 );
 }
 
 1;
