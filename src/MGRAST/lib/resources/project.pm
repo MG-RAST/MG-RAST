@@ -313,7 +313,7 @@ sub prepare_data {
 }
 
 sub updateRight {
-  ($self, $pid) = @_;
+  my ($self, $pid) = @_;
 
   my $type = $self->cgi->param('type');
   my $name = $self->cgi->param('name');
@@ -346,13 +346,18 @@ sub updateRight {
   my $umaster = $self->user->_master;
 
   # get the desired scope
-  my $rscope = $umaster->Scope->get_object({ name => $scope });
-  unless (ref $rscope) {
+  my $rscope = $umaster->Scope->get_objects({ name => $scope });
+  if (ref $rscope and scalar(@$rscope)) {
+    $rscope = $rscope->[0];
+  } else {
     $self->return_data( {"ERROR" => "Scope not found"}, 400 );
   }
 
   # check if the permission already exists
-  my $right = $umaster->Rights->get_object({ data_type => $type, name => $name, scope => $rscope, data_id => $id });
+  my $right = $umaster->Rights->get_objects({ data_type => $type, name => $name, scope => $rscope, data_id => $id });
+  if (ref $right and scalar(@$right)) {
+    $right = $right->[0];
+  }
 
   # check for add or remove of permission
   if ($action eq 'add') {
