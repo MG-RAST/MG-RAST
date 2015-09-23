@@ -29,7 +29,7 @@ sub new {
         solr     => 1,
         addproject => 1,
         statistics => 1,
-        attributes => 1,
+        attributes => 1
     };
     $self->{attributes} = {
         reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
