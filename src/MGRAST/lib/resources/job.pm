@@ -47,6 +47,9 @@ sub new {
         data  => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
                    "job_id"        => [ "int", "unique MG-RAST job identifier" ],
                    "data"          => [ 'hash', 'key value pairs of job data' ] },
+        solr  => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
+                   "job_id"        => [ "int", "unique MG-RAST job identifier" ],
+                   "status"        => [ 'string', 'status of action' ] },
         kb2mg => { "found" => [ 'int', 'number of input ids that have an alias' ],
                    "data"  => [ 'hash', 'key value pairs of KBase id to MG-RAST id' ] },
         mg2kb => { "found" => [ 'int', 'number of input ids that have an alias' ],
@@ -160,6 +163,17 @@ sub info {
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"] } }
 						},
+						{ 'name'        => "viewable",
+				          'request'     => $self->cgi->url."/".$self->name."/viewable",
+				          'description' => "Change the view state of metagenome.",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => { "viewable"  => ['boolean', 'the metagenome is viewable'] },
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "viewable" => ["boolean", "true: make viewable, false: make hidden, default: true"] } }
+						},
 						{ 'name'        => "delete",
 				          'request'     => $self->cgi->url."/".$self->name."/delete",
 				          'description' => "Delete metagenome.",
@@ -223,6 +237,17 @@ sub info {
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
      							                             "attributes"    => ["hash", "key value pairs for new attributes"] } }
+						},
+						{ 'name'        => "solr",
+				          'request'     => $self->cgi->url."/".$self->name."/solr",
+				          'description' => "Update job data in solr",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{solr},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+     							                             "solr_data"     => ["hash", "key value pairs for solr data"] } }
 						},
 						{ 'name'        => "kb2mg",
 				          'request'     => $self->cgi->url."/".$self->name."/kb2mg",
@@ -532,6 +557,14 @@ sub job_action {
             # update db
             $job->public(1);
             $data = { public => $job->public ? 1 : 0 };
+        } elsif ($action eq 'viewable') {
+            my $state = 1;
+            if (exists($post->{viewable}) && defined($post->{viewable}) && (! $post->{viewable})) {
+                $state = 0;
+            }
+            # update db
+            $job->viewable($state);
+            $data = { viewable => $job->viewable ? 1 : 0 };
         } elsif ($action eq 'delete') {
             # Auf Wiedersehen!
             my $reason = $post->{reason} || "";
@@ -569,6 +602,13 @@ sub job_action {
                 metagenome_id => 'mgm'.$job->metagenome_id,
                 job_id        => $job->job_id,
                 success       => $success
+            };
+        } elsif ($action eq 'solr') {
+            my $sdata = $post->{solr_data} || {};
+            $data = {
+                metagenome_id => 'mgm'.$job->metagenome_id,
+                job_id        => $job->job_id,
+                status        => "not yet implemented"
             };
         }
     }
