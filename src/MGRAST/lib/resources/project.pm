@@ -321,6 +321,9 @@ sub updateRight {
   my $action = $self->cgi->param('action');
   my $id = $self->cgi->param('id');
 
+  $id =~ s/^mgm//;
+  $id =~ s/^mgp//; 
+
   # check for valid params
   if ($type ne "project" && $type ne "metagenome") {
     $self->return_data( {"ERROR" => "Invalid type parameter. Valid types are metagenome and project."}, 400 );
