@@ -1,4 +1,4 @@
-package Abundance;
+package MGRAST::Abundance;
 
 use strict;
 use warnings;
