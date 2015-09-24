@@ -261,13 +261,13 @@ sub info {
 				          'method'      => "GET",
 				          'type'        => "synchronous",
 				          'attributes'  => $self->{attributes}{data},
-				          'parameters'  => { 'options'  => { "group_level" => ["cv", $self->{taxa}],
-				                                             "ann_ver"     => ["int", "version of m5nr annotations"],
-                                                             "annotation"  => ["cv", [["all", "return abundaces for all annotations"],
-                                                                                      ["organism", "return abundaces for organism annotations"],
-                                                                                      ["ontology", "return abundaces for ontology annotations"],
-                                                                                      ["function", "return abundaces for function annotations"],
-                                                                                      ["md5", "return abundaces for md5 annotations"]] ] },
+				          'parameters'  => { 'options'  => { "level"    => ["cv", $self->{taxa}],
+				                                             "ann_ver"  => ["int", "version of m5nr annotations"],
+                                                             "type"     => ["cv", [["all", "return abundaces for all annotations"],
+                                                                                   ["organism", "return abundaces for organism annotations"],
+                                                                                   ["ontology", "return abundaces for ontology annotations"],
+                                                                                   ["function", "return abundaces for function annotations"],
+                                                                                   ["md5", "return abundaces for md5 annotations"]] ] },
 							                 'required' => { "id" => ["string","unique MG-RAST metagenome identifier"] },
 							                 'body'     => {} }
 						},
@@ -354,8 +354,8 @@ sub job_data {
     } elsif ($type eq "abundance") {
         use MGRAST::Abundance;
         MGRAST::Abundance::get_analysis_dbh();
-        my $taxa = $cgi->param('group_level') || "";
-        my $ann  = $cgi->param('annotation') || "all";
+        my $taxa = $cgi->param('level') || "";
+        my $ann  = $cgi->param('type') || "all";
         my $ver  = $cgi->param('ann_ver') || 1;
         
         if (($ann eq "all") || ($ann eq "organism")) {
