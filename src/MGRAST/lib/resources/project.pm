@@ -7,6 +7,9 @@ no warnings('once');
 use Conf;
 use parent qw(resources::resource);
 
+use Mail::Mailer;
+use WebConfig;
+
 # Override parent constructor
 sub new {
     my ($class, @args) = @_;
@@ -315,11 +318,17 @@ sub prepare_data {
 sub updateRight {
   my ($self, $pid) = @_;
 
+  # check permission
+  unless ($self->user->has_right(undef, "edit", "project", $pid)) {
+    $self->return_data( {"ERROR" => "insufficient permissions to change permissions"}, 401 );
+  }
+
   my $type = $self->cgi->param('type');
   my $name = $self->cgi->param('name');
   my $scope = $self->cgi->param('scope');
   my $action = $self->cgi->param('action');
   my $id = $self->cgi->param('id');
+  my $user = $self->cgi->param('user');
 
   $id =~ s/^mgm//;
   $id =~ s/^mgp//; 
@@ -332,18 +341,181 @@ sub updateRight {
     $self->return_data( {"ERROR" => "Invalid name parameter. Valid names are view and edit."}, 400 );
   }
 
-  # check permission
-  unless ($self->user->has_right(undef, "edit", "project", $pid)) {
-    $self->return_data( {"ERROR" => "insufficient permissions to change permissions"}, 401 );
+  # get the user database
+  my $umaster = $self->user->_master;
+
+  # check if a new user is added
+  if ($user) {
+
+    # create a reviewer token
+    if ($user eq 'reviewer') {
+      my $description = "Reviewer_".$project_id;
+      my @chars=('a'..'z','A'..'Z','0'..'9','_');
+      my $token = "";
+      foreach (1..50) {
+	$token.=$chars[rand @chars];
+      }
+      
+      # create scope for token
+      my $token_scope = $umaster->Scope->create( { name => "token:".$token, description => $description } );
+      unless (ref($token_scope)) {
+	$self->return_data( {"ERROR" => "Unable to create reviewer access token."}, 500 );
+      }
+      
+      # add right to scope
+      my $right = $umaster->Rights->create( { granted => 1,
+					      name => 'view',
+					      data_type => 'project',
+					      data_id => $pid,
+					      scope => $token_scope,
+					      delegated => 1, } );
+      unless (ref $right) {
+	$self->return_data( {"ERROR" => "Unable to create reviewer access token."}, 500 );
+      }
+      
+       $self->return_data( {"token" => $token}, 200 );
+      
+    } 
+    # get the user by email
+    else {
+
+      # check for a valid email address
+      unless ($user =~ /\@{1}/) {
+	$self->return_data( {"ERROR" => "Invalid email address."}, 400 );
+      }
+
+      # check if this user exists
+      my $existing = $umaster->User->init({ email => $user });
+      if (ref $existing) {
+	$user = $existing;
+      
+	# send email
+	my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobGranted.tmpl',
+					die_on_bad_params => 0);
+	$ubody->param('FIRSTNAME', $user->firstname);
+	$ubody->param('LASTNAME', $user->lastname);
+	$ubody->param('WHAT', "the metagenome project $project_name");
+	$ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
+	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=MetagenomeProject&project=$project_id");
+	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
+	
+	$user->send_email( $WebConfig::ADMIN_EMAIL,
+			   $WebConfig::APPLICATION_NAME.' - new data available',
+			   $ubody->output
+			 );
+	
+	# grant rights if necessary
+	my $rights = [ 'view' ];
+	if ($cgi->param('editable')) {
+	  push(@$rights, 'edit');
+	}
+	my $return_data = [];
+	foreach my $name (@$rights) {
+	  push(@$return_data, [$name, $user->{firstname}, $user->{lastname}, $pid, "user:".$user->{login}]);
+	  unless(scalar(@{$umaster->Rights->get_objects( { name => $name,
+							   data_type => 'project',
+							   data_id => $pid,
+							   scope => $user->get_user_scope } )})) {
+	    my $right = $umaster->Rights->create( { granted => 1,
+						    name => $name,
+						    data_type => 'project',
+						    data_id => $pid,
+						    scope => $user->get_user_scope,
+						    delegated => 1, } );
+	    
+	    unless (ref $right) {
+	      $self->return_data( {"ERROR" => "Unable to create permission."}, 500 );
+	    }
+	  }
+	}
+	
+	my $pscope = $umaster->Scope->init( { application => undef,
+					      name => 'MGRAST_project_'.$pid } );
+	if ($pscope) {
+	  my $uhs = $umaster->UserHasScope->get_objects( { user => $user, scope => $pscope } );
+	  unless (scalar(@$uhs)) {
+	    $umaster->UserHasScope->create( { user => $user, scope => $pscope, granted => 1 } );
+	  }
+	}
+	
+	$self->return_data( {"project" => $return_data}, 200 );
+	
+      }
+      # no user found with this email, send a claim token
+      else {
+	
+	# create a claim token
+	my $description = "token_scope|from_user:".$self->user->{_id}."|init_date:".time."|email:".$user;
+	my @chars=('a'..'z','A'..'Z','0'..'9','_');
+	my $token = "";
+	foreach (1..50) {
+	  $token.=$chars[rand @chars];
+	}
+	
+	# create scope for token
+	my $token_scope = $umaster->Scope->create( { name => "token:".$token, description => $description } );
+	unless (ref($token_scope)) {
+	  $self->return_data( {"ERROR" => "Unable to create permission."}, 500 );
+	}
+	
+	# add rights to scope
+	my $rights = [ 'view' ];
+	if ($cgi->param('editable')) {
+	  push(@$rights, 'edit');
+	}
+	my $rsave = [];
+	my $return_data = [];
+	foreach my $name (@$rights) {
+	  push(@$return_data, [$name, $user->{firstname}, $user->{lastname}, $pid, "user:".$user->{login}]);
+	  my $right = $umaster->Rights->create( { granted => 1,
+						  name => $name,
+						  data_type => 'project',
+						  data_id => $pid,
+						  scope => $token_scope,
+						  delegated => 1, } );
+	  unless (ref $right) {
+	    $token_scope->delete();
+	    foreach my $r (@$rsave) {
+	      $r->delete();
+	    }
+	    $self->return_data( {"ERROR" => "Unable to create permission."}, 500 );
+	  }
+	  
+	  push(@$rsave, $right);
+	}
+	
+	# send token mail
+	my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobToken.tmpl',
+					die_on_bad_params => 0);
+	$ubody->param('WHAT', "the metagenome project $project_name");
+	$ubody->param('REGISTER', $WebConfig::APPLICATION_URL."?page=Register");
+	$ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
+	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
+	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
+	
+	my $mailer = Mail::Mailer->new();
+	if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
+			    To      => $email,
+			    Subject => $WebConfig::APPLICATION_NAME.' - new data available',
+			  })) {
+	  print $mailer $ubody->output;
+	  $mailer->close();
+	  $self->return_data( {"project" => $return_data}, 200 );
+	} else {
+	  $token_scope->delete();
+	  foreach my $r (@$rsave) {
+	    $r->delete();
+	  }
+	  $self->return_data( {"ERROR" => 'Unable to create permission.'}, 500 );
+	}
+      }
+    }
   }
 
   # check if the user is trying to remove their own right
   if ($self->user->get_user_scope_name() eq $scope && $type eq 'project' && $action eq 'remove') {
-    $self->return_data( {"ERROR" => "You cannot remove your own permissions"}, 400 );
+    $self->return_data( {"ERROR" => "You cannot remove your own project permissions"}, 400 );
   }
-
-  # get the user database
-  my $umaster = $self->user->_master;
 
   # get the desired scope
   my $rscope = $umaster->Scope->get_objects({ name => $scope });
@@ -357,6 +529,8 @@ sub updateRight {
   my $right = $umaster->Rights->get_objects({ data_type => $type, name => $name, scope => $rscope, data_id => $id });
   if (ref $right and scalar(@$right)) {
     $right = $right->[0];
+  } else {
+    $right = undef;
   }
 
   # check for add or remove of permission
