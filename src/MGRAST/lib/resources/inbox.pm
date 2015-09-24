@@ -609,9 +609,9 @@ sub view_inbox_actions {
         $params->{state} = $requestedStates;
     }
     my $data = $self->get_awe_query($params, $self->token, $self->user_auth);
-    foreach my $doc (@$data) {
+    foreach my $doc (@{$data->{data}}) {
       if ($doc->{lastfailed}) {
-	$doc->{stdout} = $self->get_awe_report($doc->{lastfailed}, "stdout", $self->token, $self->user_auth) = @_;
+	$doc->{stdout} = $self->get_awe_report($doc->{lastfailed}, "stdout", $self->token, $self->user_auth);
       }
     }
     
