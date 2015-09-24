@@ -406,7 +406,7 @@ sub seq_stats {
     
     my $node = $self->node_from_inbox_id($uuid, $self->token, $self->user_auth);
     if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} eq "sequence")) {
-        $response->{status} .= " has already been ran";
+        $response->{status} .= " has already been run";
         $self->return_data($response);
     }
     
