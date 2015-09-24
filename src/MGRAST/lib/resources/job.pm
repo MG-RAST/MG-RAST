@@ -354,9 +354,9 @@ sub job_data {
     } elsif ($type eq "abundance") {
         use MGRAST::Abundance;
         MGRAST::Abundance::get_analysis_dbh();
-        my $taxa = $cgi->param('level') || "";
-        my $ann  = $cgi->param('type') || "all";
-        my $ver  = $cgi->param('ann_ver') || 1;
+        my $taxa = $self->cgi->param('level') || "";
+        my $ann  = $self->cgi->param('type') || "all";
+        my $ver  = $self->cgi->param('ann_ver') || 1;
         
         if (($ann eq "all") || ($ann eq "organism")) {
             if (! $taxa) {
@@ -635,7 +635,7 @@ sub job_action {
             if ($post->{name}) {
                 $job->name($post->{name});
                 $data->{status} = 1;
-            } else
+            } else {
                 $data->{status} = 0;
             }
         } elsif ($action eq 'delete') {
