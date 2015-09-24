@@ -608,7 +608,14 @@ sub view_inbox_actions {
     if (scalar(@$requestedStates)) {
         $params->{state} = $requestedStates;
     }
-    $self->return_data($self->get_awe_query($params, $self->token, $self->user_auth));
+    my $data = $self->get_awe_query($params, $self->token, $self->user_auth);
+    foreach my $doc (@$data) {
+      if ($doc->{lastfailed}) {
+	$doc->{stdout} = $self->get_awe_report($doc->{lastfailed}, "stdout", $self->token, $self->user_auth) = @_;
+      }
+    }
+    
+    $self->return_data($data);
 }
 
 sub cancel_inbox_action {
