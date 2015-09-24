@@ -497,7 +497,7 @@ sub static {
             $grouped = 1;
         }
     } elsif ($type eq 'sources') {
-        $fields = [ 'source', 'organization', 'description', 'type', 'url', 'email', 'link', 'title', 'version', 'download_date' ];
+        $fields = [ 'source', 'source_id', 'organization', 'description', 'type', 'url', 'email', 'link', 'title', 'version', 'download_date' ];
         $solr .= 'source';
     } else {
         $self->return_data({"ERROR" => "invalid resource type was entered ($type)"}, 404);
