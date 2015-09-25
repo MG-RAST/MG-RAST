@@ -266,8 +266,7 @@ sub info {
                                                              "type"     => ["cv", [["all", "return abundaces for all annotations"],
                                                                                    ["organism", "return abundaces for organism annotations"],
                                                                                    ["ontology", "return abundaces for ontology annotations"],
-                                                                                   ["function", "return abundaces for function annotations"],
-                                                                                   ["md5", "return abundaces for md5 annotations"]] ] },
+                                                                                   ["function", "return abundaces for function annotations"]] ] },
 							                 'required' => { "id" => ["string","unique MG-RAST metagenome identifier"] },
 							                 'body'     => {} }
 						},
@@ -376,9 +375,6 @@ sub job_data {
         }
         if (($ann eq "all") || ($ann eq "function")) {
             $data->{function} = MGRAST::Abundance::get_function_abundances($job->job_id, $ver);
-        }
-        if (($ann eq "all") || ($ann eq "md5")) {
-            $data->{md5} = MGRAST::Abundance::get_md5_abundance($job->job_id, $ver);
         }
     } else {
         $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
