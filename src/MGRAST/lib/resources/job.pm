@@ -74,7 +74,7 @@ sub new {
                ["AmpliconGene", "amplicon gene sequenceing"],
                ["MT", "metatranscriptome sequenceing"]]
     ];
-    $self->{taxa} = grep { $_->[0] !~ /strain/ } @{$self->hierarchy->{organism}};
+    @{$self->{taxa}} = grep { $_->[0] !~ /strain/ } @{$self->hierarchy->{organism}};
     return $self;
 }
 
@@ -364,7 +364,7 @@ sub job_data {
                     my $other = ($t->[0] eq 'domain') ? 1 : 0;
                     $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->job_id, $t->[0], $other, $ver);
                 }
-            } elsif ( any {$_->[0] eq $taxa} @{$self->{taxa}}) {
+            } elsif ( any {$_->[0] eq $taxa} @{$self->{taxa}} ) {
                 my $other = ($taxa eq 'domain') ? 1 : 0;
                 $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->job_id, $taxa, $other, $ver);
             } else {
