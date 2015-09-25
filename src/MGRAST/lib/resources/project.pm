@@ -349,7 +349,7 @@ sub updateRight {
 
     # create a reviewer token
     if ($user eq 'reviewer') {
-      my $description = "Reviewer_".$project_id;
+      my $description = "Reviewer_".$pid;
       my @chars=('a'..'z','A'..'Z','0'..'9','_');
       my $token = "";
       foreach (1..50) {
@@ -384,6 +384,14 @@ sub updateRight {
 	$self->return_data( {"ERROR" => "Invalid email address."}, 400 );
       }
 
+      # get the project name for the email message
+      my $master = $self->connect_to_datasource();
+      my $project = $master->Project->init( {id => $pid} );
+      unless (ref $project) {
+	$self->return_data( {"ERROR" => "Unable to access project."}, 500 );
+      }
+      my $project_name = $project->{name};
+
       # check if this user exists
       my $existing = $umaster->User->init({ email => $user });
       if (ref $existing) {
@@ -395,8 +403,8 @@ sub updateRight {
 	$ubody->param('FIRSTNAME', $user->firstname);
 	$ubody->param('LASTNAME', $user->lastname);
 	$ubody->param('WHAT', "the metagenome project $project_name");
-	$ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
-	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=MetagenomeProject&project=$project_id");
+	$ubody->param('WHOM', $self->user->firstname.' '.$self->user->lastname);
+	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=MetagenomeProject&project=$pid");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
 	$user->send_email( $WebConfig::ADMIN_EMAIL,
@@ -406,7 +414,7 @@ sub updateRight {
 	
 	# grant rights if necessary
 	my $rights = [ 'view' ];
-	if ($cgi->param('editable')) {
+	if ($self->cgi->param('editable')) {
 	  push(@$rights, 'edit');
 	}
 	my $return_data = [];
@@ -460,13 +468,13 @@ sub updateRight {
 	
 	# add rights to scope
 	my $rights = [ 'view' ];
-	if ($cgi->param('editable')) {
+	if ($self->cgi->param('editable')) {
 	  push(@$rights, 'edit');
 	}
 	my $rsave = [];
 	my $return_data = [];
 	foreach my $name (@$rights) {
-	  push(@$return_data, [$name, $user->{firstname}, $user->{lastname}, $pid, "user:".$user->{login}]);
+	  push(@$return_data, [$name, undef, undef, $pid, $token_scope->{name}, $token_scope->{description}]);
 	  my $right = $umaster->Rights->create( { granted => 1,
 						  name => $name,
 						  data_type => 'project',
@@ -495,7 +503,7 @@ sub updateRight {
 	
 	my $mailer = Mail::Mailer->new();
 	if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
-			    To      => $email,
+			    To      => $user,
 			    Subject => $WebConfig::APPLICATION_NAME.' - new data available',
 			  })) {
 	  print $mailer $ubody->output;
@@ -511,6 +519,7 @@ sub updateRight {
       }
     }
   }
+  # END OF TOKEN SECTION #
 
   # check if the user is trying to remove their own right
   if ($self->user->get_user_scope_name() eq $scope && $type eq 'project' && $action eq 'remove') {
