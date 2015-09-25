@@ -44,7 +44,7 @@ sub get_ontology_abundances {
     }
     map { $data->{$_->[0]}{$_->[1]} = $_->[2] } grep { $_->[2] && ($_->[2] =~ /\S/) } @$rows;
   
-    my $onts = get_ontology_md5s($dbh, $job, $ver);
+    my $onts = get_ontology_md5s($job, $ver);
     foreach my $s (keys %$onts) {
         foreach my $o (keys %{$onts->{$s}}) {
             if (exists $data->{$s}{$o}) {
@@ -53,7 +53,7 @@ sub get_ontology_abundances {
         }
     }
     
-    my $md5s = get_md5_abundance($dbh, $job, $ver);
+    my $md5s = get_md5_abundance($job, $ver);
     foreach my $s (sort keys %$ont_md5) {
         foreach my $d (sort keys %{$ont_md5->{$s}}) {
             my $num = 0;
@@ -80,14 +80,14 @@ sub get_function_abundances {
     }
     %$data = map { $_->[0], $_->[1] } grep { $_->[1] && ($_->[1] =~ /\S/) } @$rows;
   
-    my $funcs = get_function_md5s($dbh, $job, $ver);
+    my $funcs = get_function_md5s($job, $ver);
     foreach my $f (keys %$funcs) {
         if (exists $data->{$f}) {
             map { $func_md5->{$data->{$f}}->{$_} = 1 } @{ $funcs->{$f} };
         }
     }
 
-    my $md5s  = get_md5_abundance($dbh, $job, $ver);
+    my $md5s  = get_md5_abundance($job, $ver);
     my $other = 0;
     foreach my $f (sort keys %$func_md5) {
         my $num = 0;
@@ -113,14 +113,14 @@ sub get_taxa_abundances {
     }
     %$data = map { $_->[0], $_->[1] } grep { $_->[1] && ($_->[1] =~ /\S/) } @$rows;
   
-    my $orgs = get_organism_md5s($dbh, $job, $ver);
+    my $orgs = get_organism_md5s($job, $ver);
     foreach my $o (keys %$orgs) {
         if (exists $data->{$o}) {
             map { $tax_md5->{$data->{$o}}->{$_} = 1 } @{ $orgs->{$o} };
         }
     }
     
-    my $md5s  = get_md5_abundance($dbh, $job, $ver);
+    my $md5s  = get_md5_abundance($job, $ver);
     my $other = 0;
     foreach my $d (sort keys %$tax_md5) {
         my $num = 0;
@@ -190,7 +190,7 @@ sub get_alpha_diversity {
     
     my $alpha = 0;
     my $h1    = 0;
-    my @nums  = map { $_->[1] } @{ get_taxa_abundances($dbh, $job, 'species', undef, $ver) };
+    my @nums  = map { $_->[1] } @{ get_taxa_abundances($job, 'species', undef, $ver) };
     my $sum   = sum @nums;
     
     unless ($sum) {
@@ -210,7 +210,7 @@ sub get_rarefaction_xy {
     
     my $rare = [];
     my $size = ($nseq > 1000) ? int($nseq / 1000) : 1;
-    my @nums = sort {$a <=> $b} map {$_->[1]} @{ get_taxa_abundances($dbh, $job, 'species', undef, $ver) };
+    my @nums = sort {$a <=> $b} map {$_->[1]} @{ get_taxa_abundances($job, 'species', undef, $ver) };
     my $k    = scalar @nums;
 
     for (my $n = 0; $n < $nseq; $n += $size) {
