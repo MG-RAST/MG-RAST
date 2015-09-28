@@ -5,6 +5,8 @@ use warnings;
 no warnings('once');
 
 use POSIX qw(strftime);
+use List::MoreUtils qw(any uniq);
+
 use Conf;
 use parent qw(resources::resource);
 
@@ -25,6 +27,7 @@ sub new {
         share    => 1,
         public   => 1,
         viewable => 1,
+        rename   => 1,
         delete   => 1,
         solr     => 1,
         addproject => 1,
@@ -49,9 +52,9 @@ sub new {
         data  => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
                    "job_id"        => [ "int", "unique MG-RAST job identifier" ],
                    "data"          => [ 'hash', 'key value pairs of job data' ] },
-        solr  => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
-                   "job_id"        => [ "int", "unique MG-RAST job identifier" ],
-                   "status"        => [ 'string', 'status of action' ] },
+        change => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
+                    "job_id"        => [ "int", "unique MG-RAST job identifier" ],
+                    "status"        => [ 'string', 'status of action' ] },
         kb2mg => { "found" => [ 'int', 'number of input ids that have an alias' ],
                    "data"  => [ 'hash', 'key value pairs of KBase id to MG-RAST id' ] },
         mg2kb => { "found" => [ 'int', 'number of input ids that have an alias' ],
@@ -71,6 +74,7 @@ sub new {
                ["AmpliconGene", "amplicon gene sequenceing"],
                ["MT", "metatranscriptome sequenceing"]]
     ];
+    $self->{taxa} = grep { $_->[0] !~ /strain/ } @{$self->hierarchy->{organism}};
     return $self;
 }
 
@@ -176,6 +180,17 @@ sub info {
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "viewable" => ["boolean", "true: make viewable, false: make hidden, default: true"] } }
 						},
+						{ 'name'        => "rename",
+				          'request'     => $self->cgi->url."/".$self->name."/rename",
+				          'description' => "Change the name of metagenome.",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{change},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "name" => ["string", "new name of metagenome"] } }
+						},
 						{ 'name'        => "delete",
 				          'request'     => $self->cgi->url."/".$self->name."/delete",
 				          'description' => "Delete metagenome.",
@@ -213,7 +228,7 @@ sub info {
 				          'description' => "Add to job statistics",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
-				          'attributes'  => $self->{attributes}{data},
+				          'attributes'  => $self->{attributes}{change},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
@@ -234,18 +249,34 @@ sub info {
 				          'description' => "Add to job attributes",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
-				          'attributes'  => $self->{attributes}{data},
+				          'attributes'  => $self->{attributes}{change},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
      							                             "attributes"    => ["hash", "key value pairs for new attributes"] } }
+						},
+						{ 'name'        => "abundance",
+				          'request'     => $self->cgi->url."/".$self->name."/abundance/{ID}",
+				          'description' => "Get abundances for different annotations",
+				          'method'      => "GET",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{data},
+				          'parameters'  => { 'options'  => { "level"    => ["cv", $self->{taxa}],
+				                                             "ann_ver"  => ["int", "version of m5nr annotations"],
+                                                             "type"     => ["cv", [["all", "return abundaces for all annotations"],
+                                                                                   ["organism", "return abundaces for organism annotations"],
+                                                                                   ["ontology", "return abundaces for ontology annotations"],
+                                                                                   ["function", "return abundaces for function annotations"],
+                                                                                   ["md5", "return abundaces for md5 annotations"]] ] },
+							                 'required' => { "id" => ["string","unique MG-RAST metagenome identifier"] },
+							                 'body'     => {} }
 						},
 						{ 'name'        => "solr",
 				          'request'     => $self->cgi->url."/".$self->name."/solr",
 				          'description' => "Update job data in solr",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
-				          'attributes'  => $self->{attributes}{solr},
+				          'attributes'  => $self->{attributes}{change},
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
@@ -320,6 +351,35 @@ sub job_data {
         $data = $job->stats();
     } elsif ($type eq "attributes") {
         $data = $job->data();
+    } elsif ($type eq "abundance") {
+        use MGRAST::Abundance;
+        MGRAST::Abundance::get_analysis_dbh();
+        my $taxa = $self->cgi->param('level') || "";
+        my $ann  = $self->cgi->param('type') || "all";
+        my $ver  = $self->cgi->param('ann_ver') || 1;
+        
+        if (($ann eq "all") || ($ann eq "organism")) {
+            if (! $taxa) {
+                foreach my $t (@{$self->{taxa}}) {
+                    my $other = ($t->[0] eq 'domain') ? 1 : 0;
+                    $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->job_id, $t->[0], $other, $ver);
+                }
+            } elsif ( any {$_->[0] eq $taxa} @{$self->{taxa}}) {
+                my $other = ($taxa eq 'domain') ? 1 : 0;
+                $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->job_id, $taxa, $other, $ver);
+            } else {
+                return ({"ERROR" => "invalid group_level for organism - valid types are [".join(", ", map {$_->[0]} @{$self->{taxa}})."]"}, 404);
+            }
+        }
+        if (($ann eq "all") || ($ann eq "ontology")) {
+            $data->{ontology} = MGRAST::Abundance::get_ontology_abundances($job->job_id, $ver);
+        }
+        if (($ann eq "all") || ($ann eq "function")) {
+            $data->{function} = MGRAST::Abundance::get_function_abundances($job->job_id, $ver);
+        }
+        if (($ann eq "all") || ($ann eq "md5")) {
+            $data->{md5} = MGRAST::Abundance::get_md5_abundance($job->job_id, $ver);
+        }
     } else {
         $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
     }
@@ -567,6 +627,17 @@ sub job_action {
             # update db
             $job->viewable($state);
             $data = { viewable => $job->viewable ? 1 : 0 };
+        } elsif ($action eq 'rename') {
+            $data = {
+                metagenome_id => 'mgm'.$job->metagenome_id,
+                job_id        => $job->job_id
+            };
+            if ($post->{name}) {
+                $job->name($post->{name});
+                $data->{status} = 1;
+            } else {
+                $data->{status} = 0;
+            }
         } elsif ($action eq 'delete') {
             # Auf Wiedersehen!
             my $reason = $post->{reason} || "";
@@ -599,11 +670,11 @@ sub job_action {
                 status       => $status
             };
         } elsif (($action eq "statistics") || ($action eq "attributes")) {
-            my $success = $job->set_job_data($action, $post->{$action});
+            my $status = $job->set_job_data($action, $post->{$action});
             $data = {
                 metagenome_id => 'mgm'.$job->metagenome_id,
                 job_id        => $job->job_id,
-                success       => $success
+                status        => $status
             };
         } elsif ($action eq 'solr') {
             my $sdata = $post->{solr_data} || {};
