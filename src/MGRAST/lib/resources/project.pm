@@ -419,7 +419,7 @@ sub updateRight {
 	}
 	my $return_data = [];
 	foreach my $name (@$rights) {
-	  push(@$return_data, [$name, $user->{firstname}, $user->{lastname}, $pid, "user:".$user->{login}]);
+	  push(@$return_data, [$name, $user->{firstname}, $user->{lastname}, $pid, "user:".$user->{login}, "automatically created user scope"]);
 	  unless(scalar(@{$umaster->Rights->get_objects( { name => $name,
 							   data_type => 'project',
 							   data_id => $pid,
