@@ -318,6 +318,8 @@ sub prepare_data {
 sub updateRight {
   my ($self, $pid) = @_;
 
+  $pid =~ s/^mgp//;
+
   # check permission
   unless ($self->user->has_right(undef, "edit", "project", $pid)) {
     $self->return_data( {"ERROR" => "insufficient permissions to change permissions"}, 401 );
@@ -331,7 +333,7 @@ sub updateRight {
   my $user = $self->cgi->param('user');
 
   $id =~ s/^mgm//;
-  $id =~ s/^mgp//; 
+  $id =~ s/^mgp//;
 
   # check for valid params
   if ($type ne "project" && $type ne "metagenome") {
