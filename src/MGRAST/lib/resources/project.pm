@@ -8,6 +8,7 @@ use Conf;
 use parent qw(resources::resource);
 
 use Mail::Mailer;
+use HTML::Template;
 use WebConfig;
 
 # Override parent constructor
