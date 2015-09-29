@@ -6,7 +6,11 @@ no warnings('once');
 
 use POSIX qw(strftime);
 use List::MoreUtils qw(any uniq);
+use Scalar::Util qw(looks_like_number);
+use StreamingUpload;
 
+use MGRAST::Abundance;
+use MGRAST::Metadata;
 use Conf;
 use parent qw(resources::resource);
 
@@ -75,6 +79,8 @@ sub new {
                ["MT", "metatranscriptome sequenceing"]]
     ];
     @{$self->{taxa}} = grep { $_->[0] !~ /strain/ } @{$self->hierarchy->{organism}};
+    $self->{ann_ver} = 1;
+    
     return $self;
 }
 
@@ -279,6 +285,8 @@ sub info {
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "rebuild"       => ["boolean", "re-compute all statistics, default is to not compute if exists"],
+							                                 "debug"         => ["boolean", "return solr post data instead of actually posting it"],
      							                             "solr_data"     => ["hash", "key value pairs for solr data"] } }
 						},
 						{ 'name'        => "kb2mg",
@@ -351,38 +359,37 @@ sub job_data {
     } elsif ($type eq "attributes") {
         $data = $job->data();
     } elsif ($type eq "abundance") {
-        use MGRAST::Abundance;
         MGRAST::Abundance::get_analysis_dbh();
         my $taxa = $self->cgi->param('level') || "";
         my $ann  = $self->cgi->param('type') || "all";
-        my $ver  = $self->cgi->param('ann_ver') || 1;
+        my $ver  = $self->cgi->param('ann_ver') || $self->{ann_ver};
         
         if (($ann eq "all") || ($ann eq "organism")) {
             if (! $taxa) {
                 foreach my $t (@{$self->{taxa}}) {
                     my $other = ($t->[0] eq 'domain') ? 1 : 0;
-                    $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->job_id, $t->[0], $other, $ver);
+                    $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $t->[0], $other, $ver);
                 }
             } elsif ( any {$_->[0] eq $taxa} @{$self->{taxa}} ) {
                 my $other = ($taxa eq 'domain') ? 1 : 0;
-                $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->job_id, $taxa, $other, $ver);
+                $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $taxa, $other, $ver);
             } else {
                 return ({"ERROR" => "invalid group_level for organism - valid types are [".join(", ", map {$_->[0]} @{$self->{taxa}})."]"}, 404);
             }
         }
         if (($ann eq "all") || ($ann eq "ontology")) {
-            $data->{ontology} = MGRAST::Abundance::get_ontology_abundances($job->job_id, $ver);
+            $data->{ontology} = MGRAST::Abundance::get_ontology_abundances($job->{job_id}, $ver);
         }
         if (($ann eq "all") || ($ann eq "function")) {
-            $data->{function} = MGRAST::Abundance::get_function_abundances($job->job_id, $ver);
+            $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
         }
     } else {
         $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
     }
     
     $self->return_data({
-        metagenome_id => 'mgm'.$job->metagenome_id,
-        job_id        => $job->job_id,
+        metagenome_id => 'mgm'.$job->{metagenome_id},
+        job_id        => $job->{job_id},
         data          => $data
     });
 }
@@ -672,17 +679,162 @@ sub job_action {
                 job_id        => $job->job_id,
                 status        => $status
             };
-        } elsif ($action eq 'solr') {
+        } elsif ($action eq 'solr') {            
+            MGRAST::Abundance::get_analysis_dbh();
+            my $rebuild = $post->{rebuild} ? 1 : 0;
             my $sdata = $post->{solr_data} || {};
-            $data = {
-                metagenome_id => 'mgm'.$job->metagenome_id,
-                job_id        => $job->job_id,
-                status        => "not yet implemented"
+            my $jdata = $job->data();
+            my $mddb  = MGRAST::Metadata->new();
+            my $jobid = $job->{job_id};
+            my $mgid  = 'mgm'.$job->{metagenome_id};
+            
+            # solr data
+            my $solr_data = {
+                job                => int($jobid),
+                id                 => $mgid,
+                id_sort            => $mgid,
+                status             => $job->{public} ? 'public' : 'private',
+                status_sort        => $job->{public} ? 'public' : 'private',
+                created            => solr_time_format($job->{created_on}),
+                created_sort       => solr_time_format($job->{created_on}),
+                name               => $job->{name},
+                name_sort          => $job->{name},
+                sequence_type      => $job->{sequence_type},
+                sequence_type_sort => $job->{sequence_type},
+                seq_method         => $jdata->{sequencing_method_guess},
+                seq_method_sort    => $jdata->{sequencing_method_guess},
+                version            => $self->{ann_ver},
+                md5                => [ map {$_->[0]} @{MGRAST::Abundance::get_md5sum_abundance($jobid, $self->{ann_ver})} ]
             };
+            
+            # project - from jobdb
+            eval {
+    	        my $proj = $job->primary_project;
+    	        if ($proj->{id}) {
+    	            $solr_data->{project_id}        = "mgp".$proj->{id};
+    	            $solr_data->{project_id_sort}   = "mgp".$proj->{id};
+    	            $solr_data->{project_name}      = $proj->{name};
+    	            $solr_data->{project_name_sort} = $proj->{name};
+                }
+    	    };
+            # statistics - from postdata or jobdb
+            my $seq_stats = exists($sdata->{sequence_stats}) ? $sdata->{sequence_stats} : $job->stats();
+            while (my ($key, $val) = each(%$seq_stats)) {
+                if (looks_like_number($val)) {
+                    if ($key =~ /count/ || $key =~ /min/ || $key =~ /max/) {
+                        $solr_data->{$key.'_l'} = $val * 1;
+                    } else {
+                        $solr_data->{$key.'_d'} = $val * 1.0;
+                    }
+                }
+            }
+            
+            # annotations - from postdata or mg stats (if not rebuild) or from analysis db
+            my $mg_stats = {};
+            # function
+            if (exists($sdata->{function}) && $sdata->{function}) {
+                $solr_data->{function} = $sdata->{function};
+            } elsif ($rebuild) {
+                $solr_data->{function} = [ map {$_->[0]} @{MGRAST::Abundance::get_function_abundances($jobid, $self->{ann_ver})} ];
+            } else {
+                unless (exists $mg_stats->{function}) {
+                    $mg_stats = $self->metagenome_stats_from_shock($solr_data->{id});
+                }
+                if (exists $mg_stats->{function}) {
+                    $solr_data->{function} = [ map {$_->[0]} @{$mg_stats->{function}} ];
+                } else {
+                    $solr_data->{function} = [ map {$_->[0]} @{MGRAST::Abundance::get_function_abundances($jobid, $self->{ann_ver})} ];
+                }
+            }
+            # organism - species
+            if (exists($sdata->{organism}) && $sdata->{organism}) {
+                $solr_data->{organism} = $sdata->{organism};
+            } elsif ($rebuild) {
+                $solr_data->{organism} = [ map {$_->[0]} @{MGRAST::Abundance::get_taxa_abundances($jobid, 'species', 0, $self->{ann_ver})} ];
+            } else {
+                unless (exists $mg_stats->{taxonomy}) {
+                    $mg_stats = $self->metagenome_stats_from_shock($solr_data->{id});
+                }
+                if (exists($mg_stats->{taxonomy}) && exists($mg_stats->{taxonomy}{species}) && $mg_stats->{taxonomy}{species}) {
+                    $solr_data->{organism} = [ map {$_->[0]} @{$mg_stats->{taxonomy}{species}} ];
+                } else {
+                    $solr_data->{organism} = [ map {$_->[0]} @{MGRAST::Abundance::get_taxa_abundances($jobid, 'species', 0, $self->{ann_ver})} ];
+                }
+            }
+            
+            # mixs metadata - from jobdb
+            my $mixs = $mddb->get_job_mixs($job);
+            while (my ($key, $val) = each(%$mixs)) {
+                if ($val) {
+                    $solr_data->{$key} = $val;
+                    $solr_data->{$key.'_sort'} = $val;
+                }
+            }
+            # full metadata - from jobdb
+            my $mdata = $mddb->get_jobs_metadata_fast([$jobid])->{$jobid};
+            foreach my $cat (('project', 'sample', 'env_package', 'library')) {
+                eval {
+                    if (exists($mdata->{$cat}) && $mdata->{$cat}{id} && $mdata->{$cat}{name} && $mdata->{$cat}{data}) {
+                        $solr_data->{$cat.'_id'}      = $mdata->{$cat}{id};
+                        $solr_data->{$cat.'_id_sort'} = $mdata->{$cat}{id};
+                        $solr_data->{$cat.'_name'}    = $mdata->{$cat}{name};
+                        $solr_data->{$cat}            = join(", ", @{$mdata->{$cat}{data}});
+                    }
+                };
+            }
+            
+            if ($post->{debug}) {
+                $data = {
+                    metagenome_id => $mgid,
+                    job_id        => $jobid,
+                    data          => $solr_data
+                };
+            } else {
+                # print file
+                my $solr_str  = $PipelineAWE::json->encode($solr_data);
+                my $solr_file = $Conf::temp."/".$jobid.".".time.'.solr.json';
+                open(SOLR, ">$solr_file") or die "Couldn't open file: $!";
+                print SOLR qq({
+                    "delete": { "id": "$mgid" },
+                    "commit": { "expungeDeletes": "true" },
+                    "add": {
+                        "doc": $solr_str
+                    }
+                });
+                close(SOLR);
+                
+                $self->solr_post($solr_file);
+                $data = {
+                    metagenome_id => $mgid,
+                    job_id        => $jobid,
+                    status        => 1
+                };
+            }
         }
     }
     
     $self->return_data($data);
+}
+
+sub solr_post {
+    my ($self, $solr_file) = @_;
+    
+    # post commands and data
+    my $post_url = $Conf::job_solr."/".$Conf::metagenome_1."/update/json?commit=true";
+    my $req = StreamingUpload->new(
+        POST => $post_url,
+        path => $solr_file,
+        headers => HTTP::Headers->new(
+            'Content-Type' => 'application/json',
+            'Content-Length' => -s $solr_file,
+        )
+    );
+    $self->agent->timeout(7200);
+    my $response = $self->agent->request($req);
+    if ($response->{"_msg"} ne 'OK') {
+        my $content = $response->{"_content"};
+        $self->return_data( {"ERROR" => "solr POST failed: ".$content}, 500 );
+    }
 }
 
 sub id_lookup {
@@ -713,6 +865,16 @@ sub reserve_kbase_id {
         $self->return_data( {"ERROR" => "Unable to reserve KBase id for $mgid"}, 500 );
     }
     return $result->[0]->{$mgid};
+}
+
+sub solr_time_format {
+    my ($dt) = @_;
+    if ($dt =~ /^(\d{4}\-\d\d\-\d\d)[ T](\d\d\:\d\d\:\d\d)/) {
+        $dt = $1.'T'.$2.'Z';
+    } elsif ($dt =~ /^(\d{4}\-\d\d\-\d\d)/) {
+        $dt = $1.'T00:00:00Z'
+    }
+    return $dt;
 }
 
 1;
