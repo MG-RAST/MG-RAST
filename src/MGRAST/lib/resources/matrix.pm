@@ -486,11 +486,7 @@ sub prepare_data {
         $mtype = 'taxonomy';
         $col_idx = $result_idx->{$rtype}{$type}{$htype};
         if (@filter > 0) {
-            if ($leaf_filter) {
-                $umd5s = $mgdb->get_md5s_for_ontology(\@filter, $fsrc);
-            } else {
-                $umd5s = $mgdb->get_md5s_for_ontol_level($fsrc, $flvl, \@filter);
-            }
+            $umd5s = $mgdb->get_md5s_for_ontol_level($fsrc, $flvl, \@filter);
         }
         unless ((@filter > 0) && (@$umd5s == 0)) {
             if ($htype eq 'all') {
