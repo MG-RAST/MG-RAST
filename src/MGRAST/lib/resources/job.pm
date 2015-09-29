@@ -679,7 +679,7 @@ sub job_action {
                 job_id        => $job->job_id,
                 status        => $status
             };
-        } elsif ($action eq 'solr') {            
+        } elsif ($action eq 'solr') {
             MGRAST::Abundance::get_analysis_dbh();
             my $rebuild = $post->{rebuild} ? 1 : 0;
             my $sdata = $post->{solr_data} || {};
