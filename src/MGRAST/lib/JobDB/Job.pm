@@ -494,6 +494,7 @@ sub set_job_data {
     while ( my ($tag, $val) = each(%$data) ) {
         $query->execute($tag, $val, $val) || return 0;
     }
+    $dbh->commit;
     return 1;
 }
 
