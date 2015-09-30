@@ -383,6 +383,9 @@ sub job_data {
         if (($ann eq "all") || ($ann eq "function")) {
             $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
         }
+        if (scalar(keys %$data) == 0) {
+            $self->return_data( {"ERROR" => "invalid job abundance type: $ann"}, 400 );
+        }
     } else {
         $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
     }
@@ -679,7 +682,7 @@ sub job_action {
                 job_id        => $job->job_id,
                 status        => $status
             };
-        } elsif ($action eq 'solr') {            
+        } elsif ($action eq 'solr') {
             MGRAST::Abundance::get_analysis_dbh();
             my $rebuild = $post->{rebuild} ? 1 : 0;
             my $sdata = $post->{solr_data} || {};
