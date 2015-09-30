@@ -707,6 +707,7 @@ sub job_action {
                 seq_method         => $jdata->{sequencing_method_guess},
                 seq_method_sort    => $jdata->{sequencing_method_guess},
                 version            => $self->{ann_ver},
+                metadata           => "",
                 md5                => [ map {$_->[0]} @{MGRAST::Abundance::get_md5sum_abundance($jobid, $self->{ann_ver})} ]
             };
             
@@ -782,6 +783,7 @@ sub job_action {
                         $solr_data->{$cat.'_id_sort'} = $mdata->{$cat}{id};
                         $solr_data->{$cat.'_name'}    = $mdata->{$cat}{name};
                         $solr_data->{$cat}            = join(", ", values %{$mdata->{$cat}{data}});
+                        $solr_data->{metadata}       .= join(", ", values %{$mdata->{$cat}{data}});
                     }
                 };
             }
