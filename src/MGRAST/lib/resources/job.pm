@@ -781,7 +781,7 @@ sub job_action {
                         $solr_data->{$cat.'_id'}      = $mdata->{$cat}{id};
                         $solr_data->{$cat.'_id_sort'} = $mdata->{$cat}{id};
                         $solr_data->{$cat.'_name'}    = $mdata->{$cat}{name};
-                        $solr_data->{$cat}            = join(", ", @{$mdata->{$cat}{data}});
+                        $solr_data->{$cat}            = join(", ", values %{$mdata->{$cat}{data}});
                     }
                 };
             }
