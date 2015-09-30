@@ -782,8 +782,9 @@ sub job_action {
                         $solr_data->{$cat.'_id'}      = $mdata->{$cat}{id};
                         $solr_data->{$cat.'_id_sort'} = $mdata->{$cat}{id};
                         $solr_data->{$cat.'_name'}    = $mdata->{$cat}{name};
-                        $solr_data->{$cat}            = join(", ", values %{$mdata->{$cat}{data}});
-                        $solr_data->{metadata}       .= join(", ", values %{$mdata->{$cat}{data}});
+                        my $concat = join(", ", grep { $_ && ($_ ne " - ") } values %{$mdata->{$cat}{data}});
+                        $solr_data->{$cat}      = $concat;
+                        $solr_data->{metadata} .= $concat;
                     }
                 };
             }
