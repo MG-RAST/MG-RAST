@@ -1069,6 +1069,67 @@ sub get_shock_query {
     }
 }
 
+sub metagenome_stats_from_shock {
+    my ($self, $mgid) = @_;
+    
+    my $params = {type => 'metagenome', data_type => 'statistics', id => $mgid};
+    my $stat_node = $self->get_shock_query($params, $self->mgrast_token);
+    if (scalar(@{$stat_node}) == 0) {
+        return {};
+    }
+    
+    my ($stats, $err) = $self->json->decode($self->get_shock_file($stat_node->[0]{id}, undef, $self->mgrast_token));
+    if ($err) {
+        $self->return_data( {"ERROR" => $err}, 500 );
+    }
+    # seq stats
+    foreach my $key (keys %{$stats->{sequence_stats}}) {
+        $stats->{sequence_stats}{$key} = $self->toFloat($stats->{sequence_stats}{$key});
+    }
+    # source
+    foreach my $src (keys %{$stats->{source}}) {
+        foreach my $type (keys %{$stats->{source}{$src}}) {
+            if (! $stats->{source}{$src}{$type}) {
+                $stats->{source}{$src}{$type} = [];
+            } else {
+                $stats->{source}{$src}{$type} = [ map { int($_) } @{$stats->{source}{$src}{$type}} ];
+            }
+        }
+    }
+    # qc
+    foreach my $qc (keys %{$stats->{qc}}) {
+        foreach my $type (keys %{$stats->{qc}{$qc}}) {
+            if (! $stats->{qc}{$qc}{$type}{data}) {                
+                $stats->{qc}{$qc}{$type}{data} = [];
+            }
+        }
+    }
+    # tax / ontol
+    foreach my $ann (('taxonomy', 'ontology')) {
+        foreach my $type (keys %{$stats->{$ann}}) {
+            if (! $stats->{$ann}{$type}) {
+                $stats->{$ann}{$type} = [];
+            } else {
+                $stats->{$ann}{$type} = [ map { [$_->[0], int($_->[1])] } @{$stats->{$ann}{$type}} ];
+            }
+        }
+    }
+    # histograms
+    foreach my $hist (('gc_histogram', 'length_histogram')) {
+        foreach my $type (keys %{$stats->{$hist}}) {
+            if (! $stats->{$hist}{$type}) {
+                $stats->{$hist}{$type} = [];
+            } else {
+                $stats->{$hist}{$type} = [ map { [$self->toFloat($_->[0]), int($_->[1])] } @{$stats->{$hist}{$type}} ];
+            }
+        }
+    }
+    # rarefaction
+    $stats->{rarefaction} = [ map { [int($_->[0]), $self->toFloat($_->[1])] } @{$stats->{rarefaction}} ];
+    
+    return $stats;
+}
+
 ###########################
 #  AWE related functions  #
 ###########################

@@ -1035,7 +1035,7 @@ sub share_info {
       my ($token_id) = $token->name =~ /^token\:(.+)$/;
       if ($token->description =~ /^Reviewer_/) {
 	my $num = scalar(@{$self->application->dbmaster->UserHasScope->get_objects({ scope => $token })});
-	$content .= "<tr><td>Reviewer Token <b>".$WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project</b> - currently registered by $num reviewers. <input type='button' onclick='window.top.location=\"metagenomics.cgi?page=MetagenomeProject&project=".$project->id."&action=cancel_token&token=$token_id\"' value='cancel'></td></tr>";
+	$content .= "<tr><td>Reviewer Token <b>".$WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token_id&type=project</b> - currently registered by $num reviewers. <input type='button' onclick='window.top.location=\"metagenomics.cgi?page=MetagenomeProject&project=".$project->id."&action=cancel_token&token=$token_id\"' value='cancel'></td></tr>";
       } else {
 	my ($uid, $date, $email) = $token->description =~ /^token_scope\|from_user\:(\d+)\|init_date:(\d+)\|email\:(.+)/;
 	my $u = $self->application->dbmaster->User->get_objects( { _id => $uid } )->[0];
