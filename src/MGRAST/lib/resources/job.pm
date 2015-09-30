@@ -383,6 +383,9 @@ sub job_data {
         if (($ann eq "all") || ($ann eq "function")) {
             $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
         }
+        if (scalar(keys %$data) == 0) {
+            $self->return_data( {"ERROR" => "invalid job abundance type: $ann"}, 400 );
+        }
     } else {
         $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
     }
