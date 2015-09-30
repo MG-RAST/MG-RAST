@@ -797,7 +797,7 @@ sub job_action {
                 };
             } else {
                 # print file
-                my $solr_str  = $PipelineAWE::json->encode($solr_data);
+                my $solr_str  = $self->json->encode($solr_data);
                 my $solr_file = $Conf::temp."/".$jobid.".".time.'.solr.json';
                 open(SOLR, ">$solr_file") or die "Couldn't open file: $!";
                 print SOLR qq({
@@ -826,7 +826,7 @@ sub solr_post {
     my ($self, $solr_file) = @_;
     
     # post commands and data
-    my $post_url = $Conf::job_solr."/".$Conf::metagenome_1."/update/json?commit=true";
+    my $post_url = $Conf::job_solr."/".$Conf::job_collect."/update/json?commit=true";
     my $req = StreamingUpload->new(
         POST => $post_url,
         path => $solr_file,
