@@ -784,7 +784,7 @@ sub job_action {
                         $solr_data->{$cat.'_name'}    = $mdata->{$cat}{name};
                         my $concat = join(", ", grep { $_ && ($_ ne " - ") } values %{$mdata->{$cat}{data}});
                         $solr_data->{$cat}      = $concat;
-                        $solr_data->{metadata} .= $concat;
+                        $solr_data->{metadata} .= ", ".$concat;
                     }
                 };
             }
@@ -808,7 +808,7 @@ sub job_action {
                     }
                 });
                 close(SOLR);
-                
+                # POST data
                 $self->solr_post($solr_file);
                 $data = {
                     metagenome_id => $mgid,
