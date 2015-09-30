@@ -494,6 +494,7 @@ sub set_job_data {
     while ( my ($tag, $val) = each(%$data) ) {
         $query->execute($tag, $val, $val) || return 0;
     }
+    $dbh->commit;
     return 1;
 }
 
@@ -1348,10 +1349,15 @@ sub user_delete {
   
   # delete AWE job
   if ($@) {
-    return (0, "Unable to delete metagenome '$mgid' from AWE: ".$@);
+    return (0, "Unable to get metagenome '$mgid' from AWE: ".$@);
   } else {
     foreach my $j (@$ajobs) {
-      $agent->delete($Conf::awe_url.'/job/'.$j->{id}, @auth);
+      eval {
+        $agent->delete($Conf::awe_url.'/job/'.$j->{id}, @auth);
+      };
+      if ($@) {                                                                                                                              
+        return (0, "Unable to delete metagenome '$mgid' from AWE: ".$@);
+      }
     }
   }
   
@@ -1364,11 +1370,16 @@ sub user_delete {
   
   # delete shock nodes
   if ($@) {
-    return (0, "Unable to delete metagenome '$mgid' from Shock: ".$@);
+    return (0, "Unable to get metagenome '$mgid' files from Shock: ".$@);
   } else {
     # modify shock nodes
     foreach my $n (@$nodes) {
-      $agent->delete($Conf::shock_url.'/node/'.$n->{id}, @auth);
+      eval {
+        $agent->delete($Conf::shock_url.'/node/'.$n->{id}, @auth);
+      };
+      if ($@) {                                                                                                                              
+        return (0, "Unable to delete metagenome '$mgid' from Shock: ".$@);
+      }
     }
   }
   

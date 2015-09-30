@@ -406,7 +406,7 @@ sub seq_stats {
     
     my $node = $self->node_from_inbox_id($uuid, $self->token, $self->user_auth);
     if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} eq "sequence")) {
-        $response->{status} .= " has already been ran";
+        $response->{status} .= " has already been run";
         $self->return_data($response);
     }
     
@@ -608,7 +608,14 @@ sub view_inbox_actions {
     if (scalar(@$requestedStates)) {
         $params->{state} = $requestedStates;
     }
-    $self->return_data($self->get_awe_query($params, $self->token, $self->user_auth));
+    my $data = $self->get_awe_query($params, $self->token, $self->user_auth);
+    foreach my $doc (@{$data->{data}}) {
+        if ($doc->{lastfailed}) {
+	        $doc->{stdout} = $self->get_awe_report($doc->{lastfailed}, "stdout", $self->token, $self->user_auth);
+	        $doc->{stderr} = $self->get_awe_report($doc->{lastfailed}, "stderr", $self->token, $self->user_auth);
+	    }
+    }
+    $self->return_data($data);
 }
 
 sub cancel_inbox_action {

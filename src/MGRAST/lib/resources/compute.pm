@@ -4,7 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
-use MGRAST::Analysis;
+use MGRAST::Abundance;
 use List::MoreUtils qw(any uniq);
 use File::Temp qw(tempfile tempdir);
 
@@ -24,6 +24,9 @@ sub new {
     $self->{attributes} = { alphadiversity => { "id"   => [ "string", "unique metagenome identifier" ],
                                                 "url"  => [ "string", "resource location of this object instance" ],
                                                 "data" => [ 'float', 'alpha diversity value' ] },
+                            rarefaction => { "id"   => [ "string", "unique metagenome identifier" ],
+                                             "url"  => [ "string", "resource location of this object instance" ],
+                                             "data" => ['list', ['list', ['float', 'rarefaction value']]], },
                             normalize => { 'data' => ['list', ['list', ['float', 'normalized value']]],
                                            'rows' => ['list', ['string', 'row id']],
                                            'columns' => ['list', ['string', 'column id']] },
@@ -50,6 +53,7 @@ sub new {
     $self->{distance} = ["bray-curtis", "euclidean", "maximum", "manhattan", "canberra", "minkowski", "difference"];
     $self->{cluster} = ["ward", "single", "complete", "mcquitty", "median", "centroid"];
     $self->{significance} = ["Kruskal-Wallis", "t-test-paired", "Wilcoxon-paired", "t-test-unpaired", "Mann-Whitney-unpaired-Wilcoxon", "ANOVA-one-way"];
+    $self->{ann_ver} = 1;
     return $self;
 }
 
@@ -81,8 +85,23 @@ sub info {
 				          'method'      => "GET",
 				          'type'        => "synchronous",
 				          'attributes'  => $self->{attributes}{alphadiversity},
-				          'parameters'  => { 'options'  => { 'level' => [ 'cv', $self->hierarchy->{organism} ],
-				                                             'source' => [ 'cv', [@{$self->source->{protein}}, @{$self->source->{rna}}] ] },
+				          'parameters'  => { 'options'  => { 'level' => ['cv', $self->hierarchy->{organism}],
+				                                             "ann_ver" => ["int", "version of m5nr annotations"] },
+							                 'required' => { 'id' => ["string", "unique object identifier"] },
+							                 'body'     => {} }
+						},
+						{ 'name'        => "rarefaction",
+				          'request'     => $self->cgi->url."/".$self->name."/rarefaction/{ID}",
+				          'description' => "Calculate rarefaction x-y coordinates for given ID and taxon level.",
+				          'example'     => [ $self->cgi->url."/".$self->name."/rarefaction/mgm4447943.3?level=order",
+             				                 "retrieve rarefaction for order taxon" ],
+				          'method'      => "GET",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{rarefaction},
+				          'parameters'  => { 'options'  => { 'level' => ['cv', $self->hierarchy->{organism}],
+				                                             "alpha" => ["boolean", "if true also return alphadiversity, default is false"],
+				                                             "seq_num" => ["int", "number of sequences in metagenome"],
+				                                             "ann_ver" => ["int", "version of m5nr annotations"] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
 						},
@@ -184,8 +203,8 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif (($self->rest->[0] eq 'alphadiversity') && $self->rest->[1]) {
-        $self->diversity_compute($self->rest->[1]);
+    } elsif (($self->method eq 'GET') && (scalar(@{$self->rest}) > 1)) {
+        $self->instance($self->rest->[0], $self->rest->[1]);
     } elsif (any {$self->rest->[0] eq $_} ('normalize', 'significance', 'distance', 'heatmap', 'pcoa')) {
         $self->abundance_compute($self->rest->[0]);
     } elsif (any {$self->rest->[0] eq $_} ('stats', 'drisee', 'kmer')) {
@@ -200,20 +219,56 @@ sub sequence_compute {
     $self->return_data( {"ERROR" => "compute request $type is not currently available"}, 404 );
 }
 
-sub diversity_compute {
-    my ($self, $mgid) = @_;
+# the resource is called with an id parameter
+sub instance {
+    my ($self, $type, $mgid) = @_;
     
+    my $master = $self->connect_to_datasource();
     # check id format
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if (! $id) {
-        $self->return_data( {"ERROR" => "invalid id format: " . $mgid}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: $mgid"}, 400 );
+    }
+    # get data
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        $self->return_data( {"ERROR" => "id $mgid does not exist"}, 404 );
+    }
+    $job = $job->[0];
+    # check rights
+    unless ($job->public || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
+        $self->return_data( {"ERROR" => "insufficient permissions for metagenome $mgid"}, 401 );
     }
     
-    # paramaters
-    my $level  = $self->cgi->param('level') || 'species';
-    my $source = $self->cgi->param('source') || 'RefSeq';
+    # initialize
+    my $level = $self->cgi->param('level') || 'species';
+    my $ver   = $self->cgi->param('ann_ver') || $self->{ann_ver};
+    my $data  = {
+        id => 'mgm'.$job->{metagenome_id},
+        url => $self->cgi->url.'/type/mgm'.$job->{metagenome_id}.'?level='.$level
+    };
+    MGRAST::Abundance::get_analysis_dbh();
     
-    # initialize analysis obj with mgid
+    if ($type eq "alphadiversity") {
+        $data->{data} = MGRAST::Abundance::get_alpha_diversity($job->{job_id}, $level, $ver);
+    } elsif ($type eq "rarefaction") {
+        my $snum = $self->cgi->param('seq_num') || 0;
+        my $alpha = $self->cgi->param('alpha') ? 1 : 0;
+        unless ($snum) {
+            my $jstats = $job->stats();
+            $snum = $jstats->{sequence_count_raw} || 1;
+        }
+        my $rare = MGRAST::Abundance::get_rarefaction_xy($job->{job_id}, $level, $snum, $ver);
+        if ($alpha) {
+            $data->{data}{rarefaction} = $rare;
+            $data->{data}{alphadiversity} = MGRAST::Abundance::get_alpha_diversity($job->{job_id}, $level, $ver);
+        } else {
+            $data->{data} = $rare;
+        }
+    } else {
+        $self->return_data( {"ERROR" => "invalid compute type: $type"}, 400 );
+    }
+    
     my $master = $self->connect_to_datasource();
     my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
     unless (ref($mgdb)) {

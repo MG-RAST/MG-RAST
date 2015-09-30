@@ -455,7 +455,7 @@ sub prepare_data {
     # validate metagenome type combinations
     # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
     my $num_amp = 0;
-    map { $num_amp += 1 } grep { $mgdb->_type_map->{$_} eq 'Amplicon' } @$data;
+    map { $num_amp += 1 } grep { $mgdb->_type_map->{$_} && ($mgdb->_type_map->{$_} eq 'Amplicon') } @$data;
     if ($num_amp) {
         if ($num_amp != scalar(@$data)) {
             return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, 400);
@@ -486,11 +486,7 @@ sub prepare_data {
         $mtype = 'taxonomy';
         $col_idx = $result_idx->{$rtype}{$type}{$htype};
         if (@filter > 0) {
-            if ($leaf_filter) {
-                $umd5s = $mgdb->get_md5s_for_ontology(\@filter, $fsrc);
-            } else {
-                $umd5s = $mgdb->get_md5s_for_ontol_level($fsrc, $flvl, \@filter);
-            }
+            $umd5s = $mgdb->get_md5s_for_ontol_level($fsrc, $flvl, \@filter);
         }
         unless ((@filter > 0) && (@$umd5s == 0)) {
             if ($htype eq 'all') {
