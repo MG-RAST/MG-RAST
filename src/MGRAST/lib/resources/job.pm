@@ -782,8 +782,9 @@ sub job_action {
                         $solr_data->{$cat.'_id'}      = $mdata->{$cat}{id};
                         $solr_data->{$cat.'_id_sort'} = $mdata->{$cat}{id};
                         $solr_data->{$cat.'_name'}    = $mdata->{$cat}{name};
-                        $solr_data->{$cat}            = join(", ", values %{$mdata->{$cat}{data}});
-                        $solr_data->{metadata}       .= join(", ", values %{$mdata->{$cat}{data}});
+                        my $concat = join(", ", grep { $_ && ($_ ne " - ") } values %{$mdata->{$cat}{data}});
+                        $solr_data->{$cat}      = $concat;
+                        $solr_data->{metadata} .= ", ".$concat;
                     }
                 };
             }
@@ -796,7 +797,7 @@ sub job_action {
                 };
             } else {
                 # print file
-                my $solr_str  = $PipelineAWE::json->encode($solr_data);
+                my $solr_str  = $self->json->encode($solr_data);
                 my $solr_file = $Conf::temp."/".$jobid.".".time.'.solr.json';
                 open(SOLR, ">$solr_file") or die "Couldn't open file: $!";
                 print SOLR qq({
@@ -807,7 +808,7 @@ sub job_action {
                     }
                 });
                 close(SOLR);
-                
+                # POST data
                 $self->solr_post($solr_file);
                 $data = {
                     metagenome_id => $mgid,
@@ -825,7 +826,7 @@ sub solr_post {
     my ($self, $solr_file) = @_;
     
     # post commands and data
-    my $post_url = $Conf::job_solr."/".$Conf::metagenome_1."/update/json?commit=true";
+    my $post_url = $Conf::job_solr."/".$Conf::job_collect."/update/json?commit=true";
     my $req = StreamingUpload->new(
         POST => $post_url,
         path => $solr_file,
