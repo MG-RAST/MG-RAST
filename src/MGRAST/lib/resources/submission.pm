@@ -438,12 +438,6 @@ sub submit {
         timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     };
     
-    # only one submission allowed per ID
-    my $submit_job = $self->submission_jobs($uuid);
-    if ($submit_job->{submit} && $submit_job->{submit}{id}) {
-        $self->return_data( {"ERROR" => "A submission already exists for ID: ".$uuid}, 500 );
-    }
-    
     # process metadata
     if ($metadata_file) {
         # validate / extract barcodes if exist
