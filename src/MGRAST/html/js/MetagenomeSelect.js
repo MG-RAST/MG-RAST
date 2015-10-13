@@ -252,7 +252,7 @@ function add_to_collection (id) {
   }
   for (i=0; i<table_filtered_data[data_index].length; i++) {
     var relrow = table_filtered_data[data_index][i][table_filtered_data[data_index][i].length - 1];
-    if (table_input_columns_data[data_index][relrow][23] == 1) {
+    if (table_input_columns_data[data_index][relrow][24] == 1) {
       var newids = table_filtered_data[data_index][i][0].split(", ");
       for (h=0; h<newids.length; h++) {
 	ids[ids.length] = newids[h];
