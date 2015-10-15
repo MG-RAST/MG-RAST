@@ -9,11 +9,9 @@ MGRAST_do_stats <<- function (data_file,
                                 "t-test-un-paired", "Mann-Whitney_un-paired-Wilcoxon",
                                 "ANOVA-one-way", "Kruskal-Wallis"
                                 ),
-                              file_out)as.double
+                              file_out)
   
 {
-
-  
 
   ### SUB TO WRITE OUTPUT
   write_log <<- function (sig_test, data_type){
