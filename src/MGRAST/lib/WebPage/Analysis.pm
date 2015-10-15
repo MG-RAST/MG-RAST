@@ -3043,7 +3043,7 @@ sub phylogeny_visual {
       $dom_v->data($pd);
       foreach my $cat (@$cats) {
 	if (exists($pval_data->{$cat})) {
-	  $cat = $cat." [".sprintf("%.4f", $pval_data->{$cat}->[1])."]";
+	  $cat = $cat." [".sprintf("%.6f", $pval_data->{$cat}->[1])."]";
 	} else {
 	  $cat = $cat." [-]";
 	}
