@@ -2730,11 +2730,11 @@ sub single_visual {
 	my $mdata = {};
 	# get unique labels accross all metagenomes
 	foreach my $mgid (@comp_mgs) {
-	    foreach my $mdata ($jobmd->{$mgid}) {
-	        foreach my $set (@$mdata) {
-	            next if ($set->[1] =~ /(_id|_name)$/);
-	            $mdata->{$set->[1]}{$mgid} = $set->[2];
-	        }
+	    next unless ($jobmd->{$mgid});
+	    foreach my $md (@{$jobmd->{$mgid}}) {
+	        next if ($md->[1] =~ /(_id|_name)$/);
+	        next if ($md->[1] =~ /^PI_/);
+	        $mdata->{$md->[1]}{$mgid} = $md->[2];
         }
     }
     my @md_names = sort keys %$mdata;
@@ -3691,11 +3691,11 @@ sub phylogeny_visual {
 	my $mdata = {};
 	# get unique labels accross all metagenomes
 	foreach my $mgid (@comp_mgs) {
-	    foreach my $mdata ($jobmd->{$mgid}) {
-	        foreach my $set (@$mdata) {
-	            next if ($set->[1] =~ /(_id|_name)$/);
-	            $mdata->{$set->[1]}{$mgid} = $set->[2];
-	        }
+	    next unless ($jobmd->{$mgid});
+	    foreach my $md (@{$jobmd->{$mgid}}) {
+	        next if ($md->[1] =~ /(_id|_name)$/);
+	        next if ($md->[1] =~ /^PI_/);
+	        $mdata->{$md->[1]}{$mgid} = $md->[2];
         }
     }
     my @md_names = sort keys %$mdata;
@@ -4687,11 +4687,11 @@ sub metabolism_visual {
 	my $mdata = {};
 	# get unique labels accross all metagenomes
 	foreach my $mgid (@comp_mgs) {
-	    foreach my $mdata ($jobmd->{$mgid}) {
-	        foreach my $set (@$mdata) {
-	            next if ($set->[1] =~ /(_id|_name)$/);
-	            $mdata->{$set->[1]}{$mgid} = $set->[2];
-	        }
+	    next unless ($jobmd->{$mgid});
+	    foreach my $md (@{$jobmd->{$mgid}}) {
+	        next if ($md->[1] =~ /(_id|_name)$/);
+	        next if ($md->[1] =~ /^PI_/);
+	        $mdata->{$md->[1]}{$mgid} = $md->[2];
         }
     }
     my @md_names = sort keys %$mdata;
@@ -5750,11 +5750,11 @@ sub lca_visual {
 	my $mdata = {};
 	# get unique labels accross all metagenomes
 	foreach my $mgid (@comp_mgs) {
-	    foreach my $mdata ($jobmd->{$mgid}) {
-	        foreach my $set (@$mdata) {
-	            next if ($set->[1] =~ /(_id|_name)$/);
-	            $mdata->{$set->[1]}{$mgid} = $set->[2];
-	        }
+	    next unless ($jobmd->{$mgid});
+	    foreach my $md (@{$jobmd->{$mgid}}) {
+	        next if ($md->[1] =~ /(_id|_name)$/);
+	        next if ($md->[1] =~ /^PI_/);
+	        $mdata->{$md->[1]}{$mgid} = $md->[2];
         }
     }
     my @md_names = sort keys %$mdata;
