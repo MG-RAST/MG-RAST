@@ -811,7 +811,7 @@ sub edit_shock_public_acl {
 # create node with optional file and/or attributes
 # file is json struct by default
 sub set_shock_node {
-    my ($self, $name, $file, $attr, $auth, $not_json, $authPrefix) = @_;
+    my ($self, $name, $file, $attr, $auth, $not_json, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "OAuth";
@@ -824,6 +824,9 @@ sub set_shock_node {
     }
     if ($attr) {
         $content->{attributes} = [undef, "$name.json", Content => $self->json->encode($attr)];
+    }
+    if ($expiration && ($expiration =~ /^(\d+)(M|H|D)$/)) {
+        $content->{expiration} = $expiration;
     }
     eval {
         my @args = (
@@ -846,7 +849,7 @@ sub set_shock_node {
 # add a file to existing shock node
 # file is json struct by default
 sub put_shock_file {
-    my ($self, $name, $file, $node, $auth, $not_json, $authPrefix) = @_;
+    my ($self, $name, $file, $node, $auth, $not_json, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "OAuth";
@@ -854,6 +857,9 @@ sub put_shock_file {
     my $response = undef;
     my $file_str = $not_json ? $file : $self->json->encode($file);
     my $content->{upload} = [undef, $name, Content => $file_str];
+    if ($expiration && ($expiration =~ /^(\d+)(M|H|D)$/)) {
+        $content->{expiration} = $expiration;
+    }
     eval {
         my @args = (
             $auth ? ('Authorization', "$authPrefix $auth") : (),
@@ -907,13 +913,16 @@ sub update_shock_node_file_name {
 
 # edit node attributes
 sub update_shock_node {
-    my ($self, $id, $attr, $auth, $authPrefix) = @_;
+    my ($self, $id, $attr, $auth, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "OAuth";
     }
     my $response = undef;
     my $content = {attributes => [undef, "n/a", Content => $self->json->encode($attr)]};
+    if ($expiration && ($expiration =~ /^(\d+)(M|H|D)$/)) {
+        $content->{expiration} = $expiration;
+    }
     eval {
         my @args = (
             $auth ? ('Authorization', "$authPrefix $auth") : (),
