@@ -111,57 +111,62 @@ sub instance {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
 
-    if (scalar(@$rest) == 2 && $rest->[1] eq 'updateright') {
-      $self->updateRight($rest->[0]);
-      return;
-    }
-
     # get database
     my $master = $self->connect_to_datasource();
 
     # check if this is an action request
-    my $requests = { 'movemetagenomes' => 1 };
-    if (scalar(@$rest) > 1 && $requests->{$rest->[1]}) {
-      # move metagenomes to a different project
-      if ($rest->[1] eq 'movemetagenomes') {
-	unless ($self->user->has_star_right('edit', 'user')) {
-	  $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
-	}
-	my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
-	if (! $id2) {
-	   $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
-	}
-	my $project_a = $master->Project->init( {id => $id} );
-	my $project_b = $master->Project->init( {id => $id2} );
+    my $requests = {
+        'movemetagenomes' => 1,
+        'updateright' => 1
+    };
+    if ((scalar(@$rest) > 1) && $requests->{$rest->[1]}) {
+        if ($rest->[1] eq 'updateright') {
+            $self->updateRight($rest->[0]);
+            return;
+        }
+        # move metagenomes to a different project
+        elsif ($rest->[1] eq 'movemetagenomes') {
+            unless ($self->user->has_star_right('edit', 'user')) {
+                $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+            }
+            my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
+            if (! $id2) {
+                $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
+            }
+            my $project_a = $master->Project->init( {id => $id} );
+            my $project_b = $master->Project->init( {id => $id2} );
 
-	unless (ref($project_a) && ref($project_b)) {
-	  $self->return_data( {"ERROR" => "id $id or $id2 does not exists"}, 404 );
-	}
-
-	my $proj_job = $master->ProjectJob->get_objects({ project => $project_a });
-	my $job_a_hash = {};
-	foreach my $j (@$proj_job) {
-	  $job_a_hash->{$j->job->{metagenome_id}} = $j->job;
-	}
-	my @move_over = $self->cgi->param("move");
-	foreach my $m (@move_over) {
-	  $m =~ s/^mgm//;
-	  unless ($job_a_hash->{$m}) {
-	    $self->return_data( {"ERROR" => "metagenome not part of source project: " . $m}, 400 );
-	  }
-	}
-
-	foreach my $m (@move_over) {
-	  my $job = $master->Job->get_objects( { metagenome_id => $m });
-	  if (scalar(@$job)) {
-	    $job = $job->[0];
-	    $project_a->remove_job($job);
-	    $project_b->add_job($job);
-	  }
-	}
-
-	$self->return_data( {"OK" => "metagenomes moved"}, 200 );
-      }
+            unless (ref($project_a) && ref($project_b)) {
+                $self->return_data( {"ERROR" => "id $id or $id2 does not exists"}, 404 );
+            }
+            
+            # mg ids in project a
+            my %job_a_hash = map { $_, 1 } @{ $project_a->all_metagenome_ids() };
+            
+            my @move_over = $self->cgi->param("move");
+            # test for existance before doing any moving
+            foreach my $m (@move_over) {
+                $m =~ s/^mgm//;
+                unless ($job_a_hash{$m}) {
+                    $self->return_data( {"ERROR" => "metagenome not part of source project: ".$m}, 400 );
+                }
+            }
+            # need to retrieve job twice as we alter DB by direct SQL without touching job object
+            foreach my $m (@move_over) {
+                $m =~ s/^mgm//;
+                # remove
+                my $rjob = $master->Job->get_objects( { metagenome_id => $m });
+                if (scalar(@$rjob)) {
+                    $project_a->remove_job($rjob->[0]);
+                }
+                # add
+                my $ajob = $master->Job->get_objects( { metagenome_id => $m });
+                if (scalar(@$ajob)) {
+                    $project_b->add_job($ajob->[0]);
+                }
+            }
+            $self->return_data( {"OK" => "metagenomes moved"}, 200 );
+        }
     }
   
     # get data

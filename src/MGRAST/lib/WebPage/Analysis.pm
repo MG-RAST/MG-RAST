@@ -2724,21 +2724,34 @@ sub single_visual {
 	}
 	close(D);
 
-	# metadata coloring
-	my $md_names = ['biome','feature','material','altitude','depth','ph','country','temperature','sequencing method','collection_date','name'];
-	my $jobmd = $self->app->data_handle('MGRAST')->Job->jobs_mixs_metadata_fast(\@comp_mgs);
-	my $mgmd  = [];
-	my $iii   = 0;
+	# metadata coloring	
+	my $mddb  = MGRAST::Metadata->new;
+	my $jobmd = $mddb->get_metadata_for_tables(\@comp_mgs, 1, 1);
+	my $mdata = {};
+	# get unique labels accross all metagenomes
 	foreach my $mgid (@comp_mgs) {
-	  foreach my $md (@$md_names) {
-	    my $val = (exists($jobmd->{$mgid}{$md}) && ($jobmd->{$mgid}{$md} ne '')) ? $jobmd->{$mgid}{$md} : undef;
-	    if ($val) { $val =~ s/'//g; }
-	    push @{ $mgmd->[$iii] }, $val;
-	  }
-	  $iii += 1;
-	}
+	    next unless ($jobmd->{$mgid});
+	    foreach my $md (@{$jobmd->{$mgid}}) {
+	        next if ($md->[1] =~ /(_id|_name)$/);
+	        next if ($md->[1] =~ /^PI_/);
+	        $mdata->{$md->[1]}{$mgid} = $md->[2];
+        }
+    }
+    my @md_names = sort keys %$mdata;
+    my $mgmd = [];
+	my $iii  = 0;
+    # get values for each metagenome
+    foreach my $mgid (@comp_mgs) {
+	    foreach my $md (@md_names) {
+	        my $val = (exists($mdata->{$md}{$mgid}) && ($mdata->{$md}{$mgid} ne '')) ? $mdata->{$md}{$mgid} : undef;
+            if ($val) { $val =~ s/'//g; }
+            push @{ $mgmd->[$iii] }, $val;
+        }
+        $iii += 1;
+    }
+    
 	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
-	foreach my $md_name (@$md_names) {
+	foreach my $md_name (@md_names) {
 	  $md_type_select .= "<option value='$md_name'>$md_name</option>";
 	}
 	$md_type_select .= "</select><input type='button' value='apply' onclick='color_by_metadata(\"$tabnum\");'>";
@@ -3043,7 +3056,7 @@ sub phylogeny_visual {
       $dom_v->data($pd);
       foreach my $cat (@$cats) {
 	if (exists($pval_data->{$cat})) {
-	  $cat = $cat." [".sprintf("%.4f", $pval_data->{$cat}->[1])."]";
+	  $cat = $cat." [".sprintf("%.6f", $pval_data->{$cat}->[1])."]";
 	} else {
 	  $cat = $cat." [-]";
 	}
@@ -3672,21 +3685,33 @@ sub phylogeny_visual {
 	}
 	close(D);
 
-	# metadata coloring
-	my $md_names = ['biome','feature','material','altitude','depth','ph','country','temperature','sequencing method','collection_date','name'];
-	my $jobmd = $self->app->data_handle('MGRAST')->Job->jobs_mixs_metadata_fast(\@comp_mgs);
-	my $mgmd  = [];
-	my $iii   = 0;
+	# metadata coloring	
+	my $mddb  = MGRAST::Metadata->new;
+	my $jobmd = $mddb->get_metadata_for_tables(\@comp_mgs, 1, 1);
+	my $mdata = {};
+	# get unique labels accross all metagenomes
 	foreach my $mgid (@comp_mgs) {
-	  foreach my $md (@$md_names) {
-	    my $val = (exists($jobmd->{$mgid}{$md}) && ($jobmd->{$mgid}{$md} ne '')) ? $jobmd->{$mgid}{$md} : undef;
-	    if ($val) { $val =~ s/'//g; }
-	    push @{ $mgmd->[$iii] }, $val;
-	  }
-	  $iii += 1;
-	}
+	    next unless ($jobmd->{$mgid});
+	    foreach my $md (@{$jobmd->{$mgid}}) {
+	        next if ($md->[1] =~ /(_id|_name)$/);
+	        next if ($md->[1] =~ /^PI_/);
+	        $mdata->{$md->[1]}{$mgid} = $md->[2];
+        }
+    }
+    my @md_names = sort keys %$mdata;
+    my $mgmd = [];
+	my $iii  = 0;
+    # get values for each metagenome
+    foreach my $mgid (@comp_mgs) {
+	    foreach my $md (@md_names) {
+	        my $val = (exists($mdata->{$md}{$mgid}) && ($mdata->{$md}{$mgid} ne '')) ? $mdata->{$md}{$mgid} : undef;
+            if ($val) { $val =~ s/'//g; }
+            push @{ $mgmd->[$iii] }, $val;
+        }
+        $iii += 1;
+    }
 	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
-	foreach my $md_name (@$md_names) {
+	foreach my $md_name (@md_names) {
 	  $md_type_select .= "<option value='$md_name'>$md_name</option>";
 	}
 	$md_type_select .= "</select><input type='button' value='apply' onclick='color_by_metadata(\"$tabnum\");'>";
@@ -4656,21 +4681,33 @@ sub metabolism_visual {
 	}
 	close(D);
 
-	# metadata coloring
-	my $md_names = ['biome','feature','material','altitude','depth','ph','country','temperature','sequencing method','collection_date','name'];
-	my $jobmd = $self->app->data_handle('MGRAST')->Job->jobs_mixs_metadata_fast(\@comp_mgs);
-	my $mgmd  = [];
-	my $iii   = 0;
+	# metadata coloring	
+	my $mddb  = MGRAST::Metadata->new;
+	my $jobmd = $mddb->get_metadata_for_tables(\@comp_mgs, 1, 1);
+	my $mdata = {};
+	# get unique labels accross all metagenomes
 	foreach my $mgid (@comp_mgs) {
-	  foreach my $md (@$md_names) {
-	    my $val = (exists($jobmd->{$mgid}{$md}) && ($jobmd->{$mgid}{$md} ne '')) ? $jobmd->{$mgid}{$md} : undef;
-	    if ($val) { $val =~ s/'//g; }
-	    push @{ $mgmd->[$iii] }, $val;
-	  }
-	  $iii += 1;
-	}
+	    next unless ($jobmd->{$mgid});
+	    foreach my $md (@{$jobmd->{$mgid}}) {
+	        next if ($md->[1] =~ /(_id|_name)$/);
+	        next if ($md->[1] =~ /^PI_/);
+	        $mdata->{$md->[1]}{$mgid} = $md->[2];
+        }
+    }
+    my @md_names = sort keys %$mdata;
+    my $mgmd = [];
+	my $iii  = 0;
+    # get values for each metagenome
+    foreach my $mgid (@comp_mgs) {
+	    foreach my $md (@md_names) {
+	        my $val = (exists($mdata->{$md}{$mgid}) && ($mdata->{$md}{$mgid} ne '')) ? $mdata->{$md}{$mgid} : undef;
+            if ($val) { $val =~ s/'//g; }
+            push @{ $mgmd->[$iii] }, $val;
+        }
+        $iii += 1;
+    }
 	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
-	foreach my $md_name (@$md_names) {
+	foreach my $md_name (@md_names) {
 	  $md_type_select .= "<option value='$md_name'>$md_name</option>";
 	}
 	$md_type_select .= "</select><input type='button' value='apply' onclick='color_by_metadata(\"$tabnum\");'>";
@@ -5707,21 +5744,33 @@ sub lca_visual {
 	}
 	close(D);
 	
-	# metadata coloring
-	my $md_names = ['biome','feature','material','altitude','depth','ph','country','temperature','sequencing method','collection_date','name'];
-	my $jobmd = $self->app->data_handle('MGRAST')->Job->jobs_mixs_metadata_fast(\@comp_mgs);
-	my $mgmd  = [];
-	my $iii   = 0;
+	# metadata coloring	
+	my $mddb  = MGRAST::Metadata->new;
+	my $jobmd = $mddb->get_metadata_for_tables(\@comp_mgs, 1, 1);
+	my $mdata = {};
+	# get unique labels accross all metagenomes
 	foreach my $mgid (@comp_mgs) {
-	  foreach my $md (@$md_names) {
-	    my $val = (exists($jobmd->{$mgid}{$md}) && ($jobmd->{$mgid}{$md} ne '')) ? $jobmd->{$mgid}{$md} : undef;
-	    if ($val) { $val =~ s/'//g; }
-	    push @{ $mgmd->[$iii] }, $val;
-	  }
-	  $iii += 1;
-	}
+	    next unless ($jobmd->{$mgid});
+	    foreach my $md (@{$jobmd->{$mgid}}) {
+	        next if ($md->[1] =~ /(_id|_name)$/);
+	        next if ($md->[1] =~ /^PI_/);
+	        $mdata->{$md->[1]}{$mgid} = $md->[2];
+        }
+    }
+    my @md_names = sort keys %$mdata;
+    my $mgmd = [];
+	my $iii  = 0;
+    # get values for each metagenome
+    foreach my $mgid (@comp_mgs) {
+	    foreach my $md (@md_names) {
+	        my $val = (exists($mdata->{$md}{$mgid}) && ($mdata->{$md}{$mgid} ne '')) ? $mdata->{$md}{$mgid} : undef;
+            if ($val) { $val =~ s/'//g; }
+            push @{ $mgmd->[$iii] }, $val;
+        }
+        $iii += 1;
+    }
 	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
-	foreach my $md_name (@$md_names) {
+	foreach my $md_name (@md_names) {
 	  $md_type_select .= "<option value='$md_name'>$md_name</option>";
 	}
 	$md_type_select .= "</select><input type='button' value='apply' onclick='color_by_metadata(\"$tabnum\");'>";
