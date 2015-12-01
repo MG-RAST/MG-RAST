@@ -1575,7 +1575,7 @@ sub node_to_inbox {
     }
     # add expiration if missing
     if ($node->{expiration} eq "0001-01-01T00:00:00Z") {
-        $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "5D")
+        $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "5D");
     }
     return $info;
 }
