@@ -683,7 +683,7 @@ sub upload_file {
                 email => $self->user->email
             };
             # PUT attributes to node
-            $node = $self->update_shock_node($node_id, $attr, $self->token, $self->user_auth), "5D";
+            $node = $self->update_shock_node($node_id, $attr, $self->token, $self->user_auth, "5D");
             # get / return file info
             $self->file_info($node_id);
         } else {
@@ -740,7 +740,7 @@ sub unpack_file {
     
     # add expiration
     foreach my $node (@{$response->{data}}) {
-        $self->update_shock_node_expiration($node->{id}, $self->token, $self->user_auth, "5D")
+        $self->update_shock_node_expiration($node->{id}, $self->token, $self->user_auth, "5D");
     }
     
     # convert to inbox
