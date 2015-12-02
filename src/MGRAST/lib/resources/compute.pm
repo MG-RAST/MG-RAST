@@ -245,7 +245,7 @@ sub instance {
     my $ver   = $self->cgi->param('ann_ver') || $self->{ann_ver};
     my $data  = {
         id => 'mgm'.$job->{metagenome_id},
-        url => $self->cgi->url.'/type/mgm'.$job->{metagenome_id}.'?level='.$level
+        url => $self->cgi->url.'/'.$type.'/mgm'.$job->{metagenome_id}.'?level='.$level
     };
     MGRAST::Abundance::get_analysis_dbh();
     
@@ -268,21 +268,6 @@ sub instance {
     } else {
         $self->return_data( {"ERROR" => "invalid compute type: $type"}, 400 );
     }
-    
-    my $master = $self->connect_to_datasource();
-    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
-    unless (ref($mgdb)) {
-        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
-    }
-    $mgdb->set_jobs([$id]);
-    
-    my @alpha = values %{ $mgdb->get_rarefaction_curve([$source], 1, $level) };
-    if (@alpha != 1) {
-        $self->return_data({"ERROR" => "unable to calculate alpha diversity"}, 500);
-    }
-    my $data = { id => 'mgm'.$id,
-                 url => $self->cgi->url.'/alphadiversity/mgm'.$id.'?level='.$level.'&source='.$source,
-                 data => sprintf("%.3f", $alpha[0]) };
     
     $self->return_data($data);
 }
