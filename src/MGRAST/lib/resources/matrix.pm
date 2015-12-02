@@ -257,7 +257,7 @@ sub instance {
             $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
         # need to create new node and fork
-        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token);
+        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
         my $pid = fork();
         # child - get data and dump it
         if ($pid == 0) {

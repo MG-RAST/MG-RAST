@@ -811,7 +811,7 @@ sub edit_shock_public_acl {
 # create node with optional file and/or attributes
 # file is json struct by default
 sub set_shock_node {
-    my ($self, $name, $file, $attr, $auth, $not_json, $authPrefix) = @_;
+    my ($self, $name, $file, $attr, $auth, $not_json, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "OAuth";
@@ -824,6 +824,9 @@ sub set_shock_node {
     }
     if ($attr) {
         $content->{attributes} = [undef, "$name.json", Content => $self->json->encode($attr)];
+    }
+    if ($expiration && ($expiration =~ /^(\d+)(M|H|D)$/)) {
+        $content->{expiration} = $expiration;
     }
     eval {
         my @args = (
@@ -846,7 +849,7 @@ sub set_shock_node {
 # add a file to existing shock node
 # file is json struct by default
 sub put_shock_file {
-    my ($self, $name, $file, $node, $auth, $not_json, $authPrefix) = @_;
+    my ($self, $name, $file, $node, $auth, $not_json, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "OAuth";
@@ -854,6 +857,9 @@ sub put_shock_file {
     my $response = undef;
     my $file_str = $not_json ? $file : $self->json->encode($file);
     my $content->{upload} = [undef, $name, Content => $file_str];
+    if ($expiration && ($expiration =~ /^(\d+)(M|H|D)$/)) {
+        $content->{expiration} = $expiration;
+    }
     eval {
         my @args = (
             $auth ? ('Authorization', "$authPrefix $auth") : (),
@@ -904,16 +910,48 @@ sub update_shock_node_file_name {
     }
 }
 
+# just adjust expiration
+sub update_shock_node_expiration {
+    my ($self, $id, $auth, $authPrefix, $expiration) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "OAuth";
+    }
+
+    my $response = undef;
+    my $content = {expiration => $expiration};
+    eval {
+        my @args = (
+            $auth ? ('Authorization', "$authPrefix $auth") : (),
+            'Content_Type', 'multipart/form-data',
+            $content ? ('Content', $content) : ()
+        );
+        my $req = POST($Conf::shock_url.'/node/'.$id, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to PUT to Shock: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
 
 # edit node attributes
 sub update_shock_node {
-    my ($self, $id, $attr, $auth, $authPrefix) = @_;
+    my ($self, $id, $attr, $auth, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "OAuth";
     }
     my $response = undef;
     my $content = {attributes => [undef, "n/a", Content => $self->json->encode($attr)]};
+    if ($expiration && ($expiration =~ /^(\d+)(M|H|D)$/)) {
+        $content->{expiration} = $expiration;
+    }
     eval {
         my @args = (
             $auth ? ('Authorization', "$authPrefix $auth") : (),
@@ -1535,6 +1573,10 @@ sub node_to_inbox {
     if (exists $node->{attributes}{submission}) {
         $info->{submission} = $node->{attributes}{submission};
     }
+    # add expiration if missing
+    if ($node->{expiration} eq "0001-01-01T00:00:00Z") {
+        $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "5D");
+    }
     return $info;
 }
 
@@ -1706,7 +1748,7 @@ sub metadata_validation {
             if ($submit_id) {
                 $json_attr->{submission} = $submit_id;
             }
-            $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix);
+            $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix, "5D");
             $self->edit_shock_acl($json_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
         # update origional metadata node
@@ -1757,7 +1799,7 @@ sub metadata_validation {
             if ($submit_id) {
                 $bar_attr->{submission} = $submit_id;
             }
-            my $bar_node = $self->set_shock_node($bar_name, $bar_data, $bar_attr, $auth, 1, $authPrefix);
+            my $bar_node = $self->set_shock_node($bar_name, $bar_data, $bar_attr, $auth, 1, $authPrefix, "5D");
             $bar_id = $bar_node->{id};
             $self->edit_shock_acl($bar_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
