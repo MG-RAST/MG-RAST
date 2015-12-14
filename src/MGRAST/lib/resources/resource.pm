@@ -2179,6 +2179,8 @@ sub verify_file_type {
          ($file_type eq 'ASCII text, with CR line terminators') ||
          ($file_type eq 'ASCII text, with CRLF line terminators') ) {
         return ($file_type, "");
+    } elsif ($file_suffix eq 'sff') {
+        return ("binary sff sequence file", "");
     } elsif (($file_suffix eq 'xls') || ($file_suffix eq 'xlsx')) {
         return ("binary excel spreadsheet file", "");
     } elsif (($file_suffix eq 'tar') || ($file_suffix eq 'zip')) {
