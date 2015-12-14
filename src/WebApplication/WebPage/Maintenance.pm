@@ -65,5 +65,8 @@ sub output {
     $html .= "<p>We are performing a necessary maintenance that does require this site to be brought down temporarily. We thank you for your patience and understanding and apologize for any interruption this may cause in your use of this service.</p>";
   }
 
+  $html .= qq~<a class="twitter-timeline"  href="https://twitter.com/mg_rast" data-widget-id="674991961309364224">Tweets by \@mg_rast</a>
+      <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>~;
+
   return $html;
 }
