@@ -59,16 +59,16 @@ if (open(FH, $jobs)) {
 
 # get the project
 my $p = $mgmaster->Project->init( { id => $project } );
-unless ref($p) {
+unless (ref($p)) {
   print "could not initialize project $project\n";
 }
 
 # get the jobs
-my $jobs = [];
+my $js = [];
 foreach my $jid (@$jids) {
-  my $job = $mgmaster->Job->get_objects( { job_id => $mgid } );
-  if (scalar(@$mg)) {
-    push(@$jobs, $mg->[0]);
+  my $job = $mgmaster->Job->get_objects( { job_id => $jid } );
+  if (scalar(@$job)) {
+    push(@$js, $job->[0]);
   } else {
     print "failed to get job $jid, aborting.\n";
     exit 0;
@@ -76,7 +76,7 @@ foreach my $jid (@$jids) {
 }
 
 # delete other project job connections for said jobs
-foreach my $job (@$jobs) {
+foreach my $job (@$js) {
   my $pjs = $mgmaster->ProjectJob->get_objects({ job => $job });
   foreach my $pj (@$pjs) {
     $pj->delete;
