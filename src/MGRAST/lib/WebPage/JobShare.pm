@@ -107,7 +107,7 @@ sub output {
   $content .= $list_select->output()."<input type='hidden' name='multishare' id='domulti' value=0></div>";
 
   # short help text
-  $content .= '<p style="width: 70%;">To share the above job and its data with another user, please enter the email address of the user. Please note that you have to enter the email address which that person used to register at the MG-RAST service. The user will receive an email that notifies him how to access the data. Once you have granted the right to view one of your MG-RAST jobs to another user or group, the name will appear at the bottom of the page with the option to revoke it.</p>';
+  $content .= '<p style="width: 70%;">To share the above job and its data with another user, please enter the email address of the user. The user will receive an email that notifies him how to access the data. Once you have granted the right to view one of your MG-RAST jobs to another user or group, the name will appear at the bottom of the page with the option to revoke it.</p>';
 
   # select user or group
   $content .= "<p id='section_bar'><img src='".IMAGES."rast-info.png'/>Enter an email address</p>";
