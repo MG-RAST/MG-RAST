@@ -151,7 +151,7 @@ $(document).ready( function() {
 			update_link('');
 			switch_to('#all_metagenomes');
 		}
-		var sel = $("#table_"+all_metagenomes_table_id+"_operand_23")['0'];
+		var sel = $("#table_"+all_metagenomes_table_id+"_operand_24")['0'];
 		for (var opt in sel.options){
 			if (sel.options[opt].text = 'private'){
 				sel.selectedIndex = opt;
@@ -177,7 +177,7 @@ $(document).ready( function() {
 			update_link('');
 			switch_to('#all_metagenomes');
 		}
-		var sel = $("#table_"+all_metagenomes_table_id+"_operand_23")['0'];
+		var sel = $("#table_"+all_metagenomes_table_id+"_operand_24")['0'];
 		for (var opt in sel.options){
 			if (sel.options[opt].text = 'shared'){
 				sel.selectedIndex = opt;
@@ -198,7 +198,7 @@ $(document).ready( function() {
 			update_link('');
 			switch_to('#all_metagenomes');
 		}
-		var sel = $("#table_"+all_metagenomes_table_id+"_operand_23")['0'];
+		var sel = $("#table_"+all_metagenomes_table_id+"_operand_24")['0'];
 		for (var opt in sel.options){
 			if (sel.options[opt].text = 'public'){
 				sel.selectedIndex = opt;
