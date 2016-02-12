@@ -952,7 +952,7 @@ sub fetch_browsepage_in_progress {
   #    $mgrast_token = $rep ? $rep->{access_token} : undef;
   #}
   #### changed because globus has hard time handeling multiple tokens
-  my $mgrast_token = $Conf::mgrast_oauth_token || undef;
+  my $mgrast_token = "mgrast ".$Conf::mgrast_oauth_token || undef;
   
   # set json handle
   my $agent = LWP::UserAgent->new;
@@ -976,7 +976,7 @@ sub fetch_browsepage_in_progress {
   # get awe data
   my $stats = {};
   eval {
-    my @args = ('Authorization', "OAuth ".$mgrast_token);
+    my @args = ('Authorization', $mgrast_token);
     my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.user=mgu'.$user->{_id}, @args);
     $stats = $json->decode( $get->content );
   };
@@ -1329,9 +1329,9 @@ sub user_delete {
   #    $mgrast_token = $rep ? $rep->{access_token} : undef;
   #}
   #### changed because globus has hard time handeling multiple tokens
-  my $mgrast_token = $Conf::mgrast_oauth_token || undef;
+  my $mgrast_token = "mgrast ".$Conf::mgrast_oauth_token || undef;
   
-  my @auth = ('Authorization', "OAuth ".$mgrast_token);
+  my @auth = ('Authorization', $mgrast_token);
   
   # get handles
   my $agent = LWP::UserAgent->new;

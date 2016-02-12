@@ -623,7 +623,7 @@ sub return_shock_file {
     my ($self, $id, $size, $name, $auth, $authPrefix) = @_;
         
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -659,7 +659,7 @@ sub get_download_set {
     my ($self, $mgid, $auth, $seq_only, $authPrefix) = @_;
 
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my %seen = ();
@@ -753,7 +753,7 @@ sub edit_shock_acl {
     my ($self, $id, $auth, $user, $action, $acl, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -783,7 +783,7 @@ sub edit_shock_public_acl {
     my ($self, $id, $auth, $action, $acl, $authPrefix) = @_;
 
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -814,7 +814,7 @@ sub set_shock_node {
     my ($self, $name, $file, $attr, $auth, $not_json, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
     my $response = undef;
     my $content = {};
@@ -852,7 +852,7 @@ sub put_shock_file {
     my ($self, $name, $file, $node, $auth, $not_json, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
     my $response = undef;
     my $file_str = $not_json ? $file : $self->json->encode($file);
@@ -885,7 +885,7 @@ sub update_shock_node_file_name {
     my ($self, $id, $fname, $auth, $authPrefix) = @_;
 
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -915,7 +915,7 @@ sub update_shock_node_expiration {
     my ($self, $id, $auth, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -945,7 +945,7 @@ sub update_shock_node {
     my ($self, $id, $attr, $auth, $authPrefix, $expiration) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
     my $response = undef;
     my $content = {attributes => [undef, "n/a", Content => $self->json->encode($attr)]};
@@ -977,7 +977,7 @@ sub get_shock_node {
     my ($self, $id, $auth, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1000,7 +1000,7 @@ sub delete_shock_node {
     my ($self, $id, $auth, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1023,7 +1023,7 @@ sub get_shock_preauth {
     my ($self, $id, $auth, $fn, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1047,7 +1047,7 @@ sub get_shock_file {
     my ($self, $id, $file, $auth, $index, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1079,7 +1079,7 @@ sub get_shock_query {
     my ($self, $params, $auth, $authPrefix) = @_;
 
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }    
 
     my $response = undef;
@@ -1199,10 +1199,10 @@ sub post_awe_job {
     my ($self, $workflow, $shock_auth, $awe_auth, $is_string, $shockAuthPrefix, $aweAuthPrefix) = @_;
 
     if (! $aweAuthPrefix) {
-        $aweAuthPrefix = "OAuth";
+        $aweAuthPrefix = "mgrast";
     }
     if (! $shockAuthPrefix) {
-        $shockAuthPrefix = "OAuth";
+        $shockAuthPrefix = "mgrast";
     }
 
     my $content = undef;
@@ -1236,7 +1236,7 @@ sub awe_job_action {
     my ($self, $id, $action, $auth, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1262,7 +1262,7 @@ sub get_awe_job {
     my ($self, $id, $auth, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1285,7 +1285,7 @@ sub get_awe_query {
     my ($self, $params, $auth, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1319,7 +1319,7 @@ sub get_awe_report {
     my ($self, $id, $type, $auth, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1351,7 +1351,7 @@ sub get_task_report {
         $rank = 0;
     }
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
     
     my $id = $task->{taskid}."_".$rank;
@@ -1375,7 +1375,7 @@ sub delete_awe_job {
     my ($self, $id, $auth, $authPrefix) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "OAuth";
+      $authPrefix = "mgrast";
     }
 
     my $response = undef;
