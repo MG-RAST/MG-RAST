@@ -75,7 +75,7 @@ sub new {
   #    $mgrast_token = $rep ? $rep->{access_token} : undef;
   #}
   #### changed because globus has hard time handeling multiple tokens
-  my $mgrast_token = $Conf::mgrast_oauth_token || undef;
+  my $mgrast_token = "mgrast ".$Conf::mgrast_oauth_token || undef;
   
   # set json handle
   my $agent = LWP::UserAgent->new;
@@ -392,7 +392,7 @@ sub _get_mg_stats {
     # get content
     my $stats = {};
     eval {
-        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+        my @args = ('Authorization', $self->_mgrast_token);
         my $get = $self->_agent->get($Conf::shock_url.'/node/'.$stat_node->{id}.'?download', @args);
         $stats = $self->_json->decode( $get->content );
     };
@@ -418,7 +418,7 @@ sub _get_mg_node {
     my $response = undef;
     my $query = '?query&limit=1&type=metagenome&'.$type.'&id=mgm'.$mgid;
     eval {
-        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+        my @args = ('Authorization', $self->_mgrast_token);
         my $get = $self->_agent->get($Conf::shock_url.'/node'.$query, @args);
         $response = $self->_json->decode( $get->content );
     };
@@ -439,7 +439,7 @@ sub _get_sim_record {
     }
     my $data = '';
     eval {
-        my @args = ('Authorization', "OAuth ".$self->_mgrast_token);
+        my @args = ('Authorization', $self->_mgrast_token);
         my $url = $Conf::shock_url.'/node/'.$node_id.'?download&seek='.$seek.'&length='.$length;
         my $get = $self->_agent->get($url, @args);
         $data = $get->content;

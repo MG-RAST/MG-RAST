@@ -378,7 +378,7 @@ sub download {
   #    $mgrast_token = $rep ? $rep->{access_token} : undef;
   #}
   #### changed because globus has hard time handeling multiple tokens
-  my $mgrast_token = $Conf::mgrast_oauth_token || undef;
+  my $mgrast_token = "mgrast ".$Conf::mgrast_oauth_token || undef;
   
   my $response = undef;
   my $agent = LWP::UserAgent->new;
@@ -392,7 +392,7 @@ sub download {
   eval {
       my $url = $Conf::shock_url.'/node/'.$node.'?download_raw';
       my @args = (
-          $mgrast_token ? ('Authorization', "OAuth $mgrast_token") : (),
+          $mgrast_token ? ('Authorization', $mgrast_token) : (),
           ':read_size_hint', 8192,
           ':content_cb', sub{ my ($chunk) = @_; print $chunk; }
       );
