@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use Digest::MD5 qw(md5_hex)
 use POSIX qw(strftime);
 use List::MoreUtils qw(any uniq);
 use Scalar::Util qw(looks_like_number);
@@ -690,7 +691,7 @@ sub job_action {
             my $mddb  = MGRAST::Metadata->new();
             my $jobid = $job->{job_id};
             my $mgid  = 'mgm'.$job->{metagenome_id};
-            my $unique = $self->url_id.$self->json->encode($post);
+            my $unique = $self->url_id . md5_hex($self->json->encode($post));
             
             # asynchronous call, fork the process and return the process id.
             # caching is done with shock, not memcache
