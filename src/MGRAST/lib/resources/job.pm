@@ -710,6 +710,7 @@ sub job_action {
             my $pid = fork();
             # child - get data and POST it
             if ($pid == 0) {
+                print STDERR "process $$ running";
                 close STDERR;
                 close STDOUT;
                 # solr data
