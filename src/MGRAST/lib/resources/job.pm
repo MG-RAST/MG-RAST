@@ -4,7 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
-use Digest::MD5 qw(md5_hex)
+use Digest::MD5 qw(md5_hex);
 use POSIX qw(strftime);
 use List::MoreUtils qw(any uniq);
 use Scalar::Util qw(looks_like_number);
