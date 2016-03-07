@@ -31,7 +31,7 @@ sub new {
                             "url"        => [ 'uri', 'resource location of this object instance' ]
                           };
 
-    $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1, 'session' => 1, 'request_access' => 1},
+    $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1, 'session' => 1, 'request_access' => 1, 'priorities' => 1},
                     direction => {'asc' => 1, 'desc' => 1},
                     match => {'any' => 1, 'all' => 1}
     };
@@ -508,8 +508,18 @@ sub instance {
     }
   }
   
+  # get the jobs that need to be made public
+  if ($verb eq 'priorities') {
+    my $jobdb = $self->connect_to_datasource();
+    if (! $jobdb) {
+      $self->return_data( {"ERROR" => "could not access job database"}, 500 );
+    }
+    my $jdbh  = $jobdb->db_handle();
+    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value FROM Job, JobAttributes, Project WHERE Job.owner='.$user->{_id}.' AND Job._id=JobAttributes.job AND JobAttributes.tag="priority" AND (Job.public IS NULL OR Job.public=0) AND Job.viewable=1 AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
+    $self->return_data({ "priorities" => $res });
+  }
   # get the user preferences
-  if ($verb eq 'preferences') {
+  elsif ($verb eq 'preferences') {
     my $prefs = $master->Preferences->get_objects({ user => $user });
     $user->{preferences} = [];
     @{$user->{preferences}} = map { { name => $_->{name}, value => $_->{value} } } @$prefs;
