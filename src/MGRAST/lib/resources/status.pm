@@ -75,6 +75,11 @@ sub instance {
     my ($self) = @_;
     
     my $verbosity = $self->cgi->param('verbosity') || "full";
+
+    if ($self->rest->[0] eq 'twitter') {
+      my $data = `curl -s -X GET -H "Authorization: Bearer AAAAAAAAAAAAAAAAAAAAAF%2BttwAAAAAADIFy3lxo9On1Qjx3SWZPCGIEOGU%3DeeNP5cxZXM7W70fE2A30dk2Hw4IwAuK3TSNEaK7pCJU1TY4VJ0" "https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=mg_rast&count=5&trim_user=1"`;
+      $self->return_data($self->json->decode($data));
+    }
     
     # get node
     my $uuid = $self->rest->[0];
