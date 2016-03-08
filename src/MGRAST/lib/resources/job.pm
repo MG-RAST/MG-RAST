@@ -710,9 +710,9 @@ sub job_action {
             my $pid = fork();
             # child - get data and POST it
             if ($pid == 0) {
-                print STDERR "process $$ running\n";
                 close STDERR;
                 close STDOUT;
+                open(DEBUG, ">/MG-RAST/site/CGI/Tmp/solr.debug");
                 # solr data
                 my $solr_data = {
                     job                => int($jobid),
@@ -730,10 +730,17 @@ sub job_action {
                     seq_method_sort    => $jdata->{sequencing_method_guess},
                     version            => $self->{ann_ver},
                     metadata           => "",
-                    md5                => [ map {$_->[0]} @{MGRAST::Abundance::get_md5sum_abundance($jobid, $self->{ann_ver})} ]
+                    md5                => []
                 };
-                
+                # md5s
+                print DEBUG "md5 data\n" if $post->{debug};
+                eval {
+                    my $md5_stuff = [ map {$_->[0]} @{MGRAST::Abundance::get_md5sum_abundance($jobid, $self->{ann_ver})} ];
+                    $solr_data->{md5} = $md5_stuff;
+                };
+                if ($@) { print DEBUG "eval: ".$@; }
                 # project - from jobdb
+                print DEBUG "project data\n" if $post->{debug};
                 eval {
     	            my $proj = $job->primary_project;
     	            if ($proj->{id}) {
@@ -743,75 +750,95 @@ sub job_action {
     	                $solr_data->{project_name_sort} = $proj->{name};
                     }
     	        };
+    	        if ($@) { print DEBUG "eval: ".$@; }
                 # statistics - from postdata or jobdb
-                my $seq_stats = exists($sdata->{sequence_stats}) ? $sdata->{sequence_stats} : $job->stats();
-                while (my ($key, $val) = each(%$seq_stats)) {
-                    if (looks_like_number($val)) {
-                        if ($key =~ /count/ || $key =~ /min/ || $key =~ /max/) {
-                            $solr_data->{$key.'_l'} = $val * 1;
-                        } else {
-                            $solr_data->{$key.'_d'} = $val * 1.0;
+                print DEBUG "seqstats data\n" if $post->{debug};
+                eval {
+                    my $seq_stats = exists($sdata->{sequence_stats}) ? $sdata->{sequence_stats} : $job->stats();
+                    while (my ($key, $val) = each(%$seq_stats)) {
+                        if (looks_like_number($val)) {
+                            if ($key =~ /count/ || $key =~ /min/ || $key =~ /max/) {
+                                $solr_data->{$key.'_l'} = $val * 1;
+                            } else {
+                                $solr_data->{$key.'_d'} = $val * 1.0;
+                            }
                         }
                     }
-                }
-            
+                };
+                if ($@) { print DEBUG "eval: ".$@; }
                 # annotations - from postdata or mg stats (if not rebuild) or from analysis db
                 my $mg_stats = {};
                 # function
-                if (exists($sdata->{function}) && $sdata->{function}) {
-                    $solr_data->{function} = $sdata->{function};
-                } elsif ($rebuild) {
-                    $solr_data->{function} = [ map {$_->[0]} @{MGRAST::Abundance::get_function_abundances($jobid, $self->{ann_ver})} ];
-                } else {
-                    unless (exists $mg_stats->{function}) {
-                        $mg_stats = $self->metagenome_stats_from_shock($solr_data->{id});
-                    }
-                    if (exists $mg_stats->{function}) {
-                        $solr_data->{function} = [ map {$_->[0]} @{$mg_stats->{function}} ];
-                    } else {
+                print DEBUG "function data\n" if $post->{debug};
+                eval {
+                    if (exists($sdata->{function}) && $sdata->{function}) {
+                        $solr_data->{function} = $sdata->{function};
+                    } elsif ($rebuild) {
                         $solr_data->{function} = [ map {$_->[0]} @{MGRAST::Abundance::get_function_abundances($jobid, $self->{ann_ver})} ];
-                    }
-                }
-                # organism - species
-                if (exists($sdata->{organism}) && $sdata->{organism}) {
-                    $solr_data->{organism} = $sdata->{organism};
-                } elsif ($rebuild) {
-                    $solr_data->{organism} = [ map {$_->[0]} @{MGRAST::Abundance::get_taxa_abundances($jobid, 'species', 0, $self->{ann_ver})} ];
-                } else {
-                    unless (exists $mg_stats->{taxonomy}) {
-                        $mg_stats = $self->metagenome_stats_from_shock($solr_data->{id});
-                    }
-                    if (exists($mg_stats->{taxonomy}) && exists($mg_stats->{taxonomy}{species}) && $mg_stats->{taxonomy}{species}) {
-                        $solr_data->{organism} = [ map {$_->[0]} @{$mg_stats->{taxonomy}{species}} ];
                     } else {
-                        $solr_data->{organism} = [ map {$_->[0]} @{MGRAST::Abundance::get_taxa_abundances($jobid, 'species', 0, $self->{ann_ver})} ];
-                    }
-                }
-            
-                # mixs metadata - from jobdb
-                my $mixs = $mddb->get_job_mixs($job);
-                while (my ($key, $val) = each(%$mixs)) {
-                    if ($val) {
-                        $solr_data->{$key} = $val;
-                        $solr_data->{$key.'_sort'} = $val;
-                    }
-                }
-                # full metadata - from jobdb
-                my $mdata = $mddb->get_jobs_metadata_fast([$jobid])->{$jobid};
-                foreach my $cat (('project', 'sample', 'env_package', 'library')) {
-                    eval {
-                        if (exists($mdata->{$cat}) && $mdata->{$cat}{id} && $mdata->{$cat}{name} && $mdata->{$cat}{data}) {
-                            $solr_data->{$cat.'_id'}      = $mdata->{$cat}{id};
-                            $solr_data->{$cat.'_id_sort'} = $mdata->{$cat}{id};
-                            $solr_data->{$cat.'_name'}    = $mdata->{$cat}{name};
-                            my $concat = join(", ", grep { $_ && ($_ ne " - ") } values %{$mdata->{$cat}{data}});
-                            $solr_data->{$cat}      = $concat;
-                            $solr_data->{metadata} .= ", ".$concat;
+                        unless (exists $mg_stats->{function}) {
+                            $mg_stats = $self->metagenome_stats_from_shock($solr_data->{id});
                         }
-                    };
-                }
+                        if (exists $mg_stats->{function}) {
+                            $solr_data->{function} = [ map {$_->[0]} @{$mg_stats->{function}} ];
+                        } else {
+                            $solr_data->{function} = [ map {$_->[0]} @{MGRAST::Abundance::get_function_abundances($jobid, $self->{ann_ver})} ];
+                        }
+                    }
+                };
+                if ($@) { print DEBUG "eval: ".$@; }
+                # organism - species
+                print DEBUG "organism data\n" if $post->{debug};
+                eval {
+                    if (exists($sdata->{organism}) && $sdata->{organism}) {
+                        $solr_data->{organism} = $sdata->{organism};
+                    } elsif ($rebuild) {
+                        $solr_data->{organism} = [ map {$_->[0]} @{MGRAST::Abundance::get_taxa_abundances($jobid, 'species', 0, $self->{ann_ver})} ];
+                    } else {
+                        unless (exists $mg_stats->{taxonomy}) {
+                            $mg_stats = $self->metagenome_stats_from_shock($solr_data->{id});
+                        }
+                        if (exists($mg_stats->{taxonomy}) && exists($mg_stats->{taxonomy}{species}) && $mg_stats->{taxonomy}{species}) {
+                            $solr_data->{organism} = [ map {$_->[0]} @{$mg_stats->{taxonomy}{species}} ];
+                        } else {
+                            $solr_data->{organism} = [ map {$_->[0]} @{MGRAST::Abundance::get_taxa_abundances($jobid, 'species', 0, $self->{ann_ver})} ];
+                        }
+                    }
+                };
+                if ($@) { print DEBUG "eval: ".$@; }
+                # mixs metadata - from jobdb
+                print DEBUG "mixs data\n" if $post->{debug};
+                eval {
+                    my $mixs = $mddb->get_job_mixs($job);
+                    while (my ($key, $val) = each(%$mixs)) {
+                        if ($val) {
+                            $solr_data->{$key} = $val;
+                            $solr_data->{$key.'_sort'} = $val;
+                        }
+                    }
+                };
+                if ($@) { print DEBUG "eval: ".$@; }
+                # full metadata - from jobdb
+                print DEBUG "mixs data\n" if $post->{debug};
+                eval {
+                    my $mdata = $mddb->get_jobs_metadata_fast([$jobid])->{$jobid};
+                    foreach my $cat (('project', 'sample', 'env_package', 'library')) {
+                        eval {
+                            if (exists($mdata->{$cat}) && $mdata->{$cat}{id} && $mdata->{$cat}{name} && $mdata->{$cat}{data}) {
+                                $solr_data->{$cat.'_id'}      = $mdata->{$cat}{id};
+                                $solr_data->{$cat.'_id_sort'} = $mdata->{$cat}{id};
+                                $solr_data->{$cat.'_name'}    = $mdata->{$cat}{name};
+                                my $concat = join(", ", grep { $_ && ($_ ne " - ") } values %{$mdata->{$cat}{data}});
+                                $solr_data->{$cat}      = $concat;
+                                $solr_data->{metadata} .= ", ".$concat;
+                            }
+                        };
+                    }
+                };
+                if ($@) { print DEBUG "eval: ".$@; }
                 
                 # get content
+                print DEBUG "solr command\n" if $post->{debug};
                 my $filename = $jobid.".".time.'.solr.json';
                 my $solr_str = $self->json->encode({
                     delete => { id => $mgid },
@@ -830,10 +857,14 @@ sub job_action {
                 }
                 
                 # POST to shock, triggers end of asynch action
-                if ($err) {
-                    $solr_str = qq({"ERROR": "$err", "STATUS": 500});
-                }
-                $self->put_shock_file($filename, $solr_str, $node->{id}, $self->mgrast_token, 1);
+                print DEBUG "shock post\n" if $post->{debug};
+                eval {
+                    if ($err) {
+                        $solr_str = qq({"ERROR": "$err", "STATUS": 500});
+                    }
+                    $self->put_shock_file($filename, $solr_str, $node->{id}, $self->mgrast_token, 1);
+                };
+                if ($@) { print DEBUG "eval: ".$@; }
                 exit 0;
             }
             # parent - end html session
