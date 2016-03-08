@@ -26,7 +26,7 @@ sub new {
     $self->{mgdb} = undef;
     $self->{rights} = \%rights;
     $self->{cv} = {
-        verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1},
+        verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
         direction => {'asc' => 1, 'desc' => 1},
         status    => {'both' => 1, 'public' => 1, 'private' => 1},
         match     => {'any' => 1, 'all' => 1}
@@ -378,10 +378,24 @@ sub query {
     my ($data, $total) = ([], 0);
     my $fields = ['id', 'name', 'status', 'created'];
     if ($verb eq 'mixs') {
-        @$fields = keys %{$self->{query}};
+      @$fields = keys %{$self->{query}};
+    }
+    if ($verb eq 'seqstats') {
+      $fields = $self->seq_stats();
+      push @$fields, keys %{$self->{query}};
     }
     unless ($return_empty_set) {
-        ($data, $total) = $self->solr_data($solr_query_str, $order."_sort+".$dir, $offset, $limit, $fields);
+      my $text_order = { "url" => 1,
+			 "name" => 1,
+			 "project_id" => 1,
+			 "id" => 1,
+			 "status" => 1,
+			 "sequence_type" => 1,
+			 "project_name" => 1,
+			 "seq_method" => 1,
+			 "project_url" => 1
+		       };
+      ($data, $total) = $self->solr_data($solr_query_str, $order.($text_order->{$order} ? "_sort" : "")."+".$dir, $offset, $limit, $fields);
     }
     my $obj = $self->check_pagination($data, $total, $limit);
     $obj->{version} = 1;
@@ -391,7 +405,7 @@ sub query {
         $self->return_data($obj);
     }
 
-    if (($verb eq 'minimal') || ($verb eq 'mixs')) {
+    if (($verb eq 'minimal') || ($verb eq 'mixs') || ($verb eq 'seqstats')) {
         # add missing fields to solr data
         foreach my $item (@{$obj->{data}}) {
             map { $item->{$_} = exists($item->{$_}) ? $item->{$_} : "" } @$fields;
