@@ -684,14 +684,9 @@ sub job_action {
                 status        => $status
             };
         } elsif ($action eq 'solr') {
-            MGRAST::Abundance::get_analysis_dbh();
             my $rebuild = $post->{rebuild} ? 1 : 0;
-            my $sdata = $post->{solr_data} || {};
-            my $jdata = $job->data();
-            my $mddb  = MGRAST::Metadata->new();
-            my $jobid = $job->{job_id};
-            my $mgid  = 'mgm'.$job->{metagenome_id};
-            my $unique = $self->url_id . md5_hex($self->json->encode($post));
+            my $sdata   = $post->{solr_data} || {};
+            my $unique  = $self->url_id . md5_hex($self->json->encode($post));
             
             # asynchronous call, fork the process and return the process id.
             # caching is done with shock, not memcache
@@ -710,6 +705,15 @@ sub job_action {
             my $pid = fork();
             # child - get data and POST it
             if ($pid == 0) {
+                # create DB handels inside child as they break on fork
+                my $mddb = MGRAST::Metadata->new();
+                MGRAST::Abundance::get_analysis_dbh();
+                my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
+                $job = $jobj->[0];
+                my $jdata = $job->data();
+                my $jobid = $job->{job_id};
+                my $mgid  = 'mgm'.$job->{metagenome_id};
+                
                 close STDERR;
                 close STDOUT;
                 open(DEBUG, ">/MG-RAST/site/CGI/Tmp/solr.debug");
