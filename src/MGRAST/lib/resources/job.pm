@@ -383,8 +383,10 @@ sub job_data {
         # caching is done with shock, not memcache
         my $attr = {
             type => "temp",
+            id   => 'mgm'.$job->{metagenome_id},
             url_id => $self->url_id,
-            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous"
+            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
+            data_type => "abundance"
         };
         # already cashed in shock - say submitted in case its running
         my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
@@ -423,12 +425,7 @@ sub job_data {
                 $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
             }
             # POST to shock, triggers end of asynch action
-            my $result = {
-                metagenome_id => 'mgm'.$job->{metagenome_id},
-                job_id        => $job->{job_id},
-                data          => $data
-            };
-            $self->put_shock_file($result->{metagenome_id}.".abundance", $result, $node->{id}, $self->mgrast_token);
+            $self->put_shock_file($result->{metagenome_id}.".abundance", $data, $node->{id}, $self->mgrast_token);
             exit 0;
         }
         # parent - end html session
@@ -734,8 +731,10 @@ sub job_action {
             # caching is done with shock, not memcache
             my $attr = {
                 type => "temp",
+                id   => 'mgm'.$job->metagenome_id,
                 url_id => $unique,
-                owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous"
+                owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
+                data_type => "solr"
             };
             # already cashed in shock - say submitted in case its running
             my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
