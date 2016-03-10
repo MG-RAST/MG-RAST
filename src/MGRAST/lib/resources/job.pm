@@ -401,9 +401,13 @@ sub job_data {
             close STDOUT;
             open(DEBUG, ">/MG-RAST/site/CGI/Tmp/abundance.debug");
             # create DB handels inside child as they break on fork
-            MGRAST::Abundance::get_analysis_dbh();
-            my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
-            $job = $jobj->[0];
+            print DEBUG "get job\n" if $debug;
+            eval {
+                MGRAST::Abundance::get_analysis_dbh();
+                my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
+                $job = $jobj->[0];
+            };
+            if ($@) { print DEBUG "eval: ".$@; }
             # get data
             my $data = {};
             print DEBUG "organism data\n" if $debug;
