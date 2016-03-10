@@ -266,7 +266,7 @@ sub info {
 				          'request'     => $self->cgi->url."/".$self->name."/abundance/{ID}",
 				          'description' => "Get abundances for different annotations",
 				          'method'      => "GET",
-				          'type'        => "synchronous",
+				          'type'        => "asynchronous",
 				          'attributes'  => $self->{attributes}{data},
 				          'parameters'  => { 'options'  => { "level"    => ["cv", $self->{taxa}],
 				                                             "ann_ver"  => ["int", "version of m5nr annotations"],
@@ -354,48 +354,87 @@ sub job_data {
     }
     $job = $job->[0];
     
-    my $data = {};
     if ($type eq "statistics") {
-        $data = $job->stats();
+        $self->return_data({
+            metagenome_id => 'mgm'.$job->{metagenome_id},
+            job_id        => $job->{job_id},
+            data          => $job->stats()
+        });
     } elsif ($type eq "attributes") {
-        $data = $job->data();
+        $self->return_data({
+            metagenome_id => 'mgm'.$job->{metagenome_id},
+            job_id        => $job->{job_id},
+            data          => $job->data()
+        });
     } elsif ($type eq "abundance") {
-        MGRAST::Abundance::get_analysis_dbh();
         my $taxa = $self->cgi->param('level') || "";
         my $ann  = $self->cgi->param('type') || "all";
         my $ver  = $self->cgi->param('ann_ver') || $self->{ann_ver};
-        
-        if (($ann eq "all") || ($ann eq "organism")) {
-            if (! $taxa) {
-                foreach my $t (@{$self->{taxa}}) {
-                    my $other = ($t->[0] eq 'domain') ? 1 : 0;
-                    $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $t->[0], $other, $ver);
-                }
-            } elsif ( any {$_->[0] eq $taxa} @{$self->{taxa}} ) {
-                my $other = ($taxa eq 'domain') ? 1 : 0;
-                $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $taxa, $other, $ver);
-            } else {
-                return ({"ERROR" => "invalid group_level for organism - valid types are [".join(", ", map {$_->[0]} @{$self->{taxa}})."]"}, 404);
-            }
+        # validate parameters
+        my %valid_tax = map { $_ => 1 } @{$self->{taxa}};
+        my %valid_ann = (all => 1, organism => 1, ontology => 1, function => 1);        
+        if ($taxa && (! exists($valid_tax{$taxa}))) {
+            return ({"ERROR" => "invalid group_level for organism - valid types are [".join(", ", map {$_->[0]} @{$self->{taxa}})."]"}, 404);
         }
-        if (($ann eq "all") || ($ann eq "ontology")) {
-            $data->{ontology} = MGRAST::Abundance::get_ontology_abundances($job->{job_id}, $ver);
-        }
-        if (($ann eq "all") || ($ann eq "function")) {
-            $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
-        }
-        if (scalar(keys %$data) == 0) {
+        if (! exists($valid_ann{$ann})) {
             $self->return_data( {"ERROR" => "invalid job abundance type: $ann"}, 400 );
+        }
+        # asynchronous call, fork the process and return the process id.
+        # caching is done with shock, not memcache
+        my $attr = {
+            type => "temp",
+            url_id => $self->url_id,
+            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous"
+        };
+        # already cashed in shock - say submitted in case its running
+        my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
+        if ($nodes && (@$nodes > 0)) {
+            $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+        }
+        # need to create new node and fork
+        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
+        my $pid = fork();
+        # child - get data and POST it
+        if ($pid == 0) {
+            # create DB handels inside child as they break on fork
+            MGRAST::Abundance::get_analysis_dbh();
+            my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
+            $job = $jobj->[0];
+            # get data
+            my $data = {};
+            if (($ann eq "all") || ($ann eq "organism")) {
+                if (! $taxa) {
+                    foreach my $t (@{$self->{taxa}}) {
+                        my $other = ($t->[0] eq 'domain') ? 1 : 0;
+                        $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $t->[0], $other, $ver);
+                    }
+                } else {
+                    my $other = ($taxa eq 'domain') ? 1 : 0;
+                    $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $taxa, $other, $ver);
+                }
+            }
+            if (($ann eq "all") || ($ann eq "ontology")) {
+                $data->{ontology} = MGRAST::Abundance::get_ontology_abundances($job->{job_id}, $ver);
+            }
+            if (($ann eq "all") || ($ann eq "function")) {
+                $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
+            }
+            # POST to shock, triggers end of asynch action
+            my $result = {
+                metagenome_id => 'mgm'.$job->{metagenome_id},
+                job_id        => $job->{job_id},
+                data          => $data
+            };
+            $self->put_shock_file($result->{metagenome_id}.".abundance", $result, $node->{id}, $self->mgrast_token);
+            exit 0;
+        }
+        # parent - end html session
+        else {
+            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
         }
     } else {
         $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
     }
-    
-    $self->return_data({
-        metagenome_id => 'mgm'.$job->{metagenome_id},
-        job_id        => $job->{job_id},
-        data          => $data
-    });
 }
 
 sub job_action {
