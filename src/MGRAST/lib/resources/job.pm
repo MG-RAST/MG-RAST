@@ -370,6 +370,7 @@ sub job_data {
         my $taxa = $self->cgi->param('level') || "";
         my $ann  = $self->cgi->param('type') || "all";
         my $ver  = $self->cgi->param('ann_ver') || $self->{ann_ver};
+        my $debug = $self->cgi->param('debug') ? 1 : 0;
         # validate parameters
         my %valid_tax = map { $_ => 1 } @{$self->{taxa}};
         my %valid_ann = (all => 1, organism => 1, ontology => 1, function => 1);        
@@ -396,36 +397,55 @@ sub job_data {
         my $pid = fork();
         # child - get data and POST it
         if ($pid == 0) {
+            close STDERR;
+            close STDOUT;
+            open(DEBUG, ">/MG-RAST/site/CGI/Tmp/abundance.debug");
             # create DB handels inside child as they break on fork
             MGRAST::Abundance::get_analysis_dbh();
             my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
             $job = $jobj->[0];
             # get data
             my $data = {};
-            if (($ann eq "all") || ($ann eq "organism")) {
-                if (! $taxa) {
-                    foreach my $t (@{$self->{taxa}}) {
-                        my $other = ($t->[0] eq 'domain') ? 1 : 0;
-                        $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $t->[0], $other, $ver);
+            print DEBUG "organism data\n" if $debug;
+            eval {
+                if (($ann eq "all") || ($ann eq "organism")) {
+                    if (! $taxa) {
+                        foreach my $t (@{$self->{taxa}}) {
+                            my $other = ($t->[0] eq 'domain') ? 1 : 0;
+                            $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $t->[0], $other, $ver);
+                        }
+                    } else {
+                        my $other = ($taxa eq 'domain') ? 1 : 0;
+                        $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $taxa, $other, $ver);
                     }
-                } else {
-                    my $other = ($taxa eq 'domain') ? 1 : 0;
-                    $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $taxa, $other, $ver);
                 }
-            }
-            if (($ann eq "all") || ($ann eq "ontology")) {
-                $data->{ontology} = MGRAST::Abundance::get_ontology_abundances($job->{job_id}, $ver);
-            }
-            if (($ann eq "all") || ($ann eq "function")) {
-                $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
-            }
-            # POST to shock, triggers end of asynch action
-            my $result = {
-                metagenome_id => 'mgm'.$job->{metagenome_id},
-                job_id        => $job->{job_id},
-                data          => $data
             };
-            $self->put_shock_file($result->{metagenome_id}.".abundance", $result, $node->{id}, $self->mgrast_token);
+            if ($@) { print DEBUG "eval: ".$@; }
+            print DEBUG "ontology data\n" if $debug;
+            eval {
+                if (($ann eq "all") || ($ann eq "ontology")) {
+                    $data->{ontology} = MGRAST::Abundance::get_ontology_abundances($job->{job_id}, $ver);
+                }
+            };
+            if ($@) { print DEBUG "eval: ".$@; }
+            print DEBUG "function data\n" if $debug;
+            eval {
+                if (($ann eq "all") || ($ann eq "function")) {
+                    $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
+                }
+            };
+            if ($@) { print DEBUG "eval: ".$@; }
+            print DEBUG "shock post\n" if $debug;
+            eval {
+                # POST to shock, triggers end of asynch action
+                my $result = {
+                    metagenome_id => 'mgm'.$job->{metagenome_id},
+                    job_id        => $job->{job_id},
+                    data          => $data
+                };
+                $self->put_shock_file($result->{metagenome_id}.".abundance", $result, $node->{id}, $self->mgrast_token);
+            };
+            if ($@) { print DEBUG "eval: ".$@; }
             exit 0;
         }
         # parent - end html session
