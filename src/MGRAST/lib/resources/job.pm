@@ -425,7 +425,7 @@ sub job_data {
                 $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
             }
             # POST to shock, triggers end of asynch action
-            $self->put_shock_file($result->{metagenome_id}.".abundance", $data, $node->{id}, $self->mgrast_token);
+            $self->put_shock_file("mgm".$job->{metagenome_id}.".abundance", $data, $node->{id}, $self->mgrast_token);
             exit 0;
         }
         # parent - end html session
