@@ -1076,14 +1076,14 @@ sub get_shock_file {
 
 # get list of nodes for query
 sub get_shock_query {
-    my ($self, $params, $auth, $authPrefix) = @_;
+    my ($self, $params, $auth, $authPrefix, $querynode) = @_;
 
     if (! $authPrefix) {
       $authPrefix = "mgrast";
     }    
 
     my $response = undef;
-    my $query = '?query&limit=0';
+    my $query = '?query'.($querynode ? 'node' : '').'&limit=0';
     if ($params && (scalar(keys %$params) > 0)) {
         while (my ($key, $value) = each %$params) {
             if (ref($value)) {
