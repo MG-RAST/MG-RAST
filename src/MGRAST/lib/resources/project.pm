@@ -25,8 +25,8 @@ sub new {
     $self->{attributes} = { "id"             => [ 'string', 'unique object identifier' ],
     	                    "name"           => [ 'string', 'human readable identifier' ],
     	                    "libraries"      => [ 'list', [ 'reference library', 'a list of references to the related library objects' ] ],
-			                "samples"        => [ 'list', [ 'reference sample', 'a list of references to the related sample objects' ] ],
-			                "metagenomes"    => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
+			    "samples"        => [ 'list', [ 'reference sample', 'a list of references to the related sample objects' ] ],
+			    "metagenomes"    => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
     	                    "description"    => [ 'string', 'a short, comprehensive description of the project' ],
     	                    "funding_source" => [ 'string', 'the official name of the source of funding of this project' ],
     	                    "pi"             => [ 'string', 'the first and last name of the principal investigator of the project' ],
@@ -104,15 +104,74 @@ sub info {
 sub instance {
     my ($self) = @_;
     
-    # check id format
+    # get rest parameters
     my $rest = $self->rest;
+
+    # get database
+    my $master = $self->connect_to_datasource();
+
+    # check for admin action
+    if ($self->{method} eq 'POST') {
+
+      # create a new empty project
+      if ($rest->[0] eq 'create') {
+	unless ($self->{user} && $self->{user}->has_star_right('edit', 'user')) {
+	  $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+	}
+	unless ($self->{cgi}->param("user")) {
+	  $self->return_data( {"ERROR" => "missing parameter user"}, 400 );
+	}
+	my $puser = $self->user->_master->User->init({login => $self->{cgi}->param('user')});
+	unless (ref $puser) {
+	  $self->return_data( {"ERROR" => "invalid user"}, 400 );
+	}
+	unless ($self->{cgi}->param("name")) {
+	  $self->return_data( {"ERROR" => "missing parameter name"}, 400 );
+	}
+	my $existing = $master->Project->get_objects({name => $self->{cgi}->param('name')});
+	if (scalar(@$existing)) {
+	  $self->return_data( {"ERROR" => "project name taken"}, 400 );
+	}
+	my $proj = $master->Project->create_project($puser, $self->{cgi}->param('name'));
+	if (ref ($proj)) {
+	  $self->return_data({"OK" => "project created", "project" => "mgp".$proj->id }, 200);
+	} else {
+	  $self->return_data( {"ERROR" => "could not create project"}, 400 );
+	}
+      }
+
+      # delete an empty project
+      if ($rest->[0] eq 'create') {
+	unless ($self->{user} && $self->{user}->has_star_right('edit', 'user')) {
+	  $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+	}
+	unless ($self->{cgi}->param("id")) {
+	  $self->return_data( {"ERROR" => "missing parameter id"}, 400 );
+	}
+	my $proj = $master->Project->init({id => $self->{cgi}->param('id')});
+	unless (ref $proj) {
+	  $self->return_data( {"ERROR" => "project not found"}, 400 );
+	}
+
+	# check if the project is empty
+	if (! $proj->is_empty()) {
+	  $self->return_data( {"ERROR" => "project not empty"}, 400 );
+	}
+
+	my $isDeleted = $proj->delete_project();
+	if (! $isDeleted) {
+	  $self->return_data( {"ERROR" => "project deletion failed"}, 400 );
+	} else {
+	  $self->return_data( {"OK" => "project deleted"}, 200 );
+	}
+      }
+    }
+    
+    # check id format
     my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
-
-    # get database
-    my $master = $self->connect_to_datasource();
 
     # check if this is an action request
     my $requests = {
@@ -166,7 +225,7 @@ sub instance {
                 }
             }
             $self->return_data( {"OK" => "metagenomes moved"}, 200 );
-        }
+	  }
     }
   
     # get data
