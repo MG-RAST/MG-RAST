@@ -141,7 +141,7 @@ sub instance {
       }
 
       # delete an empty project
-      if ($rest->[0] eq 'create') {
+      if ($rest->[0] eq 'delete') {
 	unless ($self->{user} && $self->{user}->has_star_right('edit', 'user')) {
 	  $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
 	}
