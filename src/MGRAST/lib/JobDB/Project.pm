@@ -56,6 +56,57 @@ sub create_project {
   return $project;
 }
 
+sub delete_project {
+  my ($self, $user) = @_;
+
+  my $jobdbm = $self->_master();
+  if ($user && $user->has_right(undef, 'edit', 'project', $self->id)) {
+    my $udbm = $user->_master();
+    my $project_jobs = $jobdbm->ProjectJob->get_objects( { project => $self } );
+    foreach my $p (@$project_jobs) {
+      $p->delete;
+    }
+    my $jobs_with_project = $jobdbm->Job->get_objects( { primary_project => $self } );
+    foreach my $p (@$jobs_with_project) {
+      $p->delete;
+    }
+    my $project_rights = $udbm->Rights->get_objects( { data_type => 'project', data_id => $self->id  } );
+    foreach my $r (@$project_rights) {
+      $r->delete;
+    }
+    my $pscope = $udbm->Scope->init( { application => undef,
+				       name => 'MGRAST_project_'.$self->id } );
+    if ($pscope) {
+      my $uhss = $udbm->UserHasScope->get_objects( { scope => $pscope } );
+      foreach my $uhs (@$uhss) {
+	$uhs->delete;
+      }
+      $pscope->delete;
+    }
+    my $metadbm = MGRAST::Metadata->new->_handle();
+    my $project_meta = $metadbm->ProjectMD->get_objects( { project => $project } );
+    foreach my $m (@$project_meta) {
+      $m->delete;
+    }
+    $self->delete;
+    return 1;
+  } else {
+    return 0;
+  }
+
+  return 1;
+}
+
+sub is_empty {
+  my ($self) = @_;
+
+  my $db = $self->_master();
+  my $query  = "SELECT * FROM ProjectJob p, Job j WHERE p.project=".$self->_id." AND j._id=p.job LIMIT 1";
+  my $result = $db->db_handle->selectcol_arrayref($query);
+  return ($result && @$result) ? 0 : 1;
+  
+}
+
 sub last_id {
   my ($self) = @_;
 
