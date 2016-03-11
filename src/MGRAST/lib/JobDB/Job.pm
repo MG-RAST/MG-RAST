@@ -155,82 +155,100 @@ sub reserve_job_id {
 }
 
 sub initialize {
-    my ($self, $user, $data, $job) = @_;
-    
-    my $master = $self->_master();
-    unless (ref($master)) {
-        print STDRER "initialize called without a dbmaster reference";
-        return undef;
-    }
-    
-    # get parmas from hash or file
-    my $params = {};
-    if (ref($data) eq "HASH") {
-        $params = $data;
-    }
-    elsif ((! ref($data)) && (-s $data)) {
-        my @lines = `cat $data`;
-        chomp @lines;
-        foreach my $line (@lines) {
-            my ($k, $v) = split(/\t/, $line);
-            $params->{$k} = $v;
-        }
-    }
-
-    # hack due too same keys: 'sequence type' and 'sequence_type'
-    if (exists $params->{'sequence type'}) {
-        delete $params->{'sequence type'};
-    }
-    # sequence_type is currently a guess, add it
-    if (exists $params->{sequence_type}) {
-        $params->{sequence_type_guess} = $params->{sequence_type};
-    }
-
-    # get job object
-    unless ($job && ref($job)) {
-        eval {
-            $job = $master->Job->reserve_job_id($user, $params->{name}, $params->{file}, $params->{file_size}, $params->{file_checksum});
-        };
-        if ($@ || (! $job)) {
-            print STDRER "Can't create job\n";
-            return undef;
-        }
-    }
-    
-    # add sequence type
-    if (exists $params->{sequence_type}) {
-        $job->sequence_type($params->{sequence_type});
-    }
-    
-    # add raw stats
-    my $stat_keys = ['bp_count', 'sequence_count', 'average_length', 'standard_deviation_length', 'length_min', 'length_max', 'average_gc_content', 'standard_deviation_gc_content', 'average_gc_ratio', 'standard_deviation_gc_ratio', 'ambig_char_count', 'ambig_sequence_count', 'average_ambig_chars', 'drisee_score'];
+  my ($self, $user, $data, $job) = @_;
   
-    foreach my $key (@$stat_keys) {
-        if (exists $params->{$key}) {
-            $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
-        } elsif (exists $params->{$key.'_raw'}) {
-            $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
-        }
-    }
-
-    # add attributes
-    my $used_keys = {metagenome_id => 1, name => 1, file => 1, file_size => 1, file_checksum => 1, sequence_type => 1};
-    map { $used_keys->{$_} = 1 } @$stat_keys;
+  my $master = $self->_master();
+  unless (ref($master)) {
+    print STDRER "initialize called without a dbmaster reference";
+    return undef;
+  }
   
-    foreach my $key (keys %$params) {
-        my $clean_key = $key;
-        $clean_key =~ s/_raw$//;
-        next if (exists($used_keys->{$key}) || exists($used_keys->{$clean_key}));
-        my $value = $params->{$key};
-        $value =~ s/\s+/_/g;
-        $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
+  # get parmas from hash or file
+  my $params = {};
+  if (ref($data) eq "HASH") {
+    $params = $data;
+  }
+  elsif ((! ref($data)) && (-s $data)) {
+    my @lines = `cat $data`;
+    chomp @lines;
+    foreach my $line (@lines) {
+      my ($k, $v) = split(/\t/, $line);
+      $params->{$k} = $v;
     }
-    $job->set_filter_options();
+  }
+  
+  # hack due too same keys: 'sequence type' and 'sequence_type'
+  if (exists $params->{'sequence type'}) {
+    delete $params->{'sequence type'};
+  }
+  # sequence_type is currently a guess, add it
+  if (exists $params->{sequence_type}) {
+    $params->{sequence_type_guess} = $params->{sequence_type};
+  }
+  
+  # get job object
+  unless ($job && ref($job)) {
+    eval {
+      $job = $master->Job->reserve_job_id($user, $params->{name}, $params->{file}, $params->{file_size}, $params->{file_checksum});
+    };
+    if ($@ || (! $job)) {
+      print STDRER "Can't create job\n";
+      return undef;
+    }
+  }
+  
+  # add sequence type
+  if (exists $params->{sequence_type}) {
+    $job->sequence_type($params->{sequence_type});
+  }
+  
+  # add raw stats
+  my $stat_keys = ['bp_count', 'sequence_count', 'average_length', 'standard_deviation_length', 'length_min', 'length_max', 'average_gc_content', 'standard_deviation_gc_content', 'average_gc_ratio', 'standard_deviation_gc_ratio', 'ambig_char_count', 'ambig_sequence_count', 'average_ambig_chars', 'drisee_score'];
+  
+  foreach my $key (@$stat_keys) {
+    if (exists $params->{$key}) {
+      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
+    } elsif (exists $params->{$key.'_raw'}) {
+      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
+    }
+  }
+  
+  # add attributes
+  my $used_keys = {metagenome_id => 1, name => 1, file => 1, file_size => 1, file_checksum => 1, sequence_type => 1};
+  map { $used_keys->{$_} = 1 } @$stat_keys;
+  
+  foreach my $key (keys %$params) {
+    my $clean_key = $key;
+    $clean_key =~ s/_raw$//;
+    next if (exists($used_keys->{$key}) || exists($used_keys->{$clean_key}));
+    my $value = $params->{$key};
+    $value =~ s/\s+/_/g;
+    $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
+  }
+  $job->set_filter_options();
+  
+  # mark as 'upload'
+  $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
+  
+  return $job;
+}
 
-    # mark as 'upload'
-    $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
+sub set_publication_date {
+  my ($self) = @_;
 
-    return $job;
+  my $master = $self->_master();
+  my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+  $mon++;
+  my $date = (1900 + $year) . "-" . ($mon > 9 ? $mon : "0".$mon) . "-" . ($mday > 9 ? $mday : "0".$mday)." ".($hour > 9 ? $hour : "0".$hour).":".($min > 9 ? $min : "0".$min).":".($sec > 9 ? $sec : "0".$sec); # 2016-03-08 10:26:48
+  my $publication = $master->JobAttributes->get_objects({ job => $self, tag => "publication_date" });
+  if (scalar(@$publication)) {
+    $publication = $publication->[0];
+    $publication->value($date);
+  } else {
+    $master->JobAttributes->create({ job => $self, tag => "publication_date", value => $date});
+  }
+  
+  return 1;
 }
 
 sub reserve_job {
