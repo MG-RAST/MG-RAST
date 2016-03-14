@@ -1183,33 +1183,7 @@ sub delete_project {
 
   my $conf = lc($cgi->param('confirmation'));
   if ($conf && $conf eq 'delete' && $user && $user->has_right(undef, 'edit', 'project', $project_id)) {
-    my $project_jobs = $jobdbm->ProjectJob->get_objects( { project => $project } );
-    foreach my $p (@$project_jobs) {
-      $p->delete;
-    }
-    my $jobs_with_project = $jobdbm->Job->get_objects( { primary_project => $project } );
-    foreach my $p (@$jobs_with_project) {
-      $p->delete;
-    }
-    my $project_rights = $application->dbmaster->Rights->get_objects( { data_type => 'project', data_id => $project_id  } );
-    foreach my $r (@$project_rights) {
-      $r->delete;
-    }
-    my $pscope = $application->dbmaster->Scope->init( { application => undef,
-							name => 'MGRAST_project_'.$project_id } );
-    if ($pscope) {
-      my $uhss = $application->dbmaster->UserHasScope->get_objects( { scope => $pscope } );
-      foreach my $uhs (@$uhss) {
-	$uhs->delete;
-      }
-      $pscope->delete;
-    }
-    my $metadbm = MGRAST::Metadata->new->_handle();
-    my $project_meta = $metadbm->ProjectMD->get_objects( { project => $project } );
-    foreach my $m (@$project_meta) {
-      $m->delete;
-    }
-    $project->delete;
+    $project->delete_project($user);
     $cgi->delete('project');
     $application->add_message('info', "project $project_name has been deleted");
   }
@@ -1316,6 +1290,7 @@ sub make_project_public {
 	  $application->add_message('warning', "could not initialize metagenome $mg");
 	} else {
 	  $job->public(1);
+	  $job->set_publication_date();
 	  $application->add_message('info', "metagenome ".$job->name." ($mg) successfully made public");	  
 	}
       } else {
