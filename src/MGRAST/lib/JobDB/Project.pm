@@ -84,7 +84,7 @@ sub delete_project {
       $pscope->delete;
     }
     my $metadbm = MGRAST::Metadata->new->_handle();
-    my $project_meta = $metadbm->ProjectMD->get_objects( { project => $project } );
+    my $project_meta = $metadbm->ProjectMD->get_objects( { project => $self } );
     foreach my $m (@$project_meta) {
       $m->delete;
     }

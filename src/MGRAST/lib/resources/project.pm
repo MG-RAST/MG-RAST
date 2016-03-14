@@ -148,7 +148,9 @@ sub instance {
 	unless ($self->{cgi}->param("id")) {
 	  $self->return_data( {"ERROR" => "missing parameter id"}, 400 );
 	}
-	my $proj = $master->Project->init({id => $self->{cgi}->param('id')});
+	my $id = $self->{cgi}->param('id');
+	$id =~ s/^mgp//;
+	my $proj = $master->Project->init({id => $id});
 	unless (ref $proj) {
 	  $self->return_data( {"ERROR" => "project not found"}, 400 );
 	}
@@ -158,7 +160,7 @@ sub instance {
 	  $self->return_data( {"ERROR" => "project not empty"}, 400 );
 	}
 
-	my $isDeleted = $proj->delete_project();
+	my $isDeleted = $proj->delete_project($self->{user});
 	if (! $isDeleted) {
 	  $self->return_data( {"ERROR" => "project deletion failed"}, 400 );
 	} else {
