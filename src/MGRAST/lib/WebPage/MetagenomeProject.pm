@@ -1183,7 +1183,7 @@ sub delete_project {
 
   my $conf = lc($cgi->param('confirmation'));
   if ($conf && $conf eq 'delete' && $user && $user->has_right(undef, 'edit', 'project', $project_id)) {
-    $project->delete_project();
+    $project->delete_project($user);
     $cgi->delete('project');
     $application->add_message('info', "project $project_name has been deleted");
   }
