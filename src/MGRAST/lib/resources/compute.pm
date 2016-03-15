@@ -235,7 +235,7 @@ sub instance {
     if ($self->cgi->param('asynchronous')) {
         my $attr = {
             type => "temp",
-            id   => 'mgm'.$job->{metagenome_id},
+            id   => $mgid,
             url_id => $self->url_id,
             owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
             data_type => "diversity"
@@ -252,7 +252,7 @@ sub instance {
         if ($pid == 0) {
             close STDERR;
             close STDOUT;
-            my ($data, $error) = $self->species_diversity_compute($type, $mgid);
+            my ($data, $error) = $self->species_diversity_compute($type, $id);
             if ($error) {
                 $data->{STATUS} = $error;
             }
@@ -266,14 +266,14 @@ sub instance {
     }
     # synchronous call, prepare then return data
     else {
-        my ($data, $error) = $self->species_diversity_compute($type, $mgid);
+        my ($data, $error) = $self->species_diversity_compute($type, $id);
         $self->return_data($data, $error);
     }
 }
 
 # compute alpha diversity and/or rarefaction
 sub species_diversity_compute {
-    my ($self, $type, $mgid) = @_;
+    my ($self, $type, $id) = @_;
     
     # get data
     my $master = $self->connect_to_datasource();
