@@ -245,11 +245,12 @@ sub instance {
     
     # asynchronous call, fork the process and return the process id.
     # caching is done with shock, not memcache
-    if($self->cgi->param('asynchronous')) {
+    if ($self->cgi->param('asynchronous')) {
         my $attr = {
             type => "temp",
             url_id => $self->url_id,
-            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous"
+            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
+            data_type => "matrix"
         };
         # already cashed in shock - say submitted in case its running
         my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
@@ -263,9 +264,9 @@ sub instance {
         if ($pid == 0) {
             close STDERR;
             close STDOUT;
-            my ($data, $code) = $self->prepare_data(\@mgids, $type);
-            if ($code) {
-                $data->{STATUS} = $code;
+            my ($data, $error) = $self->prepare_data(\@mgids, $type);
+            if ($error) {
+                $data->{STATUS} = $error;
             }
             $self->put_shock_file($data->{id}.".biom", $data, $node->{id}, $self->mgrast_token);
             exit 0;
@@ -280,8 +281,13 @@ sub instance {
         # return cached if exists
         $self->return_cached();
         # prepare data
-        my ($data, $code) = $self->prepare_data(\@mgids, $type);
-        $self->return_data($data, $code, 1); # cache this!
+        my ($data, $error) = $self->prepare_data(\@mgids, $type);
+        # don't cache errors
+        if ($error) {
+            $self->return_data($data, $error);
+        } else {
+            $self->return_data($data, undef, 1); # cache this!
+        }
     }
 }
 
