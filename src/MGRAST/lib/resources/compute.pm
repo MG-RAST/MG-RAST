@@ -83,10 +83,11 @@ sub info {
 				          'example'     => [ $self->cgi->url."/".$self->name."/alphadiversity/mgm4447943.3?level=order",
              				                 "retrieve alpha diversity for order taxon" ],
 				          'method'      => "GET",
-				          'type'        => "synchronous",
+				          'type'        => "synchronous or asynchronous",
 				          'attributes'  => $self->{attributes}{alphadiversity},
 				          'parameters'  => { 'options'  => { 'level' => ['cv', $self->hierarchy->{organism}],
-				                                             "ann_ver" => ["int", "version of m5nr annotations"] },
+				                                             "ann_ver" => ["int", "version of m5nr annotations"],
+				                                             'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
 						},
@@ -96,12 +97,13 @@ sub info {
 				          'example'     => [ $self->cgi->url."/".$self->name."/rarefaction/mgm4447943.3?level=order",
              				                 "retrieve rarefaction for order taxon" ],
 				          'method'      => "GET",
-				          'type'        => "synchronous",
+				          'type'        => "synchronous or asynchronous",
 				          'attributes'  => $self->{attributes}{rarefaction},
 				          'parameters'  => { 'options'  => { 'level' => ['cv', $self->hierarchy->{organism}],
 				                                             "alpha" => ["boolean", "if true also return alphadiversity, default is false"],
 				                                             "seq_num" => ["int", "number of sequences in metagenome"],
-				                                             "ann_ver" => ["int", "version of m5nr annotations"] },
+				                                             "ann_ver" => ["int", "version of m5nr annotations"],
+				                                             'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
 						},
@@ -223,21 +225,66 @@ sub sequence_compute {
 sub instance {
     my ($self, $type, $mgid) = @_;
     
-    my $master = $self->connect_to_datasource();
     # check id format
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if (! $id) {
         $self->return_data( {"ERROR" => "invalid id format: $mgid"}, 400 );
     }
+    
+    # asynchronous call, fork the process and return the process id.
+    if ($self->cgi->param('asynchronous')) {
+        my $attr = {
+            type => "temp",
+            id   => 'mgm'.$job->{metagenome_id},
+            url_id => $self->url_id,
+            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
+            data_type => "diversity"
+        };
+        # already cashed in shock - say submitted in case its running
+        my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
+        if ($nodes && (@$nodes > 0)) {
+            $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+        }
+        # need to create new node and fork
+        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
+        my $pid = fork();
+        # child - get data and dump it
+        if ($pid == 0) {
+            close STDERR;
+            close STDOUT;
+            my ($data, $error) = $self->species_diversity_compute($type, $mgid);
+            if ($error) {
+                $data->{STATUS} = $error;
+            }
+            $self->put_shock_file($data->{id}.".biom", $data->{data}, $node->{id}, $self->mgrast_token);
+            exit 0;
+        }
+        # parent - end html session
+        else {
+            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
+        }
+    }
+    # synchronous call, prepare then return data
+    else {
+        my ($data, $error) = $self->species_diversity_compute($type, $mgid);
+        $self->return_data($data, $error);
+    }
+}
+
+# compute alpha diversity and/or rarefaction
+sub species_diversity_compute {
+    my ($self, $type, $mgid) = @_;
+    
     # get data
+    my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        $self->return_data( {"ERROR" => "id $mgid does not exist"}, 404 );
+        return ({"ERROR" => "id $mgid does not exist"}, 404);
     }
     $job = $job->[0];
     # check rights
     unless ($job->public || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
-        $self->return_data( {"ERROR" => "insufficient permissions for metagenome $mgid"}, 401 );
+        return ({"ERROR" => "insufficient permissions for metagenome $mgid"}, 401);
     }
     
     # initialize
@@ -266,10 +313,10 @@ sub instance {
             $data->{data} = $rare;
         }
     } else {
-        $self->return_data( {"ERROR" => "invalid compute type: $type"}, 400 );
+        return ({"ERROR" => "invalid compute type: $type"}, 400);
     }
     
-    $self->return_data($data);
+    return ($data, undef);
 }
 
 sub abundance_compute {
@@ -358,12 +405,13 @@ sub abundance_compute {
         $data = $self->normalize($infile, $norm, 1);
     }
     # significance
-    # elsif ($type eq 'significance') {
-    #     if (! $raw) {
-    #         $infile = $self->normalize($infile, $norm);
-    #     }
-    #     $data = $self->significance($infile, $groups, $test, 1);
-    # }
+    elsif ($type eq 'significance') {
+        #if (! $raw) {
+        #    $infile = $self->normalize($infile, $norm);
+        #}
+        #$data = $self->significance($infile, $groups, $test, 1);
+        $self->return_data( {"ERROR" => "compute request $type is not currently available"}, 404 );
+    }
     # distance
     elsif ($type eq 'distance') {
         if (! $raw) {
