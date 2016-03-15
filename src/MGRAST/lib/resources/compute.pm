@@ -279,12 +279,12 @@ sub species_diversity_compute {
     my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        return ({"ERROR" => "id $mgid does not exist"}, 404);
+        return ({"ERROR" => "id mgm$id does not exist"}, 404);
     }
     $job = $job->[0];
     # check rights
     unless ($job->public || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
-        return ({"ERROR" => "insufficient permissions for metagenome $mgid"}, 401);
+        return ({"ERROR" => "insufficient permissions for metagenome mgm$id"}, 401);
     }
     
     # initialize
