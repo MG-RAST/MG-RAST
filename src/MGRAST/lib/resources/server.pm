@@ -69,60 +69,63 @@ sub info {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self) = @_;
-       
-    my $master = $self->connect_to_datasource();
+  my ($self) = @_;
+  
+  # check for twitter status
+  if ($self->rest->[0] eq 'twitter') {
+    my $count = $self->rest->[1] || 5;
+    my $data = `curl -s -X GET -H "Authorization: Bearer AAAAAAAAAAAAAAAAAAAAAF%2BttwAAAAAADIFy3lxo9On1Qjx3SWZPCGIEOGU%3DeeNP5cxZXM7W70fE2A30dk2Hw4IwAuK3TSNEaK7pCJU1TY4VJ0" "https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=mg_rast&count=$count&trim_user=1"`;
+    $self->return_data($self->json->decode($data));
+  }
 
-    my $dis_msg;
-    my $disabled = "MG-RAST.disabled";
-    if (-e $disabled) {
-      open(MSG, "$disabled");
-      $dis_msg = <MSG>;
-      close(MSG);
+  # get the current messasge (if any) from SHOCK
+  my $dis_msg;
+  my $inf_msg;
+  my $node = $self->get_shock_node($Conf::status_message_shock_node_id);
+  if (ref $node && $node->{attributes}->{status} eq 'active') {
+    if ($node->{attributes}->{severity} eq 'info') {
+      $inf_msg = $node->{attributes}->{message};
+    } elsif ($node->{attributes}->{severity} eq 'down') {
+      $dis_msg = $node->{attributes}->{message};
     }
+  }
 
-    my $inf_msg = "";
-    my $motd_file = "MG-RAST.motd";
-    if (-f $motd_file && open(FILE, $motd_file)) {
-      while (<FILE>) {
-	      $inf_msg .= $_;
-      }
-      close FILE;
-    }
-    
-    # cache DB counts
-    my $counts = {};
-    my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000 };
-    my $cache_key = "mgcounts";
-    my $cdata = $memd->get("mgcounts");
-
-    if ($cdata) {
-        $counts = $cdata;
-    } else {
-        $counts = {
-            "metagenomes" => $master->Job->count_all(),
-            "public_metagenomes" => $master->Job->count_public(),
-            "sequences" => $master->Job->count_total_sequences(),
-            "basepairs" => $master->Job->count_total_bp()
-        };
-        $memd->set("mgcounts", $counts, 7200);
-    }
-    $memd->disconnect_all;
-    
-    # prepare data
-    my $data = {
-        "id" => "MG-RAST",
-        "version" => $Conf::server_version,
-        "status" => $dis_msg ? "server down" : "ok",
-        "info" => $dis_msg ? $dis_msg : $inf_msg,
-        "metagenomes" => $counts->{metagenomes},
-        "public_metagenomes" => $counts->{public_metagenomes},
-        "sequences" => $counts->{sequences},
-        "basepairs" => $counts->{basepairs},
-        "url" => $self->cgi->url."/".$self->name."/MG-RAST"
-    };
-
-    $self->return_data($data);
+  # get a dbmaster
+  my $master = $self->connect_to_datasource();
+  
+  # cache DB counts
+  my $counts = {};
+  my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000 };
+  my $cache_key = "mgcounts";
+  my $cdata = $memd->get("mgcounts");
+  
+  if ($cdata) {
+    $counts = $cdata;
+  } else {
+    $counts = {
+	       "metagenomes" => $master->Job->count_all(),
+	       "public_metagenomes" => $master->Job->count_public(),
+	       "sequences" => $master->Job->count_total_sequences(),
+	       "basepairs" => $master->Job->count_total_bp()
+	      };
+    $memd->set("mgcounts", $counts, 7200);
+  }
+  $memd->disconnect_all;
+  
+  # prepare data
+  my $data = {
+	      "id" => "MG-RAST",
+	      "version" => $Conf::server_version,
+	      "status" => $dis_msg ? "server down" : "ok",
+	      "info" => $dis_msg ? $dis_msg : $inf_msg,
+	      "metagenomes" => $counts->{metagenomes},
+	      "public_metagenomes" => $counts->{public_metagenomes},
+	      "sequences" => $counts->{sequences},
+	      "basepairs" => $counts->{basepairs},
+	      "url" => $self->cgi->url."/".$self->name."/MG-RAST"
+	     };
+  
+  $self->return_data($data);
 }
 
 1;

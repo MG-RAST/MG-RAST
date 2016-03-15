@@ -6,8 +6,6 @@ use strict;
 use warnings;
 
 use Conf;
-use Cache::Memcached;
-use Number::Format;
 
 1;
 
@@ -15,11 +13,11 @@ use Number::Format;
 
 =head1 NAME
 
-Contact - an instance of WebPage which shows contact information
+Home - an instance of WebPage which shows home information
 
 =head1 DESCRIPTION
 
-Display an contact page
+Display an home page
 
 =head1 METHODS
 
@@ -54,7 +52,7 @@ sub output {
   my $application = $self->application;
   my $user = $application->session->user;
 
-  my $content = '';
+  my $content = "<div id='info' style='display: none'></div>";
   my $is_old = $self->application->cgi->param('oldurl');
   if ($is_old) {
     $content .= qq~<script>
@@ -122,45 +120,21 @@ function forward_to_search (e) {
   $content .= "<a href='http://blog.metagenomics.anl.gov/' target=_blank><div style='float:left; cursor: pointer;padding-top:5px;'>".$news."</div></a>";
   $content .= "</div>";
   $content .= "<div class='clear'></div>";
-
-  my $counts = {};
-  my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000 };
-  my $cache_key = "mgcounts";
-  my $cdata = $memd->get("mgcounts");
-
-  if ($cdata) {
-      $counts = $cdata;
-  } else {
-      $counts = {
-          "metagenomes" => $self->app->data_handle('MGRAST')->Job->count_all(),
-          "public_metagenomes" => $self->app->data_handle('MGRAST')->Job->count_public(),
-          "sequences" => $self->app->data_handle('MGRAST')->Job->count_total_sequences(),
-          "basepairs" => $self->app->data_handle('MGRAST')->Job->count_total_bp()
-      };
-      $memd->set("mgcounts", $counts, 7200);
-  }
-  $memd->disconnect_all;
   
-  my $formater = new Number::Format(-thousands_sep => ',');
-  my $bpcount = $formater->format_number(($counts->{basepairs} / 1000000000000), 2);
-  my $seqcount = $formater->format_number(($counts->{sequences} / 1000000000), 2);
-  my $jobcount = $formater->format_number($counts->{metagenomes});
-  my $publiccount = $formater->format_number($counts->{public_metagenomes});
-
   $content .= "<div style='background:white; width:650px; padding:10px;-webkit-border-radius-topright: 5px;-webkit-border-radius-bottomleft: 5px;-webkit-border-radius-bottomright: 5px;-moz-border-radius-bottomleft:5px;-moz-border-radius-bottomright:5px;-moz-border-radius-topright:5px; border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-bottom-left-radius: 5px; color:#848484; font-size:14;'>";
 
   $content .= "<div style='margin: 5 0 0 10;'>MG-RAST (the Metagenomics RAST) server is an automated analysis platform for metagenomes providing quantitative insights into microbial populations based on sequence data.</div>";
   $content .= "<div class='clear'></div>";
   $content .= "<div style='background-color: #5281B0; border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; color: white; padding: 6px 10px 10px 10px; float: left; width: 200px; height: 82px; margin-top: 10px;'>";
-  $content .= "<div class='sidebar_subitem' style='font-size: 13px; margin-top:3px; padding: 1 0;'># of metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$jobcount."</span></div>";
-  $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># base pairs<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$bpcount." Tbp</span></div>";
-  $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of sequences<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$seqcount." billion</span></div>";
-  $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of public metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;'>".$publiccount."</span></div>";
+  $content .= "<div class='sidebar_subitem' style='font-size: 13px; margin-top:3px; padding: 1 0;'># of metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;' id='jobcount'></span></div>";
+  $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># base pairs<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;' id='bpcount'></span></div>";
+  $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of sequences<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;' id='seqcount'></span></div>";
+  $content .= "<div class='sidebar_subitem' style='font-size: 13px; padding: 1 0;'># of public metagenomes<span class='sidebar_stat' style='font-size: 11px; padding-top:2px;' id='publiccount'></span></div>";
   $content .= "</div>";
-  $content .= "<div style='float: left; width: 410px; line-height: 17px; margin: 10 0 0 10;'>The server primarily provides upload, quality control, automated annotation and analysis for prokaryotic metagenomic shotgun samples. MG-RAST was launched in 2007 and has over 12,000 registered users and ".$jobcount." data sets. The current server version is ".$Conf::server_version.". We suggest users take a look at <a href='http://blog.metagenomics.anl.gov/mg-rast-for-the-impatient'>MG-RAST for the impatient</a>. Also available for download is the <a href='ftp://ftp.metagenomics.anl.gov/data/manual/mg-rast-manual.pdf' target=_blank>MG-RAST manual</a>.</div>"; 
+  $content .= "<div style='float: left; width: 410px; line-height: 17px; margin: 10 0 0 10;'>The server primarily provides upload, quality control, automated annotation and analysis for prokaryotic metagenomic shotgun samples. MG-RAST was launched in 2007 and has over 12,000 registered users and <span id='jobcount2'></span> data sets. The current server version is ".$Conf::server_version.". We suggest users take a look at <a href='http://blog.metagenomics.anl.gov/mg-rast-for-the-impatient'>MG-RAST for the impatient</a>. Also available for download is the <a href='ftp://ftp.metagenomics.anl.gov/data/manual/mg-rast-manual.pdf' target=_blank>MG-RAST manual</a>.</div>"; 
 
   $content .= "<div class='clear'></div>";
-  $content .= <<'END';
+  $content .= qq~
     <script type="text/javascript" src="https://www.google.com/jsapi"></script>
     <script type="text/javascript">
     
@@ -183,7 +157,36 @@ function initialize() {
 
 google.setOnLoadCallback(initialize);
     </script>
-END
+<script>
+	Number.prototype.formatString = function(c, d, t) {
+	    var n = this, c = isNaN(c = Math.abs(c)) ? 0 : c, d = d == undefined ? "." : d, t = t == undefined ? "," : t, s = n < 0 ? "-" : "", i = parseInt(n = Math.abs(+n || 0).toFixed(c)) + "", j = (j = i.length) > 3 ? j % 3 : 0;
+	    return s + (j ? i.substr(0, j) + t : "") + i.substr(j).replace(/(\d{3})(?=\d)/g, "$1" + t) + (c ? d + Math.abs(n - i).toFixed(c).slice(2) : "");
+	};
+    // server status info
+    jQuery.getJSON("http://api-dev.metagenomics.anl.gov/server/MG-RAST", function (data) {
+	// check if the server is down
+	if (data.status != "ok") {
+	    document.getElementById('info').innerHTML = data.info;
+	    document.getElementById('info').style.display = "";
+	}
+	// check if there is an info message
+	else if (data.info) {
+	    document.getElementById('info').innerHTML = data.info;
+	    document.getElementById('info').style.display = "";
+	}
+		
+	// print server stats
+	var bp = (parseInt(data.basepairs) / 1000000000000).formatString(2);
+	var seq = parseInt(parseInt(data.sequences) / 1000000000).formatString();
+
+	document.getElementById('bpcount').innerHTML = bp + " Tbp";
+	document.getElementById('seqcount').innerHTML = seq + " billion";
+	document.getElementById('jobcount').innerHTML = parseInt(data.metagenomes).formatString();
+        document.getElementById('jobcount2').innerHTML = parseInt(data.metagenomes).formatString();
+	document.getElementById('publiccount').innerHTML = parseInt(data.public_metagenomes).formatString();
+    });
+</script>
+~;
   $content .= "<div id='newsfeed' style='margin-top: 15px; height: 70px;'></div>";
   $content .= "</div>";
 
