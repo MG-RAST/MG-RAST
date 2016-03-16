@@ -163,7 +163,7 @@ google.setOnLoadCallback(initialize);
 	    return s + (j ? i.substr(0, j) + t : "") + i.substr(j).replace(/(\d{3})(?=\d)/g, "$1" + t) + (c ? d + Math.abs(n - i).toFixed(c).slice(2) : "");
 	};
     // server status info
-    jQuery.getJSON("http://api-dev.metagenomics.anl.gov/server/MG-RAST", function (data) {
+    jQuery.getJSON("http://api.metagenomics.anl.gov/server/MG-RAST", function (data) {
 	// check if the server is down
 	if (data.status != "ok") {
 	    document.getElementById('info').innerHTML = data.info;
