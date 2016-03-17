@@ -131,7 +131,8 @@ sub instance {
       }
   } elsif ($id eq 'cassandra') {
       # need to test a query as handle can still be made but cluster in bad state
-      my $test_md5 = "74428bf03d3c75c944ea0b2eb632701f" # E. coli alcohol dehydrogenase, m5nr_v1
+      # test md5 is 74428bf03d3c75c944ea0b2eb632701f / E. coli alcohol dehydrogenase / m5nr version 1
+      my $test_md5_id = 10795366;
       my $test_source = "RefSeq";
       my $test_data = [];
       eval {
