@@ -16,6 +16,7 @@ sub new {
   
   # Add name / attributes
   $self->{name} = "heartbeat";
+  $self->{m5nr_version} = 1;
   $self->{services} = {
       'FTP' => 'ftp://'.$Conf::ftp_download,
       'website' => $Conf::cgi_url,
@@ -26,7 +27,8 @@ sub new {
       'M5NR' => $Conf::m5nr_solr,
       'solr' => $Conf::job_solr,
       'postgres' => 'db',
-      'mySQL' => 'db'
+      'mySQL' => 'db',
+      'cassandra' => $Conf::cassandra_m5nr
   };
   $self->{attributes} = { "service" => [ 'string', "cv", [
                                ['FTP', 'file server'],
@@ -125,7 +127,20 @@ sub instance {
       }
       my $client = MongoDB::MongoClient->new(host => $host, port => $port);
       if ($client) {
-        $status = 1;
+          $status = 1;
+      }
+  } elsif ($id eq 'cassandra') {
+      # need to test a query as handle can still be made but cluster in bad state
+      my $test_md5 = "74428bf03d3c75c944ea0b2eb632701f" # E. coli alcohol dehydrogenase, m5nr_v1
+      my $test_source = "RefSeq";
+      my $test_data = [];
+      eval {
+          my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$self->{m5nr_version}, $self->{services}->{$id});
+          $test_data = $chdl->get_records_by_id([$test_md5], $test_source);
+          $chdl->close();
+      };
+      if ((! $@) && (@$test_data > 0)) {
+          $status = 1;
       }
   } else {
     my $ua = $self->agent;
