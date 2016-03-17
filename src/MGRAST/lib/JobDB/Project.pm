@@ -250,11 +250,11 @@ sub collections {
 
 # list of all metagenomes for this project
 sub metagenomes {
-  my ($self, $id_only) = @_;
+  my ($self, $id_only, $all) = @_;
   
   my $db = $self->_master();
   if ($id_only) {
-    my $query  = "select distinct j.metagenome_id from ProjectJob p, Job j where p.project=".$self->_id." and j._id=p.job and j.viewable=1";
+    my $query  = "select distinct j.metagenome_id from ProjectJob p, Job j where p.project=".$self->_id." and j._id=p.job".($all ? "" : " and j.viewable=1");
     my $result = $db->db_handle->selectcol_arrayref($query);
     return ($result && @$result) ? $result : [];
   }
@@ -277,8 +277,8 @@ sub metagenomes_id_name {
 }
 
 sub all_metagenome_ids {
-  my ($self) = @_;
-  return $self->metagenomes(1);
+  my ($self, $all) = @_;
+  return $self->metagenomes(1, $all);
 }
 
 # add a metadata collection to project
