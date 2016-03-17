@@ -142,14 +142,15 @@ sub instance {
 
       # delete an empty project
       if ($rest->[0] eq 'delete') {
-	unless ($self->{user} && $self->{user}->has_star_right('edit', 'user')) {
-	  $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
-	}
 	unless ($self->{cgi}->param("id")) {
 	  $self->return_data( {"ERROR" => "missing parameter id"}, 400 );
 	}
 	my $id = $self->{cgi}->param('id');
 	$id =~ s/^mgp//;
+	unless ($self->{user} && ($self->{user}->has_star_right('edit', 'user') || $self->{user}->has_right('edit', 'project', $id))) {
+	  $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+	}
+	
 	my $proj = $master->Project->init({id => $id});
 	unless (ref $proj) {
 	  $self->return_data( {"ERROR" => "project not found"}, 400 );
@@ -187,25 +188,29 @@ sub instance {
         }
         # move metagenomes to a different project
         elsif ($rest->[1] eq 'movemetagenomes') {
-            unless ($self->user->has_star_right('edit', 'user')) {
-                $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
-            }
-            my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
-            if (! $id2) {
-                $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
-            }
-            my $project_a = $master->Project->init( {id => $id} );
-            my $project_b = $master->Project->init( {id => $id2} );
-
-            unless (ref($project_a) && ref($project_b)) {
-                $self->return_data( {"ERROR" => "id $id or $id2 does not exists"}, 404 );
-            }
-            
-            # mg ids in project a
-            my %job_a_hash = map { $_, 1 } @{ $project_a->all_metagenome_ids() };
-            
-            my @move_over = $self->cgi->param("move");
-            # test for existance before doing any moving
+	  my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
+	  if (! $id2) {
+	    $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
+	  }
+	  unless ($self->user->has_star_right('edit', 'user') || ($self->user->has_right('edit', 'project', $id) && $self->user->has_right('edit', 'project', $id2))) {
+	    $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+	  }
+	  my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
+	  if (! $id2) {
+	    $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
+	  }
+	  my $project_a = $master->Project->init( {id => $id} );
+	  my $project_b = $master->Project->init( {id => $id2} );
+	  
+	  unless (ref($project_a) && ref($project_b)) {
+	    $self->return_data( {"ERROR" => "id $id or $id2 does not exists"}, 404 );
+	  }
+	  
+	  # mg ids in project a
+	  my %job_a_hash = map { $_, 1 } @{ $project_a->all_metagenome_ids(1) };
+	  
+	  my @move_over = $self->cgi->param("move");
+	  # test for existance before doing any moving
             foreach my $m (@move_over) {
                 $m =~ s/^mgm//;
                 unless ($job_a_hash{$m}) {
