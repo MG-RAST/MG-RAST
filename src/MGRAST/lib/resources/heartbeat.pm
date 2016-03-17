@@ -137,7 +137,7 @@ sub instance {
       my $test_data = [];
       eval {
           my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$self->{m5nr_version}, $self->{services}->{$id});
-          $test_data = $chdl->get_records_by_id([$test_md5], $test_source);
+          $test_data = $chdl->get_records_by_id([$test_md5_id], $test_source);
           $chdl->close();
       };
       if ((! $@) && (@$test_data > 0)) {
