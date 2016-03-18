@@ -10,6 +10,7 @@ use parent qw(resources::resource);
 use Mail::Mailer;
 use HTML::Template;
 use WebConfig;
+use MGRAST::Metadata;
 
 # Override parent constructor
 sub new {
@@ -178,16 +179,73 @@ sub instance {
 
     # check if this is an action request
     my $requests = {
-        'movemetagenomes' => 1,
-        'updateright' => 1
+		    'movemetagenomes' => 1,
+		    'updateright' => 1,
+		    'makepublic' => 1
     };
     if ((scalar(@$rest) > 1) && $requests->{$rest->[1]}) {
-        if ($rest->[1] eq 'updateright') {
-            $self->updateRight($rest->[0]);
-            return;
-        }
-        # move metagenomes to a different project
-        elsif ($rest->[1] eq 'movemetagenomes') {
+      if ($rest->[1] eq 'updateright') {
+	$self->updateRight($rest->[0]);
+	return;
+      }
+      
+      # make the project public
+      elsif ($rest->[1] eq 'makepublic') {
+
+	# check permissions
+	unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right('edit', 'project', $id)) {
+	  $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+	}
+
+	# get project
+	my $project = $master->Project->init( {id => $id} );
+	unless (ref($project)) {
+	  $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
+	}
+
+	# get jobs
+	my $mgs = $project->metagenomes();
+	unless (scalar(@$mgs)) {
+	  $self->return_data( {"ERROR" => "Cannot publish a project without metagenomes"}, 400 );
+	}
+
+	# check metadata
+	my $mddb = MGRAST::Metadata->new();
+	my $all_errors = {};
+	foreach my $mg (@$mgs) {
+	  my $errors = $mddb->verify_job_metadata($job);
+	  if (scalar(@$errors)) {
+	    $all_errors->{$mg->id} = @$errors;
+	  }
+	}
+	if (scalar(keys(%$all_errors))) {
+	  $self->return_data( {"ERROR" => "metadata has errors", "errors" => $all_errors }, 400 );
+	}
+
+	# make all metagenomes public
+	foreach my $job (@$mgs) {
+	  # update shock nodes
+	  my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
+	  foreach my $n (@$nodes) {
+	    my $attr = $n->{attributes};
+	    $attr->{status} = 'public';
+	    $self->update_shock_node($n->{id}, $attr, $self->mgrast_token);
+	    $self->edit_shock_public_acl($n->{id}, $self->mgrast_token, 'put', 'read');
+	  }
+	  # update db
+	  $job->public(1);
+	  $job->set_publication_date();
+	}
+
+	# make project public
+	$project->public(1);
+
+	# return success
+	$self->return_data( {"OK" => "project published"}, 200 );
+      }
+      
+      # move metagenomes to a different project
+      elsif ($rest->[1] eq 'movemetagenomes') {
 	  my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
 	  if (! $id2) {
 	    $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
@@ -375,7 +433,10 @@ sub prepare_data {
 						   country => $row->[8],
 						   coordinates => $row->[9],
 						   sequence_type => $row->[10],
-						   sequencing_method => $row->[11] });
+						   sequencing_method => $row->[11],
+						   viewable => $row->[12],
+						   created_on => $row->[13],
+						   attributes => $row->[14] });
 		  }
 		}
             } elsif ($self->cgi->param('verbosity') ne 'minimal') {
