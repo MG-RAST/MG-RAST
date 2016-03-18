@@ -653,7 +653,14 @@ sub job_action {
                 push @$shared, $vr->scope->name_readable;
             }
             $data = { shared => $shared };
-        } elsif ($action eq 'public') {
+	  } elsif ($action eq 'public') {
+	    # check if the metadata is ok
+	    my $mddb = MGRAST::Metadata->new();
+	    my $errors = $mddb->verify_job_metadata($job);
+	    if (scalar(@$errors)) {
+	      $self->return_data({ "ERROR" => "insufficient metadata for publication", "errors" => $errors }, 400);
+	    }
+	    
             # update shock nodes
             my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
             foreach my $n (@$nodes) {
@@ -664,6 +671,7 @@ sub job_action {
             }
             # update db
             $job->public(1);
+	    $job->set_publication_date();
             $data = { public => $job->public ? 1 : 0 };
         } elsif ($action eq 'viewable') {
             my $state = 1;
