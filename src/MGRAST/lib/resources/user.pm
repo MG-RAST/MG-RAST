@@ -515,7 +515,7 @@ sub instance {
       $self->return_data( {"ERROR" => "could not access job database"}, 500 );
     }
     my $jdbh  = $jobdb->db_handle();
-    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value FROM Job, JobAttributes, Project WHERE Job.owner='.$user->{_id}.' AND Job._id=JobAttributes.job AND JobAttributes.tag="priority" AND (Job.public IS NULL OR Job.public=0) AND Job.viewable=1 AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
+    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Job.owner='.$user->{_id}.' AND Job._id=JobAttributes.job AND (JobAttributes.tag="priority" OR JobAttributes.tag="completedtime") AND (Job.public IS NULL OR Job.public=0) AND Job.viewable=1 AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
     $self->return_data({ "priorities" => $res });
   }
   # get the user preferences
