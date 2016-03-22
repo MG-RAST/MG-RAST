@@ -513,7 +513,7 @@ sub process_file {
     # get metadata file
     my $tmp_dir = $Conf::temp;
     my $fname   = "";
-    my $node    = {};
+    my $node    = undef;
     
     # uploaded / not POST data
     if ($post->{upload}) {
