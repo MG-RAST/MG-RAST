@@ -649,7 +649,7 @@ window.top.location="?page=MetagenomeProject&action=add_job_to_project&project=$
 sub add_md_info {
   my ($self, $pid) = @_;
   
-  my $html = "<h3>Add / Relaod MetaData</h3>";
+  my $html = "<h3>Add / Reload MetaData</h3>";
   $html .= $self->start_form('upload_form', {project => $pid, action => 'upload_md'});
   $html .= "Map metagenome to metadata by: <select name='map_type'><option value='name'>Metagenome Name</option><option value='id'>Metagenome ID</option></select>";
   $html .= "<br><br><input type='file' name='upload_md' size ='38'><span>&nbsp;&nbsp;&nbsp;</span><input type='submit' value='upload'>";

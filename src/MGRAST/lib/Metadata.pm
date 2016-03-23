@@ -516,6 +516,46 @@ sub is_job_compliant {
 
 =pod
 
+=item * B<verify_job_metadata> (JobObject<job>)
+
+Returns a list of errors is mixs compliance.
+
+=cut
+
+sub verify_job_metadata {
+  my ($self, $job) = @_;
+
+  my $mixs = $self->mixs();
+  my $data = $self->get_job_metadata($job);
+  my $errors = [];
+  unless (exists $data->{library}{data}{investigation_type}) {
+    push(@$errors, "mandatory term 'investigation type' missing");
+  }
+  my $lib = $data->{library}{data}{investigation_type};
+  unless (exists $mixs->{library}{$lib}) {
+    push(@$errors, "library missing");
+  }
+  foreach my $cat (keys %$mixs) {
+    if ($cat eq 'library') {
+      foreach my $tag (keys %{$mixs->{library}{$lib}}) {
+	if (! exists($data->{$cat}{data}{$tag})) {
+	  push(@$errors, "mandatory term '$tag' from category '$cat' missing");
+	}
+      }
+    }
+    else {
+      foreach my $tag (keys %{$mixs->{$cat}}) {
+	if (! exists($data->{$cat}{data}{$tag})) {
+	  push(@$errors, "mandatory term '$tag' from category '$cat' missing");
+	}
+      }
+    }
+  }
+  return $errors;
+}
+
+=pod
+
 =item * B<get_metadata_for_tables> (Array[JobObject<job> || Scalar<id>], Boolean<is_mgid>,  Boolean<use_fast>)
 
 Given an array of Job PPO objects (or job/metagenome id if use_fast true),

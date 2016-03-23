@@ -513,7 +513,7 @@ sub process_file {
     # get metadata file
     my $tmp_dir = $Conf::temp;
     my $fname   = "";
-    my $node    = {};
+    my $node    = undef;
     
     # uploaded / not POST data
     if ($post->{upload}) {
@@ -578,7 +578,7 @@ sub process_file {
     }
     elsif (($type eq 'import') || ($type eq 'update')) {
         unless ($is_valid) {
-            $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", @$log, @{$md_obj->{data}})}, 422);
+            $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", $log, @{$md_obj->{data}})}, 422);
         }
         unless ($post->{metagenome} && (@{$post->{metagenome}} > 0)) {
             $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
