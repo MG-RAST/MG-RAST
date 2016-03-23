@@ -181,12 +181,67 @@ sub instance {
     my $requests = {
 		    'movemetagenomes' => 1,
 		    'updateright' => 1,
-		    'makepublic' => 1
+		    'makepublic' => 1,
+		    'updatemetadata' => 1
     };
     if ((scalar(@$rest) > 1) && $requests->{$rest->[1]}) {
       if ($rest->[1] eq 'updateright') {
 	$self->updateRight($rest->[0]);
 	return;
+      }
+
+      # update basic project metadata
+      elsif ($rest->[1] eq 'updatemetadata') {
+
+	# check permissions
+	unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right('edit', 'project', $id)) {
+	  $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+	}
+	
+	# get project
+	my $project = $master->Project->init( {id => $id} );
+	unless (ref($project)) {
+	  $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
+	}
+
+	if ($self->cgi->param('project_name')) {
+	  $project->name($self->cgi->param('project_name'));
+	}
+	
+	my $metadbm = MGRAST::Metadata->new->_handle();
+
+	my $keyval = {};
+	$keyval->{project_description} = $self->cgi->param('project_description');
+	$keyval->{project_funding} = $self->cgi->param('project_funding');
+	$keyval->{PI_email} = $self->cgi->param('pi_email');
+	$keyval->{PI_firstname} = $self->cgi->param('pi_firstname');
+	$keyval->{PI_lastname} = $self->cgi->param('pi_lastname');
+	$keyval->{PI_organization} = $self->cgi->param('pi_organization');
+	$keyval->{PI_organization_country} = $self->cgi->param('pi_organization_country');
+	$keyval->{PI_organization_url} = $self->cgi->param('pi_organization_url');
+	$keyval->{PI_organization_address} = $self->cgi->param('pi_organization_address');
+	$keyval->{email} = $self->cgi->param('email');
+	$keyval->{firstname} = $self->cgi->param('firstname');
+	$keyval->{lastname} = $self->cgi->param('lastname');
+	$keyval->{organization} = $self->cgi->param('organization');
+	$keyval->{organization_country} = $self->cgi->param('organization_country');
+	$keyval->{organization_url} = $self->cgi->param('organization_url');
+	$keyval->{organization_address} = $self->cgi->param('organization_address');
+	
+	foreach my $key (keys(%$keyval)) {
+	  my $existing = $metadbm->ProjectMD->get_objects( { project => $project,
+							     tag => $key } );
+	  if (scalar(@$existing)) {
+	    $existing->[0]->value($keyval->{$key});
+	  } else {
+	    $metadbm->ProjectMD->create( { project => $project,
+					   tag => $key,
+					   value => $keyval->{$key} } );
+	  }
+	}
+
+	# return success
+	$self->return_data( {"OK" => "metadata updated"}, 200 );
       }
       
       # make the project public
@@ -213,9 +268,9 @@ sub instance {
 	my $mddb = MGRAST::Metadata->new();
 	my $all_errors = {};
 	foreach my $mg (@$mgs) {
-	  my $errors = $mddb->verify_job_metadata($job);
+	  my $errors = $mddb->verify_job_metadata($mg);
 	  if (scalar(@$errors)) {
-	    $all_errors->{$mg->id} = @$errors;
+	    $all_errors->{$mg->{metagenome_id}} = $errors;
 	  }
 	}
 	if (scalar(keys(%$all_errors))) {
@@ -252,10 +307,6 @@ sub instance {
 	  }
 	  unless ($self->user->has_star_right('edit', 'user') || ($self->user->has_right('edit', 'project', $id) && $self->user->has_right('edit', 'project', $id2))) {
 	    $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
-	  }
-	  my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
-	  if (! $id2) {
-	    $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
 	  }
 	  my $project_a = $master->Project->init( {id => $id} );
 	  my $project_b = $master->Project->init( {id => $id2} );

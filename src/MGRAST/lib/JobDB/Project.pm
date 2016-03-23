@@ -260,7 +260,7 @@ sub metagenomes {
   }
   else {
     my $mgs = [];
-    foreach my $pjs ( @{ $db->ProjectJob->get_objects({project => $self, viewable => 1}) } ) {
+    foreach my $pjs ( @{ $db->ProjectJob->get_objects({project => $self }) } ) {
       push @$mgs, $pjs->job;
     }
     return $mgs;

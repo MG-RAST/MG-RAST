@@ -533,7 +533,7 @@ sub verify_job_metadata {
   }
   my $lib = $data->{library}{data}{investigation_type};
   unless (exists $mixs->{library}{$lib}) {
-    push(@$errors, "library for $lib missing");
+    push(@$errors, "library missing");
   }
   foreach my $cat (keys %$mixs) {
     if ($cat eq 'library') {
