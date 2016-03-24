@@ -356,7 +356,9 @@ sub instance {
     }
 
     # return cached if exists
-    $self->return_cached();
+    unless ($self->cgi->param('nocache')) {
+      $self->return_cached();
+    }
     
     # prepare data
     my $data = $self->prepare_data( [$project] );
