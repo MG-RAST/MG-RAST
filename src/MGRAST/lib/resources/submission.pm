@@ -686,7 +686,7 @@ sub submit {
     }
     
     # paramater node (do right before submit to AWE)
-    my $param_node = $self->set_shock_node($self->{param_file}, $param_str, $param_attr, $self->token, 1, $self->user_auth, "5D");
+    my $param_node = $self->set_shock_node($self->{param_file}, $param_str, $param_attr, $self->token, 1, $self->user_auth);
     $self->edit_shock_acl($param_node->{id}, $self->token, 'mgrast', 'put', 'all', $self->user_auth);
     $submit_task->{inputs}{$self->{param_file}} = {host => $Conf::shock_url, node => $param_node->{id}};
     push @$tasks, $submit_task;
