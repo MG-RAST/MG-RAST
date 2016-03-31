@@ -858,17 +858,35 @@ sub link_for_source {
 sub delete_job {
     my ($self, $job) = @_;
     
-    my $all = $self->_dbh->selectcol_arrayref("SELECT DISTINCT version FROM job_info WHERE job = ".$job);
+    my $delete_hdl;
     eval {
-        $self->_dbh->do("DELETE FROM job_info WHERE job = ".$job);
+      my $host     = $Conf::mgrast_write_dbhost;
+      my $database = $Conf::mgrast_db;
+      my $user     = $Conf::mgrast_dbuser;
+      my $password = $Conf::mgrast_dbpass;
+      
+      $delete_hdl = DBI->connect("DBI:Pg:dbname=$database;host=$host", $user, $password, 
+			  { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
+			    die "database connect error.";
+    };
+    if ($@) {
+      warn "Unable to connect to metagenomics database: $@\n";
+      return 0;
+    }
+    
+    my $all = $delete_hdl->selectcol_arrayref("SELECT DISTINCT version FROM job_info WHERE job = ".$job);
+    eval {
+        $delete_hdl->do("DELETE FROM job_info WHERE job = ".$job);
         foreach my $tbl (values %{$self->_jtbl}) {
-            $self->_dbh->do("DELETE FROM $tbl WHERE version IN (".join(",", @$all).") AND job = ".$job);
+            $delete_hdl->do("DELETE FROM $tbl WHERE version IN (".join(",", @$all).") AND job = ".$job);
         }
     };
-    $self->_dbh->commit;
     if ($@) {
+        $delete_hdl->disconnect;
         return 0;
     } else {
+        $delete_hdl->commit;
+        $delete_hdl->disconnect;
         return 1;
     }
 }
