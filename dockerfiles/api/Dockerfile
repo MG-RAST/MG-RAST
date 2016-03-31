@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y \
   libdigest-md5-perl \
   libdigest-md5-file-perl \
   libdatetime-perl \
+  libdatetime-format-ISO8601-perl \
   liblist-allutils-perl \
   libposix-strptime-perl \
   libuuid-tiny-perl \

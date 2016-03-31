@@ -7,6 +7,7 @@ no warnings('once');
 use POSIX qw(strftime);
 use Digest::MD5 qw(md5_hex md5_base64);
 use Data::Dumper;
+use DateTime::Format::ISO8601;
 use Template;
 
 use Conf;
@@ -325,15 +326,29 @@ sub status {
         if ($full) {
             push @{$output->{metagenomes}}, $pj;
         } else {
+            my $runtime = 0;
+            foreach my $pjt (@{$pj->{tasks}}) {
+                if ($pjt->{starteddate} eq "0001-01-01T00:00:00Z") {
+                    next; # task hasnt started yet, no runtime
+                }
+                my $start = DateTime::Format::ISO8601->parse_datetime($pjt->{starteddate})->epoch();
+                # if still running just get current time
+                my $end = ($pjt->{completeddate} eq "0001-01-01T00:00:00Z") ? time : DateTime::Format::ISO8601->parse_datetime($pjt->{completeddate})->epoch();
+                # ignore screwy stuff
+                my $total = (($end - $start) < 0) ? 0 : $end - $start;
+                $runtime += $total;
+            }
             my $tasknum = scalar(@{$pj->{tasks}});
             my $summery = {
                 id => $pj->{info}{userattr}{id},
                 job => $pj->{id},
                 name => $pj->{info}{userattr}{name},
                 status => $pj->{state},
-                timestamp => $pj->{info}{submittime},
-                total => $tasknum,
-                completed => $tasknum - $pj->{remaintasks}
+                submittime => $pj->{info}{submittime},
+                completedtime => $pj->{info}{completedtime},
+                runtime => $runtime,
+                totaltasks => $tasknum,
+                completedtasks => $tasknum - $pj->{remaintasks}
             };
             push @{$output->{metagenomes}}, $summery;
         }
