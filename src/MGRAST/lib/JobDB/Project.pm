@@ -260,7 +260,7 @@ sub metagenomes {
   }
   else {
     my $mgs = [];
-    foreach my $pjs ( @{ $db->ProjectJob->get_objects({project => $self, viewable => 1}) } ) {
+    foreach my $pjs ( @{ $db->ProjectJob->get_objects({project => $self }) } ) {
       push @$mgs, $pjs->job;
     }
     return $mgs;
@@ -473,15 +473,18 @@ sub metagenomes_summary {
   my $project_jobs = $self->_master->ProjectJob->get_objects( {project => $self} );
   my $user = $self->_master->{_user};
 
-  if (@$project_jobs > 0) {
+  if (@$project_jobs > 0) {    
     my @pdata = ();
     my $user_jobs = {};
     my $ujr = defined($user) ? $user->has_right_to(undef, 'view', 'metagenome') : [];
     %$user_jobs = map { $_ => 1 } @$ujr;
     my @pjobs   = map { $_->job } grep { $user_jobs->{$_->job->metagenome_id} || $user_jobs->{'*'} || $_->job->public } @$project_jobs;
+    my $jindices = {};
+    my $i = 0;
     foreach my $pj (@pjobs) {
       my $coord = $pj->lat_lon;
       my $stats = $pj->stats;
+      $jindices->{$pj->{_id}} = $i;
       push @data, [  $pj->metagenome_id,
 		     $pj->name,
 		     format_number($stats->{bp_count_raw}),
@@ -494,8 +497,16 @@ sub metagenomes_summary {
 		     @$coord ? join(", ", @$coord) : '',
 		     $pj->seq_type,
 		     $pj->seq_method,
-		     $pj->viewable
+		     $pj->viewable,
+		     $pj->created_on,
+		     {}
 		  ];
+      $i++;
+    }
+    my $jdbh  = $self->_master->db_handle();
+    my $res = $jdbh->selectall_arrayref('SELECT tag, value, job FROM JobAttributes WHERE job IN ('.join(", ", map { $_->{_id} } @pjobs).')', { Slice => {} });
+    foreach my $row (@$res) {
+      $data[$jindices->{$row->{job}}]->[14]->{$row->{tag}} = $row->{value};
     }
   }
   return \@data;
