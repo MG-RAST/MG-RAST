@@ -195,6 +195,40 @@ sub instance {
     }
   }
 
+  # check if this is an email validation
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'validateemail') {
+    my $key = uri_unescape($rest->[1]);
+    my $uid;
+    unless ($key =~ /^(\d+)_([0..9a..zA..Z]+)$/) {
+      $self->return_data( {"ERROR" => "invalid key"}, 400 );
+    } else {
+      $uid = $1;
+      $key = $2;
+    }
+    my $pref = $master->Preferences->get_objects({ "name" => $key });
+    unless (scalar(@$pref)) {
+      $self->return_data( {"ERROR" => "invalid key"}, 400 );
+    }
+    my $user;
+    foreach my $p (@$pref) {
+      if ($p->user->{_id} eq $uid) {
+	$user = $p->user;
+	$pref = $p;
+	last;
+      }
+    }
+    unless (ref $user) {
+      $self->return_data( {"ERROR" => "invalid user"}, 400 );
+    }
+    my ($field, $email) = $pref->value =~ /^(email2?)\:(.+)$/;
+    if ($field eq 'email') {
+      $user->email($email);
+    } else {
+      $user->email2($email);
+    }
+    $self->return_data( { "OK" => "email validated" }, 200 );
+  }
+
   # check if this is an impersonation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
     if ($self->user->has_right(undef, 'edit', 'user', '*')) {
@@ -207,7 +241,9 @@ sub instance {
 	  $userToken = $userToken->[0]->{value};
 	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
 	  $pref = $pref->[0];
-	  $pref->value(time + $timeout);
+	  if ($pref->{value} < time) {
+	    $pref->value(time + $timeout);
+	  }
 	} else {
 	  my $generated = "";
 	  my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -337,10 +373,18 @@ sub instance {
   # check if this is a user update
   if ($self->{method} eq 'PUT') {
     if (defined $self->{cgi}->param('email')) {
-      $user->email(uri_unescape($self->{cgi}->param('email')));
+      # check if this is a new address and verify it if so
+      if ($user->{email} ne uri_unescape($self->{cgi}->param('email')) {
+	$self->verify_email();
+	$user->{updated_email} = 'verifying';
+      }
     }
     if (defined $self->{cgi}->param('email2')) {
-      $user->email2(uri_unescape($self->{cgi}->param('email2')));
+      # check if this is a new address and verify it if so
+      if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2')) {
+	$self->verify_email(1);
+	$user->{updated_email2} = 'verifying';
+      }
     }
     if (defined $self->{cgi}->param('firstname')) {
       $user->firstname(uri_unescape($self->{cgi}->param('firstname')));
@@ -514,8 +558,13 @@ sub instance {
     if (! $jobdb) {
       $self->return_data( {"ERROR" => "could not access job database"}, 500 );
     }
+    my $ids = $user->has_right_to(undef, 'edit', 'project');
+    if (scalar(@$ids) && $ids->[0] eq '*') {
+      shift @$ids;
+    }
+    
     my $jdbh  = $jobdb->db_handle();
-    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Job.owner='.$user->{_id}.' AND Job._id=JobAttributes.job AND (JobAttributes.tag="priority" OR JobAttributes.tag="completedtime") AND (Job.public IS NULL OR Job.public=0) AND Job.viewable=1 AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
+    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Project.id IN ("'+join('", "', @$ids)+'") AND Job._id=JobAttributes.job AND (JobAttributes.tag="priority" OR JobAttributes.tag="completedtime") AND (Job.public IS NULL OR Job.public=0) AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
     $self->return_data({ "priorities" => $res });
   }
   # get the user preferences
@@ -981,6 +1030,9 @@ sub prepare_data {
       if (defined $u->{scopes}) { $obj->{scopes} = $u->{scopes} };
       if (defined $u->{session}) { $obj->{session} = $u->{session} };
       if (defined $u->{organization}) { $obj->{organization} = $u->{organization} };
+
+      if (defined $u->{updated_email}) { $obj->{updated_email} = $u->{updated_email} };
+      if (defined $u->{updated_email2}) { $obj->{updated_email2} = $u->{updated_email2} };
       
       push(@$result, $obj);
     }
@@ -1198,6 +1250,37 @@ sub encrypt {
 
   my $seed = join '', ('.', '/', 0..9, 'A'..'Z', 'a'..'z')[rand 64, rand 64];
   return crypt($password, $seed);
+}
+
+sub verify_email {
+  my ($self, $email2, $additional_message, $user) = @_;
+
+  unless ($user) {
+    $user = $self->user;
+  }
+  
+  my $email = $email2 ? $self->cgi->param('email2') : $self->cgi->param('email');
+
+  my @set = ('0' ..'9', 'A' .. 'Z', 'a' .. 'z');
+  my $key = join '' => map $set[rand @set], 1 .. 64;
+
+  # get database
+  my ($master, $error) = WebApplicationDBHandle->new();
+  if ($error) {
+    $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
+  }
+
+  $master->Preferences->create({ "user" => $user, "name" => $key, "value" => ($email2 ? "email2" : "email").":".$email});
+  
+  my $message = $additional_message ? $additional_message."\n\n" : "";
+  $message .= "To verify your email address, please click the link below.\n";
+  $message .= "<a href='".$Conf::cgi_url."/user/validateemail/".$user->_id."_".$key."'>verify email address</a>";
+  
+  $user->send_email( "mg-rast\@mcs.anl.gov",
+		     'MG-RAST - verify email',
+		     $message );
+  
+  return 1;
 }
 
 1;
