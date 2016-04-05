@@ -2332,6 +2332,7 @@ sub compute_breakdown {
     }
     
     return {
+        total        => $raw_seqs,
         failed_qc    => abs($qc_fail_seqs),
         unknown      => abs($unknown_all),
         unknown_prot => abs($unkn_aa_reads),
