@@ -564,7 +564,7 @@ sub prepare_data {
             $obj->{mixs_compliant} = $mddb->is_job_compliant($job);
         }
         if (($verb eq 'stats') || ($verb eq 'full')) {
-            $obj->{statistics} = $self->metagenome_stats_from_shock('mgm'.$job->{metagenome_id});
+            $obj->{statistics} = $self->metagenome_stats_from_shock('mgm'.$job->{metagenome_id}, $job->{sequence_type});
         }
         push @$objects, $obj;
     }
