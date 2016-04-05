@@ -1108,7 +1108,7 @@ sub get_shock_query {
 }
 
 sub metagenome_stats_from_shock {
-    my ($self, $mgid) = @_;
+    my ($self, $mgid, $type) = @_;
     
     my $params = {type => 'metagenome', data_type => 'statistics', id => $mgid};
     my $stat_node = $self->get_shock_query($params, $self->mgrast_token);
@@ -1123,6 +1123,10 @@ sub metagenome_stats_from_shock {
     # seq stats
     foreach my $key (keys %{$stats->{sequence_stats}}) {
         $stats->{sequence_stats}{$key} = $self->toFloat($stats->{sequence_stats}{$key});
+    }
+    # seq breakdown
+    if ($type) {
+        $stats->{sequence_breakdown} = $self->compute_breakdown($stats->{sequence_stats}, $type);
     }
     # source
     foreach my $src (keys %{$stats->{source}}) {
@@ -2256,6 +2260,84 @@ sub toNum {
     } else {
         return $x * 1.0;
     }
+}
+
+# fuzzy math here
+sub compute_breakdown {
+    my ($self, $stats, $seq_type) = @_;
+    
+    my $raw_seqs    = exists($stats->{sequence_count_raw}) ? $stats->{sequence_count_raw} : 0;
+    my $qc_rna_seqs = exists($stats->{sequence_count_preprocessed_rna}) ? $stats->{sequence_count_preprocessed_rna} : 0;
+    my $qc_seqs     = exists($stats->{sequence_count_preprocessed}) ? $stats->{sequence_count_preprocessed} : 0;
+    my $rna_sims    = exists($stats->{sequence_count_sims_rna}) ? $stats->{sequence_count_sims_rna} : 0;
+    my $aa_sims     = exists($stats->{sequence_count_sims_aa}) ? $stats->{sequence_count_sims_aa} : 0;
+    my $aa_reads    = exists($stats->{read_count_processed_aa}) ? $stats->{read_count_processed_aa} : 0;
+    my $r_clusts    = exists($stats->{cluster_count_processed_rna}) ? $stats->{cluster_count_processed_rna} : 0;
+    my $r_clust_seq = exists($stats->{clustered_sequence_count_processed_rna}) ? $stats->{clustered_sequence_count_processed_rna} : 0;
+    my $clusts      = exists($stats->{cluster_count_processed_aa}) ? $stats->{cluster_count_processed_aa} : (exists($stats->{cluster_count_processed}) ? $stats->{cluster_count_processed} : 0);
+    my $clust_seq   = exists($stats->{clustered_sequence_count_processed_aa}) ? $stats->{clustered_sequence_count_processed_aa} : (exists($stats->{clustered_sequence_count_processed}) ? $stats->{clustered_sequence_count_processed} : 0);
+    
+    my $is_rna  = ($seq_type eq 'Amplicon') ? 1 : 0;
+    my $is_gene = ($seq_type eq 'AmpliconGene') ? 1 : 0;
+    my $qc_fail_seqs  = $raw_seqs - $qc_seqs;
+    my $ann_aa_reads  = $aa_sims ? ($aa_sims - $clusts) + $clust_seq : 0;
+    my $unkn_aa_reads = $aa_reads - $ann_aa_reads;
+    my $ann_rna_reads = $rna_sims ? ($rna_sims - $r_clusts) + $r_clust_seq : 0;
+    my $unknown_all   = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads);
+
+    # amplicon rna numbers
+    if ($is_rna) {
+        $qc_fail_seqs  = $raw_seqs - $qc_rna_seqs;
+        $unkn_aa_reads = 0;
+        $ann_aa_reads  = 0;
+        $unknown_all   = $raw_seqs - ($qc_fail_seqs + $ann_rna_reads);
+        if ($raw_seqs < ($qc_fail_seqs + $ann_rna_reads)) {
+            my $diff = ($qc_fail_seqs + $ann_rna_reads) - $raw_seqs;
+            $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+        }
+    }
+    # amplicon gene numbers
+    elsif ($is_gene) {
+        $ann_rna_reads = 0;
+        $unknown_all = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads);
+        if ($raw_seqs < ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads)) {
+            my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads) - $raw_seqs;
+            $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+        }
+    }
+    # wgs / mt numbers
+    else {
+        # get correct qc rna
+        if ($qc_rna_seqs > $qc_seqs) {
+            $ann_rna_reads = int((($qc_seqs * 1.0) / $qc_rna_seqs) * $ann_rna_reads);
+        }
+        if ($unknown_all < 0) { $unknown_all = 0; }
+        if ($raw_seqs < ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads)) {
+            my $diff = ($qc_fail_seqs + $unknown_all + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+            $unknown_all = ($diff > $unknown_all) ? 0 : $unknown_all - $diff;
+        }
+        if (($unknown_all == 0) && ($raw_seqs < ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads))) {
+            my $diff = ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+            $unkn_aa_reads = ($diff > $unkn_aa_reads) ? 0 : $unkn_aa_reads - $diff;
+        }
+        ## hack to make MT numbers add up
+        if (($unknown_all == 0) && ($unkn_aa_reads == 0) && ($raw_seqs < ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads))) {
+            my $diff = ($qc_fail_seqs + $ann_aa_reads + $ann_rna_reads) - $raw_seqs;
+            $ann_rna_reads = ($diff > $ann_rna_reads) ? 0 : $ann_rna_reads - $diff;
+        }
+        my $diff = $raw_seqs - ($qc_fail_seqs + $unkn_aa_reads + $ann_aa_reads + $ann_rna_reads);
+        if ($unknown_all < $diff) {
+            $unknown_all = $diff;
+        }
+    }
+    
+    return {
+        failed_qc    => abs($qc_fail_seqs),
+        unknown      => abs($unknown_all),
+        unknown_prot => abs($unkn_aa_reads),
+        known_prot   => abs($ann_aa_reads),
+        known_rna    => abs($ann_rna_reads)
+    };
 }
 
 ###################################################
