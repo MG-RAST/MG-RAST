@@ -12,69 +12,69 @@ use URI::Escape;
 
 # Override parent constructor
 sub new {
-    my ($class, @args) = @_;
-
-    # Call the constructor of the parent class
-    my $self = $class->SUPER::new(@args);
-    
-    # Add name / attributes
-    $self->{name} = "user";
-    $self->{attributes} = { "id"         => [ 'string', 'user id' ],
-			    "login"      => [ 'string', 'user login'],
-                            "email"      => [ 'string', 'user e-mail' ],
-                            "email2"     => [ 'string', 'user secondary e-mail' ],
-                            "firstname"  => [ 'string', 'first name of user' ],
-                            "lastname"   => [ 'string', 'last name of user' ],
-                            "entry_date" => [ 'date', 'date of user creation' ],
-                            "active"     => [ 'boolean', 'user is active' ],
-                            "comment"    => [ 'string', 'any comment about the user account' ],
-                            "url"        => [ 'uri', 'resource location of this object instance' ]
-                          };
-
-    $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1, 'session' => 1, 'request_access' => 1, 'priorities' => 1},
-                    direction => {'asc' => 1, 'desc' => 1},
-                    match => {'any' => 1, 'all' => 1}
-    };
-
-    return $self;
+  my ($class, @args) = @_;
+  
+  # Call the constructor of the parent class
+  my $self = $class->SUPER::new(@args);
+  
+  # Add name / attributes
+  $self->{name} = "user";
+  $self->{attributes} = { "id"         => [ 'string', 'user id' ],
+			  "login"      => [ 'string', 'user login'],
+			  "email"      => [ 'string', 'user e-mail' ],
+			  "email2"     => [ 'string', 'user secondary e-mail' ],
+			  "firstname"  => [ 'string', 'first name of user' ],
+			  "lastname"   => [ 'string', 'last name of user' ],
+			  "entry_date" => [ 'date', 'date of user creation' ],
+			  "active"     => [ 'boolean', 'user is active' ],
+			  "comment"    => [ 'string', 'any comment about the user account' ],
+			  "url"        => [ 'uri', 'resource location of this object instance' ]
+			};
+  
+  $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1, 'session' => 1, 'request_access' => 1, 'priorities' => 1},
+		  direction => {'asc' => 1, 'desc' => 1},
+		  match => {'any' => 1, 'all' => 1}
+		};
+  
+  return $self;
 }
 
 # resource is called without any parameters
 # this method must return a description of the resource
 sub info {
-    my ($self) = @_;
-    my $content = { 'name' => $self->name,
-                    'url' => $self->cgi->url."/".$self->name,
-                    'description' => "The user resource returns information about a user.",
-                    'type' => 'object',
-                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
-                    'requests' => [ { 'name'        => "info",
-                                      'request'     => $self->cgi->url."/".$self->name,
-                                      'description' => "Returns description of parameters and attributes.",
-                                      'method'      => "GET" ,
-                                      'type'        => "synchronous" ,  
-                                      'attributes'  => "self",
-                                      'parameters'  => { 'options'     => {},
-                                                         'required'    => {},
-                                                         'body'        => {} } },
-                                    { 'name'        => "instance",
-                                      'request'     => $self->cgi->url."/".$self->name."/{ID}",
-                                      'description' => "Returns a single user object.",
-                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
-                    			                         "info for user 'johndoe'" ],
-                                      'method'      => "GET",
-                                      'type'        => "synchronous" ,  
-                                      'attributes'  => $self->attributes,
-                                      'parameters'  => { 'options'     => $self->attributes,
-                                                         'required'    => { "id" => [ "string", "unique user login or ID" ] },
-                                                         'body'        => {} } },
-				    { 'name'        => "delete",
-                                      'request'     => $self->cgi->url."/".$self->name."/{ID}",
-                                      'description' => "Delete a user object.",
-                                      'example'     => [ 'curl -X DELETE -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
-                    			                         "error or success message" ],
-                                      'method'      => "DELETE",
-                                      'type'        => "synchronous" ,  
+  my ($self) = @_;
+  my $content = { 'name' => $self->name,
+		  'url' => $self->cgi->url."/".$self->name,
+		  'description' => "The user resource returns information about a user.",
+		  'type' => 'object',
+		  'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		  'requests' => [ { 'name'        => "info",
+				    'request'     => $self->cgi->url."/".$self->name,
+				    'description' => "Returns description of parameters and attributes.",
+				    'method'      => "GET" ,
+				    'type'        => "synchronous" ,  
+				    'attributes'  => "self",
+				    'parameters'  => { 'options'     => {},
+						       'required'    => {},
+						       'body'        => {} } },
+				  { 'name'        => "instance",
+				    'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				    'description' => "Returns a single user object.",
+				    'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
+						       "info for user 'johndoe'" ],
+				    'method'      => "GET",
+				    'type'        => "synchronous" ,  
+				    'attributes'  => $self->attributes,
+				    'parameters'  => { 'options'     => $self->attributes,
+						       'required'    => { "id" => [ "string", "unique user login or ID" ] },
+						       'body'        => {} } },
+				  { 'name'        => "delete",
+				    'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				    'description' => "Delete a user object.",
+				    'example'     => [ 'curl -X DELETE -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
+						       "error or success message" ],
+				    'method'      => "DELETE",
+				    'type'        => "synchronous" ,  
                                       'attributes'  => {},
                                       'parameters'  => { 'options'     => {},
                                                          'required'    => { "id" => [ "string", "unique user login or ID" ] },
@@ -374,14 +374,14 @@ sub instance {
   if ($self->{method} eq 'PUT') {
     if (defined $self->{cgi}->param('email')) {
       # check if this is a new address and verify it if so
-      if ($user->{email} ne uri_unescape($self->{cgi}->param('email')) {
+      if ($user->{email} ne uri_unescape($self->{cgi}->param('email'))) {
 	$self->verify_email();
 	$user->{updated_email} = 'verifying';
       }
     }
     if (defined $self->{cgi}->param('email2')) {
       # check if this is a new address and verify it if so
-      if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2')) {
+      if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2'))) {
 	$self->verify_email(1);
 	$user->{updated_email2} = 'verifying';
       }
