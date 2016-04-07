@@ -159,7 +159,7 @@ sub instance {
   if ($error) {
     $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
   }
-
+  
   # check if this is an authentication request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'authenticate') {
     if ($self->user) {
@@ -181,20 +181,20 @@ sub instance {
 	}
       }
       my $data = {
-          "login" => $self->user->{login},
-          "firstname" => $self->user->{firstname},
-          "lastname" => $self->user->{lastname},
-          "email" => $self->user->{email},
-          "id" => 'mgu'.$self->user->{_id},
-          "token" => scalar(@$userToken) ? $userToken->[0]->value : undef,
-          "expiration" => scalar(@$expiration) ? $expiration->[0]->value : undef
-      };
+		  "login" => $self->user->{login},
+		  "firstname" => $self->user->{firstname},
+		  "lastname" => $self->user->{lastname},
+		  "email" => $self->user->{email},
+		  "id" => 'mgu'.$self->user->{_id},
+		  "token" => scalar(@$userToken) ? $userToken->[0]->value : undef,
+		  "expiration" => scalar(@$expiration) ? $expiration->[0]->value : undef
+		 };
       $self->return_data( $data, 200 );
     } else {
       $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
     }
   }
-
+  
   # check if this is an email validation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'validateemail') {
     my $key = uri_unescape($rest->[1]);
@@ -228,7 +228,7 @@ sub instance {
     }
     $self->return_data( { "OK" => "email validated" }, 200 );
   }
-
+  
   # check if this is an impersonation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
     if ($self->user->has_right(undef, 'edit', 'user', '*')) {
@@ -278,7 +278,7 @@ sub instance {
 	  $pref->value($generated);
 	  $userToken = $generated;
 	}
-	  
+	
 	$self->return_data( { "login" => $impUser->{login},
 			      "firstname" => $impUser->{firstname},
 			      "lastname" => $impUser->{lastname},
@@ -292,7 +292,26 @@ sub instance {
       $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
     }
   }
-
+  
+  # check if this is a TOS agreement
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'agreetos') {
+    if (my ($version) = $rest->[1] =~ /^(\d+)$/) {
+      if ($self->user) {
+	my $prefs = $master->Preferences->get_objects( { user => $self->user, name => "AgreeTermsOfService" } );
+	if (scalar(@$prefs)) {
+	  $prefs->[0]->value($version);
+	} else {
+	  $prefs = [ $master->Preferences->create( { user => $self->user, name => "AgreeTermsOfService", value => $version } ) ];
+	}
+	$self->return_data( { "OK" => "agreed to terms of service version $version", "tos" => $version, "pref" => $prefs->[0]->value }, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "invalid parameters"}, 404 );
+    }
+  }
+  
   # check if this is a reset password request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
     # passwords may only be reset with a valid recaptcha
@@ -564,7 +583,7 @@ sub instance {
     }
     
     my $jdbh  = $jobdb->db_handle();
-    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Project.id IN ("'+join('", "', @$ids)+'") AND Job._id=JobAttributes.job AND (JobAttributes.tag="priority" OR JobAttributes.tag="completedtime") AND (Job.public IS NULL OR Job.public=0) AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
+    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND (JobAttributes.tag="priority" OR JobAttributes.tag="completedtime") AND (Job.public IS NULL OR Job.public=0) AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
     $self->return_data({ "priorities" => $res });
   }
   # get the user preferences
