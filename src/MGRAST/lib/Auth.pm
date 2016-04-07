@@ -56,7 +56,7 @@ sub authenticate {
 	if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
 	  $verbose = ', "login":"'.$us->{login}.'", "firstname":"'.$us->{firstname}.'", "lastname":"'.$us->{lastname}.'", "email":"'.$us->{email}.'", "id":"mgu'.$us->{_id}.'"';
 	  # terms of service
-	  my $tos = $master->Preferences->get_objects( { name => 'AgreeTermsOfService' } );
+	  my $tos = $master->Preferences->get_objects( { name => 'AgreeTermsOfService', user => $us } );
 	  my $agree = 0;
 	  foreach my $t (@$tos) {
 	    if ($t->{value} > $agree) {
@@ -257,6 +257,7 @@ sub authenticate {
 
       # return the user connected to the preference
       $user = $preference->[0]->user;
+      
       return ($user);
     }
   } else {
