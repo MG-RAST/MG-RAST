@@ -16,7 +16,8 @@ our $dbh = undef;
 
 sub get_analysis_dbh {
     eval {
-      my $host     = $Conf::mgrast_dbhost;
+      # need write DB as read DB may not yet be synched
+      my $host     = $Conf::mgrast_write_dbhost;
       my $database = $Conf::mgrast_db;
       my $user     = $Conf::mgrast_dbuser;
       my $password = $Conf::mgrast_dbpass;
