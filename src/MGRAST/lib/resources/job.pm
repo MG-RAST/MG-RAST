@@ -484,7 +484,10 @@ sub job_action {
     }
     # we have a job in DB, do something
     else {
-        # check id format
+      # check id format
+      unless (defined $post->{metagenome_id}) {
+	$post = $self->get_post_data(["metagenome_id", "reason"]);
+      }
         my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
             $self->return_data( {"ERROR" => "invalid id format: ".$post->{metagenome_id}}, 400 );
