@@ -254,7 +254,7 @@ sub status {
     # get submission info - parameters file
     my $info = {};
     eval {
-        my ($info_text, $err) = $self->get_shock_file($pnode, undef, $self->token, undef, $self->user_auth);
+        my ($info_text, $err) = $self->get_shock_file($pnode, undef, $is_admin ? $self->{mgrast_token} : $self->token, undef, $self->user_auth);
         if ($err) {
             $self->return_data( {"ERROR" => "Unable to fetch Shock file $pnode: $err"}, 500 );
         }
