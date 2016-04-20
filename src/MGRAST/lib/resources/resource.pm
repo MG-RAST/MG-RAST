@@ -1554,6 +1554,13 @@ sub add_submission {
     $self->edit_shock_acl($node_id, $auth, 'mgrast', 'put', 'all', $authPrefix);
 }
 
+# get inbox object from shock node id
+sub node_id_to_inbox {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    my $node = $self->get_shock_node($id, $auth, $authPrefix);
+    return $self->node_to_inbox($node, $auth, $authPrefix);
+}
+
 # get inbox object from shock node
 sub node_to_inbox {
     my ($self, $node, $auth, $authPrefix) = @_;
