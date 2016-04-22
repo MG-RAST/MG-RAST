@@ -55,6 +55,16 @@ sub authenticate {
 	my $verbose = "";
 	if ($cgi->param('verbosity') && $cgi->param('verbosity') eq 'verbose') {
 	  $verbose = ', "login":"'.$us->{login}.'", "firstname":"'.$us->{firstname}.'", "lastname":"'.$us->{lastname}.'", "email":"'.$us->{email}.'", "id":"mgu'.$us->{_id}.'"';
+	  # terms of service
+	  my $tos = $master->Preferences->get_objects( { name => 'AgreeTermsOfService', user => $us } );
+	  my $agree = 0;
+	  foreach my $t (@$tos) {
+	    if ($t->{value} > $agree) {
+	      $agree = $t->{value};
+	    }
+	  }
+	  $verbose .= ', "tos": "'.$agree.'"';
+	  
 	  # SHOCK preferences
 	  my $prefs = $master->Preferences->get_objects({ user => $us, name => "shock_pref_node" });
 	  if (scalar(@$prefs)) {
@@ -72,20 +82,8 @@ sub authenticate {
 	      $response = $json->decode( $get->content );
 	    };
 	    if ($@ || (! ref($response))) {
-	      # print $cgi->header(-type => 'application/json',
-	      # 			 -status => 500,
-	      # 			 -charset => 'UTF-8',
-	      # 			 -Access_Control_Allow_Origin => '*' );
-	      # print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
-	      # exit;
 	      $verbose.=', "preferences": "ERROR - SHOCK server unavailable"';
 	    } elsif (exists($response->{error}) && $response->{error}) {
-	      # print $cgi->header(-type => 'application/json',
-	      # 			 -status => 500,
-	      # 			 -charset => 'UTF-8',
-	      # 			 -Access_Control_Allow_Origin => '*' );
-	      # print $json->encode({"ERROR" => "Unable to GET node $nodeid from Shock: ".$response->{error}[0]}, $response->{status} );
-	      # exit;
 	      $verbose.=', "preferences": "ERROR - '.$response->{error}.'"';
 	    } else {
 	      $verbose.=', "preferences": '.$json->encode($response->{data}->{attributes}->{pref});
@@ -259,6 +257,7 @@ sub authenticate {
 
       # return the user connected to the preference
       $user = $preference->[0]->user;
+      
       return ($user);
     }
   } else {

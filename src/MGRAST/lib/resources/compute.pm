@@ -230,6 +230,17 @@ sub instance {
     if (! $id) {
         $self->return_data( {"ERROR" => "invalid id format: $mgid"}, 400 );
     }
+    # get data
+    my $master = $self->connect_to_datasource();
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        return ({"ERROR" => "id mgm$id does not exist"}, 404);
+    }
+    $job = $job->[0];
+    # check rights
+    unless ($job->public || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
+        return ({"ERROR" => "insufficient permissions for metagenome mgm$id"}, 401);
+    }
     
     # asynchronous call, fork the process and return the process id.
     if ($self->cgi->param('asynchronous')) {
@@ -282,11 +293,7 @@ sub species_diversity_compute {
         return ({"ERROR" => "id mgm$id does not exist"}, 404);
     }
     $job = $job->[0];
-    # check rights
-    unless ($job->public || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
-        return ({"ERROR" => "insufficient permissions for metagenome mgm$id"}, 401);
-    }
-    
+
     # initialize
     my $level = $self->cgi->param('level') || 'species';
     my $ver   = $self->cgi->param('ann_ver') || $self->{ann_ver};
