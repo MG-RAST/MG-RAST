@@ -278,12 +278,18 @@ sub instance {
 	  $pref->value($generated);
 	  $userToken = $generated;
 	}
+	my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'AgreeTermsOfService' } );
+	my $tos = 0;
+	if (scalar(@$pref)) {
+	  $tos = $pref->[0]->value;
+	}
 	
 	$self->return_data( { "login" => $impUser->{login},
 			      "firstname" => $impUser->{firstname},
 			      "lastname" => $impUser->{lastname},
 			      "email" => $impUser->{email},
 			      "id" => 'mgu'.$impUser->{_id},
+			      "tos" => $tos,
 			      "token" => $userToken }, 200 );
       } else {
 	$self->return_data( {"ERROR" => "user not found"}, 404 );
