@@ -881,12 +881,12 @@ sub delete_job {
             $delete_hdl->do("DELETE FROM $tbl WHERE version IN (".join(",", @$all).") AND job = ".$job);
         }
     };
+    $delete_hdl->commit;
+    $delete_hdl->disconnect;
+    
     if ($@) {
-        $delete_hdl->disconnect;
         return 0;
     } else {
-        $delete_hdl->commit;
-        $delete_hdl->disconnect;
         return 1;
     }
 }

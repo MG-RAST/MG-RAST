@@ -269,43 +269,14 @@ sub status {
     my $report = $self->get_task_report($submit->{tasks}[-1], 'stdout', $self->token, $self->user_auth);
     my $result = $self->parse_submit_output($report);
     
-    # get original input files as inbox objects
-    my @in_ids = ();
-    my $inputs = [];
-    if (ref($info->{input}{files}) eq "HASH") {
-        @in_ids = values %{$info->{input}{files}};
-    } elsif (ref($info->{input}{files}) eq "ARRAY") {
-        @in_ids = @{$info->{input}{files}};
-    }
-    foreach my $fid (@in_ids) {
-        foreach my $n (@{$nodes->{inbox}}) {
-            if ($n->{id} eq $fid) {
-                push @$inputs, $self->node_to_inbox($n, $self->token, $self->user_auth);
-                last;
-            }
-        }
-    }
-    
-    # get submitted sequence files as inbox objects
-    my $seqs = [];
-    foreach my $fname (@{$info->{files}}) {
-        foreach my $n (@{$nodes->{inbox}}) {
-            if ($n->{file}{name} eq $fname) {
-                push @$seqs, $self->node_to_inbox($n, $self->token, $self->user_auth);
-                last;
-            }
-        }
-    }
-    
     # set output
     my $output = {
         type => $info->{input}{type}, # submission type
-        inputs => $inputs,            # inbox info of original input files of submission
-        sequences => $seqs,           # inbox info of sequences for analysis pipeline
-        submitted => $result,         # info on success or failer of sequences
+        submission => $info,          # submission inputs / paramaters
+        results => $result,           # info on success or failer of sequences
         preprocessing => [],          # info of preprocessing pipeline stages
         metagenomes => [],            # info of analysis pipeline stages per metagenome
-        timestamp => $submit->{info}{submittime},  # submission time
+        timestamp => $submit->{info}{submittime}  # submission time
     };
     
     # status of preprocessing workflow
@@ -323,21 +294,23 @@ sub status {
     
     # check children workflows - get current stage
     foreach my $pj (@{$jobs->{pipeline}}) {
+        # get current runtime
+        my $runtime = 0;
+        foreach my $pjt (@{$pj->{tasks}}) {
+            if ($pjt->{starteddate} eq "0001-01-01T00:00:00Z") {
+                next; # task hasnt started yet, no runtime
+            }
+            my $start = DateTime::Format::ISO8601->parse_datetime($pjt->{starteddate})->epoch();
+            # if still running just get current time
+            my $end = ($pjt->{completeddate} eq "0001-01-01T00:00:00Z") ? time : DateTime::Format::ISO8601->parse_datetime($pjt->{completeddate})->epoch();
+            # ignore screwy stuff
+            my $total = (($end - $start) < 0) ? 0 : $end - $start;
+            $runtime += $total;
+        }
         if ($full) {
+            $pj->{info}{runtime} = $runtime;
             push @{$output->{metagenomes}}, $pj;
         } else {
-            my $runtime = 0;
-            foreach my $pjt (@{$pj->{tasks}}) {
-                if ($pjt->{starteddate} eq "0001-01-01T00:00:00Z") {
-                    next; # task hasnt started yet, no runtime
-                }
-                my $start = DateTime::Format::ISO8601->parse_datetime($pjt->{starteddate})->epoch();
-                # if still running just get current time
-                my $end = ($pjt->{completeddate} eq "0001-01-01T00:00:00Z") ? time : DateTime::Format::ISO8601->parse_datetime($pjt->{completeddate})->epoch();
-                # ignore screwy stuff
-                my $total = (($end - $start) < 0) ? 0 : $end - $start;
-                $runtime += $total;
-            }
             my $tasknum = scalar(@{$pj->{tasks}});
             my $summery = {
                 id => $pj->{info}{userattr}{id},
@@ -515,19 +488,19 @@ sub submit {
     my @submit = ();
     my $tasks = [];
     if ($pair_file_1 && $pair_file_2 && $index_file && $barcode_file) {
-        $input = {
-            'type'  => "pairjoin_demultiplex",
-            'files' => {
-                'pair1' => $pair_file_1,
-                'pair2' => $pair_file_2,
-                'index' => $index_file,
-                'barcode' => $barcode_file
-            }
-        };
         $self->add_submission($pair_file_1, $uuid, $self->token, $self->user_auth);
         $self->add_submission($pair_file_2, $uuid, $self->token, $self->user_auth);
         $self->add_submission($index_file, $uuid, $self->token, $self->user_auth);
         $self->add_submission($barcode_file, $uuid, $self->token, $self->user_auth);
+        $input = {
+            'type'  => "pairjoin_demultiplex",
+            'files' => {
+                'pair1' => $self->node_id_to_inbox($pair_file_1, $self->token, $self->user_auth),
+                'pair2' => $self->node_id_to_inbox($pair_file_2, $self->token, $self->user_auth),
+                'index' => $self->node_id_to_inbox($index_file, $self->token, $self->user_auth),
+                'barcode' => $self->node_id_to_inbox($barcode_file, $self->token, $self->user_auth)
+            }
+        };
         my $outprefix = $mg_name || $self->uuidv4();
         # need stats on input files, each one can be 1 or 2 tasks
         push @$tasks, $self->build_seq_stat_task(0, -1, $pair_file_1, undef, $self->token, $self->user_auth);
@@ -548,15 +521,15 @@ sub submit {
         @submit = $self->build_demultiplex_task($dm_tid, $dm_tid-1, -1, $outprefix.".fastq", $barcode_file, $rc_index, $self->token, $self->user_auth);
         push @$tasks, @submit;
     } elsif ($pair_file_1 && $pair_file_2) {
+        $self->add_submission($pair_file_1, $uuid, $self->token, $self->user_auth);
+        $self->add_submission($pair_file_2, $uuid, $self->token, $self->user_auth);
         $input = {
             'type'  => "pairjoin",
             'files' => {
-                'pair1' => $pair_file_1,
-                'pair2' => $pair_file_2
+                'pair1' => $self->node_id_to_inbox($pair_file_1, $self->token, $self->user_auth),
+                'pair2' => $self->node_id_to_inbox($pair_file_2, $self->token, $self->user_auth)
             }
         };
-        $self->add_submission($pair_file_1, $uuid, $self->token, $self->user_auth);
-        $self->add_submission($pair_file_2, $uuid, $self->token, $self->user_auth);
         my $outprefix = $mg_name || $self->uuidv4();
         # need stats on input files, each one can be 1 or 2 tasks
         push @$tasks, $self->build_seq_stat_task(0, -1, $pair_file_1, undef, $self->token, $self->user_auth);
@@ -570,23 +543,23 @@ sub submit {
         @submit = $self->build_pair_join_task($pj_tid, $p2_tid-1, $pj_tid-1, undef, $p1_fname, $p2_fname, undef, $outprefix, $retain, $self->token, $self->user_auth);
         push @$tasks, @submit;
     } elsif ($multiplex_file && $barcode_file) {
+        $self->add_submission($multiplex_file, $uuid, $self->token, $self->user_auth);
+        $self->add_submission($barcode_file, $uuid, $self->token, $self->user_auth);
         $input = {
             'type'  => "demultiplex",
             'files' => {
-                'sequence' => $multiplex_file,
-                'barcode' => $barcode_file
+                'sequence' => $self->node_id_to_inbox($multiplex_file, $self->token, $self->user_auth),
+                'barcode' => $self->node_id_to_inbox($barcode_file, $self->token, $self->user_auth)
             }
         };
-        $self->add_submission($multiplex_file, $uuid, $self->token, $self->user_auth);
-        $self->add_submission($barcode_file, $uuid, $self->token, $self->user_auth);
         # need stats on input file, can be 1 or 2 tasks
         push @$tasks, $self->build_seq_stat_task(0, -1, $multiplex_file, undef, $self->token, $self->user_auth);
         my $mult_fname = (keys %{$tasks->[0]->{outputs}})[0];
         my $index_fname = undef;
         # is this illumina format with index file?
         if ($index_file) {
-            $input->{files}{index} = $index_file;
             $self->add_submission($index_file, $uuid, $self->token, $self->user_auth);
+            $input->{files}{index} = $self->node_id_to_inbox($index_file, $self->token, $self->user_auth);
             push @$tasks, $self->build_seq_stat_task(1, -1, $index_file, undef, $self->token, $self->user_auth);
             $index_fname = (keys %{$tasks->[1]->{outputs}})[0];
         }
@@ -598,12 +571,13 @@ sub submit {
     } elsif (scalar(@$seq_files) > 0) {
         $input = {
             'type'  => "simple",
-            'files' => $seq_files
+            'files' => []
         };
         # one or more sequence files, no transformations
         my $taskid = 0;
         foreach my $seq (@$seq_files) {
             $self->add_submission($seq, $uuid, $self->token, $self->user_auth);
+            push @{$input->{files}}, $self->node_id_to_inbox($seq, $self->token, $self->user_auth);
             my ($task1, $task2) = $self->build_seq_stat_task($taskid, -1, $seq, undef, $self->token, $self->user_auth);
             push @$tasks, $task1;
             $taskid += 1;
