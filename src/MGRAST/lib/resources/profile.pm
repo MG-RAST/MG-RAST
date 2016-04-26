@@ -224,8 +224,9 @@ sub prepare_data {
     } elsif ($params->{type} eq 'feature') {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
-        delete $all_srcs->{M5NR};
-        delete $all_srcs->{M5RNA};
+        map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
+        #delete $all_srcs->{M5NR};
+        #delete $all_srcs->{M5RNA};
     } else {
         $self->return_data({"ERROR" => "Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']"}, 400);
     }
@@ -290,26 +291,36 @@ sub prepare_data {
         my $id2md5 = {}; # md5_id => md5
         # mgid, md5_id, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
         my $result = $mgdb->get_md5_data(undef, $params->{evalue}, $params->{identity}, $params->{length}, 1);
-        my @md5s = map { $_->[1] } @$result;
-        
+        my @md5s   = map { $_->[1] } @$result;
+        my %ontol  = map { $_->[0], 1 } @{$mgdb->sources_for_type('ontology')};
+        # handle grouped sources
         my $qsource = $params->{source};
-        if ($qsource eq "SEED") {
-            $qsource = "Subsystems";
-        } elsif ($qsource eq "KEGG") {
-            $qsource = "KO";
+        if (($params->{source} eq 'M5NR') || ($params->{source} eq 'M5RNA')) {
+            $qsource = undef;
         }
+        # query cassandra m5nr
         my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
         my $iter = natatime $self->{batch_size}, @md5s;
         while (my @curr = $iter->()) {
             my $cass_data = $chdl->get_records_by_id(\@curr, $qsource);
             foreach my $info (@$cass_data) {
                 $id2md5->{$info->{id}} = $info->{md5};
-                if ($info->{source} eq $params->{source}) {
-                    $id2ann->{$info->{id}}{accession} = $info->{accession};
-                    $id2ann->{$info->{id}}{function}  = $info->{function};
-                    $id2ann->{$info->{id}}{organism}  = $info->{organism};
-                } elsif ($params->{type} eq "ontology") {
-                    $id2ann->{$info->{id}}{ontology} = $info->{accession};
+                if (($params->{source} eq 'M5NR') && (! $info->{is_protein})) {
+                    next;
+                }
+                if (($params->{source} eq 'M5RNA') && $info->{is_protein}) {
+                    next;
+                }
+                if (exists $ontol{$info->{source}}) {
+                    $id2ann->{$info->{id}}{$info->{source}}{ontology} = $info->{accession};
+                } else {
+                    $id2ann->{$info->{id}}{$info->{source}}{accession} = $info->{accession};
+                }
+                if ($info->{function}) {
+                    $id2ann->{$info->{id}}{$info->{source}}{function} = $info->{function};
+                }
+                if ($info->{organism}) {
+                    $id2ann->{$info->{id}}{$info->{source}}{organism} = $info->{organism};
                 }
             }
         }
