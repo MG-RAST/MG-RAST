@@ -225,8 +225,7 @@ sub prepare_data {
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
         map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
         map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
-        #delete $all_srcs->{M5NR};
-        #delete $all_srcs->{M5RNA};
+        $all_srcs->{ALL} = 1;
     } else {
         $self->return_data({"ERROR" => "Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']"}, 400);
     }
@@ -295,7 +294,7 @@ sub prepare_data {
         my %ontol  = map { $_->[0], 1 } @{$mgdb->sources_for_type('ontology')};
         # handle grouped sources
         my $qsource = $params->{source};
-        if (($params->{source} eq 'M5NR') || ($params->{source} eq 'M5RNA')) {
+        if (($params->{source} eq 'ALL') || ($params->{source} eq 'M5NR') || ($params->{source} eq 'M5RNA')) {
             $qsource = undef;
         }
         # query cassandra m5nr
