@@ -919,7 +919,13 @@ sub update_shock_node_expiration {
     }
 
     my $response = undef;
-    my $content = {expiration => $expiration};
+    my $content  = undef;
+    if ($expiration) {
+        $content = {expiration => $expiration};
+    } else {
+        $content = {remove_expiration => "true"};
+    }
+    
     eval {
         my @args = (
             $auth ? ('Authorization', "$authPrefix $auth") : (),

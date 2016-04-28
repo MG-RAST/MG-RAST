@@ -77,10 +77,11 @@ sub info {
             { 'name'        => "instance",
               'description' => "Returns a single data object in BIOM format",
               'method'      => "GET" ,
-              'type'        => "synchronous" ,  
+              'type'        => "synchronous or asynchronous" ,  
               'attributes'  => $self->attributes,
               'parameters'  => {
                   'options' => {
+                      'asynchronous' => ['boolean', "if true return process id to query status resource for results, default is false"],
                       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
@@ -126,23 +127,78 @@ sub instance {
     unless ($job->viewable) {
         $self->return_data( {"ERROR" => "id $id is still processing and unavailable"}, 404 );
     }
-    
     # check rights
     unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
-    # return cached if exists
-    $self->return_cached();
-    
-    # prepare data
-    my $data = $self->prepare_data($job);
-    $self->return_data($data, undef, 1); # cache this!
+    # asynchronous call, fork the process and return the process id.
+    # caching is done with shock, not memcache
+    if ($self->cgi->param('asynchronous')) {
+        # check if temp async node is in shock
+        my $temp_attr = {
+            type => "temp",
+            url_id => $self->url_id,
+            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
+            data_type => "profile"
+        };
+        my $tnodes = $self->get_shock_query($temp_attr, $self->mgrast_token);
+        if ($tnodes && (@$tnodes > 0)) {
+            $self->return_data({"status" => "submitted", "id" => $tnodes->[0]->{id}, "url" => $self->cgi->url."/status/".$tnodes->[0]->{id}});
+        }
+        # check if static feature profile node is in shock (attributes get changed)
+        if (($self->cgi->param('type') eq 'feature') && $self->cgi->param('source') && $self->cgi->param('nocutoff')) {
+            my $static_attr = {
+                id => 'mgm'.$id,
+                type => 'metagenome',
+                data_type => 'profile',
+                stage_name => 'done'
+            };
+            my $snodes = $self->get_shock_query($static_attr, $self->mgrast_token);
+            foreach my $n (@$snodes) {
+                # its cached ! return the node file
+                if ($n->{attributes}{data_source} && ($n->{attributes}{data_source} eq $self->cgi->param('source'))) {
+                    $self->return_data({"status" => "done", "id" => $n->{id}, "url" => $self->cgi->url."/status/".$n->{id}});
+                }
+            }
+        }
+        # need to create new temp node and fork
+        my $node = $self->set_shock_node('mgm'.$id.'.biom', undef, $temp_attr, $self->mgrast_token, undef, undef, "7D");
+        my $pid = fork();
+        # child - get data and dump it
+        if ($pid == 0) {
+            close STDERR;
+            close STDOUT;
+            my ($data, $error) = $self->prepare_data($id, $node->{id});
+            if ($error) {
+                $data->{STATUS} = $error;
+            }
+            $self->put_shock_file($data->{id}.".biom", $data, $node->{id}, $self->mgrast_token);
+            exit 0;
+        }
+        # parent - end html session
+        else {
+            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
+        }
+    }
+    # synchronous call, prepare then return data, cached in memcache
+    else {
+        # return cached if exists
+        $self->return_cached();
+        # prepare data
+        my ($data, $error) = $self->prepare_data($id, undef);
+        # don't cache errors
+        if ($error) {
+            $self->return_data($data, $error);
+        } else {
+            $self->return_data($data, undef, 1); # cache this!
+        }
+    }
 }
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $data) = @_;
+    my ($self, $id, $async_id) = @_;
 
     my $params = {};
     my $cgi = $self->cgi;
@@ -154,15 +210,32 @@ sub prepare_data {
     $params->{length}   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     $params->{nocutoff} = $cgi->param('nocutoff') ? 1 : 0;
     
+    my $shock_cached = (($params->{type} eq 'feature') && $params->{nocutoff}) ? 1 : 0;
+    
+    # get data
+    my $master = $self->connect_to_datasource();
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
+    }
+    my $data = $job->[0];
+    
+    # get database
+    my $mgdb = MGRAST::Analysis->new( $master->db_handle );
+    unless (ref($mgdb)) {
+        return ({"ERROR" => "could not connect to analysis database"}, 500);
+    }
+    $mgdb->set_jobs([$id]);
+    
     # validate cutoffs
     if (int($params->{evalue}) < 1) {
-        $self->return_data({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 500);
+        return ({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 500);
     }
     if ((int($params->{identity}) < 0) || (int($params->{identity}) > 100)) {
-        $self->return_data({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 500);
+        return ({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 500);
     }
     if (int($params->{length}) < 1) {
-        $self->return_data({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 500);
+        return ({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 500);
     }
     
     if ($params->{nocutoff}) {
@@ -175,45 +248,6 @@ sub prepare_data {
         $params->{length}   = int($params->{length});
     }
     
-    # check if cached in shock
-    my $id = $data->{metagenome_id};
-    my $shock_cached = 0;
-    if (($params->{type} eq 'feature') && $params->{nocutoff}) {
-        $shock_cached = 1;
-        my $info = {
-            id => 'mgm'.$id,
-            type => 'metagenome',
-            data_type => 'profile',
-            stage_name => 'done'
-        };
-        my $nodes = $self->get_shock_query($info, $self->mgrast_token);
-        foreach my $n (@$nodes) {
-            # its cached ! return the node file
-            if ($n->{attributes}{data_source} && ($n->{attributes}{data_source} eq $params->{source})) {
-                my ($content, $err) = $self->get_shock_file($n->{id}, undef, $self->mgrast_token);
-                if ($err) {
-                    $self->return_data( {"ERROR" => $err}, 500 );
-                }
-                my $response = undef;
-                eval {
-                    $response = $self->json->decode($content);
-                };
-                if ($@ || (! $response)) {
-                    $self->return_data( {"ERROR" => "Invalid BIOM format"}, 500 );
-                }
-                return $response;
-            }
-        }
-    }
-    
-    # get database
-    my $master = $self->connect_to_datasource();
-    my $mgdb   = MGRAST::Analysis->new( $master->db_handle );
-    unless (ref($mgdb)) {
-        $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
-    }
-    $mgdb->set_jobs([$id]);
-  
     # validate type / source
     my $all_srcs = {};
     if ($params->{type} eq 'organism') {
@@ -227,10 +261,10 @@ sub prepare_data {
         map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
         $all_srcs->{ALL} = 1;
     } else {
-        $self->return_data({"ERROR" => "Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']"}, 400);
+        return ({"ERROR" => "Invalid type for profile call: ".$params->{type}." - valid types are ['function', 'organism', 'feature']"}, 400);
     }
     unless (exists $all_srcs->{ $params->{source} }) {
-        $self->return_data({"ERROR" => "Invalid source for profile call of type ".$params->{type}.": ".$params->{source}." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400);
+        return ({"ERROR" => "Invalid source for profile call of type ".$params->{type}.": ".$params->{source}." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400);
     }
 
     my $values  = [];
@@ -303,13 +337,14 @@ sub prepare_data {
         while (my @curr = $iter->()) {
             my $cass_data = $chdl->get_records_by_id(\@curr, $qsource);
             foreach my $info (@$cass_data) {
-                $id2md5->{$info->{id}} = $info->{md5};
+                # filter m5nr / m5rna results
                 if (($params->{source} eq 'M5NR') && (! $info->{is_protein})) {
                     next;
                 }
                 if (($params->{source} eq 'M5RNA') && $info->{is_protein}) {
                     next;
                 }
+                $id2md5->{$info->{id}} = $info->{md5};
                 if (exists $ontol{$info->{source}}) {
                     $id2ann->{$info->{id}}{$info->{source}}{ontology} = $info->{accession};
                 } else {
@@ -350,6 +385,7 @@ sub prepare_data {
 	
 	# cach it in shock if right type
 	if ($shock_cached) {
+	    my $node = {};
 	    my $attr = {
 	        id            => 'mgm'.$id,
 	        job_id        => $data->{job_id},
@@ -374,13 +410,22 @@ sub prepare_data {
 	            $attr->{project_name} = $proj->{name};
             }
 	    };
-	    my $node = $self->set_shock_node($obj->{id}.'.biom', $obj, $attr, $self->mgrast_token);
+	    # update existing node / remove expiration
+	    # file added to node in asynch mode in parent function
+	    if ($async_id) {
+	        $node = $self->update_shock_node($async_id, $attr, $self->mgrast_token);
+	        $node = $self->update_shock_node_expiration($async_id, $self->mgrast_token);
+	    }
+	    # create new node
+	    else {
+	        $node = $self->set_shock_node($obj->{id}.'.biom', $obj, $attr, $self->mgrast_token);
+	    }
 	    if ($data->{public}) {
 	        $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');
 	    }
 	}
     
-    return $obj;
+    return ($obj, undef);
 }
 
 1;
