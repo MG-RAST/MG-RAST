@@ -132,9 +132,23 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
+    # get static feature profile node from shock
+    my $snodes = [];
+    if (($self->cgi->param('type') eq 'feature') && $self->cgi->param('source') && $self->cgi->param('nocutoff')) {
+        my $static_attr = {
+            id => 'mgm'.$id,
+            type => 'metagenome',
+            data_type => 'profile',
+            stage_name => 'done'
+        };
+        $snodes = $self->get_shock_query($static_attr, $self->mgrast_token);
+    }
+    
     # asynchronous call, fork the process and return the process id.
     # caching is done with shock, not memcache
     if ($self->cgi->param('asynchronous')) {
+        # check if static feature profile node is in shock
+        $self->check_static_profile($snodes);
         # check if temp async node is in shock
         my $temp_attr = {
             type => "temp",
@@ -145,22 +159,6 @@ sub instance {
         my $tnodes = $self->get_shock_query($temp_attr, $self->mgrast_token);
         if ($tnodes && (@$tnodes > 0)) {
             $self->return_data({"status" => "submitted", "id" => $tnodes->[0]->{id}, "url" => $self->cgi->url."/status/".$tnodes->[0]->{id}});
-        }
-        # check if static feature profile node is in shock (attributes get changed)
-        if (($self->cgi->param('type') eq 'feature') && $self->cgi->param('source') && $self->cgi->param('nocutoff')) {
-            my $static_attr = {
-                id => 'mgm'.$id,
-                type => 'metagenome',
-                data_type => 'profile',
-                stage_name => 'done'
-            };
-            my $snodes = $self->get_shock_query($static_attr, $self->mgrast_token);
-            foreach my $n (@$snodes) {
-                # its cached ! return the node file
-                if ($n->{attributes}{data_source} && ($n->{attributes}{data_source} eq $self->cgi->param('source'))) {
-                    $self->return_data({"status" => "done", "id" => $n->{id}, "url" => $self->cgi->url."/status/".$n->{id}});
-                }
-            }
         }
         # need to create new temp node and fork
         my $node = $self->set_shock_node('mgm'.$id.'.biom', undef, $temp_attr, $self->mgrast_token, undef, undef, "7D");
@@ -185,6 +183,8 @@ sub instance {
     else {
         # return cached if exists
         $self->return_cached();
+        # check if static feature profile node is in shock
+        $self->check_static_profile($snodes);        
         # prepare data
         my ($data, $error) = $self->prepare_data($id, undef);
         # don't cache errors
@@ -426,6 +426,31 @@ sub prepare_data {
 	}
     
     return ($obj, undef);
+}
+
+sub check_static_profile {
+    my ($self, $nodes) = @_;
+    
+    foreach my $n (@$nodes) {
+        if ($n->{attributes}{data_source} && ($n->{attributes}{data_source} eq $self->cgi->param('source'))) {
+            if ($self->cgi->param('asynchronous')) {
+                $self->return_data({"status" => "done", "id" => $n->{id}, "url" => $self->cgi->url."/status/".$n->{id}});
+            } else {
+                my ($content, $err) = $self->get_shock_file($n->{id}, undef, $self->mgrast_token);
+                if ($err) {
+                    $self->return_data( {"ERROR" => $err}, 500 );
+                }
+                my $response = undef;
+                eval {
+                    $response = $self->json->decode($content);
+                };
+                if ($@ || (! $response)) {
+                    $self->return_data( {"ERROR" => "Invalid BIOM format"}, 500 );
+                }
+                $self->return_data($response);
+            }
+        }
+    }
 }
 
 1;
