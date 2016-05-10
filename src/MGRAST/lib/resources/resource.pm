@@ -919,7 +919,13 @@ sub update_shock_node_expiration {
     }
 
     my $response = undef;
-    my $content = {expiration => $expiration};
+    my $content  = undef;
+    if ($expiration) {
+        $content = {expiration => $expiration};
+    } else {
+        $content = {remove_expiration => "true"};
+    }
+    
     eval {
         my @args = (
             $auth ? ('Authorization', "$authPrefix $auth") : (),
@@ -1447,7 +1453,10 @@ class CassHandle(object):
         self.session.row_factory = dict_factory
     def get_records_by_id(self, ids, source):
         found = []
-        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        if source:
+            query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        else:
+            query = "SELECT * FROM id_annotation WHERE id IN (%s)"%(",".join(map(str, ids)))
         rows = self.session.execute(query)
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0

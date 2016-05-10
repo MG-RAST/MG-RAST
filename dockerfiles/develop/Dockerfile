@@ -1,4 +1,4 @@
-# MG-RAST v3 website / API for development
+# MG-RAST v3-v4 website / API for development
 
 FROM httpd:2.4.12
 
@@ -64,7 +64,7 @@ RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-c
   echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods"); biocLite("preprocessCore"); biocLite("DESeq")' | R --no-save
 
 # dirs to be mounted
-RUN mkdir -p /MG-RAST /pipeline /tools /data /m5nr /config /ssl /usr/sbin/.postgresql
+RUN mkdir -p /MG-RAST /MG-RASTv4 /pipeline /tools /data /m5nr /config /ssl /usr/sbin/.postgresql
 
 # 3rd party dependency: FragGeneScan
 RUN cd /tools && \
