@@ -277,7 +277,11 @@ sub prepare_data {
     select STDOUT;
     $| = 1;
     my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
-    print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
+    if ($cgi->param('browser')) {
+      print $cgi->header(-type => 'application/octet-stream', -status => 200, -Access_Control_Allow_Origin => '*');
+    } else {
+      print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
+    }
     print join("\t", @head)."\n";
         
     # get cassandra handle / prepare statement
