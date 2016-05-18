@@ -324,7 +324,7 @@ sub instance {
     my $ua = $self->{agent};
     $ua->env_proxy();
     my $version = $self->{cgi}->param('version') && $self->{cgi}->param('version') == 2 ? 'site' : '';
-    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6LfbRfYSAAAAAMBm8TnvpveuFNRRJsuNsFbx7IfY',
 										      remoteip   => $ENV{'REMOTE_ADDR'},
 										      challenge  => $self->{cgi}->param('challenge'),
 										      response   => $self->{cgi}->param('response') }
@@ -357,7 +357,7 @@ sub instance {
     my $ua = $self->{agent};
     $ua->env_proxy();
     my $version = $rest->[0] eq 'recaptcha' ? 'site' : '';
-    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6LfbRfYSAAAAAMBm8TnvpveuFNRRJsuNsFbx7IfY',
 										      remoteip   => $ENV{'REMOTE_ADDR'},
 										      challenge  => $rest->[0] eq 'recaptcha' ? undef : $rest->[0],
 										      response   => $self->{cgi}->param('response') }
