@@ -352,7 +352,7 @@ sub prepare_data {
         my $alen  = (defined($params->{length})   && ($params->{length}   =~ /^\d+$/))  ? "len_avg >= ".$params->{length}        : "";
         
         my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM ".$mgdb->_jtbl->{md5};
-        $query .= $mgdb->_get_where_str($mgdb->_qver, "job = ".$data->{job_id}, $eval, $ident, $alen);
+        $query .= $mgdb->_get_where_str([$mgdb->_qver, "job = ".$data->{job_id}, $eval, $ident, $alen]);
         my $sth = $mgdb->_dbh->prepare($query);
         $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
         
