@@ -1462,6 +1462,17 @@ class CassHandle(object):
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
         return found
+    def get_id_records_by_id(self, ids, source):
+        found = []
+        if source:
+            query = "SELECT * FROM id_annotation_id WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        else:
+            query = "SELECT * FROM id_annotation_id WHERE id IN (%s)"%(",".join(map(str, ids)))
+        rows = self.session.execute(query)
+        for r in rows:
+            r['is_protein'] = 1 if r['is_protein'] else 0
+            found.append(r)
+        return found
     def get_organism_by_taxa(self, taxa, match=None):
         # if match is given, return subset that contains match, else all
         found = set()

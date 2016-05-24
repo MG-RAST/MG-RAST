@@ -4,6 +4,18 @@ CREATE KEYSPACE IF NOT EXISTS m5nr_v[% version %]
 
 use m5nr_v[% version %];
 
+CREATE TABLE IF NOT EXISTS id_annotation_id (
+    id int,
+    source text,
+    md5 text,
+    is_protein boolean,
+    single int,
+    accession list<int>,
+    function list<int>,
+    organism list<int>,
+    PRIMARY KEY (id, source)
+);
+
 CREATE TABLE IF NOT EXISTS id_annotation (
     id int,
     source text,
