@@ -112,7 +112,8 @@ sub info {
 									            'filter' => ['string', 'text of ontology group (filter_level) to filter by'],
 									            'min_level' => ['cv', $self->hierarchy->{ontology}],
 									            'exact'  => ['boolean', "if true return only those ontologies that exactly match filter, default is false"],
-									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+									            'version' => ['integer', 'M5NR version, default '.$self->{default}],
+									            'compressed' => ['boolean', 'if true, return full compressed ontology, other options ignored'],
 									        },
 							                'required' => {},
 							                'body'     => {} }
@@ -130,7 +131,8 @@ sub info {
 	                                            'filter' => ['string', 'text of taxonomy group (filter_level) to filter by'],
 									            'min_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
 									            'exact'  => ['boolean', "if true return only those taxonomies that exactly match filter, default is false"],
-									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+									            'version' => ['integer', 'M5NR version, default '.$self->{default}],
+									            'compressed' => ['boolean', 'if true, return full compressed taxonomy, other options ignored'],
 									        },
 							                'required' => {},
 							                'body'     => {} }
@@ -419,15 +421,31 @@ sub static {
     my $url = $self->{url}.'/m5nr/'.$type;
     my $solr = 'object%3A';
     my $limit = 1000000;
-    my $exact = $self->cgi->param('exact')  ? 1 : 0;
+    my $exact = $self->cgi->param('exact') ? 1 : 0;
     my $filter = $self->cgi->param('filter') || '';
     my $min_lvl = $self->cgi->param('min_level') || '';
     my $version = $self->cgi->param('version') || $self->{default};
+    my $compressed = $self->cgi->param('compressed') ? 1 : 0;
     my $fields = [];
     my $grouped = 0;
     
     # validate version
     $self->check_version($version);
+    
+    # stream full compressed version from shock
+    if ($compressed && (($type eq 'ontology') || ($type eq 'taxonomy'))) {
+        my $query = {
+            type => 'reference',
+            data_type => 'm5nr hierarchy',
+            name => $type,
+            version => $version
+        };
+        $nodes = $self->get_shock_query($query, $self->mgrast_token);
+        if (scalar(@$nodes) != 1) {
+            $self->return_data({"ERROR" => "missing compressed $type hierarchy for version $version"}, 404)
+        }
+        $self->return_shock_file($nodes->[0]{id}, $nodes->[0]{file}{size}, $nodes->[0]{file}{name}, $self->mgrast_token);
+    }
     
     # return cached if exists
     $self->return_cached();
