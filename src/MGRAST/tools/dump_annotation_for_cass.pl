@@ -108,13 +108,13 @@ if ($tree) {
 my $md5s = {};
 
 print STDERR "Loading protein md5s ...\n";
-my $md5s->{protein} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_protein");
+$md5s->{protein} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_protein");
 
 print STDERR "Loading rna md5s ...\n";
-my $md5s->{rna} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_rna");
+$md5s->{rna} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_rna");
 
 print STDERR "Loading ontology md5s ...\n";
-my $md5s->{ontology} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_ontology");
+$md5s->{ontology} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_ontology");
 
 print STDERR "Loading md5s with single organism ...\n";
 my $uquery  = "SELECT m.md5, o.name, o._id FROM md5_organism_unique u, md5s m, organisms_ncbi o WHERE u.md5 = m._id AND u.organism = o._id";
@@ -182,7 +182,7 @@ foreach my $type (("protein", "rna")) {
 }
 
 print STDERR "Dumping ontology data ...\n";
-foreach my $md5 (@$omd5s) {
+foreach my $md5 (@{$md5s->{ontology}}) {
     my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.name, a.id, f.name, o._id, f._id FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN ontologies o ON a.id = o.name LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
     next unless ($data && @$data);
     my $mid  = $data->[0][0];
