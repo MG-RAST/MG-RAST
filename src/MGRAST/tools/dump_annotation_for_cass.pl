@@ -41,7 +41,7 @@ unless ($dbh) { print STDERR "Error: " . $DBI::errstr . "\n"; exit 1; }
 
 if ($tree) {
     print STDERR "Loading ontologies ...\n";
-    my $ontol = $dbh->selectall_arrayref("SELECT s.name, o.name, o.level1, o.level2, o.level3, o.level4 FROM ontologies o, sources s WHERE o.source = s._id");
+    my $ontol = $dbh->selectall_arrayref("SELECT s.name, o.id, o.level1, o.level2, o.level3, o.level4 FROM ontologies o, sources s WHERE o.source = s._id");
     print STDERR "Dumping ontologies ...\n";
     open(ODUMPA, ">$output.ontology.all") or die "Couldn't open $output.ontology.all for writing.\n";
     open(ODUMP1, ">$output.ontology.level1") or die "Couldn't open $output.ontology.level1 for writing.\n";
