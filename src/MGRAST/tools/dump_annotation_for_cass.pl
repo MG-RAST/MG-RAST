@@ -105,44 +105,30 @@ if ($tree) {
     close(TDUMP7);
 }
 
-my $md5s = {};
-
-print STDERR "Loading protein md5s ...\n";
-$md5s->{protein} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_protein");
-
-print STDERR "Loading rna md5s ...\n";
-$md5s->{rna} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_rna");
-
-print STDERR "Loading ontology md5s ...\n";
-$md5s->{ontology} = $dbh->selectcol_arrayref("SELECT DISTINCT md5 FROM md5_ontology");
-
-print STDERR "Loading md5s with single organism ...\n";
-my $uquery  = "SELECT m.md5, o.name, o._id FROM md5_organism_unique u, md5s m, organisms_ncbi o WHERE u.md5 = m._id AND u.organism = o._id";
-my %md5_org = map { $_->[0], [$_->[1], $_->[2]] } @{ $dbh->selectall_arrayref($uquery) };
-
-print STDERR "Loading md5s with lca string ...\n";
-my $lquery  = "SELECT md5, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, tax_strain FROM md5_lca";
-my %md5_lca = map { $_->[0], [$_->[1], $_->[2], $_->[3], $_->[4], $_->[5], $_->[6], $_->[7], $_->[8]] } @{ $dbh->selectall_arrayref($lquery) };
+print STDERR "Loading sources ...\n";
+my %sources = map { $_->[0], $_->[1] } @{$dbh->selectcol_arrayref("SELECT _id, name FROM sources")};
 
 open(IIDUMP, ">$output.annotation.id.id") or die "Couldn't open $output.annotation.id.id for writing.\n";
 open(IDUMP, ">$output.annotation.id") or die "Couldn't open $output.annotation.id for writing.\n";
 open(MDUMP, ">$output.annotation.md5") or die "Couldn't open $output.annotation.md5 for writing.\n";
 
 foreach my $type (("protein", "rna")) {
+    my $sth = $dbh->prepare("SELECT DISTINCT md5 FROM md5_$type");
+    $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
     print STDERR "Dumping $type data ...\n";
-    foreach my $md5 (@{$md5s->{$type}}) {
-        my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.name, a.id, f.name, o.name, f._id, o._id FROM md5_$type a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
+    while (my @row = $sth->fetchrow_array()) {
+        my $md5  = $row[0];
+        my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, a.source, a.id, f.name, o.name, f._id, o._id FROM md5_$type a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN organisms_ncbi o ON a.organism = o._id where a.md5='$md5'");
         next unless ($data && @$data);
         my $mid  = $data->[0][0];
         my $srcs = {};
         my $srcs_id = {};
-        my $uniq_id = $md5_org{$md5}[1] || 0;
-        my $uniq_text = $md5_org{$md5}[0] || "";
-        $uniq_text =~ s/\"/\\"/g;
+        my %uniq = map { $_->[0], [$_->[1], $_->[2]] } @{$dbh->selectall_arrayref("SELECT u.source, o.name, o._id, u.source FROM md5_organism_unique u, organisms_ncbi o WHERE u.md5 = $mid AND u.organism = o._id")};
         my $lca = "[]";
-        if ($md5_lca{$md5} && @{$md5_lca{$md5}}) {
+        my $md5_lca = $dbh->selectall_arrayref("SELECT tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, tax_strain FROM md5_lca where md5='$md5'");
+        if ($md5_lca && @{$md5_lca}) {
             my @lca = ();
-            foreach my $l (@{$md5_lca{$md5}}) {
+            foreach my $l (@{$md5_lca}) {
                 $l =~ s/\'/''/g;
                 push @lca, $l;
             }
@@ -161,6 +147,9 @@ foreach my $type (("protein", "rna")) {
         }
         foreach my $src (keys %$srcs) {
             my $isprot = ($type eq "rna") ? "false" : "true";
+            my $uniq_org = %uniq{$src}[0] || "";
+            $uniq_org =~ s/\"/\\"/g;
+            my $uniq_oid = %uniq{$src}[1] || 0;
             my @acc = map { $_->[0] } @{$srcs->{$src}};
             my @fun = map { $_->[1] } @{$srcs->{$src}};
             my @org = map { $_->[2] } @{$srcs->{$src}};
@@ -174,16 +163,19 @@ foreach my $type (("protein", "rna")) {
             $acc =~ s/\"/\\"/g;
             $fun =~ s/\"/\\"/g;
             $org =~ s/\"/\\"/g;
-            print IIDUMP join(",", map { '"'.$_.'"' } ($mid, $src, $md5, $isprot, $uniq_id, "[]", $fid, $oid))."\n";
-            print IDUMP join(",", map { '"'.$_.'"' } ($mid, $src, $md5, $isprot, $uniq_text, $lca, $acc, $fun, $org))."\n";
-            print MDUMP join(",", map { '"'.$_.'"' } ($md5, $src, $isprot, $uniq_text, $lca, $acc, $fun, $org))."\n";
+            print IIDUMP join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, $isprot, $uniq_oid, "[]", $fid, $oid))."\n";
+            print IDUMP join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, $isprot, $uniq_org, $lca, $acc, $fun, $org))."\n";
+            print MDUMP join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, $isprot, $uniq_org, $lca, $acc, $fun, $org))."\n";
         }
     }
 }
 
+my $sth = $dbh->prepare("SELECT DISTINCT md5 FROM md5_ontology");
+$sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 print STDERR "Dumping ontology data ...\n";
-foreach my $md5 (@{$md5s->{ontology}}) {
-    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, s.name, a.id, f.name, o._id, f._id FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN ontologies o ON a.id = o.name LEFT OUTER JOIN sources s ON a.source = s._id where a.md5='$md5'");
+while (my @row = $sth->fetchrow_array()) {
+    my $md5  = $row[0];
+    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, a.source, a.id, f.name, o._id, f._id FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN ontologies o ON a.id = o.name where a.md5='$md5'");
     next unless ($data && @$data);
     my $mid  = $data->[0][0];
     my $srcs = {};
@@ -209,9 +201,9 @@ foreach my $md5 (@{$md5s->{ontology}}) {
         my $fid = "[".join(",", @fid)."]";
         $acc =~ s/\"/\\"/g;
         $fun =~ s/\"/\\"/g;
-        print IIDUMP join(",", map { '"'.$_.'"' } ($mid, $src, $md5, "true", 0, $aid, $fid, "[]"))."\n";
-        print IDUMP join(",", map { '"'.$_.'"' } ($mid, $src, $md5, "true", "", "[]", $acc, $fun, "[]"))."\n";
-        print MDUMP join(",", map { '"'.$_.'"' } ($md5, $src, "true", "", "[]", $acc, $fun, "[]"))."\n";
+        print IIDUMP join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, "true", 0, $aid, $fid, "[]"))."\n";
+        print IDUMP join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, "true", "", "[]", $acc, $fun, "[]"))."\n";
+        print MDUMP join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, "true", "", "[]", $acc, $fun, "[]"))."\n";
     }
 }
 
