@@ -167,6 +167,10 @@ sub submit {
     }
     # get database
     my $master = $self->connect_to_datasource();
+    my $mgdb = MGRAST::Analysis->new( $master->db_handle );
+    unless (ref($mgdb)) {
+        return ({"ERROR" => "could not connect to analysis database"}, 500);
+    }
     # get data
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
@@ -208,7 +212,7 @@ sub submit {
         data_type => 'profile',
         stage_name => 'done'
     };
-    my $snodes = $self->get_shock_query($static_attr, $self->mgrast_token);
+    my $snodes = $self->get_shock_query($squery, $self->mgrast_token);
     $self->check_static_profile($snodes, \@sources, $condensed);
     
     # check if temp profile compute node is in shock
@@ -218,7 +222,7 @@ sub submit {
         owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
         data_type => "profile"
     };
-    my $tnodes = $self->get_shock_query($temp_attr, $self->mgrast_token);
+    my $tnodes = $self->get_shock_query($tquery, $self->mgrast_token);
     if ($tnodes && (@$tnodes > 0)) {
         my $obj = $self->status_report_from_node($tnodes->[0], "submitted");
         $self->return_data($obj);
@@ -387,7 +391,7 @@ sub append_profile {
     }
     
     foreach my $m (sort keys %rows) {
-        push @{$profile->{data}}, [ $m, @{$rows->{$m}} ];
+        push @{$profile->{data}}, [ $m, @{$rows{$m}} ];
     }
 }
 
