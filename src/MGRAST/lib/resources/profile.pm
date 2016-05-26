@@ -42,14 +42,14 @@ sub new {
         id     => [ 'string', 'unique status identifier' ],
         status => [ 'string', 'cv', ['submitted', 'process is has been submitted'],
                                     ['processing', 'process is still computing'],
-                                    ['done', 'process is done computing'] ] ],
+                                    ['done', 'process is done computing'] ],
         url     => [ 'url', 'resource location of this object instance']
     };
     $self->{status} = {
         id     => [ 'string', 'unique profile status identifier' ],
         status => [ 'string', 'cv', ['submitted', 'profile is has been submitted'],
                                     ['processing', 'profile is still computing'],
-                                    ['done', 'profile is done computing'] ] ],
+                                    ['done', 'profile is done computing'] ],
         url     => [ 'url', 'resource location of this object instance'],
         size    => [ 'integer', 'size of profile in bytes' ],
         created => [ 'string', 'time the profile was completed' ],
