@@ -94,12 +94,6 @@ sub instance {
         $obj->{size}    = $node->{file}{size};
         $obj->{created} = $node->{file}{created_on};
         $obj->{md5}     = $node->{file}{checksum}{md5};
-        if (exists $node->{attributes}{row_count}) {
-            $obj->{rows} = $node->{attributes}{row_count};
-        }
-        if (exists $node->{attributes}{data_source}) {
-            $obj->{source} = $node->{attributes}{data_source};
-        }
         if ($verbosity eq "full") {
             my ($content, $err) = $self->get_shock_file($uuid, undef, $self->mgrast_token);
             if ($err) {

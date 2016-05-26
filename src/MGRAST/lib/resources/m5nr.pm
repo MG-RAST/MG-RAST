@@ -440,7 +440,7 @@ sub static {
             name => $type,
             version => $version
         };
-        $nodes = $self->get_shock_query($query, $self->mgrast_token);
+        my $nodes = $self->get_shock_query($query, $self->mgrast_token);
         if (scalar(@$nodes) != 1) {
             $self->return_data({"ERROR" => "missing compressed $type hierarchy for version $version"}, 404)
         }
