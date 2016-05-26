@@ -147,9 +147,9 @@ foreach my $type (("protein", "rna")) {
         }
         foreach my $src (keys %$srcs) {
             my $isprot = ($type eq "rna") ? "false" : "true";
-            my $uniq_org = %uniq{$src}[0] || "";
+            my $uniq_org = $uniq{$src}[0] || "";
             $uniq_org =~ s/\"/\\"/g;
-            my $uniq_oid = %uniq{$src}[1] || 0;
+            my $uniq_oid = $uniq{$src}[1] || 0;
             my @acc = map { $_->[0] } @{$srcs->{$src}};
             my @fun = map { $_->[1] } @{$srcs->{$src}};
             my @org = map { $_->[2] } @{$srcs->{$src}};
