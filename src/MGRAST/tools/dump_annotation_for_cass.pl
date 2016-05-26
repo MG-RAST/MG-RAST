@@ -125,7 +125,7 @@ foreach my $type (("protein", "rna")) {
         my $srcs_id = {};
         my %uniq = map { $_->[0], [$_->[1], $_->[2]] } @{$dbh->selectall_arrayref("SELECT u.source, o.name, o._id, u.source FROM md5_organism_unique u, organisms_ncbi o WHERE u.md5 = $mid AND u.organism = o._id")};
         my $lca = "[]";
-        my $md5_lca = $dbh->selectall_arrayref("SELECT tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, tax_strain FROM md5_lca where md5='$md5'");
+        my $md5_lca = $dbh->selectrow_arrayref("SELECT tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, tax_strain FROM md5_lca where md5='$md5'");
         if ($md5_lca && @{$md5_lca}) {
             my @lca = ();
             foreach my $l (@{$md5_lca}) {
