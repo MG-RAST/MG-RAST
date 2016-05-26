@@ -106,7 +106,7 @@ if ($tree) {
 }
 
 print STDERR "Loading sources ...\n";
-my %sources = map { $_->[0], $_->[1] } @{$dbh->selectcol_arrayref("SELECT _id, name FROM sources")};
+my %sources = map { $_->[0], $_->[1] } @{$dbh->selectall_arrayref("SELECT _id, name FROM sources")};
 
 open(IIDUMP, ">$output.annotation.id.id") or die "Couldn't open $output.annotation.id.id for writing.\n";
 open(IDUMP, ">$output.annotation.id") or die "Couldn't open $output.annotation.id for writing.\n";
