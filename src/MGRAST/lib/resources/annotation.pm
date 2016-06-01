@@ -171,7 +171,8 @@ sub prepare_data {
     my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     my $filter = $cgi->param('filter') || undef;
     my $flevel = $cgi->param('filter_level') || undef;
-    my $md5s = [];
+    my $md5s   = [];
+    my $mgid   = 'mgm'.$data->{metagenome_id};
     
     # post of md5s
     if ($self->method eq 'POST') {
@@ -254,7 +255,7 @@ sub prepare_data {
         ]);
         $query .= " ORDER BY j.seek";
     } else {
-        $query  = "SELECT md5, seek, length FROM ".$mgdb->_jtbl->{md5};
+        $query  = "SELECT md5, seek, length FROM job_md5s";
         $query .= MGRAST::Abundance::get_where_str([
             'version = '.$MGRAST::Abundance::version,
             'job = '.$data->{job_id},
@@ -268,7 +269,7 @@ sub prepare_data {
     }
     
     # get shock node for file
-    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => 'mgm'.$mgid};
+    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
     my $sim_node = $self->get_shock_query($params, $self->mgrast_token);
     unless ((@$sim_node > 0) && exists($sim_node->[0]{id})) {
         $self->return_data({"ERROR" => "Unable to retrieve $format file"}, 500);
@@ -390,9 +391,9 @@ sub print_batch {
 		    my $rid = $tabs[0];
 		    unless ($rid) { next; }
 		    if (($format eq 'sequence') && (@tabs == 13)) {
-		        @out = ('mgm'.$mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
+		        @out = ($mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
 		    } elsif ($format eq 'similarity') {
-		        @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
+		        @out = ($mgid."|".$rid, @tabs[1..11], join(";", @$ann));
 		    }
 		    if ($type eq 'md5') {
                 pop @out;

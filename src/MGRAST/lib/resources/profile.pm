@@ -282,7 +282,7 @@ sub prepare_data {
     my %ontol  = map { $_->[0], 1 } @{$self->source_by_type('ontology')};
     
     # cass handle
-    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
+    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
     
     # run query
     MGRAST::Abundance::get_analysis_dbh();
