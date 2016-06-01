@@ -4,7 +4,7 @@ CREATE KEYSPACE IF NOT EXISTS m5nr_v[% version %]
 
 use m5nr_v[% version %];
 
-CREATE TABLE IF NOT EXISTS id_annotation_id (
+CREATE TABLE IF NOT EXISTS index_annotation (
     id int,
     source text,
     md5 text,

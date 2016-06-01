@@ -108,7 +108,7 @@ if ($tree) {
 print STDERR "Loading sources ...\n";
 my %sources = map { $_->[0], $_->[1] } @{$dbh->selectall_arrayref("SELECT _id, name FROM sources")};
 
-open(IIDUMP, ">$output.annotation.id.id") or die "Couldn't open $output.annotation.id.id for writing.\n";
+open(IIDUMP, ">$output.annotation.index") or die "Couldn't open $output.annotation.index for writing.\n";
 open(IDUMP, ">$output.annotation.id") or die "Couldn't open $output.annotation.id for writing.\n";
 open(MDUMP, ">$output.annotation.md5") or die "Couldn't open $output.annotation.md5 for writing.\n";
 
@@ -168,6 +168,7 @@ foreach my $type (("protein", "rna")) {
             print MDUMP join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, $isprot, $uniq_org, $lca, $acc, $fun, $org))."\n";
         }
     }
+    $sth->finish;
 }
 
 my $sth = $dbh->prepare("SELECT DISTINCT md5 FROM md5_ontology");
@@ -175,7 +176,7 @@ $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 print STDERR "Dumping ontology data ...\n";
 while (my @row = $sth->fetchrow_array()) {
     my $md5  = $row[0];
-    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, a.source, a.id, f.name, o._id, f._id FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN ontologies o ON a.id = o.name where a.md5='$md5'");
+    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, a.source, a.id, f.name, o._id, f._id FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN ontologies o ON a.id = o.id where a.md5='$md5'");
     next unless ($data && @$data);
     my $mid  = $data->[0][0];
     my $srcs = {};
@@ -206,6 +207,7 @@ while (my @row = $sth->fetchrow_array()) {
         print MDUMP join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, "true", "", "[]", $acc, $fun, "[]"))."\n";
     }
 }
+$sth->finish;
 
 close(IIDUMP);
 close(IDUMP);
