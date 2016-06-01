@@ -26,11 +26,6 @@ sub new {
     $self->{default} = '10';
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
-    $self->{version} = {
-        '1' => '20100309',
-        '9' => '20130801',
-        '10' => '20131215'
-    };
 	$self->{attributes} = { taxonomy => { data => [ 'list', ['object', [{'organism' => [ 'string', 'organism name' ],
 	                                                                     'species'  => [ 'string', 'organism species' ],
                                                                          'genus'    => [ 'string', 'organism genus' ],
@@ -672,7 +667,7 @@ sub md5s2sequences {
     if ($Conf::m5nr_fasta && (-f $Conf::m5nr_fasta)) {
         $m5nr = $Conf::m5nr_fasta;
     } elsif ($Conf::m5nr_dir && (-d $Conf::m5nr_dir)) {
-        $m5nr = $Conf::m5nr_dir."/".$self->{version}{$version}."/md5nr";
+        $m5nr = $Conf::m5nr_dir."/".$self->{m5nr_version}{$version}."/md5nr";
     } else {
         $self->return_data({"ERROR" => "missing M5NR sequence data"}, 500);
     }
@@ -710,8 +705,8 @@ sub md5s2sequences {
 
 sub check_version {
     my ($self, $version) = @_;
-    unless (exists $self->{version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    unless (exists $self->{m5nr_version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
     }
 }
 

@@ -8,7 +8,7 @@ use POSIX qw(strftime);
 use List::MoreUtils qw(natatime);
 
 use Conf;
-use MGRAST::Analysis;
+use MGRAST::Abundance;
 use parent qw(resources::resource);
 
 # Override parent constructor
@@ -28,6 +28,7 @@ sub new {
         @{$self->source->{rna}},
         @{$self->source->{ontology}}
     ];
+    $self->{default} = 1;
     $self->{profile} = {
         id        => [ 'string', 'unique metagenome identifier' ],
         created   => [ 'string', 'time the output data was generated' ],
@@ -93,6 +94,7 @@ sub info {
                   'options' => {
                       'condensed' => ['boolean', 'if true, return condensed profile (integer ids for annotations)'],
                       'source'    => ['cv', $self->{sources}],
+                      'version'   => ['integer', 'M5NR version, default '.$self->{default}],
                       'verbosity' => ['cv', [['full','returns all data'],
                                              ['minimal','returns only minimal information']]]
 				  },
@@ -165,13 +167,8 @@ sub submit {
     unless ($id) {
         $self->return_data( {"ERROR" => "invalid id format: " . $mid}, 400 );
     }
-    # get database
+    # get database / data
     my $master = $self->connect_to_datasource();
-    my $mgdb = MGRAST::Analysis->new( $master->db_handle );
-    unless (ref($mgdb)) {
-        return ({"ERROR" => "could not connect to analysis database"}, 500);
-    }
-    # get data
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
         $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
@@ -184,19 +181,18 @@ sub submit {
     unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
+    my $version = $self->cgi->param('version') || $self->{default};
     
     # validate type / source
     my @sources  = $self->cgi->param('source') || ("RefSeq");
     my $all_srcs = {};
     if ($job->{sequence_type} =~ /^Amplicon/) {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
+        map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
     } else {
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('protein')};
-        map { $all_srcs->{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
-        map { $all_srcs->{$_->[0]} = 1 } grep { $_->[0] !~ /^GO/ } @{$mgdb->sources_for_type('ontology')};
+        map { $all_srcs->{$_} = 1 } @{$self->source_by_type('protein')};
+        map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
+        map { $all_srcs->{$_} = 1 } @{$self->source_by_type('ontology')};
     }
-    delete $all_srcs->{'M5NR'};
-    delete $all_srcs->{'M5RNA'};
     @sources = sort @sources;
     foreach my $s (@sources) {
         unless (exists $all_srcs->{$s}) {
@@ -213,7 +209,7 @@ sub submit {
         stage_name => 'done'
     };
     my $snodes = $self->get_shock_query($squery, $self->mgrast_token);
-    $self->check_static_profile($snodes, \@sources, $condensed);
+    $self->check_static_profile($snodes, \@sources, $condensed, $version);
     
     # check if temp profile compute node is in shock
     my $tquery = {
@@ -231,6 +227,8 @@ sub submit {
     # need to create new temp node
     $tquery->{row_total} = 0;
     $tquery->{sources}   = \@sources;
+    $tquery->{condensed} = $condensed;
+    $tquery->{version}   = $version;
     my $node = $self->set_shock_node('mgm'.$id.'.biom', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
     
     # asynchronous call, fork the process
@@ -255,7 +253,7 @@ sub submit {
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $id, $node_id, $sources, $condensed) = @_;
+    my ($self, $id, $node_id, $sources, $condensed, $version) = @_;
 
     # get data
     my $master = $self->connect_to_datasource();
@@ -265,19 +263,12 @@ sub prepare_data {
     }
     my $data = $job->[0];
     
-    # get database
-    my $mgdb = MGRAST::Analysis->new( $master->db_handle );
-    unless (ref($mgdb)) {
-        return ({"ERROR" => "could not connect to analysis database"}, 500);
-    }
-    $mgdb->set_jobs([$id]);
-    
     # set profile
     my $cols = ["md5sum", "abundance", "e-value", "percent identity", "alignment length", "single organisms", "organisms", "functions", "categories"];
 	my $profile = {
         id        => "mgm".$id,
         created   => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-        version   => $mgdb->_version,
+        version   => $version,
         sources   => $sources,
         columns   => $cols,
         condensed => $condensed,
@@ -288,15 +279,15 @@ sub prepare_data {
     # get data
     my $id2ann = {}; # md5_id => { accession => [], function => [], organism => [], ontology => [] }
     my $id2md5 = {}; # md5_id => md5
-    my %ontol  = map { $_->[0], 1 } @{$mgdb->sources_for_type('ontology')};
+    my %ontol  = map { $_->[0], 1 } @{$self->source_by_type('ontology')};
     
     # cass handle
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
     
-    # build query
-    my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM ".$mgdb->_jtbl->{md5}." WHERE version=".$mgdb->_version." AND job=".$data->{job_id};
-    my $sth = $mgdb->_dbh->prepare($query);
-    $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
+    # run query
+    MGRAST::Abundance::get_analysis_dbh();
+    my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM job_md5s WHERE version=".$version." AND job=".$data->{job_id};
+    my $sth = MGRAST::Abundance::execute_query($query);
     
     # loop through results and build profile
     my $md5_set = {};
@@ -315,8 +306,7 @@ sub prepare_data {
         $self->append_profile($chdl, $profile, $md5_set, $sources, $condensed, \%ontol);
     }
     # cleanup
-    $sth->finish;
-    $mgdb->_dbh->commit;
+    MGRAST::Abundance::end_query($sth);
     $chdl->close();
 	
 	$profile->{row_total} = scalar(@{$profile->{data}});
@@ -337,6 +327,7 @@ sub prepare_data {
         sources       => $sources,
         row_total     => $profile->{shape}[0],
         condensed     => $condensed,
+        version       => $version,
         file_format   => 'biom',
         stage_name    => 'done',
         stage_id      => '999'
@@ -405,12 +396,13 @@ sub status_report_from_node {
         created => $node->{file}{created_on},
         md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : "",
         rows    => $node->{attributes}{row_total} ? $node->{attributes}{row_total} : 0,
-        sources => $node->{attributes}{sources} ? $node->{attributes}{sources} : []
+        sources => $node->{attributes}{sources} ? $node->{attributes}{sources} : [],
+        version => $node->{attributes}{version} ? $node->{attributes}{version} : 1,
     };
 }
 
 sub check_static_profile {
-    my ($self, $nodes, $sources, $condensed) = @_;
+    my ($self, $nodes, $sources, $condensed, $version) = @_;
     
     # sort results by newest to oldest
     my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
@@ -423,10 +415,25 @@ sub check_static_profile {
                 $has_sources = 0;
             }
         }
-        if ($n->{attributes}{condensed} && ($n->{attributes}{condensed} eq $condensed) && $has_sources) {
+        if ( $n->{attributes}{condensed} &&
+             $n->{attributes}{version} &&
+             ($n->{attributes}{condensed} eq $condensed) &&
+             ($n->{attributes}{version} == $version) &&
+             $has_sources ) {
             $self->status($n->{id});
         }
     }
+}
+
+sub check_version {
+    my ($self, $version) = @_;
+    ## currently only support version 1
+    unless ($version == 1) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Currently only version 1 is supported"}, 404);
+    }
+    #unless (exists $self->{m5nr_version}{$version}) {
+    #    $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
+    #}
 }
 
 1;
