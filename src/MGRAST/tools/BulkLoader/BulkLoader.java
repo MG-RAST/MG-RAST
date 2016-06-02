@@ -58,7 +58,7 @@ public class BulkLoader {
             insert = String.format("INSERT INTO %s.%s (" +
                                         "id, source, md5, is_protein, single, accession, function, organism" +
                                     ") VALUES (" +
-                                        "?, ?, ?, ?, ?, ?, ?, ?, ?" +
+                                        "?, ?, ?, ?, ?, ?, ?, ?" +
                                     ")", keyspace, table);
         } else if (table.equals("id_annotation")) {
             schema = String.format("CREATE TABLE %s.%s (" +
