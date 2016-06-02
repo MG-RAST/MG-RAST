@@ -10,6 +10,7 @@ use HTML::Strip;
 use URI::Escape;
 
 use Conf;
+use MGRAST::Abundance;
 use parent qw(resources::resource);
 
 # Override parent constructor
@@ -170,7 +171,8 @@ sub prepare_data {
     my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     my $filter = $cgi->param('filter') || undef;
     my $flevel = $cgi->param('filter_level') || undef;
-    my $md5s = [];
+    my $md5s   = [];
+    my $mgid   = 'mgm'.$data->{metagenome_id};
     
     # post of md5s
     if ($self->method eq 'POST') {
@@ -206,26 +208,16 @@ sub prepare_data {
         $flevel = undef;
         $md5s = [$filter];
     }
-    
-    # set DB handle
-    my $master = $self->connect_to_datasource();
-    use MGRAST::Analysis;
-    my $mgdb = MGRAST::Analysis->new( $master->db_handle );
-    unless (ref($mgdb)) {
-        $self->return_data({"ERROR" => "resource database offline"}, 503);
-    }
-    my $mgid = $data->{metagenome_id};
-    $mgdb->set_jobs([$mgid]);
 
     # validate options
-    unless (exists $mgdb->_src_id->{$source}) {
-        $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", keys %{$mgdb->_src_id})}, 404);
+    unless ($self->valid_source($source)) {
+        $self->return_data({"ERROR" => "Invalid source was entered ($source). Please use one of: ".join(", ", @{$self->source_by_type()})}, 404);
     }
     if (($type eq 'ontology') && (! any {$_->[0] eq $source} @{$self->source->{ontology}})) {
-        $self->return_data({"ERROR" => "Invalid ontology source was entered ($source). Please use one of: ".join(", ", map {$_->[0]} @{$self->source->{ontology}})}, 404);
+        $self->return_data({"ERROR" => "Invalid ontology source was entered ($source). Please use one of: ".join(", ", @{$self->source_by_type('ontology')})}, 404);
     }
     if (($type eq 'organism') && (any {$_->[0] eq $source} @{$self->source->{ontology}})) {
-        $self->return_data({"ERROR" => "Invalid organism source was entered ($source). Please use one of: ".join(", ", map {$_->[0]} (@{$self->source->{protein}}, @{$self->source->{rna}}))}, 404);
+        $self->return_data({"ERROR" => "Invalid organism source was entered ($source). Please use one of: ".join(", ", (@{$self->source_by_type('protein')}, @{$self->source_by_type('rna')}))}, 404);
     }
     unless (any {$_->[0] eq $type} @{$self->{types}}) {
         $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
@@ -249,24 +241,35 @@ sub prepare_data {
     
     my $query = "";
     if (@$md5s) {
-        $query  = "SELECT j.md5, j.seek, j.length FROM ".$mgdb->_jtbl->{md5}." j, ".$mgdb->_atbl->{md5}." m";
-        $query .= $mgdb->_get_where_str([ 'j.'.$mgdb->_qver, "j.job = ".$data->{job_id},
-                                          'j.'.$eval, 'j.'.$ident, 'j.'.$alen,
-                                          'j.seek IS NOT NULL', 'j.length IS NOT NULL',
-                                          'j.md5 = m._id', 'm.md5 IN ('.join(",", map {$mgdb->_dbh->quote($_)} @$md5s).')'
-                                        ]);
+        $query  = "SELECT j.md5, j.seek, j.length FROM job_md5s j, md5s m";
+        $query .= MGRAST::Abundance::get_where_str([
+            'j.version = '.$MGRAST::Abundance::version,
+            'j.job = '.$data->{job_id},
+            $eval ? 'j.'.$eval : "",
+            $ident ? 'j.'.$ident : "",
+            $alen ? 'j.'.$alen : "",
+            'j.seek IS NOT NULL',
+            'j.length IS NOT NULL',
+            'j.md5 = m._id',
+            'm.md5 IN ('.join(",", map {$MGRAST::Abundance::dbh->quote($_)} @$md5s).')'
+        ]);
         $query .= " ORDER BY j.seek";
     } else {
-        $query  = "SELECT md5, seek, length FROM ".$mgdb->_jtbl->{md5};
-        $query .= $mgdb->_get_where_str([ $mgdb->_qver, "job = ".$data->{job_id},
-                                          $eval, $ident, $alen,
-                                          "seek IS NOT NULL", "length IS NOT NULL"
-                                        ]);
+        $query  = "SELECT md5, seek, length FROM job_md5s";
+        $query .= MGRAST::Abundance::get_where_str([
+            'version = '.$MGRAST::Abundance::version,
+            'job = '.$data->{job_id},
+            $eval,
+            $ident,
+            $alen,
+            "seek IS NOT NULL",
+            "length IS NOT NULL"
+        ]);
         $query .= " ORDER BY seek";
     }
     
     # get shock node for file
-    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => 'mgm'.$mgid};
+    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
     my $sim_node = $self->get_shock_query($params, $self->mgrast_token);
     unless ((@$sim_node > 0) && exists($sim_node->[0]{id})) {
         $self->return_data({"ERROR" => "Unable to retrieve $format file"}, 500);
@@ -285,7 +288,7 @@ sub prepare_data {
     print join("\t", @head)."\n";
         
     # get cassandra handle / prepare statement
-    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$mgdb->_version, $Conf::cassandra_m5nr);
+    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$MGRAST::Abundance::version, $Conf::cassandra_m5nr);
     # get filter list
     # filter_list is all taxa names that match filter for given filter_level (organism, ontology only)
     my %filter_list = ();
@@ -298,9 +301,9 @@ sub prepare_data {
     }
     
     # start query
-    my $sth = $mgdb->_dbh->prepare($query);
-    $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
-    
+    MGRAST::Abundance::get_analysis_dbh();
+    my $sth = MGRAST::Abundance::execute_query($query);
+        
     # loop through indexes and print data
     my $count = 0;
     my $md5_set = {};
@@ -323,8 +326,7 @@ sub prepare_data {
     }
 
     # cleanup
-    $sth->finish;
-    $mgdb->_dbh->commit;
+    MGRAST::Abundance::end_query($sth);
     $chdl->close();
     print "Download complete. $count rows retrieved\n";
     exit 0;
@@ -389,9 +391,9 @@ sub print_batch {
 		    my $rid = $tabs[0];
 		    unless ($rid) { next; }
 		    if (($format eq 'sequence') && (@tabs == 13)) {
-		        @out = ('mgm'.$mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
+		        @out = ($mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
 		    } elsif ($format eq 'similarity') {
-		        @out = ('mgm'.$mgid."|".$rid, @tabs[1..11], join(";", @$ann));
+		        @out = ($mgid."|".$rid, @tabs[1..11], join(";", @$ann));
 		    }
 		    if ($type eq 'md5') {
                 pop @out;

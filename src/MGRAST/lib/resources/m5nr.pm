@@ -26,11 +26,6 @@ sub new {
     $self->{default} = '10';
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
-    $self->{version} = {
-        '1' => '20100309',
-        '9' => '20130801',
-        '10' => '20131215'
-    };
 	$self->{attributes} = { taxonomy => { data => [ 'list', ['object', [{'organism' => [ 'string', 'organism name' ],
 	                                                                     'species'  => [ 'string', 'organism species' ],
                                                                          'genus'    => [ 'string', 'organism genus' ],
@@ -112,7 +107,8 @@ sub info {
 									            'filter' => ['string', 'text of ontology group (filter_level) to filter by'],
 									            'min_level' => ['cv', $self->hierarchy->{ontology}],
 									            'exact'  => ['boolean', "if true return only those ontologies that exactly match filter, default is false"],
-									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+									            'version' => ['integer', 'M5NR version, default '.$self->{default}],
+									            'compressed' => ['boolean', 'if true, return full compressed ontology, other options ignored'],
 									        },
 							                'required' => {},
 							                'body'     => {} }
@@ -130,7 +126,8 @@ sub info {
 	                                            'filter' => ['string', 'text of taxonomy group (filter_level) to filter by'],
 									            'min_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
 									            'exact'  => ['boolean', "if true return only those taxonomies that exactly match filter, default is false"],
-									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+									            'version' => ['integer', 'M5NR version, default '.$self->{default}],
+									            'compressed' => ['boolean', 'if true, return full compressed taxonomy, other options ignored'],
 									        },
 							                'required' => {},
 							                'body'     => {} }
@@ -419,15 +416,31 @@ sub static {
     my $url = $self->{url}.'/m5nr/'.$type;
     my $solr = 'object%3A';
     my $limit = 1000000;
-    my $exact = $self->cgi->param('exact')  ? 1 : 0;
+    my $exact = $self->cgi->param('exact') ? 1 : 0;
     my $filter = $self->cgi->param('filter') || '';
     my $min_lvl = $self->cgi->param('min_level') || '';
     my $version = $self->cgi->param('version') || $self->{default};
+    my $compressed = $self->cgi->param('compressed') ? 1 : 0;
     my $fields = [];
     my $grouped = 0;
     
     # validate version
     $self->check_version($version);
+    
+    # stream full compressed version from shock
+    if ($compressed && (($type eq 'ontology') || ($type eq 'taxonomy'))) {
+        my $query = {
+            type => 'reference',
+            data_type => 'm5nr hierarchy',
+            name => $type,
+            version => $version
+        };
+        my $nodes = $self->get_shock_query($query, $self->mgrast_token);
+        if (scalar(@$nodes) != 1) {
+            $self->return_data({"ERROR" => "missing compressed $type hierarchy for version $version"}, 404)
+        }
+        $self->return_shock_file($nodes->[0]{id}, $nodes->[0]{file}{size}, $nodes->[0]{file}{name}, $self->mgrast_token);
+    }
     
     # return cached if exists
     $self->return_cached();
@@ -654,7 +667,7 @@ sub md5s2sequences {
     if ($Conf::m5nr_fasta && (-f $Conf::m5nr_fasta)) {
         $m5nr = $Conf::m5nr_fasta;
     } elsif ($Conf::m5nr_dir && (-d $Conf::m5nr_dir)) {
-        $m5nr = $Conf::m5nr_dir."/".$self->{version}{$version}."/md5nr";
+        $m5nr = $Conf::m5nr_dir."/".$self->{m5nr_version}{$version}."/md5nr";
     } else {
         $self->return_data({"ERROR" => "missing M5NR sequence data"}, 500);
     }
@@ -692,8 +705,8 @@ sub md5s2sequences {
 
 sub check_version {
     my ($self, $version) = @_;
-    unless (exists $self->{version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    unless (exists $self->{m5nr_version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
     }
 }
 
