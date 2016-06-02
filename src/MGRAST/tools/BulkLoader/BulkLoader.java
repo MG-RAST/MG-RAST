@@ -56,7 +56,7 @@ public class BulkLoader {
                                         "PRIMARY KEY (id, source) " +
                                     ")", keyspace, table);
             insert = String.format("INSERT INTO %s.%s (" +
-                                        "id, source, md5, is_protein, single, lca, accession, function, organism" +
+                                        "id, source, md5, is_protein, single, accession, function, organism" +
                                     ") VALUES (" +
                                         "?, ?, ?, ?, ?, ?, ?, ?, ?" +
                                     ")", keyspace, table);
