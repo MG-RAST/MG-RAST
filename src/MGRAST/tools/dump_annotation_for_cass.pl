@@ -176,7 +176,7 @@ $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 print STDERR "Dumping ontology data ...\n";
 while (my @row = $sth->fetchrow_array()) {
     my $md5  = $row[0];
-    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, a.source, a.id, f.name, o._id, f._id FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 LEFT OUTER JOIN functions f ON a.function = f._id LEFT OUTER JOIN ontologies o ON a.id = o.id where a.md5='$md5'");
+    my $data = $dbh->selectall_arrayref("SELECT DISTINCT m._id, a.source, a.id, f.name, o._id, f._id FROM md5_ontology a INNER JOIN md5s m ON a.md5 = m.md5 INNER JOIN ontologies o ON a.id = o.id LEFT OUTER JOIN functions f ON a.function = f._id where a.md5='$md5' AND a.source != 11");
     next unless ($data && @$data);
     my $mid  = $data->[0][0];
     my $srcs = {};
@@ -191,7 +191,6 @@ while (my @row = $sth->fetchrow_array()) {
         push @{$srcs_id->{$d->[1]}}, [ $d->[4], $d->[5] ];
     }
     foreach my $src (keys %$srcs) {
-        next if ($src eq 'GO');
         my @acc = map { $_->[0] } @{$srcs->{$src}};
         my @fun = map { $_->[1] } @{$srcs->{$src}};
         my @aid = map { $_->[0] } @{$srcs_id->{$src}};
