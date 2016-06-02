@@ -222,8 +222,8 @@ public class BulkLoader {
         return aList;
     }
     
-    public static List<Int> parseIntList (String listStr) {
-        List<Int> aList = new ArrayList<Int>();
+    public static List<Integer> parseIntList (String listStr) {
+        List<Integer> aList = new ArrayList<Integer>();
         listStr = listStr.trim();
         if (listStr.isEmpty()) {
             return aList;
