@@ -28,7 +28,7 @@ sub new {
         @{$self->source->{rna}},
         @{$self->source->{ontology}}
     ];
-    $self->{ontology} = { map { $_->[0], 1 } @{$self->source_by_type('ontology')} };
+    $self->{ontology} = { map { $_, 1 } @{$self->source_by_type('ontology')} };
     $self->{default}  = 1;
     $self->{profile}  = {
         id        => [ 'string', 'unique metagenome identifier' ],
@@ -191,6 +191,8 @@ sub submit {
     my @sources   = $self->cgi->param('source') || ("RefSeq");
     my $condensed = $self->cgi->param('condensed') ? 'true' : 'false';
     my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
+    
+    $version = $self->check_version($version);
     
     # validate type / source
     my $all_srcs = {};
@@ -479,6 +481,11 @@ sub check_static_profile {
 
 sub check_version {
     my ($self, $version) = @_;
+    
+    unless ($version =~ /^\d+$/) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Must be an integer"}, 404);
+    }
+    $version = $vserion * 1;
     ## currently only support version 1
     unless ($version == 1) {
         $self->return_data({"ERROR" => "invalid version was entered ($version). Currently only version 1 is supported"}, 404);
@@ -486,6 +493,7 @@ sub check_version {
     #unless (exists $self->{m5nr_version}{$version}) {
     #    $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
     #}
+    return $version;
 }
 
 1;

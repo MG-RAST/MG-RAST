@@ -262,7 +262,7 @@ sub source_by_type {
     foreach my $t (@test) {
         if (exists $self->source->{$t}) {
             foreach my $s (@{$self->source->{$t}}) {
-                push @srcs, $s
+                push @srcs, $s->[0];
             }
         }
     }
