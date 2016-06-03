@@ -387,13 +387,13 @@ sub prepare_data {
 }
 
 sub append_profile {
-    my ($self, $chdl, $profile, $md5_row, $sources, $condensed, $format);
+    my ($self, $chdl, $profile, $md5_row, $sources, $condensed, $format) = @_;
     
     my @mids = keys %$md5_row;
     my $count = 0;
     my %md5_idx = {}; # md5id => row index #
     
-    foreach my $src ($sources) {
+    foreach my $src (@$sources) {
         my $cass_data = [];
         if ($condensed eq "true") {
             $cass_data = $chdl->get_id_records_by_id(\@mids, $src);
