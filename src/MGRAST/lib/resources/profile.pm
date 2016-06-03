@@ -449,16 +449,27 @@ sub toFloat {
 
 sub status_report_from_node {
     my ($self, $node, $status) = @_;
-    return {
+    my $report = {
         id      => $node->{id},
         status  => $status,
         url     => $self->cgi->url."/".$self->name."/status/".$node->{id},
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
         md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : "",
-        rows    => $node->{attributes}{row_total} ? $node->{attributes}{row_total} : 0,
-        parameters => $node->{attributes}{parameters} || {}
+        rows    => $node->{attributes}{row_total} ? $node->{attributes}{row_total} : 0
     };
+    if (exists $node->{attributes}{parameters}) {
+        $report->{parameters} = $node->{attributes}{parameters};
+    } else {
+        # is permanent shock node
+        $report->{parameters} = {
+            sources    => $node->{attributes}{sources},
+            format     => 'mgrast',
+            condensed  => $node->{attributes}{condensed},
+            version    => $node->{attributes}{version}
+        };
+    }
+    return $report;
 }
 
 sub check_static_profile {
