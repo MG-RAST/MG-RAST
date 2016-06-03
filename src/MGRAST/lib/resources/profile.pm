@@ -190,7 +190,7 @@ sub submit {
     my $version   = $self->cgi->param('version') || $self->{default};
     my @sources   = $self->cgi->param('source') || ("RefSeq");
     my $condensed = $self->cgi->param('condensed') ? 'true' : 'false';
-    my $format    = ($self->cgi->param('format') && ($format eq 'biom')) ? 'biom' : 'mgrast';
+    my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
     
     # validate type / source
     my $all_srcs = {};
@@ -295,7 +295,7 @@ sub prepare_data {
             created   => strftime("%Y-%m-%dT%H:%M:%S", localtime),
             version   => $version,
             sources   => $sources,
-            columns   => $cols,
+            columns   => $columns,
             condensed => $condensed,
             row_total => 0,
             data      => []
@@ -327,7 +327,7 @@ sub prepare_data {
         $batch_count++;
         if ($batch_count == $self->{batch_size}) {
             $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
-            $md5_set = {};
+            $md5_row = {};
             $batch_count = 0;
         }
     }
