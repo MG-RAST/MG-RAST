@@ -189,7 +189,7 @@ sub submit {
     # get paramaters
     my $version   = $self->cgi->param('version') || $self->{default};
     my @sources   = $self->cgi->param('source') || ("RefSeq");
-    my $condensed = $self->cgi->param('condensed') ? 'true' : 'false';
+    my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
     
     $version = $self->check_version($version);
@@ -235,10 +235,12 @@ sub submit {
     
     # need to create new temp node
     $tquery->{row_total} = 0;
-    $tquery->{sources}   = \@sources;
-    $tquery->{condensed} = $condensed;
-    $tquery->{version}   = $version;
-    $tquery->{format}    = $format;
+    $tquery->{parameters} = {
+        sources => \@sources,
+        format => $format,
+        condensed => $condensed,
+        version => $version
+    };
     my $node = $self->set_shock_node('mgm'.$id.'.biom', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
     
     # asynchronous call, fork the process
@@ -322,9 +324,9 @@ sub prepare_data {
     while (my @row = $sth->fetchrow_array()) {
         my ($md5, $abun, $eval, $ident, $alen) = @row;
         if ($format eq 'biom') {        
-            $md5_row->{$md5} = [$abun, $eval, $ident, $alen];
+            $md5_row->{$md5} = [int($abun), toFloat($eval), toFloat($ident), toFloat($alen)];
         } else {
-            $md5_row->{$md5} = ["", $abun, $eval, $ident, $alen, [], [], [], []];
+            $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), [], [], [], []];
         }
         $batch_count++;
         if ($batch_count == $self->{batch_size}) {
@@ -440,6 +442,11 @@ sub append_profile {
     }
 }
 
+sub toFloat {
+    my ($x) = @_;
+    return $x * 1.0;
+}
+
 sub status_report_from_node {
     my ($self, $node, $status) = @_;
     return {
@@ -450,8 +457,7 @@ sub status_report_from_node {
         created => $node->{file}{created_on},
         md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : "",
         rows    => $node->{attributes}{row_total} ? $node->{attributes}{row_total} : 0,
-        sources => $node->{attributes}{sources} ? $node->{attributes}{sources} : [],
-        version => $node->{attributes}{version} ? $node->{attributes}{version} : 1,
+        parameters => $node->{attributes}{parameters} || {}
     };
 }
 
@@ -463,16 +469,16 @@ sub check_static_profile {
     
     foreach my $n (@$nodes) {
         my $has_sources  = 1;
-        my %node_sources = map { $_, 1 } @{$n->{attributes}{sources}};
+        my %node_sources = map { $_, 1 } @{$n->{attributes}{parameters}{sources}};
         foreach my $s (@$sources) {
             unless (exists $node_sources{$s}) {
                 $has_sources = 0;
             }
         }
-        if ( $n->{attributes}{condensed} &&
-             $n->{attributes}{version} &&
-             ($n->{attributes}{condensed} eq $condensed) &&
-             ($n->{attributes}{version} == $version) &&
+        if ( $n->{attributes}{parameters}{condensed} &&
+             $n->{attributes}{parameters}{version} &&
+             ($n->{attributes}{parameters}{condensed} eq $condensed) &&
+             ($n->{attributes}{parameters}{version} == $version) &&
              $has_sources ) {
             $self->status($n->{id});
         }
