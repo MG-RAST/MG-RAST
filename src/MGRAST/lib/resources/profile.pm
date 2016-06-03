@@ -485,7 +485,7 @@ sub check_version {
     unless ($version =~ /^\d+$/) {
         $self->return_data({"ERROR" => "invalid version was entered ($version). Must be an integer"}, 404);
     }
-    $version = $vserion * 1;
+    $version = $version * 1;
     ## currently only support version 1
     unless ($version == 1) {
         $self->return_data({"ERROR" => "invalid version was entered ($version). Currently only version 1 is supported"}, 404);
