@@ -163,7 +163,7 @@ sub submit {
     my ($self, $mid) = @_;
     
     # check id format
-    my (undef, $id) = $mid =~ /^mgm(\d+\.\d+)$/;
+    my ($id) = $mid =~ /^mgm(\d+\.\d+)$/;
     unless ($id) {
         $self->return_data( {"ERROR" => "invalid id format: " . $mid}, 400 );
     }
