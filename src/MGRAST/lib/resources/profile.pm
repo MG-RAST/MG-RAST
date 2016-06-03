@@ -359,7 +359,7 @@ sub prepare_data {
             type          => 'metagenome',
             data_type     => 'profile',
             sources       => $sources,
-            row_total     => $profile->{shape}[0],
+            row_total     => $profile->{row_total},
             condensed     => $condensed,
             version       => $version,
             file_format   => 'biom',
@@ -389,7 +389,7 @@ sub prepare_data {
 sub append_profile {
     my ($self, $chdl, $profile, $md5_row, $sources, $condensed, $format);
     
-    my @mids = map { $_->[0] } @$md5_row;
+    my @mids = keys %$md5_row;
     my $count = 0;
     my %md5_idx = {}; # md5id => row index #
     
