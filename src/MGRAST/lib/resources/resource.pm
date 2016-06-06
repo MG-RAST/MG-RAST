@@ -246,7 +246,7 @@ sub valid_source {
     foreach my $t (@test) {
         if (exists $self->source->{$t}) {
             foreach my $s (@{$self->source->{$t}}) {
-                if ($s eq $src) {
+                if ($s->[0] eq $src) {
                     return 1;
                 }
             }
