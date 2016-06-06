@@ -188,10 +188,11 @@ sub submit {
     
     # get paramaters
     my $version   = $self->cgi->param('version') || $self->{default};
-    my @sources   = $self->cgi->param('source') || ("RefSeq");
+    my $source    = $self->cgi->param('source') || "RefSeq";
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
     
+    my @sources = sort split(/,/, $source);
     $version = $self->check_version($version);
     
     # validate type / source
@@ -203,7 +204,6 @@ sub submit {
         map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
         map { $all_srcs->{$_} = 1 } @{$self->source_by_type('ontology')};
     }
-    @sources = sort @sources;
     foreach my $s (@sources) {
         unless (exists $all_srcs->{$s}) {
             return ({"ERROR" => "Invalid source for profile: ".$s." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400);
