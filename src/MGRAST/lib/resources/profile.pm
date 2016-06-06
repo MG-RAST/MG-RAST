@@ -455,9 +455,11 @@ sub status_report_from_node {
         url     => $self->cgi->url."/".$self->name."/status/".$node->{id},
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
-        md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : "",
-        rows    => $node->{attributes}{row_total} ? $node->{attributes}{row_total} : 0
+        md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : ""
     };
+    if (exists $node->{attributes}{row_total}) {
+        $report->{rows} = $node->{attributes}{row_total};
+    }
     if (exists $node->{attributes}{parameters}) {
         $report->{parameters} = $node->{attributes}{parameters};
     } else {
