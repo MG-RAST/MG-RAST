@@ -23,13 +23,13 @@ sub new {
     $self->{name} = "profile";
     $self->{rights} = \%rights;
     $self->{batch_size} = 250;
+    $self->{m5nr_default} = 1;
     $self->{sources} = [
         @{$self->source->{protein}},
         @{$self->source->{rna}},
         @{$self->source->{ontology}}
     ];
     $self->{ontology} = { map { $_, 1 } @{$self->source_by_type('ontology')} };
-    $self->{default}  = 1;
     $self->{profile}  = {
         id        => [ 'string', 'unique metagenome identifier' ],
         created   => [ 'string', 'time the output data was generated' ],
@@ -187,13 +187,12 @@ sub submit {
     }
     
     # get paramaters
-    my $version   = $self->cgi->param('version') || $self->{default};
+    my $version   = $self->check_version($self->cgi->param('version'));
     my $source    = $self->cgi->param('source') || "RefSeq";
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
     
     my @sources = sort split(/,/, $source);
-    $version = $self->check_version($version);
     
     # validate type / source
     my $all_srcs = {};
@@ -241,7 +240,7 @@ sub submit {
         condensed => $condensed,
         version => $version
     };
-    my $node = $self->set_shock_node('mgm'.$id.'.biom', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
+    my $node = $self->set_shock_node('mgm'.$id.'.json', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
     
     # asynchronous call, fork the process
     my $pid = fork();
@@ -253,7 +252,8 @@ sub submit {
         if ($error) {
             $data->{STATUS} = $error;
         }
-        $self->put_shock_file($data->{id}.".json", $data, $node->{id}, $self->mgrast_token);
+        my $fname = $data->{id}."_".join("_", @sources)."_v".$version.".".$format;
+        $self->put_shock_file($fname, $data, $node->{id}, $self->mgrast_token);
         exit 0;
     }
     # parent - end html session
@@ -364,7 +364,7 @@ sub prepare_data {
             row_total     => $profile->{row_total},
             condensed     => $condensed,
             version       => $version,
-            file_format   => 'biom',
+            file_format   => 'json',
             stage_name    => 'done',
             stage_id      => '999'
 	    };
@@ -482,16 +482,16 @@ sub check_static_profile {
     
     foreach my $n (@$nodes) {
         my $has_sources  = 1;
-        my %node_sources = map { $_, 1 } @{$n->{attributes}{parameters}{sources}};
+        my %node_sources = map { $_, 1 } @{$n->{attributes}{sources}};
         foreach my $s (@$sources) {
             unless (exists $node_sources{$s}) {
                 $has_sources = 0;
             }
         }
-        if ( $n->{attributes}{parameters}{condensed} &&
-             $n->{attributes}{parameters}{version} &&
-             ($n->{attributes}{parameters}{condensed} eq $condensed) &&
-             ($n->{attributes}{parameters}{version} == $version) &&
+        if ( $n->{attributes}{condensed} &&
+             ($n->{attributes}{condensed} eq $condensed) &&
+             $n->{attributes}{version} &&
+             (int($n->{attributes}{version}) == int($version)) &&
              $has_sources ) {
             $self->status($n->{id});
         }
@@ -501,6 +501,9 @@ sub check_static_profile {
 sub check_version {
     my ($self, $version) = @_;
     
+    unless ($version) {
+        $version = $self->{m5nr_default};
+    }
     unless ($version =~ /^\d+$/) {
         $self->return_data({"ERROR" => "invalid version was entered ($version). Must be an integer"}, 404);
     }
