@@ -192,7 +192,9 @@ google.setOnLoadCallback(initialize);
 
   $content .= "<p style='color:#EA9D2F;text-align:right;font-size:12px;margin-top:3px;'>* login required</p>";
 
-  $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This project has been funded in part with Federal funds from the National Institute of Allergy and Infectious Diseases, National Institutes of Health, Department of Health and Human Services, under Contract No. HHSN272200900040C.</p>";
+  #$content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This project has been funded in part with Federal funds from the National Institute of Allergy and Infectious Diseases, National Institutes of Health, Department of Health and Human Services, under Contract No. HHSN272200900040C.</p>";
+
+  $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This project has been funded in part with Federal funds from the National Institute of Allergy and Infectious Diseases under Contract No. R01AI123037.</p>";
 
   $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This work was supported in part by the Office of Advanced Scientific Computing Research, Office of Science, U.S. Department of Energy, under Contract DE-AC02-06CH11357.</p>";
 
