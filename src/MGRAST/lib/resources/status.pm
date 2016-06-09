@@ -90,7 +90,10 @@ sub instance {
     };
     
     if ($node->{file}{name} && $node->{file}{size}) {
-        $obj->{status} = "done";
+        $obj->{status}  = "done";
+        $obj->{size}    = $node->{file}{size};
+        $obj->{created} = $node->{file}{created_on};
+        $obj->{md5}     = $node->{file}{checksum}{md5};
         if ($verbosity eq "full") {
             my ($content, $err) = $self->get_shock_file($uuid, undef, $self->mgrast_token);
             if ($err) {

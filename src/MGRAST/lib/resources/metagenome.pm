@@ -9,7 +9,6 @@ use List::Util qw(first max min sum);
 use POSIX qw(strftime floor);
 
 use MGRAST::Metadata;
-use MGRAST::Analysis;
 use Conf;
 use parent qw(resources::resource);
 
@@ -23,7 +22,6 @@ sub new {
     # Add name / attributes
     my %rights = $self->user ? map {$_, 1} grep {$_ ne '*'} @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "metagenome";
-    $self->{mgdb} = undef;
     $self->{rights} = \%rights;
     $self->{cv} = {
         verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
@@ -446,16 +444,6 @@ sub prepare_data {
     if (($verb eq 'metadata') || ($verb eq 'full')) {
         $mddb = MGRAST::Metadata->new();
         $jobdata = $mddb->get_jobs_metadata_fast($mgids, 1);
-    }
-    if (($verb eq 'stats') || ($verb eq 'full')) {
-        # initialize analysis obj with mgids
-        my $master = $self->connect_to_datasource();
-        my $mgdb = MGRAST::Analysis->new( $master->db_handle );
-        unless (ref($mgdb)) {
-            $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
-        }
-        $mgdb->set_jobs($mgids);
-        $self->{mgdb} = $mgdb;
     }
 
     my $objects = [];

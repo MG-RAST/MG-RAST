@@ -8,11 +8,31 @@ use DBI;
 use Data::Dumper;
 use List::Util qw(max min sum);
 
+our $version = $Conf::m5nr_annotation_version || 1;
 our $ontology_md5s = {}; # src => ont => [md5s]
 our $function_md5s = {}; # func => [md5s]
 our $organism_md5s = {}; # org => [md5s]
 our $md5_abundance = {}; # md5 => abund
 our $dbh = undef;
+
+sub get_where_str {
+    my ($items) = @_;
+    
+    my @text;
+    unless ($items && (@$items > 0)) { return ""; }
+    foreach my $i (@$items) {
+        if ($i && ($i =~ /\S/)) {
+            push @text, $i;
+        }
+    }
+    if (@text == 1) {
+        return " WHERE " . $text[0];
+    } elsif (@text > 1) {
+        return " WHERE " . join(" AND ", @text);
+    } else {
+        return "";
+    }
+}
 
 sub get_analysis_dbh {
     eval {
@@ -29,6 +49,34 @@ sub get_analysis_dbh {
     if ($@) {
       warn "Unable to connect to metagenomics database: $@\n";
     }
+}
+
+sub execute_query {
+    my ($query) = @_;
+    unless ($dbh) {
+        # set dbh if undef
+        eval {
+          my $host     = $Conf::mgrast_write_dbhost;
+          my $database = $Conf::mgrast_db;
+          my $user     = $Conf::mgrast_dbuser;
+          my $password = $Conf::mgrast_dbpass;
+          $dbh = DBI->connect("DBI:Pg:dbname=$database;host=$host", $user, $password, 
+    			  { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
+    			    die $DBI::errstr;
+        };
+        if ($@) {
+          warn "Unable to connect to metagenomics database: $@\n";
+        }
+    }
+    my $sth = $dbh->prepare($query);
+    $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
+    return $sth;
+}
+
+sub end_query {
+    my ($sth) = @_;
+    $sth->finish;
+    $dbh->commit;
 }
 
 sub get_ontology_abundances {

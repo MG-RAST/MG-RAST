@@ -104,7 +104,8 @@ sub new {
         name          => '',
         url_id        => $url_id,
         rights        => {},
-        attributes    => {}
+        attributes    => {},
+        m5nr_version  => {'1' => '20100309', '7' => '20120401', '9' => '20130801', '10' => '20131215'}
     };
     bless $self, $class;
     return $self;
@@ -204,6 +205,10 @@ sub attributes {
     my ($self) = @_;
     return $self->{attributes};
 }
+sub m5nr_version {
+    my ($self) = @_;
+    return $self->{m5nr_version};
+}
 
 #####################
 #  hardcoded lists  #
@@ -230,6 +235,38 @@ sub source {
                            ["COG", "ontology database, type ontology only"],
                            ["KO", "ontology database, type ontology only"] ]
     };
+}
+
+sub valid_source {
+    my ($self, $src, $type) = @_;
+    if (! $src) {
+        return 0;
+    }
+    my @test = $type ? ($type) : ("protein", "rna", "ontology");
+    foreach my $t (@test) {
+        if (exists $self->source->{$t}) {
+            foreach my $s (@{$self->source->{$t}}) {
+                if ($s eq $src) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+sub source_by_type {
+    my ($self, $type) = @_;
+    my @srcs = ();
+    my @test = $type ? ($type) : ("protein", "rna", "ontology");
+    foreach my $t (@test) {
+        if (exists $self->source->{$t}) {
+            foreach my $s (@{$self->source->{$t}}) {
+                push @srcs, $s
+            }
+        }
+    }
+    return \@srcs;
 }
 
 # hardcoded hierarchy info
@@ -919,7 +956,13 @@ sub update_shock_node_expiration {
     }
 
     my $response = undef;
-    my $content = {expiration => $expiration};
+    my $content  = undef;
+    if ($expiration) {
+        $content = {expiration => $expiration};
+    } else {
+        $content = {remove_expiration => "true"};
+    }
+    
     eval {
         my @args = (
             $auth ? ('Authorization', "$authPrefix $auth") : (),
@@ -1447,7 +1490,21 @@ class CassHandle(object):
         self.session.row_factory = dict_factory
     def get_records_by_id(self, ids, source):
         found = []
-        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        if source:
+            query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        else:
+            query = "SELECT * FROM id_annotation WHERE id IN (%s)"%(",".join(map(str, ids)))
+        rows = self.session.execute(query)
+        for r in rows:
+            r['is_protein'] = 1 if r['is_protein'] else 0
+            found.append(r)
+        return found
+    def get_id_records_by_id(self, ids, source):
+        found = []
+        if source:
+            query = "SELECT * FROM index_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        else:
+            query = "SELECT * FROM index_annotation WHERE id IN (%s)"%(",".join(map(str, ids)))
         rows = self.session.execute(query)
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0
