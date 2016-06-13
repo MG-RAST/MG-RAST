@@ -337,7 +337,7 @@ sub prepare_data {
             $md5_row = {};
             $batch_count = 0;
         }
-        if (($total_count % 10000) == 0) {
+        if (($total_count % 100000) == 0) {
             my $attr = $node->{attributes};
             $attr->{queried} = $total_count;
             $attr->{found} = scalar(@{$profile->{data}});
@@ -348,7 +348,8 @@ sub prepare_data {
         $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
     }
     my $attr = $node->{attributes};
-    $attr->{processed} = $total_count;
+    $attr->{queried} = $total_count;
+    $attr->{found} = scalar(@{$profile->{data}});
     $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
     
     # cleanup
@@ -375,6 +376,7 @@ sub prepare_data {
             data_type     => 'profile',
             sources       => $sources,
             row_total     => $profile->{row_total},
+            md5_queried   => $total_count,
             condensed     => $condensed,
             version       => $version,
             file_format   => 'json',
@@ -468,14 +470,12 @@ sub status_report_from_node {
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
         md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : "",
-        updated => $node->{last_modified}
+        updated => $node->{last_modified},
+        queried => $node->{attributes}{queried} || $node->{attributes}{md5_queried},
+        found   => $node->{attributes}{found} || $node->{attributes}{row_total}
     };
     if (exists $node->{attributes}{row_total}) {
         $report->{rows} = $node->{attributes}{row_total};
-    }
-    if (exists $node->{attributes}{queried}) {
-        $report->{queried} = $node->{attributes}{queried};
-        $report->{found} = $node->{attributes}{found};
     }
     if (exists $node->{attributes}{parameters}) {
         $report->{parameters} = $node->{attributes}{parameters};
