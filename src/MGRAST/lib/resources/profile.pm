@@ -335,7 +335,7 @@ sub prepare_data {
             $md5_row = {};
             $batch_count = 0;
         }
-        if ($total_count % 1000) {
+        if (($total_count % 1000) == 0) {
             my $attr = $node->{attributes};
             $attr->{processed} = $total_count;
             $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
