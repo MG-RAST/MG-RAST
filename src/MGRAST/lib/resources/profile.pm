@@ -231,9 +231,11 @@ sub submit {
     }
     
     # need to create new temp node
-    $tquery->{processed} = 0;
+    $tquery->{queried} = 0;
+    $tquery->{found} = 0;
     $tquery->{row_total} = 0;
     $tquery->{parameters} = {
+        id => 'mgm'.$id,
         sources => \@sources,
         format => $format,
         condensed => $condensed,
@@ -335,9 +337,10 @@ sub prepare_data {
             $md5_row = {};
             $batch_count = 0;
         }
-        if (($total_count % 1000) == 0) {
+        if (($total_count % 10000) == 0) {
             my $attr = $node->{attributes};
-            $attr->{processed} = $total_count;
+            $attr->{queried} = $total_count;
+            $attr->{found} = scalar(@{$profile->{data}});
             $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
         }
     }
@@ -470,14 +473,16 @@ sub status_report_from_node {
     if (exists $node->{attributes}{row_total}) {
         $report->{rows} = $node->{attributes}{row_total};
     }
-    if (exists $node->{attributes}{processed}) {
-        $report->{processed} = $node->{attributes}{processed};
+    if (exists $node->{attributes}{queried}) {
+        $report->{queried} = $node->{attributes}{queried};
+        $report->{found} = $node->{attributes}{found};
     }
     if (exists $node->{attributes}{parameters}) {
         $report->{parameters} = $node->{attributes}{parameters};
     } else {
         # is permanent shock node
         $report->{parameters} = {
+            id         => $node->{attributes}{id},
             sources    => $node->{attributes}{sources},
             format     => 'mgrast',
             condensed  => $node->{attributes}{condensed},

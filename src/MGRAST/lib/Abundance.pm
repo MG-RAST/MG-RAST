@@ -38,7 +38,7 @@ sub new {
     my $self = {
         dbh     => $dbh,    # postgres analysis db handle
         chdl    => $chdl,   # cassnadra m5nr handle
-        chunk   => 1000,    # max # md5s to query at once
+        chunk   => 2000,    # max # md5s to query at once
         version => $version || $Conf::m5nr_annotation_version || 1  # m5nr version
     };
     bless $self, $class;
