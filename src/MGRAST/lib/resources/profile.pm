@@ -231,7 +231,7 @@ sub submit {
     }
     
     # need to create new temp node
-    $tquery->{updated} = strftime("%Y-%m-%dT%H:%M:%S", localtime);
+    $tquery->{processed} = 0;
     $tquery->{row_total} = 0;
     $tquery->{parameters} = {
         sources => \@sources,
@@ -335,15 +335,18 @@ sub prepare_data {
             $md5_row = {};
             $batch_count = 0;
         }
-        if ($total_count % 10000) {
+        if ($total_count % 1000) {
             my $attr = $node->{attributes};
-            $attr->{updated} = strftime("%Y-%m-%dT%H:%M:%S", localtime);
+            $attr->{processed} = $total_count;
             $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
         }
     }
     if ($batch_count > 0) {
         $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
     }
+    my $attr = $node->{attributes};
+    $attr->{processed} = $total_count;
+    $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
     
     # cleanup
     $mgdb->end_query($sth);
@@ -462,10 +465,13 @@ sub status_report_from_node {
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
         md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : "",
-        updated => $node->{attributes}{updated} ? $node->{attributes}{updated} : $node->{last_modified}
+        updated => $node->{last_modified}
     };
     if (exists $node->{attributes}{row_total}) {
         $report->{rows} = $node->{attributes}{row_total};
+    }
+    if (exists $node->{attributes}{processed}) {
+        $report->{processed} = $node->{attributes}{processed};
     }
     if (exists $node->{attributes}{parameters}) {
         $report->{parameters} = $node->{attributes}{parameters};
