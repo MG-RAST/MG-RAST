@@ -231,9 +231,11 @@ sub submit {
     }
     
     # need to create new temp node
-    $tquery->{queried} = 0;
-    $tquery->{found} = 0;
     $tquery->{row_total} = 0;
+    $tquery->{progress} = {
+        queried => 0,
+        found => 0
+    };
     $tquery->{parameters} = {
         id => 'mgm'.$id,
         sources => \@sources,
@@ -339,8 +341,8 @@ sub prepare_data {
         }
         if (($total_count % 100000) == 0) {
             my $attr = $node->{attributes};
-            $attr->{queried} = $total_count;
-            $attr->{found} = scalar(@{$profile->{data}});
+            $attr->{progress}{queried} = $total_count;
+            $attr->{progress}{found} = scalar(@{$profile->{data}});
             $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
         }
     }
@@ -348,8 +350,8 @@ sub prepare_data {
         $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
     }
     my $attr = $node->{attributes};
-    $attr->{queried} = $total_count;
-    $attr->{found} = scalar(@{$profile->{data}});
+    $attr->{progress}{queried} = $total_count;
+    $attr->{progress}{found} = scalar(@{$profile->{data}});
     $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
     
     # cleanup
@@ -469,10 +471,12 @@ sub status_report_from_node {
         url     => $self->cgi->url."/".$self->name."/status/".$node->{id},
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
-        md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : "",
+        md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : ""
+    };
+    $report->{progress} = {
         updated => $node->{last_modified},
-        queried => $node->{attributes}{queried} || $node->{attributes}{md5_queried},
-        found   => $node->{attributes}{found} || $node->{attributes}{row_total}
+        queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || 0,
+        found   => $node->{attributes}{progress}{found} || $node->{attributes}{row_total} || 0
     };
     if (exists $node->{attributes}{row_total}) {
         $report->{rows} = $node->{attributes}{row_total};
