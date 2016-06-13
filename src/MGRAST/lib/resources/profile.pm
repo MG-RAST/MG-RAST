@@ -22,8 +22,6 @@ sub new {
     my %rights = $self->user ? map { $_, 1 } grep {$_ ne '*'} @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "profile";
     $self->{rights} = \%rights;
-    $self->{batch_size} = 250;
-    $self->{m5nr_default} = 1;
     $self->{sources} = [
         @{$self->source->{protein}},
         @{$self->source->{rna}},
@@ -98,7 +96,7 @@ sub info {
                       'format'    => ['cv', [['mgrast','compressed json format (default)'],
                                              ['biom','BIOM json format']]],
                       'source'    => ['cv', $self->{sources}],
-                      'version'   => ['integer', 'M5NR version, default is '.$self->{default}],
+                      'version'   => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
                       'verbosity' => ['cv', [['full','returns all data (default)'],
                                              ['minimal','returns only minimal information']]]
 				  },
@@ -233,6 +231,7 @@ sub submit {
     }
     
     # need to create new temp node
+    $tquery->{updated} = strftime("%Y-%m-%dT%H:%M:%S", localtime);
     $tquery->{row_total} = 0;
     $tquery->{parameters} = {
         sources => \@sources,
@@ -248,7 +247,7 @@ sub submit {
     if ($pid == 0) {
         close STDERR;
         close STDOUT;
-        my ($data, $error) = $self->prepare_data($id, $node->{id}, \@sources, $condensed, $version, $format);
+        my ($data, $error) = $self->prepare_data($id, $node, \@sources, $condensed, $version, $format);
         if ($error) {
             $data->{STATUS} = $error;
         }
@@ -265,7 +264,7 @@ sub submit {
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $id, $node_id, $sources, $condensed, $version, $format) = @_;
+    my ($self, $id, $node, $sources, $condensed, $version, $format) = @_;
 
     # get data
     my $master = $self->connect_to_datasource();
@@ -310,16 +309,17 @@ sub prepare_data {
     my $id2ann = {}; # md5_id => { accession => [], function => [], organism => [], ontology => [] }
     my $id2md5 = {}; # md5_id => md5
     
-    # cass handle
+    # db handles
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
+    my $mgdb = MGRAST::Abundance->new($chdl, $version);
     
     # run query
-    MGRAST::Abundance::get_analysis_dbh();
-    my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM job_md5s WHERE version=".$version." AND job=".$data->{job_id};
-    my $sth = MGRAST::Abundance::execute_query($query);
+    my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM job_md5s WHERE version=".$version." AND job=".$data->{job_id}." AND exp_avg <= -5 AND ident_avg >= 60 AND len_avg >= 15";
+    my $sth   = $mgdb->execute_query($query);
     
     # loop through results and build profile
     my $md5_row = {};
+    my $total_count = 0;
     my $batch_count = 0;
     while (my @row = $sth->fetchrow_array()) {
         my ($md5, $abun, $eval, $ident, $alen) = @row;
@@ -328,19 +328,26 @@ sub prepare_data {
         } else {
             $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), [], [], [], []];
         }
+        $total_count++;
         $batch_count++;
-        if ($batch_count == $self->{batch_size}) {
+        if ($batch_count == $mgdb->chunk) {
             $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
             $md5_row = {};
             $batch_count = 0;
+        }
+        if ($total_count % 10000) {
+            my $attr = $node->{attributes};
+            $attr->{updated} = strftime("%Y-%m-%dT%H:%M:%S", localtime);
+            $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
         }
     }
     if ($batch_count > 0) {
         $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
     }
+    
     # cleanup
-    MGRAST::Abundance::end_query($sth);
-    $chdl->close();
+    $mgdb->end_query($sth);
+    $mgdb->DESTROY();
 	
 	if ($format eq 'biom') {
 	    $profile->{shape}[0] = scalar(@{$profile->{rows}});
@@ -377,9 +384,8 @@ sub prepare_data {
 	    };
 	    # update existing node / remove expiration
 	    # file added to node in asynch mode in parent function
-	    my $node = {};
-        $node = $self->update_shock_node($node_id, $attr, $self->mgrast_token);
-	    $node = $self->update_shock_node_expiration($node_id, $self->mgrast_token);
+        $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
+	    $node = $self->update_shock_node_expiration($node->{id}, $self->mgrast_token);
 	    if ($data->{public}) {
 	        $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');
 	    }
@@ -455,7 +461,8 @@ sub status_report_from_node {
         url     => $self->cgi->url."/".$self->name."/status/".$node->{id},
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
-        md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : ""
+        md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : "",
+        updated => $node->{attributes}{updated} ? $node->{attributes}{updated} : $node->{last_modified}
     };
     if (exists $node->{attributes}{row_total}) {
         $report->{rows} = $node->{attributes}{row_total};

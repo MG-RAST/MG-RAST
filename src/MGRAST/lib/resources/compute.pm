@@ -53,7 +53,6 @@ sub new {
     $self->{distance} = ["bray-curtis", "euclidean", "maximum", "manhattan", "canberra", "minkowski", "difference"];
     $self->{cluster} = ["ward", "single", "complete", "mcquitty", "median", "centroid"];
     $self->{significance} = ["Kruskal-Wallis", "t-test-paired", "Wilcoxon-paired", "t-test-unpaired", "Mann-Whitney-unpaired-Wilcoxon", "ANOVA-one-way"];
-    $self->{ann_ver} = 1;
     return $self;
 }
 
@@ -86,7 +85,7 @@ sub info {
 				          'type'        => "synchronous or asynchronous",
 				          'attributes'  => $self->{attributes}{alphadiversity},
 				          'parameters'  => { 'options'  => { 'level' => ['cv', $self->hierarchy->{organism}],
-				                                             "ann_ver" => ["int", "version of m5nr annotations"],
+				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
 				                                             'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
@@ -102,7 +101,7 @@ sub info {
 				          'parameters'  => { 'options'  => { 'level' => ['cv', $self->hierarchy->{organism}],
 				                                             "alpha" => ["boolean", "if true also return alphadiversity, default is false"],
 				                                             "seq_num" => ["int", "number of sequences in metagenome"],
-				                                             "ann_ver" => ["int", "version of m5nr annotations"],
+				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
 				                                             'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
@@ -267,7 +266,7 @@ sub instance {
             if ($error) {
                 $data->{STATUS} = $error;
             }
-            $self->put_shock_file($data->{id}.".biom", $data->{data}, $node->{id}, $self->mgrast_token);
+            $self->put_shock_file($data->{id}."_".$type.".json", $data->{data}, $node->{id}, $self->mgrast_token);
             exit 0;
         }
         # parent - end html session
@@ -296,15 +295,18 @@ sub species_diversity_compute {
 
     # initialize
     my $level = $self->cgi->param('level') || 'species';
-    my $ver   = $self->cgi->param('ann_ver') || $self->{ann_ver};
+    my $ver   = $self->cgi->param('ann_ver') || $self->{m5nr_default};
     my $data  = {
         id => 'mgm'.$job->{metagenome_id},
         url => $self->cgi->url.'/'.$type.'/mgm'.$job->{metagenome_id}.'?level='.$level
     };
-    MGRAST::Abundance::get_analysis_dbh();
+    
+    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
+    my $mgdb = MGRAST::Abundance->new($chdl, $ver);
+    my ($org_map, undef, undef) = $mgdb->all_job_abundances($job->{job_id}, [$level], 1, undef, undef);
     
     if ($type eq "alphadiversity") {
-        $data->{data} = MGRAST::Abundance::get_alpha_diversity($job->{job_id}, $level, $ver);
+        $data->{data} = $mgdb->get_alpha_diversity($org_map->{$level});
     } elsif ($type eq "rarefaction") {
         my $snum = $self->cgi->param('seq_num') || 0;
         my $alpha = $self->cgi->param('alpha') ? 1 : 0;
@@ -312,16 +314,17 @@ sub species_diversity_compute {
             my $jstats = $job->stats();
             $snum = $jstats->{sequence_count_raw} || 1;
         }
-        my $rare = MGRAST::Abundance::get_rarefaction_xy($job->{job_id}, $level, $snum, $ver);
+        my $rare = $mgdb->get_rarefaction_xy($org_map->{$level}, $snum);
         if ($alpha) {
             $data->{data}{rarefaction} = $rare;
-            $data->{data}{alphadiversity} = MGRAST::Abundance::get_alpha_diversity($job->{job_id}, $level, $ver);
+            $data->{data}{alphadiversity} = $mgdb->get_alpha_diversity($org_map->{$level});
         } else {
             $data->{data} = $rare;
         }
     } else {
         return ({"ERROR" => "invalid compute type: $type"}, 400);
     }
+    $mgdb->DESTROY();
     
     return ($data, undef);
 }
