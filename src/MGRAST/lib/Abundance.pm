@@ -92,7 +92,7 @@ sub get_where_str {
 
 sub execute_query {
     my ($self, $query) = @_;
-    my $sth = $dbh->prepare($query);
+    my $sth = $self->dbh->prepare($query);
     $sth->execute() || die "Couldn't execute statement: ".$sth->errstr;
     return $sth;
 }
@@ -100,7 +100,7 @@ sub execute_query {
 sub end_query {
     my ($self, $sth) = @_;
     $sth->finish;
-    $dbh->commit;
+    $self->dbh->commit;
 }
 
 sub all_job_abundances {
@@ -131,29 +131,11 @@ sub all_job_abundances {
         $ont_cat = $self->chdl->get_ontology_hierarchy();
     }
     
-    my $sth = $self->execute_query("SELECT md5, abundance FROM job_md5s WHERE version=".$self->version." AND job=$job");
-    my $md5s = {};
-    my $count = 0;
-    
-    while (my @row = $sth->fetchrow_array()) {
-        $md5s->{$row[0]} = $row[1];
-        $count++;
-        if ($count == $mgdb->chunk) {
-            $add_annotations->();
-            $md5s = {};
-            $count = 0;
-        }
-    }
-    if ($count > 0) {
-        $add_annotations->();
-    }
-    $self->end_query($sth);
-    
     my $add_annotations = sub {
         my $data = $self->chdl->get_records_by_id([keys %$md5s]);
         foreach my $set (@$data) {
             if ($fun) {
-                foreach my $f @{$set->{function}} {
+                foreach my $f (@{$set->{function}}) {
                     unless (exists $fun_map->{$f}) {
                         $fun_map->{$f} = 0;
                     }
@@ -164,7 +146,7 @@ sub all_job_abundances {
                 unless (exists $ont_map->{$set->{source}}) {
                     $ont_map->{$set->{source}} = {};
                 }
-                foreach my $a @{$set->{accession}} {
+                foreach my $a (@{$set->{accession}}) {
                     unless (exists $ont_map->{$set->{source}}{ $ont_cat->{$set->{source}}{$a} }) {
                         $ont_map->{$set->{source}}{$ont_cat->{$set->{source}}{$a}} = 0;
                     }
@@ -172,7 +154,7 @@ sub all_job_abundances {
                 }
             }
             if ($org) {
-                foreach my $o @{$set->{organism}} {
+                foreach my $o (@{$set->{organism}}) {
                     if ($tax) {
                         next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
                         unless (exists $org_map->{$tax}{$tax_map->{$o}}) {
@@ -192,6 +174,24 @@ sub all_job_abundances {
             }
         }
     }
+    
+    my $sth = $self->execute_query("SELECT md5, abundance FROM job_md5s WHERE version=".$self->version." AND job=$job");
+    my $md5s = {};
+    my $count = 0;
+    
+    while (my @row = $sth->fetchrow_array()) {
+        $md5s->{$row[0]} = $row[1];
+        $count++;
+        if ($count == $self->chunk) {
+            $add_annotations->();
+            $md5s = {};
+            $count = 0;
+        }
+    }
+    if ($count > 0) {
+        $add_annotations->();
+    }
+    $self->end_query($sth);
     
     return ($org_map, $fun_map, $ont_map);
 }
