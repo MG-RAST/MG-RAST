@@ -414,6 +414,7 @@ sub job_data {
             my $get_ont  = (($ann eq "all") || ($ann eq "ontology")) ? 1 : 0;
             
             # get data
+            my $data = {};
             my ($org_map, $fun_map, $ont_map) = $mgdb->all_job_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont);
             if ($get_org) {
                 $data->{taxonomy} = {};
