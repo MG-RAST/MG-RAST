@@ -381,6 +381,7 @@ sub prepare_data {
             sources       => $sources,
             row_total     => $profile->{row_total},
             md5_queried   => $total_count,
+            md5_found     => $found,
             condensed     => $condensed,
             version       => $version,
             file_format   => 'json',
@@ -409,12 +410,12 @@ sub prepare_data {
 sub append_profile {
     my ($self, $chdl, $profile, $md5_row, $sources, $condensed, $format) = @_;
     
-    my @mids = keys %$md5_row;
-    my $count = 0;
+    my @mids    = keys %$md5_row;
     my %md5_idx = {}; # md5id => row index #
-    my $found = 0;
+    my $found   = 0;
     
     foreach my $src (@$sources) {
+        $found = 0;
         my $cass_data = [];
         if ($condensed eq "true") {
             $cass_data = $chdl->get_id_records_by_id(\@mids, $src);
@@ -424,26 +425,31 @@ sub append_profile {
         foreach my $info (@$cass_data) {
             $found += 1;
             # set / get row index
+            my $index;
             unless (exists $md5_idx{$info->{id}}) {
                 # set profile row
-                $profile->{data}[$count] = $md5_row->{$info->{id}};
-                $md5_idx{$info->{id}} = $count;
-                $count += 1;
+                push @{$profile->{data}}, $md5_row->{$info->{id}};
+                $index = scalar(@{$profile->{data}}) - 1;
+                $md5_idx{$info->{id}} = $index;
+                # set biom row
+                if ($format eq 'biom') {
+                    push @{$profile->{rows}}, { id => $info->{md5}, metadata => {} };
+                }
+            } else {
+                $index = $md5_idx{$info->{id}};
             }
-            my $index = $md5_idx{$info->{id}};
 
             if ($format eq 'biom') {
-                # append source specific data in profile row metadata 
-                if ($index >= scalar(@{$profile->{rows}})) {
-                    $profile->{rows}[$index] = { id => $info->{md5}, metadata => {} }
-                }
+                # append source specific data in profile row metadata
                 $profile->{rows}[$index]{metadata}{$src} = { function => $info->{function} };
                 if (exists $self->{ontology}{$info->{source}}) {
                     $profile->{rows}[$index]{metadata}{$src}{ontology} = $info->{accession};
                 } else {
                     $profile->{rows}[$index]{metadata}{$src}{single}    = $info->{single};
                     $profile->{rows}[$index]{metadata}{$src}{organism}  = $info->{organism};
-                    $profile->{rows}[$index]{metadata}{$src}{accession} = $info->{accession};
+                    if ($info->{accession}) {
+                        $profile->{rows}[$index]{metadata}{$src}{accession} = $info->{accession};
+                    }
                 }
             } else {
                 # append source specific data in profile data
@@ -481,7 +487,7 @@ sub status_report_from_node {
     $report->{progress} = {
         updated => $node->{last_modified},
         queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || 0,
-        found   => $node->{attributes}{progress}{found} || $node->{attributes}{row_total} || 0
+        found   => $node->{attributes}{progress}{found} || $node->{attributes}{md5_found} || 0
     };
     if (exists $node->{attributes}{row_total}) {
         $report->{rows} = $node->{attributes}{row_total};
