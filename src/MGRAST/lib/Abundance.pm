@@ -131,8 +131,9 @@ sub all_job_abundances {
         $ont_cat = $self->chdl->get_ontology_hierarchy();
     }
     
-    my $sth = $self->execute_query("SELECT md5, abundance FROM job_md5s WHERE version=".$self->version." AND job=$job");
-    my $md5s = {};
+    my $query = "SELECT md5, abundance FROM job_md5s WHERE version=".$self->version." AND job=".$job." AND exp_avg <= -5 AND ident_avg >= 60 AND len_avg >= 15";
+    my $sth   = $self->execute_query($query);
+    my $md5s  = {};
     my $count = 0;
     
     my $add_annotations = sub {

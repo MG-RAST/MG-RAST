@@ -318,7 +318,8 @@ sub prepare_data {
     my $mgdb = MGRAST::Abundance->new($chdl, $version);
     
     # run query
-    my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM job_md5s WHERE version=".$version." AND job=".$data->{job_id}." AND exp_avg <= -5 AND ident_avg >= 60 AND len_avg >= 15";
+    my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM job_md5s WHERE version=".
+                $version." AND job=".$data->{job_id}." AND exp_avg <= -5 AND ident_avg >= 60 AND len_avg >= 15";
     my $sth   = $mgdb->execute_query($query);
     
     # loop through results and build profile
