@@ -194,7 +194,7 @@ sub instance {
       elsif ($rest->[1] eq 'updatemetadata') {
 
 	# check permissions
-	unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right('edit', 'project', $id)) {
+	unless ($self->user->has_star_right(undef, 'edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
 	  $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
 	}
 	
