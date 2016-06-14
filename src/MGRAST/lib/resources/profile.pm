@@ -323,6 +323,7 @@ sub prepare_data {
     my $sth   = $mgdb->execute_query($query);
     
     # loop through results and build profile
+    my $found = 0;
     my $md5_row = {};
     my $total_count = 0;
     my $batch_count = 0;
@@ -336,23 +337,23 @@ sub prepare_data {
         $total_count++;
         $batch_count++;
         if ($batch_count == $mgdb->chunk) {
-            $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
+            $found += $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
             $md5_row = {};
             $batch_count = 0;
         }
         if (($total_count % 100000) == 0) {
             my $attr = $node->{attributes};
             $attr->{progress}{queried} = $total_count;
-            $attr->{progress}{found} = scalar(@{$profile->{data}});
+            $attr->{progress}{found} = $found;
             $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
         }
     }
     if ($batch_count > 0) {
-        $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
+        $found += $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
     }
     my $attr = $node->{attributes};
     $attr->{progress}{queried} = $total_count;
-    $attr->{progress}{found} = scalar(@{$profile->{data}});
+    $attr->{progress}{found} = $found;
     $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
     
     # cleanup
@@ -411,6 +412,7 @@ sub append_profile {
     my @mids = keys %$md5_row;
     my $count = 0;
     my %md5_idx = {}; # md5id => row index #
+    my $found = 0;
     
     foreach my $src (@$sources) {
         my $cass_data = [];
@@ -420,6 +422,7 @@ sub append_profile {
             $cass_data = $chdl->get_records_by_id(\@mids, $src);
         }
         foreach my $info (@$cass_data) {
+            $found += 1;
             # set / get row index
             unless (exists $md5_idx{$info->{id}}) {
                 # set profile row
@@ -457,6 +460,7 @@ sub append_profile {
             }
         }
     }
+    return $found;
 }
 
 sub toFloat {
