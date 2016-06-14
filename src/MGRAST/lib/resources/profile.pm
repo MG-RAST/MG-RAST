@@ -415,7 +415,6 @@ sub append_profile {
     my $found   = 0;
     
     foreach my $src (@$sources) {
-        $found = 0;
         my $cass_data = [];
         if ($condensed eq "true") {
             $cass_data = $chdl->get_id_records_by_id(\@mids, $src);
@@ -423,11 +422,11 @@ sub append_profile {
             $cass_data = $chdl->get_records_by_id(\@mids, $src);
         }
         foreach my $info (@$cass_data) {
-            $found += 1;
             # set / get row index
             my $index;
             unless (exists $md5_idx{$info->{id}}) {
                 # set profile row
+                $found += 1;
                 push @{$profile->{data}}, $md5_row->{$info->{id}};
                 $index = scalar(@{$profile->{data}}) - 1;
                 $md5_idx{$info->{id}} = $index;
