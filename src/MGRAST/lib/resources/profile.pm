@@ -485,6 +485,7 @@ sub status_report_from_node {
         md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : ""
     };
     $report->{progress} = {
+        started => $node->{created_on},
         updated => $node->{last_modified},
         queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || 0,
         found   => $node->{attributes}{progress}{found} || $node->{attributes}{md5_found} || 0
