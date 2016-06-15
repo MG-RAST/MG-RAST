@@ -329,10 +329,10 @@ sub prepare_data {
     my $batch_count = 0;
     while (my @row = $sth->fetchrow_array()) {
         my ($md5, $abun, $eval, $ident, $alen) = @row;
-        if ($format eq 'biom') {        
+        if ($format eq 'biom') {
             $md5_row->{$md5} = [int($abun), toFloat($eval), toFloat($ident), toFloat($alen)];
         } else {
-            $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), [], []];
+            $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), [(undef) x scalar(@$sources)], [(undef) x scalar(@$sources)]];
         }
         $total_count++;
         $batch_count++;
@@ -414,7 +414,8 @@ sub append_profile {
     my %md5_idx = {}; # md5id => row index #
     my $found   = 0;
     
-    foreach my $src (@$sources) {
+    for (my $si=0; $si<@$sources; $si++) {
+        my $src = $sources->[$si];
         my $cass_data = [];
         if ($condensed eq "true") {
             $cass_data = $chdl->get_id_records_by_id(\@mids, $src);
@@ -461,14 +462,12 @@ sub append_profile {
                     } else {
                         @sub_orgs = grep { $_ ne $info->{single} } @{$info->{organism}};
                     }
-                    push @{$profile->{data}[$index][5]}, [ $info->{single}, @sub_orgs ];
-                } else {
-                    push @{$profile->{data}[$index][5]}, undef;
+                    $profile->{data}[$index][5][$si] = [ $info->{single}, @sub_orgs ];
                 }
-                if (exists $self->{ontology}{$info->{source}}) {
-                    push @{$profile->{data}[$index][6]}, $info->{accession} || undef;
-                } else {
-                    push @{$profile->{data}[$index][6]}, $info->{function} || undef;
+                if (exists($self->{ontology}{$info->{source}}) && $info->{accession}) {
+                    $profile->{data}[$index][6][$si] = $info->{accession};
+                } elsif ($info->{function}) {
+                    $profile->{data}[$index][6][$si] = $info->{function};
                 }
             }
         }
