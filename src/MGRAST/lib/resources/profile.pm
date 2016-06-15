@@ -332,7 +332,7 @@ sub prepare_data {
         if ($format eq 'biom') {        
             $md5_row->{$md5} = [int($abun), toFloat($eval), toFloat($ident), toFloat($alen)];
         } else {
-            $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), [], [], [], []];
+            $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), [], []];
         }
         $total_count++;
         $batch_count++;
@@ -452,15 +452,23 @@ sub append_profile {
                 }
             } else {
                 # append source specific data in profile data
-                # md5sum, abundance, e-value, percent identity, alignment length, single organisms, organisms, functions, categories
+                # md5sum, abundance, e-value, percent identity, alignment length, organisms (first is single), functions (either function or ontology)
                 $profile->{data}[$index][0] = $info->{md5};
-                push @{$profile->{data}[$index][5]}, $info->{single};
-                push @{$profile->{data}[$index][6]}, $info->{organism};
-                push @{$profile->{data}[$index][7]}, $info->{function};
-                if (exists $self->{ontology}{$info->{source}}) {
-                    push @{$profile->{data}[$index][8]}, $info->{accession};
+                if ($info->{single} && $info->{organism}) {
+                    my @sub_orgs;
+                    if ($condensed eq "true") {
+                        @sub_orgs = grep { $_ != $info->{single} } @{$info->{organism}};
+                    } else {
+                        @sub_orgs = grep { $_ ne $info->{single} } @{$info->{organism}};
+                    }
+                    push @{$profile->{data}[$index][5]}, [ $info->{single}, @sub_orgs ];
                 } else {
-                    push @{$profile->{data}[$index][8]}, [];
+                    push @{$profile->{data}[$index][5]}, undef;
+                }
+                if (exists $self->{ontology}{$info->{source}}) {
+                    push @{$profile->{data}[$index][6]}, $info->{accession} || undef;
+                } else {
+                    push @{$profile->{data}[$index][6]}, $info->{function} || undef;
                 }
             }
         }
