@@ -55,10 +55,7 @@ sub new {
 # this method must return a description of the resource
 sub info {
     my ($self) = @_;
-    my $sources = [];
-    map { push @$sources, $_ } @{$self->source->{protein}};
-    map { push @$sources, $_ } @{$self->source->{rna}};
-    map { push @$sources, $_ } @{$self->source->{ontology}};
+    my $sources = [ @{$self->source->{protein}}, @{$self->source->{rna}}, @{$self->source->{ontology}} ];
     my $content = { 'name' => $self->name,
 		            'url' => $self->cgi->url."/".$self->name,
 		            'description' => "All annotations of a metagenome for a specific annotation type and source",
