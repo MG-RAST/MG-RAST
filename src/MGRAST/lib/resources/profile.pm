@@ -296,7 +296,7 @@ sub prepare_data {
             data                => []
         };
     } else {
-        $columns = ["md5sum", "abundance", "e-value", "percent identity", "alignment length", "single organisms", "organisms", "functions", "categories"];
+        $columns = ["md5sum", "abundance", "e-value", "percent identity", "alignment length", "organisms", "functions"];
 	    $profile = {
             id        => "mgm".$id,
             created   => strftime("%Y-%m-%dT%H:%M:%S", localtime),
