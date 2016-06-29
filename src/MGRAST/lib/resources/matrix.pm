@@ -231,7 +231,7 @@ sub instance {
         if ($nodes && (@$nodes > 0)) {
             # sort results by newest to oldest
             my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
-            $self->return_data({"status" => "submitted", "id" => $sorted->[0]->{id}, "url" => $self->cgi->url."/status/".$sorted->[0]->{id}});
+            $self->return_data({"status" => "submitted", "id" => $sorted[0]->{id}, "url" => $self->cgi->url."/status/".$sorted[0]->{id}});
         }
         # need to create new node and fork
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
@@ -305,9 +305,9 @@ sub prepare_data {
         $matrix_id .= '_'.$hide_an;
         $matrix_url .= '&hide_annotation='.$hide_an;
     }
-    if (@filter > 0) {
-        $matrix_id .= md5_hex( join("_", sort map { local $_ = $_; s/\s+/_/g; $_ } @filter) )."_".$fsrc."_".$flvl;
-        $matrix_url .= '&filter='.join('&filter=', sort map { uri_escape($_) } @filter).'&filter_source='.$fsrc.'&filter_level='.$flvl;
+    if ($filter) {
+        $matrix_id .= md5_hex($filter)."_".$fsrc."_".$flvl;
+        $matrix_url .= '&filter='.uri_escape($filter).'&filter_source='.$fsrc.'&filter_level='.$flvl;
     }
     if ($grep) {
         $matrix_id .= '_'.$grep;
@@ -425,7 +425,7 @@ sub prepare_data {
         if (exists $prot_srcs{$source}) {
             return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, 400);
         }
-        if (@filter > 0) {
+        if ($filter) {
             return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, 400);
         }
     }
@@ -440,14 +440,14 @@ sub prepare_data {
         url                  => $matrix_url,
         format               => "Biological Observation Matrix 1.0",
         format_url           => "http://biom-format.org",
-        type                 => ($type eq 'organism') : "Taxon table" : "Function table",
+        type                 => ($type eq 'organism') ? "Taxon table" : "Function table",
         generated_by         => "MG-RAST".($Conf::server_version ? " revision ".$Conf::server_version : ""),
         date                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
         matrix_type          => "dense",
         matrix_element_type  => ($rtype eq 'abundance') ? "int" : "float",
         matrix_element_value => $rtype,
         shape                => [ 0, scalar(@$columns) ],
-        rows                 => [];
+        rows                 => [],
         columns              => $columns,
         data                 => []
     };
@@ -525,11 +525,11 @@ sub prepare_data {
     # transform [ count, sum, sos ] to single average
     if ($type ne 'abundance') {
         foreach my $row (@$mdata) {
-            for (my $i=0; $i<@$row, $i++) {
+            for (my $i=0; $i<@$row; $i++) {
                 my ($num, $sum, $sos) = @{$row->[$i]};
                 my $mean = round($sum / $num);
                 my $std  = stddev($mean, $sos, $num);
-                $row->[$i] = $srd;
+                $row->[$i] = $std;
             }
         }
     }
@@ -559,7 +559,7 @@ sub prepare_data {
             $match = $glvl;
             $squery .= '&group=true&group.field='.$glvl;
             my $result = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $squery, undef, 0, 1000000, $fields);
-            foreach my $group (@{$result->{$min_lvl}{groups}}) {
+            foreach my $group (@{$result->{$glvl}{groups}}) {
                 push @$hierarchy, $group->{doclist}{docs}[0];
             }
         } else {
@@ -612,7 +612,7 @@ sub append_matrix {
         # do grouping
         my $annotations;
         if ($group_map) {
-            %unique = map { $group_map->{$_}, 1 } grep { exists($group_map->{$_}) } @{$set->{$field}};
+            my %unique = map { $group_map->{$_}, 1 } grep { exists($group_map->{$_}) } @{$set->{$field}};
             $annotations = [ keys %unique ];
         } else {
             $annotations = $set->{$field};
@@ -638,7 +638,8 @@ sub append_matrix {
             }
             # loop through jobs that have md5 - add value
             # curr is int if abundance, tuple otherwise
-            foreach my $job (@{$md5_set->{$set->{id}}}) {
+            foreach my $set (@{$md5_set->{$set->{id}}}) {
+                my ($job, $val) = @$set;
                 my $curr = $mdata->[$rindex][$col_idx->{$job}];
                 $mdata->[$rindex][$col_idx->{$job}] = $self->add_value($curr, $val, $type);
             }
