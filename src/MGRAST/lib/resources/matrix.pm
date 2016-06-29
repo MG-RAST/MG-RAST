@@ -7,7 +7,7 @@ use POSIX qw(strftime);
 
 use Conf;
 use MGRAST::Metadata;
-use MGRAST::Analysis;
+use MGRAST::Abundance;
 use Data::Dumper;
 use URI::Escape;
 use List::Util qw(max min sum first);
@@ -49,18 +49,9 @@ sub new {
         "data"                 => [ 'list', ['list', ['float', 'the matrix values']] ]
     };
     $self->{sources} = {
-        organism => [ $self->source->{m5nr}, $self->source->{m5rna} ],
+        organism => [ @{$self->source->{protein}}, @{$self->source->{rna}} ],
         ontology => $self->source->{ontology}
     };
-    $self->{ver_default} = 1;
-    $self->{version} = {
-        '1' => '20100309',
-        '7' => '20120401',
-        '9' => '20130801',
-        '10' => '20131215'
-    };
-    map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{protein}};
-    map { push @{$self->{sources}{organism}}, $_ } @{$self->source->{rna}};
     return $self;
 }
 
@@ -68,107 +59,90 @@ sub new {
 # this method must return a description of the resource
 sub info {
     my ($self) = @_;
-    my $content = { 'name' => $self->name,
-                            'url' => $self->cgi->url."/".$self->name,
-                            'description' => "A profile in biom format that contains abundance counts",
-                            'type' => 'object',
-                            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
-                            'requests' => [ { 'name'        => "info",
-                                                      'request'     => $self->cgi->url."/".$self->name,
-                                                      'description' => "Returns description of parameters and attributes.",
-                                                      'method'      => "GET" ,
-                                                      'type'        => "synchronous" ,  
-                                                      'attributes'  => "self",
-                                                      'parameters'  => { 'options'  => {},
-                                                                                 'required' => {},
-                                                                                 'body'     => {} }
-                                                            },
-                                                            { 'name'        => "organism",
-                                                      'request'     => $self->cgi->url."/".$self->name."/organism",
-                                                      'description' => "Returns a BIOM object.",
-                                                      'example'     => [ $self->cgi->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&id=mgm4447103.3&group_level=family&source=RefSeq&result_type=abundance&evalue=15",
-                                    				                     'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evalue < e-15' ],
-                                                      'method'      => "GET" ,
-                                                      'type'        => "synchronous or asynchronous" ,  
-                                                      'attributes'  => $self->attributes,
-                                                      'parameters'  => { 'options'  => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                                                                                         'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                                                                                         'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                                                                                         'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
-                                                                                                                   ['evalue', 'average e-value exponent of hits in annotation'],
-                                                                                                                   ['identity', 'average percent identity of hits in annotation'],
-                                                                                                                   ['length', 'average alignment length of hits in annotation']] ],
-                                                                                         'hit_type' => [ 'cv', [['all', 'returns results based on all organisms that map to top hit per read-feature'],
-                                                                                                                ['single', 'returns results based on a single organism for top hit per read-feature'],
-                                                                                                                ['lca', 'returns results based on the Least Common Ancestor for all organisms (M5NR+M5RNA only) that map to hits from a read-feature']] ],
-                                                                                         'taxid' => [ 'boolean', "if true, return annotation ID as NCBI tax id. Only for group_levels with a tax_id" ],
-                                                                                         'source' => [ 'cv', $self->{sources}{organism} ],
-                                                                                         'group_level' => [ 'cv', $self->hierarchy->{organism} ],
-                                                                                         'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
-                                                                                         'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
-                                                                                         'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
-                                                                                         'filter_source' => [ 'cv', $self->{sources}{ontology} ],
-                                                                                         'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
-                                                                                         'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
-                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
-                                                                                         'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
-                                                                         'required' => {},
-                                                                         'body'     => {} }
-                                                            },
-                                                            { 'name'        => "function",
-                                                      'request'     => $self->cgi->url."/".$self->name."/function",
-                                                      'description' => "Returns a BIOM object.",
-                                                      'example'     => [ $self->cgi->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&id=mgm4447103.3&group_level=level3&source=Subsystems&result_type=abundance&identity=80&filter_level=phylum&filter=Firmicutes",
-                                      				                     'retrieve abundance matrix of Subsystem annotations at level3 for listed metagenomes at % identity > 80, filtered to return annotations only in phylum Firmicutes' ],
-                                                      'method'      => "GET" ,
-                                                      'type'        => "synchronous or asynchronous" ,  
-                                                      'attributes'  => $self->attributes,
-                                                      'parameters'  => { 'options'  => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                                                                                         'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                                                                                         'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                                                                                         'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
-                                                                                                                   ['evalue', 'average e-value exponent of hits in annotation'],
-                                                                                                                   ['identity', 'average percent identity of hits in annotation'],
-                                                                                                                   ['length', 'average alignment length of hits in annotation']] ],
-                                                                                         'source' => [ 'cv', $self->{sources}{ontology} ],
-                                                                                         'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
-                                                                                         'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
-                                                                                         'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-                                                                                         'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
-                                                                                         'filter_source' => [ 'cv', $self->{sources}{organism} ],
-                                                                                         'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
-                                                                                         'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
-                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
-                                                                                         'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
-                                                                         'required' => {},
-                                                                         'body'     => {} }
-                                                            },
-                                                    { 'name'        => "feature",
-                                                      'request'     => $self->cgi->url."/".$self->name."/feature",
-                                                      'description' => "Returns a BIOM object.",
-                                                      'example'     => [ $self->cgi->url."/".$self->name."/feature?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&id=mgm4447103.3&source=KEGG&result_type=evalue&length=25",
-                                      				                     'retrieve e-value matrix of KEGG protein annotations for listed metagenomes at alignment length > 25' ],
-                                                      'method'      => "GET" ,
-                                                      'type'        => "synchronous or asynchronous" ,  
-                                                      'attributes'  => $self->attributes,
-                                                      'parameters'  => { 'options'  => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                                                                                         'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                                                                                         'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                                                                                         'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
-                                                                                                                   ['evalue', 'average e-value exponent of hits in annotation'],
-                                                                                                                   ['identity', 'average percent identity of hits in annotation'],
-                                                                                                                   ['length', 'average alignment length of hits in annotation']] ],
-                                                                                         'source' => [ 'cv', [ @{$self->{sources}{organism}}[2..13] ] ],
-                                                                                         'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-                                                                                         'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
-                                                                                         'id' => [ "string", "one or more metagenome or project unique identifier" ],
-                                                                                         'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
-                                                                                         'hide_annotation' => [ 'boolean', "if true do not return feature metadata in 'rows' object, default is false" ],
-                                                                                         'version' => [ 'int', 'M5NR version, default '.$self->{ver_default} ],
-                                                                                         'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
-                                                                         'required' => {},
-                                                                         'body'     => {} } }
-                                                  ] };
+    my $content = {
+        'name' => $self->name,
+        'url' => $self->cgi->url."/".$self->name,
+        'description' => "A profile in biom format that contains abundance counts",
+        'type' => 'object',
+        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'requests' => [
+            { 'name'        => "info",
+              'request'     => $self->cgi->url."/".$self->name,
+              'description' => "Returns description of parameters and attributes.",
+              'method'      => "GET" ,
+              'type'        => "synchronous" ,  
+              'attributes'  => "self",
+              'parameters'  => {
+                  'options'  => {},
+                  'required' => {},
+                  'body'     => {} }
+            },
+            { 'name'        => "organism",
+              'request'     => $self->cgi->url."/".$self->name."/organism",
+              'description' => "Returns a BIOM object.",
+              'example'     => [ $self->cgi->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=family&source=RefSeq&evalue=15",
+                                 'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evalue < e-15' ],
+              'method'      => "GET" ,
+              'type'        => "synchronous or asynchronous" ,  
+              'attributes'  => $self->{attributes},
+              'parameters'  => {
+                  'options'  => {
+                      'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                      'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                      'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                      'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+                                                ['evalue', 'average e-value exponent of hits in annotation'],
+                                                ['identity', 'average percent identity of hits in annotation'],
+                                                ['length', 'average alignment length of hits in annotation']] ],
+                      'hit_type' => [ 'cv', [['all', 'returns results based on all organisms that map to top hit per read-feature'],
+                                             ['single', 'returns results based on a single organism for top hit per read-feature'],
+                                             ['lca', 'returns results based on the Least Common Ancestor for all organisms for hits from a read-feature']] ],
+                      'taxid' => [ 'boolean', "if true, return annotation ID as NCBI tax id. Only for group_levels with a tax_id" ],
+                      'source' => [ 'cv', $self->{sources}{organism} ],
+                      'group_level' => [ 'cv', $self->hierarchy->{organism} ],
+                      'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
+                      'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
+                      'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
+                      'filter_source' => [ 'cv', $self->{sources}{ontology} ],
+                      'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
+                      'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                      'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
+                      'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
+                  'required' => {},
+                  'body'     => {} }
+            },
+            { 'name'        => "function",
+              'request'     => $self->cgi->url."/".$self->name."/function",
+              'description' => "Returns a BIOM object.",
+              'example'     => [ $self->cgi->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=level3&source=Subsystems&identity=80",
+                                 'retrieve abundance matrix of Subsystem annotations at level3 for listed metagenomes at % identity > 80' ],
+              'method'      => "GET" ,
+              'type'        => "synchronous or asynchronous" ,  
+              'attributes'  => $self->{attributes},
+              'parameters'  => {
+                  'options'  => {
+                      'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                      'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                      'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                      'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+                                                ['evalue', 'average e-value exponent of hits in annotation'],
+                                                ['identity', 'average percent identity of hits in annotation'],
+                                                ['length', 'average alignment length of hits in annotation']] ],
+                      'source' => [ 'cv', $self->{sources}{ontology} ],
+                      'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
+                      'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
+                      'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
+                      'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
+                      'filter_source' => [ 'cv', $self->{sources}{organism} ],
+                      'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
+                      'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+                      'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
+                      'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
+                  'required' => {},
+                  'body'     => {} }
+            }
+        ]
+    };
     $self->return_data($content);
 }
 
@@ -178,7 +152,7 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif (($self->rest->[0] eq 'organism') || ($self->rest->[0] eq 'function') || ($self->rest->[0] eq 'feature')) {
+    } elsif (($self->rest->[0] eq 'organism') || ($self->rest->[0] eq 'function')) {
         $self->instance($self->rest->[0]);
     } else {
         $self->info();
@@ -255,7 +229,9 @@ sub instance {
         # already cashed in shock - say submitted in case its running
         my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
         if ($nodes && (@$nodes > 0)) {
-            $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+            # sort results by newest to oldest
+            my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
+            $self->return_data({"status" => "submitted", "id" => $sorted->[0]->{id}, "url" => $self->cgi->url."/status/".$sorted->[0]->{id}});
         }
         # need to create new node and fork
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
@@ -299,7 +275,7 @@ sub prepare_data {
     my $cgi = $self->cgi;
     my $taxid  = $cgi->param('taxid') ? 1 : 0;
     my $grep   = $cgi->param('grep') || undef;
-    my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'M5NR' : (($type eq 'function') ? 'Subsystems': 'RefSeq'));
+    my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'RefSeq' : 'Subsystems');
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
     my $htype  = $cgi->param('hit_type') ? $cgi->param('hit_type') : 'all';
     my $glvl   = $cgi->param('group_level') ? $cgi->param('group_level') : (($type eq 'organism') ? 'strain' : 'function');
@@ -307,19 +283,17 @@ sub prepare_data {
     my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
     my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     my $flvl   = $cgi->param('filter_level') ? $cgi->param('filter_level') : (($type eq 'organism') ? 'function' : 'strain');
-    my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'M5NR');
-    my @filter = $cgi->param('filter') ? $cgi->param('filter') : ();
+    my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'RefSeq');
+    my $filter = $cgi->param('filter') ? $cgi->param('filter') : "";
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $hide_an = $cgi->param('hide_annotation') ? 1 : 0;
-    my $version = $cgi->param('version') || $self->{ver_default};
+    my $version = $cgi->param('version') || $self->{m5nr_default};
     my $leaf_node = 0;
     my $prot_func = 0;
     my $leaf_filter = 0;
     my $group_level = $glvl;
     my $filter_level = $flvl;
-    if ($type eq 'feature') {
-        $fsrc = $source;
-    }    
+   
     my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen, $taxid));
     my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.'&source='.$source.
                      '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen.'&taxid='.$taxid;
@@ -341,15 +315,15 @@ sub prepare_data {
     }
 
     # initialize analysis obj with mgids
-    unless (exists $self->{version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    unless (exists $self->{m5nr_version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
     }
     my $master = $self->connect_to_datasource();
-    my $mgdb   = MGRAST::Analysis->new($master->db_handle, undef, $version);
+    my $chdl   = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
+    my $mgdb   = MGRAST::Abundance->new($chdl, $version);
     unless (ref($mgdb)) {
         return ({"ERROR" => "could not connect to analysis database"}, 500);
     }
-    $mgdb->set_jobs($data);
 
     # validate cutoffs
     if (int($eval) < 1) {
@@ -369,36 +343,33 @@ sub prepare_data {
                        identity  => {function => 9, organism => {all => 16, single => 14, lca => 14}, feature => 7}
                      };
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
-    my $type_set   = ["function", "organism", "feature"];
     my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
     my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
     my %org_srcs   = map { $_->[0], 1 } @{$self->{sources}{organism}};
-    map { $org_srcs{$_->[0]} = 1 } @{$mgdb->sources_for_type('rna')};
+    my @tax_hier   = map { $_->[0] } @{$self->hierarchy->{organism}};
+    my @ont_hier   = map { $_->[0] } @{$self->hierarchy->{ontology}};
                              
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
         return ({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
     }
     if ($type eq 'organism') {
-        if ( any {$_->[0] eq $glvl} @{$self->hierarchy->{organism}} ) {
-            $glvl = 'tax_'.$glvl;
-            if ($glvl eq 'tax_strain') {
-                $glvl = 'name';
+        if ( any {$_ eq $glvl} @tax_hier ) {
+            if ($glvl eq 'strain') {
                 $leaf_node = 1;
             }
         } else {
-            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
+            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @tax_hier)."]"}, 404);
         }
-        if ( any {$_->[0] eq $flvl} @{$self->hierarchy->{ontology}} ) {
+        if ( any {$_ eq $flvl} @ont_hier ) {
             if ($flvl eq 'function') {
                 $flvl = ($fsrc =~ /^[NC]OG$/) ? 'level3' : 'level4';
-                $leaf_filter = 1;
             }
-            if ( ($fsrc =~ /^[NC]OG$/) && ($fsrc eq 'level3') ) {
+            if (($flvl eq 'level4') || (($fsrc =~ /^[NC]OG$/) && ($flvl eq 'level3'))) {
                 $leaf_filter = 1;
             }
         } else {
-            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @ont_hier)."]"}, 404);
         }
         unless (exists $org_srcs{$source}) {
             return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
@@ -412,47 +383,28 @@ sub prepare_data {
             $glvl = 'function';
             $leaf_node = 1;
             $prot_func = 1;
-        }
-        elsif ( any {$_->[0] eq $glvl} @{$self->hierarchy->{ontology}} ) {
+        } elsif ( any {$_ eq $glvl} @ont_hier ) {
             if ($glvl eq 'function') {
                 $glvl = ($source =~ /^[NC]OG$/) ? 'level3' : 'level4';
-                $leaf_node = 1;
             }
-            if ( ($source =~ /^[NC]OG$/) && ($glvl eq 'level3') ) {
+            if (($glvl eq 'level4') || (($source =~ /^[NC]OG$/) && ($glvl eq 'level3'))) {
                 $leaf_node = 1;
             }
         } else {
-            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{ontology}})."]"}, 404);
+            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @ont_hier)."]"}, 404);
         }
-        if ( any {$_->[0] eq $flvl} @{$self->hierarchy->{organism}} ) {
-            $flvl = 'tax_'.$flvl;
-            if ($flvl eq 'tax_strain') {
-                $flvl = 'name';
+        if ( any {$_ eq $flvl} @tax_hier ) {
+            if ($flvl eq 'strain') {
                 $leaf_filter = 1;
             }
         } else {
-            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @tax_hier)."]"}, 404);
         }
         unless (exists($func_srcs{$source}) || exists($prot_srcs{$source})) {
             return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
         }
         unless (exists $org_srcs{$fsrc}) {
             return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
-        }
-    } elsif ($type eq 'feature') {
-        delete $org_srcs{M5NR};
-        delete $org_srcs{M5RNA};
-        if ( any {$_->[0] eq $flvl} @{$self->hierarchy->{organism}} ) {
-            $flvl = 'tax_'.$flvl;
-            if ($flvl eq 'tax_strain') {
-                $flvl = 'name';
-                $leaf_filter = 1;
-            }
-        } else {
-            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
-        }
-        unless (exists $org_srcs{$source}) {
-            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
         }
     } else {
         return ({"ERROR" => "invalid resource type was entered ($type)."}, 404);
@@ -461,7 +413,8 @@ sub prepare_data {
     # validate metagenome type combinations
     # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
     my $num_amp = 0;
-    map { $num_amp += 1 } grep { $mgdb->_type_map->{$_} && ($mgdb->_type_map->{$_} eq 'Amplicon') } @$data;
+    my $type_map = $master->Job->get_sequence_types($data);
+    map { $num_amp += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
     if ($num_amp) {
         if ($num_amp != scalar(@$data)) {
             return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, 400);
@@ -469,249 +422,261 @@ sub prepare_data {
         if ($type eq 'function') {
             return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, 400);
         }
-        if (any {$_->[0] eq $source} @{$mgdb->sources_for_type('protein')}) {
+        if (exists $prot_srcs{$source}) {
             return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, 400);
         }
         if (@filter > 0) {
             return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, 400);
         }
     }
-
-    # get data
-    my $md52ann = {};
-    my $ttype   = '';
-    my $mtype   = '';
-    my $matrix  = []; # [ row <annotation>, col <mgid>, value ]
-    my $col_idx = $result_idx->{$rtype}{$type};
-    my $umd5s   = [];
-
-    if ($type eq 'organism') {
-        my @levels = map {$_->[0]} reverse @{$self->hierarchy->{organism}};
-        my $seen = {};
-        $ttype = 'Taxon';
-        $mtype = 'taxonomy';
-        $col_idx = $result_idx->{$rtype}{$type}{$htype};
-        if (@filter > 0) {
-            $umd5s = $mgdb->get_md5s_for_ontol_level($fsrc, $flvl, \@filter);
-        }
-        unless ((@filter > 0) && (@$umd5s == 0)) {
-            if ($htype eq 'all') {
-                if ($leaf_node) {
-                    # my ($self, $md5s, $sources, $eval, $ident, $alen, $with_taxid) = @_;
-                    my (undef, $info) = $mgdb->get_organisms_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen), 1);
-                    # mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
-                    @$matrix = map {[ $_->[9], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
-                    map { $self->{org2tax}->{$_->[9]} = [ @$_[2..9] ] } @$info;
-                    map { $self->{org2tid}->{$_->[9]} = $_->[19] } @$info;
-                } else {
-                    # my ($self, $level, $names, $srcs, $value, $md5s, $eval, $ident, $alen) = @_;
-                    @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_tax_level($glvl, undef, [$source], $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
-                    # mgid, hier_annotation, value
-                }
-            } elsif ($htype eq 'single') {
-                # my ($self, $source, $eval, $ident, $alen) = @_;
-                my $info = $mgdb->get_organisms_unique_for_source($source, int($eval), int($ident), int($alen), 1);
-                # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s, taxid
-                if ($leaf_node) {
-                    @$matrix = map {[ $_->[8], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
-                    map { $self->{org2tax}->{$_->[8]} = [ @$_[1..8] ] } @$info;
-                    map { $self->{org2tid}->{$_->[8]} = $_->[17] } @$info;
-                } else {
-                    my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
-                    $lvl_idx += 1;
-                    my $merged = {};
-                    foreach my $set (@$info) {
-                        next if ($set->[$lvl_idx] =~ /^\-/);
-                        if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
-                            $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
-                        } else {
-                            $merged->{$set->[0]}{$set->[$lvl_idx]}[0] += $self->toNum($set->[$col_idx], $rtype);
-                            $merged->{$set->[0]}{$set->[$lvl_idx]}[1] += 1;
-                        }
-                    }
-                    foreach my $m (keys %$merged) {
-                        foreach my $a (keys %{$merged->{$m}}) {
-                            my $val = ($rtype eq 'abundance') ? $merged->{$m}{$a}[0] : $merged->{$m}{$a}[0] / $merged->{$m}{$a}[1];
-                            push @$matrix, [ $a, $m, $val ];
-                        }
-                    }
-                }
-            } elsif ($htype eq 'lca') {
-                # my ($self, $eval, $ident, $alen) = @_;
-                my $info = $mgdb->get_lca_data(int($eval), int($ident), int($alen));
-                # mgid, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
-                my $lvl_idx = first { $levels[$_] eq $group_level } 0..$#levels;
-                $lvl_idx += 1;
-                my $merged = {};
-                foreach my $set (@$info) {
-                    if (! exists($merged->{$set->[0]}{$set->[$lvl_idx]})) {
-                        $merged->{$set->[0]}{$set->[$lvl_idx]} = [ $self->toNum($set->[$col_idx], $rtype), 1 ];
-                    } else {
-                        $merged->{$set->[0]}{$set->[$lvl_idx]}[0] += $self->toNum($set->[$col_idx], $rtype);
-                        $merged->{$set->[0]}{$set->[$lvl_idx]}[1] += 1;
-                    }
-                }
-                foreach my $m (keys %$merged) {
-                    foreach my $a (keys %{$merged->{$m}}) {
-                        my $val = ($rtype eq 'abundance') ? $merged->{$m}{$a}[0] : $merged->{$m}{$a}[0] / $merged->{$m}{$a}[1];
-                        push @$matrix, [ $a, $m, $val ];
-                    }
-                }
-            } else {
-                return ({"ERROR" => "invalid hit_type for matrix call: ".$htype." - valid types are ['all', 'single', 'lca']"}, 404);
-            }
-        }
-    } elsif ($type eq 'function') {
-        $ttype = 'Function';
-        $mtype = $prot_func ? '' : 'ontology';
-        if (@filter > 0) {
-            if ($leaf_filter) {
-                $umd5s = $mgdb->get_md5s_for_organism(\@filter, $fsrc);
-            } else {
-                $umd5s = $mgdb->get_md5s_for_tax_level($flvl, \@filter, $fsrc);
-            }
-        }
-        unless ((@filter > 0) && (@$umd5s == 0)) {
-            if ($prot_func) {
-                # my ($self, $md5s, $sources, $eval, $ident, $alen) = @_;
-                my $info = $mgdb->get_functions_for_md5s($umd5s, [$source], int($eval), int($ident), int($alen));
-                # mgid, source, function, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-                @$matrix = map {[ $_->[2], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
-            }
-            elsif ($leaf_node) {
-                # my ($self, $md5s, $source, $eval, $ident, $alen) = @_;
-                my (undef, $info) = $mgdb->get_ontology_for_md5s($umd5s, $source, int($eval), int($ident), int($alen));
-                # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-                @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} @$info;
-            } else {
-                # my ($self, $level, $names, $src, $value, $md5s, $eval, $ident, $alen) = @_;
-                @$matrix = map {[ $_->[1], $_->[0], $self->toNum($_->[2], $rtype) ]} @{$mgdb->get_abundance_for_ontol_level($glvl, undef, $source, $result_map->{$rtype}, $umd5s, int($eval), int($ident), int($alen))};
-                # mgid, hier_annotation, value
-            }
-        }
-    } elsif ($type eq 'feature') {
-        $ttype = 'Gene';
-        $mtype = $source.' ID';
-        if (@filter > 0) {
-            if ($leaf_filter) {
-                $umd5s = $mgdb->get_md5s_for_organism(\@filter, $source);
-            } else {
-                $umd5s = $mgdb->get_md5s_for_tax_level($flvl, \@filter, $source);
-            }
-        }
-        unless ((@filter > 0) && (@$umd5s == 0)) {
-            # in: my ($self, $md5s, $eval, $ident, $alen, $ignore_sk, $rep_org_src) = @_;
-            # out: mgid, md5_id, abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv
-            my $info = $mgdb->get_md5_data($umd5s, int($eval), int($ident), int($alen), 1);
-            my %md5s = map { $_->[1], 1 } @$info;
-            my $id2md5 = {}; # md5_id => md5
-            if ($hide_an) {
-                # just get md5 map
-                $id2md5 = $mgdb->decode_annotation('md5', [keys %md5s]);
-            } else {
-                # get full annotation
-                # out: md5_id, id, md5, function, organism, source
-                foreach my $a ( @{ $mgdb->annotation_for_md5s([keys %md5s], [$source]) } ) {
-                    $id2md5->{$a->[0]} = $a->[2];
-                    my $mdata = { accession => $a->[1], function => $a->[3] };
-                    if ($a->[4]) { $mdata->{organism} = $a->[4]; }
-                    push @{ $md52ann->{$a->[2]} }, $mdata;
-                }
-            }
-            @$matrix = map {[ $id2md5->{$_->[1]}, $_->[0], $self->toNum($_->[$col_idx], $rtype) ]} grep {exists $id2md5->{$_->[1]}} @$info;
-        }
-    }
-
-    if ($grep && ($type ne 'feature')) {
-        @$matrix = sort { $a->[0] cmp $b->[0] } grep { $_->[0] =~ /$grep/i } @$matrix; # sort filtered annotations
-    } else {
-        @$matrix = sort { $a->[0] cmp $b->[0] } @$matrix; # sort annotations
-    }
-    if (scalar(@$matrix) == 0) {
-        return ( {"ERROR" => "no data found for the given combination of ids and paramaters"}, 400 );
-    }
-        
-    my $col_ids = {};
-    my $row_ids = $self->sorted_hash($matrix, 0);
-    # use full list of ids, not just those found
-    foreach my $pos (0..(scalar(@$data)-1)) {
-        $col_ids->{$data->[$pos]} = $pos;
-    }
-
-    # produce output
-    my $brows = [];
-    my $bcols = [];
-    my $r_map = ($type eq 'feature') ? $md52ann : ($prot_func ? {} : $self->get_hierarchy($mgdb, $type, $glvl, $source, $leaf_node));
-    foreach my $rid (sort {$row_ids->{$a} <=> $row_ids->{$b}} keys %$row_ids) {
-        my $rmd = exists($r_map->{$rid}) ? (($type eq 'feature') ? $r_map->{$rid} : { $mtype => $r_map->{$rid} }) : {};
-        if ($leaf_node && $taxid && ($type eq 'organism') && exists($self->{org2tid}{$rid})) {
-            push @$brows, { id => $self->{org2tid}{$rid}, metadata => $rmd };
-        } elsif ($prot_func) {
-            push @$brows, { id => $rid, metadata => {} };
-        } else {
-            push @$brows, { id => $rid, metadata => $rmd };
-        }
-    }
+    
+    # set matrix
+    @$data = sort @$data;
     my $mddb = MGRAST::Metadata->new();
     my $meta = $hide_md ? {} : $mddb->get_jobs_metadata_fast($data, 1);
-    my $name = $mgdb->_name_map();
-    foreach my $cid (sort {$col_ids->{$a} <=> $col_ids->{$b}} keys %$col_ids) {
-        my $cmd = exists($meta->{$cid}) ? $meta->{$cid} : undef;
-        my $cnm = exists($name->{$cid}) ? $name->{$cid} : undef;
-        push @$bcols, { id => 'mgm'.$cid, name => $cnm, metadata => $cmd };
+    my $columns = [ map { {id => $_, metadata => exists($meta->{$_}) ? $meta->{$_} : undef} } @$data ];
+    my $matrix  = {
+        id                   => $matrix_id,
+        url                  => $matrix_url,
+        format               => "Biological Observation Matrix 1.0",
+        format_url           => "http://biom-format.org",
+        type                 => ($type eq 'organism') : "Taxon table" : "Function table",
+        generated_by         => "MG-RAST".($Conf::server_version ? " revision ".$Conf::server_version : ""),
+        date                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+        matrix_type          => "dense",
+        matrix_element_type  => ($rtype eq 'abundance') ? "int" : "float",
+        matrix_element_value => $rtype,
+        shape                => [ 0, scalar(@$columns) ],
+        rows                 => [];
+        columns              => $columns,
+        data                 => []
+    };
+    
+    # reset type
+    if ($prot_func && ($type eq "function")) {
+        $type = "ontology";
     }
     
-    my $obj = { "id"                   => $matrix_id,
-                "url"                  => $matrix_url,
-                "format"               => "Biological Observation Matrix 1.0",
-                "format_url"           => "http://biom-format.org",
-                "type"                 => $ttype." table",
-                "generated_by"         => "MG-RAST".($Conf::server_version ? " revision ".$Conf::server_version : ""),
-                "date"                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-                "matrix_type"          => "sparse",
-                "matrix_element_type"  => ($rtype eq 'abundance') ? "int" : "float",
-                "matrix_element_value" => $rtype,
-                "shape"                => [ scalar(keys %$row_ids), scalar(keys %$col_ids) ],
-                "rows"                 => $brows,
-                "columns"              => $bcols,
-                "data"                 => $self->index_sparse_matrix($matrix, $row_ids, $col_ids)
-              };
+    # get grouping map: leaf_name => group_name
+    my $group_map = undef;
+    if (! $leaf_node) {
+        if ($type eq "organism") {
+            $group_map = $chdl->get_org_taxa_map($glvl);
+        } elsif ($type eq "ontology") {
+            $group_map = $chdl->get_ontology_map($source, $glvl);
+        }
+    }
+    
+    # get filter list: all leaf names that match filter for given filter_level (organism, ontology only)
+    my $filter_list = undef;
+    if ($filter && (! $leaf_filter)) {
+        if ($type eq "organism") {
+            $filter_list = { map { $_, 1 } @{$chdl->get_organism_by_taxa($flvl, $filter)} };
+        } elsif ($type eq "ontology") {
+            $filter_list = { map { $_, 1 } @{$chdl->get_ontology_by_level($fsrc, $flvl, $filter)} };
+        }
+    }
+    
+    # build / start query
+    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= ".($eval * -1) : "";
+    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
+    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
+    
+    my $id_map = $master->Job->get_job_ids($data);
+    my $query = "SELECT job, md5, ".$result_map->{$rtype}." FROM job_md5s";
+    $query .= $mgdb->get_where_str([
+        'version = '.$mgdb->version,
+        'job IN ('.join(',', values %$id_map).')',
+        $eval,
+        $ident,
+        $alen
+    ]);
+    $query .= " ORDER BY md5";
+    my $sth = $mgdb->execute_query($query);
+    
+    # loop through results and build matrix
+    my $mdata   = []; # 2D array
+    my $md5_set = {}; # md5 => [[job, value]]
+    my $col_idx = { map { $id_map->{$data->[$_]}, $_ } 0..$#$data }; # job_ids with column indexes
+    my $row_idx = {}; # row ids with row index
+    my $count   = 0;
+    while (my @row = $sth->fetchrow_array()) {
+        my ($job, $md5, $val) = @row;
+        if (exists $md5_set->{$md5}) {
+            push @{$md5_set->{$md5}}, [$job, $self->toNum($val, $rtype)];
+        } else {
+            $md5_set->{$md5} = [[$job, $self->toNum($val, $rtype)]];
+        }
+        $count++;
+        if ($count == $mgdb->chunk) {
+            $self->append_matrix($chdl, $type, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
+            $md5_set = {};
+            $count = 0;
+        }
+    }
+    if ($count > 0) {
+        $self->append_matrix($chdl, $type, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
+    }
+    
+    # cleanup
+    $mgdb->end_query($sth);
+    $mgdb->DESTROY();
+    
+    # transform [ count, sum, sos ] to single average
+    if ($type ne 'abundance') {
+        foreach my $row (@$mdata) {
+            for (my $i=0; $i<@$row, $i++) {
+                my ($num, $sum, $sos) = @{$row->[$i]};
+                my $mean = round($sum / $num);
+                my $std  = stddev($mean, $sos, $num);
+                $row->[$i] = $srd;
+            }
+        }
+    }
+    
+    # finalize matrix
+    $matrix->{rows} = [ map {{id => $_, metadata => undef}} sort {$col_idx->{$a} <=> $col_idx->{$b}} keys %$col_idx ];
+    $matrix->{data} = $mdata;
+    $matrix->{shape}[0] = scalar(@{$matrix->{rows}});
+
+    # column metadata / hierarchies
+    my ($mtype, $fields, $squery);
+    if ($type eq "organism") {
+        $mtype  = 'taxonomy';
+        $fields = [ @tax_hier, 'ncbi_tax_id', 'organism' ];
+        $squery = 'object%3Ataxonomy';
+        
+    } elsif ($type eq 'ontology') {
+        $mtype  = 'ontology';
+        $fields = [ @ont_hier, 'level4', 'accession' ];
+        $squery = 'object%3Aontology+AND+source%3A'.$source;
+    }
+    if ($squery) {
+        # get hierarchy from m5nr solr
+        my $hierarchy = [];
+        my $match = "";
+        if (! $leaf_node) {
+            $match = $glvl;
+            $squery .= '&group=true&group.field='.$glvl;
+            my $result = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $squery, undef, 0, 1000000, $fields);
+            foreach my $group (@{$result->{$min_lvl}{groups}}) {
+                push @$hierarchy, $group->{doclist}{docs}[0];
+            }
+        } else {
+            $match = ($type eq "organism") ? 'organism' : 'accession';
+            ($hierarchy, undef) = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $squery, undef, 0, 1000000, $fields);
+        }
+        foreach my $r (@{$matrix->{rows}}) {
+            foreach my $h (@$hierarchy) {
+                if ($r->{id} eq $h->{$match}) {
+                    $r->{metadata} = { $mtype => $h };
+                    last;
+                }
+            }
+        }
+    }
                         
-    return ($obj, undef);
+    return ($matrix, undef);
 }
 
-sub get_hierarchy {
-    my ($self, $mgdb, $type, $level, $src, $leaf_node) = @_;
-    if ($type eq 'organism') {
-        return ($leaf_node && (scalar(keys %{$self->{org2tax}}) > 0)) ? $self->{org2tax} : $mgdb->get_hierarchy('organism', undef, undef, undef, $level);
-    } elsif ($type eq 'function') {
-        return $leaf_node ? $mgdb->get_hierarchy('ontology', $src) : $mgdb->get_hierarchy('ontology', $src, undef, undef, $level);
+sub append_matrix {
+    my ($self, $chdl, $type, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list, $filter_src) = @_;
+    
+    my @md5s = keys %$md5_set;
+    my $next = scalar(keys %$row_idx); # incraments
+    my $jnum = scalar(keys %$col_idx); # static
+    
+    # get filter md5s
+    my %filter_md5s = {};
+    if ($filter_list && $filter_src) {
+        my $field = ($type eq 'organism') ? 'accession' : 'organism';
+        my @filter_md5s = ();
+        my $filter_data = $chdl->get_records_by_id(\@md5s, $filter_src);
+        foreach my $set (@$filter_data) {
+            foreach my $a (@{$set->{$field}}) {
+                if (exists $filter_list->{$a}) {
+                    push @filter_md5s, $set->{id};
+                }
+            }
+        }
+        @md5s = @filter_md5s;
+    }
+    
+    my $field = $type;
+    if ($type eq 'ontology') {
+        $field = 'accession';
+    }
+    my $cass_data = $chdl->get_records_by_id(\@md5s, $source);
+    
+    foreach my $set (@$cass_data) {
+        # do grouping
+        my $annotations;
+        if ($group_map) {
+            %unique = map { $group_map->{$_}, 1 } grep { exists($group_map->{$_}) } @{$set->{$field}};
+            $annotations = [ keys %unique ];
+        } else {
+            $annotations = $set->{$field};
+        }
+        # loop through annotations for row index
+        foreach my $a ($annotations) {
+            my $rindex; 
+            if (exists $row_idx->{$a}) {
+                $rindex = $row_idx->{$a};
+            } else {
+                $rindex = $next;
+                $row_idx->{$a} = $rindex;
+                $mdata->[$rindex] = [];
+                if ($type eq 'abundance') {
+                    # populate with zero's
+                    map { push @{$mdata->[$rindex]}, 0 } (1..$jnum);
+                } else {
+                    # populate with tuple of zero's
+                    $mdata->[$rindex] = [];
+                    map { push @{$mdata->[$rindex]}, [0, 0, 0] } (1..$jnum);
+                }
+                $next++;
+            }
+            # loop through jobs that have md5 - add value
+            # curr is int if abundance, tuple otherwise
+            foreach my $job (@{$md5_set->{$set->{id}}}) {
+                my $curr = $mdata->[$rindex][$col_idx->{$job}];
+                $mdata->[$rindex][$col_idx->{$job}] = $self->add_value($curr, $val, $type);
+            }
+        }
+    }
+}
+
+# sum if abundance, [ count, sum, sos ] if other
+sub add_value {
+    my ($self, $curr, $val, $type) = @_;
+    if ($type eq 'abundance') {
+        # return sum
+        return $curr + $val;
     } else {
-        return {};
+        # return tuple of count, sum, sos
+        return [ $curr->[0] + 1, $curr->[1] + $val, $curr->[2] + ($val * $val) ];
     }
 }
 
-sub index_sparse_matrix {
-    my ($self, $matrix, $rows, $cols) = @_;
-    my $sparse = [];
-    foreach my $pos (@$matrix) {
-        my ($r, $c, $v) = @$pos;
-        push @$sparse, [ $rows->{$r}, $cols->{$c}, $v ];
+# Round to nearest thousandth
+sub round {
+    my $val = shift;
+    if ($val > 0) {
+        return ( int( $val * 1000 + 0.5 ) / 1000 );
+    } else {
+        return ( int( $val * 1000 - 0.5 ) / 1000 );
     }
-    return $sparse;
 }
 
-sub sorted_hash {
-    my ($self, $array, $idx) = @_;
-    my $pos = 0;
-    my $out = {};
-    my @sub = sort map { $_->[$idx] } @$array;
-    foreach my $x (@sub) {
-        next if (exists $out->{$x});
-        $out->{$x} = $pos;
-        $pos += 1;
+sub stddev {
+    my ($mean, $sos, $n) = @_;
+    my $tmp = ( $sos/$n ) - ( $mean*$mean );
+    # If there's a very small negative number here, it's probably just a result
+    #  of computational overflow and the stddev is actually zero.
+    if($tmp < 0) {
+        return 0;
     }
-    return $out;
+    return sqrt( $tmp );
 }
 
 1;

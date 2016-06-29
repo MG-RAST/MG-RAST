@@ -430,6 +430,36 @@ sub get_jobs_for_user_fast {
     return @out;
 }
 
+sub get_sequence_types {
+    my ($self, $mgids) = @_;
+    
+    my %data = map { $_, "Unknown" } @$mgids;
+    my $dbh  = $self->_master()->db_handle;
+    my $id_list = join(",", map { $db->quote($_) } @$mgids);
+    my $query   = "select metagenome_id, sequence_type from Job where metagenome_id in (".$id_list.")";
+    my $result  = $dbh->selectall_arrayref($query);
+    foreach my $r (@$result) {
+        if (exists $data{$r->[0]}) {
+            $data{$r->[0]} = $r->[1];
+        }
+    }
+    return \%data;
+}
+
+sub get_job_ids {
+    my ($self, $mgids) = @_;
+    
+    my $data = {};
+    my $dbh  = $self->_master()->db_handle;
+    my $id_list = join(",", map { $db->quote($_) } @$mgids);
+    my $query   = "select metagenome_id, job_id from Job where metagenome_id in (".$id_list.")";
+    my $result  = $dbh->selectall_arrayref($query);
+    if ($result && @$result) {
+        map { $data->{$_->[0]} = $_->[1] } @$result;
+    }
+    return $data;
+}
+
 sub get_public_jobs {
   my ($self, $id_only) = @_;
 

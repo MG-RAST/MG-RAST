@@ -1540,6 +1540,14 @@ class CassHandle(object):
         for r in rows:
             found[r['name']] = r[tname]
         return found
+    def get_ontology_map(self, source, level):
+        found = {}
+        level = level.lower()
+        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+        rows = self.session.execute(prep, [source])
+        for r in rows:
+            found[r['name']] = r[level]
+        return found
     def get_organism_by_taxa(self, taxa, match=None):
         # if match is given, return subset that contains match, else all
         found = set()
