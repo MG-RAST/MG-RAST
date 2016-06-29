@@ -619,10 +619,12 @@ sub append_matrix {
         }
         # loop through annotations for row index
         foreach my $a ($annotations) {
-            my $rindex; 
+            my $rindex;
             if (exists $row_idx->{$a}) {
+                # alrady saw this annotation
                 $rindex = $row_idx->{$a};
             } else {
+                # new annotation, add to rows
                 $rindex = $next;
                 $row_idx->{$a} = $rindex;
                 $mdata->[$rindex] = [];
@@ -638,8 +640,8 @@ sub append_matrix {
             }
             # loop through jobs that have md5 - add value
             # curr is int if abundance, tuple otherwise
-            foreach my $set (@{$md5_set->{$set->{id}}}) {
-                my ($job, $val) = @$set;
+            foreach my $info (@{$md5_set->{$set->{id}}}) {
+                my ($job, $val) = @$info;
                 my $curr = $mdata->[$rindex][$col_idx->{$job}];
                 $mdata->[$rindex][$col_idx->{$job}] = $self->add_value($curr, $val, $type);
             }
