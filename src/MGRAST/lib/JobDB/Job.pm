@@ -435,7 +435,7 @@ sub get_sequence_types {
     
     my %data = map { $_, "Unknown" } @$mgids;
     my $dbh  = $self->_master()->db_handle;
-    my $id_list = join(",", map { $db->quote($_) } @$mgids);
+    my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
     my $query   = "select metagenome_id, sequence_type from Job where metagenome_id in (".$id_list.")";
     my $result  = $dbh->selectall_arrayref($query);
     foreach my $r (@$result) {
@@ -451,7 +451,7 @@ sub get_job_ids {
     
     my $data = {};
     my $dbh  = $self->_master()->db_handle;
-    my $id_list = join(",", map { $db->quote($_) } @$mgids);
+    my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
     my $query   = "select metagenome_id, job_id from Job where metagenome_id in (".$id_list.")";
     my $result  = $dbh->selectall_arrayref($query);
     if ($result && @$result) {
