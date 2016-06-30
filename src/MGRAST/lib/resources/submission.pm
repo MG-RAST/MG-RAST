@@ -477,7 +477,12 @@ sub submit {
     }
     # make project
     if ((! $project_obj) && $project_name) {
-        $project_obj = $master->Project->create_project($self->user, $project_name);
+      my $p = $master->Project->get_objects({ name => $project_name });
+      if (scalar(@$p)) {
+	$self->return_data( {"ERROR" => "This project name is already taken. Please choose a different name."}, 400 );
+      } else {
+	$project_obj = $master->Project->create_project($self->user, $project_name);
+      }
     }
     # verify it worked
     unless ($project_obj) {
