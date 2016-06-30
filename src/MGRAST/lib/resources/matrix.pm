@@ -522,14 +522,13 @@ sub prepare_data {
     $mgdb->end_query($sth);
     $mgdb->DESTROY();
     
-    # transform [ count, sum, sos ] to single average
+    # transform [ count, sum ] to single average
     if ($type ne 'abundance') {
         foreach my $row (@$mdata) {
             for (my $i=0; $i<@$row; $i++) {
-                my ($num, $sum, $sos) = @{$row->[$i]};
+                my ($num, $sum) = @{$row->[$i]};
                 my $mean = round($sum / $num);
-                my $std  = stddev($mean, $sos, $num);
-                $row->[$i] = $std;
+                $row->[$i] = $mean;
             }
         }
     }
@@ -551,7 +550,7 @@ sub prepare_data {
         $fields = [ @ont_hier, 'level4', 'accession' ];
         $squery = 'object%3Aontology+AND+source%3A'.$source;
     }
-    if ($squery) {
+    if ($squery && (! $hide_md)) {
         # get hierarchy from m5nr solr
         my $hierarchy = [];
         my $match = "";
@@ -633,8 +632,7 @@ sub append_matrix {
                     map { push @{$mdata->[$rindex]}, 0 } (1..$jnum);
                 } else {
                     # populate with tuple of zero's
-                    $mdata->[$rindex] = [];
-                    map { push @{$mdata->[$rindex]}, [0, 0, 0] } (1..$jnum);
+                    map { push @{$mdata->[$rindex]}, [0, 0] } (1..$jnum);
                 }
                 $next++;
             }
@@ -649,15 +647,15 @@ sub append_matrix {
     }
 }
 
-# sum if abundance, [ count, sum, sos ] if other
+# sum if abundance, [ count, sum ] if other
 sub add_value {
     my ($self, $curr, $val, $type) = @_;
     if ($type eq 'abundance') {
         # return sum
         return $curr + $val;
     } else {
-        # return tuple of count, sum, sos
-        return [ $curr->[0] + 1, $curr->[1] + $val, $curr->[2] + ($val * $val) ];
+        # return tuple of count, sum
+        return [ $curr->[0] + 1, $curr->[1] + $val ];
     }
 }
 
@@ -669,17 +667,6 @@ sub round {
     } else {
         return ( int( $val * 1000 - 0.5 ) / 1000 );
     }
-}
-
-sub stddev {
-    my ($mean, $sos, $n) = @_;
-    my $tmp = ( $sos/$n ) - ( $mean*$mean );
-    # If there's a very small negative number here, it's probably just a result
-    #  of computational overflow and the stddev is actually zero.
-    if($tmp < 0) {
-        return 0;
-    }
-    return sqrt( $tmp );
 }
 
 1;
