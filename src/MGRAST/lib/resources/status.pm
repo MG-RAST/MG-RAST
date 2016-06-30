@@ -86,14 +86,15 @@ sub instance {
     my $obj = {
         id => $uuid,
         status => "processing",
-        url => $self->cgi->url."/".$self->name."/".$uuid
+        url => $self->cgi->url."/".$self->name."/".$uuid,
+        started => $node->{created_on}
     };
     
     if ($node->{file}{name} && $node->{file}{size}) {
-        $obj->{status}  = "done";
-        $obj->{size}    = $node->{file}{size};
-        $obj->{created} = $node->{file}{created_on};
-        $obj->{md5}     = $node->{file}{checksum}{md5};
+        $obj->{status} = "done";
+        $obj->{size}   = $node->{file}{size};
+        $obj->{md5}    = $node->{file}{checksum}{md5};
+        $obj->{completed} = $node->{file}{created_on};
         if ($verbosity eq "full") {
             my ($content, $err) = $self->get_shock_file($uuid, undef, $self->mgrast_token);
             if ($err) {
