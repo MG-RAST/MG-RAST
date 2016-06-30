@@ -378,6 +378,7 @@ sub prepare_data {
             return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
         }
     } elsif ($type eq 'function') {
+        $htype = 'all';
         if ( exists $prot_srcs{$source} ) {
             $group_level = 'function';
             $glvl = 'function';
@@ -461,7 +462,12 @@ sub prepare_data {
     my $group_map = undef;
     if (! $leaf_node) {
         if ($type eq "organism") {
-            $group_map = $chdl->get_org_taxa_map($glvl);
+            if ($htype ne 'lca') {
+                $group_map = $chdl->get_org_taxa_map($glvl);
+            } else {
+                my @levels = reverse @tax_hier;
+                $group_map = first { $levels[$_] eq $glvl } 0..$#levels;
+            }
         } elsif ($type eq "ontology") {
             $group_map = $chdl->get_ontology_map($source, $glvl);
         }
@@ -509,13 +515,13 @@ sub prepare_data {
         }
         $count++;
         if ($count == $mgdb->chunk) {
-            $self->append_matrix($chdl, $type, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
+            $self->append_matrix($chdl, $type, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
             $md5_set = {};
             $count = 0;
         }
     }
     if ($count > 0) {
-        $self->append_matrix($chdl, $type, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
+        $self->append_matrix($chdl, $type, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
     }
     
     # cleanup
@@ -579,7 +585,7 @@ sub prepare_data {
 }
 
 sub append_matrix {
-    my ($self, $chdl, $type, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list, $filter_src) = @_;
+    my ($self, $chdl, $type, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list, $filter_src) = @_;
     
     my @md5s = keys %$md5_set;
     my $next = scalar(keys %$row_idx); # incraments
@@ -601,21 +607,31 @@ sub append_matrix {
         @md5s = @filter_md5s;
     }
     
-    my $field = $type;
-    if ($type eq 'ontology') {
-        $field = 'accession';
-    }
     my $cass_data = $chdl->get_records_by_id(\@md5s, $source);
-    
     foreach my $set (@$cass_data) {
-        # do grouping
-        my $annotations;
-        if ($group_map) {
-            my %unique = map { $group_map->{$_}, 1 } grep { exists($group_map->{$_}) } @{$set->{$field}};
-            $annotations = [ keys %unique ];
-        } else {
-            $annotations = $set->{$field};
+        # get annotations based on type & hit_type
+        my $annotations = [];
+        if ($type eq 'function') {
+            $annotations = $set->{function};
+        } elsif ($type eq 'ontology') {
+            $annotations = $set->{accession};
+        } elsif ($type eq 'organism') {
+            if ($htype eq 'all') {
+                $annotations = $set->{organism};
+            } elsif ($htype eq 'single') {
+                $annotations = [ $set->{single} ];
+            } elsif ($htype eq 'lca') {
+                my $taxa = $set->{lca}[$group_map];
+                next if ($taxa =~ /^\-/);
+                $annotations = [ $taxa ];
+            }
         }
+        # grouping
+        if (defined($group_map) && ($htype ne 'lca')) {
+            my %unique = map { $group_map->{$_}, 1 } grep { exists($group_map->{$_}) } @$annotations;
+            $annotations = [ keys %unique ];
+        }
+        
         # loop through annotations for row index
         foreach my $a ($annotations) {
             my $rindex;
