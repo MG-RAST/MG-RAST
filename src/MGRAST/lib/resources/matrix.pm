@@ -533,8 +533,11 @@ sub prepare_data {
         foreach my $row (@$mdata) {
             for (my $i=0; $i<@$row; $i++) {
                 my ($num, $sum) = @{$row->[$i]};
-                my $mean = round($sum / $num);
-                $row->[$i] = $mean;
+                if ($num == 0) {
+                    $row->[$i] = 0;
+                } else {
+                    $row->[$i] = round($sum / $num);
+                }
             }
         }
     }
