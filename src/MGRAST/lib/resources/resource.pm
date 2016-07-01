@@ -105,7 +105,8 @@ sub new {
         url_id        => $url_id,
         rights        => {},
         attributes    => {},
-        m5nr_version  => {'1' => '20100309', '7' => '20120401', '9' => '20130801', '10' => '20131215'}
+        m5nr_version  => {'1' => '20100309', '7' => '20120401', '9' => '20130801', '10' => '20131215'},
+        m5nr_default  => 1
     };
     bless $self, $class;
     return $self;
@@ -246,7 +247,7 @@ sub valid_source {
     foreach my $t (@test) {
         if (exists $self->source->{$t}) {
             foreach my $s (@{$self->source->{$t}}) {
-                if ($s eq $src) {
+                if ($s->[0] eq $src) {
                     return 1;
                 }
             }
@@ -262,7 +263,7 @@ sub source_by_type {
     foreach my $t (@test) {
         if (exists $self->source->{$t}) {
             foreach my $s (@{$self->source->{$t}}) {
-                push @srcs, $s
+                push @srcs, $s->[0];
             }
         }
     }
@@ -1475,6 +1476,7 @@ sub cassandra_m5nr_handle {
 
     use Inline::Python qw(py_eval);
     my $python = q(
+from collections import defaultdict
 from cassandra.cluster import Cluster
 from cassandra.policies import RetryPolicy
 from cassandra.query import dict_factory
@@ -1509,6 +1511,42 @@ class CassHandle(object):
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
+        return found
+    def get_taxa_hierarchy(self):
+        found = {}
+        query = "SELECT * FROM organisms_ncbi"
+        rows = self.session.execute(query)
+        for r in rows:
+            found[r['name']] = [r['tax_domain'], r['tax_phylum'], r['tax_class'], r['tax_order'], r['tax_family'], r['tax_genus'], r['tax_species']]
+        return found
+    def get_ontology_hierarchy(self, source=None):
+        found = defaultdict(dict)
+        if source is None:
+            rows = self.session.execute("SELECT * FROM ont_level1")
+        else:
+            prep = self.session.prepare("SELECT * FROM ont_level1 WHERE source = ?")
+            rows = self.session.execute(prep, [source])
+        for r in rows:
+            found[r['source']][r['level1']] = r['name']
+        if source is None:
+            return found
+        else:
+            return found[source]
+    def get_org_taxa_map(self, taxa):
+        found = {}
+        tname = "tax_"+taxa.lower()
+        query = "SELECT * FROM "+tname
+        rows = self.session.execute(query)
+        for r in rows:
+            found[r['name']] = r[tname]
+        return found
+    def get_ontology_map(self, source, level):
+        found = {}
+        level = level.lower()
+        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+        rows = self.session.execute(prep, [source])
+        for r in rows:
+            found[r['name']] = r[level]
         return found
     def get_organism_by_taxa(self, taxa, match=None):
         # if match is given, return subset that contains match, else all
