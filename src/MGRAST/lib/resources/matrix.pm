@@ -335,11 +335,6 @@ sub prepare_data {
     }
 
     # controlled vocabulary set
-    my $result_idx = { abundance => {function => 3, organism => {all => 10, single => 9, lca => 9}, feature => 2},
-                       evalue    => {function => 5, organism => {all => 12, single => 10, lca => 10}, feature => 3},
-                       length    => {function => 7, organism => {all => 14, single => 12, lca => 12}, feature => 5},
-                       identity  => {function => 9, organism => {all => 16, single => 14, lca => 14}, feature => 7}
-                     };
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
     my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
     my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
@@ -527,7 +522,7 @@ sub prepare_data {
     $mgdb->DESTROY();
     
     # transform [ count, sum ] to single average
-    if ($type ne 'abundance') {
+    if ($rtype ne 'abundance') {
         foreach my $row (@$mdata) {
             for (my $i=0; $i<@$row; $i++) {
                 my ($num, $sum) = @{$row->[$i]};
