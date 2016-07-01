@@ -222,7 +222,7 @@ sub instance {
     if ($self->cgi->param('asynchronous')) {
         my $attr = {
             type => "temp",
-            url_id => $self->url_id,
+            url_id => 'foo'.$self->url_id,
             owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
             data_type => "matrix"
         };
@@ -592,7 +592,6 @@ sub append_matrix {
     my $jnum = scalar(keys %$col_idx); # static
     
     # get filter md5s
-    my %filter_md5s = {};
     if ($filter_list && $filter_src) {
         my $field = ($type eq 'organism') ? 'accession' : 'organism';
         my @filter_md5s = ();
@@ -633,7 +632,7 @@ sub append_matrix {
         }
         
         # loop through annotations for row index
-        foreach my $a ($annotations) {
+        foreach my $a (@$annotations) {
             my $rindex;
             if (exists $row_idx->{$a}) {
                 # alrady saw this annotation
