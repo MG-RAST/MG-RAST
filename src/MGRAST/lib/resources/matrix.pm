@@ -97,7 +97,6 @@ sub info {
                       'hit_type' => [ 'cv', [['all', 'returns results based on all organisms that map to top hit per read-feature'],
                                              ['single', 'returns results based on a single organism for top hit per read-feature'],
                                              ['lca', 'returns results based on the Least Common Ancestor for all organisms for hits from a read-feature']] ],
-                      'taxid' => [ 'boolean', "if true, return annotation ID as NCBI tax id. Only for group_levels with a tax_id" ],
                       'source' => [ 'cv', $self->{sources}{organism} ],
                       'group_level' => [ 'cv', $self->hierarchy->{organism} ],
                       'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
@@ -273,7 +272,6 @@ sub prepare_data {
     
     # get optional params
     my $cgi = $self->cgi;
-    my $taxid  = $cgi->param('taxid') ? 1 : 0;
     my $grep   = $cgi->param('grep') || undef;
     my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'RefSeq' : 'Subsystems');
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
@@ -294,9 +292,9 @@ sub prepare_data {
     my $group_level = $glvl;
     my $filter_level = $flvl;
    
-    my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen, $taxid));
+    my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
     my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.'&source='.$source.
-                     '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen.'&taxid='.$taxid;
+                     '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen;
     if ($hide_md) {
         $matrix_id .= '_'.$hide_md;
         $matrix_url .= '&hide_metadata='.$hide_md;
@@ -515,13 +513,13 @@ sub prepare_data {
         }
         $count++;
         if ($count == $mgdb->chunk) {
-            $self->append_matrix($chdl, $type, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
+            $self->append_matrix($chdl, $type, $rtype, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
             $md5_set = {};
             $count = 0;
         }
     }
     if ($count > 0) {
-        $self->append_matrix($chdl, $type, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
+        $self->append_matrix($chdl, $type, $rtype, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
     }
     
     # cleanup
@@ -543,7 +541,7 @@ sub prepare_data {
     }
     
     # finalize matrix
-    $matrix->{rows} = [ map {{id => $_, metadata => undef}} sort {$col_idx->{$a} <=> $col_idx->{$b}} keys %$col_idx ];
+    $matrix->{rows} = [ map {{id => $_, metadata => undef}} sort {$row_idx->{$a} <=> $row_idx->{$b}} keys %$row_idx ];
     $matrix->{data} = $mdata;
     $matrix->{shape}[0] = scalar(@{$matrix->{rows}});
 
@@ -588,7 +586,7 @@ sub prepare_data {
 }
 
 sub append_matrix {
-    my ($self, $chdl, $type, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list, $filter_src) = @_;
+    my ($self, $chdl, $type, $rtype, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list, $filter_src) = @_;
     
     my @md5s = keys %$md5_set;
     my $next = scalar(keys %$row_idx); # incraments
@@ -645,7 +643,7 @@ sub append_matrix {
                 $rindex = $next;
                 $row_idx->{$a} = $rindex;
                 $mdata->[$rindex] = [];
-                if ($type eq 'abundance') {
+                if ($rtype eq 'abundance') {
                     # populate with zero's
                     map { push @{$mdata->[$rindex]}, 0 } (1..$jnum);
                 } else {
@@ -659,7 +657,7 @@ sub append_matrix {
             foreach my $info (@{$md5_set->{$set->{id}}}) {
                 my ($job, $val) = @$info;
                 my $curr = $mdata->[$rindex][$col_idx->{$job}];
-                $mdata->[$rindex][$col_idx->{$job}] = $self->add_value($curr, $val, $type);
+                $mdata->[$rindex][$col_idx->{$job}] = $self->add_value($curr, $val, $rtype);
             }
         }
     }
