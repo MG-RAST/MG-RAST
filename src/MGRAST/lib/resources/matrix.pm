@@ -570,7 +570,20 @@ sub prepare_data {
         foreach my $r (@{$matrix->{rows}}) {
             foreach my $h (@$hierarchy) {
                 if ($r->{id} eq $h->{$match}) {
-                    $r->{metadata} = { $mtype => $h };
+                    if (exists $h->{organism}) {
+                        $h->{strain} = $h->{organism};
+                        delete $h->{organism};
+                    }
+                    if (exists $h->{accession}) {
+                        delete $h->{accession};
+                    }
+                    if (exists $h->{ncbi_tax_id}) {
+                        my $tid = $h->{ncbi_tax_id};
+                        delete $h->{ncbi_tax_id};
+                        $r->{metadata} = { $mtype => $h, ncbi_tax_id => $tid };
+                    } else {
+                        $r->{metadata} = { $mtype => $h };
+                    }
                     last;
                 }
             }
