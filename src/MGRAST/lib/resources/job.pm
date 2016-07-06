@@ -152,6 +152,18 @@ sub info {
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "awe_id" => ["string", "awe job id of original job"] } }
 						},
+						{ 'name'        => "archive",
+                          'request'     => $self->cgi->url."/".$self->name."/archive",
+                          'description' => "Archive MG-RAST analysis-pipeline document and logs from AWE into Shock",
+                          'method'      => "POST",
+                          'type'        => "synchronous",
+                          'attributes'  => $self->{attributes}{change},
+                          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "awe_id"        => ["string", "awe job id of MG-RAST job"]
+							                                 "expiration"    => ["int", "number of days to keep logs"] } }
+						},
 						{ 'name'        => "share",
 				          'request'     => $self->cgi->url."/".$self->name."/share",
 				          'description' => "Share metagenome with another user.",
@@ -613,6 +625,46 @@ sub job_action {
                 };
             } else {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
+            }
+        } elsif ($action eq 'archive') {
+            my $expiration = ($post->{expiration} && ($post->{expiration} =~ /^\d+$/)) ? $post->{expiration} : 30;
+            my $awe_job = $self->get_awe_job($post->{awe_id}, $self->mgrast_token);
+            if ($awe_job->{info}{id} ne $post->{metagenome_id}) {
+                $self->return_data( {"ERROR" => "Inputed MG-RAST ID does not match pipeline document"}, 404)
+            }
+            my $shock_attr = {
+                id            => $post->{metagenome_id},
+                job_id        => $job->{job_id},
+                created       => $job->{created_on},
+                name          => $job->{name},
+                owner         => 'mgu'.$job->{owner},
+                sequence_type => $job->{sequence_type},
+                status        => $job->{public} ? 'public' : 'private',
+                project_id    => undef,
+                project_name  => undef,
+                type          => 'metagenome',
+                data_type     => 'awe_job',
+                awe_id        => $post->{awe_id},
+                file_format   => 'json',
+                stage_name    => 'done',
+                stage_id      => '999'
+            };
+            eval {
+                my $proj = $job->primary_project;
+                if ($proj->{id}) {
+                    $shock_attr->{project_id} = 'mgp'.$proj->{id};
+                    $shock_attr->{project_name} = $proj->{name};
+                }
+            };
+            my $node = $self->set_shock_node($post->{metagenome_id}.'.awe.json', $awe_job, $shock_attr, $self->mgrast_token);
+            $data = {
+                metagenome_id => $post->{metagenome_id},
+                job_id        => $job->{job_id},
+                status        => 'incomplete'
+            };
+            if ($node && $node->{id}) {
+                my $del = $self->awe_job_action($post->{awe_id}, "delete", $self->mgrast_token);
+                $data->{status} = 'archived';
             }
         } elsif ($action eq 'share') {
             # get user to share with
