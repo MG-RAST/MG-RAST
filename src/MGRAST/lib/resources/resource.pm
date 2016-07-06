@@ -1290,13 +1290,18 @@ sub awe_job_action {
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
-        my $req = POST($Conf::awe_url.'/job/'.$id.($action ne 'delete' ? '?'.$action : ''), @args);
-        $req->method('PUT');
-	if ($action eq 'delete') {
-	  $req->method('DELETE');
-	}
-        my $put = $self->agent->request($req);
-        $response = $self->json->decode( $put->content );
+        my ($method, $url);
+        if ($action eq 'delete') {
+            $method = 'DELETE';
+            $url = $Conf::awe_url.'/job/'.$id.'?full';
+        else {
+            $method = 'PUT';
+            $url = $Conf::awe_url.'/job/'.$id.'?'.$action;
+        }
+        my $req = POST($url, @args);
+        $req->method($method);
+        my $act = $self->agent->request($req);
+        $response = $self->json->decode( $act->content );
     };
     if ($@ || (! ref($response))) {
         $self->return_data( {"ERROR" => "Unable to PUT to AWE: ".$@}, 500 );
