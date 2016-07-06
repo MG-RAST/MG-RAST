@@ -192,9 +192,9 @@ google.setOnLoadCallback(initialize);
 
   $content .= "<p style='color:#EA9D2F;text-align:right;font-size:12px;margin-top:3px;'>* login required</p>";
 
-  $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This project has been funded in part with Federal funds from the National Institute of Allergy and Infectious Diseases, National Institutes of Health, Department of Health and Human Services, under Contract No. HHSN272200900040C.</p>";
+  $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This project has been funded in part with Federal funds from the National Institute of Allergy and Infectious Diseases under Contract No. R01AI123037.</p>";
 
-  $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This work was supported in part by the Office of Advanced Scientific Computing Research, Office of Science, U.S. Department of Energy, under Contract DE-AC02-06CH11357.</p>";
+  $content .= "<p style='color:#8FBC3F;text-align:left;font-size:9px;margin-top:3px;'>This work was supported in part by the National Institute of Allergy and Infectious Diseases, National Institutes of Health, Department of Health and Human Services, under Contract No. HHSN272200900040C and the Office of Advanced Scientific Computing Research, Office of Science, U.S. Department of Energy, under Contract DE-AC02-06CH11357.</p>";
 
   $content .= "<a href=\"http://www.biomedcentral.com/1471-2105/9/386\" target=\"_blank\"><p style='border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; color: white; padding: 5px 0px 3px 10px; color: white; font-size:14; background-color: #5281B0; width: 100px; float: left; margin-right: 10px; top: -12px; position: relative;'>cite MG-RAST</p></a><a href=\"http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1004008\" target=\"_blank\" style=\"float: right;\"><p style='border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; color: white; padding: 5px 0px 3px 10px; color: white; font-size:14; background-color: #5281B0; width: 120px; float: left; margin-right: 10px; top: -12px; position: relative;'>cite MG-RAST API</p></a>";
 

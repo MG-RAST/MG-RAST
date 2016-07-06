@@ -169,6 +169,78 @@ sub instance {
 	  $self->return_data( {"OK" => "project deleted"}, 200 );
 	}
       }
+
+      # add ownership of all project data to another user
+      if ($rest->[1] eq 'chown') {
+	
+	# check id format
+	my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
+	if ((! $id) && scalar(@$rest)) {
+	  $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+	}
+	
+	# only admins can do this
+	unless ($self->user->has_star_right('edit', 'user')) {
+	  $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+	}
+	
+	# get project
+	my $project = $master->Project->init( {id => $id} );
+	unless (ref($project)) {
+	  $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
+	}
+
+	# get target user
+	my $umaster = $self->user->_master;
+	my $puser = $umaster->User->init({login => $self->{cgi}->param('user')});
+	unless (ref $puser) {
+	  $self->return_data( {"ERROR" => "invalid user"}, 400 );
+	}
+	my $pscope = $puser->get_user_scope();
+
+	# add project rights to the user
+	$umaster->Rights->create({ scope       => $pscope,
+				   data_type   => 'project',
+				   data_id     => $project->id,
+				   name        => 'edit',
+				   granted     => 1,
+				   delegated   => 0,
+				 });
+	$umaster->Rights->create({ scope       => $pscope,
+				   data_type   => 'project',
+				   data_id     => $project->id,
+				   name        => 'view',
+				   granted     => 1,
+				   delegated   => 0,
+				 });
+
+	# add metagenome rights to the user
+	my $mgs = $project->metagenomes();
+	foreach my $mg (@$mgs) {
+	  $umaster->Rights->create({ scope       => $pscope,
+				     data_type   => 'metagenome',
+				     data_id     => $mg->{metagenome_id},
+				     name        => 'edit',
+				     granted     => 1,
+				     delegated   => 0,
+				   });
+	  $umaster->Rights->create({ scope       => $pscope,
+				     data_type   => 'metagenome',
+				     data_id     => $mg->{metagenome_id},
+				     name        => 'view',
+				     granted     => 1,
+				     delegated   => 0,
+				   });
+	  
+	  # update the shock nodes with ACLs
+	  my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$mg->{metagenome_id}}, $self->mgrast_token);
+	  foreach my $n (@$nodes) {
+	    $self->edit_shock_acl($n->{id}, $self->mgrast_token, $puser, 'put', 'all');
+	  }
+	}
+	
+	$self->return_data( {"OK" => "user added as owner"}, 200 );
+      }
     }
     
     # check id format
@@ -194,7 +266,7 @@ sub instance {
       elsif ($rest->[1] eq 'updatemetadata') {
 
 	# check permissions
-	unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right('edit', 'project', $id)) {
+	unless ($self->user->has_star_right(undef, 'edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
 	  $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
 	}
 	
@@ -341,7 +413,7 @@ sub instance {
                 }
             }
             $self->return_data( {"OK" => "metagenomes moved"}, 200 );
-	  }
+	}
     }
   
     # get data
