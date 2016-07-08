@@ -440,6 +440,7 @@ sub prepare_data {
     @$mgids = map { $_->{metagenome_id} } @$data;
     my $jobdata = {};
     my $mddb = undef;
+    my $master = $self->connect_to_datasource();
     
     if (($verb eq 'metadata') || ($verb eq 'full')) {
         $mddb = MGRAST::Metadata->new();
@@ -541,10 +542,14 @@ sub prepare_data {
                 $mddb = MGRAST::Metadata->new();
             }
             my $mixs = $mddb->get_job_mixs($job);
-	        if ($verb eq 'full') {
-	            $obj->{mixs} = $mixs;
+	    if ($verb eq 'full') {
+	      $obj->{mixs} = $mixs;
+	      my $proj_jobs = $job->primary_project->metagenomes(1);
+	      my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('alpha_diversity_shannon', $proj_jobs, 1) };
+	      $obj->{project_metagenomes} = $proj_jobs;
+	      $obj->{project_alpha_diversity} = { "min" => $min, "max" => $max, "avg" => $avg, "stdv" => $stdv };
             } else {
-                map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
+	      map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
             }
         }
         if (($verb eq 'metadata') || ($verb eq 'full')) {

@@ -102,11 +102,16 @@ sub instance {
   if ($cdata) {
     $counts = $cdata;
   } else {
+    my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
     $counts = {
 	       "metagenomes" => $master->Job->count_all(),
 	       "public_metagenomes" => $master->Job->count_public(),
 	       "sequences" => $master->Job->count_total_sequences(),
-	       "basepairs" => $master->Job->count_total_bp()
+	       "basepairs" => $master->Job->count_total_bp(),
+	       "drisee" => { "min" => $min,
+			     "max" => $max,
+			     "avg" => $avg,
+			     "stdv" => $stdv }
 	      };
     $memd->set("mgcounts", $counts, 7200);
   }
