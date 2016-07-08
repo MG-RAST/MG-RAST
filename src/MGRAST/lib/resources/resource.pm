@@ -1294,7 +1294,7 @@ sub awe_job_action {
         if ($action eq 'delete') {
             $method = 'DELETE';
             $url = $Conf::awe_url.'/job/'.$id.'?full';
-        else {
+        } else {
             $method = 'PUT';
             $url = $Conf::awe_url.'/job/'.$id.'?'.$action;
         }
