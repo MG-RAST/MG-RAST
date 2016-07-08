@@ -127,6 +127,7 @@ sub instance {
 	      "public_metagenomes" => $counts->{public_metagenomes},
 	      "sequences" => $counts->{sequences},
 	      "basepairs" => $counts->{basepairs},
+	      "drisee" => $counts->{drisee},
 	      "url" => $self->cgi->url."/".$self->name."/MG-RAST"
 	     };
   
