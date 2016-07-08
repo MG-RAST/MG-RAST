@@ -221,7 +221,7 @@ sub instance {
     if ($self->cgi->param('asynchronous')) {
         my $attr = {
             type => "temp",
-            url_id => 'foo'.$self->url_id,
+            url_id => $self->url_id,
             owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
             data_type => "matrix"
         };

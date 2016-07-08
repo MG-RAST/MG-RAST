@@ -116,6 +116,9 @@ sub new {
 sub get_url_id {
     my ($cgi, $resource, $rest, $rpc, $user) = @_;
     my $rurl = $cgi->url(-relative=>1).$resource;
+    if ($cgi->url =~ /dev/) {
+        $rurl = 'dev'.$rurl;
+    }
     my %params = map { $_ => [$cgi->param($_)] } $cgi->param;
     foreach my $r (@$rest) {
         $rurl .= $r;
