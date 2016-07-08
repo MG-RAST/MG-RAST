@@ -1333,6 +1333,30 @@ sub get_awe_job {
     }
 }
 
+# get job report
+sub get_awe_log {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "mgrast";
+    }
+
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->get($Conf::awe_url.'/job/'.$id.'?report', @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to GET report $id from AWE: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
+
 # get list of jobs for query
 sub get_awe_query {
     my ($self, $params, $auth, $authPrefix) = @_;
