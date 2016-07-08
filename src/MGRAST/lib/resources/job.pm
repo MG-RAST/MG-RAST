@@ -627,8 +627,12 @@ sub job_action {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
             }
         } elsif ($action eq 'archive') {
-            my $expiration = ($post->{expiration} && ($post->{expiration} =~ /^\d+$/)) ? $post->{expiration} : 30;
+            my $expire = ($post->{expiration} && ($post->{expiration} =~ /^\d+$/)) ? $post->{expiration} : 30;
+            unless ($post->{awe_id}) {
+                $self->return_data( {"ERROR" => "Missing required parameter awe_id (AWE job ID)"}, 404 );
+            }
             my $awe_job = $self->get_awe_job($post->{awe_id}, $self->mgrast_token);
+            my $awe_log = $self->get_awe_log($post->{awe_id}, $self->mgrast_token);
             if ($awe_job->{info}{id} ne $post->{metagenome_id}) {
                 $self->return_data( {"ERROR" => "Inputed MG-RAST ID does not match pipeline document"}, 404)
             }
@@ -656,13 +660,18 @@ sub job_action {
                     $shock_attr->{project_name} = $proj->{name};
                 }
             };
-            my $node = $self->set_shock_node($post->{metagenome_id}.'.awe.json', $awe_job, $shock_attr, $self->mgrast_token);
+            # set job document node
+            my $job_node = $self->set_shock_node($post->{metagenome_id}.'.awe.json', $awe_job, $shock_attr, $self->mgrast_token);
             $data = {
                 metagenome_id => $post->{metagenome_id},
                 job_id        => $job->{job_id},
                 status        => 'incomplete'
             };
-            if ($node && $node->{id}) {
+            if ($job_node && $job_node->{id}) {
+                # set job report node
+                $shock_attr->{data_type} = 'awe_log';
+                my $log_node = $self->set_shock_node($post->{metagenome_id}.'.awe.json', $awe_log, $shock_attr, $self->mgrast_token, 0, 0, $expire.'D');
+                # delete from AWE
                 my $del = $self->awe_job_action($post->{awe_id}, "delete", $self->mgrast_token);
                 $data->{status} = 'archived';
             }
@@ -683,9 +692,12 @@ sub job_action {
             # share rights if not owner
             unless ($share_user->_id eq $job->owner->_id) {
                 my @rights = ('view');
+                my @acls = ('read')
                 if ($post->{edit}) {
                     push @rights, 'edit';
+                    push @acls, 'write';
                 }
+                # update mysql db
                 foreach my $name (@rights) {
                     my $right_query = {
                         name => $name,
@@ -700,6 +712,13 @@ sub job_action {
             	        unless (ref $right) {
             	            $self->return_data( {"ERROR" => "Failed to create ".$name." right in the user database, aborting."}, 500 );
             	        }
+                    }
+                }
+                # update shock nodes
+                my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
+                foreach my $n (@$nodes) {
+                    foreach my $acl (@acls) {
+                        $self->edit_shock_acl($n->{id}, $self->mgrast_token, 'put', $acl);
                     }
                 }
             }
@@ -733,7 +752,7 @@ sub job_action {
                 $self->update_shock_node($n->{id}, $attr, $self->mgrast_token);
                 $self->edit_shock_public_acl($n->{id}, $self->mgrast_token, 'put', 'read');
             }
-            # update db
+            # update mysql db
             $job->public(1);
             $job->set_publication_date();
             $data = { public => $job->public ? 1 : 0 };
