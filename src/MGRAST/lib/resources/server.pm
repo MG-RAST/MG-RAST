@@ -108,10 +108,10 @@ sub instance {
 	       "public_metagenomes" => $master->Job->count_public(),
 	       "sequences" => $master->Job->count_total_sequences(),
 	       "basepairs" => $master->Job->count_total_bp(),
-	       "drisee" => { "min" => $min,
-			     "max" => $max,
-			     "avg" => $avg,
-			     "stdv" => $stdv }
+	       "driseemin" => $min,
+	       "driseemax" => $max,
+	       "driseeavg" => $avg,
+	       "driseestdv" => $stdv
 	      };
     $memd->set("mgcounts", $counts, 7200);
   }
