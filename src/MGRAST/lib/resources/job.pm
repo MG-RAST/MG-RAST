@@ -161,7 +161,7 @@ sub info {
                           'parameters'  => { 'options'  => {},
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
-							                                 "awe_id"        => ["string", "awe job id of MG-RAST job"]
+							                                 "awe_id"        => ["string", "awe job id of MG-RAST job"],
 							                                 "expiration"    => ["int", "number of days to keep logs"] } }
 						},
 						{ 'name'        => "share",
