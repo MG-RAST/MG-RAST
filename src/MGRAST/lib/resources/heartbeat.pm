@@ -99,7 +99,7 @@ sub instance {
   if ($self->{services}->{$id} eq 'db') {
     if ($id eq 'postgres') {
       my $dbh = DBI->connect(
-			     "DBI:Pg:database=".$Conf::mgrast_db.";host=".$Conf::mgrast_dbhost.";".$Conf::pgsslcert,
+			     "DBI:Pg:database=".$Conf::mgrast_db.";host=".$Conf::mgrast_dbhost.";".$Conf::pgsslcert_path,
 			     $Conf::mgrast_dbuser,
 			     $Conf::mgrast_dbpass
 			    );
