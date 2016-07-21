@@ -54,12 +54,12 @@ sub output {
   my ($self) = @_;
 
   my $content = "";
-
+  
   if ($self->application->session->user) {
-    $content .= "<p width=800px align=justify >If you have any questions, comments or concerns about the metagenomics analysis server, please direct them to our <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>. This mailing list is read by the MG-RAST developers, the server administrators and our biology team. It will be picked up by a specialist for your question and answered as promptly as possible.</p>";
+    $content .= "<p width=800px align=justify >If you have any questions, comments or concerns about the metagenomics analysis server, please direct them to our <a href='mailto:mg-rast\@rt.mcs.anl.gov'>help desk</a>. Please take a look at the <a href='ftp://ftp.metagenomics.anl.gov/data/manual/mg-rast-manual.pdf' target=_blank>manual</a> before submitting your help desk email. Emails to the help-desk will reach the entire team, please do not send email to individuals.</p>";
   } else {
     my $c = Captcha::reCAPTCHA->new;
-    $content .= "<p width=800px align=justify >If you have any questions, comments or concerns about the metagenomics analysis server, you can submit them through the following form. This will be read by the MG-RAST developers, the server administrators and our biology team. It will be picked up by a specialist for your question and answered as promptly as possible.</p>";
+    $content .= "<p width=800px align=justify >If you have any questions, comments or concerns about the metagenomics analysis server, use the form below to reach our help desk. Please take a look at the <a href='ftp://ftp.metagenomics.anl.gov/data/manual/mg-rast-manual.pdf' target=_blank>manual</a> before submitting your help desk email. Emails to the help-desk will reach the entire team, please do not send email to individuals.</p>";
 
     $content .= $self->start_form('contact_form', { action => 'try_contact' });
     $content .= "<br><table><tr><td><b>your email</b></td><td><input type='text' size='50' name='email'></td></tr>";

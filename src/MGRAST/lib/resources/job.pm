@@ -80,7 +80,6 @@ sub new {
                ["MT", "metatranscriptome sequenceing"]]
     ];
     @{$self->{taxa}} = grep { $_->[0] !~ /strain/ } @{$self->hierarchy->{organism}};
-    $self->{ann_ver} = 1;
     
     return $self;
 }
@@ -152,6 +151,18 @@ sub info {
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "awe_id" => ["string", "awe job id of original job"] } }
+						},
+						{ 'name'        => "archive",
+                          'request'     => $self->cgi->url."/".$self->name."/archive",
+                          'description' => "Archive MG-RAST analysis-pipeline document and logs from AWE into Shock",
+                          'method'      => "POST",
+                          'type'        => "synchronous",
+                          'attributes'  => $self->{attributes}{change},
+                          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "awe_id"        => ["string", "awe job id of MG-RAST job"],
+							                                 "expiration"    => ["int", "number of days to keep logs"] } }
 						},
 						{ 'name'        => "share",
 				          'request'     => $self->cgi->url."/".$self->name."/share",
@@ -269,7 +280,7 @@ sub info {
 				          'type'        => "asynchronous",
 				          'attributes'  => $self->{attributes}{data},
 				          'parameters'  => { 'options'  => { "level"    => ["cv", $self->{taxa}],
-				                                             "ann_ver"  => ["int", "version of m5nr annotations"],
+				                                             "ann_ver"  => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
                                                              "type"     => ["cv", [["all", "return abundances for all annotations"],
                                                                                    ["organism", "return abundances for organism annotations"],
                                                                                    ["ontology", "return abundances for ontology annotations"],
@@ -288,6 +299,7 @@ sub info {
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "rebuild"       => ["boolean", "re-compute all statistics, default is to not compute if exists"],
 							                                 "debug"         => ["boolean", "return solr post data instead of actually posting it"],
+							                                 "ann_ver"       => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
      							                             "solr_data"     => ["hash", "key value pairs for solr data"] } }
 						},
 						{ 'name'        => "kb2mg",
@@ -369,7 +381,7 @@ sub job_data {
     } elsif ($type eq "abundance") {
         my $taxa = $self->cgi->param('level') || "";
         my $ann  = $self->cgi->param('type') || "all";
-        my $ver  = $self->cgi->param('ann_ver') || $self->{ann_ver};
+        my $ver  = $self->cgi->param('ann_ver') || $self->{m5nr_default};
         # validate parameters
         my %valid_tax = map { $_ => 1 } @{$self->{taxa}};
         my %valid_ann = (all => 1, organism => 1, ontology => 1, function => 1);        
@@ -401,29 +413,38 @@ sub job_data {
             close STDERR;
             close STDOUT;
             # create DB handels inside child as they break on fork
-            MGRAST::Abundance::get_analysis_dbh();
             $master = $self->connect_to_datasource();
+            my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
+            my $mgdb = MGRAST::Abundance->new($chdl, $ver);
             my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
             $job = $jobj->[0];
+            
+            # set options
+            my $taxa_set = $taxa ? [$taxa] : [map {$_->[0]} reverse @{$self->{taxa}}];
+            my $get_org  = (($ann eq "all") || ($ann eq "organism")) ? 1 : 0;
+            my $get_fun  = (($ann eq "all") || ($ann eq "function")) ? 1 : 0;
+            my $get_ont  = (($ann eq "all") || ($ann eq "ontology")) ? 1 : 0;
+            
             # get data
             my $data = {};
-            if (($ann eq "all") || ($ann eq "organism")) {
-                if (! $taxa) {
-                    foreach my $t (@{$self->{taxa}}) {
-                        my $other = ($t->[0] eq 'domain') ? 1 : 0;
-                        $data->{taxonomy}->{$t->[0]} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $t->[0], $other, $ver);
-                    }
-                } else {
-                    my $other = ($taxa eq 'domain') ? 1 : 0;
-                    $data->{taxonomy}->{$taxa} = MGRAST::Abundance::get_taxa_abundances($job->{job_id}, $taxa, $other, $ver);
+            my ($org_map, $fun_map, $ont_map) = $mgdb->all_job_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont);
+            if ($get_org) {
+                $data->{taxonomy} = {};
+                foreach my $t (keys %{$org_map}) {
+                    $data->{taxonomy}{$t} = [ map { [ $_, $org_map->{$t}{$_} ] } keys %{$org_map->{$t}} ];
                 }
             }
-            if (($ann eq "all") || ($ann eq "ontology")) {
-                $data->{ontology} = MGRAST::Abundance::get_ontology_abundances($job->{job_id}, $ver);
+            if ($get_fun) {
+                $data->{function} = [ map { [ $_, $fun_map->{$_} ] } keys %{$fun_map} ];
             }
-            if (($ann eq "all") || ($ann eq "function")) {
-                $data->{function} = MGRAST::Abundance::get_function_abundances($job->{job_id}, $ver);
+            if ($get_ont) {
+                $data->{ontology} = {};
+                foreach my $s (keys %{$ont_map}) {
+                    $data->{ontology}{$s} = [ map { [ $_, $ont_map->{$s}{$_} ] } keys %{$ont_map->{$s}} ];
+                }
             }
+            $mgdb->DESTROY();
+            
             # POST to shock, triggers end of asynch action
             $self->put_shock_file("mgm".$job->{metagenome_id}.".abundance", $data, $node->{id}, $self->mgrast_token);
             exit 0;
@@ -484,10 +505,10 @@ sub job_action {
     }
     # we have a job in DB, do something
     else {
-      # check id format
-      unless (defined $post->{metagenome_id}) {
-	$post = $self->get_post_data(["metagenome_id", "reason"]);
-      }
+        # check id format
+        unless (defined $post->{metagenome_id}) {
+            $post = $self->get_post_data(["metagenome_id", "reason"]);
+        }
         my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
             $self->return_data( {"ERROR" => "invalid id format: ".$post->{metagenome_id}}, 400 );
@@ -605,6 +626,55 @@ sub job_action {
             } else {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
             }
+        } elsif ($action eq 'archive') {
+            my $expire = ($post->{expiration} && ($post->{expiration} =~ /^\d+$/)) ? $post->{expiration} : 30;
+            unless ($post->{awe_id}) {
+                $self->return_data( {"ERROR" => "Missing required parameter awe_id (AWE job ID)"}, 404 );
+            }
+            my $awe_job = $self->get_awe_job($post->{awe_id}, $self->mgrast_token);
+            my $awe_log = $self->get_awe_log($post->{awe_id}, $self->mgrast_token);
+            if ($awe_job->{info}{id} ne $post->{metagenome_id}) {
+                $self->return_data( {"ERROR" => "Inputed MG-RAST ID does not match pipeline document"}, 404)
+            }
+            my $shock_attr = {
+                id            => $post->{metagenome_id},
+                job_id        => $job->{job_id},
+                created       => $job->{created_on},
+                name          => $job->{name},
+                owner         => 'mgu'.$job->{owner},
+                sequence_type => $job->{sequence_type},
+                status        => $job->{public} ? 'public' : 'private',
+                project_id    => undef,
+                project_name  => undef,
+                type          => 'metagenome',
+                data_type     => 'awe_job',
+                awe_id        => $post->{awe_id},
+                file_format   => 'json',
+                stage_name    => 'done',
+                stage_id      => '999'
+            };
+            eval {
+                my $proj = $job->primary_project;
+                if ($proj->{id}) {
+                    $shock_attr->{project_id} = 'mgp'.$proj->{id};
+                    $shock_attr->{project_name} = $proj->{name};
+                }
+            };
+            # set job document node
+            my $job_node = $self->set_shock_node($post->{metagenome_id}.'.awe.json', $awe_job, $shock_attr, $self->mgrast_token);
+            $data = {
+                metagenome_id => $post->{metagenome_id},
+                job_id        => $job->{job_id},
+                status        => 'incomplete'
+            };
+            if ($job_node && $job_node->{id}) {
+                # set job report node
+                $shock_attr->{data_type} = 'awe_log';
+                my $log_node = $self->set_shock_node($post->{metagenome_id}.'.awe.json', $awe_log, $shock_attr, $self->mgrast_token, 0, 0, $expire.'D');
+                # delete from AWE
+                my $del = $self->awe_job_action($post->{awe_id}, "delete", $self->mgrast_token);
+                $data->{status} = 'archived';
+            }
         } elsif ($action eq 'share') {
             # get user to share with
             my $share_user = undef;
@@ -622,9 +692,12 @@ sub job_action {
             # share rights if not owner
             unless ($share_user->_id eq $job->owner->_id) {
                 my @rights = ('view');
+                my @acls = ('read')
                 if ($post->{edit}) {
                     push @rights, 'edit';
+                    push @acls, 'write';
                 }
+                # update mysql db
                 foreach my $name (@rights) {
                     my $right_query = {
                         name => $name,
@@ -639,6 +712,13 @@ sub job_action {
             	        unless (ref $right) {
             	            $self->return_data( {"ERROR" => "Failed to create ".$name." right in the user database, aborting."}, 500 );
             	        }
+                    }
+                }
+                # update shock nodes
+                my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
+                foreach my $n (@$nodes) {
+                    foreach my $acl (@acls) {
+                        $self->edit_shock_acl($n->{id}, $self->mgrast_token, 'put', $acl);
                     }
                 }
             }
@@ -656,13 +736,13 @@ sub job_action {
                 push @$shared, $vr->scope->name_readable;
             }
             $data = { shared => $shared };
-	  } elsif ($action eq 'public') {
-	    # check if the metadata is ok
-	    my $mddb = MGRAST::Metadata->new();
-	    my $errors = $mddb->verify_job_metadata($job);
-	    if (scalar(@$errors)) {
-	      $self->return_data({ "ERROR" => "insufficient metadata for publication", "errors" => $errors }, 400);
-	    }
+        } elsif ($action eq 'public') {
+            # check if the metadata is ok
+            my $mddb = MGRAST::Metadata->new();
+            my $errors = $mddb->verify_job_metadata($job);
+            if (scalar(@$errors)) {
+                $self->return_data({ "ERROR" => "insufficient metadata for publication", "errors" => $errors }, 400);
+            }
 	    
             # update shock nodes
             my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
@@ -672,9 +752,9 @@ sub job_action {
                 $self->update_shock_node($n->{id}, $attr, $self->mgrast_token);
                 $self->edit_shock_public_acl($n->{id}, $self->mgrast_token, 'put', 'read');
             }
-            # update db
+            # update mysql db
             $job->public(1);
-	    $job->set_publication_date();
+            $job->set_publication_date();
             $data = { public => $job->public ? 1 : 0 };
         } elsif ($action eq 'viewable') {
             my $state = 1;
@@ -736,6 +816,7 @@ sub job_action {
         } elsif ($action eq 'solr') {
             my $rebuild = $post->{rebuild} ? 1 : 0;
             my $sdata   = $post->{solr_data} || {};
+            my $ver     = $post->{ann_ver} || $self->{m5nr_default};
             my $unique  = $self->url_id . md5_hex($self->json->encode($post));
             
             # asynchronous call, fork the process and return the process id.
@@ -758,8 +839,9 @@ sub job_action {
             # child - get data and POST it
             if ($pid == 0) {
                 # create DB handels inside child as they break on fork
-                MGRAST::Abundance::get_analysis_dbh();
                 $master = $self->connect_to_datasource();
+                my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
+                my $mgdb = MGRAST::Abundance->new($chdl, $ver);
                 my $mddb = MGRAST::Metadata->new();
                 my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
                 $job = $jobj->[0];
@@ -784,9 +866,9 @@ sub job_action {
                     sequence_type_sort => $job->{sequence_type},
                     seq_method         => $jdata->{sequencing_method_guess},
                     seq_method_sort    => $jdata->{sequencing_method_guess},
-                    version            => $self->{ann_ver},
+                    version            => $ver,
                     metadata           => "",
-                    md5                => [ map {$_->[0]} @{MGRAST::Abundance::get_md5sum_abundance($jobid, $self->{ann_ver})} ]
+                    md5                => $mgdb->all_job_md5sums($jobid)
                 };
                 # project - from jobdb
                 eval {
@@ -811,11 +893,14 @@ sub job_action {
                 }
                 # annotations - from postdata or mg stats (if not rebuild) or from analysis db
                 my $mg_stats = {};
+                my $get_fun  = 0;
+                my $get_org  = 0;
+                
                 # function
                 if (exists($sdata->{function}) && $sdata->{function}) {
                     $solr_data->{function} = $sdata->{function};
                 } elsif ($rebuild) {
-                    $solr_data->{function} = [ map {$_->[0]} @{MGRAST::Abundance::get_function_abundances($jobid, $self->{ann_ver})} ];
+                    $get_fun = 1;
                 } else {
                     unless (exists $mg_stats->{function}) {
                         $mg_stats = $self->metagenome_stats_from_shock($solr_data->{id});
@@ -823,14 +908,14 @@ sub job_action {
                     if (exists $mg_stats->{function}) {
                         $solr_data->{function} = [ map {$_->[0]} @{$mg_stats->{function}} ];
                     } else {
-                        $solr_data->{function} = [ map {$_->[0]} @{MGRAST::Abundance::get_function_abundances($jobid, $self->{ann_ver})} ];
+                        $get_fun = 1;
                     }
                 }
                 # organism - species
                 if (exists($sdata->{organism}) && $sdata->{organism}) {
                     $solr_data->{organism} = $sdata->{organism};
                 } elsif ($rebuild) {
-                    $solr_data->{organism} = [ map {$_->[0]} @{MGRAST::Abundance::get_taxa_abundances($jobid, 'species', 0, $self->{ann_ver})} ];
+                    $get_org = 1;
                 } else {
                     unless (exists $mg_stats->{taxonomy}) {
                         $mg_stats = $self->metagenome_stats_from_shock($solr_data->{id});
@@ -838,9 +923,19 @@ sub job_action {
                     if (exists($mg_stats->{taxonomy}) && exists($mg_stats->{taxonomy}{species}) && $mg_stats->{taxonomy}{species}) {
                         $solr_data->{organism} = [ map {$_->[0]} @{$mg_stats->{taxonomy}{species}} ];
                     } else {
-                        $solr_data->{organism} = [ map {$_->[0]} @{MGRAST::Abundance::get_taxa_abundances($jobid, 'species', 0, $self->{ann_ver})} ];
+                        $get_org = 1;
                     }
                 }
+                # get annotations from DB
+                my ($org_map, $fun_map, undef) = $mgdb->all_job_abundances($jobid, ['species'], $get_org, $get_fun, undef);
+                if ($get_org) {
+                    $solr_data->{organism} = [ keys %{$org_map->{species}} ];
+                }
+                if ($get_fun) {
+                    $solr_data->{function} = [ keys %{$fun_map} ];
+                }
+                $mgdb->DESTROY();
+                
                 # mixs metadata - from jobdb
                 my $mixs = $mddb->get_job_mixs($job);
                 while (my ($key, $val) = each(%$mixs)) {
