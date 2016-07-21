@@ -4,7 +4,6 @@ FROM httpd:2.4.12
 
 # MG-RAST dependencies
 RUN apt-get update && apt-get install -y \
-  git-core \
   libpq-dev \
   make \
   curl \
@@ -33,10 +32,9 @@ RUN apt-get update && apt-get install -y \
   libtemplate-perl \
   libclass-isa-perl
 
-RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
-  cd / && \
-  git clone -b api https://github.com/MG-RAST/MG-RAST.git && \
-  cd /MG-RAST && \
+RUN mkdir -p /MG-RAST /var/log/httpd/api.metagenomics
+COPY . /MG-RAST
+RUN cd /MG-RAST && \
   make && \
   make api-doc && \
   cd site/CGI && \
