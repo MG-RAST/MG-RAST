@@ -692,7 +692,7 @@ sub job_action {
             # share rights if not owner
             unless ($share_user->_id eq $job->owner->_id) {
                 my @rights = ('view');
-                my @acls = ('read')
+                my @acls = ('read');
                 if ($post->{edit}) {
                     push @rights, 'edit';
                     push @acls, 'write';
