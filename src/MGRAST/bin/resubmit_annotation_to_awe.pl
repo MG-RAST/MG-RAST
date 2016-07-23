@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+use lib "/MG-RAST/conf";
+use lib "/MG-RAST/site/lib/MGRAST";
+
 use strict;
 use warnings;
 no warnings('once');
