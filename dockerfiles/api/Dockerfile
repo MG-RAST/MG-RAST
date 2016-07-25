@@ -1,6 +1,6 @@
 # MG-RAST API
 
-FROM httpd:2.4.12
+FROM httpd:2.4
 
 # MG-RAST dependencies
 RUN apt-get update && apt-get install -y \
