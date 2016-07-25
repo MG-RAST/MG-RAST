@@ -8,7 +8,7 @@ INFILE=''
 OUTDIR=''
 JAVA=`which java`
 
-while getopts hc:k:t:i:o: option; do
+while getopts hc:l:k:t:i:o: option; do
     case "${option}"
         in
             h) HELP=1;;
