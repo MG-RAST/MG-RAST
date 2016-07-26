@@ -1,4 +1,4 @@
-package PipelineJob;
+package Pipeline;
 
 use strict;
 use warnings;
