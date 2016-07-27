@@ -37,6 +37,7 @@ COPY . /MG-RAST
 RUN cd /MG-RAST && \
   make && \
 #  make api-doc && \
+  cp -rv src/MGRAST/bin/* bin/. && \
   cd site/CGI && \
   rm -fv metagenomics.cgi linkin.cgi m5nr.cgi m5nr_rest.cgi
 
