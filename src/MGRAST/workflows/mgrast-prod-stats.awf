@@ -24,7 +24,7 @@
         {
             "cmd": {
                 "name": "awe_redo_stats.pl",
-                "args": "-job=[% job_id %] -stats=@old.statistics.json -source=@[% job_id %].700.annotation.source.stats -api_url=[% mgrast_api %]",
+                "args": "-job=[% job_id %] -stats=@old.statistics.json -api_url=[% mgrast_api %]",
                 "description": "stats stage",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
