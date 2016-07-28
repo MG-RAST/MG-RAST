@@ -22,8 +22,8 @@ use File::Slurp;
 my $job_id    = "";
 my $awe_url   = "";
 my $shock_url = "";
-my $template  = "mgrast-prod-annotation.awf";
-my $pipeline  = "mgrast-annotation";
+my $template  = "mgrast-prod-stats.awf";
+my $pipeline  = "mgrast-stats";
 my $type      = "metagenome";
 my $priority  = 1000;
 my $help      = 0;
@@ -132,34 +132,13 @@ foreach my $n (@{$gres->{data}}) {
     unless (exists($n->{attributes}{stage_name}) && exists($n->{attributes}{data_type})) {
         next;
     }
-    if ($n->{attributes}{stage_name} eq 'protein.sims') {
-        $vars->{prot_sims_file} = $n->{file}{name};
-        $vars->{prot_sims_node} = $n->{id};
-    } elsif ($n->{attributes}{stage_name} eq 'rna.sims') {
-        $vars->{rna_sims_file} = $n->{file}{name};
-        $vars->{rna_sims_node} = $n->{id};
-    } elsif ($n->{attributes}{stage_name} eq 'filter.sims') {
-        $vars->{sim_seq_file} = $n->{file}{name};
-        $vars->{sim_seq_node} = $n->{id};
-    } elsif ($n->{attributes}{stage_name} eq 'qc') {
-        $vars->{assembly_file} = $n->{file}{name};
-        $vars->{assembly_node} = $n->{id};
-    } elsif (($n->{attributes}{stage_name} eq 'rna.cluster') && ($n->{attributes}{data_type} eq 'cluster')) {
-        $vars->{rna_mapping_file} = $n->{file}{name};
-        $vars->{rna_mapping_node} = $n->{id};
-    } elsif (($n->{attributes}{stage_name} eq 'protein.cluster') && ($n->{attributes}{data_type} eq 'cluster')) {
-        $vars->{prot_mapping_file} = $n->{file}{name};
-        $vars->{prot_mapping_node} = $n->{id};
-    } elsif (($n->{attributes}{stage_name} eq 'done') && ($n->{attributes}{data_type} eq 'statistics')) {
+    if (($n->{attributes}{stage_name} eq 'done') && ($n->{attributes}{data_type} eq 'statistics')) {
         $vars->{mg_stats_node} = $n->{id};
     }
 }
-
-foreach my $x (("prot_sims_node", "rna_sims_node", "sim_seq_node", "assembly_node", "rna_mapping_node", "prot_mapping_node", "mg_stats_node")) {
-    if (! $vars->{$x}) {
-        print STDERR "ERROR: Incomplete metagenome, missing stage: $x\n";
-        exit 1;
-    }
+if (! $vars->{mg_stats_node}) {
+    print STDERR "ERROR: Incomplete metagenome, missing statistics done file\n";
+    exit 1;
 }
 
 # create workflow
@@ -210,7 +189,7 @@ Pipeline::set_jobcache_info($jobdb, $job_id, 'viewable', 0);
 Pipeline::set_job_attributes($jobdb, $job_id, {"pipeline_id" => $awe_id});
 
 sub get_usage {
-    return "USAGE: resubmit_annotation_to_awe.pl -job_id=<job identifier> -awe_url=<awe url> -shock_url=<shock url> -template=<template file> -clientgroups=<group list> -priority=<pipeline priority> -no_start -use_docker\n";
+    return "USAGE: resubmit_stats_to_awe.pl -job_id=<job identifier> -awe_url=<awe url> -shock_url=<shock url> -template=<template file> -clientgroups=<group list> -priority=<pipeline priority> -no_start -use_docker\n";
 }
 
 # enable hash-resolving in the JSON->encode function

@@ -1,0 +1,81 @@
+{
+    "info": {
+        "pipeline": "[% pipeline %]",
+        "name": "[% job_id %]",
+        "project": "[% project_name %]",
+        "user": "[% user %]",
+        "clientgroups": "[% clientgroups %]",
+        "priority": [% priority %],
+        "userattr": {
+            "id": "[% mg_id %]",
+            "job_id": "[% job_id %]",
+            "name": "[% mg_name %]",
+            "created": "[% job_date %]",
+            "status": "[% status %]",
+            "owner": "[% user %]",
+            "sequence_type": "[% seq_type %]",
+            "project_id": "[% project_id %]",
+            "project_name": "[% project_name %]",
+            "type": "[% type %]",
+            "pipeline_version": "[% pipeline_version %]"
+        }
+    },
+    "tasks": [
+        {
+            "cmd": {
+                "name": "awe_redo_stats.pl",
+                "args": "-job=[% job_id %] -stats=@old.statistics.json -source=@[% job_id %].700.annotation.source.stats -api_url=[% mgrast_api %]",
+                "description": "stats stage",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ": {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    },
+                    "[% docker_switch %]public" : { 	 	
+                        "BASH_ENV" : "/root/mgrast_env.sh" 	 	
+                    }
+                }
+            },
+            "dependsOn": [],
+            "inputs": {
+                "old.statistics.json": {
+                    "host": "[% shock_url %]",
+                    "node": "[% mg_stats_node %]",
+                    "attrfile": "old.statistics.json.attr"
+                }
+            },
+            "outputs": {
+                "[% job_id %].statistics.json" : {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].statistics.json.attr"
+                }
+            },
+            "userattr": {
+                "stage_id": "999",
+                "stage_name": "done"
+            },
+            "taskid": "0",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "curl",
+                "args": "-X DELETE -H \"authorization: mgrast ${MGRAST_WEBKEY}\" [% shock_url %]/node/[% mg_stats_node %]",
+                "description": "clean stage",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ": {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    },
+                    "[% docker_switch %]public" : { 	 	
+                        "BASH_ENV" : "/root/mgrast_env.sh" 	 	
+                    }
+                }
+            },
+            "dependsOn": ["0"],
+            "taskid": "1",
+            "totalwork": 1
+        }
+    ]
+}
