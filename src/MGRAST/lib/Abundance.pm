@@ -139,7 +139,7 @@ sub all_job_abundances {
     my $add_annotations = sub {
         my $data = $self->chdl->get_records_by_id([keys %$md5s]);
         foreach my $set (@$data) {
-            if ($fun && exists($set->{function})) {
+            if ($fun && $set->{function}) {
                 foreach my $f (@{$set->{function}}) {
                     unless (exists $fun_map->{$f}) {
                         $fun_map->{$f} = 0;
@@ -147,7 +147,7 @@ sub all_job_abundances {
                     $fun_map->{$f} += $md5s->{$set->{id}};
                 }
             }
-            if ($ont && exists($ont_cat->{$set->{source}}) && exists($set->{accession})) {
+            if ($ont && exists($ont_cat->{$set->{source}}) && $set->{accession}) {
                 unless (exists $ont_map->{$set->{source}}) {
                     $ont_map->{$set->{source}} = {};
                 }
@@ -158,7 +158,8 @@ sub all_job_abundances {
                     $ont_map->{$set->{source}}{$ont_cat->{$set->{source}}{$a}} += $md5s->{$set->{id}};
                 }
             }
-            if ($org && exists($set->{organism})) {
+            if ($org && $set->{organism}) {
+                print STDERR Dumper($set->{organism});
                 foreach my $o (@{$set->{organism}}) {
                     if ($tax) {
                         next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
