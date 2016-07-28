@@ -158,7 +158,7 @@ sub all_job_abundances {
                     $ont_map->{$set->{source}}{$ont_cat->{$set->{source}}{$a}} += $md5s->{$set->{id}};
                 }
             }
-            if ($org && exists($set->{organism}})) {
+            if ($org && exists($set->{organism})) {
                 foreach my $o (@{$set->{organism}}) {
                     if ($tax) {
                         next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
