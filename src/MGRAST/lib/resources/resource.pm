@@ -1522,7 +1522,7 @@ class CassHandle(object):
         self.session = self.handle.connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = dict_factory
-    def get_records_by_id(self, ids, source):
+    def get_records_by_id(self, ids, source=None):
         found = []
         if source:
             query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
@@ -1533,7 +1533,7 @@ class CassHandle(object):
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
         return found
-    def get_id_records_by_id(self, ids, source):
+    def get_id_records_by_id(self, ids, source=None):
         found = []
         if source:
             query = "SELECT * FROM index_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)

@@ -26,7 +26,7 @@
                 "name": "awe_annotate_sims.pl",
                 "args": "-input=@[% prot_sims_file %] -out_prefix=[% job_id %].650 -aa -ach_ver=[% ach_annotation_ver %] -ann_file=m5nr_v1.bdb",
                 "description": "aa sims annotation",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "[% docker_switch %]public" : {
                         "BASH_ENV" : "/root/mgrast_env.sh"
@@ -79,7 +79,7 @@
                 "name": "awe_annotate_sims.pl",
                 "args": "-input=@[% rna_sims_file %] -out_prefix=[% job_id %].450 -rna -ach_ver=[% ach_annotation_ver %] -ann_file=m5nr_v1.bdb",
                 "description": "rna sims annotation",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "[% docker_switch %]public" : {
                         "BASH_ENV" : "/root/mgrast_env.sh"
@@ -126,7 +126,7 @@
                 "name": "index_sims_file_md5",
                 "args": "-in_file=@[% sim_seq_file %] -ann_file=m5nr_v1.bdb -out_file=[% job_id %].700.annotation.sims.filter.seq.index -verbose",
                 "description": "index sim seq",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "[% docker_switch %]public" : {
                         "BASH_ENV" : "/root/mgrast_env.sh"
@@ -169,7 +169,7 @@
                 "name": "awe_annotate_summary.pl",
                 "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% rna_mapping_file %] -in_maps=@[% prot_mapping_file %] -in_assemb=@[% assembly_file %] -in_index=@[% job_id %].700.annotation.sims.filter.seq.index -output=[% job_id %].700.annotation.md5.summary -nr_ver=[% ach_annotation_ver %] -type=md5",
                 "description": "md5 annotation summary",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ" : { 	 	
                     "[% docker_switch %]public" : { 	 	
                         "BASH_ENV" : "/root/mgrast_env.sh"
@@ -230,7 +230,7 @@
                 "name": "awe_annotate_summary.pl",
                 "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% rna_mapping_file %] -in_maps=@[% prot_mapping_file %] -in_assemb=@[% assembly_file %] -output=[% job_id %].700.annotation.function.summary -nr_ver=[% ach_annotation_ver %] -type=function",
                 "description": "function annotation summary",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ" : { 	 	
                     "[% docker_switch %]public" : { 	 	
                         "BASH_ENV" : "/root/mgrast_env.sh"
@@ -286,7 +286,7 @@
                 "name": "awe_annotate_summary.pl",
                 "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% rna_mapping_file %] -in_maps=@[% prot_mapping_file %] -in_assemb=@[% assembly_file %] -output=[% job_id %].700.annotation.organism.summary -nr_ver=[% ach_annotation_ver %] -type=organism",
                 "description": "organism annotation summary",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ" : { 	 	
                     "[% docker_switch %]public" : { 	 	
                         "BASH_ENV" : "/root/mgrast_env.sh"
@@ -342,7 +342,7 @@
                 "name": "awe_annotate_summary.pl",
                 "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.expand.lca -in_expand=@[% job_id %].450.rna.expand.lca -in_maps=@[% rna_mapping_file %] -in_maps=@[% prot_mapping_file %] -in_assemb=@[% assembly_file %] -output=[% job_id %].700.annotation.lca.summary -nr_ver=[% ach_annotation_ver %] -type=lca",
                 "description": "lca annotation summary",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ" : { 	 	
                     "[% docker_switch %]public" : { 	 	
                         "BASH_ENV" : "/root/mgrast_env.sh"
@@ -397,7 +397,7 @@
                 "name": "awe_annotate_summary.pl",
                 "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.expand.ontology -in_maps=@[% prot_mapping_file %] -in_assemb=@[% assembly_file %] -output=[% job_id %].700.annotation.ontology.summary -nr_ver=[% ach_annotation_ver %] -type=ontology",
                 "description": "ontology annotation summary",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]", 	 	
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]", 	 	
                 "environ" : { 	 	
                     "[% docker_switch %]public" : { 	 	
                         "BASH_ENV" : "/root/mgrast_env.sh"
@@ -444,7 +444,7 @@
                 "name": "awe_annotate_summary.pl",
                 "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% rna_mapping_file %] -in_maps=@[% prot_mapping_file %] -in_assemb=@[% assembly_file %] -output=[% job_id %].700.annotation.source.stats -nr_ver=[% ach_annotation_ver %] -type=source",
                 "description": "source annotation summary",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ" : { 	 	
                     "[% docker_switch %]public" : { 	 	
                         "BASH_ENV" : "/root/mgrast_env.sh" 	 	
@@ -500,7 +500,7 @@
                 "name": "awe_loaddb.pl",
                 "args": "-job=[% job_id %] -input=@[% job_id %].700.annotation.md5.summary -psql=@postgresql.tar -nr_ver=[% ach_annotation_ver %] -type=md5",
                 "description": "md5 summary load",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "private": {
                         "ANALYSIS_DB_HOST": "[% analysis_dbhost %]",
@@ -533,7 +533,7 @@
                 "name": "awe_loaddb.pl",
                 "args": "-job=[% job_id %] -input=@[% job_id %].700.annotation.function.summary -psql=@postgresql.tar -nr_ver=[% ach_annotation_ver %] -type=function",
                 "description": "function summary load",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "private": {
                         "ANALYSIS_DB_HOST": "[% analysis_dbhost %]",
@@ -566,7 +566,7 @@
                 "name": "awe_loaddb.pl",
                 "args": "-job=[% job_id %] -input=@[% job_id %].700.annotation.organism.summary -psql=@postgresql.tar -nr_ver=[% ach_annotation_ver %] -type=organism",
                 "description": "organism summary load",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "private": {
                         "ANALYSIS_DB_HOST": "[% analysis_dbhost %]",
@@ -599,7 +599,7 @@
                 "name": "awe_loaddb.pl",
                 "args": "-job=[% job_id %] -input=@[% job_id %].700.annotation.lca.summary -psql=@postgresql.tar -nr_ver=[% ach_annotation_ver %] -type=lca",
                 "description": "lca summary load",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "private": {
                         "ANALYSIS_DB_HOST": "[% analysis_dbhost %]",
@@ -632,7 +632,7 @@
                 "name": "awe_loaddb.pl",
                 "args": "-job=[% job_id %] -input=@[% job_id %].700.annotation.ontology.summary -psql=@postgresql.tar -nr_ver=[% ach_annotation_ver %] -type=ontology",
                 "description": "ontology summary load",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "private": {
                         "ANALYSIS_DB_HOST": "[% analysis_dbhost %]",
@@ -665,7 +665,7 @@
                 "name": "awe_redo_stats.pl",
                 "args": "-job=[% job_id %] -stats=@old.statistics.json -source=@[% job_id %].700.annotation.source.stats -api_url=[% mgrast_api %]",
                 "description": "stats stage",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "private": {
                         "MGRAST_WEBKEY": "[% api_key %]"
@@ -707,7 +707,7 @@
                 "name": "curl",
                 "args": "-X DELETE -H \"authorization: mgrast ${MGRAST_WEBKEY}\" [% shock_url %]/node/[% mg_stats_node %]",
                 "description": "clean stage",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline-base:[% docker_image_version %]",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "private": {
                         "MGRAST_WEBKEY": "[% api_key %]"
