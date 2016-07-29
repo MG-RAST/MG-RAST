@@ -104,7 +104,9 @@ sub new {
         name          => '',
         url_id        => $url_id,
         rights        => {},
-        attributes    => {}
+        attributes    => {},
+        m5nr_version  => {'1' => '20100309', '7' => '20120401', '9' => '20130801', '10' => '20131215'},
+        m5nr_default  => 1
     };
     bless $self, $class;
     return $self;
@@ -114,6 +116,9 @@ sub new {
 sub get_url_id {
     my ($cgi, $resource, $rest, $rpc, $user) = @_;
     my $rurl = $cgi->url(-relative=>1).$resource;
+    if ($cgi->url =~ /dev/) {
+        $rurl = 'dev'.$rurl;
+    }
     my %params = map { $_ => [$cgi->param($_)] } $cgi->param;
     foreach my $r (@$rest) {
         $rurl .= $r;
@@ -204,6 +209,10 @@ sub attributes {
     my ($self) = @_;
     return $self->{attributes};
 }
+sub m5nr_version {
+    my ($self) = @_;
+    return $self->{m5nr_version};
+}
 
 #####################
 #  hardcoded lists  #
@@ -230,6 +239,38 @@ sub source {
                            ["COG", "ontology database, type ontology only"],
                            ["KO", "ontology database, type ontology only"] ]
     };
+}
+
+sub valid_source {
+    my ($self, $src, $type) = @_;
+    if (! $src) {
+        return 0;
+    }
+    my @test = $type ? ($type) : ("protein", "rna", "ontology");
+    foreach my $t (@test) {
+        if (exists $self->source->{$t}) {
+            foreach my $s (@{$self->source->{$t}}) {
+                if ($s->[0] eq $src) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+sub source_by_type {
+    my ($self, $type) = @_;
+    my @srcs = ();
+    my @test = $type ? ($type) : ("protein", "rna", "ontology");
+    foreach my $t (@test) {
+        if (exists $self->source->{$t}) {
+            foreach my $s (@{$self->source->{$t}}) {
+                push @srcs, $s->[0];
+            }
+        }
+    }
+    return \@srcs;
 }
 
 # hardcoded hierarchy info
@@ -1252,13 +1293,18 @@ sub awe_job_action {
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
-        my $req = POST($Conf::awe_url.'/job/'.$id.($action ne 'delete' ? '?'.$action : ''), @args);
-        $req->method('PUT');
-	if ($action eq 'delete') {
-	  $req->method('DELETE');
-	}
-        my $put = $self->agent->request($req);
-        $response = $self->json->decode( $put->content );
+        my ($method, $url);
+        if ($action eq 'delete') {
+            $method = 'DELETE';
+            $url = $Conf::awe_url.'/job/'.$id.'?full';
+        } else {
+            $method = 'PUT';
+            $url = $Conf::awe_url.'/job/'.$id.'?'.$action;
+        }
+        my $req = POST($url, @args);
+        $req->method($method);
+        my $act = $self->agent->request($req);
+        $response = $self->json->decode( $act->content );
     };
     if ($@ || (! ref($response))) {
         $self->return_data( {"ERROR" => "Unable to PUT to AWE: ".$@}, 500 );
@@ -1289,6 +1335,30 @@ sub get_awe_job {
         return $response->{data};
     }
 }
+
+# get job report
+sub get_awe_log {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+      $authPrefix = "mgrast";
+    }
+
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->get($Conf::awe_url.'/job/'.$id.'?report', @args);
+        $response = $self->json->decode( $get->content );
+    };
+    if ($@ || (! ref($response))) {
+        return undef;
+    } elsif (exists($response->{error}) && $response->{error}) {
+        $self->return_data( {"ERROR" => "Unable to GET report $id from AWE: ".$response->{error}[0]}, $response->{status} );
+    } else {
+        return $response->{data};
+    }
+}
+
 
 # get list of jobs for query
 sub get_awe_query {
@@ -1438,6 +1508,7 @@ sub cassandra_m5nr_handle {
 
     use Inline::Python qw(py_eval);
     my $python = q(
+from collections import defaultdict
 from cassandra.cluster import Cluster
 from cassandra.policies import RetryPolicy
 from cassandra.query import dict_factory
@@ -1451,7 +1522,7 @@ class CassHandle(object):
         self.session = self.handle.connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = dict_factory
-    def get_records_by_id(self, ids, source):
+    def get_records_by_id(self, ids, source=None):
         found = []
         if source:
             query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
@@ -1461,6 +1532,53 @@ class CassHandle(object):
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
+        return found
+    def get_id_records_by_id(self, ids, source=None):
+        found = []
+        if source:
+            query = "SELECT * FROM index_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        else:
+            query = "SELECT * FROM index_annotation WHERE id IN (%s)"%(",".join(map(str, ids)))
+        rows = self.session.execute(query)
+        for r in rows:
+            r['is_protein'] = 1 if r['is_protein'] else 0
+            found.append(r)
+        return found
+    def get_taxa_hierarchy(self):
+        found = {}
+        query = "SELECT * FROM organisms_ncbi"
+        rows = self.session.execute(query)
+        for r in rows:
+            found[r['name']] = [r['tax_domain'], r['tax_phylum'], r['tax_class'], r['tax_order'], r['tax_family'], r['tax_genus'], r['tax_species']]
+        return found
+    def get_ontology_hierarchy(self, source=None):
+        found = defaultdict(dict)
+        if source is None:
+            rows = self.session.execute("SELECT * FROM ont_level1")
+        else:
+            prep = self.session.prepare("SELECT * FROM ont_level1 WHERE source = ?")
+            rows = self.session.execute(prep, [source])
+        for r in rows:
+            found[r['source']][r['level1']] = r['name']
+        if source is None:
+            return found
+        else:
+            return found[source]
+    def get_org_taxa_map(self, taxa):
+        found = {}
+        tname = "tax_"+taxa.lower()
+        query = "SELECT * FROM "+tname
+        rows = self.session.execute(query)
+        for r in rows:
+            found[r['name']] = r[tname]
+        return found
+    def get_ontology_map(self, source, level):
+        found = {}
+        level = level.lower()
+        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+        rows = self.session.execute(prep, [source])
+        for r in rows:
+            found[r['name']] = r[level]
         return found
     def get_organism_by_taxa(self, taxa, match=None):
         # if match is given, return subset that contains match, else all

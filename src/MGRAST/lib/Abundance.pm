@@ -7,203 +7,219 @@ no warnings('once');
 use DBI;
 use Data::Dumper;
 use List::Util qw(max min sum);
+use List::MoreUtils qw(natatime);
 
-our $ontology_md5s = {}; # src => ont => [md5s]
-our $function_md5s = {}; # func => [md5s]
-our $organism_md5s = {}; # org => [md5s]
-our $md5_abundance = {}; # md5 => abund
-our $dbh = undef;
+1;
 
-sub get_analysis_dbh {
+sub new {
+    my ($class, $chdl, $version) = @_;
+  
+    # connect to database
+    my $dbh = undef;
     eval {
-      # need write DB as read DB may not yet be synched
-      my $host     = $Conf::mgrast_write_dbhost;
-      my $database = $Conf::mgrast_db;
-      my $user     = $Conf::mgrast_dbuser;
-      my $password = $Conf::mgrast_dbpass;
-      
-      $dbh = DBI->connect("DBI:Pg:dbname=$database;host=$host", $user, $password, 
-			  { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
-			    die $DBI::errstr;
+        my $host     = $Conf::mgrast_dbhost;
+        my $database = $Conf::mgrast_db;
+        my $user     = $Conf::mgrast_dbuser;
+        my $password = $Conf::mgrast_dbpass;
+        $dbh = DBI->connect(
+            "DBI:Pg:dbname=$database;host=$host",
+            $user,
+            $password,
+            { RaiseError => 1, AutoCommit => 0, PrintError => 0 }
+        ) || die $DBI::errstr;
     };
-    if ($@) {
-      warn "Unable to connect to metagenomics database: $@\n";
+    if ($@ || (! $dbh)) {
+        warn "Unable to connect to metagenomics database: $@\n";
+        return undef;
+    }
+    $dbh->{pg_expand_array} = 1;
+    
+    # create object
+    my $self = {
+        dbh     => $dbh,    # postgres analysis db handle
+        chdl    => $chdl,   # cassnadra m5nr handle
+        chunk   => 2000,    # max # md5s to query at once
+        version => $version || $Conf::m5nr_annotation_version || 1  # m5nr version
+    };
+    bless $self, $class;
+    return $self;
+}
+
+sub DESTROY {
+   my ($self) = @_;
+   if ($self->{dbh})  { $self->{dbh}->disconnect(); }
+   if ($self->{chdl}) { $self->{chdl}->close(); }
+}
+
+sub dbh {
+  my ($self) = @_;
+  return $self->{dbh};
+}
+
+sub chdl {
+  my ($self) = @_;
+  return $self->{chdl};
+}
+
+sub chunk {
+  my ($self) = @_;
+  return $self->{chunk};
+}
+
+sub version {
+  my ($self) = @_;
+  return $self->{version};
+}
+
+sub get_where_str {
+    my ($self, $items) = @_;
+    
+    my @text;
+    unless ($items && (@$items > 0)) { return ""; }
+    foreach my $i (@$items) {
+        if ($i && ($i =~ /\S/)) {
+            push @text, $i;
+        }
+    }
+    if (@text == 1) {
+        return " WHERE " . $text[0];
+    } elsif (@text > 1) {
+        return " WHERE " . join(" AND ", @text);
+    } else {
+        return "";
     }
 }
 
-sub get_ontology_abundances {
-    my ($job, $ver) = @_;
-    
-    my $data = {}; # src => id => level1
-    my $ont_md5  = {}; # src => lvl1 => { md5s }
-    my $ont_nums = {}; # src => [ lvl1, abundance ]
-    
-    my $sql  = "SELECT s.name, o._id, o.level1 FROM ontologies o, sources s WHERE o.source=s._id";
-    my $rows = $dbh->selectall_arrayref($sql);
-    unless ($rows && (@$rows > 0)) {
-        return {};
-    }
-    map { $data->{$_->[0]}{$_->[1]} = $_->[2] } grep { $_->[2] && ($_->[2] =~ /\S/) } @$rows;
-  
-    my $onts = get_ontology_md5s($job, $ver);
-    foreach my $s (keys %$onts) {
-        foreach my $o (keys %{$onts->{$s}}) {
-            if (exists $data->{$s}{$o}) {
-                map { $ont_md5->{$s}{$data->{$s}{$o}}->{$_} = 1 } @{ $onts->{$s}{$o} };
-            }
-        }
-    }
-    
-    my $md5s = get_md5_abundance($job, $ver);
-    foreach my $s (sort keys %$ont_md5) {
-        foreach my $d (sort keys %{$ont_md5->{$s}}) {
-            my $num = 0;
-            map { $num += $md5s->{$_} } grep { exists $md5s->{$_} } keys %{ $ont_md5->{$s}{$d} };
-            if ($num > 0) {
-  	            push @{$ont_nums->{$s}}, [ $d, $num ];
-            }
-        }
-    }
-    
-    return $ont_nums;
+sub execute_query {
+    my ($self, $query) = @_;
+    my $sth = $self->dbh->prepare($query);
+    $sth->execute() || die "Couldn't execute statement: ".$sth->errstr;
+    return $sth;
 }
 
-sub get_function_abundances {
-    my ($job, $ver) = @_;
-
-    my $data = {}; # id => function
-    my $func_md5 = {}; # function => { md5s }
-    my $func_num = []; # [ function, abundance ]
-
-    my $rows = $dbh->selectall_arrayref("SELECT _id, name FROM functions");
-    unless ($rows && (@$rows > 0)) {
-        return [];
-    }
-    %$data = map { $_->[0], $_->[1] } grep { $_->[1] && ($_->[1] =~ /\S/) } @$rows;
-  
-    my $funcs = get_function_md5s($job, $ver);
-    foreach my $f (keys %$funcs) {
-        if (exists $data->{$f}) {
-            map { $func_md5->{$data->{$f}}->{$_} = 1 } @{ $funcs->{$f} };
-        }
-    }
-
-    my $md5s  = get_md5_abundance($job, $ver);
-    my $other = 0;
-    foreach my $f (sort keys %$func_md5) {
-        my $num = 0;
-        map { $num += $md5s->{$_} } grep { exists $md5s->{$_} } keys %{ $func_md5->{$f} };
-        if ($num > 0) {
-            push @$func_num, [ $f, $num ];
-        }
-    }
-    
-    return $func_num;
+sub end_query {
+    my ($self, $sth) = @_;
+    $sth->finish;
+    $self->dbh->commit;
 }
 
-sub get_taxa_abundances {
-    my ($job, $taxa, $clump, $ver) = @_;
-
-    my $data = {}; # id => taxa
-    my $tax_md5 = {}; # taxa => { md5s }
-    my $tax_num = []; # [ taxa, abundance ]
+sub all_job_abundances {
+    my ($self, $job, $taxa, $org, $fun, $ont) = @_;
     
-    my $rows = $dbh->selectall_arrayref("SELECT _id, tax_$taxa FROM organisms_ncbi");
-    unless ($rows && (@$rows > 0)) {
-        return [];
-    }
-    %$data = map { $_->[0], $_->[1] } grep { $_->[1] && ($_->[1] =~ /\S/) } @$rows;
-  
-    my $orgs = get_organism_md5s($job, $ver);
-    foreach my $o (keys %$orgs) {
-        if (exists $data->{$o}) {
-            map { $tax_md5->{$data->{$o}}->{$_} = 1 } @{ $orgs->{$o} };
-        }
-    }
-    
-    my $md5s  = get_md5_abundance($job, $ver);
-    my $other = 0;
-    foreach my $d (sort keys %$tax_md5) {
-        my $num = 0;
-        map { $num += $md5s->{$_} } grep { exists $md5s->{$_} } keys %{ $tax_md5->{$d} };
-        if ($clump && ($d =~ /other|unknown|unclassified/)) {
-            $other += $num;
+    my $tax = "";
+    my $tax_map = {};
+    my $org_map = {}; # tax_lvl => taxa => abundance
+    my $fun_map = {}; # func => abundance
+    my $ont_map = {}; # source => level1 => abundance
+    my $ont_cat = {}; # source => ont => level1
+        
+    if ($org && $taxa && @$taxa) {
+        if (scalar(@$taxa) == 1) {
+            $tax = $taxa->[0];
+            # org => taxa
+            $tax_map = $self->chdl->get_org_taxa_map($tax);
+            $org_map->{$tax} = {};
         } else {
-            if ($num > 0) {
-	            push @$tax_num, [ $d, $num ];
+            # org => [ taxa ]
+            $tax_map = $self->chdl->get_taxa_hierarchy();
+            foreach my $t (@$taxa) {
+                $org_map->{$t} = {};
             }
         }
     }
-    if ($clump && ($other > 0)) {
-        push @$tax_num, [ "Other", $other ];
+    if ($ont) {
+        $ont_cat = $self->chdl->get_ontology_hierarchy();
     }
     
-    return $tax_num;
-}
-
-sub get_ontology_md5s {
-    my ($job, $ver) = @_;
-    unless (scalar(keys %$ontology_md5s) > 0) {
-        my $sql = "SELECT s.name, j.id, j.md5s FROM job_ontologies j, sources s WHERE j.version=$ver AND j.job=$job AND j.source=s._id";
-        my $rows = $dbh->selectall_arrayref($sql);
-        if ($rows && (@$rows > 0)) {
-            map { $ontology_md5s->{$_->[0]}{$_->[1]} = $_->[2] } @$rows;
+    my $query = "SELECT md5, abundance FROM job_md5s WHERE version=".$self->version." AND job=".$job." AND exp_avg <= -5 AND ident_avg >= 60 AND len_avg >= 15";
+    my $sth   = $self->execute_query($query);
+    my $md5s  = {};
+    my $count = 0;
+    
+    my $add_annotations = sub {
+        my $data = $self->chdl->get_records_by_id([keys %$md5s]);
+        foreach my $set (@$data) {
+            if ($fun && $set->{function}) {
+                foreach my $f (@{$set->{function}}) {
+                    unless (exists $fun_map->{$f}) {
+                        $fun_map->{$f} = 0;
+                    }
+                    $fun_map->{$f} += $md5s->{$set->{id}};
+                }
+            }
+            if ($ont && exists($ont_cat->{$set->{source}}) && $set->{accession}) {
+                unless (exists $ont_map->{$set->{source}}) {
+                    $ont_map->{$set->{source}} = {};
+                }
+                foreach my $a (@{$set->{accession}}) {
+                    unless (exists $ont_map->{$set->{source}}{ $ont_cat->{$set->{source}}{$a} }) {
+                        $ont_map->{$set->{source}}{$ont_cat->{$set->{source}}{$a}} = 0;
+                    }
+                    $ont_map->{$set->{source}}{$ont_cat->{$set->{source}}{$a}} += $md5s->{$set->{id}};
+                }
+            }
+            if ($org && $set->{organism}) {
+                print STDERR Dumper($set->{organism});
+                foreach my $o (@{$set->{organism}}) {
+                    if ($tax) {
+                        next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
+                        unless (exists $org_map->{$tax}{$tax_map->{$o}}) {
+                            $org_map->{$taxa->[0]}{$tax_map->{$o}} = 0;
+                        }
+                        $org_map->{$taxa->[0]}{$tax_map->{$o}} += $md5s->{$set->{id}};
+                    } else {
+                        for (my $i=0; $i<scalar(@$taxa); $i++) {
+                            next if (($taxa->[$i] eq 'domain') && ($tax_map->{$o}[$i] =~ /other|unknown|unclassified/));
+                            unless (exists $org_map->{$taxa->[$i]}{$tax_map->{$o}[$i]}) {
+                                $org_map->{$taxa->[$i]}{$tax_map->{$o}[$i]} = 0;
+                            }
+                            $org_map->{$taxa->[$i]}{$tax_map->{$o}[$i]} += $md5s->{$set->{id}};
+                        }
+                    }
+                }
+            }
+        }
+    };
+    
+    while (my @row = $sth->fetchrow_array()) {
+        $md5s->{$row[0]} = $row[1];
+        $count++;
+        if ($count == $self->chunk) {
+            $add_annotations->();
+            $md5s = {};
+            $count = 0;
         }
     }
-    return $ontology_md5s;
-}
-
-sub get_function_md5s {
-    my ($job, $ver) = @_;
-    unless (scalar(keys %$function_md5s) > 0) {
-        my $rows = $dbh->selectall_arrayref("SELECT id, md5s FROM job_functions WHERE version=$ver AND job=$job");
-        if ($rows && (@$rows > 0)) {
-            %$function_md5s = map { $_->[0], $_->[1] } @$rows;
-        }
+    if ($count > 0) {
+        $add_annotations->();
     }
-    return $function_md5s;
+    $self->end_query($sth);
+    
+    return ($org_map, $fun_map, $ont_map);
 }
 
-sub get_organism_md5s {
-    my ($job, $ver) = @_;
-    unless (scalar(keys %$organism_md5s) > 0) {
-        my $rows = $dbh->selectall_arrayref("SELECT id, md5s FROM job_organisms WHERE version=$ver AND job=$job");
-        if ($rows && (@$rows > 0)) {
-            %$organism_md5s = map { $_->[0], $_->[1] } @$rows;
-        }
+sub all_job_md5sums {
+    my ($self, $job) = @_;
+    my @md5s = ();
+    my $sth  = $self->execute_query("SELECT m.md5 FROM md5s m, job_md5s j WHERE j.version=".$self->version." AND j.job=$job AND 'j.md5=m._id'");
+    while (my @row = $sth->fetchrow_array()) {
+        push @md5s, $row[0];
     }
-    return $organism_md5s;
-}
-
-sub get_md5_abundance {
-    my ($job, $ver) = @_;
-    unless (scalar(keys %$md5_abundance) > 0) {
-        my $rows = $dbh->selectall_arrayref("SELECT md5, abundance FROM job_md5s WHERE version=$ver AND job=$job");
-        if ($rows && (@$rows > 0)) {
-            %$md5_abundance = map { $_->[0], $_->[1] } @$rows;
-        }
-    }
-    return $md5_abundance;
-}
-
-sub get_md5sum_abundance {
-    my ($job, $ver) = @_;
-    my $rows = $dbh->selectall_arrayref("SELECT m.md5, j.abundance FROM job_md5s j, md5s m WHERE j.version=$ver AND j.job=$job AND j.md5=m._id");
-    return ($rows && (@$rows > 0)) ? $rows : [];
+    $self->end_query($sth);
+    return \@md5s;
 }
 
 sub get_alpha_diversity {
-    my ($job, $level, $ver) = @_;
-    
+    my ($self, $org_map) = @_;
+    # org_map = taxa => abundance
     my $alpha = 0;
     my $h1    = 0;
-    my @nums  = map { $_->[1] } @{ get_taxa_abundances($job, $level, undef, $ver) };
-    my $sum   = sum @nums;
+    my $sum   = sum values %$org_map;
     
     unless ($sum) {
         return $alpha;
     }
-    foreach my $num (@nums) {
+    foreach my $num (values %$org_map) {
         my $p = $num / $sum;
         if ($p > 0) { $h1 += ($p * log(1/$p)) / log(2); }
     }
@@ -213,11 +229,11 @@ sub get_alpha_diversity {
 }
 
 sub get_rarefaction_xy {
-    my ($job, $level, $nseq, $ver) = @_;
-    
+    my ($self, $org_map, $nseq) = @_;
+    # org_map = taxa => abundance
     my $rare = [];
     my $size = ($nseq > 1000) ? int($nseq / 1000) : 1;
-    my @nums = sort {$a <=> $b} map {$_->[1]} @{ get_taxa_abundances($job, $level, undef, $ver) };
+    my @nums = sort {$a <=> $b} values %$org_map;
     my $k    = scalar @nums;
 
     for (my $n = 0; $n < $nseq; $n += $size) {
@@ -257,5 +273,3 @@ sub gammaln {
     my $s = log($x);
     return log(2 * 3.14159265458) / 2 + $x * $s + $s / 2 - $x;
 }
-
-1;

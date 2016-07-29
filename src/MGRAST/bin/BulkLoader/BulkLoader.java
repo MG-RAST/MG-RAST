@@ -43,7 +43,24 @@ public class BulkLoader {
         System.out.println("outdir: "+outdir);
         
         // Schema and Insert for bulk load
-        if (table.equals("id_annotation")) {
+        if (table.equals("index_annotation")) {
+            schema = String.format("CREATE TABLE %s.%s (" +
+                                        "id int, " +
+                                        "source text, " +
+                                        "md5 text, " +
+                                        "is_protein boolean, " +
+                                        "single int, " +
+                                        "accession list<int>, " +
+                                        "function list<int>, " +
+                                        "organism list<int>, " +
+                                        "PRIMARY KEY (id, source) " +
+                                    ")", keyspace, table);
+            insert = String.format("INSERT INTO %s.%s (" +
+                                        "id, source, md5, is_protein, single, accession, function, organism" +
+                                    ") VALUES (" +
+                                        "?, ?, ?, ?, ?, ?, ?, ?" +
+                                    ")", keyspace, table);
+        } else if (table.equals("id_annotation")) {
             schema = String.format("CREATE TABLE %s.%s (" +
                                         "id int, " +
                                         "source text, " +
@@ -130,25 +147,34 @@ public class BulkLoader {
             while ((line = csvReader.readNext()) != null) {
                 // We use Java types here based on
                 // http://www.datastax.com/drivers/java/2.0/com/datastax/driver/core/DataType.Name.html#asJavaClass%28%29
-                if (table.equals("id_annotation")) {
+                if (table.equals("index_annotation")) {
+                    writer.addRow(Integer.parseInt(line[0]),
+                                  line[1],
+                                  line[2],
+                                  Boolean.valueOf(line[3]),
+                                  Integer.parseInt(line[4]),
+                                  parseIntList(line[5]),
+                                  parseIntList(line[6]),
+                                  parseIntList(line[7]));
+                } else if (table.equals("id_annotation")) {
                     writer.addRow(Integer.parseInt(line[0]),
                                   line[1],
                                   line[2],
                                   Boolean.valueOf(line[3]),
                                   line[4],
-                                  parseList(line[5]),
-                                  parseList(line[6]),
-                                  parseList(line[7]),
-                                  parseList(line[8]));
+                                  parseStringList(line[5]),
+                                  parseStringList(line[6]),
+                                  parseStringList(line[7]),
+                                  parseStringList(line[8]));
                 } else if (table.equals("md5_annotation")) {
                     writer.addRow(line[0],
                                   line[1],
                                   Boolean.valueOf(line[2]),
                                   line[3],
-                                  parseList(line[4]),
-                                  parseList(line[5]),
-                                  parseList(line[6]),
-                                  parseList(line[7]));
+                                  parseStringList(line[4]),
+                                  parseStringList(line[5]),
+                                  parseStringList(line[6]),
+                                  parseStringList(line[7]));
                 }
                 // Print nK
                 lineNumber += 1;
@@ -171,7 +197,7 @@ public class BulkLoader {
         System.exit(0);
     }
     
-    public static List<String> parseList (String listStr) {
+    public static List<String> parseStringList (String listStr) {
         List<String> aList = new ArrayList<String>();
         listStr = listStr.trim();
         if (listStr.isEmpty()) {
@@ -192,6 +218,27 @@ public class BulkLoader {
             } else {
                 aList.add( new String() );
             }
+        }
+        return aList;
+    }
+    
+    public static List<Integer> parseIntList (String listStr) {
+        List<Integer> aList = new ArrayList<Integer>();
+        listStr = listStr.trim();
+        if (listStr.isEmpty()) {
+            return aList;
+        }
+        // remove leading and trailing brackets
+        listStr = listStr.substring(1, listStr.length() - 1).trim();
+        if (listStr.isEmpty()) {
+            return aList;
+        }
+        // split by comma
+        String[] parts = listStr.split(",");
+        for (int i=0; i<parts.length; i++) {
+            // cast to int, add to list
+            String item = parts[i].trim();
+            aList.add( Integer.parseInt(item) );
         }
         return aList;
     }

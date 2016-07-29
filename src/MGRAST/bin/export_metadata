@@ -1,0 +1,248 @@
+#!/usr/bin/env python
+
+import os, sys, operator, string, pprint
+import urllib, urllib2, json
+import gspread
+from optparse import OptionParser
+from collections import defaultdict
+from lepl.apps.rfc3696 import HttpUrl
+from openpyxl import Workbook
+
+__doc__ = """Script to export metadata from MG-RAST api to xlsx file"""
+
+valid_url  = HttpUrl()
+MGRAST_URL = 'http://api.metagenomics.anl.gov/'
+MGRASTID   = 'mgrast_id'
+ID_NAME = ['metagenome_name', 'metagenome_id', 'mgrast_id', 'sample_name', 'project_name']
+ORDER   = ['project', 'sample', 'library', 'ep']
+README  = [ 'MG-RAST Metadata Template',
+            '',
+            'project tab: enter values for one project in first row',
+            "sample tab: enter values for one or more samples, one sample per row. 'sample_name' field must unique",
+            "library tab: enter values for each sample (including sample name) in appropriate library tab ('library metagenome' or 'library mimarks-survey'), one library per row",
+            "ep (environmental package) tab: enter values for each sample (including sample name) in appropriate ep tab, one sample and environmental descriptor per row",
+            '',
+            'pre-filled rows:',
+            "1. metadata label - required fields are in red",
+            "2. label description - includes instructions, examples, and units if applicable",
+	    '',
+	    'NOTE:',
+	    "1. Please do not change tab names",
+	    "2. Please enter data starting with first empty row, do not edit or overwrite pre-filled rows",
+	    "3. Each sample must have only one enviromental package associated with it",
+	    "4. Each sample must have one, but may have more than one, library associated with it",
+	    "5. Library field 'metagenome_name' must be unique for each library, and will be the name of the MG-RAST metagenome"
+           ]
+
+def errorMsg(err, exit=0):
+    sys.stderr.write("[error] "+err+"\n")
+    if exit:
+        os._exit(1)
+
+def json_from_file(infile):
+    try:
+        fhdl = open(infile, 'rU')
+        obj  = json.load(fhdl)
+    except:
+        errorMsg("invalid JSON file: '"+infile+"'")
+    finally:
+        fhdl.close()
+    if not (obj and (isinstance(obj, dict) or isinstance(obj, list))):
+        errorMsg("invalid JSON file: '"+infile+"'")
+    return obj
+
+def obj_from_url(url):
+    try:
+        req = urllib2.Request(url, headers={'Accept': 'application/json'})
+        res = urllib2.urlopen(req)
+    except urllib2.HTTPError:
+        errorMsg("MG-RAST API inaccessable: can not connect to: %s"%url, 1)
+    if not res:
+        return None
+    obj = json.loads(res.read())
+    if not (obj and isinstance(obj, dict)):
+        return None
+    return obj
+
+def mgrast_api(request, wkey=None):
+    url = MGRAST_URL+'metadata/'+request
+    if wkey:
+	url += '?auth=' + wkey
+    obj = obj_from_url(url)
+    if obj.keys() == 0:
+        errorMsg("no data available: %s"%url, 1)
+    return obj
+
+# from list of dicts, return merged dict of all keys
+def merge_keys(data_set):
+    full_set = {}
+    for data in data_set:
+        for key in data.iterkeys():
+            full_set[key] = data[key]            
+    return full_set
+
+# from dict of 'key:dict' return list of keys sorted by specific value-dict items
+def sorted_keys(data):
+    valuesList = []
+    sortedKeys = sorted(data.keys())
+    for k in sortedKeys:
+        data[k]['key'] = k.strip()
+        valuesList.append(data[k])
+    sortValues  = sorted(valuesList, key=operator.itemgetter("required","mixs"), reverse=True)
+    fullKeySort = map(lambda x: x['key'], sortValues)
+    for name in ID_NAME:
+        if name in fullKeySort:
+            fullKeySort.remove(name)
+            fullKeySort.insert(0, name)
+    return fullKeySort
+
+def color_row(sheet, vals, row, color):
+    for i in range(sheet.get_highest_column()):
+        cell = sheet.cell(row=row, column=i)
+        if cell.value and (cell.value in vals):
+            cell.style.font.color.index = color
+    return sheet
+
+# return list of item from dict ordered by key_list
+def row_by_keys(data, keys, item):
+    row = []
+    for k in keys:
+        if (k in data) and (item in data[k]):
+            row.append( data[k][item].strip() )
+        else:
+            row.append('')
+    return row
+
+# add header than values to sheet by rows
+def data2sheet(sheet, data, is_template):
+    merge = merge_keys(data)
+    keys  = sorted_keys(merge)
+    rKeys = filter(lambda x: (merge[x]['required'] == '1') or (merge[x]['required'] is True), merge.keys())
+    sheet.append( keys )
+    sheet.append( row_by_keys(merge, keys, 'definition') )
+    sheet = color_row(sheet, rKeys, 0, 'FFFF0000')
+    if not is_template:
+        for d in data:
+            sheet.append( row_by_keys(d, keys, 'value') )
+    return sheet
+
+def mdata2excel(mdata, ofile, is_template):
+    if is_template:
+        template2excel(mdata, ofile)
+        return
+    snum = 0
+    book = Workbook()
+    libs = defaultdict(list)
+    eps  = defaultdict(list)
+    # readme
+    readme = book.create_sheet(index=snum, title='README')
+    snum +=1
+    for text in README:
+        readme.append([text])
+    # project
+    psheet = book.create_sheet(index=snum, title='project')
+    psheet = data2sheet(psheet, [mdata['data']], False)
+    snum +=1
+    # sample
+    if mdata['sampleNum'] > 0:
+        samps  = sorted(mdata['samples'], key=operator.itemgetter("name"))
+        sdata  = []
+        for s in samps:
+            if ('id' in s) and (MGRASTID not in s['data']):
+                s['data'][MGRASTID] = {'value': s['id'], 'required': 0, 'mixs': 0, 'definition': ''}
+            sdata.append(s['data'])
+        ssheet = book.create_sheet(index=snum, title='sample')
+        ssheet = data2sheet(ssheet, sdata, False)
+        snum +=1
+        # library / env_package
+        for s in samps:
+            lib = sorted(s['libraries'], key=operator.itemgetter("name"))
+            for l in lib:
+                if ('id' in l) and (MGRASTID not in l['data']):
+                    l['data'][MGRASTID] = {'value': l['id'], 'required': 0, 'mixs': 0, 'definition': ''}
+                libs[l['type']].append(l['data'])
+	    if ('envPackage' in s) and ('type' in s['envPackage']):
+		if ('id' in s['envPackage']) and (MGRASTID not in s['envPackage']['data']):
+		    s['envPackage']['data'][MGRASTID] = {'value': s['envPackage']['id'], 'required': 0, 'mixs': 0, 'definition': ''}
+		eps[s['envPackage']['type']].append(s['envPackage']['data'])
+        for ltype, ldata in libs.iteritems():
+            lsheet = book.create_sheet(index=snum, title="library %s"%ltype)
+            lsheet = data2sheet(lsheet, ldata, False)
+            snum +=1
+        for etype, edata in eps.iteritems():
+            esheet = book.create_sheet(index=snum, title="ep %s"%etype)
+            esheet = data2sheet(esheet, edata, False)
+            snum +=1
+    if (mdata['sampleNum'] == 0) or (len(libs) == 0) or (len(eps) == 0):
+	tdata = mgrast_api("template")
+	if mdata['sampleNum'] == 0:
+	    snum, book = template2sheet(book, snum, 'sample', tdata)
+	if len(libs) == 0:
+	    snum, book = template2sheet(book, snum, 'library', tdata)
+	if len(eps) == 0:
+	    snum, book = template2sheet(book, snum, 'ep', tdata)
+    book.save(ofile)
+
+def template2sheet(book, inum, category, tdata):
+    ctypes = sorted(tdata[category].keys())
+    for ctype in ctypes:
+	    title = category if category == ctype else category+' '+ctype
+	    sheet = book.create_sheet(index=inum, title=title)
+	    sheet = data2sheet(sheet, [tdata[category][ctype]], True)
+	    inum += 1
+    return inum, book
+
+def template2excel(data, ofile):
+    snum   = 1
+    book   = Workbook()
+    readme = book.create_sheet(index=0, title='README')
+    for text in README:
+        readme.append([text])    
+    for category in ORDER:
+	inum, book = template2sheet(book, inum, category, data)
+    book.save(ofile)
+
+def mdata2google(data, url, is_template, login, password):
+    return None
+
+usage   = "usage: %prog [options] -o output\n" + __doc__
+version = "%prog 1.0"
+
+def main(args):
+    parser = OptionParser(usage=usage, version=version)
+    parser.add_option("-o", "--output", dest="output", default=None, help="Path of output spreadsheet: filepath or url")
+    parser.add_option("-p", "--project", dest="project", default=None, help="MG-RAST project id for metadata export")
+    parser.add_option("-k", "--key", dest="key", default=None, help="MG-RAST webkey for API access")
+    parser.add_option("-j", "--json", dest="json", default=None, help="File with JSON data for metadata export")
+    parser.add_option("-t", "--template", dest="template", action="store_true", default=False, help="Output empty template, default to output project metadata")
+    parser.add_option("-f", "--format", dest="format", default='excel', help="Format of output spreadsheet: excel or google (default 'excel')")
+    parser.add_option("--login", dest="login", default=None, help="For 'google' format: google email")
+    parser.add_option("--password", dest="password", default=None, help="For 'google' format: google password")
+
+    (opts, args) = parser.parse_args()
+    project  = None
+    template = False
+    
+    if opts.project:
+        try:
+            project = int(opts.project.strip("mgp"))
+        except ValueError:
+            parser.error("[error] invalid project id format: "+opts.project)
+        mdata = mgrast_api("export/mgp%d"%project, opts.key)
+    elif opts.json and os.path.isfile(opts.json):
+        mdata = json_from_file(opts.json)
+    elif opts.template:
+        template = True
+        mdata = mgrast_api("template")
+    else:
+        parser.error("[error] must use one of options: --project, --json, --template")
+
+    if opts.format == 'excel':
+        mdata2excel(mdata, opts.output, template)
+    elif (opts.format == 'google') and valid_url(opts.output):
+        mdata2google(mdata, opts.output, template, opts.login, opts.password)
+    else:
+        parser.error("[error] invalid format option, use one of: excel or google")
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

@@ -9,7 +9,6 @@ use List::Util qw(first max min sum);
 use POSIX qw(strftime floor);
 
 use MGRAST::Metadata;
-use MGRAST::Analysis;
 use Conf;
 use parent qw(resources::resource);
 
@@ -23,7 +22,6 @@ sub new {
     # Add name / attributes
     my %rights = $self->user ? map {$_, 1} grep {$_ ne '*'} @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "metagenome";
-    $self->{mgdb} = undef;
     $self->{rights} = \%rights;
     $self->{cv} = {
         verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
@@ -442,20 +440,11 @@ sub prepare_data {
     @$mgids = map { $_->{metagenome_id} } @$data;
     my $jobdata = {};
     my $mddb = undef;
+    my $master = $self->connect_to_datasource();
     
     if (($verb eq 'metadata') || ($verb eq 'full')) {
         $mddb = MGRAST::Metadata->new();
         $jobdata = $mddb->get_jobs_metadata_fast($mgids, 1);
-    }
-    if (($verb eq 'stats') || ($verb eq 'full')) {
-        # initialize analysis obj with mgids
-        my $master = $self->connect_to_datasource();
-        my $mgdb = MGRAST::Analysis->new( $master->db_handle );
-        unless (ref($mgdb)) {
-            $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
-        }
-        $mgdb->set_jobs($mgids);
-        $self->{mgdb} = $mgdb;
     }
 
     my $objects = [];
@@ -553,10 +542,14 @@ sub prepare_data {
                 $mddb = MGRAST::Metadata->new();
             }
             my $mixs = $mddb->get_job_mixs($job);
-	        if ($verb eq 'full') {
-	            $obj->{mixs} = $mixs;
+	    if ($verb eq 'full') {
+	      $obj->{mixs} = $mixs;
+	      my $proj_jobs = $job->primary_project->metagenomes(1);
+	      my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('alpha_diversity_shannon', $proj_jobs, 1) };
+	      $obj->{project_metagenomes} = $proj_jobs;
+	      $obj->{project_alpha_diversity} = { "min" => $min, "max" => $max, "avg" => $avg, "stdv" => $stdv };
             } else {
-                map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
+	      map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
             }
         }
         if (($verb eq 'metadata') || ($verb eq 'full')) {

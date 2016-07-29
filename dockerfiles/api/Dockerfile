@@ -1,15 +1,12 @@
 # MG-RAST API
 
-FROM httpd:2.4.12
+FROM httpd:2.4
 
 # MG-RAST dependencies
 RUN apt-get update && apt-get install -y \
-  git-core \
   libpq-dev \
   make \
   curl \
-  vim \
-  emacs \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -35,12 +32,12 @@ RUN apt-get update && apt-get install -y \
   libtemplate-perl \
   libclass-isa-perl
 
-RUN mkdir -p /var/log/httpd/api.metagenomics/ && \
-  cd / && \
-  git clone -b api https://github.com/MG-RAST/MG-RAST.git && \
-  cd /MG-RAST && \
+RUN mkdir -p /MG-RAST /var/log/httpd/api.metagenomics
+COPY . /MG-RAST
+RUN cd /MG-RAST && \
   make && \
-  make api-doc && \
+#  make api-doc && \
+  cp -rv src/MGRAST/bin/* bin/. && \
   cd site/CGI && \
   rm -fv metagenomics.cgi linkin.cgi m5nr.cgi m5nr_rest.cgi
 
@@ -49,14 +46,14 @@ RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-c
   echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
   echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods"); biocLite("preprocessCore"); biocLite("DESeq")' | R --no-save
 
-# pipeline dependencies
+# python dependencies
 RUN apt-get install -y python-dev python-pip && \
-  pip install openpyxl==1.8.6 && \
-  pip install gspread xlrd lepl cassandra-driver && \
-  cd / && \
-  git clone https://github.com/MG-RAST/pipeline.git && \
-  cd pipeline && \
-  ln -s /MG-RAST/site/CGI/Tmp temp
+  pip install \
+  openpyxl==1.8.6 \
+  gspread \
+  xlrd \
+  lepl \
+  cassandra-driver
 
 ENV PERL_MM_USE_DEFAULT 1
 RUN cpan Inline::Python
@@ -72,8 +69,7 @@ RUN mkdir -p /sites/1/ && \
   ln -s /MG-RAST/
 
 # Configuration in mounted directory
-RUN cd /MG-RAST/conf && ln -s /api-server-conf/Conf.pm && \
-  cd /pipeline/conf && ln -s /api-server-conf/PipelineAWE_Conf.pm
+RUN cd /MG-RAST/conf && ln -s /api-server-conf/Conf.pm
 
 # certificates need to be in daemon home directory
 RUN ln -s /api-server-conf/postgresql/ /usr/sbin/.postgresql

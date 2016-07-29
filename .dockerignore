@@ -1,0 +1,7 @@
+.swo
+.swp
+*.md
+dockerfiles/*
+t/*
+.git/*
+.gitmodules/*
