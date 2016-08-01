@@ -25,6 +25,7 @@ ENVO_VER = None
 LOG_FILE = None
 JSON_FILE = None
 INVALID   = []
+EXCEL_DATE_START = datetime.datetime(1899, 12, 30)
 valid_email    = Email()
 valid_http_url = HttpUrl()
 valid_name_str = string.ascii_letters+string.digits+'+-_()@; :.'
@@ -158,6 +159,12 @@ def validate_type(key, val, atype, name=False):
         elif isinstance(val, int):
             try:
                 dVal = datetime.datetime.strptime(str(val), "%Y")
+            except ValueError:
+                return None
+            return unicode(dVal.date())
+        elif isinstance(val, float):
+            try:
+                dVal = EXCEL_DATE_START + datetime.timedelta(days=int(val))
             except ValueError:
                 return None
             return unicode(dVal.date())
