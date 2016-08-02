@@ -106,7 +106,7 @@ sub instance {
     my ($dbmaster, $error) = WebApplicationDBHandle->new();
     my $usercount = undef;
     unless ($error) {
-      $usercount = $dbmaster->db_handle->selectrow_array('SELECT count(*) FROM user');
+      $usercount = $dbmaster->db_handle->selectrow_array('SELECT count(*) FROM User');
     }
     $counts = {
 	       "metagenomes" => $master->Job->count_all(),
