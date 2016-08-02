@@ -74,6 +74,7 @@ my $html = template_start($site_name);
 
 # build the navigation
 $html .= '';
+
 foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) {
   $html .= '<li><a href="#'.$res->{name}.'">'.$res->{name}.'</a></li>';
 }
@@ -142,6 +143,9 @@ foreach my $res (sort { $a->{name} cmp $b->{name} } @{$structure->{resources}}) 
     foreach my $param (sort keys(%{$req->{attributes}})) {
       my ($att_obj, $att_hash);
       my $att = $param;
+      if (ref($req->{attributes}->{$param}) ne 'ARRAY') {
+	next;
+      }
       my $att_type = $req->{attributes}->{$param}->[0];
       my $att_desc = $req->{attributes}->{$param}->[1];
       if ($att_type eq 'cv') {
