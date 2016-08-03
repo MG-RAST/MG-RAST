@@ -1474,7 +1474,7 @@ sub delete_awe_job {
 }
 
 sub empty_awe_task {
-    my ($self, $perl_lib) = @_;
+    my ($self, $docker) = @_;
     my $task = {
         cmd => {
             args => "",
@@ -1489,8 +1489,8 @@ sub empty_awe_task {
         taskid    => "0",
         totalwork => 1
     };
-    if ($perl_lib) {
-        $task->{cmd}{environ}{public} = {"PERL5LIB" => "/root/pipeline/lib:/root/pipeline/conf"};
+    if ($docker) {
+        $task->{cmd}{Dockerimage} = $Conf::pipeline_docker_image;
     }
     return $task;
 }
