@@ -133,7 +133,7 @@ sub query {
   
     # add libraries with job: public or rights
     foreach my $jl (@$job_library) {
-        next unless ($library_map->{$jl->[0]});
+        next unless ($jl->[0] && $library_map->{$jl->[0]});
         $job_lib_map->{$jl->[0]} = 1;
         if (($jl->[2] == 1) || exists($self->rights->{$jl->[1]}) || exists($self->rights->{'*'})) {
             $libraries_hash->{"mgl".$library_map->{$jl->[0]}} = $library_map->{$jl->[0]};
