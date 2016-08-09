@@ -104,7 +104,7 @@ sub instance {
             my $data = undef;
             eval {
                 $data = $self->json->decode($content);
-            }
+            };
             if ($@ || (! $data)) {
                 $self->return_data( {"ERROR" => "invalid data format: ".$@}, 404 );
             }
@@ -113,7 +113,7 @@ sub instance {
                 my $status = exists($data->{STATUS}) ? $data->{STATUS} : (exists($data->{status}) ? $data->{status} : 500);
                 $self->return_data( {"ERROR" => $error},  $status);
             }
-            $obj->{data} = $self->json->decode($content);
+            $obj->{data} = $data;
         }
     }
     
