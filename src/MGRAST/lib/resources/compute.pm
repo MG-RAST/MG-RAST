@@ -266,7 +266,7 @@ sub instance {
             if ($error) {
                 $data->{STATUS} = $error;
             }
-            $self->put_shock_file($data->{id}."_".$type.".json", $data->{data}, $node->{id}, $self->mgrast_token);
+            $self->put_shock_file($data->{id}."_".$type.".json", $data, $node->{id}, $self->mgrast_token);
             exit 0;
         }
         # parent - end html session
@@ -277,7 +277,16 @@ sub instance {
     # synchronous call, prepare then return data
     else {
         my ($data, $error) = $self->species_diversity_compute($type, $id);
-        $self->return_data($data, $error);
+        if ($error)
+            $self->return_data($data, $error);
+        } else {
+            my $result  = {
+                id   => 'mgm'.$job->{metagenome_id},
+                url  => $self->cgi->url.'/'.$type.'/mgm'.$job->{metagenome_id}.'?level='.$level,
+                data => $data
+            };
+            $self->return_data($result);
+        }
     }
 }
 
@@ -296,10 +305,7 @@ sub species_diversity_compute {
     # initialize
     my $level = $self->cgi->param('level') || 'species';
     my $ver   = $self->cgi->param('ann_ver') || $self->{m5nr_default};
-    my $data  = {
-        id => 'mgm'.$job->{metagenome_id},
-        url => $self->cgi->url.'/'.$type.'/mgm'.$job->{metagenome_id}.'?level='.$level
-    };
+    my $data  = {};
     
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
     my $mgdb = MGRAST::Abundance->new($chdl, $ver);
@@ -309,7 +315,7 @@ sub species_diversity_compute {
     }
     
     if ($type eq "alphadiversity") {
-        $data->{data} = $mgdb->get_alpha_diversity($org_map->{$level});
+        $data = $mgdb->get_alpha_diversity($org_map->{$level});
     } elsif ($type eq "rarefaction") {
         my $snum = $self->cgi->param('seq_num') || 0;
         my $alpha = $self->cgi->param('alpha') ? 1 : 0;
@@ -319,10 +325,10 @@ sub species_diversity_compute {
         }
         my $rare = $mgdb->get_rarefaction_xy($org_map->{$level}, $snum);
         if ($alpha) {
-            $data->{data}{rarefaction} = $rare;
-            $data->{data}{alphadiversity} = $mgdb->get_alpha_diversity($org_map->{$level});
+            $data->{rarefaction} = $rare;
+            $data->{alphadiversity} = $mgdb->get_alpha_diversity($org_map->{$level});
         } else {
-            $data->{data} = $rare;
+            $data = $rare;
         }
     } else {
         return ({"ERROR" => "invalid compute type: $type"}, 400);
