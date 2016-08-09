@@ -314,7 +314,7 @@ sub prepare_data {
 
     # initialize analysis obj with mgids
     unless (exists $self->{m5nr_version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
+        return ({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
     }
     my $master = $self->connect_to_datasource();
     my $chdl   = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);

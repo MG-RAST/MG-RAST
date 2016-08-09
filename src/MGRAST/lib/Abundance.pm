@@ -181,9 +181,11 @@ sub all_job_abundances {
         }
     };
     
+    my $total_md5 = 0;
     while (my @row = $sth->fetchrow_array()) {
         $md5s->{$row[0]} = $row[1];
         $count++;
+        $total_md5++;
         if ($count == $self->chunk) {
             $add_annotations->();
             $md5s = {};
@@ -195,7 +197,7 @@ sub all_job_abundances {
     }
     $self->end_query($sth);
     
-    return ($org_map, $fun_map, $ont_map);
+    return ($total_md5, $org_map, $fun_map, $ont_map);
 }
 
 sub all_job_md5sums {
