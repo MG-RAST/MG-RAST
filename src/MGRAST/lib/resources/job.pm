@@ -427,21 +427,28 @@ sub job_data {
             
             # get data
             my $data = {};
-            my ($org_map, $fun_map, $ont_map) = $mgdb->all_job_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont);
-            if ($get_org) {
-                $data->{taxonomy} = {};
-                foreach my $t (keys %{$org_map}) {
-                    $data->{taxonomy}{$t} = [ map { [ $_, $org_map->{$t}{$_} ] } keys %{$org_map->{$t}} ];
+            my ($md5_num, $org_map, $fun_map, $ont_map) = $mgdb->all_job_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont);
+            if ($md5_num > 0) {
+                if ($get_org) {
+                    $data->{taxonomy} = {};
+                    foreach my $t (keys %{$org_map}) {
+                        $data->{taxonomy}{$t} = [ map { [ $_, $org_map->{$t}{$_} ] } keys %{$org_map->{$t}} ];
+                    }
                 }
-            }
-            if ($get_fun) {
-                $data->{function} = [ map { [ $_, $fun_map->{$_} ] } keys %{$fun_map} ];
-            }
-            if ($get_ont) {
-                $data->{ontology} = {};
-                foreach my $s (keys %{$ont_map}) {
-                    $data->{ontology}{$s} = [ map { [ $_, $ont_map->{$s}{$_} ] } keys %{$ont_map->{$s}} ];
+                if ($get_fun) {
+                    $data->{function} = [ map { [ $_, $fun_map->{$_} ] } keys %{$fun_map} ];
                 }
+                if ($get_ont) {
+                    $data->{ontology} = {};
+                    foreach my $s (keys %{$ont_map}) {
+                        $data->{ontology}{$s} = [ map { [ $_, $ont_map->{$s}{$_} ] } keys %{$ont_map->{$s}} ];
+                    }
+                }
+            } else {
+                $data = {
+                    ERROR  => "no md5 hits available",
+                    STATUS => 500
+                };
             }
             $mgdb->DESTROY();
             
@@ -847,7 +854,8 @@ sub job_action {
                 $job = $jobj->[0];
                 my $jdata = $job->data();
                 my $jobid = $job->{job_id};
-                my $mgid  = 'mgm'.$job->{metagenome_id};                
+                my $mgid  = 'mgm'.$job->{metagenome_id};
+                my $filename = $jobid.".".time.'.solr.json';
 
                 close STDERR;
                 close STDOUT;
@@ -927,7 +935,11 @@ sub job_action {
                     }
                 }
                 # get annotations from DB
-                my ($org_map, $fun_map, undef) = $mgdb->all_job_abundances($jobid, ['species'], $get_org, $get_fun, undef);
+                my ($md5_num, $org_map, $fun_map, undef) = $mgdb->all_job_abundances($jobid, ['species'], $get_org, $get_fun, undef);
+                if ($md5_num == 0) {
+                    $self->put_shock_file($filename, qq({"ERROR": "no md5 hits available", "STATUS": 500}), $node->{id}, $self->mgrast_token, 1);
+                    exit 0;
+                }
                 if ($get_org) {
                     $solr_data->{organism} = [ keys %{$org_map->{species}} ];
                 }
@@ -960,7 +972,6 @@ sub job_action {
                 }
                 # get content
                 print DEBUG "solr command\n" if $post->{debug};
-                my $filename = $jobid.".".time.'.solr.json';
                 my $solr_str = $self->json->encode({
                     delete => { id => $mgid },
                     commit => { expungeDeletes => "true" },

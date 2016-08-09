@@ -303,7 +303,10 @@ sub species_diversity_compute {
     
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
     my $mgdb = MGRAST::Abundance->new($chdl, $ver);
-    my ($org_map, undef, undef) = $mgdb->all_job_abundances($job->{job_id}, [$level], 1, undef, undef);
+    my ($md5_num, $org_map, undef, undef) = $mgdb->all_job_abundances($job->{job_id}, [$level], 1, undef, undef);
+    if ($md5_num == 0) {
+        return ({"ERROR" => "no md5 hits available"}, 500);
+    }
     
     if ($type eq "alphadiversity") {
         $data->{data} = $mgdb->get_alpha_diversity($org_map->{$level});
