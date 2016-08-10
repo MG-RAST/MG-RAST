@@ -277,7 +277,7 @@ sub instance {
     # synchronous call, prepare then return data
     else {
         my ($data, $error) = $self->species_diversity_compute($type, $id);
-        if ($error)
+        if ($error) {
             $self->return_data($data, $error);
         } else {
             my $result  = {
