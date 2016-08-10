@@ -280,12 +280,7 @@ sub instance {
         if ($error) {
             $self->return_data($data, $error);
         } else {
-            my $result  = {
-                id   => 'mgm'.$job->{metagenome_id},
-                url  => $self->cgi->url.'/'.$type.'/mgm'.$job->{metagenome_id}.'?level='.$level,
-                data => $data
-            };
-            $self->return_data($result);
+            $self->return_data({id => 'mgm'.$job->{metagenome_id}, data => $data});
         }
     }
 }
