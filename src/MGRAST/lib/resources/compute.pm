@@ -303,7 +303,7 @@ sub species_diversity_compute {
     my $data  = {};
     
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
-    my $mgdb = MGRAST::Abundance->new($chdl, $ver);
+    my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
     my ($md5_num, $org_map, undef, undef) = $mgdb->all_job_abundances($job->{job_id}, [$level], 1, undef, undef);
     if ($md5_num == 0) {
         return ({"ERROR" => "no md5 hits available"}, 500);

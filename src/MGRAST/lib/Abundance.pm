@@ -12,12 +12,12 @@ use List::MoreUtils qw(natatime);
 1;
 
 sub new {
-    my ($class, $chdl, $version) = @_;
+    my ($class, $chdl, $version, $pghost) = @_;
   
     # connect to database
     my $dbh = undef;
     eval {
-        my $host     = $Conf::mgrast_dbhost;
+        my $host     = $pghost || $Conf::mgrast_dbhost;
         my $database = $Conf::mgrast_db;
         my $user     = $Conf::mgrast_dbuser;
         my $password = $Conf::mgrast_dbpass;
