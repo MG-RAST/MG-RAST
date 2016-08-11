@@ -415,7 +415,7 @@ sub job_data {
             # create DB handels inside child as they break on fork
             $master = $self->connect_to_datasource();
             my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
-            my $mgdb = MGRAST::Abundance->new($chdl, $ver);
+            my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
             my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
             $job = $jobj->[0];
             
@@ -848,7 +848,7 @@ sub job_action {
                 # create DB handels inside child as they break on fork
                 $master = $self->connect_to_datasource();
                 my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
-                my $mgdb = MGRAST::Abundance->new($chdl, $ver);
+                my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
                 my $mddb = MGRAST::Metadata->new();
                 my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
                 $job = $jobj->[0];
