@@ -22,32 +22,35 @@ sub new {
     
     # Add name / attributes
     $self->{name}  = "annotation";
-    $self->{types} = [[ "organism", "return organism data" ],
-                      [ "function", "return function data" ],
-                      [ "ontology", "return ontology data" ],
-                      [ "feature", "return feature data" ],
-                      [ "md5", "return md5sum data" ]];
+    $self->{types} = [
+        [ "organism", "return organism data" ],
+        [ "function", "return function data" ],
+        [ "ontology", "return ontology data" ],
+        [ "feature", "return feature data" ]
+    ];
     $self->{cutoffs}  = { evalue => '5', identity => '60', length => '15' };
-    $self->{attributes} = { sequence => {
-                                "col_01" => ['string', 'sequence id'],
-                                "col_02" => ['string', 'm5nr id (md5sum)'],
-                                "col_03" => ['string', 'dna sequence'],
-                                "col_04" => ['string', 'semicolon separated list of annotations'] },
-                            similarity => {
-                                "col_01" => ['string', 'query sequence id'],
-                                "col_02" => ['string', 'hit m5nr id (md5sum)'],
-                                "col_03" => ['float', 'percentage identity'],
-                                "col_04" => ['int', 'alignment length,'],
-                                "col_05" => ['int', 'number of mismatches'],
-                                "col_06" => ['int', 'number of gap openings'],
-                                "col_07" => ['int', 'query start'],
-                                "col_08" => ['int', 'query end'],
-                                "col_09" => ['int', 'hit start'],
-                                "col_10" => ['int', 'hit end'],
-                                "col_11" => ['float', 'e-value'],
-                                "col_12" => ['float', 'bit score'],
-                                "col_13" => ['string', 'semicolon separated list of annotations'] }
-                          };
+    $self->{attributes} = {
+        sequence => {
+            "col_01" => ['string', 'sequence id'],
+            "col_02" => ['string', 'm5nr id (md5sum)'],
+            "col_03" => ['string', 'dna sequence'],
+            "col_04" => ['string', 'semicolon separated list of annotations']
+        },
+        similarity => {
+            "col_01" => ['string', 'query sequence id'],
+            "col_02" => ['string', 'hit m5nr id (md5sum)'],
+            "col_03" => ['float', 'percentage identity'],
+            "col_04" => ['int', 'alignment length,'],
+            "col_05" => ['int', 'number of mismatches'],
+            "col_06" => ['int', 'number of gap openings'],
+            "col_07" => ['int', 'query start'],
+            "col_08" => ['int', 'query end'],
+            "col_09" => ['int', 'hit start'],
+            "col_10" => ['int', 'hit end'],
+            "col_11" => ['float', 'e-value'],
+            "col_12" => ['float', 'bit score'],
+            "col_13" => ['string', 'semicolon separated list of annotations'] }
+    };
     return $self;
 }
 
@@ -81,15 +84,35 @@ sub info {
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab delimited annotated sequence stream"]] },
 				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
-				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                                                            'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                                                            'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                                                            "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
-				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $sources ],
-									                        'version'  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
-									                        "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'] },
+				                             'options' => {
+				                                 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                 'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                 'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                 "version"  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
+                                                 "source"   => ['cv', $sources ],
+                                                 "type"     => ['cv', $self->{types} ],
+                                                 "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
+                                                 "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+                                             },
 							                 'body' => {} }
+						},
+						{ 'name'        => "sequence",
+				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
+				          'description' => "tab delimited annotated sequence stream",
+				          'example'     => [ 'curl -X POST -d \'{"source":"SwissProt","type":"organism","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->{url}."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read sequences from mgm4447943.3 with hits in SwissProt organisms for given md5s' ],
+				          'method'      => "POST",
+				          'type'        => "stream",  
+				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab delimited annotated sequence stream"]] },
+				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
+				                             'options' => {},
+							                 'body' => {
+							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
+							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
+							                     "source"  => ['cv', $sources ],
+							                     "type"    => ['cv', [ $self->{types} ],
+							                     "filter"  => ['string', 'text string to filter annotations by: only return those that contain text'],
+							                     "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+						                     } }
 						},
 						{ 'name'        => "similarity",
 				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
@@ -100,16 +123,37 @@ sub info {
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
 				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
-				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                                                            'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                                                            'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                                                            "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
-				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $sources ],
-									                        'version'  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
-									                        "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'] },
-							                 'body' => {} }
-						} ]
+				                             'options' => {
+				                                 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                 'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                 'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                 "version"  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
+                                                 "source"   => ['cv', $sources ],
+                                                 "type"     => ['cv', $self->{types} ],
+                                                 "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
+                                                 "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+                                             },
+				                             'body' => {} }
+						},
+						{ 'name'        => "similarity",
+				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
+				          'description' => "tab delimited blast m8 with annotation",
+				          'example'     => [ 'curl -X POST -d \'{"source":"KO","type":"function","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->{url}."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
+				          'method'      => "POST",
+				          'type'        => "stream",  
+				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
+				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
+				                             'options' => {},
+				                             'body' => {
+ 							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
+ 							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
+ 							                     "source"  => ['cv', $sources ],
+ 							                     "type"    => ['cv', [ $self->{types} ],
+ 							                     "filter"  => ['string', 'text string to filter annotations by: only return those that contain text'],
+ 							                     "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+ 						                     } }
+						}
+					]
 		  };
 
     $self->return_data($content);
@@ -179,16 +223,12 @@ sub prepare_data {
         if ($post_data) {
             eval {
                 my $json_data = $self->json->decode($post_data);
-                if (exists $json_data->{type})     { $type   = $json_data->{type}; }
-                if (exists $json_data->{source})   { $source = $json_data->{source}; }
-                if (exists $json_data->{evalue})   { $eval   = $json_data->{evalue}; }
-                if (exists $json_data->{identity}) { $ident  = $json_data->{identity}; }
-                if (exists $json_data->{length})   { $alen   = $json_data->{length}; }
-                if ($type eq 'md5') {
-                    $filter = undef;
-                    $flevel = undef;
-                    $md5s = $json_data->{md5s};
-                }
+                if (exists $json_data->{md5s})    { $md5s    = $json_data->{md5s}; }
+                if (exists $json_data->{type})    { $type    = $json_data->{type}; }
+                if (exists $json_data->{version}) { $version = $json_data->{version}; }
+                if (exists $json_data->{source})  { $source  = $json_data->{source}; }
+                if (exists $json_data->{filter})  { $filter  = $json_data->{filter}; }
+                if (exists $json_data->{filter_level}) { $flevel = $json_data->{filter_level}; }
             };
         # data sent in post form
         } elsif ($self->cgi->param('md5s')) {
@@ -201,10 +241,9 @@ sub prepare_data {
         if ($@ || (@$md5s == 0)) {
             $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
         }
-    } elsif ($filter && ($type eq 'md5')) {
-        $filter = undef;
-        $flevel = undef;
-        $md5s = [$filter];
+        $eval  = undef;
+        $ident = undef;
+        $alen  = undef;
     }
 
     # validate options
