@@ -561,7 +561,9 @@ sub prepare_data {
 						   sequencing_method => $row->[11],
 						   viewable => $row->[12],
 						   created_on => $row->[13],
-						   attributes => $row->[14] });
+						   attributes => $row->[14],
+						   sample => $row->[15],
+						   library => $row->[16] });
 		  }
 		}
             } elsif ($self->cgi->param('verbosity') ne 'minimal') {
