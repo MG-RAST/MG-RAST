@@ -26,8 +26,10 @@ sub new {
         [ "organism", "return organism data" ],
         [ "function", "return function data" ],
         [ "ontology", "return ontology data" ],
-        [ "feature", "return feature data" ]
+        [ "feature", "return feature data" ],
+        [ "all", "return all data, no filtering done" ]
     ];
+    $self->{ontology} = { map { $_, 1 } @{$self->source_by_type('ontology')} };
     $self->{cutoffs}  = { evalue => '5', identity => '60', length => '15' };
     $self->{attributes} = {
         sequence => {
@@ -88,6 +90,7 @@ sub info {
 				                                 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                                                  'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                                                  'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                 "format"   => ['cv', [["tab", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
                                                  "version"  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
                                                  "source"   => ['cv', $sources ],
                                                  "type"     => ['cv', $self->{types} ],
@@ -107,11 +110,10 @@ sub info {
 				                             'options' => {},
 							                 'body' => {
 							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
+							                     "format"  => ['cv', [["tabbed", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
 							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
 							                     "source"  => ['cv', $sources ],
-							                     "type"    => ['cv', [ $self->{types} ],
-							                     "filter"  => ['string', 'text string to filter annotations by: only return those that contain text'],
-							                     "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+							                     "type"    => ['cv', [ $self->{types} ]
 						                     } }
 						},
 						{ 'name'        => "similarity",
@@ -148,9 +150,7 @@ sub info {
  							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
  							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
  							                     "source"  => ['cv', $sources ],
- 							                     "type"    => ['cv', [ $self->{types} ],
- 							                     "filter"  => ['string', 'text string to filter annotations by: only return those that contain text'],
- 							                     "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+ 							                     "type"    => ['cv', [ $self->{types} ]
  						                     } }
 						}
 					]
@@ -215,6 +215,7 @@ sub prepare_data {
     my $md5s    = [];
     my $mgid    = 'mgm'.$data->{metagenome_id};
     my $version = ($cgi->param('version') && ($cgi->param('version') =~ /^\d+$/)) ? $cgi->param('version') : $self->{m5nr_default};
+    my $filetype = $cgi->param('format') || 'tab';
     
     # post of md5s
     if ($self->method eq 'POST') {
@@ -223,12 +224,11 @@ sub prepare_data {
         if ($post_data) {
             eval {
                 my $json_data = $self->json->decode($post_data);
-                if (exists $json_data->{md5s})    { $md5s    = $json_data->{md5s}; }
-                if (exists $json_data->{type})    { $type    = $json_data->{type}; }
-                if (exists $json_data->{version}) { $version = $json_data->{version}; }
-                if (exists $json_data->{source})  { $source  = $json_data->{source}; }
-                if (exists $json_data->{filter})  { $filter  = $json_data->{filter}; }
-                if (exists $json_data->{filter_level}) { $flevel = $json_data->{filter_level}; }
+                if (exists $json_data->{format})  { $filetype = $json_data->{format}; }
+                if (exists $json_data->{md5s})    { $md5s     = $json_data->{md5s}; }
+                if (exists $json_data->{type})    { $type     = $json_data->{type}; }
+                if (exists $json_data->{version}) { $version  = $json_data->{version}; }
+                if (exists $json_data->{source})  { $source   = $json_data->{source}; }
             };
         # data sent in post form
         } elsif ($self->cgi->param('md5s')) {
@@ -241,9 +241,12 @@ sub prepare_data {
         if ($@ || (@$md5s == 0)) {
             $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
         }
-        $eval  = undef;
-        $ident = undef;
-        $alen  = undef;
+        # no filtering with POSTed md5 list
+        $eval   = undef;
+        $ident  = undef;
+        $alen   = undef;
+        $filter = undef;
+        $flevel = undef;
     }
 
     # validate options
@@ -259,9 +262,12 @@ sub prepare_data {
     unless (any {$_->[0] eq $type} @{$self->{types}}) {
         $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
     }
+    if (($filetype ne 'tab') && ($filetype ne 'fasta')) {
+        $self->return_data({"ERROR" => "Invalid format was entered ($filetype). Please use one of: tab, fasta"}, 404);
+    }
     
     # only have filter_level for organism or ontology
-    if ( $flevel && (($flevel =~ /^strain|species|function$/) || ($type !~ /^organism|ontology$/)) ) {
+    if ($flevel && (($flevel =~ /^strain|species|function$/) || ($type !~ /^organism|ontology$/))) {
         $flevel = undef;
     }
     if ($filter && $flevel) {
@@ -317,17 +323,6 @@ sub prepare_data {
     }
     my $node_id = $sim_node->[0]{id};
     
-    # print html and line headers - no buffering to stdout
-    select STDOUT;
-    $| = 1;
-    my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
-    if ($cgi->param('browser')) {
-      print $cgi->header(-type => 'application/octet-stream', -status => 200, -Access_Control_Allow_Origin => '*');
-    } else {
-      print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
-    }
-    print join("\t", @head)."\n";
-    
     # get filter list
     # filter_list is all taxa names that match filter for given filter_level (organism, ontology only)
     my %filter_list = ();
@@ -341,6 +336,17 @@ sub prepare_data {
     
     # start query
     my $sth = $mgdb->execute_query($query);
+    
+    # print html and line headers - no buffering to stdout
+    select STDOUT;
+    $| = 1;
+    my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
+    if ($cgi->param('browser')) {
+      print $cgi->header(-type => 'application/octet-stream', -status => 200, -Access_Control_Allow_Origin => '*');
+    } else {
+      print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
+    }
+    print join("\t", @head)."\n";
         
     # loop through indexes and print data
     my $count = 0;
@@ -354,13 +360,13 @@ sub prepare_data {
         $md5_set->{$md5} = [$seek, $len];
         $batch_count++;
         if ($batch_count == $mgdb->chunk) {
-            $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list, $filter);
+            $count += $self->print_batch($chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5_set, \%filter_list, $filter);
             $md5_set = {};
             $batch_count = 0;
         }
     }
     if ($batch_count > 0) {
-        $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list, $filter);
+        $count += $self->print_batch($chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5_set, \%filter_list, $filter);
     }
 
     # cleanup
@@ -371,48 +377,78 @@ sub prepare_data {
 }
 
 sub print_batch {
-    my ($self, $chdl, $node_id, $format, $mgid, $source, $md5s, $filter_list, $filter) = @_;
+    my ($self, $chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5s, $filter_list, $filter) = @_;
     
-    my $type = $self->cgi->param('type') || 'organism';
-    my $count = 0;
-    
+    my $count = 0;    
     # get / process annotations per md5
     my $data = $chdl->get_records_by_id([keys %$md5s], $source);
     foreach my $set (@$data) {
-        # get annotation list
-        my $ann = [];
-        if ($type eq 'organism') {
-            if (%$filter_list) {
-                @$ann = grep { $filter_list->{$_} } @{$set->{organism}};
-            } elsif ($filter) {
-                @$ann = grep { /$filter/i } @{$set->{organism}};
-            } else {
-                $ann = $set->{organism};
-            }
-        } elsif ($type eq 'function') {
+        # get annotation set based on options: (function, feature, organism)
+        my @ann = ();
+        if ($type eq 'function') {
             if ($filter) {
-                @$ann = grep { /$filter/i } @{$set->{function}};
+                @ann = map {[$_, "", ""]} grep { /$filter/i } @{$set->{function}};
             } else {
-                $ann = $set->{function};
+                @ann = map {[$_, "", ""]} @{$set->{function}};
             }
         } elsif ($type eq 'feature') {
             if ($filter) {
-                @$ann = grep { /$filter/i } @{$set->{accession}};
+                @ann = map {["", $_, ""]} grep { /$filter/i } @{$set->{accession}};
             } else {
-                $ann = $set->{accession};
+                @ann = map {["", $_, ""]} @{$set->{accession};
+            }
+        } elsif ($type eq 'organism') {
+            if (%$filter_list) {
+                @ann = map {["", "", $_]} grep { $filter_list->{$_} } @{$set->{organism}};
+            } elsif ($filter) {
+                @ann = map {["", "", $_]} grep { /$filter/i } @{$set->{organism}};
+            } else {
+                @ann = map {["", "", $_]} @{$set->{organism}};
             }
         } elsif ($type eq 'ontology') {
-            if (%$filter_list) {
-                @$ann = grep { $filter_list->{$_} } @{$set->{accession}};
-            } elsif ($filter) {
-                @$ann = grep { /$filter/i } @{$set->{accession}};
-            } else {
-                $ann = $set->{accession};
+            for (my $i=0; $i<scalar(@{$set->{accession}}); $i++) {
+                my $o = [ $set->{function}[$i] || "", $set->{accession}[$i] || "", "" ];
+                push @ann, $o;
             }
-        } else {
-            push @$ann, $set->{md5};
+            if (%$filter_list) {
+                @ann = grep { $filter_list->{$_->[1]} } @ann;
+            } elsif ($filter) {
+                @ann = grep { $_->[1] =~ /$filter/i } @ann;
+            }
+        } elsif ($type eq 'all') {
+            for (my $i=0; $i<scalar(@{$set->{accession}}); $i++) {
+                my $a = [ $set->{function}[$i] || "", $set->{accession}[$i] || "", $set->{organism}[$i] || "" ];
+                push @ann, $a;
+            }
         }
-        if (@$ann == 0) { next; }
+        # build string from annotation set
+        my @found = ();
+        foreach my $a (@ann) {
+            if ($a->[0] && $a->[1] && $a->[2]) {
+                # all 3
+                push @found, $a->[0]." (".$a->[1].") [".$a->[2]."]";
+            } elsif ($a->[0] && $a->[1] && (! $a->[2])) {
+                # no organism
+                push @found, $a->[0]." (".$a->[1].")";
+            } elsif ($a->[0] && (! $a->[1]) && $a->[2]) {
+                # no accession
+                push @found, $a->[0]." [".$a->[2]."]";
+            } elsif ((! $a->[0]) && $a->[1] && $a->[2]) {
+                # no function
+                push @found, $a->[1]." [".$a->[2]."]";
+            } elsif ($a->[0] && (! $a->[1]) && (! $a->[2])) {
+                # only function
+                push @found, $a->[0];
+            } elsif ((! $a->[0]) && $a->[1] && (! $a->[2])) {
+                # only accession
+                push @found, $a->[1];
+            } elsif ((! $a->[0]) && (! $a->[1]) && $a->[2]) {
+                # only organism
+                push @found, $a->[2];
+            }
+        }
+        if (@found == 0) { next; }
+        my $ann_str = join(";", @$found);
         
         # pull data from indexed shock file
         my ($seek, $len) = @{$md5s->{$set->{id}}};
@@ -425,18 +461,18 @@ sub print_batch {
 	    foreach my $line (split(/\n/, $rec)) {
 	        my @tabs = split(/\t/, $line);
 	        unless ($tabs[0]) { next; }
-		    my @out = ();
-		    my $rid = $tabs[0];
-		    unless ($rid) { next; }
+		    my $rid = $mgid."|".$tabs[0]."|".$source;
+		    my $rec = "";
 		    if (($format eq 'sequence') && (@tabs == 13)) {
-		        @out = ($mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
+		        if ($filetype eq 'fasta') {
+		            $rec = ">".$rid."|".$tabs[1]." ".$ann_str."\n".$tabs[12];
+	            } elsif ($filetype eq 'tab') {
+		            $rec = join("\t", map {$_ || ''} ($rid, $tabs[1], $tabs[12], $ann_str));
+	            }
 		    } elsif ($format eq 'similarity') {
-		        @out = ($mgid."|".$rid, @tabs[1..11], join(";", @$ann));
+		        $rec = join("\t", map {$_ || ''} ($rid, @tabs[1..11], $ann_str));
 		    }
-		    if ($type eq 'md5') {
-                pop @out;
-		    }
-		    print join("\t", map {$_ || ''} @out)."\n";
+		    print $rec."\n";
 		    $count += 1;
 	    }
     }

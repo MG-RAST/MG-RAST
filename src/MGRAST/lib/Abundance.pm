@@ -159,7 +159,6 @@ sub all_job_abundances {
                 }
             }
             if ($org && $set->{organism}) {
-                print STDERR Dumper($set->{organism});
                 foreach my $o (@{$set->{organism}}) {
                     if ($tax) {
                         next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
