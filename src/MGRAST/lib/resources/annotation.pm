@@ -102,7 +102,7 @@ sub info {
 						{ 'name'        => "sequence",
 				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
 				          'description' => "tab delimited annotated sequence stream",
-				          'example'     => [ 'curl -X POST -d \'{"source":"SwissProt","type":"organism","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->{url}."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read sequences from mgm4447943.3 with hits in SwissProt organisms for given md5s' ],
+				          'example'     => [ 'curl -X POST -d \'{"source":"SwissProt","type":"organism","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read sequences from mgm4447943.3 with hits in SwissProt organisms for given md5s' ],
 				          'method'      => "POST",
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab delimited annotated sequence stream"]] },
@@ -113,7 +113,7 @@ sub info {
 							                     "format"  => ['cv', [["tabbed", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
 							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
 							                     "source"  => ['cv', $sources ],
-							                     "type"    => ['cv', [ $self->{types} ]
+							                     "type"    => ['cv', $self->{types} ]
 						                     } }
 						},
 						{ 'name'        => "similarity",
@@ -140,7 +140,7 @@ sub info {
 						{ 'name'        => "similarity",
 				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
 				          'description' => "tab delimited blast m8 with annotation",
-				          'example'     => [ 'curl -X POST -d \'{"source":"KO","type":"function","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->{url}."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
+				          'example'     => [ 'curl -X POST -d \'{"source":"KO","type":"function","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
 				          'method'      => "POST",
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
@@ -150,7 +150,7 @@ sub info {
  							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
  							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
  							                     "source"  => ['cv', $sources ],
- 							                     "type"    => ['cv', [ $self->{types} ]
+ 							                     "type"    => ['cv', $self->{types} ]
  						                     } }
 						}
 					]
@@ -395,7 +395,7 @@ sub print_batch {
             if ($filter) {
                 @ann = map {["", $_, ""]} grep { /$filter/i } @{$set->{accession}};
             } else {
-                @ann = map {["", $_, ""]} @{$set->{accession};
+                @ann = map {["", $_, ""]} @{$set->{accession}};
             }
         } elsif ($type eq 'organism') {
             if (%$filter_list) {
@@ -448,7 +448,7 @@ sub print_batch {
             }
         }
         if (@found == 0) { next; }
-        my $ann_str = join(";", @$found);
+        my $ann_str = join(";", @found);
         
         # pull data from indexed shock file
         my ($seek, $len) = @{$md5s->{$set->{id}}};
