@@ -26,7 +26,10 @@ sub new {
                                                 "data" => [ 'float', 'alpha diversity value' ] },
                             rarefaction => { "id"   => [ "string", "unique metagenome identifier" ],
                                              "url"  => [ "string", "resource location of this object instance" ],
-                                             "data" => ['list', ['list', ['float', 'rarefaction value']]], },
+                                             "data" => [ 'list', ['list', ['float', 'rarefaction value']]] },
+                            blat => { "id"   => [ "string", "unique metagenome identifier" ],
+                                      "url"  => [ "string", "resource location of this object instance" ],
+                                      "data" => [ "string", "text blob of BLAT sequence alignment" },
                             normalize => { 'data' => ['list', ['list', ['float', 'normalized value']]],
                                            'rows' => ['list', ['string', 'row id']],
                                            'columns' => ['list', ['string', 'column id']] },
@@ -101,6 +104,20 @@ sub info {
 				          'parameters'  => { 'options'  => { 'level' => ['cv', $self->hierarchy->{organism}],
 				                                             "alpha" => ["boolean", "if true also return alphadiversity, default is false"],
 				                                             "seq_num" => ["int", "number of sequences in metagenome"],
+				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
+				                                             'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
+							                 'required' => { 'id' => ["string", "unique object identifier"] },
+							                 'body'     => {} }
+						},
+						{ 'name'        => "blat",
+				          'request'     => $self->cgi->url."/".$self->name."/blat/{ID}",
+				          'description' => "Produce BLAT sequence alinments for given protein md5sum.",
+				          'example'     => [ $self->cgi->url."/".$self->name."/blat/mgm4447943.3?md5=15bf1950bd9867099e72ea6516e3d602",
+             				                 "retrieve sequence alignment for reads from mgm4447943.3 against m5nr protien" ],
+				          'method'      => "GET",
+				          'type'        => "synchronous or asynchronous",
+				          'attributes'  => $self->{attributes}{blat},
+				          'parameters'  => { 'options'  => { "md5" => ["string", "md5sum of M5NR protein to search against" ],
 				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
 				                                             'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
@@ -208,16 +225,9 @@ sub request {
         $self->instance($self->rest->[0], $self->rest->[1]);
     } elsif (any {$self->rest->[0] eq $_} ('normalize', 'significance', 'distance', 'heatmap', 'pcoa')) {
         $self->abundance_compute($self->rest->[0]);
-    } elsif (any {$self->rest->[0] eq $_} ('stats', 'drisee', 'kmer')) {
-        $self->sequence_compute($self->rest->[0]);
     } else {
         $self->info();
     }
-}
-
-sub sequence_compute {
-    my ($self, $type) = @_;
-    $self->return_data( {"ERROR" => "compute request $type is not currently available"}, 404 );
 }
 
 # the resource is called with an id parameter
@@ -248,7 +258,7 @@ sub instance {
             id   => $mgid,
             url_id => $self->url_id,
             owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
-            data_type => "diversity"
+            data_type => $type
         };
         # already cashed in shock - say submitted in case its running
         my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
@@ -256,13 +266,18 @@ sub instance {
             $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
         # need to create new node and fork
+        my ($data, $error);
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
         my $pid = fork();
         # child - get data and dump it
         if ($pid == 0) {
             close STDERR;
             close STDOUT;
-            my ($data, $error) = $self->species_diversity_compute($type, $id);
+            if ($type eq 'blat') {
+                ($data, $error) = $self->sequence_compute($id);
+            } else {
+                ($data, $error) = $self->species_diversity_compute($type, $id);
+            }
             if ($error) {
                 $data->{STATUS} = $error;
             }
@@ -276,13 +291,84 @@ sub instance {
     }
     # synchronous call, prepare then return data
     else {
-        my ($data, $error) = $self->species_diversity_compute($type, $id);
+        if ($type eq 'blat') {
+            ($data, $error) = $self->sequence_compute($id);
+        } else {
+            ($data, $error) = $self->species_diversity_compute($type, $id);
+        }
         if ($error) {
             $self->return_data($data, $error);
         } else {
             $self->return_data({id => 'mgm'.$job->{metagenome_id}, data => $data});
         }
     }
+}
+
+# compute blat alignment
+sub sequence_compute {
+    my ($self, $id) = @_;
+    
+    # get data
+    my $master = $self->connect_to_datasource();
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        return ({"ERROR" => "id mgm$id does not exist"}, 404);
+    }
+    $job = $job->[0];
+    
+    # initialize
+    my $mgid = "mgm".$id;
+    my $md5  = $self->cgi->param('md5') || undef;
+    my $ver  = $self->cgi->param('ann_ver') || $self->{m5nr_default};
+    my $mgdb = MGRAST::Abundance->new(undef, $ver);
+    unless ($md5) {
+        return ({"ERROR" => "missing required md5"}, 404);
+    }
+    
+    # get shock node for file
+    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
+    my $sim_node = $self->get_shock_query($params, $self->mgrast_token);
+    unless ((@$sim_node > 0) && exists($sim_node->[0]{id})) {
+        return ({"ERROR" => "Unable to retrieve sequence file"}, 500);
+    }
+    my $node_id = $sim_node->[0]{id};
+    
+    # get seek / length
+    my $query = "SELECT j.seek, j.length FROM job_md5s j, md5s m";
+    $query .= $mgdb->get_where_str([
+        'j.version = '.$mgdb->version,
+        'j.job = '.$job->{job_id},
+        'j.seek IS NOT NULL',
+        'j.length IS NOT NULL',
+        'j.md5 = m._id',
+        'm.md5 = '.$mgdb->dbh->quote($md5)
+    ]);
+    my $info = $mgdb->dbh->selectrow_arrayref($query);
+    
+    # get sequences from record
+    my $infasta = "";
+    my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$info->[0].'&length='.$info->[1]);
+    if ($err) {
+	    return ({"ERROR" => "Unable to download: $err"}, 500);
+    }
+    chomp $rec;
+    foreach my $line (split(/\n/, $rec)) {
+        my @tabs = split(/\t/, $line);
+        unless ($tabs[0]) { next; }
+        if (@tabs == 13) {
+            $infasta .= ">".$mgid."|".$tabs[0]."\n".$tabs[12]."\n";
+        }
+    }
+    
+    # get md5sum sequence
+    my ($md5fasta, $err) = $self->md5s2sequences([$md5], $ver, 'fasta');
+    if ($err) {
+        return ({"ERROR" => $error}, 500);
+    }
+    
+    # run blat
+    
+    
 }
 
 # compute alpha diversity and/or rarefaction

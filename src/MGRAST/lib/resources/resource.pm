@@ -691,6 +691,71 @@ sub return_shock_file {
     exit 0;
 }
 
+# validate / sanitize md5sum
+sub clean_md5 {
+    my ($self, $md5) = @_;
+    my $clean = $md5;
+    $clean =~ s/[^a-zA-Z0-9]//g;
+    unless ($clean && (length($clean) == 32)) {
+        return 0;
+    }
+    return 1;
+}
+
+# return sequence data for md5s as fasta or json / and error
+sub md5s2sequences {
+    my ($self, $md5s, $version, $format) = @_;
+    
+    # check md5s
+    my @clean = grep { $self->clean_md5($_) } @$md5s;
+    
+    # make id file
+    my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.ids');
+    map { print $tfh "lcl|$_\n" } @clean;
+    close($tfh);
+    
+    # get m5nr
+    my $seqs = "";
+    my $m5nr = "";
+    if ($Conf::m5nr_fasta && (-f $Conf::m5nr_fasta)) {
+        $m5nr = $Conf::m5nr_fasta;
+    } elsif ($Conf::m5nr_dir && (-d $Conf::m5nr_dir)) {
+        $m5nr = $Conf::m5nr_dir."/".$self->{m5nr_version}{$version}."/md5nr";
+    } else {
+        return (undef, "missing M5NR sequence data");
+    }
+    
+    # get seqs
+    eval {
+        my $fastacmd = $Conf::fastacmd;
+        foreach my $line (`$fastacmd -d $m5nr -i $tfile -l 0 -t T -p T`) {
+            if ((! $line) || ($line =~ /^\s+$/) || ($line =~ /^\[fastacmd\]/)) {
+                next;
+            }
+            if ($line =~ /^>/) {
+                $line = (split(/\s/, $line))[0]."\n";
+            }
+            $seqs .= $line;
+        }
+    };
+    if ($@) {
+        return (undef, "unable to access M5NR sequence data");
+    }
+    
+    # output
+    if ($format eq 'fasta') {
+        return ($seqs, undef);
+    } else {
+        my $data  = [];
+        my @lines = split(/\n/, $seqs);
+        chomp @lines;
+        for (my $i = 0; $i < scalar(@lines); $i += 2) {
+            push @$data, {'md5' => (split(/\|/, $lines[$i]))[1], 'sequence' => $lines[$i+1]};
+        }
+        return ($data, undef);
+    }
+}
+
 #############################
 #  shock related functions  #
 #############################

@@ -596,7 +596,15 @@ sub query {
     
     # get sequences if requested
     if (($type eq 'md5') && $sequence) {
-        $self->md5s2sequences($data, $version, $format);
+        my ($result, $error) = $self->md5s2sequences($data, $version, $format);
+        if ($error) {
+            $self->return_data( {"ERROR" => $error}, 500 );
+        }
+        if ($format eq 'fasta') {
+            $self->download_text($result, "md5s_".(scalar(@$data)).".fasta");
+        } else {
+            $self->return_data( {version => $version, data => $result} );
+        }
     }
     
     # strip wildcards
@@ -614,7 +622,7 @@ sub query {
     # get results
     my ($result, $total);
     if ($type eq 'md5') {
-        my @clean = map { $self->clean_md5($_) } @$data;
+        my @clean = grep { $self->clean_md5($_) } @$data;
         ($result, $total) = $self->query_annotation($version, 'md5', \@clean, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
         ($result, $total) = $self->query_annotation($version, 'accession', $data, undef, $offset, $limit, $order, 1);
@@ -637,70 +645,6 @@ sub query {
     $obj->{version} = $version;
     
     $self->return_data($obj);
-}
-
-sub clean_md5 {
-    my ($self, $md5) = @_;
-    my $clean = $md5;
-    $clean =~ s/[^a-zA-Z0-9]//g;
-    unless ($clean && (length($clean) == 32)) {
-        $self->return_data({"ERROR" => "invalid md5 was entered ($md5)"}, 404);
-    }
-    return $clean;
-}
-
-# return sequence data for md5s as fasta or json
-sub md5s2sequences {
-    my ($self, $md5s, $version, $format) = @_;
-    
-    # clean md5s
-    my @clean = map { $self->clean_md5($_) } @$md5s;
-    
-    # make id file
-    my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.ids');
-    map { print $tfh "lcl|$_\n" } @clean;
-    close($tfh);
-    
-    # get m5nr
-    my $seqs = "";
-    my $m5nr = "";
-    if ($Conf::m5nr_fasta && (-f $Conf::m5nr_fasta)) {
-        $m5nr = $Conf::m5nr_fasta;
-    } elsif ($Conf::m5nr_dir && (-d $Conf::m5nr_dir)) {
-        $m5nr = $Conf::m5nr_dir."/".$self->{m5nr_version}{$version}."/md5nr";
-    } else {
-        $self->return_data({"ERROR" => "missing M5NR sequence data"}, 500);
-    }
-    
-    # get seqs
-    eval {
-        my $fastacmd = $Conf::fastacmd;
-        foreach my $line (`$fastacmd -d $m5nr -i $tfile -l 0 -t T -p T`) {
-            if ((! $line) || ($line =~ /^\s+$/) || ($line =~ /^\[fastacmd\]/)) {
-                next;
-            }
-            if ($line =~ /^>/) {
-                $line = (split(/\s/, $line))[0]."\n";
-            }
-            $seqs .= $line;
-        }
-    };
-    if ($@) {
-        $self->return_data({"ERROR" => "unable to access M5NR sequence data"}, 500);
-    }
-    
-    # output
-    if ($format eq 'fasta') {
-        $self->download_text($seqs, "md5s_".(scalar(@clean)).".fasta");
-    } else {
-        my $data = {'version' => $version, 'data' => []};
-        my @lines = split(/\n/, $seqs);
-        chomp @lines;
-        for (my $i = 0; $i < scalar(@lines); $i += 2) {
-            push @{$data->{data}}, {'md5' => (split(/\|/, $lines[$i]))[1], 'sequence' => $lines[$i+1]};
-        }
-        $self->return_data($data);
-    }
 }
 
 sub check_version {
