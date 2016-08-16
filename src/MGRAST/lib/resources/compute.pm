@@ -53,7 +53,6 @@ sub new {
       				                  'pco' => ['list', ['float', 'average principal component value']] }
       				      };
     $self->{dbsize}   = "4000000000";
-    $self->{evalue}   = "0.00001";
     $self->{norm}     = ["DESeq_blind","standardize","quantile","DESeq_per_condition","DESeq_pooled","DESeq_pooled_CR"];
     $self->{distance} = ["bray-curtis", "euclidean", "maximum", "manhattan", "canberra", "minkowski", "difference"];
     $self->{cluster}  = ["ward", "single", "complete", "mcquitty", "median", "centroid"];
@@ -121,6 +120,7 @@ sub info {
 				          'attributes'  => $self->{attributes}{blast},
 				          'parameters'  => { 'options'  => { "md5" => ["string", "md5sum of M5NR feature to search against" ],
 				                                             "rna" => ["boolean", "if true input md5sum is RNA feature, default is false (md5sum is protein)"],
+				                                             "evalue"  => ["int", "exponent value for evalue cutoff, default is 5 (e-5)"],
 				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
 				                                             'asynchronous' => ['boolean', "if true return process id to query status resource for results, default is false"] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
@@ -327,6 +327,10 @@ sub sequence_compute {
     $job = $job->[0];
     
     # initialize
+    my $eval = $self->cgi->param('evalue') || 5;
+    unless (($eval =~ /\d+/) && (int($eval) > 4)) {
+        return ({"ERROR" => "invalid evalue: $eval"}, 404);
+    }
     my $ver = $self->cgi->param('ann_ver') || $self->{m5nr_default};
     my $rna = $self->cgi->param('rna') ? 1 : 0;
     my $md5 = $self->cgi->param('md5') || undef;
@@ -385,11 +389,11 @@ sub sequence_compute {
     close($tfh);
     
     # run blast
-    my $cmd = $rna ? "blastn" : "blastx";
-    my $opts = "-evalue ".$self->{evalue}." -dbsize ".$self->{dbsize}." -outfmt 0";
-    my $result = `echo "$infasta" | $cmd $opts -query - -subject $tfile 2> /dev/null`;
+    my $cmd  = $rna ? "blastn" : "blastx";
+    my $opts = "-evalue 0.".("0" x ($eval-1))."1 -dbsize ".$self->{dbsize}." -outfmt 0";
+    my $data = `echo "$infasta" | $cmd $opts -query - -subject $tfile 2> /dev/null`;
     
-    return ({alignment => $result, md5 => $md5}, undef);
+    return ({alignment => $data, md5 => $md5}, undef);
 }
 
 # compute alpha diversity and/or rarefaction
