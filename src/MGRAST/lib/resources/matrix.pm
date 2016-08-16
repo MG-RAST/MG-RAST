@@ -217,7 +217,7 @@ sub instance {
     my @mgids = sort keys %mgids;
     
     # test postgres access
-    my $testdb = MGRAST::Abundance->new(undef, $version);
+    my $testdb = MGRAST::Abundance->new();
     unless ($testdb) {
         $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }
