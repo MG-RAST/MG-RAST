@@ -289,34 +289,23 @@ sub prepare_data {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
     
-    my $query = "";
+    my $query  = "SELECT md5, seek, length FROM job_md5s";
+    my $qwhere = [
+        'version = '.$mgdb->version,
+        'job = '.$data->{job_id},
+        $eval,
+        $ident,
+        $alen,
+        "seek IS NOT NULL",
+        "length IS NOT NULL"
+    ];
     if (@$md5s) {
-        $query  = "SELECT j.md5, j.seek, j.length FROM job_md5s j, md5s m";
-        $query .= $mgdb->get_where_str([
-            'j.version = '.$mgdb->version,
-            'j.job = '.$data->{job_id},
-            $eval ? 'j.'.$eval : "",
-            $ident ? 'j.'.$ident : "",
-            $alen ? 'j.'.$alen : "",
-            'j.seek IS NOT NULL',
-            'j.length IS NOT NULL',
-            'j.md5 = m._id',
-            'm.md5 IN ('.join(",", map {$mgdb->dbh->quote($_)} @$md5s).')'
-        ]);
-        $query .= " ORDER BY j.seek";
-    } else {
-        $query  = "SELECT md5, seek, length FROM job_md5s";
-        $query .= $mgdb->get_where_str([
-            'version = '.$mgdb->version,
-            'job = '.$data->{job_id},
-            $eval,
-            $ident,
-            $alen,
-            "seek IS NOT NULL",
-            "length IS NOT NULL"
-        ]);
-        $query .= " ORDER BY seek";
+        my $mquery = "SELECT _id FROM md5s WHERE md5 IN (".join(",", map {$mgdb->dbh->quote($_)} @$md5s).")";
+        my $md5ids = $mgdb->dbh->selectcol_arrayref($mquery);
+        push @$qwhere, "md5 IN (".join(",", @$md5ids).")"
     }
+    $query .= $mgdb->get_where_str($qwhere);
+    $query .= " ORDER BY seek";
     
     # get shock node for file
     my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
