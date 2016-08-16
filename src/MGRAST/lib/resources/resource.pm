@@ -13,6 +13,7 @@ use MIME::Base64;
 use LWP::UserAgent;
 use HTTP::Request::Common;
 use File::Basename;
+use File::Temp qw(tempfile tempdir);
 use Storable qw(dclone);
 use UUID::Tiny ":std";
 use Digest::MD5 qw(md5_hex md5_base64);

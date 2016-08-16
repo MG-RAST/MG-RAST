@@ -6,7 +6,6 @@ no warnings('once');
 
 use List::Util qw(first);
 use List::MoreUtils qw(any uniq);
-use File::Temp qw(tempfile tempdir);
 use URI::Escape;
 use Digest::MD5;
 
