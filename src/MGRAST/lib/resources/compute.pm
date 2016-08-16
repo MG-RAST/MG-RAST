@@ -29,7 +29,7 @@ sub new {
                                              "data" => [ 'list', ['list', ['float', 'rarefaction value']]] },
                             blat => { "id"   => [ "string", "unique metagenome identifier" ],
                                       "url"  => [ "string", "resource location of this object instance" ],
-                                      "data" => [ "string", "text blob of BLAT sequence alignment" },
+                                      "data" => [ "string", "text blob of BLAT sequence alignment" ] },
                             normalize => { 'data' => ['list', ['list', ['float', 'normalized value']]],
                                            'rows' => ['list', ['string', 'row id']],
                                            'columns' => ['list', ['string', 'column id']] },
@@ -105,7 +105,7 @@ sub info {
 				                                             "alpha" => ["boolean", "if true also return alphadiversity, default is false"],
 				                                             "seq_num" => ["int", "number of sequences in metagenome"],
 				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
-				                                             'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
+				                                             'asynchronous' => ['boolean', "if true return process id to query status resource for results, default is false"] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
 						},
@@ -117,9 +117,10 @@ sub info {
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
 				          'attributes'  => $self->{attributes}{blat},
-				          'parameters'  => { 'options'  => { "md5" => ["string", "md5sum of M5NR protein to search against" ],
+				          'parameters'  => { 'options'  => { "md5" => ["string", "md5sum of M5NR feature to search against" ],
+				                                             "rna" => ["boolean", "if true input md5sum is RNA feature, default is false (md5sum is protein)"]
 				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
-				                                             'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
+				                                             'asynchronous' => ['boolean', "if true return process id to query status resource for results, default is false"] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
 						},
@@ -237,20 +238,27 @@ sub instance {
     # check id format
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if (! $id) {
-        $self->return_data( {"ERROR" => "invalid id format: $mgid"}, 400 );
+        $self->return_data({"ERROR" => "invalid id format: $mgid"}, 400);
     }
     # get data
     my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        return ({"ERROR" => "id mgm$id does not exist"}, 404);
+        $self->return_data({"ERROR" => "id mgm$id does not exist"}, 404);
     }
     $job = $job->[0];
     # check rights
     unless ($job->public || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
-        return ({"ERROR" => "insufficient permissions for metagenome mgm$id"}, 401);
+        $self->return_data({"ERROR" => "insufficient permissions for metagenome mgm$id"}, 401);
     }
+    # test postgres access
+    my $testdb = MGRAST::Abundance->new(undef, undef, $Conf::mgrast_write_dbhost);
+    unless ($testdb) {
+        $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+    }
+    $testdb->DESTROY();
     
+    my ($data, $error);
     # asynchronous call, fork the process and return the process id.
     if ($self->cgi->param('asynchronous')) {
         my $attr = {
@@ -266,7 +274,6 @@ sub instance {
             $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
         # need to create new node and fork
-        my ($data, $error);
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
         my $pid = fork();
         # child - get data and dump it
@@ -317,19 +324,23 @@ sub sequence_compute {
     $job = $job->[0];
     
     # initialize
-    my $mgid = "mgm".$id;
-    my $md5  = $self->cgi->param('md5') || undef;
-    my $ver  = $self->cgi->param('ann_ver') || $self->{m5nr_default};
-    my $mgdb = MGRAST::Abundance->new(undef, $ver);
+    my $ver = $self->cgi->param('ann_ver') || $self->{m5nr_default};
+    my $rna = $self->cgi->param('rna') ? 1 : 0;
+    my $md5 = $self->cgi->param('md5') || undef;
     unless ($md5) {
         return ({"ERROR" => "missing required md5"}, 404);
+    }
+    my $mgid = "mgm".$id;
+    my $mgdb = MGRAST::Abundance->new(undef, $ver);
+    unless ($mgdb) {
+        return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }
     
     # get shock node for file
     my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
     my $sim_node = $self->get_shock_query($params, $self->mgrast_token);
     unless ((@$sim_node > 0) && exists($sim_node->[0]{id})) {
-        return ({"ERROR" => "Unable to retrieve sequence file"}, 500);
+        return ({"ERROR" => "unable to retrieve sequence file"}, 500);
     }
     my $node_id = $sim_node->[0]{id};
     
@@ -349,7 +360,7 @@ sub sequence_compute {
     my $infasta = "";
     my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$info->[0].'&length='.$info->[1]);
     if ($err) {
-	    return ({"ERROR" => "Unable to download: $err"}, 500);
+	    return ({"ERROR" => "unable to download: $err"}, 500);
     }
     chomp $rec;
     foreach my $line (split(/\n/, $rec)) {
@@ -361,8 +372,8 @@ sub sequence_compute {
     }
     
     # get md5sum sequence
-    my ($md5fasta, $err) = $self->md5s2sequences([$md5], $ver, 'fasta');
-    if ($err) {
+    my ($md5fasta, $error) = $self->md5s2sequences([$md5], $ver, 'fasta');
+    if ($error) {
         return ({"ERROR" => $error}, 500);
     }
     
@@ -390,6 +401,10 @@ sub species_diversity_compute {
     
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
     my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
+    unless ($mgdb) {
+        return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+    }
+    
     my ($md5_num, $org_map, undef, undef) = $mgdb->all_job_abundances($job->{job_id}, [$level], 1, undef, undef);
     if ($md5_num == 0) {
         return ({"ERROR" => "no md5 hits available"}, 500);
