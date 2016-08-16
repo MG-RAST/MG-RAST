@@ -27,9 +27,9 @@ sub new {
                             rarefaction => { "id"   => [ "string", "unique metagenome identifier" ],
                                              "url"  => [ "string", "resource location of this object instance" ],
                                              "data" => [ 'list', ['list', ['float', 'rarefaction value']]] },
-                            blat => { "id"   => [ "string", "unique metagenome identifier" ],
-                                      "url"  => [ "string", "resource location of this object instance" ],
-                                      "data" => [ "string", "text blob of BLAT sequence alignment" ] },
+                            blast => { "id"   => [ "string", "unique metagenome identifier" ],
+                                       "url"  => [ "string", "resource location of this object instance" ],
+                                       "data" => [ "string", "text blob of BLAT sequence alignment" ] },
                             normalize => { 'data' => ['list', ['list', ['float', 'normalized value']]],
                                            'rows' => ['list', ['string', 'row id']],
                                            'columns' => ['list', ['string', 'column id']] },
@@ -52,9 +52,11 @@ sub new {
                                                           ] ],
       				                  'pco' => ['list', ['float', 'average principal component value']] }
       				      };
-    $self->{norm} = ["DESeq_blind","standardize","quantile","DESeq_per_condition","DESeq_pooled","DESeq_pooled_CR"];
+    $self->{dbsize}   = "4000000000";
+    $self->{evalue}   = "0.00001";
+    $self->{norm}     = ["DESeq_blind","standardize","quantile","DESeq_per_condition","DESeq_pooled","DESeq_pooled_CR"];
     $self->{distance} = ["bray-curtis", "euclidean", "maximum", "manhattan", "canberra", "minkowski", "difference"];
-    $self->{cluster} = ["ward", "single", "complete", "mcquitty", "median", "centroid"];
+    $self->{cluster}  = ["ward", "single", "complete", "mcquitty", "median", "centroid"];
     $self->{significance} = ["Kruskal-Wallis", "t-test-paired", "Wilcoxon-paired", "t-test-unpaired", "Mann-Whitney-unpaired-Wilcoxon", "ANOVA-one-way"];
     return $self;
 }
@@ -109,16 +111,16 @@ sub info {
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
 						},
-						{ 'name'        => "blat",
-				          'request'     => $self->cgi->url."/".$self->name."/blat/{ID}",
-				          'description' => "Produce BLAT sequence alinments for given protein md5sum.",
-				          'example'     => [ $self->cgi->url."/".$self->name."/blat/mgm4447943.3?md5=15bf1950bd9867099e72ea6516e3d602",
-             				                 "retrieve sequence alignment for reads from mgm4447943.3 against m5nr protien" ],
+						{ 'name'        => "blast",
+				          'request'     => $self->cgi->url."/".$self->name."/blast/{ID}",
+				          'description' => "Produce NCBI-BLAST sequence alinments for given md5sum and its hits.",
+				          'example'     => [ $self->cgi->url."/".$self->name."/blast/mgm4447943.3?md5=15bf1950bd9867099e72ea6516e3d602",
+             				                 "retrieve sequence alignment for reads from mgm4447943.3 against m5nr feature" ],
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
-				          'attributes'  => $self->{attributes}{blat},
+				          'attributes'  => $self->{attributes}{blast},
 				          'parameters'  => { 'options'  => { "md5" => ["string", "md5sum of M5NR feature to search against" ],
-				                                             "rna" => ["boolean", "if true input md5sum is RNA feature, default is false (md5sum is protein)"]
+				                                             "rna" => ["boolean", "if true input md5sum is RNA feature, default is false (md5sum is protein)"],
 				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
 				                                             'asynchronous' => ['boolean', "if true return process id to query status resource for results, default is false"] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
@@ -259,6 +261,7 @@ sub instance {
     $testdb->DESTROY();
     
     my ($data, $error);
+    
     # asynchronous call, fork the process and return the process id.
     if ($self->cgi->param('asynchronous')) {
         my $attr = {
@@ -280,7 +283,7 @@ sub instance {
         if ($pid == 0) {
             close STDERR;
             close STDOUT;
-            if ($type eq 'blat') {
+            if ($type eq 'blast') {
                 ($data, $error) = $self->sequence_compute($id);
             } else {
                 ($data, $error) = $self->species_diversity_compute($type, $id);
@@ -298,7 +301,7 @@ sub instance {
     }
     # synchronous call, prepare then return data
     else {
-        if ($type eq 'blat') {
+        if ($type eq 'blast') {
             ($data, $error) = $self->sequence_compute($id);
         } else {
             ($data, $error) = $self->species_diversity_compute($type, $id);
@@ -345,14 +348,14 @@ sub sequence_compute {
     my $node_id = $sim_node->[0]{id};
     
     # get seek / length
-    my $query = "SELECT j.seek, j.length FROM job_md5s j, md5s m";
+    my $md5sum = $mgdb->dbh->selectcol_arrayref("SELECT _id FROM md5s WHERE md5=".$mgdb->dbh->quote($md5));
+    my $query  = "SELECT seek, length FROM job_md5s";
     $query .= $mgdb->get_where_str([
-        'j.version = '.$mgdb->version,
-        'j.job = '.$job->{job_id},
-        'j.seek IS NOT NULL',
-        'j.length IS NOT NULL',
-        'j.md5 = m._id',
-        'm.md5 = '.$mgdb->dbh->quote($md5)
+        'version = '.$mgdb->version,
+        'job = '.$job->{job_id},
+        'seek IS NOT NULL',
+        'length IS NOT NULL',
+        'md5 = '.$md5sum->[0]
     ]);
     my $info = $mgdb->dbh->selectrow_arrayref($query);
     
@@ -376,10 +379,17 @@ sub sequence_compute {
     if ($error) {
         return ({"ERROR" => $error}, 500);
     }
+    # make md5 seq file
+    my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
+    print $tfh $md5fasta;
+    close($tfh);
     
-    # run blat
+    # run blast
+    my $cmd = $rna ? "blastn" : "blastx";
+    my $opts = "-evalue ".$self->{evalue}." -dbsize ".$self->{dbsize}." -outfmt 0";
+    my $result = `echo "$infasta" | $cmd $opts -query - -subject $tfile 2> /dev/null`;
     
-    
+    return ({alignment => $result, md5 => $md5}, undef);
 }
 
 # compute alpha diversity and/or rarefaction
