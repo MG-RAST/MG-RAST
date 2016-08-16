@@ -280,6 +280,9 @@ sub prepare_data {
     # get db handles
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
     my $mgdb = MGRAST::Abundance->new($chdl, $version);
+    unless ($mgdb) {
+        $self->return_data({"ERROR" => "Unable to connect to metagenomics analysis database"}, 500);
+    }
     
     # build queries
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";

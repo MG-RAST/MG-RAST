@@ -405,6 +405,14 @@ sub job_data {
         if ($nodes && (@$nodes > 0)) {
             $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
+        
+        # test postgres access
+        my $testdb = MGRAST::Abundance->new(undef, $ver, $Conf::mgrast_write_dbhost);
+        unless ($testdb) {
+            $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+        }
+        $testdb->DESTROY();
+        
         # need to create new node and fork
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
         my $pid = fork();
@@ -840,6 +848,12 @@ sub job_action {
             if ($nodes && (@$nodes > 0)) {
                 $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
             }
+            # test postgres access
+            my $testdb = MGRAST::Abundance->new(undef, $ver, $Conf::mgrast_write_dbhost);
+            unless ($testdb) {
+                $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+            }
+            $testdb->DESTROY();
             # need to create new node and fork
             my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
             my $pid = fork();
