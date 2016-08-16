@@ -727,10 +727,14 @@ sub md5s2sequences {
     }
     
     # get seqs
+    my $ferror = "";
     eval {
         my $fastacmd = $Conf::fastacmd;
         foreach my $line (`$fastacmd -d $m5nr -i $tfile -l 0 -t T -p T`) {
             if ((! $line) || ($line =~ /^\s+$/) || ($line =~ /^\[fastacmd\]/)) {
+                if ($line =~ /ERROR/) {
+                    $ferror .= $line;
+                }
                 next;
             }
             if ($line =~ /^>/) {
@@ -741,6 +745,9 @@ sub md5s2sequences {
     };
     if ($@) {
         return (undef, "unable to access M5NR sequence data");
+    }
+    if ($ferror) {
+        return (undef, $ferror);
     }
     
     # output
