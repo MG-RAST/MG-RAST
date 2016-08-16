@@ -338,7 +338,9 @@ sub prepare_data {
     } else {
       print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
     }
-    print join("\t", @head)."\n";
+    unless (($format eq 'sequence') && ($filetype eq 'fasta')) {
+        print join("\t", @head)."\n";
+    }
         
     # loop through indexes and print data
     my $count = 0;
@@ -364,7 +366,9 @@ sub prepare_data {
     # cleanup
     $mgdb->end_query($sth);
     $mgdb->DESTROY();
-    print "Download complete. $count rows retrieved\n";
+    unless (($format eq 'sequence') && ($filetype eq 'fasta')) {
+        print "Download complete. $count rows retrieved\n";
+    }
     exit 0;
 }
 
@@ -377,17 +381,17 @@ sub print_batch {
     foreach my $set (@$data) {
         # get annotation set based on options: (function, feature, organism)
         my @ann = ();
-        if ($type eq 'function') {
+        if ($type eq 'feature') {
             if ($filter) {
-                @ann = map {[$_, "", ""]} grep { /$filter/i } @{$set->{function}};
+                @ann = map {[$_, "", ""]} grep { /$filter/i } @{$set->{accession}};
             } else {
-                @ann = map {[$_, "", ""]} @{$set->{function}};
+                @ann = map {[$_, "", ""]} @{$set->{accession}};
             }
-        } elsif ($type eq 'feature') {
+        } elsif ($type eq 'function') {
             if ($filter) {
-                @ann = map {["", $_, ""]} grep { /$filter/i } @{$set->{accession}};
+                @ann = map {["", $_, ""]} grep { /$filter/i } @{$set->{function}};
             } else {
-                @ann = map {["", $_, ""]} @{$set->{accession}};
+                @ann = map {["", $_, ""]} @{$set->{function}};
             }
         } elsif ($type eq 'organism') {
             if (%$filter_list) {
@@ -399,48 +403,39 @@ sub print_batch {
             }
         } elsif ($type eq 'ontology') {
             for (my $i=0; $i<scalar(@{$set->{accession}}); $i++) {
-                my $o = [ $set->{function}[$i] || "", $set->{accession}[$i] || "", "" ];
+                my $o = [ $set->{accession}[$i] || "", $set->{function}[$i] || "", "" ];
                 push @ann, $o;
             }
             if (%$filter_list) {
-                @ann = grep { $filter_list->{$_->[1]} } @ann;
+                @ann = grep { $filter_list->{$_->[0]} } @ann;
             } elsif ($filter) {
-                @ann = grep { $_->[1] =~ /$filter/i } @ann;
+                @ann = grep { $_->[0] =~ /$filter/i } @ann;
             }
         } elsif ($type eq 'all') {
             for (my $i=0; $i<scalar(@{$set->{accession}}); $i++) {
-                my $a = [ $set->{function}[$i] || "", $set->{accession}[$i] || "", $set->{organism}[$i] || "" ];
+                my $a = [ $set->{accession}[$i] || "", $set->{function}[$i] || "", $set->{organism}[$i] || "" ];
                 push @ann, $a;
             }
         }
         # build string from annotation set
         my @found = ();
         foreach my $a (@ann) {
-            if ($a->[0] && $a->[1] && $a->[2]) {
-                # all 3
-                push @found, $a->[0]." (".$a->[1].") [".$a->[2]."]";
-            } elsif ($a->[0] && $a->[1] && (! $a->[2])) {
-                # no organism
-                push @found, $a->[0]." (".$a->[1].")";
-            } elsif ($a->[0] && (! $a->[1]) && $a->[2]) {
-                # no accession
-                push @found, $a->[0]." [".$a->[2]."]";
-            } elsif ((! $a->[0]) && $a->[1] && $a->[2]) {
-                # no function
-                push @found, $a->[1]." [".$a->[2]."]";
-            } elsif ($a->[0] && (! $a->[1]) && (! $a->[2])) {
-                # only function
-                push @found, $a->[0];
-            } elsif ((! $a->[0]) && $a->[1] && (! $a->[2])) {
-                # only accession
-                push @found, $a->[1];
-            } elsif ((! $a->[0]) && (! $a->[1]) && $a->[2]) {
-                # only organism
-                push @found, $a->[2];
+            my $line = [];
+            if ($a->[0]) {
+                push @$line, "accession=[".$a->[0]."]";
+            }
+            if ($a->[1]) {
+                push @$line, "function=[".$a->[1]."]";
+            }
+            if ($a->[2]) {
+                push @$line, "organism=[".$a->[3]."]";
+            }
+            if (@$line > 0) {
+                push @found, $line;
             }
         }
         if (@found == 0) { next; }
-        my $ann_str = join(";", @found);
+        my $ann_str = join("||", map { join(";", @$_) } @found);
         
         # pull data from indexed shock file
         my ($seek, $len) = @{$md5s->{$set->{id}}};
