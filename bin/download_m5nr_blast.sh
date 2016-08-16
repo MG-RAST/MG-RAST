@@ -2,7 +2,7 @@
 
 # set a default values
 # m5nr blast files - 2.6 GB & 11.7 GB
-M5NR_VERSIONS="20100309 20131215"
+M5NR_VERSIONS="20100309 20120401 20131215"
 TARGET="/m5nr"
 
 for i in $M5NR_VERSIONS; do

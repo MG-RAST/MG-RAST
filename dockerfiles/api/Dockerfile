@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
   libpq-dev \
   make \
   curl \
+  ncbi-blast+ \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -75,9 +76,7 @@ RUN cd /MG-RAST/conf && ln -s /api-server-conf/Conf.pm
 RUN ln -s /api-server-conf/postgresql/ /usr/sbin/.postgresql
 
 # m5nr blast files in mounted dir
-RUN mkdir -p /m5nr && \
-  ln -s /api-server-data/20100309 /m5nr/20100309 && \
-  ln -s /api-server-data/20131215 /m5nr/20131215
+RUN mkdir -p /m5nr
 
 # Execute:
 # /etc/init.d/postfix start
