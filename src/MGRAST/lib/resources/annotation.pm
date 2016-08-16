@@ -428,14 +428,14 @@ sub print_batch {
                 push @$line, "function=[".$a->[1]."]";
             }
             if ($a->[2]) {
-                push @$line, "organism=[".$a->[3]."]";
+                push @$line, "organism=[".$a->[2]."]";
             }
             if (@$line > 0) {
                 push @found, $line;
             }
         }
         if (@found == 0) { next; }
-        my $ann_str = join("||", map { join(";", @$_) } @found);
+        my $ann_str = join("|", map { join(";", @$_) } @found);
         
         # pull data from indexed shock file
         my ($seek, $len) = @{$md5s->{$set->{id}}};
