@@ -26,6 +26,7 @@ sub new {
       'AWEDB' => 'mongo',
       'M5NR' => $Conf::m5nr_solr,
       'solr' => $Conf::job_solr,
+      'postgres' => 'db',
       'postgresWRITE' => 'db',
       'postgresREAD' => 'db',
       'mySQL' => 'db',
@@ -40,6 +41,7 @@ sub new {
 							   ['AWEDB', 'worker engine mongodb'],
 							   ['M5NR', 'non-redundant sequence database'],
 							   ['solr', 'search engine'],
+							   ['postgres', 'analysis default database'],
 							   ['postgresWRITE', 'analysis write database'],
 							   ['postgresREAD', 'analysis read database'],
 							   ['mySQL', 'job database']
@@ -100,7 +102,7 @@ sub instance {
   
   if ($self->{services}->{$id} eq 'db') {
     if ($id =~ /^postgres/) {
-      my $host = ($id eq 'postgresWRITE') ? $Conf::mgrast_write_dbhost : $Conf::mgrast_dbhost
+      my $host = ($id eq 'postgresWRITE') ? $Conf::mgrast_write_dbhost : $Conf::mgrast_dbhost;
       my $dbh = DBI->connect(
 			     "DBI:Pg:database=".$Conf::mgrast_db.";host=".$host.";".$Conf::pgsslcert_path,
 			     $Conf::mgrast_dbuser,
