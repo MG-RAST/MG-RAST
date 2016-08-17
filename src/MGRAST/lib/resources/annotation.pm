@@ -379,63 +379,48 @@ sub print_batch {
     # get / process annotations per md5
     my $data = $chdl->get_records_by_id([keys %$md5s], $source);
     foreach my $set (@$data) {
-        # get annotation set based on options: (function, feature, organism)
+        # get annotation set based on options / build string
         my @ann = ();
         if ($type eq 'feature') {
             if ($filter) {
-                @ann = map {[$_, "", ""]} grep { /$filter/i } @{$set->{accession}};
+                @ann = grep { /$filter/i } @{$set->{accession}};
             } else {
-                @ann = map {[$_, "", ""]} @{$set->{accession}};
+                @ann = @{$set->{accession}};
             }
         } elsif ($type eq 'function') {
             if ($filter) {
-                @ann = map {["", $_, ""]} grep { /$filter/i } @{$set->{function}};
+                @ann = map {"[".$_."]"} grep { /$filter/i } @{$set->{function}};
             } else {
-                @ann = map {["", $_, ""]} @{$set->{function}};
+                @ann = map {"[".$_."]"} @{$set->{function}};
             }
         } elsif ($type eq 'organism') {
             if (%$filter_list) {
-                @ann = map {["", "", $_]} grep { $filter_list->{$_} } @{$set->{organism}};
+                @ann = map {"[".$_."]"} grep { $filter_list->{$_} } @{$set->{organism}};
             } elsif ($filter) {
-                @ann = map {["", "", $_]} grep { /$filter/i } @{$set->{organism}};
+                @ann = map {"[".$_."]"} grep { /$filter/i } @{$set->{organism}};
             } else {
-                @ann = map {["", "", $_]} @{$set->{organism}};
+                @ann = map {"[".$_."]"} @{$set->{organism}};
             }
         } elsif ($type eq 'ontology') {
+            my @ont = ();
             for (my $i=0; $i<scalar(@{$set->{accession}}); $i++) {
-                my $o = [ $set->{accession}[$i] || "", $set->{function}[$i] || "", "" ];
-                push @ann, $o;
+                if ($set->{accession}[$i]) {
+                    push @ont, [ $set->{accession}[$i], $set->{function}[$i] || ""];
+                }
             }
             if (%$filter_list) {
-                @ann = grep { $filter_list->{$_->[0]} } @ann;
+                @ont = grep { $filter_list->{$_->[0]} } @ont;
             } elsif ($filter) {
-                @ann = grep { $_->[0] =~ /$filter/i } @ann;
+                @ont = grep { $_->[0] =~ /$filter/i } @ont;
             }
+            @ann = map { "accession=[".$_->[0]."],function=[".$_->[1]."]" } @ont;
         } elsif ($type eq 'all') {
             for (my $i=0; $i<scalar(@{$set->{accession}}); $i++) {
-                my $a = [ $set->{accession}[$i] || "", $set->{function}[$i] || "", $set->{organism}[$i] || "" ];
-                push @ann, $a;
+                push @ann, "accession=[".($set->{accession}[$i] || "")."],function=[".($set->{function}[$i] || "")."],organism=[".($set->{organism}[$i] || "")."]";
             }
         }
-        # build string from annotation set
-        my @found = ();
-        foreach my $a (@ann) {
-            my $line = [];
-            if ($a->[0]) {
-                push @$line, "accession=[".$a->[0]."]";
-            }
-            if ($a->[1]) {
-                push @$line, "function=[".$a->[1]."]";
-            }
-            if ($a->[2]) {
-                push @$line, "organism=[".$a->[2]."]";
-            }
-            if (@$line > 0) {
-                push @found, $line;
-            }
-        }
-        if (@found == 0) { next; }
-        my $ann_str = join("|", map { join(";", @$_) } @found);
+        if (@ann == 0) { next; }
+        my $ann_str = join(";", @ann);
         
         # pull data from indexed shock file
         my ($seek, $len) = @{$md5s->{$set->{id}}};
