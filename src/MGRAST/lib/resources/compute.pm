@@ -365,6 +365,7 @@ sub sequence_compute {
     
     # get sequences from record
     my $infasta = "";
+    my $reads = [];
     my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$info->[0].'&length='.$info->[1]);
     if ($err) {
 	    return ({"ERROR" => "unable to download: $err"}, 500);
@@ -374,7 +375,9 @@ sub sequence_compute {
         my @tabs = split(/\t/, $line);
         unless ($tabs[0]) { next; }
         if (@tabs == 13) {
-            $infasta .= ">".$mgid."|".$tabs[0]."\n".$tabs[12]."\n";
+            my $rid = $mgid."|".$tabs[0];
+            $infasta .= ">".$rid."\n".$tabs[12]."\n";
+            push @$reads, $rid;
         }
     }
     
@@ -393,7 +396,7 @@ sub sequence_compute {
     my $opts = "-evalue 0.".("0" x ($eval-1))."1 -dbsize ".$self->{dbsize}." -outfmt 0";
     my $data = `echo "$infasta" | $cmd $opts -query - -subject $tfile 2> /dev/null`;
     
-    return ({alignment => $data, md5 => $md5}, undef);
+    return ({alignment => $data, md5 => $md5, reads => $reads}, undef);
 }
 
 # compute alpha diversity and/or rarefaction
