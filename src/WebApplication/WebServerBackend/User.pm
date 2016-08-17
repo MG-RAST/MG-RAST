@@ -257,7 +257,7 @@ The text of the mail will be I<mail_body>.
 sub send_email {
   my ($self, $from, $subject, $body) = @_;
 
-  my $mailer = Mail::Mailer->new();
+  my $mailer = Mail::Mailer->new('smtp', Server => $Conf::smtp_host);
   $mailer->open({ From    => $from,
 		  To      => $self->email,
 		  Subject => $subject,
