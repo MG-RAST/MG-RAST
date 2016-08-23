@@ -57,6 +57,7 @@ RUN apt-get install -y python-dev python-pip && \
   cd / && \
   git clone https://github.com/MG-RAST/pipeline.git && \
   cd pipeline && \
+  cp /MG-RAST/src/MG-RAST/bin/* bin/ && \
   ln -s /MG-RAST/site/CGI/Tmp temp
 
 # 3rd party dependency: R
