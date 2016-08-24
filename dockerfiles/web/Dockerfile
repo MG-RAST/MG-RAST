@@ -1,8 +1,13 @@
 # MG-RAST v3 website
 
-FROM httpd:2.4.12
+FROM httpd:2.4
 
 EXPOSE 80
+
+RUN touch -t 1501010000 /var/lib/apt/lists/*
+RUN rm -f /var/lib/apt/lists/partial/*
+
+RUN apt-get clean
 
 RUN apt-get update && apt-get install -y \
   git-core \
