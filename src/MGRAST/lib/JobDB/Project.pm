@@ -514,7 +514,7 @@ sub metagenomes_summary {
 		  ];
       $i++;
     }
-    
+    $jdbh = $self->_master->db_handle();
     my $res = $jdbh->selectall_arrayref('SELECT tag, value, job FROM JobAttributes WHERE job IN ('.join(", ", map { $_->{_id} } @pjobs).')', { Slice => {} });
     foreach my $row (@$res) {
       $data[$jindices->{$row->{job}}]->[14]->{$row->{tag}} = $row->{value};
