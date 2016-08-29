@@ -1388,7 +1388,7 @@ sub awe_job_action {
 
 # get job document
 sub get_awe_job {
-    my ($self, $id, $auth, $authPrefix) = @_;
+    my ($self, $id, $auth, $authPrefix, $pass_back_errors) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "mgrast";
@@ -1402,8 +1402,13 @@ sub get_awe_job {
     };
     if ($@ || (! ref($response))) {
         return undef;
-    } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]}, $response->{status} );
+      } elsif (exists($response->{error}) && $response->{error}) {
+	my $err = {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]};
+	if ($pass_back_errors) {
+	  return $err;
+	} else {
+	  $self->return_data( $err, $response->{status} );
+	}
     } else {
         return $response->{data};
     }
