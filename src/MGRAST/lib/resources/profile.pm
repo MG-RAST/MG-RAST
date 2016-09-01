@@ -203,7 +203,7 @@ sub submit {
     }
     foreach my $s (@sources) {
         unless (exists $all_srcs->{$s}) {
-            return ({"ERROR" => "invalid source for profile: ".$s." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400);
+            $self->return_data( {"ERROR" => "invalid source for profile: ".$s." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
         }
     }
     
@@ -324,7 +324,7 @@ sub prepare_data {
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
     my $mgdb = MGRAST::Abundance->new($chdl, $version);
     unless ($mgdb) {
-        $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+        return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }
     
     # run query
