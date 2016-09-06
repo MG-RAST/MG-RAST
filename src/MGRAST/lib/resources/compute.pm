@@ -291,7 +291,7 @@ sub instance {
             if ($error) {
                 $data->{STATUS} = $error;
             }
-            $self->put_shock_file($data->{id}."_".$type.".json", $data, $node->{id}, $self->mgrast_token);
+            $self->put_shock_file($mgid."_".$type.".json", $data, $node->{id}, $self->mgrast_token);
             exit 0;
         }
         # parent - end html session
