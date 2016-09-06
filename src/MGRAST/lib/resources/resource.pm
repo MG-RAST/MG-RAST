@@ -1388,7 +1388,7 @@ sub awe_job_action {
 
 # get job document
 sub get_awe_job {
-    my ($self, $id, $auth, $authPrefix) = @_;
+    my ($self, $id, $auth, $authPrefix, $pass_back_errors) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "mgrast";
@@ -1402,8 +1402,13 @@ sub get_awe_job {
     };
     if ($@ || (! ref($response))) {
         return undef;
-    } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]}, $response->{status} );
+      } elsif (exists($response->{error}) && $response->{error}) {
+	my $err = {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]};
+	if ($pass_back_errors) {
+	  return $err;
+	} else {
+	  $self->return_data( $err, $response->{status} );
+	}
     } else {
         return $response->{data};
     }
@@ -2579,3 +2584,23 @@ sub prepare_data {
 
 # enable hash-resolving in the JSON->encode function
 sub TO_JSON { return { %{ shift() } }; }
+
+# turn a hidden id into a normal one and vice versa
+sub idmap {
+  my ($id) = @_;
+  
+  # this is a decoded id, encode it
+  if (($id =~ /mgm/) or ($id =~ /mgp/)) {
+    my @set = ('0' ..'9', 'a' .. 'f');
+    my $str = join '' => map $set[rand @set], 1 .. 10;
+    $id = unpack ("H*",$id);
+    $id = $str.$id;
+  }
+  
+  # this is an encoded id, decode it
+  else {
+    $id = substr $id, 10;
+    $id = pack (qq{H*},qq{$id});
+  }
+  return $id;
+}
