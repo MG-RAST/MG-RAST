@@ -2584,3 +2584,23 @@ sub prepare_data {
 
 # enable hash-resolving in the JSON->encode function
 sub TO_JSON { return { %{ shift() } }; }
+
+# turn a hidden id into a normal one and vice versa
+sub idmap {
+  my ($id) = @_;
+  
+  # this is a decoded id, encode it
+  if (($id =~ /mgm/) or ($id =~ /mgp/)) {
+    my @set = ('0' ..'9', 'a' .. 'f');
+    my $str = join '' => map $set[rand @set], 1 .. 10;
+    $id = unpack ("H*",$id);
+    $id = $str.$id;
+  }
+  
+  # this is an encoded id, decode it
+  else {
+    $id = substr $id, 10;
+    $id = pack (qq{H*},qq{$id});
+  }
+  return $id;
+}
