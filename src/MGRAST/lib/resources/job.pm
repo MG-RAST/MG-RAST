@@ -414,7 +414,7 @@ sub job_data {
         $testdb->DESTROY();
         
         # need to create new node and fork
-        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
+        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
         my $pid = fork();
         # child - get data and POST it
         if ($pid == 0) {
@@ -855,7 +855,7 @@ sub job_action {
             }
             $testdb->DESTROY();
             # need to create new node and fork
-            my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
+            my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
             my $pid = fork();
             # child - get data and POST it
             if ($pid == 0) {

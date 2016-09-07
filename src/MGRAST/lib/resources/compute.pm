@@ -277,7 +277,7 @@ sub instance {
             $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
         # need to create new node and fork
-        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
+        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
         my $pid = fork();
         # child - get data and dump it
         if ($pid == 0) {
@@ -291,7 +291,7 @@ sub instance {
             if ($error) {
                 $data->{STATUS} = $error;
             }
-            $self->put_shock_file($data->{id}."_".$type.".json", $data, $node->{id}, $self->mgrast_token);
+            $self->put_shock_file($mgid."_".$type.".json", $data, $node->{id}, $self->mgrast_token);
             exit 0;
         }
         # parent - end html session

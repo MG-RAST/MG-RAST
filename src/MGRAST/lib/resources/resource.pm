@@ -2590,7 +2590,7 @@ sub idmap {
   my ($id) = @_;
   
   # this is a decoded id, encode it
-  if (($id =~ /mgm/) or ($id =~ /mgp/)) {
+  if (($id =~ /^mgm/) or ($id =~ /^mgp/)) {
     my @set = ('0' ..'9', 'a' .. 'f');
     my $str = join '' => map $set[rand @set], 1 .. 10;
     $id = unpack ("H*",$id);
