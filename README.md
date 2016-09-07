@@ -57,7 +57,10 @@ skycore push mgrast/v3-web:${TAG}
 
 ```bash
 export TAG=`date +"%Y%m%d.%H%M"`
-docker build --force-rm --no-cache --rm -t  mgrast/api:${TAG}  https://raw.githubusercontent.com/MG-RAST/MG-RAST/api/dockerfiles/api/Dockerfile
+git clone https://github.com/MG-RAST/MG-RAST.git
+cd MG-RAST
+git checkout api
+docker build --force-rm --no-cache --rm -t mgrast/api:${TAG} .
 skycore push mgrast/api:${TAG}
 ```
 
