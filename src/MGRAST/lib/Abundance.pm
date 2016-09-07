@@ -12,12 +12,12 @@ use List::MoreUtils qw(natatime);
 1;
 
 sub new {
-    my ($class, $chdl, $version) = @_;
+    my ($class, $chdl, $version, $pghost) = @_;
   
     # connect to database
     my $dbh = undef;
     eval {
-        my $host     = $Conf::mgrast_dbhost;
+        my $host     = $pghost || $Conf::mgrast_dbhost;
         my $database = $Conf::mgrast_db;
         my $user     = $Conf::mgrast_dbuser;
         my $password = $Conf::mgrast_dbpass;
@@ -159,7 +159,6 @@ sub all_job_abundances {
                 }
             }
             if ($org && $set->{organism}) {
-                print STDERR Dumper($set->{organism});
                 foreach my $o (@{$set->{organism}}) {
                     if ($tax) {
                         next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
@@ -181,9 +180,11 @@ sub all_job_abundances {
         }
     };
     
+    my $total_md5 = 0;
     while (my @row = $sth->fetchrow_array()) {
         $md5s->{$row[0]} = $row[1];
         $count++;
+        $total_md5++;
         if ($count == $self->chunk) {
             $add_annotations->();
             $md5s = {};
@@ -195,7 +196,7 @@ sub all_job_abundances {
     }
     $self->end_query($sth);
     
-    return ($org_map, $fun_map, $ont_map);
+    return ($total_md5, $org_map, $fun_map, $ont_map);
 }
 
 sub all_job_md5sums {

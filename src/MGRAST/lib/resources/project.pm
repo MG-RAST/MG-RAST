@@ -561,7 +561,9 @@ sub prepare_data {
 						   sequencing_method => $row->[11],
 						   viewable => $row->[12],
 						   created_on => $row->[13],
-						   attributes => $row->[14] });
+						   attributes => $row->[14],
+						   sample => $row->[15],
+						   library => $row->[16] });
 		  }
 		}
             } elsif ($self->cgi->param('verbosity') ne 'minimal') {
@@ -761,7 +763,7 @@ sub updateRight {
 	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
-	my $mailer = Mail::Mailer->new();
+	my $mailer = Mail::Mailer->new('smtp', Server => $Conf::smtp_host);
 	if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
 			    To      => $user,
 			    Subject => $WebConfig::APPLICATION_NAME.' - new data available',

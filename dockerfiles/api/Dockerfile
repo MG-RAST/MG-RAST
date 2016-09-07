@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
   libpq-dev \
   make \
   curl \
+  ncbi-blast+ \
   perl-modules \
   liburi-perl \
   libwww-perl \
@@ -36,7 +37,7 @@ RUN mkdir -p /MG-RAST /var/log/httpd/api.metagenomics
 COPY . /MG-RAST
 RUN cd /MG-RAST && \
   make && \
-#  make api-doc && \
+  make api-doc && \
   cp -rv src/MGRAST/bin/* bin/. && \
   cd site/CGI && \
   rm -fv metagenomics.cgi linkin.cgi m5nr.cgi m5nr_rest.cgi
@@ -58,12 +59,6 @@ RUN apt-get install -y python-dev python-pip && \
 ENV PERL_MM_USE_DEFAULT 1
 RUN cpan Inline::Python
 
-# setup sendmail
-RUN DEBIAN_FRONTEND=noninteractive apt-get -y install postfix && \
-  cp /usr/share/postfix/main.cf.debian /etc/postfix/main.cf && \
-  postconf -e relayhost=[smtp.mcs.anl.gov] && \
-  postconf -e myorigin=mcs.anl.gov
-
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
   ln -s /MG-RAST/
@@ -75,9 +70,7 @@ RUN cd /MG-RAST/conf && ln -s /api-server-conf/Conf.pm
 RUN ln -s /api-server-conf/postgresql/ /usr/sbin/.postgresql
 
 # m5nr blast files in mounted dir
-RUN mkdir -p /m5nr && \
-  ln -s /api-server-data/20100309 /m5nr/20100309 && \
-  ln -s /api-server-data/20131215 /m5nr/20131215
+RUN mkdir -p /m5nr
 
 # Execute:
 # /etc/init.d/postfix start
