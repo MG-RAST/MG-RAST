@@ -304,6 +304,9 @@ sub instance {
 	  my $existing = $metadbm->ProjectMD->get_objects( { project => $project,
 							     tag => $key } );
 	  if (scalar(@$existing)) {
+	    while (scalar(@$existing) > 1) {
+	      delete $existing->[0];
+	    }
 	    $existing->[0]->value($keyval->{$key});
 	  } else {
 	    $metadbm->ProjectMD->create( { project => $project,
