@@ -29,6 +29,17 @@ CREATE TABLE IF NOT EXISTS id_annotation (
     PRIMARY KEY (id, source)
 );
 
+CREATE TABLE IF NOT EXISTS midx_annotation (
+    md5 text,
+    source text,
+    is_protein boolean,
+    single int,
+    accession list<int>,
+    function list<int>,
+    organism list<int>,
+    PRIMARY KEY (md5, source)
+);
+
 CREATE TABLE IF NOT EXISTS md5_annotation (
     md5 text,
     source text,
