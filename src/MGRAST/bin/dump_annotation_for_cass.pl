@@ -110,6 +110,7 @@ my %sources = map { $_->[0], $_->[1] } @{$dbh->selectall_arrayref("SELECT _id, n
 
 open(IIDUMP, ">$output.annotation.index") or die "Couldn't open $output.annotation.index for writing.\n";
 open(IDUMP, ">$output.annotation.id") or die "Couldn't open $output.annotation.id for writing.\n";
+open(XDUMP, ">$output.annotation.midx") or die "Couldn't open $output.annotation.midx for writing.\n";
 open(MDUMP, ">$output.annotation.md5") or die "Couldn't open $output.annotation.md5 for writing.\n";
 
 foreach my $type (("protein", "rna")) {
@@ -164,8 +165,9 @@ foreach my $type (("protein", "rna")) {
             $fun =~ s/\"/\\"/g;
             $org =~ s/\"/\\"/g;
             print IIDUMP join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, $isprot, $uniq_oid, "[]", $fid, $oid))."\n";
-            print IDUMP join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, $isprot, $uniq_org, $lca, $acc, $fun, $org))."\n";
-            print MDUMP join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, $isprot, $uniq_org, $lca, $acc, $fun, $org))."\n";
+            print IDUMP  join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, $isprot, $uniq_org, $lca, $acc, $fun, $org))."\n";
+            print XDUMP  join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, $isprot, $uniq_oid, "[]", $fid, $oid))."\n";
+            print MDUMP  join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, $isprot, $uniq_org, $lca, $acc, $fun, $org))."\n";
         }
     }
     $sth->finish;
@@ -202,13 +204,15 @@ while (my @row = $sth->fetchrow_array()) {
         $acc =~ s/\"/\\"/g;
         $fun =~ s/\"/\\"/g;
         print IIDUMP join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, "true", 0, $aid, $fid, "[]"))."\n";
-        print IDUMP join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, "true", "", "[]", $acc, $fun, "[]"))."\n";
-        print MDUMP join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, "true", "", "[]", $acc, $fun, "[]"))."\n";
+        print IDUMP  join(",", map { '"'.$_.'"' } ($mid, $sources{$src}, $md5, "true", "", "[]", $acc, $fun, "[]"))."\n";
+        print XDUMP  join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, "true", 0, $aid, $fid, "[]"))."\n";
+        print MDUMP  join(",", map { '"'.$_.'"' } ($md5, $sources{$src}, "true", "", "[]", $acc, $fun, "[]"))."\n";
     }
 }
 $sth->finish;
 
 close(IIDUMP);
 close(IDUMP);
+close(XDUMP);
 close(MDUMP);
 $dbh->disconnect;

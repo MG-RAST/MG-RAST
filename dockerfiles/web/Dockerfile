@@ -38,6 +38,7 @@ RUN cd / && \
   git clone -b master https://github.com/MG-RAST/MG-RAST.git && \ 
   cd MG-RAST && \
   make && \
+  cp -rv src/MGRAST/bin/* bin/. && \
   ln -s /config/Conf.pm /MG-RAST/conf/Conf.pm && \
   cd site/CGI && \
   rm -fv api.cgi m5nr.cgi m5nr_rest.cgi
@@ -50,15 +51,13 @@ RUN cd / && git clone --recursive https://github.com/MG-RAST/MG-RASTv4.git && \
   rm -vf /MG-RAST/site/CGI/Html/js/config.js && \
   ln -s /config/config.js /MG-RAST/site/CGI/Html/js/config.js
 
-# pipeline dependencies
+# python dependencies
 RUN apt-get install -y python-dev python-pip && \
-  pip install openpyxl==1.8.6 && \
-  pip install gspread xlrd lepl && \
-  cd / && \
-  git clone https://github.com/MG-RAST/pipeline.git && \
-  cd pipeline && \
-  cp /MG-RAST/src/MG-RAST/bin/* bin/ && \
-  ln -s /MG-RAST/site/CGI/Tmp temp
+  pip install \
+  openpyxl==1.8.6 \
+  gspread \
+  xlrd \
+  lepl
 
 # 3rd party dependency: R
 RUN mkdir -p /tools && \

@@ -78,6 +78,22 @@ public class BulkLoader {
                                     ") VALUES (" +
                                         "?, ?, ?, ?, ?, ?, ?, ?, ?" +
                                     ")", keyspace, table);
+        } else if (table.equals("midx_annotation")) {
+            schema = String.format("CREATE TABLE %s.%s (" +
+                                        "md5 text, " +
+                                        "source text, " +
+                                        "is_protein boolean, " +
+                                        "single int, " +
+                                        "accession list<int>, " +
+                                        "function list<int>, " +
+                                        "organism list<int>, " +
+                                        "PRIMARY KEY (md5, source) " +
+                                    ")", keyspace, table);
+            insert = String.format("INSERT INTO %s.%s (" +
+                                        "md5, source, is_protein, single, accession, function, organism" +
+                                    ") VALUES (" +
+                                        "?, ?, ?, ?, ?, ?, ?" +
+                                    ")", keyspace, table);
         } else if (table.equals("md5_annotation")) {
             schema = String.format("CREATE TABLE %s.%s (" +
                                         "md5 text, " +
@@ -99,18 +115,37 @@ public class BulkLoader {
             schema = String.format("CREATE TABLE %s.%s (" +
                                         "version int, " +
                                         "job int, " +
-                                        "source text, " +
                                         "md5 text, " +
-                                        "data frozen<md5_info>, " +
-                                        "accession list<text>, " +
-                                        "function list<text>, " +
-                                        "organism list<text>, " +
-                                        "PRIMARY KEY ((version, job), source, md5) " +
+                                        "abundance int, " +
+                                        "exp_avg float, " +
+                                        "ident_avg float, " +
+                                        "len_avg float, " +
+                                        "seek bigint, " +
+                                        "length int, " +
+                                        "PRIMARY KEY ((version, job), md5) " +
                                     ")", keyspace, table);
             insert = String.format("INSERT INTO %s.%s (" +
-                                        "version, job, source, md5, data, accession, function, organism" +
+                                        "version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length" +
                                     ") VALUES (" +
-                                        "?, ?, ?, ?, ?, ?, ?, ?" +
+                                        "?, ?, ?, ?, ?, ?, ?, ?, ?" +
+                                    ")", keyspace, table);
+        } else if (table.equals("job_reads")) {
+            schema = String.format("CREATE TABLE %s.%s (" +
+                                        "version int, " +
+                                        "job int, " +
+                                        "md5 text, " +
+                                        "read int, " +
+                                        "abundance int, " +
+                                        "exp int, " +
+                                        "ident int, " +
+                                        "len int, " +
+                                        "sim int, " +
+                                        "PRIMARY KEY ((version, job), md5, read) " +
+                                    ")", keyspace, table);
+            insert = String.format("INSERT INTO %s.%s (" +
+                                        "version, job, md5, read, abundance, exp, ident, len, sim" +
+                                    ") VALUES (" +
+                                        "?, ?, ?, ?, ?, ?, ?, ?, ?" +
                                     ")", keyspace, table);
         } else {
             System.out.println("Unsupported table type: " + table);
@@ -166,6 +201,14 @@ public class BulkLoader {
                                   parseStringList(line[6]),
                                   parseStringList(line[7]),
                                   parseStringList(line[8]));
+                } else if (table.equals("midx_annotation")) {
+                    writer.addRow(line[0]),
+                                  line[1],
+                                  Boolean.valueOf(line[2]),
+                                  Integer.parseInt(line[3]),
+                                  parseIntList(line[4]),
+                                  parseIntList(line[5]),
+                                  parseIntList(line[6]));
                 } else if (table.equals("md5_annotation")) {
                     writer.addRow(line[0],
                                   line[1],
@@ -175,6 +218,26 @@ public class BulkLoader {
                                   parseStringList(line[5]),
                                   parseStringList(line[6]),
                                   parseStringList(line[7]));
+                } else if (table.equals("job_md5s")) {
+                    writer.addRow(Integer.parseInt(line[0]),
+                                  Integer.parseInt(line[1]),
+                                  line[2],
+                                  Integer.parseInt(line[3]),
+                                  Float.parseFloat(line[4]),
+                                  Float.parseFloat(line[5]),
+                                  Float.parseFloat(line[6]),
+                                  Long.parseLong(line[7]),
+                                  Integer.parseInt(line[8]));
+                } else if (table.equals("job_reads")) {
+                    writer.addRow(Integer.parseInt(line[0]),
+                                  Integer.parseInt(line[1]),
+                                  line[2],
+                                  Integer.parseInt(line[3]),
+                                  Integer.parseInt(line[4]),
+                                  Integer.parseInt(line[5]),
+                                  Integer.parseInt(line[6]),
+                                  Integer.parseInt(line[7]),
+                                  Integer.parseInt(line[8]));
                 }
                 // Print nK
                 lineNumber += 1;
