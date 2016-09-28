@@ -12,12 +12,12 @@ use List::MoreUtils qw(natatime);
 1;
 
 sub new {
-    my ($class, $chdl, $version) = @_;
+    my ($class, $chdl, $version, $pghost) = @_;
   
     # connect to database
     my $dbh = undef;
     eval {
-        my $host     = $Conf::mgrast_dbhost;
+        my $host     = $pghost || $Conf::mgrast_dbhost;
         my $database = $Conf::mgrast_db;
         my $user     = $Conf::mgrast_dbuser;
         my $password = $Conf::mgrast_dbpass;
@@ -139,7 +139,7 @@ sub all_job_abundances {
     my $add_annotations = sub {
         my $data = $self->chdl->get_records_by_id([keys %$md5s]);
         foreach my $set (@$data) {
-            if ($fun) {
+            if ($fun && $set->{function}) {
                 foreach my $f (@{$set->{function}}) {
                     unless (exists $fun_map->{$f}) {
                         $fun_map->{$f} = 0;
@@ -147,7 +147,7 @@ sub all_job_abundances {
                     $fun_map->{$f} += $md5s->{$set->{id}};
                 }
             }
-            if ($ont && exists($ont_cat->{$set->{source}})) {
+            if ($ont && exists($ont_cat->{$set->{source}}) && $set->{accession}) {
                 unless (exists $ont_map->{$set->{source}}) {
                     $ont_map->{$set->{source}} = {};
                 }
@@ -158,7 +158,7 @@ sub all_job_abundances {
                     $ont_map->{$set->{source}}{$ont_cat->{$set->{source}}{$a}} += $md5s->{$set->{id}};
                 }
             }
-            if ($org) {
+            if ($org && $set->{organism}) {
                 foreach my $o (@{$set->{organism}}) {
                     if ($tax) {
                         next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
@@ -180,9 +180,11 @@ sub all_job_abundances {
         }
     };
     
+    my $total_md5 = 0;
     while (my @row = $sth->fetchrow_array()) {
         $md5s->{$row[0]} = $row[1];
         $count++;
+        $total_md5++;
         if ($count == $self->chunk) {
             $add_annotations->();
             $md5s = {};
@@ -194,7 +196,7 @@ sub all_job_abundances {
     }
     $self->end_query($sth);
     
-    return ($org_map, $fun_map, $ont_map);
+    return ($total_md5, $org_map, $fun_map, $ont_map);
 }
 
 sub all_job_md5sums {

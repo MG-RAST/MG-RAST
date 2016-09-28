@@ -1,4 +1,4 @@
-package PipelineJob;
+package Pipeline;
 
 use strict;
 use warnings;
@@ -92,7 +92,7 @@ sub template_keywords {
         'ach_annotation_ver' => "1",
 
         # awe clients
-        'clientgroups' => "mgrast_i2_2xlarge,mgrast_i3_xlarge",
+        'clientgroups' => "mgrast_dbload,mgrast_single,mgrast_multi",
         'priority'     => 1,
 
         # urls

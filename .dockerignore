@@ -1,7 +1,7 @@
 .swo
 .swp
-dockerfiles
-t
 *.md
+dockerfiles/*
+t/*
 .git/*
 .gitmodules/*

@@ -103,6 +103,11 @@ sub instance {
     $counts = $cdata;
   } else {
     my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
+    my ($dbmaster, $error) = WebApplicationDBHandle->new();
+    my $usercount = undef;
+    unless ($error) {
+      $usercount = $dbmaster->db_handle->selectrow_array('SELECT count(*) FROM User');
+    }
     $counts = {
 	       "metagenomes" => $master->Job->count_all(),
 	       "public_metagenomes" => $master->Job->count_public(),
@@ -111,7 +116,8 @@ sub instance {
 	       "driseemin" => $min,
 	       "driseemax" => $max,
 	       "driseeavg" => $avg,
-	       "driseestdv" => $stdv
+	       "driseestdv" => $stdv,
+	       "usercount" => $usercount
 	      };
     $memd->set("mgcounts", $counts, 7200);
   }
@@ -127,7 +133,11 @@ sub instance {
 	      "public_metagenomes" => $counts->{public_metagenomes},
 	      "sequences" => $counts->{sequences},
 	      "basepairs" => $counts->{basepairs},
-	      "drisee" => $counts->{drisee},
+	      "driseemin" => $counts->{driseemin},
+	      "driseemax" => $counts->{driseemax},
+	      "driseeavg" => $counts->{driseeavg},
+	      "driseestdv" => $counts->{driseestdv},
+	      "usercount" => $counts->{usercount},
 	      "url" => $self->cgi->url."/".$self->name."/MG-RAST"
 	     };
   

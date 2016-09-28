@@ -13,6 +13,7 @@ use MIME::Base64;
 use LWP::UserAgent;
 use HTTP::Request::Common;
 use File::Basename;
+use File::Temp qw(tempfile tempdir);
 use Storable qw(dclone);
 use UUID::Tiny ":std";
 use Digest::MD5 qw(md5_hex md5_base64);
@@ -691,6 +692,78 @@ sub return_shock_file {
     exit 0;
 }
 
+# validate / sanitize md5sum
+sub clean_md5 {
+    my ($self, $md5) = @_;
+    my $clean = $md5;
+    $clean =~ s/[^a-zA-Z0-9]//g;
+    unless ($clean && (length($clean) == 32)) {
+        return 0;
+    }
+    return 1;
+}
+
+# return sequence data for md5s as fasta or json / and error
+sub md5s2sequences {
+    my ($self, $md5s, $version, $format) = @_;
+    
+    # check md5s
+    my @clean = grep { $self->clean_md5($_) } @$md5s;
+    
+    # make id file
+    my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.ids');
+    map { print $tfh "lcl|$_\n" } @clean;
+    close($tfh);
+    
+    # get m5nr
+    my $seqs = "";
+    my $m5nr = "";
+    if ($Conf::m5nr_fasta && (-f $Conf::m5nr_fasta)) {
+        $m5nr = $Conf::m5nr_fasta;
+    } elsif ($Conf::m5nr_dir && (-d $Conf::m5nr_dir)) {
+        $m5nr = $Conf::m5nr_dir."/".$self->{m5nr_version}{$version}."/md5nr";
+    } else {
+        return (undef, "missing M5NR sequence data");
+    }
+    
+    # get seqs
+    my $ferror = "";
+    eval {
+        my $fastacmd = $Conf::fastacmd;
+        foreach my $line (`$fastacmd -d $m5nr -i $tfile -l 0 -t T -p T`) {
+            if ((! $line) || ($line =~ /^\s+$/) || ($line =~ /^\[fastacmd\]/)) {
+                if ($line =~ /ERROR/) {
+                    $ferror .= $line;
+                }
+                next;
+            }
+            if ($line =~ /^>/) {
+                $line = (split(/\s/, $line))[0]."\n";
+            }
+            $seqs .= $line;
+        }
+    };
+    if ($@) {
+        return (undef, "unable to access M5NR sequence data");
+    }
+    if ($ferror) {
+        return (undef, $ferror);
+    }
+    
+    # output
+    if ($format eq 'fasta') {
+        return ($seqs, undef);
+    } else {
+        my $data  = [];
+        my @lines = split(/\n/, $seqs);
+        chomp @lines;
+        for (my $i = 0; $i < scalar(@lines); $i += 2) {
+            push @$data, {'md5' => (split(/\|/, $lines[$i]))[1], 'sequence' => $lines[$i+1]};
+        }
+        return ($data, undef);
+    }
+}
+
 #############################
 #  shock related functions  #
 #############################
@@ -1315,7 +1388,7 @@ sub awe_job_action {
 
 # get job document
 sub get_awe_job {
-    my ($self, $id, $auth, $authPrefix) = @_;
+    my ($self, $id, $auth, $authPrefix, $pass_back_errors) = @_;
     
     if (! $authPrefix) {
       $authPrefix = "mgrast";
@@ -1329,8 +1402,13 @@ sub get_awe_job {
     };
     if ($@ || (! ref($response))) {
         return undef;
-    } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]}, $response->{status} );
+      } elsif (exists($response->{error}) && $response->{error}) {
+	my $err = {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]};
+	if ($pass_back_errors) {
+	  return $err;
+	} else {
+	  $self->return_data( $err, $response->{status} );
+	}
     } else {
         return $response->{data};
     }
@@ -1474,7 +1552,7 @@ sub delete_awe_job {
 }
 
 sub empty_awe_task {
-    my ($self, $perl_lib) = @_;
+    my ($self, $docker) = @_;
     my $task = {
         cmd => {
             args => "",
@@ -1489,8 +1567,8 @@ sub empty_awe_task {
         taskid    => "0",
         totalwork => 1
     };
-    if ($perl_lib) {
-        $task->{cmd}{environ}{public} = {"PERL5LIB" => "/root/pipeline/lib:/root/pipeline/conf"};
+    if ($docker) {
+        $task->{cmd}{Dockerimage} = $Conf::pipeline_docker_image;
     }
     return $task;
 }
@@ -1522,7 +1600,7 @@ class CassHandle(object):
         self.session = self.handle.connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = dict_factory
-    def get_records_by_id(self, ids, source):
+    def get_records_by_id(self, ids, source=None):
         found = []
         if source:
             query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
@@ -1533,7 +1611,7 @@ class CassHandle(object):
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
         return found
-    def get_id_records_by_id(self, ids, source):
+    def get_id_records_by_id(self, ids, source=None):
         found = []
         if source:
             query = "SELECT * FROM index_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
@@ -1711,8 +1789,8 @@ sub node_to_inbox {
     if (exists $node->{attributes}{submission}) {
         $info->{submission} = $node->{attributes}{submission};
     }
-    # add expiration if missing
-    if ($node->{expiration} eq "0001-01-01T00:00:00Z") {
+    # add expiration if missing -- NOT for submission nodes !
+    if (($node->{attributes}{data_type} ne "submission") && ($node->{expiration} eq "0001-01-01T00:00:00Z")) {
         $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "5D");
     }
     return $info;
@@ -2506,3 +2584,23 @@ sub prepare_data {
 
 # enable hash-resolving in the JSON->encode function
 sub TO_JSON { return { %{ shift() } }; }
+
+# turn a hidden id into a normal one and vice versa
+sub idmap {
+  my ($id) = @_;
+  
+  # this is a decoded id, encode it
+  if (($id =~ /^mgm/) or ($id =~ /^mgp/)) {
+    my @set = ('0' ..'9', 'a' .. 'f');
+    my $str = join '' => map $set[rand @set], 1 .. 10;
+    $id = unpack ("H*",$id);
+    $id = $str.$id;
+  }
+  
+  # this is an encoded id, decode it
+  else {
+    $id = substr $id, 10;
+    $id = pack (qq{H*},qq{$id});
+  }
+  return $id;
+}

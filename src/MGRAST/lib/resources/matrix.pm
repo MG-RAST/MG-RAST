@@ -216,6 +216,13 @@ sub instance {
     # unique list and sort it - sort required for proper caching
     my @mgids = sort keys %mgids;
     
+    # test postgres access
+    my $testdb = MGRAST::Abundance->new();
+    unless ($testdb) {
+        $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+    }
+    $testdb->DESTROY();
+    
     # asynchronous call, fork the process and return the process id.
     # caching is done with shock, not memcache
     if ($self->cgi->param('asynchronous')) {
@@ -314,13 +321,13 @@ sub prepare_data {
 
     # initialize analysis obj with mgids
     unless (exists $self->{m5nr_version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
+        return ({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
     }
     my $master = $self->connect_to_datasource();
     my $chdl   = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
     my $mgdb   = MGRAST::Abundance->new($chdl, $version);
     unless (ref($mgdb)) {
-        return ({"ERROR" => "could not connect to analysis database"}, 500);
+        return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }
 
     # validate cutoffs

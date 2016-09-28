@@ -203,7 +203,7 @@ sub submit {
     }
     foreach my $s (@sources) {
         unless (exists $all_srcs->{$s}) {
-            return ({"ERROR" => "Invalid source for profile: ".$s." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400);
+            $self->return_data( {"ERROR" => "invalid source for profile: ".$s." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
         }
     }
     
@@ -229,6 +229,13 @@ sub submit {
         my $obj = $self->status_report_from_node($tnodes->[0], "submitted");
         $self->return_data($obj);
     }
+    
+    # test postgres access
+    my $testdb = MGRAST::Abundance->new();
+    unless ($testdb) {
+        $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+    }
+    $testdb->DESTROY();
     
     # need to create new temp node
     $tquery->{row_total} = 0;
@@ -316,6 +323,9 @@ sub prepare_data {
     # db handles
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
     my $mgdb = MGRAST::Abundance->new($chdl, $version);
+    unless ($mgdb) {
+        return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+    }
     
     # run query
     my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM job_md5s WHERE version=".

@@ -100,7 +100,20 @@ sub instance {
             if ($err) {
                 $self->return_data( {"ERROR" => "unable to retrieve data: ".$err}, 404 );
             }
-            $obj->{data} = $self->json->decode($content);
+            # handle error in content
+            my $data = undef;
+            eval {
+                $data = $self->json->decode($content);
+            };
+            if ($@ || (! $data)) {
+                $self->return_data( {"ERROR" => "invalid data format: ".$@}, 404 );
+            }
+            my $error = exists($data->{ERROR}) ? $data->{ERROR} : (exists($data->{error}) ? $data->{error} : undef);
+            if ($error) {
+                my $status = exists($data->{STATUS}) ? $data->{STATUS} : (exists($data->{status}) ? $data->{status} : 500);
+                $self->return_data( {"ERROR" => $error},  $status);
+            }
+            $obj->{data} = $data;
         }
     }
     

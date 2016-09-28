@@ -405,8 +405,16 @@ sub job_data {
         if ($nodes && (@$nodes > 0)) {
             $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
+        
+        # test postgres access
+        my $testdb = MGRAST::Abundance->new(undef, $ver, $Conf::mgrast_write_dbhost);
+        unless ($testdb) {
+            $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+        }
+        $testdb->DESTROY();
+        
         # need to create new node and fork
-        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
+        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
         my $pid = fork();
         # child - get data and POST it
         if ($pid == 0) {
@@ -415,7 +423,7 @@ sub job_data {
             # create DB handels inside child as they break on fork
             $master = $self->connect_to_datasource();
             my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
-            my $mgdb = MGRAST::Abundance->new($chdl, $ver);
+            my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
             my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
             $job = $jobj->[0];
             
@@ -427,21 +435,28 @@ sub job_data {
             
             # get data
             my $data = {};
-            my ($org_map, $fun_map, $ont_map) = $mgdb->all_job_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont);
-            if ($get_org) {
-                $data->{taxonomy} = {};
-                foreach my $t (keys %{$org_map}) {
-                    $data->{taxonomy}{$t} = [ map { [ $_, $org_map->{$t}{$_} ] } keys %{$org_map->{$t}} ];
+            my ($md5_num, $org_map, $fun_map, $ont_map) = $mgdb->all_job_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont);
+            if ($md5_num > 0) {
+                if ($get_org) {
+                    $data->{taxonomy} = {};
+                    foreach my $t (keys %{$org_map}) {
+                        $data->{taxonomy}{$t} = [ map { [ $_, $org_map->{$t}{$_} ] } keys %{$org_map->{$t}} ];
+                    }
                 }
-            }
-            if ($get_fun) {
-                $data->{function} = [ map { [ $_, $fun_map->{$_} ] } keys %{$fun_map} ];
-            }
-            if ($get_ont) {
-                $data->{ontology} = {};
-                foreach my $s (keys %{$ont_map}) {
-                    $data->{ontology}{$s} = [ map { [ $_, $ont_map->{$s}{$_} ] } keys %{$ont_map->{$s}} ];
+                if ($get_fun) {
+                    $data->{function} = [ map { [ $_, $fun_map->{$_} ] } keys %{$fun_map} ];
                 }
+                if ($get_ont) {
+                    $data->{ontology} = {};
+                    foreach my $s (keys %{$ont_map}) {
+                        $data->{ontology}{$s} = [ map { [ $_, $ont_map->{$s}{$_} ] } keys %{$ont_map->{$s}} ];
+                    }
+                }
+            } else {
+                $data = {
+                    ERROR  => "no md5 hits available",
+                    STATUS => 500
+                };
             }
             $mgdb->DESTROY();
             
@@ -599,10 +614,10 @@ sub job_action {
         } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
             my $cmd;
             if ($action eq 'resubmit') {
-                $cmd = $Conf::resubmit_to_awe." --job_id ".$job->{job_id}." --awe_id ".$post->{awe_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+                $cmd = $Conf::resubmit_to_awe." --use_docker --job_id ".$job->{job_id}." --awe_id ".$post->{awe_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
             } else {
                 my $jdata = $job->data();
-                $cmd = $Conf::submit_to_awe." --job_id ".$job->{job_id}." --input_node ".$post->{input_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+                $cmd = $Conf::submit_to_awe." --use_docker --job_id ".$job->{job_id}." --input_node ".$post->{input_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
                 if (exists $jdata->{submission}) {
                     $cmd .= " --submit_id ".$jdata->{submission};
                 }
@@ -692,7 +707,7 @@ sub job_action {
             # share rights if not owner
             unless ($share_user->_id eq $job->owner->_id) {
                 my @rights = ('view');
-                my @acls = ('read')
+                my @acls = ('read');
                 if ($post->{edit}) {
                     push @rights, 'edit';
                     push @acls, 'write';
@@ -833,21 +848,28 @@ sub job_action {
             if ($nodes && (@$nodes > 0)) {
                 $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
             }
+            # test postgres access
+            my $testdb = MGRAST::Abundance->new(undef, $ver, $Conf::mgrast_write_dbhost);
+            unless ($testdb) {
+                $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+            }
+            $testdb->DESTROY();
             # need to create new node and fork
-            my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
+            my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
             my $pid = fork();
             # child - get data and POST it
             if ($pid == 0) {
                 # create DB handels inside child as they break on fork
                 $master = $self->connect_to_datasource();
                 my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
-                my $mgdb = MGRAST::Abundance->new($chdl, $ver);
+                my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
                 my $mddb = MGRAST::Metadata->new();
                 my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
                 $job = $jobj->[0];
                 my $jdata = $job->data();
                 my $jobid = $job->{job_id};
-                my $mgid  = 'mgm'.$job->{metagenome_id};                
+                my $mgid  = 'mgm'.$job->{metagenome_id};
+                my $filename = $jobid.".".time.'.solr.json';
 
                 close STDERR;
                 close STDOUT;
@@ -927,7 +949,11 @@ sub job_action {
                     }
                 }
                 # get annotations from DB
-                my ($org_map, $fun_map, undef) = $mgdb->all_job_abundances($jobid, ['species'], $get_org, $get_fun, undef);
+                my ($md5_num, $org_map, $fun_map, undef) = $mgdb->all_job_abundances($jobid, ['species'], $get_org, $get_fun, undef);
+                if ($md5_num == 0) {
+                    $self->put_shock_file($filename, qq({"ERROR": "no md5 hits available", "STATUS": 500}), $node->{id}, $self->mgrast_token, 1);
+                    exit 0;
+                }
                 if ($get_org) {
                     $solr_data->{organism} = [ keys %{$org_map->{species}} ];
                 }
@@ -960,7 +986,6 @@ sub job_action {
                 }
                 # get content
                 print DEBUG "solr command\n" if $post->{debug};
-                my $filename = $jobid.".".time.'.solr.json';
                 my $solr_str = $self->json->encode({
                     delete => { id => $mgid },
                     commit => { expungeDeletes => "true" },

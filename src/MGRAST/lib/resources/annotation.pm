@@ -22,32 +22,37 @@ sub new {
     
     # Add name / attributes
     $self->{name}  = "annotation";
-    $self->{types} = [[ "organism", "return organism data" ],
-                      [ "function", "return function data" ],
-                      [ "ontology", "return ontology data" ],
-                      [ "feature", "return feature data" ],
-                      [ "md5", "return md5sum data" ]];
+    $self->{types} = [
+        [ "organism", "return organism data" ],
+        [ "function", "return function data" ],
+        [ "ontology", "return ontology data" ],
+        [ "feature", "return feature data" ],
+        [ "all", "return all data, no filtering done" ]
+    ];
+    $self->{ontology} = { map { $_, 1 } @{$self->source_by_type('ontology')} };
     $self->{cutoffs}  = { evalue => '5', identity => '60', length => '15' };
-    $self->{attributes} = { sequence => {
-                                "col_01" => ['string', 'sequence id'],
-                                "col_02" => ['string', 'm5nr id (md5sum)'],
-                                "col_03" => ['string', 'dna sequence'],
-                                "col_04" => ['string', 'semicolon separated list of annotations'] },
-                            similarity => {
-                                "col_01" => ['string', 'query sequence id'],
-                                "col_02" => ['string', 'hit m5nr id (md5sum)'],
-                                "col_03" => ['float', 'percentage identity'],
-                                "col_04" => ['int', 'alignment length,'],
-                                "col_05" => ['int', 'number of mismatches'],
-                                "col_06" => ['int', 'number of gap openings'],
-                                "col_07" => ['int', 'query start'],
-                                "col_08" => ['int', 'query end'],
-                                "col_09" => ['int', 'hit start'],
-                                "col_10" => ['int', 'hit end'],
-                                "col_11" => ['float', 'e-value'],
-                                "col_12" => ['float', 'bit score'],
-                                "col_13" => ['string', 'semicolon separated list of annotations'] }
-                          };
+    $self->{attributes} = {
+        sequence => {
+            "col_01" => ['string', 'sequence id'],
+            "col_02" => ['string', 'm5nr id (md5sum)'],
+            "col_03" => ['string', 'dna sequence'],
+            "col_04" => ['string', 'semicolon separated list of annotations']
+        },
+        similarity => {
+            "col_01" => ['string', 'query sequence id'],
+            "col_02" => ['string', 'hit m5nr id (md5sum)'],
+            "col_03" => ['float', 'percentage identity'],
+            "col_04" => ['int', 'alignment length,'],
+            "col_05" => ['int', 'number of mismatches'],
+            "col_06" => ['int', 'number of gap openings'],
+            "col_07" => ['int', 'query start'],
+            "col_08" => ['int', 'query end'],
+            "col_09" => ['int', 'hit start'],
+            "col_10" => ['int', 'hit end'],
+            "col_11" => ['float', 'e-value'],
+            "col_12" => ['float', 'bit score'],
+            "col_13" => ['string', 'semicolon separated list of annotations'] }
+    };
     return $self;
 }
 
@@ -81,15 +86,35 @@ sub info {
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab delimited annotated sequence stream"]] },
 				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
-				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                                                            'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                                                            'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                                                            "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
-				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $sources ],
-									                        'version'  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
-									                        "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'] },
+				                             'options' => {
+				                                 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                 'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                 'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                 "format"   => ['cv', [["tab", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
+                                                 "version"  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
+                                                 "source"   => ['cv', $sources ],
+                                                 "type"     => ['cv', $self->{types} ],
+                                                 "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
+                                                 "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+                                             },
 							                 'body' => {} }
+						},
+						{ 'name'        => "sequence",
+				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
+				          'description' => "tab delimited annotated sequence stream",
+				          'example'     => [ 'curl -X POST -d \'{"source":"SwissProt","type":"organism","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read sequences from mgm4447943.3 with hits in SwissProt organisms for given md5s' ],
+				          'method'      => "POST",
+				          'type'        => "stream",  
+				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab delimited annotated sequence stream"]] },
+				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
+				                             'options' => {},
+							                 'body' => {
+							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
+							                     "format"  => ['cv', [["tabbed", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
+							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
+							                     "source"  => ['cv', $sources ],
+							                     "type"    => ['cv', $self->{types} ]
+						                     } }
 						},
 						{ 'name'        => "similarity",
 				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
@@ -100,16 +125,35 @@ sub info {
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
 				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
-				                             'options' => { 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                                                            'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                                                            'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                                                            "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
-				                                            "type"     => ["cv", $self->{types} ],
-									                        "source"   => ["cv", $sources ],
-									                        'version'  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
-									                        "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'] },
-							                 'body' => {} }
-						} ]
+				                             'options' => {
+				                                 'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+                                                 'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+                                                 'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+                                                 "version"  => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
+                                                 "source"   => ['cv', $sources ],
+                                                 "type"     => ['cv', $self->{types} ],
+                                                 "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
+                                                 "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+                                             },
+				                             'body' => {} }
+						},
+						{ 'name'        => "similarity",
+				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
+				          'description' => "tab delimited blast m8 with annotation",
+				          'example'     => [ 'curl -X POST -d \'{"source":"KO","type":"function","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
+				          'method'      => "POST",
+				          'type'        => "stream",  
+				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
+				          'parameters'  => { 'required' => { "id" => [ "string", "unique metagenome identifier" ] },
+				                             'options' => {},
+				                             'body' => {
+ 							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
+ 							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
+ 							                     "source"  => ['cv', $sources ],
+ 							                     "type"    => ['cv', $self->{types} ]
+ 						                     } }
+						}
+					]
 		  };
 
     $self->return_data($content);
@@ -171,6 +215,7 @@ sub prepare_data {
     my $md5s    = [];
     my $mgid    = 'mgm'.$data->{metagenome_id};
     my $version = ($cgi->param('version') && ($cgi->param('version') =~ /^\d+$/)) ? $cgi->param('version') : $self->{m5nr_default};
+    my $filetype = $cgi->param('format') || 'tab';
     
     # post of md5s
     if ($self->method eq 'POST') {
@@ -179,16 +224,11 @@ sub prepare_data {
         if ($post_data) {
             eval {
                 my $json_data = $self->json->decode($post_data);
-                if (exists $json_data->{type})     { $type   = $json_data->{type}; }
-                if (exists $json_data->{source})   { $source = $json_data->{source}; }
-                if (exists $json_data->{evalue})   { $eval   = $json_data->{evalue}; }
-                if (exists $json_data->{identity}) { $ident  = $json_data->{identity}; }
-                if (exists $json_data->{length})   { $alen   = $json_data->{length}; }
-                if ($type eq 'md5') {
-                    $filter = undef;
-                    $flevel = undef;
-                    $md5s = $json_data->{md5s};
-                }
+                if (exists $json_data->{format})  { $filetype = $json_data->{format}; }
+                if (exists $json_data->{md5s})    { $md5s     = $json_data->{md5s}; }
+                if (exists $json_data->{type})    { $type     = $json_data->{type}; }
+                if (exists $json_data->{version}) { $version  = $json_data->{version}; }
+                if (exists $json_data->{source})  { $source   = $json_data->{source}; }
             };
         # data sent in post form
         } elsif ($self->cgi->param('md5s')) {
@@ -201,10 +241,12 @@ sub prepare_data {
         if ($@ || (@$md5s == 0)) {
             $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
         }
-    } elsif ($filter && ($type eq 'md5')) {
+        # no filtering with POSTed md5 list
+        $eval   = undef;
+        $ident  = undef;
+        $alen   = undef;
         $filter = undef;
         $flevel = undef;
-        $md5s = [$filter];
     }
 
     # validate options
@@ -220,9 +262,12 @@ sub prepare_data {
     unless (any {$_->[0] eq $type} @{$self->{types}}) {
         $self->return_data({"ERROR" => "Invalid type was entered ($type). Please use one of: ".join(", ", map {$_->[0]} @{$self->{types}})}, 404);
     }
+    if (($filetype ne 'tab') && ($filetype ne 'fasta')) {
+        $self->return_data({"ERROR" => "Invalid format was entered ($filetype). Please use one of: tab, fasta"}, 404);
+    }
     
     # only have filter_level for organism or ontology
-    if ( $flevel && (($flevel =~ /^strain|species|function$/) || ($type !~ /^organism|ontology$/)) ) {
+    if ($flevel && (($flevel =~ /^strain|species|function$/) || ($type !~ /^organism|ontology$/))) {
         $flevel = undef;
     }
     if ($filter && $flevel) {
@@ -235,40 +280,32 @@ sub prepare_data {
     # get db handles
     my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
     my $mgdb = MGRAST::Abundance->new($chdl, $version);
+    unless ($mgdb) {
+        $self->return_data({"ERROR" => "Unable to connect to metagenomics analysis database"}, 500);
+    }
     
     # build queries
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
     
-    my $query = "";
+    my $query  = "SELECT md5, seek, length FROM job_md5s";
+    my $qwhere = [
+        'version = '.$mgdb->version,
+        'job = '.$data->{job_id},
+        $eval,
+        $ident,
+        $alen,
+        "seek IS NOT NULL",
+        "length IS NOT NULL"
+    ];
     if (@$md5s) {
-        $query  = "SELECT j.md5, j.seek, j.length FROM job_md5s j, md5s m";
-        $query .= $mgdb->get_where_str([
-            'j.version = '.$mgdb->version,
-            'j.job = '.$data->{job_id},
-            $eval ? 'j.'.$eval : "",
-            $ident ? 'j.'.$ident : "",
-            $alen ? 'j.'.$alen : "",
-            'j.seek IS NOT NULL',
-            'j.length IS NOT NULL',
-            'j.md5 = m._id',
-            'm.md5 IN ('.join(",", map {$mgdb->dbh->quote($_)} @$md5s).')'
-        ]);
-        $query .= " ORDER BY j.seek";
-    } else {
-        $query  = "SELECT md5, seek, length FROM job_md5s";
-        $query .= $mgdb->get_where_str([
-            'version = '.$mgdb->version,
-            'job = '.$data->{job_id},
-            $eval,
-            $ident,
-            $alen,
-            "seek IS NOT NULL",
-            "length IS NOT NULL"
-        ]);
-        $query .= " ORDER BY seek";
+        my $mquery = "SELECT _id FROM md5s WHERE md5 IN (".join(",", map {$mgdb->dbh->quote($_)} @$md5s).")";
+        my $md5ids = $mgdb->dbh->selectcol_arrayref($mquery);
+        push @$qwhere, "md5 IN (".join(",", @$md5ids).")"
     }
+    $query .= $mgdb->get_where_str($qwhere);
+    $query .= " ORDER BY seek";
     
     # get shock node for file
     my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
@@ -277,17 +314,6 @@ sub prepare_data {
         $self->return_data({"ERROR" => "Unable to retrieve $format file"}, 500);
     }
     my $node_id = $sim_node->[0]{id};
-    
-    # print html and line headers - no buffering to stdout
-    select STDOUT;
-    $| = 1;
-    my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
-    if ($cgi->param('browser')) {
-      print $cgi->header(-type => 'application/octet-stream', -status => 200, -Access_Control_Allow_Origin => '*');
-    } else {
-      print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
-    }
-    print join("\t", @head)."\n";
     
     # get filter list
     # filter_list is all taxa names that match filter for given filter_level (organism, ontology only)
@@ -302,6 +328,19 @@ sub prepare_data {
     
     # start query
     my $sth = $mgdb->execute_query($query);
+    
+    # print html and line headers - no buffering to stdout
+    select STDOUT;
+    $| = 1;
+    my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
+    if ($cgi->param('browser')) {
+      print $cgi->header(-type => 'application/octet-stream', -status => 200, -Access_Control_Allow_Origin => '*');
+    } else {
+      print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
+    }
+    unless (($format eq 'sequence') && ($filetype eq 'fasta')) {
+        print join("\t", @head)."\n";
+    }
         
     # loop through indexes and print data
     my $count = 0;
@@ -315,65 +354,73 @@ sub prepare_data {
         $md5_set->{$md5} = [$seek, $len];
         $batch_count++;
         if ($batch_count == $mgdb->chunk) {
-            $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list, $filter);
+            $count += $self->print_batch($chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5_set, \%filter_list, $filter);
             $md5_set = {};
             $batch_count = 0;
         }
     }
     if ($batch_count > 0) {
-        $count += $self->print_batch($chdl, $node_id, $format, $mgid, $source, $md5_set, \%filter_list, $filter);
+        $count += $self->print_batch($chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5_set, \%filter_list, $filter);
     }
 
     # cleanup
     $mgdb->end_query($sth);
     $mgdb->DESTROY();
-    print "Download complete. $count rows retrieved\n";
+    unless (($format eq 'sequence') && ($filetype eq 'fasta')) {
+        print "Download complete. $count rows retrieved\n";
+    }
     exit 0;
 }
 
 sub print_batch {
-    my ($self, $chdl, $node_id, $format, $mgid, $source, $md5s, $filter_list, $filter) = @_;
+    my ($self, $chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5s, $filter_list, $filter) = @_;
     
-    my $type = $self->cgi->param('type') || 'organism';
-    my $count = 0;
-    
+    my $count = 0;    
     # get / process annotations per md5
     my $data = $chdl->get_records_by_id([keys %$md5s], $source);
     foreach my $set (@$data) {
-        # get annotation list
-        my $ann = [];
-        if ($type eq 'organism') {
-            if (%$filter_list) {
-                @$ann = grep { $filter_list->{$_} } @{$set->{organism}};
-            } elsif ($filter) {
-                @$ann = grep { /$filter/i } @{$set->{organism}};
+        # get annotation set based on options / build string
+        my @ann = ();
+        if ($type eq 'feature') {
+            if ($filter) {
+                @ann = grep { /$filter/i } @{$set->{accession}};
             } else {
-                $ann = $set->{organism};
+                @ann = @{$set->{accession}};
             }
         } elsif ($type eq 'function') {
             if ($filter) {
-                @$ann = grep { /$filter/i } @{$set->{function}};
+                @ann = map {"[".$_."]"} grep { /$filter/i } @{$set->{function}};
             } else {
-                $ann = $set->{function};
+                @ann = map {"[".$_."]"} @{$set->{function}};
             }
-        } elsif ($type eq 'feature') {
-            if ($filter) {
-                @$ann = grep { /$filter/i } @{$set->{accession}};
+        } elsif ($type eq 'organism') {
+            if (%$filter_list) {
+                @ann = map {"[".$_."]"} grep { $filter_list->{$_} } @{$set->{organism}};
+            } elsif ($filter) {
+                @ann = map {"[".$_."]"} grep { /$filter/i } @{$set->{organism}};
             } else {
-                $ann = $set->{accession};
+                @ann = map {"[".$_."]"} @{$set->{organism}};
             }
         } elsif ($type eq 'ontology') {
-            if (%$filter_list) {
-                @$ann = grep { $filter_list->{$_} } @{$set->{accession}};
-            } elsif ($filter) {
-                @$ann = grep { /$filter/i } @{$set->{accession}};
-            } else {
-                $ann = $set->{accession};
+            my @ont = ();
+            for (my $i=0; $i<scalar(@{$set->{accession}}); $i++) {
+                if ($set->{accession}[$i]) {
+                    push @ont, [ $set->{accession}[$i], $set->{function}[$i] || ""];
+                }
             }
-        } else {
-            push @$ann, $set->{md5};
+            if (%$filter_list) {
+                @ont = grep { $filter_list->{$_->[0]} } @ont;
+            } elsif ($filter) {
+                @ont = grep { $_->[0] =~ /$filter/i } @ont;
+            }
+            @ann = map { "accession=[".$_->[0]."],function=[".$_->[1]."]" } @ont;
+        } elsif ($type eq 'all') {
+            for (my $i=0; $i<scalar(@{$set->{accession}}); $i++) {
+                push @ann, "accession=[".($set->{accession}[$i] || "")."],function=[".($set->{function}[$i] || "")."],organism=[".($set->{organism}[$i] || "")."]";
+            }
         }
-        if (@$ann == 0) { next; }
+        if (@ann == 0) { next; }
+        my $ann_str = join(";", @ann);
         
         # pull data from indexed shock file
         my ($seek, $len) = @{$md5s->{$set->{id}}};
@@ -386,18 +433,18 @@ sub print_batch {
 	    foreach my $line (split(/\n/, $rec)) {
 	        my @tabs = split(/\t/, $line);
 	        unless ($tabs[0]) { next; }
-		    my @out = ();
-		    my $rid = $tabs[0];
-		    unless ($rid) { next; }
+		    my $rid = $mgid."|".$tabs[0]."|".$source;
+		    my $rec = "";
 		    if (($format eq 'sequence') && (@tabs == 13)) {
-		        @out = ($mgid."|".$rid, $tabs[1], $tabs[12], join(";", @$ann));
+		        if ($filetype eq 'fasta') {
+		            $rec = ">".$rid."|".$tabs[1]." ".$ann_str."\n".$tabs[12];
+	            } elsif ($filetype eq 'tab') {
+		            $rec = join("\t", map {$_ || ''} ($rid, $tabs[1], $tabs[12], $ann_str));
+	            }
 		    } elsif ($format eq 'similarity') {
-		        @out = ($mgid."|".$rid, @tabs[1..11], join(";", @$ann));
+		        $rec = join("\t", map {$_ || ''} ($rid, @tabs[1..11], $ann_str));
 		    }
-		    if ($type eq 'md5') {
-                pop @out;
-		    }
-		    print join("\t", map {$_ || ''} @out)."\n";
+		    print $rec."\n";
 		    $count += 1;
 	    }
     }

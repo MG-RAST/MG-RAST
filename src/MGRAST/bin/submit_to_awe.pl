@@ -9,6 +9,9 @@
 #      2. create job script based on job template and available info
 #      3. submit the job json script to awe
 
+use lib "/MG-RAST/conf";
+use lib "/MG-RAST/site/lib/MGRAST";
+
 use strict;
 use warnings;
 no warnings('once');
