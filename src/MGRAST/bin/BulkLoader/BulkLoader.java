@@ -129,23 +129,22 @@ public class BulkLoader {
                                     ") VALUES (" +
                                         "?, ?, ?, ?, ?, ?, ?, ?, ?" +
                                     ")", keyspace, table);
-        } else if (table.equals("job_reads")) {
+        } else if (table.equals("job_features")) {
             schema = String.format("CREATE TABLE %s.%s (" +
                                         "version int, " +
                                         "job int, " +
                                         "md5 text, " +
-                                        "read int, " +
-                                        "abundance int, " +
+                                        "feature text, " +
                                         "exp int, " +
                                         "ident int, " +
                                         "len int, " +
-                                        "sim int, " +
-                                        "PRIMARY KEY ((version, job), md5, read) " +
+                                        "md5_idx int, " +
+                                        "PRIMARY KEY ((version, job), md5, feature) " +
                                     ")", keyspace, table);
             insert = String.format("INSERT INTO %s.%s (" +
-                                        "version, job, md5, read, abundance, exp, ident, len, sim" +
+                                        "version, job, md5, feature, exp, ident, len, md5_idx" +
                                     ") VALUES (" +
-                                        "?, ?, ?, ?, ?, ?, ?, ?, ?" +
+                                        "?, ?, ?, ?, ?, ?, ?, ?" +
                                     ")", keyspace, table);
         } else {
             System.out.println("Unsupported table type: " + table);
@@ -228,16 +227,15 @@ public class BulkLoader {
                                   Float.parseFloat(line[6]),
                                   Long.parseLong(line[7]),
                                   Integer.parseInt(line[8]));
-                } else if (table.equals("job_reads")) {
+                } else if (table.equals("job_features")) {
                     writer.addRow(Integer.parseInt(line[0]),
                                   Integer.parseInt(line[1]),
                                   line[2],
-                                  Integer.parseInt(line[3]),
+                                  line[3],
                                   Integer.parseInt(line[4]),
                                   Integer.parseInt(line[5]),
                                   Integer.parseInt(line[6]),
-                                  Integer.parseInt(line[7]),
-                                  Integer.parseInt(line[8]));
+                                  Integer.parseInt(line[7]));
                 }
                 // Print nK
                 lineNumber += 1;

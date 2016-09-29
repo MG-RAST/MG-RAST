@@ -29,22 +29,21 @@ CREATE INDEX job_md5s_exp_idx ON job_md5s (exp_avg);
 CREATE INDEX job_md5s_ident_idx ON job_md5s (ident_avg);
 CREATE INDEX job_md5s_len_idx ON job_md5s (len_avg);
 
-CREATE TABLE IF NOT EXISTS job_reads (
+CREATE TABLE IF NOT EXISTS job_features (
     version int,
     job int,
     md5 text,
-    read int,
-    abundance int,
+    feature text,
     exp int,
     ident int,
     len int,
-    sim int,
-    PRIMARY KEY ((version, job), md5, read)
+    md5_idx int,
+    PRIMARY KEY ((version, job), md5, feature)
 );
 
-CREATE INDEX job_reads_exp_idx ON job_reads (exp);
-CREATE INDEX job_reads_ident_idx ON job_reads (ident);
-CREATE INDEX job_reads_len_idx ON job_reads (len);
+CREATE INDEX job_features_exp_idx ON job_features (exp);
+CREATE INDEX job_features_ident_idx ON job_features (ident);
+CREATE INDEX job_features_len_idx ON job_features (len);
 
 CREATE TABLE IF NOT EXISTS job_lcas (
     version int,
