@@ -350,6 +350,50 @@ sub instance {
       $self->return_data( {"ERROR" => "login and email do not match or are not registered"}, 400 );
     }
   }
+
+  # check if this is a token claim
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'claimtoken') {
+    my $token = $rest->[1];
+    if ($self->user) {      
+      my $token_scope = $master->Scope->get_objects( { name => 'token:'.$token } );
+      if (scalar(@$token_scope)) {
+	$token_scope = $token_scope->[0];
+      } else {
+	$self->return_data( {"ERROR" => "unknown token"}, 404 );
+      }
+
+      # we have a valid token and a valid user
+      my $uscope = $user->get_user_scope;
+      my $rights = $master->Rights->get_objects( { scope => $token_scope } );
+      my $ret_id = $rights->[0]->data_id;
+      my $ret_type = "metagenome";
+      my $pscope = undef;
+      if ($rights->[0]->data_type eq 'project') {
+	$ret_type = "project";
+	$pscope = $master->Scope->init( { application => undef,
+					  name => 'MGRAST_project_'.$ret_id } );
+      }
+      if ($token_scope->description && $token_scope->description =~ /^Reviewer_/) {
+	$master->UserHasScope->create( { granted => 1,
+					 scope => $token_scope,
+					 user => $user } );
+      } else {
+	foreach my $right (@$rights) {
+	  $right->scope($uscope);
+	}
+	$token_scope->delete();
+      }
+      if ($pscope) {
+	$master->UserHasScope->create( { granted => 1,
+					 scope => $pscope,
+					 user => $user } );
+      }
+      
+      $self->return_data( { "OK" => "token claimed", "id" => $ret_id, "type" => $ret_type }, 200 );
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+    }
+  }
   
   # check if this is a user creation
   if ($self->{method} eq 'POST') {
