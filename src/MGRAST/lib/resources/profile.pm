@@ -32,7 +32,7 @@ sub new {
         id        => [ 'string', 'unique metagenome identifier' ],
         created   => [ 'string', 'time the output data was generated' ],
         version   => [ 'integer', 'version number of M5NR used' ],
-        sources   => [ 'list', [ 'string', 'list of the sources used in annotations, order is same as annotation lists' ] ],
+        source    => [ 'string', 'source used in annotations' ],
         columns   => [ 'list', [ 'string', 'list of the columns in data' ] ],
         condensed => [ 'boolean', 'true if annotations are numeric identifiers and not full text' ],
         row_total => [ 'integer', 'number of rows in data matrix' ],
@@ -55,7 +55,7 @@ sub new {
         created => [ 'string', 'time the profile was completed' ],
         md5     => [ 'string', 'md5sum of profile' ],
         rows    => [ 'string', 'number of rows in profile data' ],
-        sources => [ 'list', [ 'string', 'source name used in profile' ]],
+        source  => [ 'string', 'source name used in profile' ],
         data    => $self->{profile}
     };
     return $self;
@@ -190,8 +190,6 @@ sub submit {
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
     
-    my @sources = sort split(/,/, $source);
-    
     # validate type / source
     my $all_srcs = {};
     if ($job->{sequence_type} =~ /^Amplicon/) {
@@ -201,10 +199,8 @@ sub submit {
         map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
         map { $all_srcs->{$_} = 1 } @{$self->source_by_type('ontology')};
     }
-    foreach my $s (@sources) {
-        unless (exists $all_srcs->{$s}) {
-            $self->return_data( {"ERROR" => "invalid source for profile: ".$s." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
-        }
+    unless (exists $all_srcs->{$source}) {
+        $self->return_data( {"ERROR" => "invalid source for profile: ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
     }
     
     # check for static feature profile node from shock
@@ -215,7 +211,7 @@ sub submit {
         stage_name => 'done'
     };
     my $snodes = $self->get_shock_query($squery, $self->mgrast_token);
-    $self->check_static_profile($snodes, \@sources, $condensed, $version);
+    $self->check_static_profile($snodes, $source, $condensed, $version);
     
     # check if temp profile compute node is in shock
     my $tquery = {
@@ -230,13 +226,6 @@ sub submit {
         $self->return_data($obj);
     }
     
-    # test postgres access
-    my $testdb = MGRAST::Abundance->new();
-    unless ($testdb) {
-        $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
-    }
-    $testdb->DESTROY();
-    
     # need to create new temp node
     $tquery->{row_total} = 0;
     $tquery->{progress} = {
@@ -245,7 +234,8 @@ sub submit {
     };
     $tquery->{parameters} = {
         id => 'mgm'.$id,
-        sources => \@sources,
+        job_id => $job->{job_id},
+        source => $source,
         format => $format,
         condensed => $condensed,
         version => $version
@@ -258,11 +248,11 @@ sub submit {
     if ($pid == 0) {
         close STDERR;
         close STDOUT;
-        my ($data, $error) = $self->prepare_data($id, $node, \@sources, $condensed, $version, $format);
+        my ($data, $error) = $self->prepare_data($id, $node, $source, $condensed, $version, $format);
         if ($error) {
             $data->{STATUS} = $error;
         }
-        my $fname = $data->{id}."_".join("_", @sources)."_v".$version.".".$format;
+        my $fname = $data->{id}."_".$source."_v".$version.".".$format;
         $self->put_shock_file($fname, $data, $node->{id}, $self->mgrast_token);
         exit 0;
     }
@@ -388,7 +378,7 @@ sub prepare_data {
 	        project_name  => undef,
             type          => 'metagenome',
             data_type     => 'profile',
-            sources       => $sources,
+            source        => $source,
             row_total     => $profile->{row_total},
             md5_queried   => $total_count,
             md5_found     => $found,
@@ -428,7 +418,7 @@ sub append_profile {
         my $src = $sources->[$si];
         my $cass_data = [];
         if ($condensed eq "true") {
-            $cass_data = $chdl->get_id_records_by_id(\@mids, $src);
+            $cass_data = $chdl->get_records_by_id(\@mids, $src, 1);
         } elsif ($condensed eq "false") {
             $cass_data = $chdl->get_records_by_id(\@mids, $src);
         }
@@ -515,7 +505,7 @@ sub status_report_from_node {
         # is permanent shock node
         $report->{parameters} = {
             id         => $node->{attributes}{id},
-            sources    => $node->{attributes}{sources},
+            source     => $node->{attributes}{source},
             format     => 'mgrast',
             condensed  => $node->{attributes}{condensed},
             version    => $node->{attributes}{version}
@@ -525,24 +515,18 @@ sub status_report_from_node {
 }
 
 sub check_static_profile {
-    my ($self, $nodes, $sources, $condensed, $version) = @_;
+    my ($self, $nodes, $source, $condensed, $version) = @_;
     
     # sort results by newest to oldest
     my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
     
     foreach my $n (@$nodes) {
-        my $has_sources  = 1;
-        my %node_sources = map { $_, 1 } @{$n->{attributes}{sources}};
-        foreach my $s (@$sources) {
-            unless (exists $node_sources{$s}) {
-                $has_sources = 0;
-            }
-        }
         if ( $n->{attributes}{condensed} &&
              ($n->{attributes}{condensed} eq $condensed) &&
              $n->{attributes}{version} &&
              (int($n->{attributes}{version}) == int($version)) &&
-             $has_sources ) {
+             $n->{attributes}{source} &&
+             ($n->{attributes}{source} eq $source) ) {
             $self->status($n->{id});
         }
     }

@@ -1600,23 +1600,62 @@ class CassHandle(object):
         self.session = self.handle.connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = dict_factory
-    def get_records_by_id(self, ids, source=None):
-        found = []
-        if source:
-            query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+    def has_job(self, version, job):
+        prep = self.session.prepare("SELECT * FROM job_info WHERE version = ? AND job = ?")
+        rows = self.session.execute(prep, [version, job])
+        if len(rows) > 0:
+            return 1
         else:
-            query = "SELECT * FROM id_annotation WHERE id IN (%s)"%(",".join(map(str, ids)))
+            return 0
+    def get_abundances_by_job(self, version, job, fields, md5s=None, evalue=None, identity=None, alength=None):
+        found = []
+        query = "SELECT "+",".join(fields)+" from job_md5s WHERE version = ? AND job = ?"
+        filter = [version, job]
+        
+        if md5s and (len(md5s) == 1):
+            query += " AND md5 = ?"
+            filter.append(md5s[0])
+        elif md5s and (len(md5s) > 1):
+            query += " AND md5 IN ?"
+            filter.append(md5s)
+        
+        if evalue not None:
+            query += " AND exp_avg <= ?"
+            filter.append(evalue)
+        if identity not None:
+            query += " AND ident_avg >= ?"
+            filter.append(identity)
+        if alength not None:
+            query += " AND len_avg >= ?"
+            filter.append(alength)
+        
+        prep = self.session.prepare(query)
+        rows = self.session.execute(prep, filter)
+        for r in rows:
+            found.append(r)
+        return found
+        
+    def get_records_by_id(self, ids, source=None, index=False):
+        found = []
+        table = "index_annotation" if index else "id_annotation"
+        id_str = ",".join(map(str, ids))
+        if source:
+            query = "SELECT * FROM %s WHERE id IN (%s) AND source='%s'"%(table, id_str, source)
+        else:
+            query = "SELECT * FROM %s WHERE id IN (%s)"%(table, id_str)
         rows = self.session.execute(query)
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0
             found.append(r)
         return found
-    def get_id_records_by_id(self, ids, source=None):
+    def get_records_by_md5(self, md5s, source=None, index=False):
         found = []
+        table = "midx_annotation" if index else "md5_annotation"
+        md5_str = ",".join(map(lambda x: "'"+x+"'", md5s))
         if source:
-            query = "SELECT * FROM index_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+            query = "SELECT * FROM %s WHERE md5 IN (%s) AND source='%s'"%(table, md5_str, source)
         else:
-            query = "SELECT * FROM index_annotation WHERE id IN (%s)"%(",".join(map(str, ids)))
+            query = "SELECT * FROM %s WHERE md5 IN (%s)"%(table, md5_str)
         rows = self.session.execute(query)
         for r in rows:
             r['is_protein'] = 1 if r['is_protein'] else 0

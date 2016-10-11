@@ -4,36 +4,30 @@ use strict;
 use warnings;
 
 use JSON;
-use LWP::UserAgent;
 use Getopt::Long;
 use Data::Dumper;
+use Devel::Size qw(size total_size);
 use Inline::Python qw(py_eval);
 
-my $batch = 100;
-my $count = 10;
+my $batch = 1000;
 my $host = "";
 my $name = "";
-my $solr = "";
 my $usage = qq($0
-  --batch  query batch size, default: 100
-  --count  number of query iterations, default: 10
+  --batch  query batch size, default: 1000
   --host   Cassandra host
   --name   Cassandra name
-  --solr   solr url "http://bio-worker3.mcs.anl.gov:8983/solr/m5nr_1/select"
 );
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit 1; }
 if ( ! GetOptions(
     'batch:i' => \$batch,
-	'count:i' => \$count,
 	'host:s'  => \$host,
-	'name:s'  => \$name,
-	'solr:s'  => \$solr
+	'name:s'  => \$name
    ) ) {
   print STDERR $usage; exit 1;
 }
 
-unless (($host && $name) || $solr) {
+unless ($host && $name) {
     print STDERR $usage; exit 1;
 }
 
@@ -62,21 +56,28 @@ class TestCass(object):
         for i in range(size):
             array.append(random.randint(1, self.max_int))
         return array
-    def get_records(self, ids, source):
+    def get_records(self, ids, source='RefSeq'):
+        found = []
+        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        rows = self.session.execute(query)
+        for r in rows:
+            found.append(r)
+        return found
+    def get_md5s(self, ids, source='RefSeq'):
         found = []
         query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
         rows = self.session.execute(query)
         for r in rows:
             found.append(r["md5"])
         return found
+    def get_iter(self, ids, source='RefSeq'):
+        query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
+        return self.session.execute(query)
 );
 
 py_eval($python);
 
-my $md5s = {};
 my $start = time;
-
-my $agent = LWP::UserAgent->new;
 my $json = JSON->new;
 $json = $json->utf8();
 $json->max_size(0);
@@ -85,21 +86,21 @@ $json->allow_nonref;
 my $tester = Inline::Python::Object->new('__main__', 'TestCass', $host, $name);
 my $fields = join('%2C', ('md5_id', 'source', 'md5', 'accession', 'function', 'organism'));
 
-foreach my $i (1..$count) {
-    print STDERR ".";
-    my $random_ids = $tester->random_array($batch);
-    if ($solr) {
-        my $query = "md5_id:(".join(" OR ", @$random_ids).")";
-        my $sdata = "q=*%3A*&fq=".$query."&start=0&rows=1000000000&wt=json&fl=".$fields;
-        my $res = $json->decode( $agent->post($solr, Content => $sdata)->content );
-        map { $md5s->{$_->{md5}} = 1 } @{$res->{response}{docs}};
-    } else {
-        map { $md5s->{$_} = 1 } @{ $tester->get_records($random_ids, 'RefSeq') };
-    }
-}
+my $random_ids = $tester->random_array($batch);
+my $recs = $tester->get_records($random_ids);
+my $md5s = $tester->get_md5s($random_ids);
+my $iter = $tester->get_iter($random_ids);
+
 print STDERR "\n";
 my $end = time;
-my $total = $count * $batch;
 
-print "$count loops of size $batch ran in ".($end - $start)." seconds\n";
-print $total." ids requested, ".scalar(keys %$md5s)." md5s found\n";
+print "time: ".($end - $start)." seconds\n";
+print "recs size: ".total_size($recs)." bytes\n";
+print "md5s size: ".total_size($md5s)." bytes\n";
+print "iter size: ".total_size($iter)." bytes\n";
+print "recs found: ".scalar(@$recs)."\n";
+print "md5s found: ".scalar(@$md5s)."\n";
+print "first recs: ".Dumper($recs->[0])."\n";
+print "first md5s: ".Dumper($md5s->[0])."\n";
+print "iter: ".Dumper($iter)."\n";
+
