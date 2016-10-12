@@ -1585,16 +1585,20 @@ sub cassandra_m5nr_handle {
     }
 
     use Inline::Python qw(py_eval);
-    my $python = q(
+    my $cssl = "dict(keyfile='".$Conf::cass_ssl_keyfile."',certfile='".$Conf::cass_ssl_certfile."',ca_certs='".$Conf::cass_ssl_ca_certs."')";
+    my $python = q|
 from collections import defaultdict
 from cassandra.cluster import Cluster
 from cassandra.policies import RetryPolicy
 from cassandra.query import dict_factory
+import ssl
 
 class CassHandle(object):
     def __init__(self, keyspace, hosts):
         self.handle = Cluster(
             contact_points = hosts,
+            port = |.$Conf::cass_cql_port.q|,
+            ssl_options = |.$cssl.q|,
             default_retry_policy = RetryPolicy()
         )
         self.session = self.handle.connect(keyspace)
@@ -1684,7 +1688,7 @@ class CassHandle(object):
         return list(found)
     def close(self):
         self.handle.shutdown()
-);
+|;
     
     py_eval($python);
     return Inline::Python::Object->new('__main__', 'CassHandle', $keyspace, $hosts);
