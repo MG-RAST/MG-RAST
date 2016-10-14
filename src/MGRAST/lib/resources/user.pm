@@ -363,7 +363,7 @@ sub instance {
       }
 
       # we have a valid token and a valid user
-      my $uscope = $user->get_user_scope;
+      my $uscope = $self->user->get_user_scope;
       my $rights = $master->Rights->get_objects( { scope => $token_scope } );
       my $ret_id = $rights->[0]->data_id;
       my $ret_type = "metagenome";
@@ -376,7 +376,7 @@ sub instance {
       if ($token_scope->description && $token_scope->description =~ /^Reviewer_/) {
 	$master->UserHasScope->create( { granted => 1,
 					 scope => $token_scope,
-					 user => $user } );
+					 user => $self->user } );
       } else {
 	foreach my $right (@$rights) {
 	  $right->scope($uscope);
@@ -386,7 +386,7 @@ sub instance {
       if ($pscope) {
 	$master->UserHasScope->create( { granted => 1,
 					 scope => $pscope,
-					 user => $user } );
+					 user => $self->user } );
       }
       
       $self->return_data( { "OK" => "token claimed", "id" => $ret_id, "type" => $ret_type }, 200 );
