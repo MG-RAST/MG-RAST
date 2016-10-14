@@ -338,7 +338,7 @@ sub sequence_compute {
         return ({"ERROR" => "missing required md5"}, 404);
     }
     my $mgid = "mgm".$id;
-    my $mgdb = MGRAST::Abundance->new(undef, $ver);
+    my $mgdb = $self->cassandra_abundance($ver);
     unless ($mgdb) {
         return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }

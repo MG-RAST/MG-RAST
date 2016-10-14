@@ -24,15 +24,6 @@ class Profile(object):
     def close():
         close_cluster()
     
-    ## requires shock node (with correct attributes) for storing temperary data
-    # node['attributes'] = {
-    #    id :
-    #    job_id :
-    #    source :
-    #    format :
-    #    condensed :
-    #    version :
-    #}
     def compute_profile(self, node, attr=None):
         jobid   = node['attributes']['job_id']
         source  = node['attributes']['source']
@@ -70,12 +61,13 @@ class Profile(object):
             'data'      : []
 	    }    
     
-    def init_biom_profile(self, mgid):
+    def init_biom_profile(self, mgid, source):
         return {
             'id'                  : mgid,
             'format'              : "Biological Observation Matrix 1.0",
             'format_url'          : "http://biom-format.org",
             'type'                : "Feature table",
+            'datasource'          : source,
             'generated_by'        : "MG-RAST",
             'date'                : datetime.datetime.now().isoformat(),
             'matrix_type'         : "dense",
@@ -164,7 +156,7 @@ class Profile(object):
                     md5_idx[info['md5']] = idx
                 idx = md5_idx[info['md5']]
                 # add annotations to row metadata
-                rows[idx]['metadata'] = { 'source': source, 'function': info['function'] }
+                rows[idx]['metadata'] = { 'function': info['function'] }
                 if info['source'] in self.ontology:
                     rows[idx]['metadata']['ontology'] = info['accession']
                 else:

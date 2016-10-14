@@ -18,6 +18,7 @@ use Storable qw(dclone);
 use UUID::Tiny ":std";
 use Digest::MD5 qw(md5_hex md5_base64);
 use Template;
+use Inline::Python qw(py_eval);
 
 $CGI::LIST_CONTEXT_WARN = 0;
 $CGI::Application::LIST_CONTEXT_WARN = 0;
@@ -1577,156 +1578,44 @@ sub empty_awe_task {
 #  other server functions  #
 ############################
 
-sub cassandra_m5nr_handle {
-    my ($self, $keyspace, $hosts) = @_;
+sub cassandra_handle {
+    my ($self, $db, $version) = @_;
     
-    unless ($keyspace && $hosts && (@$hosts > 0)) {
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($version && $hosts && (@$hosts > 0)) {
         $self->return_data( {"ERROR" => "Unable to connect to cassandra cluster"}, 500 );
     }
-
-    use Inline::Python qw(py_eval);
-    my $python = q(
-from collections import defaultdict
-from cassandra.cluster import Cluster
-from cassandra.policies import RetryPolicy
-from cassandra.query import dict_factory
-
-class CassHandle(object):
-    def __init__(self, keyspace, hosts):
-        self.handle = Cluster(
-            contact_points = hosts,
-            default_retry_policy = RetryPolicy()
-        )
-        self.session = self.handle.connect(keyspace)
-        self.session.default_timeout = 300
-        self.session.row_factory = dict_factory
-    def has_job(self, version, job):
-        prep = self.session.prepare("SELECT * FROM job_info WHERE version = ? AND job = ?")
-        rows = self.session.execute(prep, [version, job])
-        if len(rows) > 0:
-            return 1
-        else:
-            return 0
-    def get_abundances_by_job(self, version, job, fields, md5s=None, evalue=None, identity=None, alength=None):
-        found = []
-        query = "SELECT "+",".join(fields)+" from job_md5s WHERE version = ? AND job = ?"
-        filter = [version, job]
-        
-        if md5s and (len(md5s) == 1):
-            query += " AND md5 = ?"
-            filter.append(md5s[0])
-        elif md5s and (len(md5s) > 1):
-            query += " AND md5 IN ?"
-            filter.append(md5s)
-        
-        if evalue not None:
-            query += " AND exp_avg <= ?"
-            filter.append(evalue)
-        if identity not None:
-            query += " AND ident_avg >= ?"
-            filter.append(identity)
-        if alength not None:
-            query += " AND len_avg >= ?"
-            filter.append(alength)
-        
-        prep = self.session.prepare(query)
-        rows = self.session.execute(prep, filter)
-        for r in rows:
-            found.append(r)
-        return found
-        
-    def get_records_by_id(self, ids, source=None, index=False):
-        found = []
-        table = "index_annotation" if index else "id_annotation"
-        id_str = ",".join(map(str, ids))
-        if source:
-            query = "SELECT * FROM %s WHERE id IN (%s) AND source='%s'"%(table, id_str, source)
-        else:
-            query = "SELECT * FROM %s WHERE id IN (%s)"%(table, id_str)
-        rows = self.session.execute(query)
-        for r in rows:
-            r['is_protein'] = 1 if r['is_protein'] else 0
-            found.append(r)
-        return found
-    def get_records_by_md5(self, md5s, source=None, index=False):
-        found = []
-        table = "midx_annotation" if index else "md5_annotation"
-        md5_str = ",".join(map(lambda x: "'"+x+"'", md5s))
-        if source:
-            query = "SELECT * FROM %s WHERE md5 IN (%s) AND source='%s'"%(table, md5_str, source)
-        else:
-            query = "SELECT * FROM %s WHERE md5 IN (%s)"%(table, md5_str)
-        rows = self.session.execute(query)
-        for r in rows:
-            r['is_protein'] = 1 if r['is_protein'] else 0
-            found.append(r)
-        return found
-    def get_taxa_hierarchy(self):
-        found = {}
-        query = "SELECT * FROM organisms_ncbi"
-        rows = self.session.execute(query)
-        for r in rows:
-            found[r['name']] = [r['tax_domain'], r['tax_phylum'], r['tax_class'], r['tax_order'], r['tax_family'], r['tax_genus'], r['tax_species']]
-        return found
-    def get_ontology_hierarchy(self, source=None):
-        found = defaultdict(dict)
-        if source is None:
-            rows = self.session.execute("SELECT * FROM ont_level1")
-        else:
-            prep = self.session.prepare("SELECT * FROM ont_level1 WHERE source = ?")
-            rows = self.session.execute(prep, [source])
-        for r in rows:
-            found[r['source']][r['level1']] = r['name']
-        if source is None:
-            return found
-        else:
-            return found[source]
-    def get_org_taxa_map(self, taxa):
-        found = {}
-        tname = "tax_"+taxa.lower()
-        query = "SELECT * FROM "+tname
-        rows = self.session.execute(query)
-        for r in rows:
-            found[r['name']] = r[tname]
-        return found
-    def get_ontology_map(self, source, level):
-        found = {}
-        level = level.lower()
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
-        rows = self.session.execute(prep, [source])
-        for r in rows:
-            found[r['name']] = r[level]
-        return found
-    def get_organism_by_taxa(self, taxa, match=None):
-        # if match is given, return subset that contains match, else all
-        found = set()
-        tname = "tax_"+taxa.lower()
-        query = "SELECT * FROM "+tname
-        rows = self.session.execute(query)
-        for r in rows:
-            if match and (match.lower() in r[tname].lower()):
-                found.add(r['name'])
-            elif match is None:
-                found.add(r['name'])
-        return list(found)
-    def get_ontology_by_level(self, source, level, match=None):
-        # if match is given, return subset that contains match, else all
-        found = set()
-        level = level.lower()
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
-        rows = self.session.execute(prep, [source])
-        for r in rows:
-            if match and (match.lower() in r[level].lower()):
-                found.add(r['name'])
-            elif match is None:
-                found.add(r['name'])
-        return list(found)
-    def close(self):
-        self.handle.shutdown()
-);
+    py_eval('from mgrast_cassandra import *');
     
-    py_eval($python);
-    return Inline::Python::Object->new('__main__', 'CassHandle', $keyspace, $hosts);
+    if ($db eq 'm5nr') {
+        return Inline::Python::Object->new('__main__', 'M5nrHandle', $hosts, $version);
+    } elsif ($db eq 'job') {
+        return Inline::Python::Object->new('__main__', 'JobHandle', $hosts, $version);
+    } else {
+        return undef;
+    }
+}
+
+sub cassandra_abundance {
+    my ($self, $version) = @_;
+    
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($version && $hosts && (@$hosts > 0)) {
+        $self->return_data( {"ERROR" => "Unable to connect to cassandra cluster"}, 500 );
+    }
+    py_eval('from abundance import Abundance');
+    return Inline::Python::Object->new('__main__', 'Abundance', $hosts, $version);
+}
+
+sub cassandra_profile {
+    my ($self, $version) = @_;
+    
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($version && $hosts && (@$hosts > 0)) {
+        $self->return_data( {"ERROR" => "Unable to connect to cassandra cluster"}, 500 );
+    }
+    py_eval('from profile import Profile');
+    return Inline::Python::Object->new('__main__', 'Profile', $hosts, $version);
 }
 
 sub get_solr_query {
