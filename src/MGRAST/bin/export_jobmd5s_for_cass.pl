@@ -84,7 +84,7 @@ print STDERR "job info ... ";
 open(IDUMP, ">$outdir/$job.job_info") or die "Couldn't open $outdir/$job.job_info for writing.\n";
 my $info = $dbh->selectrow_arrayref("SELECT updated_on FROM job_info WHERE version=$version AND job=$job");
 if (@$info > 0) {
-    print IDUMP join(",", map { '"'.$_.'"' } ($version, $job, $info->[0], $num))."\n";
+    print IDUMP join(",", map { '"'.$_.'"' } ($version, $job, $info->[0], $num, 'true'))."\n";
 }
 print STDERR "exported\n";
 close(IDUMP);
