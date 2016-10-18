@@ -13,6 +13,7 @@ class Profile(object):
         self.jobs = JobHandle(hosts, version)
         self.chunk = chunk
         self.shock = None
+        self.version = version
         set_ontology()
     
     def set_ontology(self, sources=['Subsystems', 'NOG', 'COG', 'KO']):
@@ -25,15 +26,18 @@ class Profile(object):
         close_cluster()
     
     def compute_profile(self, node, format, attr=None):
+        mgid    = node['attributes']['id']
         jobid   = node['attributes']['job_id']
         source  = node['attributes']['source']
+        stype   = node['attributes']['source_type']
         index   = True if node['attributes']['condensed'] eq 'true' else False
         profile = None
+        fname   = "%s_%s_v%d.%s"%(mgid, source, self.version, format)
         
         ## if we throw an error, save it in shock node
         if format == 'biom':
             try:
-                profile = init_biom_profile(node['attributes']['id'], node)
+                profile = init_biom_profile(mgid, source, stype)
                 rows, data = get_biom_data(job, source)
                 profile['rows'] = rows
                 profile['data'] = data
@@ -43,7 +47,7 @@ class Profile(object):
                 return
         elif format == 'mgrast':
             try:
-                profile = init_mgrast_profile(node['attributes']['id'], source, index)
+                profile = init_mgrast_profile(mgid, source, stype, index)
                 data = get_mgrast_data(job, source, index, node)
                 profile['data'] = data
                 profile['row_total'] = len(profile['data'])
@@ -64,7 +68,7 @@ class Profile(object):
                 self.error_exit("unable to update profile shock node "+node['id'], node)
                 return
         # store file in node
-        self.shock.upload(node=node['id'], data=profile)
+        self.shock.upload(node=node['id'], data=profile, file_name=fname)
         return
     
     def error_exit(self, error, node=None):
@@ -74,25 +78,27 @@ class Profile(object):
             self.shock.upload(node=node['id'], data=data)
         self.close()
     
-    def init_mgrast_profile(self, mgid, source, index=False):
+    def init_mgrast_profile(self, mgid, source, stype, index=False):
         return {
-            'id'        : mgid,
-            'created'   : datetime.datetime.now().isoformat(),
-            'version'   : M5NR_VERSION,
-            'source'    : source,
-            'columns'   : ["md5sum", "abundance", "e-value", "percent identity", "alignment length", "organisms", "functions"],
-            'condensed' : 'true' if index else 'false',
-            'row_total' : 0,
-            'data'      : []
+            'id'          : mgid,
+            'created'     : datetime.datetime.now().isoformat(),
+            'version'     : self.version,
+            'source'      : source,
+            'source_type' : stype,
+            'columns'     : ["md5sum", "abundance", "e-value", "percent identity", "alignment length", "organisms", "functions"],
+            'condensed'   : 'true' if index else 'false',
+            'row_total'   : 0,
+            'data'        : []
 	    }    
     
-    def init_biom_profile(self, mgid, source):
+    def init_biom_profile(self, mgid, source, stype):
         return {
             'id'                  : mgid,
             'format'              : "Biological Observation Matrix 1.0",
             'format_url'          : "http://biom-format.org",
             'type'                : "Feature table",
-            'datasource'          : source,
+            'data_source'         : source,
+            'source_type'         : stype,
             'generated_by'        : "MG-RAST",
             'date'                : datetime.datetime.now().isoformat(),
             'matrix_type'         : "dense",

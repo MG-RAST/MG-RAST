@@ -225,6 +225,13 @@ sub submit {
         $self->return_data($obj);
     }
     
+    # test cassandra access
+    my $ctest = $self->cassandra_test("job");
+    unless ($ctest) {
+        $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
+    }
+    $ctest->close();
+    
     # need to create new temp node
     $tquery->{row_total} = 0;
     $tquery->{progress} = {
@@ -235,6 +242,7 @@ sub submit {
         id => 'mgm'.$id,
         job_id => $job->{job_id},
         source => $source,
+        source_type => $self->type_by_source($source),
         format => $format,
         condensed => $condensed,
         version => $version
@@ -247,12 +255,7 @@ sub submit {
     if ($pid == 0) {
         close STDERR;
         close STDOUT;
-        my $error = $self->create_profile($id, $node, $format);
-        if ($error) {
-            $data->{ ERROR => $error, STATUS => 500 };
-        }
-        my $fname = $data->{id}."_".$source."_v".$version.".".$format;
-        $self->put_shock_file($fname, $data, $node->{id}, $self->mgrast_token);
+        $self->create_profile($id, $node, $format);
         exit 0;
     }
     # parent - end html session
@@ -266,20 +269,13 @@ sub submit {
 sub create_profile {
     my ($self, $id, $node, $format) = @_;
     
-    # test cassandra access
-    my $ctest = $self->cassandra_test("job");
-    unless ($ctest) {
-        return "unable to connect to metagenomics analysis database";
-    }
-    $ctest->close();
-
     # get data
     my $master = $self->connect_to_datasource();
     my $job  = $master->Job->get_objects( {metagenome_id => $id} );
     my $data = $job->[0];
     
     # cassandra handle
-    my $mgcass = $self->cassandra_profile($version);
+    my $mgcass = $self->cassandra_profile($node->{attributes}{version});
     $mgcass->set_shock($self->mgrast_token);
     
     ### create profile

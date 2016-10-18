@@ -16,6 +16,7 @@ use File::Basename;
 use File::Temp qw(tempfile tempdir);
 use Storable qw(dclone);
 use UUID::Tiny ":std";
+use List::Util qw(max min sum);
 use Digest::MD5 qw(md5_hex md5_base64);
 use Template;
 use Inline::Python qw(py_eval py_call_function);
@@ -273,6 +274,20 @@ sub source_by_type {
         }
     }
     return \@srcs;
+}
+
+sub type_by_source {
+    my ($self, $source) = @_;
+    foreach my $t (("protein", "rna", "ontology")) {
+        if (exists $self->source->{$t}) {
+            foreach my $s (@{$self->source->{$t}}) {
+                if ($s eq $source) {
+                    return $t;
+                }
+            }
+        }
+    }
+    return undef;
 }
 
 # hardcoded hierarchy info
@@ -1595,7 +1610,7 @@ sub cassandra_handle {
         return undef;
     }
     my $test = $self->cassandra_test($db);
-    unless ($est) {
+    unless ($test) {
         return undef;
     }
     py_eval('from mgrast_cassandra import *');
