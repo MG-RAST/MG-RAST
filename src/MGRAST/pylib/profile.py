@@ -18,36 +18,61 @@ class Profile(object):
     def set_ontology(self, sources=['Subsystems', 'NOG', 'COG', 'KO']):
         self.ontology = sources
     
-    def set_shock(self, url='http://shock.metagenomics.anl.gov', bearer='mgrast', token=None):
+    def set_shock(self, token=None, bearer='mgrast', url='http://shock.metagenomics.anl.gov'):
         self.shock = ShockClient(shock_url=url, bearer=bearer, token=token)
     
     def close():
         close_cluster()
     
-    def compute_profile(self, node, attr=None):
+    def compute_profile(self, node, format, attr=None):
         jobid   = node['attributes']['job_id']
         source  = node['attributes']['source']
         index   = True if node['attributes']['condensed'] eq 'true' else False
         profile = None
         
-        if node['attributes']['format'] == 'biom':
-            profile = init_biom_profile(node['attributes']['id'])
-            rows, data = get_biom_data(job, source)
-            profile['rows'] = rows
-            profile['data'] = data
-            profile['shape'][0] = len(profile['rows'])
-        elif node['attributes']['format'] == 'mgrast':
-            profile = init_mgrast_profile(node['attributes']['id'], source, index)
-            data = get_mgrast_data(job, source, index, node)
-            profile['data'] = data
-            profile['row_total'] = len(profile['data'])
-        
-        if attr not None:
-            # store as permanent shock node
-            
-        else:
-            # store as temp shock node
-            
+        ## if we throw an error, save it in shock node
+        if format == 'biom':
+            try:
+                profile = init_biom_profile(node['attributes']['id'], node)
+                rows, data = get_biom_data(job, source)
+                profile['rows'] = rows
+                profile['data'] = data
+                profile['shape'][0] = len(profile['rows'])
+            except:
+                self.error_exit("unable to build BIOM profile", node)
+                return
+        elif format == 'mgrast':
+            try:
+                profile = init_mgrast_profile(node['attributes']['id'], source, index)
+                data = get_mgrast_data(job, source, index, node)
+                profile['data'] = data
+                profile['row_total'] = len(profile['data'])
+            except:
+                self.error_exit("unable to build mgrast profile", node)
+                return
+        if attr:
+            # permanent: update attributes / remove expiration
+            attr['row_total']   = profile['row_total'] if 'row_total' in profile else profile['shape'][0]
+            attr['md5_queried'] = node['attributes']['progress']['queried']
+            attr['md5_found']   = node['attributes']['progress']['found']
+            try:
+                self.shock.upload(node=node['id'], attr=attr)
+                self.shock.update_expiration(node['id'])
+                if attr['status'] == 'public':
+                    self.shock.add_acl(node=node['id'], acl='read', public=True)
+            except:
+                self.error_exit("unable to update profile shock node "+node['id'], node)
+                return
+        # store file in node
+        self.shock.upload(node=node['id'], data=profile)
+        return
+    
+    def error_exit(self, error, node=None):
+        if node:
+            # save error to node
+            data = {'ERROR': error, "STATUS": 500}
+            self.shock.upload(node=node['id'], data=data)
+        self.close()
     
     def init_mgrast_profile(self, mgid, source, index=False):
         return {
@@ -125,21 +150,14 @@ class Profile(object):
                 found, data = append_profile(found, data, md5_row)
                 md5_row = defaultdict(list)
                 count = 0
-            if self.shock and node and ((total % 100000) == 0):
-                attr = node['attributes']
-                attr['progress']['queried'] = total
-                attr['progress']['found'] = found
-                node = self.shock.upload(node=node['id'], attr=attr)
+            if (total % 100000) == 0:
+                self.update_progress(node, total, found)
         if count > 0:
             found, data = append_profile(found, data, md5_row)
-        if self.shock and node:
-            attr = node['attributes']
-            attr['progress']['queried'] = total
-            attr['progress']['found'] = found
-            self.shock.upload(node=node['id'], attr=attr)
+        self.update_progress(node, total, found)
         return data
     
-    def get_biom_data(self, job, source):
+    def get_biom_data(self, job, source, node=None):
         rows = []
         data = []
         md5_row = defaultdict(list)
@@ -177,7 +195,17 @@ class Profile(object):
                 rows, data = append_profile(rows, data, md5_row)
                 md5_row = defaultdict(list)
                 count = 0
+            if (total % 100000) == 0:
+                self.update_progress(node, total, found)
         if count > 0:
             rows, data = append_profile(rows, data, md5_row)
+        self.update_progress(node, total, found)
         return rows, data
+    
+    def update_progress(self, node, total, found):
+        if self.shock and node:
+            attr = node['attributes']
+            attr['progress']['queried'] = total
+            attr['progress']['found'] = found
+            self.shock.upload(node=node['id'], attr=attr)
     

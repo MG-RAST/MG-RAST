@@ -288,6 +288,24 @@ sub info {
 							                 'required' => { "id" => ["string","unique MG-RAST metagenome identifier"] },
 							                 'body'     => {} }
 						},
+						{ 'name'        => "abundance",
+				          'request'     => $self->cgi->url."/".$self->name."/abundance",
+				          'description' => "Get abundances for different annotations",
+				          'method'      => "POST",
+				          'type'        => "synchronous",
+				          'attributes'  => $self->{attributes}{change},
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+							                                 "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
+							                                 "count"   => ["int", "total rows loaded, required for data integrity check with 'end' action"],
+							                                 "type"    => ["cv", [["md5", "md5 abundace data"],
+							                                                      ["lca", "lca abundace data"]] ],
+							                                 "action"  => ["cv", [["start", "flag job as loading"],
+							                                                      ["load", "load data to table"],
+							                                                      ["end", "flag job as completed"]] ],
+							                                 "data"    => ["list", ["float", "md5 abundance summary data"]] } }
+						},
 						{ 'name'        => "solr",
 				          'request'     => $self->cgi->url."/".$self->name."/solr",
 				          'description' => "Update job data in solr",
@@ -406,12 +424,12 @@ sub job_data {
             $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
         
-        # test postgres access
-        my $testdb = MGRAST::Abundance->new(undef, $ver, $Conf::mgrast_write_dbhost);
-        unless ($testdb) {
+        # test cassandra access
+        my $ctest = $self->cassandra_test("job");
+        unless ($ctest) {
             $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
         }
-        $testdb->DESTROY();
+        $ctest->close();
         
         # need to create new node and fork
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
@@ -422,8 +440,7 @@ sub job_data {
             close STDOUT;
             # create DB handels inside child as they break on fork
             $master = $self->connect_to_datasource();
-            my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
-            my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
+            my $mgcass = $self->cassandra_abundance($ver);            
             my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
             $job = $jobj->[0];
             
@@ -435,7 +452,7 @@ sub job_data {
             
             # get data
             my $data = {};
-            my ($md5_num, $org_map, $fun_map, $ont_map) = $mgdb->all_job_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont);
+            my ($md5_num, $org_map, $fun_map, $ont_map) = @{ $mgcass->all_annotation_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont) };
             if ($md5_num > 0) {
                 if ($get_org) {
                     $data->{taxonomy} = {};
@@ -458,7 +475,7 @@ sub job_data {
                     STATUS => 500
                 };
             }
-            $mgdb->DESTROY();
+            $mgcass->close();
             
             # POST to shock, triggers end of asynch action
             $self->put_shock_file("mgm".$job->{metagenome_id}.".abundance", $data, $node->{id}, $self->mgrast_token);
@@ -828,6 +845,60 @@ sub job_action {
                 job_id        => $job->job_id,
                 status        => $status
             };
+        } elsif ($action eq "abundance") {
+            my $ver    = $post->{ann_ver} || $self->{m5nr_default};
+            my $type   = $post->{type};
+            my $action = $post->{action};
+            my $count  = $post->{count} || 0;
+            my $data   = $post->{data} || [];
+            unless ($type) {
+                self->return_data( {"ERROR" => "missing required 'type' option"}, 400 );
+            }
+            unless ($action) {
+                self->return_data( {"ERROR" => "missing required 'action' option"}, 400 );
+            }
+            unless (($type eq "md5") || ($type eq "lca")) {
+                $self->return_data( {"ERROR" => "invalid abundance type: ".$post->{type}.", use of of 'md5' or 'lca'"}, 400 );
+            }
+            
+            my $mgcass = $self->cassandra_handle("job", $ver);
+            my $jobid  = $job->{job_id};
+            
+            if ($action eq "start") {
+                # add to info - set loaded to false
+                if ($mgcass->has_job()) {
+                    $mgcass->update_job_info($jobid, 0, 0);
+                } else {
+                    $mgcass->insert_job_info($jobid, 0, 0);
+                }
+            } elsif ($action eq "load") {
+                unless ($data && (scalar(@$data) > 0)) {
+                    self->return_data( {"ERROR" => "missing required 'data' for loading"}, 400 );
+                }
+                # make sure loaded is false
+                if ($mgcass->is_loaded()) {
+                    $mgcass->set_loaded($jobid, 0);
+                }
+                $mgcass->insert_job_md5s($jobid, $data);
+            } elsif ($action eq "end") {
+                # get current loaded row count
+                unless ($count) {
+                    self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
+                }
+                my $curr = $mgcass->get_row_count($jobid, $type, $count + 1);
+                if ($curr != $count) {
+                    self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
+                }
+                # set loaded to true
+                if ($mgcass->has_job()) {
+                    $mgcass->set_loaded($jobid, 1);
+                } else {
+                    self->return_data( {"ERROR" => "unable to end job, does not exist"}, 500 );
+                }
+            } else {
+                $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'load' or 'end'"}, 400 );
+            }
+            
         } elsif ($action eq 'solr') {
             my $rebuild = $post->{rebuild} ? 1 : 0;
             my $sdata   = $post->{solr_data} || {};
@@ -848,12 +919,12 @@ sub job_action {
             if ($nodes && (@$nodes > 0)) {
                 $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
             }
-            # test postgres access
-            my $testdb = MGRAST::Abundance->new(undef, $ver, $Conf::mgrast_write_dbhost);
-            unless ($testdb) {
+            # test cassandra access
+            my $ctest = $self->cassandra_test("job");
+            unless ($ctest) {
                 $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
             }
-            $testdb->DESTROY();
+            $ctest->close();
             # need to create new node and fork
             my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
             my $pid = fork();
@@ -861,8 +932,7 @@ sub job_action {
             if ($pid == 0) {
                 # create DB handels inside child as they break on fork
                 $master = $self->connect_to_datasource();
-                my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
-                my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
+                my $mgcass = $self->cassandra_abundance($ver);
                 my $mddb = MGRAST::Metadata->new();
                 my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
                 $job = $jobj->[0];
@@ -890,7 +960,7 @@ sub job_action {
                     seq_method_sort    => $jdata->{sequencing_method_guess},
                     version            => $ver,
                     metadata           => "",
-                    md5                => $mgdb->all_job_md5sums($jobid)
+                    md5                => $mgcass->all_md5s($jobid)
                 };
                 # project - from jobdb
                 eval {
@@ -949,7 +1019,7 @@ sub job_action {
                     }
                 }
                 # get annotations from DB
-                my ($md5_num, $org_map, $fun_map, undef) = $mgdb->all_job_abundances($jobid, ['species'], $get_org, $get_fun, undef);
+                my ($md5_num, $org_map, $fun_map, undef) = @{ $mgcass->all_annotation_abundances($jobid, ['species'], $get_org, $get_fun, 0) };
                 if ($md5_num == 0) {
                     $self->put_shock_file($filename, qq({"ERROR": "no md5 hits available", "STATUS": 500}), $node->{id}, $self->mgrast_token, 1);
                     exit 0;
@@ -960,7 +1030,7 @@ sub job_action {
                 if ($get_fun) {
                     $solr_data->{function} = [ keys %{$fun_map} ];
                 }
-                $mgdb->DESTROY();
+                $mgcass->close();
                 
                 # mixs metadata - from jobdb
                 my $mixs = $mddb->get_job_mixs($job);

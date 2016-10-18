@@ -28,11 +28,11 @@ def test_connection(hosts, db):
             rows = self.session.execute("SELECT * FROM md5_annotation limit 5")
         cluster.shutdown()
         if len(rows) > 0:
-            return True
+            return 1
         else:
-            return False
+            return 0
     except:
-        return False
+        return 0
 
 class M5nrHandle(object):
     def __init__(self, hosts, version=M5NR_VERSION):
@@ -41,6 +41,9 @@ class M5nrHandle(object):
         self.session = CASS_CLUSTER.connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = dict_factory
+    def close():
+        CASS_CLUSTER.shutdown()
+        CASS_CLUSTER = None
     def get_records_by_id(self, ids, source=None, index=False, iterator=False):
         found = []
         table = "index_annotation" if index else "id_annotation"
@@ -142,6 +145,9 @@ class JobHandle(object):
         self.session = CASS_CLUSTER.connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = tuple_factory
+    def close():
+        CASS_CLUSTER.shutdown()
+        CASS_CLUSTER = None
     def last_updated(self, job):
         prep = self.session.prepare("SELECT updated_on FROM job_info WHERE version = ? AND job = ?")
         rows = self.session.execute(prep, [self.version, job])
@@ -190,6 +196,12 @@ class JobHandle(object):
             else:
                 bisect.insort(found, (r[0], r[1]))
         return found
+    def get_row_count(self, job, table, maxRow=None):
+        query = "SELECT count(*) FROM job_%ss WHERE version = %d AND job = %d"%(table, self.version, job)
+        if maxRow:
+            query += " LIMIT %d"%maxRow
+        rows = self.session.execute(query)
+        return rows[0][0]
     def has_job(self, job):
         prep = self.session.prepare("SELECT * FROM job_info WHERE version = ? AND job = ?")
         rows = self.session.execute(prep, [self.version, job])
@@ -205,8 +217,16 @@ class JobHandle(object):
         else:
             return 0
     def set_loaded(self, job, loaded):
-        value = 'true' if loaded else 'false'
-        self.session.execute("UPDATE job_info SET loaded = %s WHERE version = %d AND job = %d")%(value, self.version, job))
+        if loaded:
+            update = "UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?"
+            values = [True, datetime.datetime.now(), self.version, job]
+        else:
+            update = "UPDATE job_info SET loaded = ? WHERE version = ? AND job = ?"
+            values = [False, self.version, job]
+        
+        value = True if loaded else False
+        prep = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        self.session.execute(prep, [value, datetime.datetime.now(), self.version, job])
     def delete_job(self, job):
         batch = BatchStatement()
         if self.has_job(job):
@@ -215,11 +235,16 @@ class JobHandle(object):
         batch.add(SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"), (self.version, job))
         batch.add(SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"), (self.version, job))
         session.execute(batch)
-    def insert_job_info(self, job, md5s):
-        # always add new job in unloaded state
+    def update_job_info(self, job, md5s, loaded):
+        value = True if loaded else False
+        insert = "UPDATE job_info SET md5s = ?, updated_on = ?, loaded = ? WHERE version = ? AND job = ?"
+        prep = self.session.prepare(insert)
+        self.ssession.execute(prep, [md5s, datetime.datetime.now(), value, self.version, job])
+    def insert_job_info(self, job, md5s, loaded):
+        value = True if loaded else False
         insert = "INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)"
         prep = self.session.prepare(insert)
-        self.ssession.execute(prep, [self.version, job, md5s, datetime.datetime.now(), False])
+        self.ssession.execute(prep, [self.version, job, md5s, datetime.datetime.now(), value])
     def insert_job_md5s(self, job, rows):
         insert = "INSERT INTO job_md5s (version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         prep  = self.session.prepare(insert)

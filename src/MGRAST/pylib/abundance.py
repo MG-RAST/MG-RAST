@@ -22,7 +22,7 @@ class Abundance(object):
             md5s.append(r[0])
         return md5s
     
-    def all_annotation_abundances(self, job, taxa=[], org=False, fun=False, ont=False):
+    def all_annotation_abundances(self, job, taxa=[], org=0, fun=0, ont=0):
         class local:
             tax = ""
             tax_map = {}
