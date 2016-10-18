@@ -161,6 +161,7 @@ sub all_job_abundances {
             if ($org && $set->{organism}) {
                 foreach my $o (@{$set->{organism}}) {
                     if ($tax) {
+                        next unless exists $tax_map->{$o};
                         next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
                         unless (exists $org_map->{$tax}{$tax_map->{$o}}) {
                             $org_map->{$taxa->[0]}{$tax_map->{$o}} = 0;
@@ -202,7 +203,7 @@ sub all_job_abundances {
 sub all_job_md5sums {
     my ($self, $job) = @_;
     my @md5s = ();
-    my $sth  = $self->execute_query("SELECT m.md5 FROM md5s m, job_md5s j WHERE j.version=".$self->version." AND j.job=$job AND 'j.md5=m._id'");
+    my $sth  = $self->execute_query("SELECT m.md5 FROM md5s m, job_md5s j WHERE j.version=".$self->version." AND j.job=$job AND j.md5=m._id");
     while (my @row = $sth->fetchrow_array()) {
         push @md5s, $row[0];
     }
