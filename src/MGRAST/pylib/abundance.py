@@ -57,13 +57,15 @@ class Abundance(object):
                         local.ont_map[rec['source']][local.ont_cat[rec['source']]][a] += md5s[rec['md5']]
                 if org and rec['organism']:
                     for o in rec['organism']:
+                        if o not in local.tax_map:
+                            continue
                         skip_m = SKIP_RE.match(o)
                         if local.tax:
                             if (local.tax == 'domain') and skip_m:
                                 continue
-                            local.org_map[taxa[0]][local.tax_map[o]] += md5s[rec['md5']]
+                            local.org_map[local.tax][local.tax_map[o]] += md5s[rec['md5']]
                         else:
-                            for i, t enumerate(taxa):
+                            for i, _ enumerate(taxa):
                                 if (taxa[i] == 'domain') and skip_m:
                                     continue
                                 local.org_map[taxa[i]][local.tax_map[o][i]] += md5s[rec['md5']]

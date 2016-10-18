@@ -352,6 +352,9 @@ sub sequence_compute {
     my $node_id = $sim_node->[0]{id};
     my $info = $chdl->get_md5_record($job->{job_id}, $md5);
     $chdl->close();
+    unless ($info && (@$info > 0)) {
+        return ({"ERROR" => "unable to retrieve md5 index"}, 500);
+    }
     
     # get sequences from record
     my $infasta = "";

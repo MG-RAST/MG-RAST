@@ -1055,7 +1055,6 @@ sub job_action {
                     };
                 }
                 # get content
-                print DEBUG "solr command\n" if $post->{debug};
                 my $solr_str = $self->json->encode({
                     delete => { id => $mgid },
                     commit => { expungeDeletes => "true" },

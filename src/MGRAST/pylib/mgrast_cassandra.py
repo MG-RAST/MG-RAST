@@ -85,17 +85,17 @@ class M5nrHandle(object):
         return found
     def get_ontology_hierarchy(self, source=None):
         found = defaultdict(dict)
-        if source is None:
-            rows = self.session.execute("SELECT * FROM ont_level1")
-        else:
+        if source:
             prep = self.session.prepare("SELECT * FROM ont_level1 WHERE source = ?")
             rows = self.session.execute(prep, [source])
+        else:
+            rows = self.session.execute("SELECT * FROM ont_level1")
         for r in rows:
             found[r['source']][r['level1']] = r['name']
-        if source is None:
-            return found
-        else:
+        if source:
             return found[source]
+        else:
+            return found
     def get_org_taxa_map(self, taxa):
         found = {}
         tname = "tax_"+taxa.lower()
@@ -121,7 +121,7 @@ class M5nrHandle(object):
         for r in rows:
             if match and (match.lower() in r[tname].lower()):
                 found.add(r['name'])
-            elif match is None:
+            elif not match:
                 found.add(r['name'])
         return list(found)
     def get_ontology_by_level(self, source, level, match=None):
@@ -133,7 +133,7 @@ class M5nrHandle(object):
         for r in rows:
             if match and (match.lower() in r[level].lower()):
                 found.add(r['name'])
-            elif match is None:
+            elif not match:
                 found.add(r['name'])
         return list(found)
 
@@ -155,37 +155,41 @@ class JobHandle(object):
             return rows[0]
         else:
             return None
-    def get_job_records(self, job, fields, md5s=None, evalue=None, identity=None, alength=None):
+    def get_job_records(self, job, fields, evalue=None, identity=None, alength=None):
         query = "SELECT "+",".join(fields)+" from job_md5s WHERE version = ? AND job = ?"
         where = [self.version, job]
-        if md5s and (len(md5s) == 1):
-            query += " AND md5 = ?"
-            where.append(md5s[0])
-        elif md5s and (len(md5s) > 1):
-            query += " AND md5 IN ?"
-            where.append(md5s)
-        if evalue not None:
+        if evalue:
             query += " AND exp_avg <= ?"
             where.append(evalue)
-        if identity not None:
+        if identity:
             query += " AND ident_avg >= ?"
             where.append(identity)
-        if alength not None:
+        if alength:
             query += " AND len_avg >= ?"
             where.append(alength)
         prep = self.session.prepare(query)
         return self.session.execute(prep, where)
     def get_md5_record(self, job, md5):
+        # get index for one md5
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d AND md5 = %s"%(self.version, job, md5)
         rows = self.session.execute(query)
         if (len(rows) > 0) and (rows[0][1] > 0):
             return [ rows[0][0], rows[0][1] ]
         else:
             return None
-    def get_md5_records(self, job, md5s):
+    def get_md5_records(self, job, md5s=None, evalue=None, identity=None, alength=None):
+        # get indexes for given md5 list or cutoff values
         found = []
-        md5_str = ",".join(map(lambda x: "'"+x+"'", md5s))
-        query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d AND md5 IN (%s)"%(self.version, job, md5_str)
+        query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)
+        if md5s and (len(md5s) > 0):
+            query += " AND md5 IN (" + ",".join(map(lambda x: "'"+x+"'", md5s)) + ")"
+        else:
+            if evalue:
+                query += " AND exp_avg <= %d"%(evalue * -1)
+            if identity:
+                query += " AND ident_avg >= %d"%(identity)
+            if alength:
+                query += " AND len_avg >= %d"%(alength)
         rows = self.session.execute(query)
         for r in rows:
             if r[1] == 0:
