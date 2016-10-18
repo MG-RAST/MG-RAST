@@ -4,7 +4,6 @@ use strict;
 use warnings;
 no warnings('once');
 
-use MGRAST::Abundance;
 use List::MoreUtils qw(any uniq);
 use File::Temp qw(tempfile tempdir);
 

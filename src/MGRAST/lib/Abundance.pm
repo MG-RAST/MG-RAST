@@ -103,38 +103,6 @@ sub end_query {
     $self->dbh->commit;
 }
 
-sub job_in_cassandra {
-    my ($self, $job) = @_;
-    my $status = $chdl->has_job($self->version, $job);
-    return $status ? 1 : 0;
-}
-
-sub get_abundances_by_job {
-    my ($job, $fields, $md5s, $eval, $ident, $alen) = @_;
-    
-    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
-    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
-    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
-    
-    my $where = [
-        'version = '.$mgdb->version,
-        'job = '.$job,
-        $eval,
-        $ident,
-        $alen
-    ];
-    if (any {$_ eq "seek"} @$fields) {
-        push @$where, 'seek IS NOT NULL';
-        push @$where, 'length IS NOT NULL';
-    }
-    if ($md5s && (@$md5s == 1)) {
-        push @$where, 'md5 = '.$md5s[0];
-    } elsif ($md5s && (@$md5s > 1)) {
-        push @$where, "md5 IN (".join(",", map {} @$md5s).")";
-    }
-    my $query = "SELECT ".join(",", @$fields)." FROM job_md5s ".
-}
-
 sub all_job_abundances {
     my ($self, $job, $taxa, $org, $fun, $ont) = @_;
     

@@ -8,7 +8,6 @@ use POSIX qw(strftime);
 use List::MoreUtils qw(natatime);
 
 use Conf;
-use MGRAST::Abundance;
 use parent qw(resources::resource);
 
 # Override parent constructor

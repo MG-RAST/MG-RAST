@@ -10,7 +10,6 @@ use List::MoreUtils qw(any uniq);
 use Scalar::Util qw(looks_like_number);
 use StreamingUpload;
 
-use MGRAST::Abundance;
 use MGRAST::Metadata;
 use Conf;
 use parent qw(resources::resource);
