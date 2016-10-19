@@ -33,6 +33,6 @@ class CassTest(object):
             cluster.shutdown()
             for r in rows:
                 status += 1
-            return statu
+            return status
         except:
             return 0
