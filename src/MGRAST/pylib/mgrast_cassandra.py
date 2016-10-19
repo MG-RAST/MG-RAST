@@ -231,6 +231,10 @@ class JobHandle(object):
         prep   = self.session.prepare(insert)
         batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         for (md5, abundance, exp_avg, ident_avg, len_avg, seek, length) in rows:
+            if not seek:
+                seek = 0
+            if not length:
+                length = 0
             batch.add(prep, (self.version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length))
         self.session.execute(batch)
     def insert_job_lcas(self, job, rows):
