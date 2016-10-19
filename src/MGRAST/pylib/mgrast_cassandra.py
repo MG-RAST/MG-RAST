@@ -50,7 +50,7 @@ class M5nrHandle(object):
     def get_taxa_hierarchy(self):
         found = {}
         query = "SELECT * FROM organisms_ncbi"
-        rows = self.session.execute(query)
+        rows  = self.session.execute(query)
         for r in rows:
             found[r['name']] = [r['tax_domain'], r['tax_phylum'], r['tax_class'], r['tax_order'], r['tax_family'], r['tax_genus'], r['tax_species']]
         return found
@@ -71,7 +71,7 @@ class M5nrHandle(object):
         found = {}
         tname = "tax_"+taxa.lower()
         query = "SELECT * FROM "+tname
-        rows = self.session.execute(query)
+        rows  = self.session.execute(query)
         for r in rows:
             found[r['name']] = r[tname]
         return found
@@ -121,8 +121,8 @@ class JobHandle(object):
         job  = int(job)
         prep = self.session.prepare("SELECT updated_on FROM job_info WHERE version = ? AND job = ?")
         rows = self.session.execute(prep, [self.version, job])
-        if len(rows) > 0:
-            return rows[0]
+        if len(rows.current_rows) > 0:
+            return rows[0][0]
         else:
             return None
     def get_job_records(self, job, fields, evalue=None, identity=None, alength=None):
@@ -145,7 +145,7 @@ class JobHandle(object):
         job = int(job)
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d AND md5 = %s"%(self.version, job, md5)
         rows  = self.session.execute(query)
-        if (len(rows) > 0) and (rows[0][1] > 0):
+        if (len(rows.current_rows) > 0) and (rows[0][1] > 0):
             return [ rows[0][0], rows[0][1] ]
         else:
             return None
@@ -179,12 +179,15 @@ class JobHandle(object):
         if maxRow:
             query += " LIMIT %d"%int(maxRow)
         rows = self.session.execute(query)
-        return rows[0][0]
+        if len(rows.current_rows) > 0:
+            return rows[0][0]
+        else:
+            return 0
     def has_job(self, job):
         job = int(job)
         query = "SELECT * FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
         rows  = self.session.execute(query)
-        if len(rows) > 0:
+        if len(rows.current_rows) > 0:
             return 1
         else:
             return 0
@@ -192,7 +195,7 @@ class JobHandle(object):
         job = int(job)
         query = "SELECT loaded FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
         rows  = self.session.execute(query)
-        if (len(rows) > 0) and rows[0][0]:
+        if (len(rows.current_rows) > 0) and rows[0][0]:
             return 1
         else:
             return 0
