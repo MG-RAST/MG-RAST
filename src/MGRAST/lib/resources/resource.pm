@@ -19,7 +19,7 @@ use UUID::Tiny ":std";
 use List::Util qw(max min sum);
 use Digest::MD5 qw(md5_hex md5_base64);
 use Template;
-use Inline::Python qw(py_eval py_call_function);
+use Inline::Python qw(py_eval);
 
 $CGI::LIST_CONTEXT_WARN = 0;
 $CGI::Application::LIST_CONTEXT_WARN = 0;
