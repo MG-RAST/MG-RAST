@@ -852,7 +852,11 @@ sub job_action {
             my $count  = $post->{count}   || 0;
             my $data   = $post->{data}    || [];
             my $jobid  = $job->{job_id};
+            
             my $mgcass = $self->cassandra_handle("job", $ver);
+            unless ($mgcass) {
+                $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+            }
             
             if ($action eq "start") {
                 # add to info - set loaded to false
