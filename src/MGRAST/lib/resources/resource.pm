@@ -1599,6 +1599,7 @@ sub cassandra_test {
     unless ($hosts && (@$hosts > 0)) {
         return 0;
     }
+    py_eval("import sys; sys.path.insert(1, '".$Conf::pylib_dir."')");
     return py_call_function("cass_connection", "test", $hosts, $db);
 }
 
@@ -1613,7 +1614,8 @@ sub cassandra_handle {
     unless ($test) {
         return undef;
     }
-    py_eval('from mgrast_cassandra import *');
+    my $sys = "import sys; sys.path.insert(1, '".$Conf::pylib_dir."');";
+    py_eval($sys.' from mgrast_cassandra import *');
     if ($db eq 'm5nr') {
         return Inline::Python::Object->new('__main__', 'M5nrHandle', $hosts, $version);
     } elsif ($db eq 'job') {
@@ -1630,7 +1632,8 @@ sub cassandra_abundance {
     unless ($version && $hosts && (@$hosts > 0)) {
         return undef;
     }
-    py_eval('from abundance import Abundance');
+    my $sys = "import sys; sys.path.insert(1, '".$Conf::pylib_dir."');";
+    py_eval($sys.' from abundance import Abundance');
     return Inline::Python::Object->new('__main__', 'Abundance', $hosts, $version);
 }
 
@@ -1641,7 +1644,8 @@ sub cassandra_profile {
     unless ($version && $hosts && (@$hosts > 0)) {
         return undef;
     }
-    py_eval('from profile import Profile');
+    my $sys = "import sys; sys.path.insert(1, '".$Conf::pylib_dir."');";
+    py_eval($sys.' from profile import Profile');
     return Inline::Python::Object->new('__main__', 'Profile', $hosts, $version);
 }
 

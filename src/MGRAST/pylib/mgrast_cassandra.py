@@ -1,6 +1,4 @@
 
-import sys
-sys.path.insert("/MG-RAST/site/lib/pylib", 1)
 import bisect
 import datetime
 import cass_connection
