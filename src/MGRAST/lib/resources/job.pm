@@ -846,22 +846,12 @@ sub job_action {
             };
         } elsif ($action eq "abundance") {
             my $ver    = $post->{ann_ver} || $self->{m5nr_default};
-            my $type   = $post->{type};
-            my $action = $post->{action};
-            my $count  = $post->{count} || 0;
-            my $data   = $post->{data} || [];
-            unless ($type) {
-                self->return_data( {"ERROR" => "missing required 'type' option"}, 400 );
-            }
-            unless ($action) {
-                self->return_data( {"ERROR" => "missing required 'action' option"}, 400 );
-            }
-            unless (($type eq "md5") || ($type eq "lca")) {
-                $self->return_data( {"ERROR" => "invalid abundance type: ".$post->{type}.", use of of 'md5' or 'lca'"}, 400 );
-            }
-            
-            my $mgcass = $self->cassandra_handle("job", $ver);
+            my $type   = $post->{type}    || "";
+            my $action = $post->{action}  || "";
+            my $count  = $post->{count}   || 0;
+            my $data   = $post->{data}    || [];
             my $jobid  = $job->{job_id};
+            my $mgcass = $self->cassandra_handle("job", $ver);
             
             if ($action eq "start") {
                 # add to info - set loaded to false
@@ -878,7 +868,13 @@ sub job_action {
                 if ($mgcass->is_loaded()) {
                     $mgcass->set_loaded($jobid, 0);
                 }
-                $mgcass->insert_job_md5s($jobid, $data);
+                if ($type eq "md5") {
+                    $mgcass->insert_job_md5s($jobid, $data);
+                } elsif ($type eq "lca") {
+                    $mgcass->insert_job_lcas($jobid, $data);
+                } else {
+                    $self->return_data( {"ERROR" => "invalid abundance type: ".$post->{type}.", use of of 'md5' or 'lca'"}, 400 );
+                }
             } elsif ($action eq "end") {
                 # get current loaded row count
                 unless ($count) {
@@ -895,7 +891,7 @@ sub job_action {
                     self->return_data( {"ERROR" => "unable to end job, does not exist"}, 500 );
                 }
             } else {
-                $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'load' or 'end'"}, 400 );
+                $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'start, 'load', 'end'"}, 400 );
             }
             
         } elsif ($action eq 'solr') {
