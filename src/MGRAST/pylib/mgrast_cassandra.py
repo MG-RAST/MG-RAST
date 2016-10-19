@@ -235,7 +235,7 @@ class JobHandle(object):
                 seek = 0
             if not length:
                 length = 0
-            batch.add(prep, (self.version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length))
+            batch.add(prep, (self.version, job, md5, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(seek), int(length)))
         self.session.execute(batch)
     def insert_job_lcas(self, job, rows):
         job = int(job)
@@ -243,7 +243,7 @@ class JobHandle(object):
         prep   = self.session.prepare(insert)
         batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         for (lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) in rows:
-            batch.add(prep, (self.version, job, lca, abundance, exp_avg, ident_avg, len_avg, md5s, level))
+            batch.add(prep, (self.version, job, lca, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(md5s), int(level)))
         self.session.execute(batch)
     
 
