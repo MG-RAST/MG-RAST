@@ -111,13 +111,14 @@ class M5nrHandle(object):
 class JobHandle(object):
     def __init__(self, hosts, version=M5NR_VERSION):
         keyspace = "mgrast_abundance"
-        self.version = version
+        self.version = int(version)
         self.session = cass_connection.create(hosts).connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = cql.tuple_factory
     def close(self):
         cass_connection.destroy()
     def last_updated(self, job):
+        job  = int(job)
         prep = self.session.prepare("SELECT updated_on FROM job_info WHERE version = ? AND job = ?")
         rows = self.session.execute(prep, [self.version, job])
         if len(rows) > 0:
@@ -125,21 +126,23 @@ class JobHandle(object):
         else:
             return None
     def get_job_records(self, job, fields, evalue=None, identity=None, alength=None):
+        job = int(job)
         query = "SELECT "+",".join(fields)+" from job_md5s WHERE version = ? AND job = ?"
         where = [self.version, job]
         if evalue:
             query += " AND exp_avg <= ?"
-            where.append(evalue)
+            where.append(int(evalue) * -1)
         if identity:
             query += " AND ident_avg >= ?"
-            where.append(identity)
+            where.append(int(identity))
         if alength:
             query += " AND len_avg >= ?"
-            where.append(alength)
+            where.append(int(alength))
         prep = self.session.prepare(query)
         return self.session.execute(prep, where)
     def get_md5_record(self, job, md5):
         # get index for one md5
+        job = int(job)
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d AND md5 = %s"%(self.version, job, md5)
         rows  = self.session.execute(query)
         if (len(rows) > 0) and (rows[0][1] > 0):
@@ -148,17 +151,18 @@ class JobHandle(object):
             return None
     def get_md5_records(self, job, md5s=None, evalue=None, identity=None, alength=None):
         # get indexes for given md5 list or cutoff values
+        job = int(job)
         found = []
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)
         if md5s and (len(md5s) > 0):
             query += " AND md5 IN (" + ",".join(map(lambda x: "'"+x+"'", md5s)) + ")"
         else:
             if evalue:
-                query += " AND exp_avg <= %d"%(evalue * -1)
+                query += " AND exp_avg <= %d"%(int(evalue) * -1)
             if identity:
-                query += " AND ident_avg >= %d"%(identity)
+                query += " AND ident_avg >= %d"%(int(identity))
             if alength:
-                query += " AND len_avg >= %d"%(alength)
+                query += " AND len_avg >= %d"%(int(alength))
         rows = self.session.execute(query)
         for r in rows:
             if r[1] == 0:
@@ -170,12 +174,14 @@ class JobHandle(object):
                 bisect.insort(found, (r[0], r[1]))
         return found
     def get_row_count(self, job, table, maxRow=None):
+        job = int(job)
         query = "SELECT count(*) FROM job_%ss WHERE version = %d AND job = %d"%(table, self.version, job)
         if maxRow:
-            query += " LIMIT %d"%maxRow
+            query += " LIMIT %d"%int(maxRow)
         rows = self.session.execute(query)
         return rows[0][0]
     def has_job(self, job):
+        job = int(job)
         query = "SELECT * FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
         rows  = self.session.execute(query)
         if len(rows) > 0:
@@ -183,6 +189,7 @@ class JobHandle(object):
         else:
             return 0
     def is_loaded(self, job):
+        job = int(job)
         query = "SELECT loaded FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
         rows  = self.session.execute(query)
         if (len(rows) > 0) and rows[0][0]:
@@ -190,10 +197,12 @@ class JobHandle(object):
         else:
             return 0
     def set_loaded(self, job, loaded):
+        job = int(job)
         value = True if loaded else False
         prep  = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
         self.session.execute(prep, [value, datetime.datetime.now(), self.version, job])
     def delete_job(self, job):
+        job = int(job)
         batch = cql.BatchStatement()
         if self.has_job(job):
             # if job exists, set unloaded
@@ -202,16 +211,19 @@ class JobHandle(object):
         batch.add(cql.SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"), (self.version, job))
         self.session.execute(batch)
     def update_job_info(self, job, md5s, loaded):
+        job = int(job)
         value  = True if loaded else False
         insert = "UPDATE job_info SET md5s = ?, updated_on = ?, loaded = ? WHERE version = ? AND job = ?"
         prep   = self.session.prepare(insert)
         self.session.execute(prep, [md5s, datetime.datetime.now(), value, self.version, job])
     def insert_job_info(self, job, md5s, loaded):
+        job = int(job)
         value  = True if loaded else False
         insert = "INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)"
         prep   = self.session.prepare(insert)
         self.session.execute(prep, [self.version, job, md5s, datetime.datetime.now(), value])
     def insert_job_md5s(self, job, rows):
+        job = int(job)
         insert = "INSERT INTO job_md5s (version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         prep   = self.session.prepare(insert)
         batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
@@ -219,6 +231,7 @@ class JobHandle(object):
             batch.add(prep, (self.version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length))
         self.session.execute(batch)
     def insert_job_lcas(self, job, rows):
+        job = int(job)
         insert = "INSERT INTO job_lcas (version, job, lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         prep   = self.session.prepare(insert)
         batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)

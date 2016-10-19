@@ -11,13 +11,14 @@ class Abundance(object):
     def __init__(self, hosts, version=M5NR_VERSION, chunk=CHUNK_SIZE):
         self.m5nr = mgrast_cassandra.M5nrHandle(hosts, version)
         self.jobs = mgrast_cassandra.JobHandle(hosts, version)
-        self.chunk = chunk
+        self.chunk = int(chunk)
     
     def close(self):
         self.m5nr.close()
         self.jobs.close()
     
     def all_md5s(self, job):
+        job = int(job)
         md5s = []
         rows = self.jobs.get_job_records(job, ['md5'])
         for r in rows:
@@ -25,6 +26,7 @@ class Abundance(object):
         return md5s
     
     def all_annotation_abundances(self, job, taxa=[], org=0, fun=0, ont=0):
+        job = int(job)
         class local:
             tax = ""
             tax_map = {}

@@ -11,9 +11,9 @@ class Profile(object):
     def __init__(self, hosts, version=M5NR_VERSION, chunk=CHUNK_SIZE):
         self.m5nr = mgrast_cassandra.M5nrHandle(hosts, version)
         self.jobs = mgrast_cassandra.JobHandle(hosts, version)
-        self.chunk = chunk
+        self.chunk = int(chunk)
         self.shock = None
-        self.version = version
+        self.version = int(version)
         self.set_ontology()
     
     def set_ontology(self, sources=['Subsystems', 'NOG', 'COG', 'KO']):
