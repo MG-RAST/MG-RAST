@@ -39,6 +39,7 @@ RUN cd /MG-RAST && \
   make && \
   make api-doc && \
   cp -rv src/MGRAST/bin/* bin/. && \
+  cp -rv src/MGRAST/pylib site/lib/. && \
   cd site/CGI && \
   rm -fv metagenomics.cgi linkin.cgi m5nr.cgi m5nr_rest.cgi
 
