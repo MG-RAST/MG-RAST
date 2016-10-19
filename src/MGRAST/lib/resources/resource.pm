@@ -1599,8 +1599,12 @@ sub cassandra_test {
     unless ($hosts && (@$hosts > 0)) {
         return 0;
     }
-    my $sys = 'import sys; sys.path.insert(1, "'.$Conf::pylib_dir.'");';
-    py_eval(" from cass_connection import CassTest");
+    my $import = q|
+import sys
+sys.path.insert(1, "|.$Conf::pylib_dir.q|")
+from cass_connection import CassTest
+|;
+    py_eval($import);
     my $test = Inline::Python::Object->new('__main__', 'CassTest', $hosts, $db);
     return $test->test();
 }
@@ -1616,8 +1620,12 @@ sub cassandra_handle {
     unless ($test) {
         return undef;
     }
-    my $sys = 'import sys; sys.path.insert(1, "'.$Conf::pylib_dir.'");';
-    py_eval($sys.' from mgrast_cassandra import *');
+    my $import = q|
+import sys
+sys.path.insert(1, "|.$Conf::pylib_dir.q|")
+from mgrast_cassandra import *
+|;
+    py_eval($import);
     if ($db eq 'm5nr') {
         return Inline::Python::Object->new('__main__', 'M5nrHandle', $hosts, $version);
     } elsif ($db eq 'job') {
@@ -1634,8 +1642,12 @@ sub cassandra_abundance {
     unless ($version && $hosts && (@$hosts > 0)) {
         return undef;
     }
-    my $sys = 'import sys; sys.path.insert(1, "'.$Conf::pylib_dir.'");';
-    py_eval($sys.' from abundance import Abundance');
+    my $import = q|
+import sys
+sys.path.insert(1, "|.$Conf::pylib_dir.q|")
+from abundance import Abundance
+|;
+    py_eval($import);
     return Inline::Python::Object->new('__main__', 'Abundance', $hosts, $version);
 }
 
@@ -1646,8 +1658,12 @@ sub cassandra_profile {
     unless ($version && $hosts && (@$hosts > 0)) {
         return undef;
     }
-    my $sys = 'import sys; sys.path.insert(1, "'.$Conf::pylib_dir.'");';
-    py_eval($sys.' from profile import Profile');
+    my $import = q|
+import sys
+sys.path.insert(1, "|.$Conf::pylib_dir.q|")
+from profile import Profile
+|;
+    py_eval($import);
     return Inline::Python::Object->new('__main__', 'Profile', $hosts, $version);
 }
 
