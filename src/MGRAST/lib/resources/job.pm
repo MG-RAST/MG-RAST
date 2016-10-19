@@ -34,6 +34,7 @@ sub new {
         rename   => 1,
         delete   => 1,
         solr     => 1,
+        abundance  => 1,
         addproject => 1,
         statistics => 1,
         attributes => 1
