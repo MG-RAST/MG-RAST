@@ -1,4 +1,6 @@
 
+import sys
+sys.path.insert("/MG-RAST/site/lib/pylib", 1)
 import re
 import mgrast_cassandra
 from collections import defaultdict

@@ -1,4 +1,6 @@
 
+import sys
+sys.path.insert("/MG-RAST/site/lib/pylib", 1)
 import datetime
 import shock
 import mgrast_cassandra
