@@ -1599,7 +1599,7 @@ sub cassandra_test {
     unless ($hosts && (@$hosts > 0)) {
         return 0;
     }
-    return py_call_function("mgrast_cassandra", "test_connection", $hosts, $db);
+    return py_call_function("cass_connection", "test", $hosts, $db);
 }
 
 sub cassandra_handle {

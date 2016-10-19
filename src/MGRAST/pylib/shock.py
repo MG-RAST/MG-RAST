@@ -44,10 +44,10 @@ class ShockClient:
         return self._manage_acl(node, 'get')
     
     def add_acl(self, node, acl, user=None, public=False):
-        return self._manage_acl(node, 'put', acl, user)
+        return self._manage_acl(node, 'put', acl, user, public)
     
     def delete_acl(self, node, acl, user=None, public=False):
-        return self._manage_acl(node, 'delete', acl, user)
+        return self._manage_acl(node, 'delete', acl, user, public)
     
     def _manage_acl(self, node, method, acl=None, user=None, public=False):
         url = self.shock_url+'/node/'+node+'/acl'

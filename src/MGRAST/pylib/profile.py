@@ -1,44 +1,45 @@
-import re
-import time
+
+import datetime
+import shock
+import mgrast_cassandra
 from collections import defaultdict
-from mgrast_cassandra import *
-from shock import ShockClient
 
 M5NR_VERSION = 1
 CHUNK_SIZE = 2000
 
 class Profile(object):
     def __init__(self, hosts, version=M5NR_VERSION, chunk=CHUNK_SIZE):
-        self.m5nr = M5nrHandle(hosts, version)
-        self.jobs = JobHandle(hosts, version)
+        self.m5nr = mgrast_cassandra.M5nrHandle(hosts, version)
+        self.jobs = mgrast_cassandra.JobHandle(hosts, version)
         self.chunk = chunk
         self.shock = None
         self.version = version
-        set_ontology()
+        self.set_ontology()
     
     def set_ontology(self, sources=['Subsystems', 'NOG', 'COG', 'KO']):
         self.ontology = sources
     
     def set_shock(self, token=None, bearer='mgrast', url='http://shock.metagenomics.anl.gov'):
-        self.shock = ShockClient(shock_url=url, bearer=bearer, token=token)
+        self.shock = shock.ShockClient(shock_url=url, bearer=bearer, token=token)
     
-    def close():
-        close_cluster()
+    def close(self):
+        self.m5nr.close()
+        self.jobs.close()
     
     def compute_profile(self, node, format, attr=None):
         mgid    = node['attributes']['id']
         jobid   = node['attributes']['job_id']
         source  = node['attributes']['source']
         stype   = node['attributes']['source_type']
-        index   = True if node['attributes']['condensed'] eq 'true' else False
+        index   = True if node['attributes']['condensed'] == 'true' else False
         profile = None
         fname   = "%s_%s_v%d.%s"%(mgid, source, self.version, format)
         
         ## if we throw an error, save it in shock node
         if format == 'biom':
             try:
-                profile = init_biom_profile(mgid, source, stype)
-                rows, data = get_biom_data(job, source)
+                profile    = self.init_biom_profile(mgid, source, stype)
+                rows, data = self.get_biom_data(jobid, source)
                 profile['rows'] = rows
                 profile['data'] = data
                 profile['shape'][0] = len(profile['rows'])
@@ -47,8 +48,8 @@ class Profile(object):
                 return
         elif format == 'mgrast':
             try:
-                profile = init_mgrast_profile(mgid, source, stype, index)
-                data = get_mgrast_data(job, source, index, node)
+                profile = self.init_mgrast_profile(mgid, source, stype, index)
+                data    = self.get_mgrast_data(jobid, source, index, node)
                 profile['data'] = data
                 profile['row_total'] = len(profile['data'])
             except:
@@ -141,14 +142,14 @@ class Profile(object):
                     data[idx][5] = orgs
                 if (source in self.ontology) and info['accession']:
                     data[idx][6] = info['accession']
-                elif info['function']
+                elif info['function']:
                     data[idx][6] = info['function']
             return found, data
         
         total = 0
         count = 0
-        rows = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
-        for r in rows:
+        recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
+        for r in recs:
             md5_row[r[0]] = [r[0], r[1], r[2], r[3], r[4], None, None]
             total += 1
             count += 1
@@ -166,6 +167,7 @@ class Profile(object):
     def get_biom_data(self, job, source, node=None):
         rows = []
         data = []
+        found = 0
         md5_row = defaultdict(list)
         
         def append_profile(rows, data, md5_row):
@@ -192,8 +194,8 @@ class Profile(object):
         
         total = 0
         count = 0
-        rows = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
-        for r in rows:
+        recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
+        for r in recs:
             md5_row[r[0]] = [r[1], r[2], r[3], r[4]]
             total += 1
             count += 1

@@ -1,6 +1,7 @@
+
 import re
+import mgrast_cassandra
 from collections import defaultdict
-from mgrast_cassandra import *
 
 M5NR_VERSION = 1
 CHUNK_SIZE = 2000
@@ -8,12 +9,13 @@ SKIP_RE = re.compile('other|unknown|unclassified')
 
 class Abundance(object):
     def __init__(self, hosts, version=M5NR_VERSION, chunk=CHUNK_SIZE):
-        self.m5nr = M5nrHandle(hosts, version)
-        self.jobs = JobHandle(hosts, version)
+        self.m5nr = mgrast_cassandra.M5nrHandle(hosts, version)
+        self.jobs = mgrast_cassandra.JobHandle(hosts, version)
         self.chunk = chunk
     
-    def close():
-        close_cluster()
+    def close(self):
+        self.m5nr.close()
+        self.jobs.close()
     
     def all_md5s(self, job):
         md5s = []
@@ -35,7 +37,7 @@ class Abundance(object):
             local.tax = taxa[0]
             # org : taxa
             local.tax_map = self.m5nr.get_org_taxa_map(local.tax)
-            local.org_map[tax] = {}
+            local.org_map[taxa[0]] = {}
         elif org and (len(taxa) > 1):
             # org : [ taxa ]
             local.tax_map = self.m5nr.get_taxa_hierarchy()
@@ -65,7 +67,7 @@ class Abundance(object):
                                 continue
                             local.org_map[local.tax][local.tax_map[o]] += md5s[rec['md5']]
                         else:
-                            for i, _ enumerate(taxa):
+                            for i, _ in enumerate(taxa):
                                 if (taxa[i] == 'domain') and skip_m:
                                     continue
                                 local.org_map[taxa[i]][local.tax_map[o][i]] += md5s[rec['md5']]
@@ -82,7 +84,7 @@ class Abundance(object):
                 add_annotations(md5s)
                 md5s = {}
                 count = 0
-        if count > 0
+        if count > 0:
             add_annotations(md5s)
         
         return [total, local.org_map, local.fun_map, local.ont_map]

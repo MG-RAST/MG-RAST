@@ -1,49 +1,20 @@
+
 import bisect
 import datetime
+import cass_connection
 from collections import defaultdict
-from cassandra.cluster import Cluster
-from cassandra.policies import RetryPolicy
-from cassandra.query import dict_factory, BatchStatement, SimpleStatement
+import cassandra.query as cql
 
 M5NR_VERSION = 1
-CASS_CLUSTER = None
-
-def set_cluster(hosts):
-    if CASS_CLUSTER is None:
-        CASS_CLUSTER = Cluster(contact_points = hosts, default_retry_policy = RetryPolicy())
-
-def close_cluster():
-    CASS_CLUSTER.shutdown()
-    CASS_CLUSTER = None
-
-def test_connection(hosts, db):
-    try:
-        rows = ()
-        cluster = Cluster(contact_points = hosts, default_retry_policy = RetryPolicy())
-        if db == "job":
-            session = cluster.connect("mgrast_abundance")
-            rows = self.session.execute("SELECT * FROM mgrast_abundance limit 5")
-        elif db == "m5nr":
-            session = cluster.connect("m5nr_v"+str(M5NR_VERSION))
-            rows = self.session.execute("SELECT * FROM md5_annotation limit 5")
-        cluster.shutdown()
-        if len(rows) > 0:
-            return 1
-        else:
-            return 0
-    except:
-        return 0
 
 class M5nrHandle(object):
     def __init__(self, hosts, version=M5NR_VERSION):
-        set_cluster(hosts)
         keyspace = "m5nr_v"+str(version)
-        self.session = CASS_CLUSTER.connect(keyspace)
+        self.session = cass_connection.create(hosts).connect(keyspace)
         self.session.default_timeout = 300
-        self.session.row_factory = dict_factory
-    def close():
-        CASS_CLUSTER.shutdown()
-        CASS_CLUSTER = None
+        self.session.row_factory = cql.dict_factory
+    def close(self):
+        cass_connection.destroy()
     def get_records_by_id(self, ids, source=None, index=False, iterator=False):
         found = []
         table = "index_annotation" if index else "id_annotation"
@@ -139,15 +110,13 @@ class M5nrHandle(object):
 
 class JobHandle(object):
     def __init__(self, hosts, version=M5NR_VERSION):
-        set_cluster(hosts)
         keyspace = "mgrast_abundance"
         self.version = version
-        self.session = CASS_CLUSTER.connect(keyspace)
+        self.session = cass_connection.create(hosts).connect(keyspace)
         self.session.default_timeout = 300
-        self.session.row_factory = tuple_factory
-    def close():
-        CASS_CLUSTER.shutdown()
-        CASS_CLUSTER = None
+        self.session.row_factory = cql.tuple_factory
+    def close(self):
+        cass_connection.destroy()
     def last_updated(self, job):
         prep = self.session.prepare("SELECT updated_on FROM job_info WHERE version = ? AND job = ?")
         rows = self.session.execute(prep, [self.version, job])
@@ -172,7 +141,7 @@ class JobHandle(object):
     def get_md5_record(self, job, md5):
         # get index for one md5
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d AND md5 = %s"%(self.version, job, md5)
-        rows = self.session.execute(query)
+        rows  = self.session.execute(query)
         if (len(rows) > 0) and (rows[0][1] > 0):
             return [ rows[0][0], rows[0][1] ]
         else:
@@ -207,59 +176,52 @@ class JobHandle(object):
         rows = self.session.execute(query)
         return rows[0][0]
     def has_job(self, job):
-        prep = self.session.prepare("SELECT * FROM job_info WHERE version = ? AND job = ?")
-        rows = self.session.execute(prep, [self.version, job])
+        query = "SELECT * FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rows  = self.session.execute(query)
         if len(rows) > 0:
             return 1
         else:
             return 0
     def is_loaded(self, job):
-        prep = self.session.prepare("SELECT loaded FROM job_info WHERE version = ? AND job = ?")
-        rows = self.session.execute(prep, [self.version, job])
+        query = "SELECT loaded FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rows  = self.session.execute(query)
         if (len(rows) > 0) and rows[0][0]:
             return 1
         else:
             return 0
     def set_loaded(self, job, loaded):
-        if loaded:
-            update = "UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?"
-            values = [True, datetime.datetime.now(), self.version, job]
-        else:
-            update = "UPDATE job_info SET loaded = ? WHERE version = ? AND job = ?"
-            values = [False, self.version, job]
-        
         value = True if loaded else False
-        prep = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        prep  = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
         self.session.execute(prep, [value, datetime.datetime.now(), self.version, job])
     def delete_job(self, job):
-        batch = BatchStatement()
+        batch = cql.BatchStatement()
         if self.has_job(job):
             # if job exists, set unloaded
-            batch.add(SimpleStatement("UPDATE job_info SET loaded = false WHERE version = %d AND job = %d"), (self.version, job))
-        batch.add(SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"), (self.version, job))
-        batch.add(SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"), (self.version, job))
-        session.execute(batch)
+            batch.add(cql.SimpleStatement("UPDATE job_info SET loaded = false WHERE version = %d AND job = %d"), (self.version, job))
+        batch.add(cql.SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"), (self.version, job))
+        batch.add(cql.SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"), (self.version, job))
+        self.session.execute(batch)
     def update_job_info(self, job, md5s, loaded):
-        value = True if loaded else False
+        value  = True if loaded else False
         insert = "UPDATE job_info SET md5s = ?, updated_on = ?, loaded = ? WHERE version = ? AND job = ?"
-        prep = self.session.prepare(insert)
-        self.ssession.execute(prep, [md5s, datetime.datetime.now(), value, self.version, job])
+        prep   = self.session.prepare(insert)
+        self.session.execute(prep, [md5s, datetime.datetime.now(), value, self.version, job])
     def insert_job_info(self, job, md5s, loaded):
-        value = True if loaded else False
+        value  = True if loaded else False
         insert = "INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)"
-        prep = self.session.prepare(insert)
-        self.ssession.execute(prep, [self.version, job, md5s, datetime.datetime.now(), value])
+        prep   = self.session.prepare(insert)
+        self.session.execute(prep, [self.version, job, md5s, datetime.datetime.now(), value])
     def insert_job_md5s(self, job, rows):
         insert = "INSERT INTO job_md5s (version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        prep  = self.session.prepare(insert)
-        batch = BatchStatement(consistency_level=ConsistencyLevel.QUORUM)
+        prep   = self.session.prepare(insert)
+        batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         for (md5, abundance, exp_avg, ident_avg, len_avg, seek, length) in rows:
             batch.add(prep, (self.version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length))
-        self.ssession.execute(batch)
+        self.session.execute(batch)
     def insert_job_lca(self, job, rows):
         insert = "INSERT INTO job_lcas (version, job, lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        prep  = self.session.prepare(insert)
-        batch = BatchStatement(consistency_level=ConsistencyLevel.QUORUM)
+        prep   = self.session.prepare(insert)
+        batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         for (lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) in rows:
             batch.add(prep, (self.version, job, lca, abundance, exp_avg, ident_avg, len_avg, md5s, level))
         self.session.execute(batch)
