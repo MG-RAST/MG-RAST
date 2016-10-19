@@ -860,7 +860,7 @@ sub job_action {
             
             if ($action eq "start") {
                 # add to info - set loaded to false
-                if ($mgcass->has_job()) {
+                if ($mgcass->has_job($jobid)) {
                     $mgcass->update_job_info($jobid, 0, 0);
                 } else {
                     $mgcass->insert_job_info($jobid, 0, 0);
@@ -870,7 +870,7 @@ sub job_action {
                     self->return_data( {"ERROR" => "missing required 'data' for loading"}, 400 );
                 }
                 # make sure loaded is false
-                if ($mgcass->is_loaded()) {
+                if ($mgcass->is_loaded($jobid)) {
                     $mgcass->set_loaded($jobid, 0);
                 }
                 if ($type eq "md5") {
@@ -890,7 +890,7 @@ sub job_action {
                     self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
                 }
                 # set loaded to true
-                if ($mgcass->has_job()) {
+                if ($mgcass->has_job($jobid)) {
                     $mgcass->set_loaded($jobid, 1);
                 } else {
                     self->return_data( {"ERROR" => "unable to end job, does not exist"}, 500 );
