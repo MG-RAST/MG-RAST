@@ -857,37 +857,57 @@ sub job_action {
             unless ($mgcass) {
                 $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
             }
+            unless (($type eq "md5") || ($type eq "lca")) {
+                $self->return_data( {"ERROR" => "invalid abundance type: ".$post->{type}.", use of of 'md5' or 'lca'"}, 400 );
+            }
+            
+            $data = {
+                metagenome_id => 'mgm'.$job->{metagenome_id},
+                job_id        => $job->{job_id}
+            };
             
             if ($action eq "start") {
                 # add to info - set loaded to false
                 if ($mgcass->has_job($jobid)) {
-                    $mgcass->update_job_info($jobid, 0, 0);
+                    if ($type eq "md5") {
+                        $mgcass->update_job_info($jobid, 0, 0);
+                    } elsif ($type eq "lca") {
+                        $mgcass->set_loaded($jobid, 0);
+                    }
                 } else {
-                    $mgcass->insert_job_info($jobid, 0, 0);
+                    $mgcass->insert_job_info($jobid);
                 }
+                $data->{status} = "empty $type";
             } elsif ($action eq "load") {
                 unless ($data && (scalar(@$data) > 0)) {
                     self->return_data( {"ERROR" => "missing required 'data' for loading"}, 400 );
                 }
                 # make sure loaded is false
+                my $count = scalar(@$data);
                 if ($mgcass->is_loaded($jobid)) {
                     $mgcass->set_loaded($jobid, 0);
                 }
                 if ($type eq "md5") {
                     $mgcass->insert_job_md5s($jobid, $data);
+                    $data->{loaded} = $mgcass->get_md5_count($jobid);
                 } elsif ($type eq "lca") {
                     $mgcass->insert_job_lcas($jobid, $data);
-                } else {
-                    $self->return_data( {"ERROR" => "invalid abundance type: ".$post->{type}.", use of of 'md5' or 'lca'"}, 400 );
+                    $data->{loaded} = $mgcass->get_row_count($jobid, "lca");
                 }
+                $data->{status} = "loading $type";
             } elsif ($action eq "end") {
-                # get current loaded row count
-                unless ($count) {
-                    self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
-                }
-                my $curr = $mgcass->get_row_count($jobid, $type, $count + 1);
-                if ($curr != $count) {
-                    self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
+                # sanity check on loaded md5s
+                if ($type eq 'md5')
+                    unless ($count) {
+                        self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
+                    }
+                    my $curr = $mgcass->get_md5_count($jobid);
+                    if ($curr != $count) {
+                        self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
+                    }
+                    $data->{loaded} = $curr;
+                } else {
+                    $data->{loaded} = $mgcass->get_row_count($jobid, "lca");
                 }
                 # set loaded to true
                 if ($mgcass->has_job($jobid)) {
@@ -895,6 +915,7 @@ sub job_action {
                 } else {
                     self->return_data( {"ERROR" => "unable to end job, does not exist"}, 500 );
                 }
+                $data->{status} = "done $type";
             } else {
                 $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'start, 'load', 'end'"}, 400 );
             }

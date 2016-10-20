@@ -183,6 +183,14 @@ class JobHandle(object):
             return rows[0][0]
         else:
             return 0
+    def get_md5_count(self, job):
+        job = int(job)
+        query = "SELECT md5s FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rows  = self.session.execute(query)
+        if len(rows.current_rows) > 0:
+            return rows[0][0]
+        else:
+            return 0
     def has_job(self, job):
         job = int(job)
         query = "SELECT * FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
@@ -207,9 +215,10 @@ class JobHandle(object):
     def delete_job(self, job):
         job = int(job)
         batch = cql.BatchStatement()
-        if self.has_job(job):
-            # if job exists, set unloaded
-            batch.add(cql.SimpleStatement("UPDATE job_info SET loaded = false WHERE version = %d AND job = %d"), (self.version, job))
+        # set unloaded
+        prep = self.session.prepare("UPDATE job_info SET md5s = ?, updated_on = ?, loaded = ? WHERE version = ? AND job = ?")
+        batch.add(prep, (0, datetime.datetime.now(), False, self.version, job))
+        # delete data
         batch.add(cql.SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"), (self.version, job))
         batch.add(cql.SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"), (self.version, job))
         self.session.execute(batch)
@@ -218,13 +227,12 @@ class JobHandle(object):
         value  = True if loaded else False
         insert = "UPDATE job_info SET md5s = ?, updated_on = ?, loaded = ? WHERE version = ? AND job = ?"
         prep   = self.session.prepare(insert)
-        self.session.execute(prep, [md5s, datetime.datetime.now(), value, self.version, job])
-    def insert_job_info(self, job, md5s, loaded):
+        self.session.execute(prep, [int(md5s), datetime.datetime.now(), value, self.version, job])
+    def insert_job_info(self, job):
         job = int(job)
-        value  = True if loaded else False
         insert = "INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)"
         prep   = self.session.prepare(insert)
-        self.session.execute(prep, [self.version, job, md5s, datetime.datetime.now(), value])
+        self.session.execute(prep, [self.version, job, 0, datetime.datetime.now(), False])
     def insert_job_md5s(self, job, rows):
         job = int(job)
         insert = "INSERT INTO job_md5s (version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -236,6 +244,11 @@ class JobHandle(object):
             if not length:
                 length = 0
             batch.add(prep, (self.version, job, md5, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(seek), int(length)))
+        # update job_info
+        count = self.get_md5_count(job)
+        prep  = self.session.prepare("UPDATE job_info SET md5s = ?, updated_on = ? WHERE version = ? AND job = ?")
+        batch.add(prep, (len(rows) + count, datetime.datetime.now(), self.version, job))
+        # execute atomic batch
         self.session.execute(batch)
     def insert_job_lcas(self, job, rows):
         job = int(job)
