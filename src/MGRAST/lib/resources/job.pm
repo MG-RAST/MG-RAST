@@ -897,7 +897,7 @@ sub job_action {
                 $data->{status} = "loading $type";
             } elsif ($action eq "end") {
                 # sanity check on loaded md5s
-                if ($type eq 'md5')
+                if ($type eq 'md5') {
                     unless ($count) {
                         self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
                     }
