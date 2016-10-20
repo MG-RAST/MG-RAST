@@ -850,7 +850,7 @@ sub job_action {
             my $type   = $post->{type}    || "";
             my $action = $post->{action}  || "";
             my $count  = $post->{count}   || 0;
-            my $data   = $post->{data}    || [];
+            my $rows   = $post->{data}    || [];
             my $jobid  = $job->{job_id};
             
             my $mgcass = $self->cassandra_handle("job", $ver);
@@ -881,15 +881,15 @@ sub job_action {
                 }
                 $data->{status} = "empty $type";
             } elsif ($action eq "load") {
-                unless ($data && (scalar(@$data) > 0)) {
+                unless ($rows && (scalar(@$rows) > 0)) {
                     self->return_data( {"ERROR" => "missing required 'data' for loading"}, 400 );
                 }
                 # insert batch is atomic and sets loaded=false, update_on=time.now() in job_info
                 if ($type eq "md5") {
-                    $mgcass->insert_job_md5s($jobid, $data);
+                    $mgcass->insert_job_md5s($jobid, $rows);
                     $data->{loaded} = $mgcass->get_md5_count($jobid);
                 } elsif ($type eq "lca") {
-                    $mgcass->insert_job_lcas($jobid, $data);
+                    $mgcass->insert_job_lcas($jobid, $rows);
                     $data->{loaded} = $mgcass->get_row_count($jobid, "lca");
                 }
                 $data->{status} = "loading $type";
