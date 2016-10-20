@@ -858,9 +858,8 @@ sub job_action {
                 $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
             }
             unless (($type eq "md5") || ($type eq "lca")) {
-                $self->return_data( {"ERROR" => "invalid abundance type: ".$post->{type}.", use of of 'md5' or 'lca'"}, 400 );
+                $self->return_data( {"ERROR" => "invalid abundance type: ".$type.", use of of 'md5' or 'lca'"}, 400 );
             }
-            
             $data = {
                 metagenome_id => 'mgm'.$job->{metagenome_id},
                 job_id        => $job->{job_id}
@@ -870,11 +869,14 @@ sub job_action {
                 # add to info - set loaded to false
                 if ($mgcass->has_job($jobid)) {
                     if ($type eq "md5") {
+                        # reset job_info, md5s to 0
                         $mgcass->update_job_info($jobid, 0, 0);
                     } elsif ($type eq "lca") {
+                        # reset job_info, md5s kept same
                         $mgcass->set_loaded($jobid, 0);
                     }
                 } else {
+                    # insert job_info
                     $mgcass->insert_job_info($jobid);
                 }
                 $data->{status} = "empty $type";
@@ -882,11 +884,7 @@ sub job_action {
                 unless ($data && (scalar(@$data) > 0)) {
                     self->return_data( {"ERROR" => "missing required 'data' for loading"}, 400 );
                 }
-                # make sure loaded is false
-                my $count = scalar(@$data);
-                if ($mgcass->is_loaded($jobid)) {
-                    $mgcass->set_loaded($jobid, 0);
-                }
+                # insert batch is atomic and sets loaded=false, update_on=time.now() in job_info
                 if ($type eq "md5") {
                     $mgcass->insert_job_md5s($jobid, $data);
                     $data->{loaded} = $mgcass->get_md5_count($jobid);
@@ -919,7 +917,6 @@ sub job_action {
             } else {
                 $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'start, 'load', 'end'"}, 400 );
             }
-            
         } elsif ($action eq 'solr') {
             my $rebuild = $post->{rebuild} ? 1 : 0;
             my $sdata   = $post->{solr_data} || {};
