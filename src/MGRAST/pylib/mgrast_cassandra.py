@@ -215,19 +215,17 @@ class JobHandle(object):
             return 1
         else:
             return 0
-    ## update job_info table: delete than insert behind scenes
+    ## update job_info table
     def set_loaded(self, job, loaded):
-        md5s = self.get_md5_count(job) # keep current md5s
-        self.update_job_info(job, md5s, loaded)
+        job = int(job)
+        value = True if loaded else False
+        update = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        self.session.execute(update, [value, datetime.datetime.now(), self.version, job])
     def update_job_info(self, job, md5s, loaded):
         job = int(job)
         value = True if loaded else False
-        # atomic batch staement: delete than insert
-        batch = cql.BatchStatement()
-        batch.add(cql.SimpleStatement("DELETE FROM job_info WHERE version = %d AND job = %d"), (self.version, job))
-        insert = self.session.prepare("INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)")
-        batch.add(insert, (self.version, job, int(md5s), datetime.datetime.now(), value))
-        self.session.execute(batch)
+        update = self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        self.session.execute(update, [int(md5s), value, datetime.datetime.now(), self.version, job])
     def insert_job_info(self, job):
         job = int(job)
         insert = self.session.prepare("INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)")
@@ -243,11 +241,10 @@ class JobHandle(object):
             if not length:
                 length = 0
             batch.add(insert, (self.version, job, md5, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(seek), int(length)))
-        # delete / insert job_info
+        # update job_info
         curr = self.get_md5_count(job)
-        batch.add(cql.SimpleStatement("DELETE FROM job_info WHERE version = %d AND job = %d"), (self.version, job))
-        prep = self.session.prepare("INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)")
-        batch.add(prep, (self.version, job, len(rows)+curr, datetime.datetime.now(), False))
+        update = self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        batch.add(update, (len(rows)+curr, False, datetime.datetime.now(), self.version, job))
         # execute atomic batch
         self.session.execute(batch)
     def insert_job_lcas(self, job, rows):
@@ -256,19 +253,17 @@ class JobHandle(object):
         batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         for (lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) in rows:
             batch.add(insert, (self.version, job, lca, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(md5s), int(level)))
-        # delete / insert job_info
-        curr = self.get_md5_count(job)
-        batch.add(cql.SimpleStatement("DELETE FROM job_info WHERE version = %d AND job = %d"), (self.version, job))
-        prep = self.session.prepare("INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)")
-        batch.add(prep, (self.version, job, curr, datetime.datetime.now(), False))
+        # update job_info
+        update = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        batch.add(update, (False, datetime.datetime.now(), self.version, job))
         # execute atomic batch
         self.session.execute(batch)
     ## delete all job data
     def delete_job(self, job):
         job = int(job)
         batch = cql.BatchStatement()
-        batch.add(cql.SimpleStatement("DELETE FROM job_info WHERE version = %d AND job = %d"), (self.version, job))
-        batch.add(cql.SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"), (self.version, job))
-        batch.add(cql.SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"), (self.version, job))
+        batch.add(cql.SimpleStatement("DELETE FROM job_info WHERE version = %d AND job = %d"%(self.version, job)))
+        batch.add(cql.SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)))
+        batch.add(cql.SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"%(self.version, job)))
         self.session.execute(batch)
 
