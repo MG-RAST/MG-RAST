@@ -33,7 +33,7 @@ class Abundance(object):
             org_map = {}                 # tax_lvl : taxa : abundance
             fun_map = defaultdict(int)   # func : abundance
             ont_map = {}                 # source : level1 : accession : abundance
-            ont_cat = {}                 # source : ont : level1
+            ont_cat = {}                 # source : ontID : level1
         
         if org and (len(taxa) == 1):
             local.tax = taxa[0]
@@ -56,9 +56,13 @@ class Abundance(object):
                         local.fun_map[f] += md5s[rec['md5']]
                 if ont and (rec['source'] in local.ont_cat) and rec['accession']:
                     if rec['source'] not in local.ont_map:
-                        local.ont_map[rec['source']] = defaultdict(lambda: defaultdict(int))
+                        local.ont_map[rec['source']] = {}
                     for a in rec['accession']:
-                        local.ont_map[rec['source']][local.ont_cat[rec['source']]][a] += md5s[rec['md5']]
+                        if a in local.ont_cat[rec['source']]:
+                            level = local.ont_cat[rec['source']][a]
+                            if level not in local.ont_map[rec['source']]:
+                                local.ont_map[rec['source']][level] = defaultdict(int)
+                            local.ont_map[rec['source']][level][a] += md5s[rec['md5']]
                 if org and rec['organism']:
                     for o in rec['organism']:
                         if o not in local.tax_map:
