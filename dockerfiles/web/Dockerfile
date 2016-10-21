@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y \
   curl \
   vim \
   emacs \
-  zip \
+  zip 
+
+RUN apt-get install -y \
   rsyslog \
   perl-modules \
   liburi-perl \
@@ -21,7 +23,9 @@ RUN apt-get update && apt-get install -y \
   libdbi-perl \
   libdbd-mysql-perl \
   libdbd-pg-perl \
-  libhtml-template-perl \
+  libhtml-template-perl
+
+RUN apt-get install -y \
   libtemplate-plugin-number-format-perl \
   libclass-isa-perl \
   libgd-gd2-perl \
