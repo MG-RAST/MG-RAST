@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
   ncbi-blast+ \
   perl-modules \
   liburi-perl \
+  liburi-encode-perl \
   libwww-perl \
   libjson-perl \
   libdbi-perl \

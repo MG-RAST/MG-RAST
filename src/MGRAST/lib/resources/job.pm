@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use URI::Encode qw(uri_encode uri_decode);
 use Digest::MD5 qw(md5_hex);
 use POSIX qw(strftime);
 use List::MoreUtils qw(any uniq);
@@ -889,6 +890,8 @@ sub job_action {
                     $mgcass->insert_job_md5s($jobid, $rows);
                     $data->{loaded} = $mgcass->get_md5_count($jobid);
                 } elsif ($type eq "lca") {
+                    # url decode lca string
+                    map { $_->[0] = uri_decode($_->[0]) } @$rows;
                     $mgcass->insert_job_lcas($jobid, $rows);
                     $data->{loaded} = $mgcass->get_row_count($jobid, "lca");
                 }
