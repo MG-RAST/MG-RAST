@@ -30,7 +30,7 @@ class Abundance(object):
         class local:
             tax = ""
             tax_map = {}
-            org_map = defaultdict(lambda: defaultdict(int)) # tax_lvl : taxa : abundance
+            org_map = {}                 # tax_lvl : taxa : abundance
             fun_map = defaultdict(int)   # func : abundance
             ont_map = {}                 # source : level1 : accession : abundance
             ont_cat = {}                 # source : ont : level1
@@ -39,12 +39,12 @@ class Abundance(object):
             local.tax = taxa[0]
             # org : taxa
             local.tax_map = self.m5nr.get_org_taxa_map(local.tax)
-            local.org_map[taxa[0]] = {}
+            local.org_map[taxa[0]] = defaultdict(int)
         elif org and (len(taxa) > 1):
             # org : [ taxa ]
             local.tax_map = self.m5nr.get_taxa_hierarchy()
             for t in taxa:
-                local.org_map[t] = {}
+                local.org_map[t] = defaultdict(int)
         if ont:
             local.ont_cat = self.m5nr.get_ontology_hierarchy()
         

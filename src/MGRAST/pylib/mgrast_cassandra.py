@@ -57,18 +57,18 @@ class M5nrHandle(object):
             found[r['name']] = [r['tax_domain'], r['tax_phylum'], r['tax_class'], r['tax_order'], r['tax_family'], r['tax_genus'], r['tax_species']]
         return found
     def get_ontology_hierarchy(self, source=None):
-        found = defaultdict(dict)
+        found = {}
         if source:
-            prep = self.session.prepare("SELECT * FROM ont_level1 WHERE source = ?")
-            rows = self.session.execute(prep, [source])
+            prep = self.session.prepare("SELECT level1, name FROM ont_level1 WHERE source = ?")
+            for r in self.session.execute(prep, [source]):
+                found[r['level1']] = r['name']
         else:
-            rows = self.session.execute("SELECT * FROM ont_level1")
-        for r in rows:
-            found[r['source']][r['level1']] = r['name']
-        if source:
-            return found[source]
-        else:
-            return found
+            for r in self.session.execute("SELECT source, level1, name FROM ont_level1"):
+                if 'source' not in found:
+                    found[r['source']] = {}
+                else:
+                    found[r['source']][r['level1']] = r['name']
+        return found
     ### retrieve hierarchy mapping: leaf -> level
     def get_org_taxa_map(self, taxa):
         found = {}
