@@ -4,7 +4,8 @@ package WebServerBackend::User;
 
 # $Id: User.pm,v 1.47 2011-05-26 16:53:38 olson Exp $
 
-use Mail::Mailer;
+use Net::SMTP;
+use POSIX qw(strftime);
 
 use Data::Dumper;
 use WebConfig;
