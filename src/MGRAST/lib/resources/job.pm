@@ -883,7 +883,7 @@ sub job_action {
                 $data->{status} = "empty $type";
             } elsif ($action eq "load") {
                 unless ($rows && (scalar(@$rows) > 0)) {
-                    self->return_data( {"ERROR" => "missing required 'data' for loading"}, 400 );
+                    $self->return_data( {"ERROR" => "missing required 'data' for loading"}, 400 );
                 }
                 # insert batch is atomic and sets loaded=false, update_on=time.now() in job_info
                 if ($type eq "md5") {
@@ -900,11 +900,11 @@ sub job_action {
                 # sanity check on loaded md5s
                 if ($type eq 'md5') {
                     unless ($count) {
-                        self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
+                        $self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
                     }
                     my $curr = $mgcass->get_md5_count($jobid);
                     if ($curr != $count) {
-                        self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
+                        $self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
                     }
                     $data->{loaded} = $curr;
                 } else {
@@ -914,7 +914,7 @@ sub job_action {
                 if ($mgcass->has_job($jobid)) {
                     $mgcass->set_loaded($jobid, 1);
                 } else {
-                    self->return_data( {"ERROR" => "unable to end job, does not exist"}, 500 );
+                    $self->return_data( {"ERROR" => "unable to end job, does not exist"}, 500 );
                 }
                 $data->{status} = "done $type";
             } else {
