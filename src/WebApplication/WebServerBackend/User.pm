@@ -255,21 +255,27 @@ The text of the mail will be I<mail_body>.
 
 =cut
 
+
 sub send_email {
-  my ($self, $from, $subject, $body) = @_;
-
-  my $mailer = Mail::Mailer->new('smtp', Server => $Conf::smtp_host);
-  $mailer->open({ From    => $from,
-		  To      => $self->email,
-		  Subject => $subject,
-		})
-    or die "Can't open Mail::Mailer: $!\n";
-  print $mailer $body;
-  $mailer->close();
-  
-  return 1;
-
+    my ($self, $from, $subject, $body) = @_;
+        
+    my $smtp = Net::SMTP->new($Conf::smtp_host, Hello => $Conf::smtp_host);
+    
+    my @data = (
+        "To: ".$self->email."\n",
+        "From: $from\n",
+        "Date: ".strftime("%a, %d %b %Y %H:%M:%S %z", localtime)."\n",
+        "Subject: $subject\n\n",
+        $body
+    );
+    
+    $smtp->mail('mg-rast');
+    if ($smtp->to($self->email)) {
+        $smtp->data(@data);
+    } 
+    $smtp->quit;
 }
+
 
 
 =pod
