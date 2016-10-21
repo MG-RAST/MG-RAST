@@ -199,7 +199,7 @@ sub instance {
   if (scalar(@$rest) == 2 && $rest->[0] eq 'validateemail') {
     my $key = uri_unescape($rest->[1]);
     my $uid;
-    unless ($key =~ /^(\d+)_([0..9a..zA..Z]+)$/) {
+    unless ($key =~ /^(\d+)_(\w+)$/) {
       $self->return_data( {"ERROR" => "invalid key"}, 400 );
     } else {
       $uid = $1;
