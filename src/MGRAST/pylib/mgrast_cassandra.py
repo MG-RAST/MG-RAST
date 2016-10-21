@@ -66,8 +66,7 @@ class M5nrHandle(object):
             for r in self.session.execute("SELECT source, level1, name FROM ont_level1"):
                 if 'source' not in found:
                     found[r['source']] = {}
-                else:
-                    found[r['source']][r['level1']] = r['name']
+                found[r['source']][r['level1']] = r['name']
         return found
     ### retrieve hierarchy mapping: leaf -> level
     def get_org_taxa_map(self, taxa):
