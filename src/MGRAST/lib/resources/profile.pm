@@ -230,7 +230,6 @@ sub submit {
     unless ($ctest) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
-    $ctest->close();
     
     # need to create new temp node
     $tquery->{row_total} = 0;

@@ -430,7 +430,6 @@ sub job_data {
         unless ($ctest) {
             $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
         }
-        $ctest->close();
         
         # need to create new node and fork
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
@@ -945,7 +944,6 @@ sub job_action {
             unless ($ctest) {
                 $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
             }
-            $ctest->close();
             # need to create new node and fork
             my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
             my $pid = fork();
