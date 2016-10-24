@@ -541,6 +541,9 @@ sub job_action {
         unless (defined $post->{metagenome_id}) {
             $post = $self->get_post_data(["metagenome_id", "reason"]);
         }
+        unless ($post->{metagenome_id}) {
+            $self->return_data( {"ERROR" => "missing metagenome id"}, 400 );
+        }
         my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
             $self->return_data( {"ERROR" => "invalid id format: ".$post->{metagenome_id}}, 400 );
