@@ -56,6 +56,7 @@ RUN apt-get install -y python-dev python-pip && \
   gspread \
   xlrd \
   lepl \
+  requests_toolbelt \
   cassandra-driver
 
 ENV PERL_MM_USE_DEFAULT 1

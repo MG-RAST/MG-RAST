@@ -275,7 +275,8 @@ sub create_profile {
     
     # cassandra handle
     my $mgcass = $self->cassandra_profile($node->{attributes}{version});
-    $mgcass->set_shock($self->mgrast_token);
+    my $token  = $self->mgrast_token;
+    $mgcass->set_shock($token);
     
     ### create profile
     # store it in shock permanently if mgrast format
