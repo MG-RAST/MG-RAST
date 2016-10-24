@@ -254,7 +254,8 @@ sub instance {
 		    'movemetagenomes' => 1,
 		    'updateright' => 1,
 		    'makepublic' => 1,
-		    'updatemetadata' => 1
+		    'updatemetadata' => 1,
+		    'submittoebi' => 1
     };
     if ((scalar(@$rest) > 1) && $requests->{$rest->[1]}) {
       if ($rest->[1] eq 'updateright') {
@@ -317,6 +318,66 @@ sub instance {
 
 	# return success
 	$self->return_data( {"OK" => "metadata updated"}, 200 );
+      }
+
+      # submit project to EBI
+      elsif ($rest->[1] eq 'submittoebi') {
+	
+	# check permissions
+	unless ($self->user->has_star_right(undef, 'edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
+	  $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+	}
+	
+	# get project
+	my $project = $master->Project->init( {id => $id} );
+	unless (ref($project)) {
+	  $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
+	}
+
+	# get metadata database
+	my $metadbm = MGRAST::Metadata->new->_handle();
+
+	# set ebi_tech in project
+	my $tech = $metadbm->ProjectMD->get_objects( { project => $project,
+						       tag => 'ebi_tech' } );
+	if (scalar(@$tech)) {
+	  while (scalar(@$tech) > 1) {
+	    delete $tech->[0];
+	  }
+	  $tech->[0]->value($self->cgi->param('ebi_tech'));
+	} else {
+	  $metadbm->ProjectMD->create( { project => $project,
+					 tag => 'ebi_tech',
+					 value => $self->cgi->param('ebi_tech') } );
+	}
+
+	# set the biome in the samples
+	my $mgs = $project->metagenomes();
+	foreach my $mg (@$mgs) {
+	  if ($self->cgi->param($mg->{metagenome_id})) {
+	    my $val = $self->cgi->param($mg->{metagenome_id});
+	    my $attr = { collection => $mg->sample,
+			 tag        => 'ebi_biome',
+			 value      => $val,
+			 required   => 0,
+			 mixs       => 0
+		       };
+	    my $existing = $metadbm->MetaDataEntry->get_objects($attr);
+	    if (scalar(@$existing)) {
+	      while (scalar(@$existing) > 1) {
+		delete $existing->[0];
+	      }
+	      $existing->[0]->value($val);
+	    } else {
+	      $metadbm->MetaDataEntry->create( $attr );
+	    }
+	  } else {
+	    $self->return_data( { "ERROR" => "error updating sample biome entries for ebi submission" }, 404 );
+	  }
+	}
+
+	# at this point we can submit to EBI
+	$self->return_data( {"OK" => "metadata updated for EBI"}, 200 );
       }
       
       # make the project public
