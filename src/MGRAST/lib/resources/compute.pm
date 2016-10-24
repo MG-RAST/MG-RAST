@@ -377,6 +377,9 @@ sub sequence_compute {
     if ($error) {
         return ({"ERROR" => $error}, 500);
     }
+    unless ($md5fasta) {
+        return ({"ERROR" => "unable to retrieve sequence for $md5"}, 500);
+    }
     # make md5 seq file
     my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
     print $tfh $md5fasta;
