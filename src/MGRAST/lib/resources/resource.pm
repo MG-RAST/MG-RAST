@@ -281,7 +281,7 @@ sub type_by_source {
     foreach my $t (("protein", "rna", "ontology")) {
         if (exists $self->source->{$t}) {
             foreach my $s (@{$self->source->{$t}}) {
-                if ($s eq $source) {
+                if ($s->[0] eq $source) {
                     return $t;
                 }
             }
