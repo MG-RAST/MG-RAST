@@ -80,12 +80,13 @@ class M5nrHandle(object):
     def get_ontology_map(self, level, source=None):
         found = {}
         level = level.lower()
+        query = "SELECT * FROM ont_%s"%level
         if source:
-            prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+            prep = self.session.prepare(query+" WHERE source = ?")
             for r in self.session.execute(prep, [source]):
                 found[r['name']] = r[level]
         else:
-            for r in self.session.execute("SELECT * FROM ont_%s WHERE source = ?"%level):
+            for r in self.session.execute(query):
                 if r['source'] not in found:
                     found[r['source']] = {}
                 found[r['source']][r['name']] = r[level]
