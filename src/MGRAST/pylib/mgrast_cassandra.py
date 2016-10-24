@@ -59,14 +59,14 @@ class M5nrHandle(object):
     def get_ontology_hierarchy(self, source=None):
         found = {}
         if source:
-            prep = self.session.prepare("SELECT level1, name FROM ont_level1 WHERE source = ?")
+            prep = self.session.prepare("SELECT * FROM ontologies WHERE source = ?")
             for r in self.session.execute(prep, [source]):
-                found[r['name']] = r['level1']
+                found[r['name']] = [r['level1'], r['level2'], r['level3'], r['level4']]
         else:
-            for r in self.session.execute("SELECT source, level1, name FROM ont_level1"):
+            for r in self.session.execute("SELECT * FROM ontologies"):
                 if r['source'] not in found:
                     found[r['source']] = {}
-                found[r['source']][r['name']] = r['level1']
+                found[r['source']][r['name']] = [r['level1'], r['level2'], r['level3'], r['level4']]
         return found
     ### retrieve hierarchy mapping: leaf -> level
     def get_org_taxa_map(self, taxa):
@@ -77,13 +77,18 @@ class M5nrHandle(object):
         for r in rows:
             found[r['name']] = r[tname]
         return found
-    def get_ontology_map(self, source, level):
+    def get_ontology_map(self, level, source=None):
         found = {}
         level = level.lower()
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
-        rows = self.session.execute(prep, [source])
-        for r in rows:
-            found[r['name']] = r[level]
+        if source:
+            prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+            for r in self.session.execute(prep, [source]):
+                found[r['name']] = r[level]
+        else:
+            for r in self.session.execute("SELECT * FROM ont_%s WHERE source = ?"%level):
+                if r['source'] not in found:
+                    found[r['source']] = {}
+                found[r['source']][r['name']] = r[level]
         return found
     ### retrieve hierarchy: leaf list for a level
     def get_organism_by_taxa(self, taxa, match=None):

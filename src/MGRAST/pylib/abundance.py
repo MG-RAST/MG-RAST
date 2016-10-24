@@ -32,7 +32,7 @@ class Abundance(object):
             tax_map = {}
             org_map = {}                 # tax_lvl : taxa : abundance
             fun_map = defaultdict(int)   # func : abundance
-            ont_map = {}                 # source : level1 : accession : abundance
+            ont_map = {}                 # source : level1 : abundance
             ont_cat = {}                 # source : ontID : level1
         
         if org and (len(taxa) == 1):
@@ -46,7 +46,7 @@ class Abundance(object):
             for t in taxa:
                 local.org_map[t] = defaultdict(int)
         if ont:
-            local.ont_cat = self.m5nr.get_ontology_hierarchy()
+            local.ont_cat = self.m5nr.get_ontology_map("level1")
         
         def add_annotations(md5s):
             records = self.m5nr.get_records_by_md5(md5s.keys(), iterator=True)
@@ -56,13 +56,11 @@ class Abundance(object):
                         local.fun_map[f] += md5s[rec['md5']]
                 if ont and (rec['source'] in local.ont_cat) and rec['accession']:
                     if rec['source'] not in local.ont_map:
-                        local.ont_map[rec['source']] = {}
+                        local.ont_map[rec['source']] = defaultdict(int)
                     for a in rec['accession']:
                         if a in local.ont_cat[rec['source']]:
                             level = local.ont_cat[rec['source']][a]
-                            if level not in local.ont_map[rec['source']]:
-                                local.ont_map[rec['source']][level] = defaultdict(int)
-                            local.ont_map[rec['source']][level][a] += md5s[rec['md5']]
+                            local.ont_map[rec['source']][level] += md5s[rec['md5']]
                 if org and rec['organism']:
                     for o in rec['organism']:
                         if o not in local.tax_map:
