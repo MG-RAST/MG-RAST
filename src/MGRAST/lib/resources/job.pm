@@ -978,8 +978,7 @@ sub job_action {
                     seq_method         => $jdata->{sequencing_method_guess},
                     seq_method_sort    => $jdata->{sequencing_method_guess},
                     version            => $ver,
-                    metadata           => "",
-                    md5                => $mgcass->all_md5s($jobid)
+                    metadata           => ""
                 };
                 # project - from jobdb
                 eval {
@@ -1038,17 +1037,23 @@ sub job_action {
                     }
                 }
                 # get annotations from DB
-                my ($md5_num, $org_map, $fun_map, undef) = @{ $mgcass->all_annotation_abundances($jobid, ['species'], $get_org, $get_fun, 0) };
-                if ($md5_num == 0) {
-                    $self->put_shock_file($filename, qq({"ERROR": "no md5 hits available", "STATUS": 500}), $node->{id}, $self->mgrast_token, 1);
-                    exit 0;
+                if ($get_org || $get_fun) {
+                    my ($md5_num, $org_map, $fun_map, undef) = @{ $mgcass->all_annotation_abundances($jobid, ['species'], $get_org, $get_fun, 0) };
+                    if ($md5_num == 0) {
+                        $self->put_shock_file($filename, qq({"ERROR": "no md5 hits available", "STATUS": 500}), $node->{id}, $self->mgrast_token, 1);
+                        exit 0;
+                    }
+                    if ($get_org) {
+                        $solr_data->{organism} = [ keys %{$org_map->{species}} ];
+                    }
+                    if ($get_fun) {
+                        $solr_data->{function} = [ keys %{$fun_map} ];
+                    }
                 }
-                if ($get_org) {
-                    $solr_data->{organism} = [ keys %{$org_map->{species}} ];
-                }
-                if ($get_fun) {
-                    $solr_data->{function} = [ keys %{$fun_map} ];
-                }
+                # get md5 list
+                $solr_data->{md5} = $mgcass->all_md5s($jobid);
+                
+                # close cassandra db
                 $mgcass->close();
                 
                 # mixs metadata - from jobdb
