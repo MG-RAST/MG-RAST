@@ -139,8 +139,8 @@ class JobHandle(object):
     ## get index for one md5
     def get_md5_record(self, job, md5):
         job = int(job)
-        query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d AND md5 = %s"%(self.version, job, md5)
-        rows  = self.session.execute(query)
+        prep = self.session.prepare("SELECT seek, length FROM job_md5s WHERE version = ? AND job = ? AND md5 = ?")
+        rows = self.session.execute(prep, [self.version, job, md5])
         if (len(rows.current_rows) > 0) and (rows[0][1] > 0):
             return [ rows[0][0], rows[0][1] ]
         else:
