@@ -22,17 +22,15 @@ class CassTest(object):
         self.db = db
     def test(self):
         try:
+            status = 0
             cluster = Cluster(contact_points = self.hosts, default_retry_policy = RetryPolicy())
             if self.db == "job":
                 session = cluster.connect("mgrast_abundance")
-                rows = session.execute("SELECT * FROM job_info limit 5")
             elif self.db == "m5nr":
                 session = cluster.connect("m5nr_v1")
-                rows = session.execute("SELECT * FROM md5_annotation limit 5")
+            if session:
+                status = 1
             cluster.shutdown()
-            if len(rows.current_rows) > 0:
-                return 1
-            else:
-                return 0
+            return status
         except:
             return 0
