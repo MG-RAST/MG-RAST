@@ -258,7 +258,7 @@ sub submit {
     if ($pid == 0) {
         close STDERR;
         close STDOUT;
-        $self->create_profile($id, $node, $format);
+        $self->create_profile($id, $node, $tquery->{parameters});
         exit 0;
     }
     # parent - end html session
@@ -270,7 +270,7 @@ sub submit {
 
 # reformat the data into the requested output format
 sub create_profile {
-    my ($self, $id, $node, $format) = @_;
+    my ($self, $id, $node, $param) = @_;
     
     # get data
     my $master = $self->connect_to_datasource();
@@ -278,12 +278,12 @@ sub create_profile {
     my $data = $job->[0];
     
     # cassandra handle
-    my $mgcass = $self->cassandra_profile($node->{attributes}{version});
+    my $mgcass = $self->cassandra_profile($param->{version});
     
     ### create profile
     # store it in shock permanently if mgrast format
     my $attr = undef;
-    if ($format eq 'mgrast') {
+    if ($param->{format} eq 'mgrast') {
         $attr = {
             id            => 'mgm'.$id,
             job_id        => $data->{job_id},
@@ -296,12 +296,12 @@ sub create_profile {
             project_name  => undef,
             type          => 'metagenome',
             data_type     => 'profile',
-            source        => $node->{attributes}{source},
+            source        => $param->{source},
             row_total     => 0,
             md5_queried   => 0,
             md5_found     => 0,
-            condensed     => $node->{attributes}{condensed},
-            version       => $node->{attributes}{version},
+            condensed     => $param->{condensed},
+            version       => $param->{version},
             file_format   => 'json',
             stage_name    => 'done',
             stage_id      => '999'
@@ -320,7 +320,7 @@ sub create_profile {
     $mgcass->set_shock($token);
     
     ### saves output file or error message in shock
-    $mgcass->compute_profile($node, $format, $attr);
+    $mgcass->compute_profile($node, $param, $attr);
     $mgcass->close();
     return undef;
 }

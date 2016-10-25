@@ -26,37 +26,36 @@ class Profile(object):
         self.m5nr.close()
         self.jobs.close()
     
-    def compute_profile(self, node, format, attr=None):
-        mgid    = node['attributes']['id']
-        jobid   = node['attributes']['job_id']
-        source  = node['attributes']['source']
-        stype   = node['attributes']['source_type']
-        index   = True if node['attributes']['condensed'] == 'true' else False
+    def compute_profile(self, node, param, attr=None):
+        index   = True if param['condensed'] == 'true' else False
+        fname   = "%s_%s_v%d.%s"%(param['id'], param['source'], self.version, param['format'])
         profile = None
-        fname   = "%s_%s_v%d.%s"%(mgid, source, self.version, format)
         
         ## if we throw an error, save it in shock node
-        if format == 'biom':
+        if param['format'] == 'biom':
             try:
-                profile    = self.init_biom_profile(mgid, source, stype)
-                rows, data = self.get_biom_data(jobid, source)
+                profile    = self.init_biom_profile(param['id'], param['source'], param['source_type'])
+                rows, data = self.get_biom_data(param['job_id'], param['source'])
                 profile['rows'] = rows
                 profile['data'] = data
                 profile['shape'][0] = len(profile['rows'])
             except:
                 self.error_exit("unable to build BIOM profile", node)
                 return
-        elif format == 'mgrast':
+        elif param['format'] == 'mgrast':
             try:
-                profile = self.init_mgrast_profile(mgid, source, stype, index)
-                data    = self.get_mgrast_data(jobid, source, index, node)
+                profile = self.init_mgrast_profile(param['id'], param['source'], param['source_type'], index)
+                data    = self.get_mgrast_data(param['job_id'], param['source'], index, node)
                 profile['data'] = data
                 profile['row_total'] = len(profile['data'])
             except:
                 self.error_exit("unable to build mgrast profile", node)
                 return
+        else:
+            self.error_exit("unable to build profile, invalid format", node)
+        
+        ## permanent: update attributes / remove expiration
         if attr:
-            # permanent: update attributes / remove expiration
             attr['row_total']   = profile['row_total'] if 'row_total' in profile else profile['shape'][0]
             attr['md5_queried'] = node['attributes']['progress']['queried']
             attr['md5_found']   = node['attributes']['progress']['found']
@@ -68,7 +67,8 @@ class Profile(object):
             except:
                 self.error_exit("unable to update profile shock node "+node['id'], node)
                 return
-        # store file in node
+        
+        ## store file in node
         self.shock.upload(node=node['id'], data=profile, file_name=fname)
         return
     
