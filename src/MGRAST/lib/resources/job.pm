@@ -873,10 +873,10 @@ sub job_action {
                 if ($mgcass->has_job($jobid)) {
                     if ($type eq "md5") {
                         # reset job_info, md5s to 0
-                        $mgcass->update_job_info($jobid, 0, 0);
+                        $mgcass->update_info_md5s($jobid, 0, 0);
                     } elsif ($type eq "lca") {
-                        # reset job_info, md5s kept same
-                        $mgcass->set_loaded($jobid, 0);
+                        # reset job_info, lcas to 0
+                        $mgcass->update_info_lcas($jobid, 0, 0);
                     }
                 } else {
                     # insert job_info
@@ -888,36 +888,36 @@ sub job_action {
                     $self->return_data( {"ERROR" => "missing required 'data' for loading"}, 400 );
                 }
                 # insert batch is atomic and sets loaded=false, update_on=time.now() in job_info
+                # data->loaded is current total loaded
                 if ($type eq "md5") {
-                    $mgcass->insert_job_md5s($jobid, $rows);
-                    $data->{loaded} = $mgcass->get_md5_count($jobid);
+                    $data->{loaded} = $mgcass->insert_job_md5s($jobid, $rows);
                 } elsif ($type eq "lca") {
                     # url decode lca string
                     map { $_->[0] = uri_decode($_->[0]) } @$rows;
-                    $mgcass->insert_job_lcas($jobid, $rows);
-                    $data->{loaded} = $mgcass->get_row_count($jobid, "lca");
+                    $data->{loaded} = $mgcass->insert_job_lcas($jobid, $rows);
                 }
                 $data->{status} = "loading $type";
             } elsif ($action eq "end") {
-                # sanity check on loaded md5s
-                if ($type eq 'md5') {
-                    unless ($count) {
-                        $self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
-                    }
-                    my $curr = $mgcass->get_md5_count($jobid);
-                    if ($curr != $count) {
-                        $self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
-                    }
-                    $data->{loaded} = $curr;
-                } else {
-                    $data->{loaded} = $mgcass->get_row_count($jobid, "lca");
-                }
-                # set loaded to true
-                if ($mgcass->has_job($jobid)) {
-                    $mgcass->set_loaded($jobid, 1);
-                } else {
+                # make sure job exists
+                unless ($mgcass->has_job($jobid)) {
                     $self->return_data( {"ERROR" => "unable to end job, does not exist"}, 500 );
                 }
+                # sanity check on loaded count
+                unless ($count) {
+                    $self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
+                }
+                my $curr = 0;
+                if ($type eq 'md5') {
+                    $curr = $mgcass->get_md5_count($jobid);
+                } elsif ($type eq "lca") {
+                    $curr = $mgcass->get_lca_count($jobid);
+                }
+                if ($curr != $count) {
+                    $self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
+                }
+                $data->{loaded} = $curr;
+                # set loaded to true / done
+                $mgcass->set_loaded($jobid, 1);
                 $data->{status} = "done $type";
             } else {
                 $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'start, 'load', 'end'"}, 400 );

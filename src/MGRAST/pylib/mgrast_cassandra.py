@@ -175,35 +175,7 @@ class JobHandle(object):
             else:
                 bisect.insort(found, (r[0], r[1]))
         return found
-    ## non-optimal, column counts for partition key
-    def get_row_count(self, job, table, maxRow=None):
-        job = int(job)
-        query = "SELECT count(*) FROM job_%ss WHERE version = %d AND job = %d"%(table, self.version, job)
-        if maxRow:
-            query += " LIMIT %d"%int(maxRow)
-        rows = self.session.execute(query)
-        if len(rows.current_rows) > 0:
-            return rows[0][0]
-        else:
-            return 0
-    ## md5 counts based on info table counter
-    def get_md5_count(self, job):
-        job = int(job)
-        query = "SELECT md5s FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
-        rows  = self.session.execute(query)
-        if len(rows.current_rows) > 0:
-            return rows[0][0]
-        else:
-            return 0
-    ## job status
-    def last_updated(self, job):
-        job  = int(job)
-        prep = self.session.prepare("SELECT updated_on FROM job_info WHERE version = ? AND job = ?")
-        rows = self.session.execute(prep, [self.version, job])
-        if len(rows.current_rows) > 0:
-            return rows[0][0]
-        else:
-            return None
+    # does job exist
     def has_job(self, job):
         job = int(job)
         query = "SELECT * FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
@@ -212,6 +184,32 @@ class JobHandle(object):
             return 1
         else:
             return 0
+    ## row counts based on info table counter
+    def get_md5_count(self, job):
+        job = int(job)
+        query = "SELECT md5s FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rows  = self.session.execute(query)
+        if len(rows.current_rows) > 0:
+            return rows[0][0]
+        else:
+            return 0
+    def get_lca_count(self, job):
+        job = int(job)
+        query = "SELECT lcas FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rows  = self.session.execute(query)
+        if len(rows.current_rows) > 0:
+            return rows[0][0]
+        else:
+            return 0
+    ## job status
+    def last_updated(self, job):
+        job = int(job)
+        query = "SELECT updated_on FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rows = self.session.execute(query)
+        if len(rows.current_rows) > 0:
+            return rows[0][0]
+        else:
+            return None
     def is_loaded(self, job):
         job = int(job)
         query = "SELECT loaded FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
@@ -226,16 +224,21 @@ class JobHandle(object):
         value = True if loaded else False
         update = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
         self.session.execute(update, [value, datetime.datetime.now(), self.version, job])
-    def update_job_info(self, job, md5s, loaded):
+    def update_info_md5s(self, job, md5s, loaded):
         job = int(job)
         value = True if loaded else False
         update = self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
         self.session.execute(update, [int(md5s), value, datetime.datetime.now(), self.version, job])
+    def update_info_lcas(self, job, lcas, loaded):
+        job = int(job)
+        value = True if loaded else False
+        update = self.session.prepare("UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        self.session.execute(update, [int(lcas), value, datetime.datetime.now(), self.version, job])
     def insert_job_info(self, job):
         job = int(job)
-        insert = self.session.prepare("INSERT INTO job_info (version, job, md5s, updated_on, loaded) VALUES (?, ?, ?, ?, ?)")
-        self.session.execute(insert, [self.version, job, 0, datetime.datetime.now(), False])
-    ## add rows to job data tables
+        insert = self.session.prepare("INSERT INTO job_info (version, job, md5s, lcas, updated_on, loaded) VALUES (?, ?, ?, ?, ?, ?)")
+        self.session.execute(insert, [self.version, job, 0, 0, datetime.datetime.now(), False])
+    ## add rows to job data tables, return current total loaded
     def insert_job_md5s(self, job, rows):
         job = int(job)
         insert = self.session.prepare("INSERT INTO job_md5s (version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -247,11 +250,12 @@ class JobHandle(object):
                 length = 0
             batch.add(insert, (self.version, job, md5, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(seek), int(length)))
         # update job_info
-        curr = self.get_md5_count(job)
+        loaded = self.get_md5_count(job) + len(rows)
         update = self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
-        batch.add(update, (len(rows)+curr, False, datetime.datetime.now(), self.version, job))
+        batch.add(update, (loaded, False, datetime.datetime.now(), self.version, job))
         # execute atomic batch
         self.session.execute(batch)
+        return loaded
     def insert_job_lcas(self, job, rows):
         job = int(job)
         insert = self.session.prepare("INSERT INTO job_lcas (version, job, lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -259,10 +263,12 @@ class JobHandle(object):
         for (lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) in rows:
             batch.add(insert, (self.version, job, lca, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(md5s), int(level)))
         # update job_info
-        update = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
-        batch.add(update, (False, datetime.datetime.now(), self.version, job))
+        loaded = self.get_lca_count(job) + len(rows)
+        update = self.session.prepare("UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        batch.add(update, (loaded, False, datetime.datetime.now(), self.version, job))
         # execute atomic batch
         self.session.execute(batch)
+        return loaded
     ## delete all job data
     def delete_job(self, job):
         job = int(job)
