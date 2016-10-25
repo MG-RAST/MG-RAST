@@ -32,7 +32,7 @@ sub new {
         id        => [ 'string', 'unique metagenome identifier' ],
         created   => [ 'string', 'time the output data was generated' ],
         version   => [ 'integer', 'version number of M5NR used' ],
-        sources   => [ 'list', [ 'string', 'list of the sources used in annotations, order is same as annotation lists' ] ],
+        source    => [ 'string', 'source used in annotations' ],
         columns   => [ 'list', [ 'string', 'list of the columns in data' ] ],
         condensed => [ 'boolean', 'true if annotations are numeric identifiers and not full text' ],
         row_total => [ 'integer', 'number of rows in data matrix' ],
@@ -55,7 +55,7 @@ sub new {
         created => [ 'string', 'time the profile was completed' ],
         md5     => [ 'string', 'md5sum of profile' ],
         rows    => [ 'string', 'number of rows in profile data' ],
-        sources => [ 'list', [ 'string', 'source name used in profile' ]],
+        source  => [ 'string', 'source name used in profile' ],
         data    => $self->{profile}
     };
     return $self;
@@ -190,8 +190,6 @@ sub submit {
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
     
-    my @sources = sort split(/,/, $source);
-    
     # validate type / source
     my $all_srcs = {};
     if ($job->{sequence_type} =~ /^Amplicon/) {
@@ -201,10 +199,8 @@ sub submit {
         map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
         map { $all_srcs->{$_} = 1 } @{$self->source_by_type('ontology')};
     }
-    foreach my $s (@sources) {
-        unless (exists $all_srcs->{$s}) {
-            $self->return_data( {"ERROR" => "invalid source for profile: ".$s." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
-        }
+    unless (exists $all_srcs->{$source}) {
+        $self->return_data( {"ERROR" => "invalid source for profile: ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
     }
     
     # check for static feature profile node from shock
@@ -215,7 +211,7 @@ sub submit {
         stage_name => 'done'
     };
     my $snodes = $self->get_shock_query($squery, $self->mgrast_token);
-    $self->check_static_profile($snodes, \@sources, $condensed, $version);
+    $self->check_static_profile($snodes, $source, $condensed, $version);
     
     # check if temp profile compute node is in shock
     my $tquery = {
@@ -245,7 +241,9 @@ sub submit {
     };
     $tquery->{parameters} = {
         id => 'mgm'.$id,
-        sources => \@sources,
+        job_id => $job->{job_id},
+        source => $source,
+        source_type => $self->type_by_source($source),
         format => $format,
         condensed => $condensed,
         version => $version
@@ -258,11 +256,11 @@ sub submit {
     if ($pid == 0) {
         close STDERR;
         close STDOUT;
-        my ($data, $error) = $self->prepare_data($id, $node, \@sources, $condensed, $version, $format);
+        my ($data, $error) = $self->prepare_data($id, $node, $source, $condensed, $version, $format);
         if ($error) {
             $data->{STATUS} = $error;
         }
-        my $fname = $data->{id}."_".join("_", @sources)."_v".$version.".".$format;
+        my $fname = $data->{id}."_".$source."_v".$version.".".$format;
         $self->put_shock_file($fname, $data, $node->{id}, $self->mgrast_token);
         exit 0;
     }
@@ -275,7 +273,7 @@ sub submit {
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $id, $node, $sources, $condensed, $version, $format) = @_;
+    my ($self, $id, $node, $source, $condensed, $version, $format) = @_;
 
     # get data
     my $master = $self->connect_to_datasource();
@@ -293,6 +291,8 @@ sub prepare_data {
             format              => "Biological Observation Matrix 1.0",
             format_url          => "http://biom-format.org",
             type                => "Feature table",
+            data_source         => $source,
+            source_type         => $self->type_by_source($source),
             generated_by        => "MG-RAST".($Conf::server_version ? " revision ".$Conf::server_version : ""),
             date                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
             matrix_type         => "dense",
@@ -305,14 +305,15 @@ sub prepare_data {
     } else {
         $columns = ["md5sum", "abundance", "e-value", "percent identity", "alignment length", "organisms", "functions"];
 	    $profile = {
-            id        => "mgm".$id,
-            created   => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-            version   => $version,
-            sources   => $sources,
-            columns   => $columns,
-            condensed => $condensed,
-            row_total => 0,
-            data      => []
+            id          => "mgm".$id,
+            created     => strftime("%Y-%m-%dT%H:%M:%S", localtime),
+            version     => $version,
+            source      => $source,
+            source_type => $self->type_by_source($source),
+            columns     => $columns,
+            condensed   => $condensed,
+            row_total   => 0,
+            data        => []
 	    };
     }
 
@@ -342,12 +343,12 @@ sub prepare_data {
         if ($format eq 'biom') {
             $md5_row->{$md5} = [int($abun), toFloat($eval), toFloat($ident), toFloat($alen)];
         } else {
-            $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), [(undef) x scalar(@$sources)], [(undef) x scalar(@$sources)]];
+            $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), undef, undef];
         }
         $total_count++;
         $batch_count++;
         if ($batch_count == $mgdb->chunk) {
-            $found += $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
+            $found += $self->append_profile($chdl, $profile, $md5_row, $source, $condensed, $format);
             $md5_row = {};
             $batch_count = 0;
         }
@@ -359,7 +360,7 @@ sub prepare_data {
         }
     }
     if ($batch_count > 0) {
-        $found += $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
+        $found += $self->append_profile($chdl, $profile, $md5_row, $source, $condensed, $format);
     }
     my $attr = $node->{attributes};
     $attr->{progress}{queried} = $total_count;
@@ -388,7 +389,7 @@ sub prepare_data {
 	        project_name  => undef,
             type          => 'metagenome',
             data_type     => 'profile',
-            sources       => $sources,
+            source        => $source,
             row_total     => $profile->{row_total},
             md5_queried   => $total_count,
             md5_found     => $found,
@@ -418,67 +419,64 @@ sub prepare_data {
 }
 
 sub append_profile {
-    my ($self, $chdl, $profile, $md5_row, $sources, $condensed, $format) = @_;
+    my ($self, $chdl, $profile, $md5_row, $source, $condensed, $format) = @_;
     
     my @mids    = keys %$md5_row;
     my %md5_idx = {}; # md5id => row index #
     my $found   = 0;
+    my $cass_data = [];
     
-    for (my $si=0; $si<@$sources; $si++) {
-        my $src = $sources->[$si];
-        my $cass_data = [];
-        if ($condensed eq "true") {
-            $cass_data = $chdl->get_id_records_by_id(\@mids, $src);
-        } elsif ($condensed eq "false") {
-            $cass_data = $chdl->get_records_by_id(\@mids, $src);
-        }
-        foreach my $info (@$cass_data) {
-            # set / get row index
-            my $index;
-            unless (exists $md5_idx{$info->{id}}) {
-                # set profile row
-                $found += 1;
-                push @{$profile->{data}}, $md5_row->{$info->{id}};
-                $index = scalar(@{$profile->{data}}) - 1;
-                $md5_idx{$info->{id}} = $index;
-                # set biom row
-                if ($format eq 'biom') {
-                    push @{$profile->{rows}}, { id => $info->{md5}, metadata => {} };
-                }
-            } else {
-                $index = $md5_idx{$info->{id}};
-            }
-
+    if ($condensed eq "true") {
+        $cass_data = $chdl->get_id_records_by_id(\@mids, $source);
+    } elsif ($condensed eq "false") {
+        $cass_data = $chdl->get_records_by_id(\@mids, $source);
+    }
+    foreach my $info (@$cass_data) {
+        # set / get row index
+        my $index;
+        unless (exists $md5_idx{$info->{id}}) {
+            # set profile row
+            $found += 1;
+            push @{$profile->{data}}, $md5_row->{$info->{id}};
+            $index = scalar(@{$profile->{data}}) - 1;
+            $md5_idx{$info->{id}} = $index;
+            # set biom row
             if ($format eq 'biom') {
-                # append source specific data in profile row metadata
-                $profile->{rows}[$index]{metadata}{$src} = { function => $info->{function} };
-                if (exists $self->{ontology}{$info->{source}}) {
-                    $profile->{rows}[$index]{metadata}{$src}{ontology} = $info->{accession};
-                } else {
-                    $profile->{rows}[$index]{metadata}{$src}{single}    = $info->{single};
-                    $profile->{rows}[$index]{metadata}{$src}{organism}  = $info->{organism};
-                    if ($info->{accession}) {
-                        $profile->{rows}[$index]{metadata}{$src}{accession} = $info->{accession};
-                    }
-                }
+                push @{$profile->{rows}}, { id => $info->{md5}, metadata => {} };
+            }
+        } else {
+            $index = $md5_idx{$info->{id}};
+        }
+
+        if ($format eq 'biom') {
+            # append source specific data in profile row metadata
+            $profile->{rows}[$index]{metadata} = { function => $info->{function} };
+            if (exists $self->{ontology}{$info->{source}}) {
+                $profile->{rows}[$index]{metadata}{ontology} = $info->{accession};
             } else {
-                # append source specific data in profile data
-                # md5sum, abundance, e-value, percent identity, alignment length, organisms (first is single), functions (either function or ontology)
-                $profile->{data}[$index][0] = $info->{md5};
-                if ($info->{single} && $info->{organism}) {
-                    my @sub_orgs;
-                    if ($condensed eq "true") {
-                        @sub_orgs = grep { $_ != $info->{single} } @{$info->{organism}};
-                    } else {
-                        @sub_orgs = grep { $_ ne $info->{single} } @{$info->{organism}};
-                    }
-                    $profile->{data}[$index][5][$si] = [ $info->{single}, @sub_orgs ];
+                $profile->{rows}[$index]{metadata}{single}    = $info->{single};
+                $profile->{rows}[$index]{metadata}{organism}  = $info->{organism};
+                if ($info->{accession}) {
+                    $profile->{rows}[$index]{metadata}{accession} = $info->{accession};
                 }
-                if (exists($self->{ontology}{$info->{source}}) && $info->{accession}) {
-                    $profile->{data}[$index][6][$si] = $info->{accession};
-                } elsif ($info->{function}) {
-                    $profile->{data}[$index][6][$si] = $info->{function};
+            }
+        } else {
+            # append source specific data in profile data
+            # md5sum, abundance, e-value, percent identity, alignment length, organisms (first is single), functions (either function or ontology)
+            $profile->{data}[$index][0] = $info->{md5};
+            if ($info->{single} && $info->{organism}) {
+                my @sub_orgs;
+                if ($condensed eq "true") {
+                    @sub_orgs = grep { $_ != $info->{single} } @{$info->{organism}};
+                } else {
+                    @sub_orgs = grep { $_ ne $info->{single} } @{$info->{organism}};
                 }
+                $profile->{data}[$index][5] = [ $info->{single}, @sub_orgs ];
+            }
+            if (exists($self->{ontology}{$info->{source}}) && $info->{accession}) {
+                $profile->{data}[$index][6] = $info->{accession};
+            } elsif ($info->{function}) {
+                $profile->{data}[$index][6] = $info->{function};
             }
         }
     }
@@ -514,35 +512,29 @@ sub status_report_from_node {
     } else {
         # is permanent shock node
         $report->{parameters} = {
-            id         => $node->{attributes}{id},
-            sources    => $node->{attributes}{sources},
-            format     => 'mgrast',
-            condensed  => $node->{attributes}{condensed},
-            version    => $node->{attributes}{version}
+            id        => $node->{attributes}{id},
+            source    => $node->{attributes}{source},
+            format    => 'mgrast',
+            condensed => $node->{attributes}{condensed},
+            version   => $node->{attributes}{version}
         };
     }
     return $report;
 }
 
 sub check_static_profile {
-    my ($self, $nodes, $sources, $condensed, $version) = @_;
+    my ($self, $nodes, $source, $condensed, $version) = @_;
     
     # sort results by newest to oldest
     my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
     
     foreach my $n (@$nodes) {
-        my $has_sources  = 1;
-        my %node_sources = map { $_, 1 } @{$n->{attributes}{sources}};
-        foreach my $s (@$sources) {
-            unless (exists $node_sources{$s}) {
-                $has_sources = 0;
-            }
-        }
         if ( $n->{attributes}{condensed} &&
              ($n->{attributes}{condensed} eq $condensed) &&
              $n->{attributes}{version} &&
              (int($n->{attributes}{version}) == int($version)) &&
-             $has_sources ) {
+             $n->{attributes}{source} &&
+             ($n->{attributes}{source} eq $source) ) {
             $self->status($n->{id});
         }
     }

@@ -274,6 +274,20 @@ sub source_by_type {
     return \@srcs;
 }
 
+sub type_by_source {
+    my ($self, $source) = @_;
+    foreach my $t (("protein", "rna", "ontology")) {
+        if (exists $self->source->{$t}) {
+            foreach my $s (@{$self->source->{$t}}) {
+                if ($s->[0] eq $source) {
+                    return $t;
+                }
+            }
+        }
+    }
+    return undef;
+}
+
 # hardcoded hierarchy info
 sub hierarchy {
     return { organism => [ ['strain', 'bottom organism taxonomic level'],

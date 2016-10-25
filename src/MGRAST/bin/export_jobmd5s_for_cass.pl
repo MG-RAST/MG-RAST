@@ -59,7 +59,7 @@ my $query = "SELECT m.md5, j.abundance, j.exp_avg, j.ident_avg, j.len_avg, j.see
 my $sth = $dbh->prepare($query);
 $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 
-my $num = 0;
+my $md5num = 0;
 open(MDUMP, ">$outdir/$job.job_md5s") or die "Couldn't open $outdir/$job.job_md5s for writing.\n";
 while (my @row = $sth->fetchrow_array()) {
     my ($md5, $abund, $expa, $identa, $lena, $seek, $length) = @row;
@@ -75,26 +75,17 @@ while (my @row = $sth->fetchrow_array()) {
         $length || ""
     );
     print MDUMP join(",", map { '"'.$_.'"' } @out)."\n";
-    $num += 1;
+    $md5num += 1;
 }
-print STDERR "$num md5 rows exported\n";
+print STDERR "$md5num md5 rows exported\n";
 close(MDUMP);
-
-print STDERR "job info ... ";
-open(IDUMP, ">$outdir/$job.job_info") or die "Couldn't open $outdir/$job.job_info for writing.\n";
-my $info = $dbh->selectrow_arrayref("SELECT updated_on FROM job_info WHERE version=$version AND job=$job");
-if (@$info > 0) {
-    print IDUMP join(",", map { '"'.$_.'"' } ($version, $job, $info->[0], $num, 'true'))."\n";
-}
-print STDERR "exported\n";
-close(IDUMP);
 
 print STDERR "lca abundance data ... ";
 $query = "SELECT lca, abundance, exp_avg, ident_avg, len_avg, md5s, level FROM job_lcas WHERE version=$version AND job=$job AND exp_avg <= -3";
 $sth = $dbh->prepare($query);
 $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 
-$num = 0;
+my $lcanum = 0;
 open(LDUMP, ">$outdir/$job.job_lcas") or die "Couldn't open $outdir/$job.job_lcas for writing.\n";
 while (my @row = $sth->fetchrow_array()) {
     my ($lca, $abund, $expa, $identa, $lena, $md5s, $level) = @row;
@@ -110,9 +101,18 @@ while (my @row = $sth->fetchrow_array()) {
         $level
     );
     print LDUMP join(",", map { '"'.$_.'"' } @out)."\n";
-    $num += 1;
+    $lcanum += 1;
 }
-print STDERR "$num lca rows exported\n";
+print STDERR "$lcanum lca rows exported\n";
 close(LDUMP);
+
+print STDERR "job info ... ";
+open(IDUMP, ">$outdir/$job.job_info") or die "Couldn't open $outdir/$job.job_info for writing.\n";
+my $info = $dbh->selectrow_arrayref("SELECT updated_on FROM job_info WHERE version=$version AND job=$job");
+if (@$info > 0) {
+    print IDUMP join(",", map { '"'.$_.'"' } ($version, $job, $info->[0], $md5num, $lcanum, "true"))."\n";
+}
+print STDERR "exported\n";
+close(IDUMP);
 
 $dbh->disconnect;
