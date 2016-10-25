@@ -275,8 +275,6 @@ sub create_profile {
     
     # cassandra handle
     my $mgcass = $self->cassandra_profile($node->{attributes}{version});
-    my $token  = $self->mgrast_token;
-    $mgcass->set_shock($token);
     
     ### create profile
     # store it in shock permanently if mgrast format
@@ -312,6 +310,10 @@ sub create_profile {
             }
         };
     }
+    
+    # set shock
+    my $token  = $self->mgrast_token;
+    $mgcass->set_shock($token);
     
     ### saves output file or error message in shock
     $mgcass->compute_profile($node, $format, $attr);
