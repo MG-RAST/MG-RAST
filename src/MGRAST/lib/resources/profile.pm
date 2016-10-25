@@ -138,13 +138,15 @@ sub request {
 }
 
 sub status {
-    my ($self, $uuid) = @_;
+    my ($self, $uuid, $node) = @_;
     
     my $verbosity = $self->cgi->param('verbosity') || "full";
     # get node
-    my $node = $self->get_shock_node($uuid, $self->mgrast_token);
+    if ($uuid) {
+        $node = $self->get_shock_node($uuid, $self->mgrast_token);
+    }
     if (! $node) {
-        $self->return_data( {"ERROR" => "process id $uuid does not exist"}, 404 );
+        $self->return_data( {"ERROR" => "unable to retrieve profile: missing from shock"}, 500 );
     }
     my $obj = $self->status_report_from_node($node, "processing");
     if ($node->{file}{name} && $node->{file}{size}) {
@@ -152,7 +154,7 @@ sub status {
         if ($verbosity eq "full") {
             my ($content, $err) = $self->get_shock_file($uuid, undef, $self->mgrast_token);
             if ($err) {
-                $self->return_data( {"ERROR" => "unable to retrieve data: ".$err}, 404 );
+                $self->return_data( {"ERROR" => "unable to retrieve profile: ".$err}, 500 );
             }
             $obj->{data} = $self->json->decode($content);
         }
@@ -210,7 +212,9 @@ sub submit {
         stage_name => 'done'
     };
     my $snodes = $self->get_shock_query($squery, $self->mgrast_token);
-    $self->check_static_profile($snodes, $source, $condensed, $version);
+    if ($snodes && (@$snodes > 0)) {
+        $self->check_static_profile($snodes, $source, $condensed, $version);
+    }
     
     # check if temp profile compute node is in shock
     my $tquery = {
@@ -368,7 +372,7 @@ sub check_static_profile {
              (int($n->{attributes}{version}) == int($version)) &&
              $n->{attributes}{source} &&
              ($n->{attributes}{source} eq $source) ) {
-            $self->status($n->{id});
+            $self->status(undef, $n);
         }
     }
 }
