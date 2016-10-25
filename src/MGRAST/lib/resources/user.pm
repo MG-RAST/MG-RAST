@@ -199,7 +199,7 @@ sub instance {
   if (scalar(@$rest) == 2 && $rest->[0] eq 'validateemail') {
     my $key = uri_unescape($rest->[1]);
     my $uid;
-    unless ($key =~ /^(\d+)_([0..9a..zA..Z]+)$/) {
+    unless ($key =~ /^(\d+)_(\w+)$/) {
       $self->return_data( {"ERROR" => "invalid key"}, 400 );
     } else {
       $uid = $1;
@@ -323,18 +323,16 @@ sub instance {
     # passwords may only be reset with a valid recaptcha
     my $ua = $self->{agent};
     $ua->env_proxy();
-    my $version = $self->{cgi}->param('version') && $self->{cgi}->param('version') == 2 ? 'site' : '';
-    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6LfbRfYSAAAAAMBm8TnvpveuFNRRJsuNsFbx7IfY',
-										      remoteip   => $ENV{'REMOTE_ADDR'},
-										      challenge  => $self->{cgi}->param('challenge'),
-										      response   => $self->{cgi}->param('response') }
-			);
+    my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', { secret => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+									       remoteip   => $ENV{'REMOTE_ADDR'},
+									       response   => $self->{cgi}->param('response') } );
     if ( $resp->is_success ) {
-      my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
-      if ( $answer !~ /true/ ) {
-	$self->return_data( {"ERROR" => "recaptcha failed"}, 400 );
+      my $answer = $self->json->decode($resp->content);
+      if ( ! $answer->{success} ) {
+	$self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
       }
     } else {
+
       $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
     }
     
@@ -400,16 +398,14 @@ sub instance {
     # users may only be created with a valid recaptcha
     my $ua = $self->{agent};
     $ua->env_proxy();
-    my $version = $rest->[0] eq 'recaptcha' ? 'site' : '';
-    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6LfbRfYSAAAAAMBm8TnvpveuFNRRJsuNsFbx7IfY',
-										      remoteip   => $ENV{'REMOTE_ADDR'},
-										      challenge  => $rest->[0] eq 'recaptcha' ? undef : $rest->[0],
-										      response   => $self->{cgi}->param('response') }
+    my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', { secret => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+									       remoteip   => $ENV{'REMOTE_ADDR'},
+									       response   => $self->{cgi}->param('response') }
 			);
     if ( $resp->is_success ) {
-      my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
-      if ( $answer !~ /true/ ) {
-	$self->return_data( {"ERROR" => "recaptcha failed"}, 400 );
+      my $answer = $self->json->decode($resp->content);
+      if ( ! $answer->{success} ) {
+	$self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
       }
     } else {
       $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
