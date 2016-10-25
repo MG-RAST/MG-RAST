@@ -242,7 +242,7 @@ sub submit {
     $tquery->{parameters} = {
         id => 'mgm'.$id,
         job_id => $job->{job_id},
-        source => $sources,
+        source => $source,
         source_type => $self->type_by_source($source),
         format => $format,
         condensed => $condensed,
