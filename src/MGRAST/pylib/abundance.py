@@ -4,7 +4,7 @@ import mgrast_cassandra
 from collections import defaultdict
 
 M5NR_VERSION = 1
-CHUNK_SIZE = 2000
+CHUNK_SIZE = 5000
 SKIP_RE = re.compile('other|unknown|unclassified')
 
 class Abundance(object):

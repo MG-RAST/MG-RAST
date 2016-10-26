@@ -1,11 +1,12 @@
 
 import datetime
+import json
 import shock
 import mgrast_cassandra
 from collections import defaultdict
 
 M5NR_VERSION = 1
-CHUNK_SIZE = 2000
+CHUNK_SIZE = 5000
 
 class Profile(object):
     def __init__(self, hosts, version=M5NR_VERSION, chunk=CHUNK_SIZE):
@@ -60,7 +61,7 @@ class Profile(object):
             attr['md5_queried'] = node['attributes']['progress']['queried']
             attr['md5_found']   = node['attributes']['progress']['found']
             try:
-                self.shock.upload(node=node['id'], attr=attr)
+                self.shock.upload(node=node['id'], attr=json.dumps(attr))
                 self.shock.update_expiration(node['id'])
                 if attr['status'] == 'public':
                     self.shock.add_acl(node=node['id'], acl='read', public=True)
@@ -69,14 +70,14 @@ class Profile(object):
                 return
         
         ## store file in node
-        self.shock.upload(node=node['id'], data=profile, file_name=fname)
+        self.shock.upload(node=node['id'], data=json.dumps(profile), file_name=fname)
         return
     
     def error_exit(self, error, node=None):
         if node:
             # save error to node
             data = {'ERROR': error, "STATUS": 500}
-            self.shock.upload(node=node['id'], data=data)
+            self.shock.upload(node=node['id'], data=json.dumps(data), file_name='error')
         self.close()
     
     def init_mgrast_profile(self, mgid, source, stype, index=False):
@@ -170,7 +171,7 @@ class Profile(object):
         found = 0
         md5_row = defaultdict(list)
         
-        def append_profile(rows, data, md5_row):
+        def append_profile(found, rows, data, md5_row):
             md5_idx = {}
             ann_data = self.m5nr.get_records_by_md5(md5_row.keys(), source=source, index=False, iterator=True)
             for info in ann_data:
@@ -190,7 +191,7 @@ class Profile(object):
                     rows[idx]['metadata']['organism'] = info['organism']
                     if info['accession']:
                         rows[idx]['metadata']['accession'] = info['accession']
-            return rows, data
+            return found, rows, data
         
         total = 0
         count = 0
@@ -200,13 +201,13 @@ class Profile(object):
             total += 1
             count += 1
             if count == self.chunk:
-                rows, data = append_profile(rows, data, md5_row)
+                found, rows, data = append_profile(found, rows, data, md5_row)
                 md5_row = defaultdict(list)
                 count = 0
             if (total % 100000) == 0:
                 self.update_progress(node, total, found)
         if count > 0:
-            rows, data = append_profile(rows, data, md5_row)
+            found, rows, data = append_profile(found, rows, data, md5_row)
         self.update_progress(node, total, found)
         return rows, data
     
@@ -215,5 +216,5 @@ class Profile(object):
             attr = node['attributes']
             attr['progress']['queried'] = total
             attr['progress']['found'] = found
-            self.shock.upload(node=node['id'], attr=attr)
+            self.shock.upload(node=node['id'], attr=json.dumps(attr))
     

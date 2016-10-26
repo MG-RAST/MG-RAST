@@ -269,7 +269,7 @@ class ShockClient:
                 return (name, cStringIO.StringIO(d))
         except TypeError:
             try:
-                name = n if n else d.name
+                name = n if n else "unknown"
                 return (name, d)
             except:
                 raise Exception(u'Error opening file handle for upload')
