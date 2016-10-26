@@ -5,7 +5,7 @@ package WebServerBackend::User;
 # $Id: User.pm,v 1.47 2011-05-26 16:53:38 olson Exp $
 
 #use Net::SMTP;
-use Mailer;
+use MGRAST::Mailer;
 
 use Data::Dumper;
 use WebConfig;
@@ -257,11 +257,11 @@ The text of the mail will be I<mail_body>.
 sub send_email {
     my ($self, $subject, $body) = @_;
     
-    my $email_success = Mailer::send_email( server => $Conf::smtp_host, 
-                                            from => $WebConfig::ADMIN_EMAIL,
-                                            to => $self->email,
-                                            subject => $subject,
-                                            body => $body)
+    my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+                                                    from => $WebConfig::ADMIN_EMAIL,
+                                                    to => $self->email,
+                                                    subject => $subject,
+                                                    body => $body);
                                             
                                             
     #my $smtp = Net::SMTP->new($Conf::smtp_host, Hello => $Conf::smtp_host);

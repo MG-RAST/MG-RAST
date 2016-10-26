@@ -8,7 +8,7 @@ use Conf;
 use parent qw(resources::resource);
 
 #use Mail::Mailer;
-use Mailer;
+use MGRAST::Mailer;
 
 use HTML::Template;
 use WebConfig;
@@ -768,11 +768,11 @@ sub updateRight {
 	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
-    my $email_success = Mailer::send_email( server => $Conf::smtp_host, 
-                                            from => $WebConfig::ADMIN_EMAIL,
-                                            to => $user,
-                                            subject => $WebConfig::APPLICATION_NAME,
-                                            body => $ubody->output)
+    my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+                                                    from => $WebConfig::ADMIN_EMAIL,
+                                                    to => $user,
+                                                    subject => $WebConfig::APPLICATION_NAME,
+                                                    body => $ubody->output);
     
 	#my $mailer = Mail::Mailer->new('smtp', Server => $Conf::smtp_host);
 	#if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,

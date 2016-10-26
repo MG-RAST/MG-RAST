@@ -1,4 +1,4 @@
-package Mailer;
+package MGRAST::Mailer;
 
 use strict;
 use warnings;
