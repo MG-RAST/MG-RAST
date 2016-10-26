@@ -148,6 +148,9 @@ sub status {
     if (! $node) {
         $self->return_data( {"ERROR" => "unable to retrieve profile: missing from shock"}, 500 );
     }
+    if (! $uuid) {
+        $uuid = $node->{id};
+    }
     my $obj = $self->status_report_from_node($node, "processing");
     if ($node->{file}{name} && $node->{file}{size}) {
         $obj->{status} = "done";
