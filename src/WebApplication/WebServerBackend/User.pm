@@ -4,7 +4,8 @@ package WebServerBackend::User;
 
 # $Id: User.pm,v 1.47 2011-05-26 16:53:38 olson Exp $
 
-use Net::SMTP;
+#use Net::SMTP;
+use Mailer;
 
 use Data::Dumper;
 use WebConfig;
@@ -254,24 +255,31 @@ The text of the mail will be I<mail_body>.
 
 =cut
 sub send_email {
-    my ($self, $from, $subject, $body) = @_;
-        
-    my $smtp = Net::SMTP->new($Conf::smtp_host, Hello => $Conf::smtp_host);
+    my ($self, $subject, $body) = @_;
     
-    my @data = (
-        "To: ".$self->email."\n",
-        "From: $from\n",
-        "Date: ".strftime("%a, %d %b %Y %H:%M:%S %z", localtime)."\n",
-        "Subject: $subject\n\n",
-        $body
-    );
+    my $email_success = Mailer::send_email( server => $Conf::smtp_host, 
+                                            from => $WebConfig::ADMIN_EMAIL,
+                                            to => $self->email,
+                                            subject => $subject,
+                                            body => $body)
+                                            
+                                            
+    #my $smtp = Net::SMTP->new($Conf::smtp_host, Hello => $Conf::smtp_host);
     
-    $smtp->mail('mg-rast');
-    if ($smtp->to($self->email)) {
-        $smtp->data(@data);
-    } 
-    $smtp->quit;
-    return 1;
+   # my @data = (
+    #    "To: ".$self->email."\n",
+    #    "From: $from\n",
+    #    "Date: ".strftime("%a, %d %b %Y %H:%M:%S %z", localtime)."\n",
+    #    "Subject: $subject\n\n",
+    #    $body
+    #);
+    
+    #$smtp->mail('mg-rast');
+    #if ($smtp->to($self->email)) {
+    #    $smtp->data(@data);
+    #} 
+    #$smtp->quit;
+    return $email_success;
 }
 
 
@@ -412,7 +420,7 @@ sub grant_login_right {
     $body->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     
-    $self->send_email( $WebConfig::ADMIN_EMAIL,
+    $self->send_email( 
 		       $WebConfig::APPLICATION_NAME.' - account request approved',
 		       $body->output,
 		    );
@@ -476,7 +484,7 @@ sub deny_login_right {
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     $body->param('REASON', $reason);
 
-    $self->send_email( $WebConfig::ADMIN_EMAIL,
+    $self->send_email(
 		       $WebConfig::APPLICATION_NAME.' - account request denied',
 		       $body->output,
 		    );
@@ -540,7 +548,7 @@ sub grant_group_access {
   $body->param('LASTNAME', $self->lastname);
   $body->param('GROUP', $group);
   
-  $self->send_email( $WebConfig::ADMIN_EMAIL,
+  $self->send_email( 
 		     "group access to $group approved",
 		     $body->output,
 		   );
@@ -582,7 +590,7 @@ sub deny_group_access {
   $body->param('GROUP', $group);
   $body->param('REASON', $reason);
   
-  $self->send_email( $WebConfig::ADMIN_EMAIL,
+  $self->send_email( 
 		     "group access to $group approved",
 		     $body->output,
 		   );
@@ -618,7 +626,7 @@ sub set_password {
     $body->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     
-    $self->send_email( $WebConfig::ADMIN_EMAIL,
+    $self->send_email(
 		      $WebConfig::APPLICATION_NAME.' - new password requested',
 		      $body->output,
 		    );
