@@ -4,7 +4,7 @@ package WebServerBackend::User;
 
 # $Id: User.pm,v 1.47 2011-05-26 16:53:38 olson Exp $
 
-use Mail::Mailer;
+use Net::SMTP;
 
 use Data::Dumper;
 use WebConfig;
@@ -253,21 +253,25 @@ This method sends an email to this user from I<from> with the subject I<subject>
 The text of the mail will be I<mail_body>.
 
 =cut
-
 sub send_email {
-  my ($self, $from, $subject, $body) = @_;
-
-  my $mailer = Mail::Mailer->new('smtp', Server => $Conf::smtp_host);
-  $mailer->open({ From    => $from,
-		  To      => $self->email,
-		  Subject => $subject,
-		})
-    or die "Can't open Mail::Mailer: $!\n";
-  print $mailer $body;
-  $mailer->close();
-  
-  return 1;
-
+    my ($self, $from, $subject, $body) = @_;
+        
+    my $smtp = Net::SMTP->new($Conf::smtp_host, Hello => $Conf::smtp_host);
+    
+    my @data = (
+        "To: ".$self->email."\n",
+        "From: $from\n",
+        "Date: ".strftime("%a, %d %b %Y %H:%M:%S %z", localtime)."\n",
+        "Subject: $subject\n\n",
+        $body
+    );
+    
+    $smtp->mail('mg-rast');
+    if ($smtp->to($self->email)) {
+        $smtp->data(@data);
+    } 
+    $smtp->quit;
+    return 1;
 }
 
 
