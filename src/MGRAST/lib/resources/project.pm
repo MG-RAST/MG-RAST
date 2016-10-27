@@ -768,7 +768,7 @@ sub updateRight {
 	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
-    my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+    my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
                                                     from => $WebConfig::ADMIN_EMAIL,
                                                     to => $user,
                                                     subject => $WebConfig::APPLICATION_NAME,
