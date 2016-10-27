@@ -24,6 +24,11 @@ sub send_email {
     #my $smtp = Net::SMTP->new($Conf::smtp_host, Hello => $Conf::smtp_host);
     my $smtp = Net::SMTP->new($smtp_host, Hello => $smtp_host);
     
+    unless (defined $smtp) {
+        print("\$smtp is undefined (smtp_host: $smtp_host)");
+        return 0;
+    }
+    
     my @data = (
         "To: $to\n",
         "From: $from\n",
