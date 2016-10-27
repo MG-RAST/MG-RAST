@@ -32,7 +32,7 @@ sub send_email {
     );
     
     $smtp->mail('mg-rast');
-    if ($smtp->to($self->email)) {
+    if ($smtp->to($to)) {
         $smtp->data(@data);
     } 
     $smtp->quit;
