@@ -95,7 +95,7 @@ sub try_contact {
   
   if ( $result->{is_valid} ) {
     
-    my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+    my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
                                                       from => $cgi->param('email'),
                                                       to => "mg-rast\@mcs.anl.gov",
                                                       subject => $cgi->param('subject'),

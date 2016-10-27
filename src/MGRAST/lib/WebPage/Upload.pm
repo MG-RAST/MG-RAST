@@ -760,7 +760,7 @@ sub submit_to_mgrast {
         $msg .= $job->{job_id}."\n";
       }
 
-      my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+      my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
                                                       from => "mg-rast\@mcs.anl.gov",
                                                       to => "mg-rast\@mcs.anl.gov",
                                                       subject => "Failed Job Creation Submitted By ".$user->login,

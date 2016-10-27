@@ -258,7 +258,7 @@ The text of the mail will be I<mail_body>.
 sub send_email {
     my ($self, $subject, $body) = @_;
     
-    my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+    my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
                                                     from => $WebConfig::ADMIN_EMAIL,
                                                     to => $self->email,
                                                     subject => $subject,
