@@ -1,0 +1,84 @@
+# MG-RAST v3 website base image (mgrast/v3-base)
+
+# docker build -t mgrast/v3-base -f Dockerfile_base .
+
+FROM httpd:2.4.12
+
+RUN apt-get update 
+
+RUN apt-get install -y \
+  git-core \
+  libpq-dev \
+  make \
+  curl \
+  vim \
+  emacs \
+  zip 
+
+RUN apt-get install -y \
+  rsyslog \
+  perl-modules \
+  liburi-perl \
+  libwww-perl \
+  libfreezethaw-perl \
+  libhtml-strip-perl \
+  libdbi-perl \
+  libdbd-mysql-perl \
+  libdbd-pg-perl \
+  libhtml-template-perl
+
+RUN apt-get install -y \
+  libtemplate-plugin-number-format-perl \
+  libclass-isa-perl \
+  libgd-gd2-perl \
+  liblist-moreutils-perl \
+  libcache-memcached-perl \
+  libstatistics-descriptive-perl \
+  libcaptcha-recaptcha-perl \
+  libxml-simple-perl \
+  libdatetime-perl \
+  libclass-isa-perl
+  
+  
+  
+  
+# python dependencies
+RUN apt-get install -y python-dev python-pip && \
+  pip install \
+  openpyxl==1.8.6 \
+  gspread \
+  xlrd \
+  lepl
+  
+  
+
+# 3rd party dependency: R
+RUN mkdir -p /tools && \
+  apt-get install -y gcc wget r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-cran-xml && \
+  echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
+  echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods"); biocLite("preprocessCore"); biocLite("DESeq")' | R --no-save
+
+# 3rd party dependency: FragGeneScan  
+RUN cd /tools && \
+  git clone https://github.com/wltrimbl/FGS.git FragGeneScan && \
+  cd FragGeneScan && \
+  make clean && \
+  make fgs
+
+# 3rd party dependency: blat
+RUN cd /tools && \
+  curl -s -O http://hgwdev.cse.ucsc.edu/~kent/exe/linux/blatSuite.zip && \
+  unzip blatSuite.zip && \
+  rm -f blatSuite.zip
+
+# kegg map data
+RUN mkdir -p /data && \
+  curl -s "http://shock.metagenomics.anl.gov/node/da268d29-918c-4205-8884-e6f3b175fe58?download" | tar -xvf - -C /data
+
+
+# metazen
+RUN cd / && \
+  git clone https://github.com/MG-RAST/metazen.git && \
+  cd metazen && \
+  make
+  
