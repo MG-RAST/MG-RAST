@@ -49,7 +49,9 @@ type make
 
 ```bash
 export TAG=`date +"%Y%m%d.%H%M"`
-docker build --force-rm --no-cache --rm -t  mgrast/v3-web:${TAG} https://raw.githubusercontent.com/MG-RAST/MG-RAST/master/dockerfiles/web/Dockerfile
+git clone -b master https://github.com/MG-RAST/MG-RAST.git
+cd MG-RAST
+docker build -t mgrast/v3-web:${TAG} -f ./Dockerfile_v3-web .
 skycore push mgrast/v3-web:${TAG}
 ```
 
@@ -57,10 +59,9 @@ skycore push mgrast/v3-web:${TAG}
 
 ```bash
 export TAG=`date +"%Y%m%d.%H%M"`
-git clone https://github.com/MG-RAST/MG-RAST.git
+git clone -b api https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
-git checkout api
-docker build --force-rm --no-cache --rm -t mgrast/api:${TAG} .
+docker build -t mgrast/api:${TAG} .
 skycore push mgrast/api:${TAG}
 ```
 
