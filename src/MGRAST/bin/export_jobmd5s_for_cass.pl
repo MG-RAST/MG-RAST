@@ -63,6 +63,7 @@ my $md5num = 0;
 open(MDUMP, ">$outdir/$job.job_md5s") or die "Couldn't open $outdir/$job.job_md5s for writing.\n";
 while (my @row = $sth->fetchrow_array()) {
     my ($md5, $abund, $expa, $identa, $lena, $seek, $length) = @row;
+    next unless ($md5 && $abund);
     my @out = (
         $version,
         $job,
@@ -89,6 +90,7 @@ my $lcanum = 0;
 open(LDUMP, ">$outdir/$job.job_lcas") or die "Couldn't open $outdir/$job.job_lcas for writing.\n";
 while (my @row = $sth->fetchrow_array()) {
     my ($lca, $abund, $expa, $identa, $lena, $md5s, $level) = @row;
+    next unless ($lca && $abund);
     my @out = (
         $version,
         $job,
@@ -97,8 +99,8 @@ while (my @row = $sth->fetchrow_array()) {
         sprintf("%.3f", $expa),
         sprintf("%.3f", $identa),
         sprintf("%.3f", $lena),
-        $md5s,
-        $level
+        $md5s || 0,
+        $level || 0
     );
     print LDUMP join(",", map { '"'.$_.'"' } @out)."\n";
     $lcanum += 1;
