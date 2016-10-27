@@ -10,7 +10,7 @@ EXPOSE 80
 COPY . /MG-RAST
 
 # v3 website
-RUN cd MG-RAST && \
+RUN cd /MG-RAST && \
   make && \
   cp -rv src/MGRAST/bin/* bin/. && \
   ln -s /config/Conf.pm /MG-RAST/conf/Conf.pm && \

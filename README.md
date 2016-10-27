@@ -51,7 +51,7 @@ type make
 export TAG=`date +"%Y%m%d.%H%M"`
 git clone -b master https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
-docker build -t mgrast/v3-web:${TAG} -f ./Dockerfile_v3-web
+docker build -t mgrast/v3-web:${TAG} -f ./Dockerfile_v3-web .
 skycore push mgrast/v3-web:${TAG}
 ```
 
