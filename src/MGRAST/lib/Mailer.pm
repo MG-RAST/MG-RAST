@@ -6,6 +6,7 @@ use warnings;
 use Net::SMTP;
 use POSIX qw(strftime);
 
+1;
 
 sub send_email {
     my (%args) = @_;
