@@ -1467,18 +1467,26 @@ sub share_project {
       $ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
       $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
       
-      my $mailer = Mail::Mailer->new();
-      if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
-			  To      => $email,
-			  Subject => $WebConfig::APPLICATION_NAME.' - new data available',
-			})) {
-	print $mailer $ubody->output;
-	$mailer->close();
-	$application->add_message('info', "invitation sent successfully");
-      } else {
-	$token_scope->delete();
-	foreach my $r (@$rsave) {
-	  $r->delete();
+      my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+                                                      from => $WebConfig::ADMIN_EMAIL,
+                                                      to => $email,
+                                                      subject => $WebConfig::APPLICATION_NAME.' - new data available',
+                                                      body => $ubody->output);
+                                                      
+                                                      
+      #my $mailer = Mail::Mailer->new();
+      #if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
+	#		  To      => $email,
+	#		  Subject => $WebConfig::APPLICATION_NAME.' - new data available',
+	#		})) {
+	#print $mailer $ubody->output;
+	#$mailer->close();
+    if ($email_success) {
+	    $application->add_message('info', "invitation sent successfully");
+    } else {
+	    $token_scope->delete();
+	    foreach my $r (@$rsave) {
+	    $r->delete();
 	}
 	$application->add_message('warning', "Could not send invitation mail, aborting.");
 	return 0;

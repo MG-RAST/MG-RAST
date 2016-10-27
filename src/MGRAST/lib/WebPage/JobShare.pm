@@ -7,7 +7,7 @@ use base qw( WebPage );
 use strict;
 use warnings;
 
-use Mail::Mailer;
+use MGRAST::Mailer;
 use WebConfig;
 =pod
 
@@ -369,13 +369,21 @@ sub share_job {
     $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
     
 
-    my $mailer = Mail::Mailer->new();
-    if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
-		    To      => $email,
-		    Subject => $WebConfig::APPLICATION_NAME.' - new data available',
-		      })) {
-      print $mailer $ubody->output;
-      $mailer->close();
+    my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+                                                    from => $WebConfig::ADMIN_EMAIL,
+                                                    to => $email,
+                                                    subject => $WebConfig::APPLICATION_NAME.' - new data available',
+                                                    body => $ubody->output);
+                                                    
+                                                    
+    #my $mailer = Mail::Mailer->new();
+    #if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
+	#	    To      => $email,
+	#	    Subject => $WebConfig::APPLICATION_NAME.' - new data available',
+	#	      })) {
+    #  print $mailer $ubody->output;
+    #  $mailer->close();
+    if ($email_success) {}
       $application->add_message('info', "invitation sent successfully");
     } else {
       $token_scope->delete();

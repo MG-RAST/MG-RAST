@@ -13,7 +13,7 @@ use LWP::UserAgent;
 
 use Conf;
 use WebConfig;
-use Mail::Mailer;
+use MGRAST::Mailer;
 use MGRAST::Metadata;
 use HTML::Entities;
 
@@ -760,14 +760,23 @@ sub submit_to_mgrast {
         $msg .= $job->{job_id}."\n";
       }
 
-      my $mailer = Mail::Mailer->new();
-      $mailer->open({ From    => "mg-rast\@mcs.anl.gov",
-                      To      => "mg-rast\@mcs.anl.gov",
-                      Subject => "Failed Job Creation Submitted By ".$user->login
-                    })
-        or die "Can't open Mail::Mailer: $!\n";
-      print $mailer $msg;
-      $mailer->close();
+      my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+                                                      from => "mg-rast\@mcs.anl.gov",
+                                                      to => "mg-rast\@mcs.anl.gov",
+                                                      subject => "Failed Job Creation Submitted By ".$user->login,
+                                                      body => $msg);
+
+      #my $mailer = Mail::Mailer->new();
+      #$mailer->open({ From    => "mg-rast\@mcs.anl.gov",
+      #                To      => "mg-rast\@mcs.anl.gov",
+      #                Subject => "Failed Job Creation Submitted By ".$user->login
+      #              })
+      #  or die "Can't open Mail::Mailer: $!\n";
+      #print $mailer $msg;
+      #$mailer->close();
+      unless ($email_success) {
+          die "Can't send email\n";
+      }
 
       $self->application->add_message('warning', "Unable to successfully create your jobs!  Please contact MG-RAST at mg-rast\@mcs.anl.gov for more information.");
       return undef;

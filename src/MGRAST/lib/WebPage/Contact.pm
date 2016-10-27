@@ -6,7 +6,7 @@ use strict;
 use warnings;
 
 use Captcha::reCAPTCHA;
-use Mail::Mailer;
+use MGRAST::Mailer;
 
 1;
 
@@ -95,15 +95,23 @@ sub try_contact {
   
   if ( $result->{is_valid} ) {
     
-    my $mailer = Mail::Mailer->new();
-    $mailer->open({ From    => $cgi->param('email'),
-		    To      => "mg-rast\@mcs.anl.gov",
-		    Subject => $cgi->param('subject'),
-		  })
-      or die "Can't open Mail::Mailer: $!\n";
-    print $mailer $cgi->param('message');
-    $mailer->close();
-    $self->application->add_message('info', "your request has been sent successfully");
+    my $email_success = MGRAST::Mailer::send_email( server => $Conf::smtp_host, 
+                                                      from => $cgi->param('email'),
+                                                      to => "mg-rast\@mcs.anl.gov",
+                                                      subject => $cgi->param('subject'),
+                                                      body => $cgi->param('message'));
+    unless  ($email_success) {
+        die "Can't send email\n";
+    }
+    #my $mailer = Mail::Mailer->new();
+    #$mailer->open({ From    => $cgi->param('email'),
+	#	    To      => "mg-rast\@mcs.anl.gov",
+	#	    Subject => $cgi->param('subject'),
+	#	  })
+    #  or die "Can't open Mail::Mailer: $!\n";
+    #print $mailer $cgi->param('message');
+    #$mailer->close();
+    #$self->application->add_message('info', "your request has been sent successfully");
   } else {
     $self->application->add_message('warning', "reCaptcha check failed, please try again");
   }
