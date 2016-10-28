@@ -655,8 +655,8 @@
         {
             "cmd": {
                 "name": "awe_annotate_summary.pl",
-                "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.sims.filter -in_expand=@[% job_id %].450.rna.sims.filter -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -in_index=@[% job_id %].700.annotation.sims.filter.seq.index -output=[% job_id %].700.annotation.md5.abundance -type=md5",
-                "description": "md5 annotation summary",
+                "args": "-in_expand=@[% job_id %].650.aa.sims.filter -in_expand=@[% job_id %].450.rna.sims.filter -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -in_index=@[% job_id %].700.annotation.sims.filter.seq.index -output=[% job_id %].700.annotation.md5.abundance -type=md5",
+                "description": "md5 abundance",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
             "dependsOn": ["0", "5", "9", "11", "12", "13"],
@@ -713,8 +713,8 @@
         {
             "cmd": {
                 "name": "awe_annotate_summary.pl",
-                "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.expand.lca -in_expand=@[% job_id %].450.rna.expand.lca -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.lca.abundance -type=lca",
-                "description": "lca annotation summary",
+                "args": "-in_expand=@[% job_id %].650.aa.expand.lca -in_expand=@[% job_id %].450.rna.expand.lca -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.lca.abundance -type=lca",
+                "description": "lca abundance",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
             "dependsOn": ["0", "5", "9", "11", "12"],
@@ -766,8 +766,8 @@
         {
             "cmd": {
                 "name": "awe_annotate_summary.pl",
-                "args": "-job=[% job_id %] -in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.source.stats -type=source",
-                "description": "source annotation summary",
+                "args": "-in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.source.stats -type=source",
+                "description": "source abundance",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
             "dependsOn": ["0", "5", "9", "11", "12"],
@@ -840,7 +840,7 @@
                     "host": "[% shock_url %]",
                     "origin": "15",
                     "node": "-"
-                },
+                }
             },
             "taskid": "17",
             "totalwork": 1
