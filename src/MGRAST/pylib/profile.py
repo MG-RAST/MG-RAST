@@ -6,7 +6,7 @@ import mgrast_cassandra
 from collections import defaultdict
 
 M5NR_VERSION = 1
-CHUNK_SIZE = 5000
+CHUNK_SIZE = 500
 
 class Profile(object):
     def __init__(self, hosts, version=M5NR_VERSION, chunk=CHUNK_SIZE):
