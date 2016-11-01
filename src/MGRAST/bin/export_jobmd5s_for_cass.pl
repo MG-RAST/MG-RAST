@@ -44,6 +44,16 @@ unless ($job && $outdir) {
     print STDERR $usage; exit 1;
 }
 
+my $last_digit = 0;
+if ($job =~ /^\d*(\d)$/) {
+    $last_digit = $1;
+    unless (-d "$outdir/$last_digit") {
+        mkdir("$outdir/$last_digit");
+    }
+} else {
+    print STDERR "Invalid job id"; exit 1;
+}
+
 my $dbh = DBI->connect(
     "DBI:Pg:dbname=$dbname;host=$dbhost;sslcert=$dbcert/postgresql.crt;sslkey=$dbcert/postgresql.key",
     $dbuser,
@@ -60,7 +70,7 @@ my $sth = $dbh->prepare($query);
 $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 
 my $md5num = 0;
-open(MDUMP, ">$outdir/$job.job_md5s") or die "Couldn't open $outdir/$job.job_md5s for writing.\n";
+open(MDUMP, ">$outdir/$last_digit/$job.job_md5s") or die "Couldn't open $outdir/$last_digit/$job.job_md5s for writing.\n";
 while (my @row = $sth->fetchrow_array()) {
     my ($md5, $abund, $expa, $identa, $lena, $seek, $length) = @row;
     next unless ($md5 && $abund);
@@ -87,7 +97,7 @@ $sth = $dbh->prepare($query);
 $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 
 my $lcanum = 0;
-open(LDUMP, ">$outdir/$job.job_lcas") or die "Couldn't open $outdir/$job.job_lcas for writing.\n";
+open(LDUMP, ">$outdir/$last_digit/$job.job_lcas") or die "Couldn't open $outdir/$last_digit/$job.job_lcas for writing.\n";
 while (my @row = $sth->fetchrow_array()) {
     my ($lca, $abund, $expa, $identa, $lena, $md5s, $level) = @row;
     next unless ($lca && $abund);
@@ -109,7 +119,7 @@ print STDERR "$lcanum lca rows exported\n";
 close(LDUMP);
 
 print STDERR "job info ... ";
-open(IDUMP, ">$outdir/$job.job_info") or die "Couldn't open $outdir/$job.job_info for writing.\n";
+open(IDUMP, ">$outdir/$last_digit/$job.job_info") or die "Couldn't open $outdir/$last_digit/$job.job_info for writing.\n";
 my $info = $dbh->selectrow_arrayref("SELECT updated_on FROM job_info WHERE version=$version AND job=$job");
 if (@$info > 0) {
     print IDUMP join(",", map { '"'.$_.'"' } ($version, $job, $info->[0], $md5num, $lcanum, "true"))."\n";
