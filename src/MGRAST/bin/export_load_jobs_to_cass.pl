@@ -93,7 +93,7 @@ $count = 0;
 $total = 0;
 $data  = [];
 $query = "SELECT m.md5, j.abundance, j.exp_avg, j.ident_avg, j.len_avg, j.seek, j.length FROM job_md5s j, md5s m ".
-         "WHERE j.version=$version AND j.job=$job AND j.md5=m._id AND j.exp_avg <= -3";
+         "WHERE j.version=$version AND j.job=$jobid AND j.md5=m._id AND j.exp_avg <= -3";
 $sth = $dbh->prepare($query);
 $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 
@@ -111,7 +111,7 @@ while (my @row = $sth->fetchrow_array()) {
     ];
     $count += 1;
     $total += 1;
-    if ($count == $bulk) {
+    if ($count == $batch) {
         post_data("load", "md5", undef, $data);
         $count = 0;
         $data  = [];        
@@ -132,7 +132,7 @@ print STDERR "\tstart load from postgres\n";
 $count = 0;
 $total = 0;
 $data  = [];
-$query = "SELECT lca, abundance, exp_avg, ident_avg, len_avg, md5s, level FROM job_lcas WHERE version=$version AND job=$job AND exp_avg <= -3";
+$query = "SELECT lca, abundance, exp_avg, ident_avg, len_avg, md5s, level FROM job_lcas WHERE version=$version AND job=$jobid AND exp_avg <= -3";
 $sth = $dbh->prepare($query);
 $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
 
@@ -146,11 +146,11 @@ while (my @row = $sth->fetchrow_array()) {
         $identa * 1.0,
         $lena * 1.0,
         $md5s ? int($md5s) : 0,
-        $level ? intlevelseek) : 0
+        $level ? int(level) : 0
     ];
     $count += 1;
     $total += 1;
-    if ($count == $bulk) {
+    if ($count == $batch) {
         post_data("load", "lca", undef, $data);
         $count = 0;
         $data  = [];        
