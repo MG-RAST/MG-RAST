@@ -146,7 +146,7 @@ while (my @row = $sth->fetchrow_array()) {
         $identa * 1.0,
         $lena * 1.0,
         $md5s ? int($md5s) : 0,
-        $level ? int(level) : 0
+        $level ? int($level) : 0
     ];
     $count += 1;
     $total += 1;
