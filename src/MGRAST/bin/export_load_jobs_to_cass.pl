@@ -53,6 +53,7 @@ unless ($mgid && $apiurl && $token) {
     print STDERR $usage; exit 1;
 }
 
+my $post_attempt = 0;
 my ($count, $total, $data, $query, $sth);
 
 my $agent = LWP::UserAgent->new;
@@ -114,7 +115,7 @@ while (my @row = $sth->fetchrow_array()) {
     if ($count == $batch) {
         post_data("load", "md5", undef, $data);
         $count = 0;
-        $data  = [];        
+        $data  = [];
     }
 }
 if ($count > 0) {
@@ -165,6 +166,8 @@ post_data("end", "lca", $total, undef);
 
 $dbh->disconnect;
 
+exit 0;
+
 sub post_data {
     my ($action, $type, $count, $data) = @_;
     
@@ -187,6 +190,14 @@ sub post_data {
     
     my $resp = $agent->request($req);
     unless ($resp->is_success) {
-        print STDERR "API error: (".$resp->code.") ".$resp->message."\n";
+        # try 3 times
+        if ($post_attempt == 3) {
+            print STDERR "API error: (".$resp->code.") ".$resp->message."\n";
+            $post_attempt = 0;
+            return;
+        } else {
+            $post_attempt += 1;
+            post_data($action, $type, $count, $data);
+        }
     }
 }
