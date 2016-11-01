@@ -57,7 +57,7 @@ my $options = GetOptions (
 	"use_ssh!"       => \$use_ssh,
 	"use_docker!"    => \$use_docker, # enables docker specific workflow entries, dockerimage and environ
 	"clientgroups=s" => \$clientgroups,
-	"image_ver=s"    => \$image_ver.
+	"image_ver=s"    => \$image_ver,
 	"pipeline=s"     => \$pipeline,
 	"type=s"         => \$type,
 	"help!"          => \$help
