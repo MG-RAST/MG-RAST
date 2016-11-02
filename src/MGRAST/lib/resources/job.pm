@@ -920,13 +920,13 @@ sub job_action {
                 my $info = $mgcass->get_job_info($jobid);
                 if ($info) {
                     %$data = (%$data, %$info);
-                    $data->{status} = "exists"
+                    $data->{status} = "exists";
                     if ($post->{validate}) {
                         $data->{md5rows} = $mgcass->get_data_count($jobid, 'md5');
                         $data->{lcarows} = $mgcass->get_data_count($jobid, 'lca');
                     }
                 } else {
-                    $data->{status} = "missing"
+                    $data->{status} = "missing";
                 }
             } else {
                 $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'start, 'load', 'end'"}, 400 );
