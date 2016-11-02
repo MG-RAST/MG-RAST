@@ -226,7 +226,8 @@ class JobHandle(object):
         query = "SELECT md5s, lcas, loaded, updated_on FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
         rows  = self.session.execute(query)
         if len(rows.current_rows) > 0:
-            return rows[0]
+            load = 1 if rows[0][2] else 0
+            return dict(md5s=rows[0][0], lcas=rows[0][1], loaded=load, updated_on=rows[0][3])
         else:
             return None
     ## update job_info table
