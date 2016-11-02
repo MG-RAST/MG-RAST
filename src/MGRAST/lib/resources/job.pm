@@ -304,7 +304,8 @@ sub info {
 							                                                      ["lca", "lca abundace data"]] ],
 							                                 "action"  => ["cv", [["start", "flag job as loading"],
 							                                                      ["load", "load data to table"],
-							                                                      ["end", "flag job as completed"]] ],
+							                                                      ["end", "flag job as completed"],
+							                                                      ["status", "get state of loading job"]] ],
 							                                 "data"    => ["list", ["float", "md5 abundance summary data"]] } }
 						},
 						{ 'name'        => "solr",
@@ -860,7 +861,7 @@ sub job_action {
             unless ($mgcass) {
                 $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
             }
-            unless (($type eq "md5") || ($type eq "lca")) {
+            unless (($type eq "md5") || ($type eq "lca") || ($action eq "status")) {
                 $self->return_data( {"ERROR" => "invalid abundance type: ".$type.", use of of 'md5' or 'lca'"}, 400 );
             }
             $data = {
@@ -903,15 +904,11 @@ sub job_action {
                     $self->return_data( {"ERROR" => "unable to end job, does not exist"}, 500 );
                 }
                 # sanity check on loaded count
-                unless ($count) {
+                # lca may have zero loaded!
+                unless ($count || ($type eq "lca")) {
                     $self->return_data( {"ERROR" => "missing required 'count' option to end"}, 400 );
                 }
-                my $curr = 0;
-                if ($type eq 'md5') {
-                    $curr = $mgcass->get_md5_count($jobid);
-                } elsif ($type eq "lca") {
-                    $curr = $mgcass->get_lca_count($jobid);
-                }
+                my $curr = $mgcass->get_info_count($jobid, $type);
                 if ($curr != $count) {
                     $self->return_data( {"ERROR" => "data sanity check failed, only ".$curr." out of ".$count." rows loaded"}, 500 );
                 }
@@ -919,6 +916,18 @@ sub job_action {
                 # set loaded to true / done
                 $mgcass->set_loaded($jobid, 1);
                 $data->{status} = "done $type";
+            } elsif ($action eq "status") {
+                my $info = $mgcass->get_job_info($jobid);
+                if ($info) {
+                    %$data = (%$data, %$info);
+                    $data->{status} = "exists"
+                    if ($post->{validate}) {
+                        $data->{md5rows} = $mgcass->get_data_count($jobid, 'md5');
+                        $data->{lcarows} = $mgcass->get_data_count($jobid, 'lca');
+                    }
+                } else {
+                    $data->{status} = "missing"
+                }
             } else {
                 $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'start, 'load', 'end'"}, 400 );
             }

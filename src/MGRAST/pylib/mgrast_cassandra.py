@@ -175,30 +175,32 @@ class JobHandle(object):
             else:
                 bisect.insort(found, (r[0], r[1]))
         return found
-    # does job exist
+    ## row counts based on info table counter
+    def get_info_count(self, job, val):
+        job = int(job)
+        query = "SELECT %ss FROM job_info WHERE version = %d AND job = %d"%(val, self.version, job)
+        rows  = self.session.execute(query)
+        if len(rows.current_rows) > 0:
+            return rows[0][0]
+        else:
+            return 0
+    ## row counts based on data tables
+    def get_data_count(self, job, val):
+        job = int(job)
+        query = "SELECT COUNT(*) FROM job_%ss WHERE version = %d AND job = %d"%(val, self.version, job)
+        rows  = self.session.execute(query)
+        if len(rows.current_rows) > 0:
+            return rows[0][0]
+        else:
+            return 0
+    
+    ## does job exist
     def has_job(self, job):
         job = int(job)
         query = "SELECT * FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
         rows  = self.session.execute(query)
         if len(rows.current_rows) > 0:
             return 1
-        else:
-            return 0
-    ## row counts based on info table counter
-    def get_md5_count(self, job):
-        job = int(job)
-        query = "SELECT md5s FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
-        rows  = self.session.execute(query)
-        if len(rows.current_rows) > 0:
-            return rows[0][0]
-        else:
-            return 0
-    def get_lca_count(self, job):
-        job = int(job)
-        query = "SELECT lcas FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
-        rows  = self.session.execute(query)
-        if len(rows.current_rows) > 0:
-            return rows[0][0]
         else:
             return 0
     ## job status
@@ -218,6 +220,20 @@ class JobHandle(object):
             return 1
         else:
             return 0
+    ## get all info
+    def get_job_info(self, job):
+        job = int(job)
+        query = "SELECT md5s, lcas, loaded, updated_on FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rows  = self.session.execute(query)
+        if len(rows.current_rows) > 0:
+            return {
+                'md5s': rows[0][0],
+                'lcas': rows[0][1],
+                'loaded': rows[0][2],
+                'updated_on': rows[0][3]
+            }
+        else:
+            return None
     ## update job_info table
     def set_loaded(self, job, loaded):
         job = int(job)
