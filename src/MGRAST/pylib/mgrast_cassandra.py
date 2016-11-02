@@ -262,7 +262,7 @@ class JobHandle(object):
                 length = 0
             batch.add(insert, (self.version, job, md5, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(seek), int(length)))
         # update job_info
-        loaded = self.get_md5_count(job) + len(rows)
+        loaded = self.get_info_count(job, 'md5') + len(rows)
         update = self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
         batch.add(update, (loaded, False, datetime.datetime.now(), self.version, job))
         # execute atomic batch
@@ -275,7 +275,7 @@ class JobHandle(object):
         for (lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) in rows:
             batch.add(insert, (self.version, job, lca, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(md5s), int(level)))
         # update job_info
-        loaded = self.get_lca_count(job) + len(rows)
+        loaded = self.get_info_count(job, 'lca') + len(rows)
         update = self.session.prepare("UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
         batch.add(update, (loaded, False, datetime.datetime.now(), self.version, job))
         # execute atomic batch
