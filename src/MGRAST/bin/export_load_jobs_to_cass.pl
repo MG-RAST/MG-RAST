@@ -192,7 +192,8 @@ sub post_data {
     unless ($resp->is_success) {
         # try 3 times
         if ($post_attempt == 3) {
-            print STDERR "API error: (".$resp->code.") ".$resp->message."\n";
+            my $message = $resp->decoded_content;
+            print STDERR "API error: (".$resp->code.") ".($message || $resp->message)."\n";
             $post_attempt = 0;
             return;
         } else {
