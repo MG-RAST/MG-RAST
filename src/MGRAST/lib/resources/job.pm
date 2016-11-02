@@ -919,7 +919,10 @@ sub job_action {
             } elsif ($action eq "status") {
                 my $info = $mgcass->get_job_info($jobid);
                 if ($info) {
-                    %$data = (%$data, %$info);
+                    $data->{md5s} = $info->[0];
+                    $data->{lcas} = $info->[1];
+                    $data->{loaded} = $info->[2];
+                    $data->{updated_on} = $info->[3];
                     $data->{status} = "exists";
                     if ($post->{validate}) {
                         $data->{md5rows} = $mgcass->get_data_count($jobid, 'md5');
