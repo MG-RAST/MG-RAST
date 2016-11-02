@@ -256,10 +256,10 @@ The text of the mail will be I<mail_body>.
 =cut
 
 sub send_email {
-    my ($self, $subject, $body) = @_;
+    my ($self, $from, $subject, $body) = @_;
     
     my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
-                                                    from => $WebConfig::ADMIN_EMAIL,
+                                                    from => $from,
                                                     to => $self->email,
                                                     subject => $subject,
                                                     body => $body);
@@ -422,7 +422,8 @@ sub grant_login_right {
     $body->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     
-    $self->send_email( 
+    $self->send_email(
+                $WebConfig::ADMIN_EMAIL,
 		       $WebConfig::APPLICATION_NAME.' - account request approved',
 		       $body->output,
 		    );
@@ -486,7 +487,7 @@ sub deny_login_right {
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     $body->param('REASON', $reason);
 
-    $self->send_email(
+    $self->send_email($WebConfig::ADMIN_EMAIL,
 		       $WebConfig::APPLICATION_NAME.' - account request denied',
 		       $body->output,
 		    );
@@ -550,7 +551,7 @@ sub grant_group_access {
   $body->param('LASTNAME', $self->lastname);
   $body->param('GROUP', $group);
   
-  $self->send_email( 
+  $self->send_email( $WebConfig::ADMIN_EMAIL,
 		     "group access to $group approved",
 		     $body->output,
 		   );
@@ -592,7 +593,7 @@ sub deny_group_access {
   $body->param('GROUP', $group);
   $body->param('REASON', $reason);
   
-  $self->send_email( 
+  $self->send_email( $WebConfig::ADMIN_EMAIL,
 		     "group access to $group approved",
 		     $body->output,
 		   );
@@ -628,7 +629,7 @@ sub set_password {
     $body->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     
-    $self->send_email(
+    $self->send_email($WebConfig::ADMIN_EMAIL,
 		      $WebConfig::APPLICATION_NAME.' - new password requested',
 		      $body->output,
 		    );
