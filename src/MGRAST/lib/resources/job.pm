@@ -931,6 +931,7 @@ sub job_action {
             } else {
                 $self->return_data( {"ERROR" => "invalid abundance action: ".$post->{action}.", use of of 'start, 'load', 'end'"}, 400 );
             }
+            $mgcass->close();
         } elsif ($action eq 'solr') {
             my $rebuild = $post->{rebuild} ? 1 : 0;
             my $sdata   = $post->{solr_data} || {};
