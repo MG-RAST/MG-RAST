@@ -422,10 +422,9 @@ if ($ares->{error}) {
 }
 
 # get info
-my $awe_id  = $ares->{data}{id};
-my $awe_job = $ares->{data}{jid};
-my $state   = $ares->{data}{state};
-print "awe job (".$ares->{data}{jid}.")\t".$ares->{data}{id}."\n";
+my $awe_id = $ares->{data}{id};
+my $state  = $ares->{data}{state};
+print "awe job\t".$ares->{data}{id}."\n";
 
 # update job attributes
 Pipeline::set_job_attributes($jobdb, $job_id, {"pipeline_id" => $awe_id});
