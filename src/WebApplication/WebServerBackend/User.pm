@@ -4,7 +4,8 @@ package WebServerBackend::User;
 
 # $Id: User.pm,v 1.47 2011-05-26 16:53:38 olson Exp $
 
-use Mail::Mailer;
+
+use MGRAST::Mailer;
 
 use Data::Dumper;
 use WebConfig;
@@ -255,20 +256,33 @@ The text of the mail will be I<mail_body>.
 =cut
 
 sub send_email {
-  my ($self, $from, $subject, $body) = @_;
-
-  my $mailer = Mail::Mailer->new('smtp', Server => $Conf::smtp_host);
-  $mailer->open({ From    => $from,
-		  To      => $self->email,
-		  Subject => $subject,
-		})
-    or die "Can't open Mail::Mailer: $!\n";
-  print $mailer $body;
-  $mailer->close();
-  
-  return 1;
-
+    my ($self, $from, $subject, $body) = @_;
+    
+    my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
+                                                    from => $from,
+                                                    to => $self->email,
+                                                    subject => $subject,
+                                                    body => $body);
+                                            
+                                            
+    #my $smtp = Net::SMTP->new($Conf::smtp_host, Hello => $Conf::smtp_host);
+    
+   # my @data = (
+    #    "To: ".$self->email."\n",
+    #    "From: $from\n",
+    #    "Date: ".strftime("%a, %d %b %Y %H:%M:%S %z", localtime)."\n",
+    #    "Subject: $subject\n\n",
+    #    $body
+    #);
+    
+    #$smtp->mail('mg-rast');
+    #if ($smtp->to($self->email)) {
+    #    $smtp->data(@data);
+    #} 
+    #$smtp->quit;
+    return $email_success;
 }
+
 
 
 =pod
@@ -408,7 +422,8 @@ sub grant_login_right {
     $body->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     
-    $self->send_email( $WebConfig::ADMIN_EMAIL,
+    $self->send_email(
+                $WebConfig::ADMIN_EMAIL,
 		       $WebConfig::APPLICATION_NAME.' - account request approved',
 		       $body->output,
 		    );
@@ -472,7 +487,7 @@ sub deny_login_right {
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     $body->param('REASON', $reason);
 
-    $self->send_email( $WebConfig::ADMIN_EMAIL,
+    $self->send_email($WebConfig::ADMIN_EMAIL,
 		       $WebConfig::APPLICATION_NAME.' - account request denied',
 		       $body->output,
 		    );
@@ -614,7 +629,7 @@ sub set_password {
     $body->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
     $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
     
-    $self->send_email( $WebConfig::ADMIN_EMAIL,
+    $self->send_email($WebConfig::ADMIN_EMAIL,
 		      $WebConfig::APPLICATION_NAME.' - new password requested',
 		      $body->output,
 		    );
