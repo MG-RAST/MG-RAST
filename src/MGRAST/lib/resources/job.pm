@@ -291,7 +291,7 @@ sub info {
 						},
 						{ 'name'        => "abundance",
 				          'request'     => $self->cgi->url."/".$self->name."/abundance",
-				          'description' => "Get abundances for different annotations",
+				          'description' => "load abundances",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
 				          'attributes'  => $self->{attributes}{change},
