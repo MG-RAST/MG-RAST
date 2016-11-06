@@ -934,6 +934,7 @@ sub job_action {
             $mgcass->close();
         } elsif ($action eq 'solr') {
             my $rebuild = $post->{rebuild} ? 1 : 0;
+            my $sync    = $post->{sync} ? 1 : 0; # synchronous call
             my $sdata   = $post->{solr_data} || {};
             my $ver     = $post->{ann_ver} || $self->{m5nr_default};
             my $unique  = $self->url_id . md5_hex($self->json->encode($post));
@@ -948,9 +949,11 @@ sub job_action {
                 data_type => "solr"
             };
             # already cashed in shock - say submitted in case its running
-            my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
-            if ($nodes && (@$nodes > 0)) {
-                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+            if ($sync == 0) {
+                my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
+                if ($nodes && (@$nodes > 0)) {
+                    $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+                }
             }
             # test cassandra access
             my $ctest = $self->cassandra_test("job");
@@ -959,13 +962,19 @@ sub job_action {
             }
             # need to create new node and fork
             my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
-            my $pid = fork();
+            my $pid = 0;
+            if ($sync == 0) {
+             $pid = fork();
+            }
             # child - get data and POST it
             if ($pid == 0) {
                 # create DB handels inside child as they break on fork
-                $master = $self->connect_to_datasource();
+                if ($sync == 1) {
+                    $master = $self->connect_to_datasource();
+                }
                 my $mgcass = $self->cassandra_abundance($ver);
                 my $mddb = MGRAST::Metadata->new();
+                
                 my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
                 $job = $jobj->[0];
                 my $jdata = $job->data();
@@ -973,8 +982,11 @@ sub job_action {
                 my $mgid  = 'mgm'.$job->{metagenome_id};
                 my $filename = $jobid.".".time.'.solr.json';
 
-                close STDERR;
-                close STDOUT;
+                if ($sync == 0) {
+                    close STDERR;
+                    close STDOUT;
+                }
+                
                 # solr data
                 my $solr_data = {
                     job                => int($jobid),
@@ -1003,6 +1015,9 @@ sub job_action {
     	                $solr_data->{project_name_sort} = $proj->{name};
 	                }
                 };
+                if ($@) {
+                    $self->return_data({"ERROR" => "error: ".$@});
+                }
                 # statistics - from postdata or jobdb
                 my $seq_stats = exists($sdata->{sequence_stats}) ? $sdata->{sequence_stats} : $job->stats();
                 while (my ($key, $val) = each(%$seq_stats)) {
@@ -1090,6 +1105,13 @@ sub job_action {
                             $solr_data->{metadata} .= ", ".$concat;
                         }
                     };
+                    if ($@) {
+                        $self->return_data({"ERROR" => "error: ".$@});
+                    }
+                }
+                
+                if ($sync == 1) {
+                    $self->return_data({"data" => $solr_data});
                 }
                 # get content
                 my $solr_str = $self->json->encode({
@@ -1110,7 +1132,9 @@ sub job_action {
                 if ($err) {
                     $solr_str = qq({"ERROR": "$err", "STATUS": 500});
                 }
+                
                 $self->put_shock_file($filename, $solr_str, $node->{id}, $self->mgrast_token, 1);
+                
                 exit 0;
             }
             # parent - end html session
