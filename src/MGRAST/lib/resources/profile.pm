@@ -187,6 +187,8 @@ sub submit {
     unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
+    my $mgid  = 'mgm'.$id;
+    my $jobid = $job->{job_id};
     
     # get paramaters
     my $version   = $self->check_version($self->cgi->param('version'));
@@ -209,7 +211,7 @@ sub submit {
     
     # check for static feature profile node from shock
     my $squery = {
-        id => 'mgm'.$id,
+        id => $mgid,
         type => 'metagenome',
         data_type => 'profile',
         stage_name => 'done'
@@ -233,10 +235,43 @@ sub submit {
     }
     
     # test cassandra access
-    my $ctest = $self->cassandra_test("job");
-    unless ($ctest) {
+    #my $ctest = $self->cassandra_test("job");
+    #unless ($ctest) {
+    #    $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
+    #}
+    
+    # check if job exists in cassandra DB
+    my $chdl = $self->cassandra_handle("job", $version);
+    unless ($chdl) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
+    unless ($chdl->has_job($jobid)) {
+        # need to submit profile to postgres backend API
+        my $result = undef;
+        my @options = (
+            "version=".$version,
+            "source=".$source,
+            "format=".$format,
+            "condensed=".(($condensed eq 'true') ? "1" : "0"),
+            "verbosity=".($self->cgi->param('verbosity') || "full")
+        );
+        my @args = $self->token ? ('authorization', "mgrast ".$self->token) : ();
+        my $pqlurl = "http://api-pql.metagenomics.anl.gov/profile/$mgid?".join("&", @options);
+        eval {
+            my $get = $self->agent->get($pqlurl, @args);
+            $result = $self->json->decode( $get->content );
+        };
+        # close handle
+        $chdl->close();
+        # send response
+        if ($@ || (! ref($response))) {
+            $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
+        } else {
+            $self->return_data( $result );
+        }
+    }
+    # close handle
+    $chdl->close();
     
     # need to create new temp node
     $tquery->{row_total} = 0;
@@ -245,15 +280,15 @@ sub submit {
         found => 0
     };
     $tquery->{parameters} = {
-        id => 'mgm'.$id,
-        job_id => $job->{job_id},
+        id => $mgid,
+        job_id => $jobid,
         source => $source,
         source_type => $self->type_by_source($source),
         format => $format,
         condensed => $condensed,
         version => $version
     };
-    my $node = $self->set_shock_node('mgm'.$id.'.json', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
+    my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
     
     # asynchronous call, fork the process
     my $pid = fork();
