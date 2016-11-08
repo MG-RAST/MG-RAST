@@ -1116,7 +1116,7 @@ sub job_action {
                 # get content
                 my @solr_cmds = (
                     '"delete": { "id": "'.$mgid.'" }',
-                    '"commit": { "expungeDeletes": true }',
+                    '"commit": { "expungeDeletes": "true" }',
                     '"add": { "doc": '.$self->json->encode($solr_data).' }'
                 );
                 my $solr_str = '{'.join(", ", @solr_cmds).'}';
