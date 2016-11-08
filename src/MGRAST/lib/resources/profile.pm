@@ -264,7 +264,7 @@ sub submit {
         # close handle
         $chdl->close();
         # send response
-        if ($@ || (! ref($response))) {
+        if ($@ || (! ref($result))) {
             $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
         } else {
             $self->return_data( $result );
