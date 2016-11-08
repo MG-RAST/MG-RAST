@@ -1114,11 +1114,13 @@ sub job_action {
                     $self->return_data({"data" => $solr_data});
                 }
                 # get content
-                my $solr_str = $self->json->encode({
-                    delete => { id => $mgid },
-                    commit => { expungeDeletes => "true" },
-                    add    => { doc => $solr_data }
-                });
+                my @solr_cmds = (
+                    '"delete": { "id": "'.$mgid.'" }',
+                    '"commit": { "expungeDeletes": true }',
+                    '"add": { "doc": '.$self->json->encode($solr_data).' }'
+                );
+                my $solr_str = '{'.join(", ", @solr_cmds).'}';
+                
                 # POST to solr
                 my $err = "";
                 if (! $post->{debug}) {
