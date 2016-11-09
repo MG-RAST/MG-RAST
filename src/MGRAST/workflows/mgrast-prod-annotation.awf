@@ -486,6 +486,26 @@
             },
             "taskid": "7",
             "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "awe_notify.pl",
+                "args": "-user=[% user %] -mgid=[% mg_id %] -api_url=[% mgrast_api %]",
+                "description": "notify job completion",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ": {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    }
+                }
+            },
+            "dependsOn": ["7"],
+            "userattr": {
+                "stage_id": "999",
+                "stage_name": "done"
+            },
+            "taskid": "8",
+            "totalwork": 1
         }
     ]
 }
