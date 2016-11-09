@@ -344,7 +344,7 @@
         {
             "cmd": {
                 "name": "awe_done.pl",
-                "args": "-job=[% job_id %] -nr_ver=[% ach_sequence_ver %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -upload=@[% job_id %].075.upload.stats -qc=@[% job_id %].075.qc.stats -preproc=@[% job_id %].100.preprocess.passed.fna -derep=@[% job_id %].150.dereplication.removed.fna -post_qc=@[% job_id %].299.screen.passed.fna -source=@[% job_id %].700.annotation.source.stats -search=@[% job_id %].425.search.rna.fna -rna_clust=@[% job_id %].440.cluster.rna[% rna_pid %].fna -rna_map=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -genecall=@[% job_id %].350.genecalling.coding.faa -aa_clust=@[% job_id %].550.cluster.aa[% aa_pid %].faa -aa_map=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -ontol=[% job_id %].650.aa.expand.ontology -filter=[% job_id %].700.annotation.sims.filter.seq",
+                "args": "-job=[% job_id %] -nr_ver=[% ach_sequence_ver %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -upload=@[% upload_stats_file %] -qc=@[% qc_stats_file %] -preproc=@[% preprocess_passed_file %] -derep=@[% dereplication_removed_file %] -post_qc=@[% screen_passed_file %] -source=@[% job_id %].700.annotation.source.stats -search=@[% rna_filter_file %] -rna_clust=@[% rna_cluster_file %] -rna_map=@[% rna_mapping_file %] -genecall=@[% genecalling_file %] -aa_clust=@[% prot_cluster_file %] -aa_map=@[% prot_mapping_file %] -ontol=[% job_id %].650.aa.expand.ontology -filter=[% sim_seq_file %]",
                 "description": "done stage",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
@@ -353,93 +353,81 @@
                     }
                 }
             },
-            "dependsOn": ["0", "1", "2", "3", "4", "5", "7", "9", "11", "13", "16", "17"],
+            "dependsOn": ["0", "5", "6"],
             "inputs": {
-                "[% job_id %].075.qc.stats": {
+                "[% qc_stats_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "0",
-                    "node": "-",
-                    "attrfile": "[% job_id %].075.qc.stats.json"
+                    "node": "[% qc_stats_node %]",
+                    "attrfile": "[% qc_stats_file %].json"
                 },
-                "[% job_id %].075.upload.stats": {
+                "[% upload_stats_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "0",
-                    "node": "-",
-                    "attrfile": "[% job_id %].075.upload.stats.json"
+                    "node": "[% upload_stats_node %]",
+                    "attrfile": "[% upload_stats_file %].json"
                 },
-                "[% job_id %].100.preprocess.passed.fna": {
+                "[% preprocess_passed_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "1",
-                    "node": "-",
+                    "node": "[% preprocess_passed_node %]",
                     "nofile": true,
-                    "attrfile": "[% job_id %].100.preprocess.passed.fna.json"
+                    "attrfile": "[% preprocess_passed_file %].json"
                 },
-                "[% job_id %].150.dereplication.removed.fna": {
+                "[% dereplication_removed_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "2",
-                    "node": "-",
+                    "node": "[% dereplication_removed_node %]",
                     "nofile": true,
-                    "attrfile": "[% job_id %].150.dereplication.removed.fna.json"
+                    "attrfile": "[% dereplication_removed_file %].json"
                 },
-                "[% job_id %].299.screen.passed.fna": {
+                "[% screen_passed_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "3",
-                    "node": "-",
-                    "attrfile": "[% job_id %].299.screen.passed.fna.json"
+                    "node": "[% screen_passed_node %]",
+                    "attrfile": "[% screen_passed_file %].json"
                 },
-                "[% job_id %].425.search.rna.fna": {
+                "[% rna_filter_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "4",
-                    "node": "-",
-                    "attrfile": "[% job_id %].425.search.rna.fna.json"
+                    "node": "[% rna_filter_node %]",
+                    "attrfile": "[% rna_filter_file %].json"
                 },
-                "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
+                "[% rna_cluster_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "5",
-                    "node": "-",
-                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].fna.json"
+                    "node": "[% rna_cluster_node %]",
+                    "attrfile": "[% rna_cluster_file %].json"
                 },
-                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                "[% rna_mapping_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "5",
-                    "node": "-",
-                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].mapping.json"
+                    "node": "[% rna_mapping_node %]",
+                    "attrfile": "[% rna_mapping_file %].json"
                 },
-                "[% job_id %].350.genecalling.coding.faa": {
+                "[% genecalling_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "7",
-                    "node": "-",
-                    "attrfile": "[% job_id %].350.genecalling.coding.faa.json"
+                    "node": "[% genecalling_node %]",
+                    "attrfile": "[% genecalling_file %].json"
                 },
-                "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
+                "[% prot_cluster_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "9",
-                    "node": "-",
-                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].faa.json"
+                    "node": "[% prot_cluster_node %]",
+                    "attrfile": "[% prot_cluster_file %].json"
                 },
-                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                "[% prot_mapping_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "9",
-                    "node": "-",
-                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].mapping.json"
+                    "node": "[% prot_mapping_node %]",
+                    "attrfile": "[% prot_mapping_file %].json"
                 },
                 "[% job_id %].650.aa.expand.ontology": {
                     "host": "[% shock_url %]",
-                    "origin": "11",
+                    "origin": "0",
                     "node": "-",
                     "nofile": true,
                     "attrfile": "[% job_id %].650.aa.expand.ontology.json"
                 },
-                "[% job_id %].700.annotation.sims.filter.seq": {
+                "[% sim_seq_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "13",
-                    "node": "-",
+                    "node": "[% sim_seq_node %]",
                     "nofile": true,
-                    "attrfile": "[% job_id %].700.annotation.sims.filter.seq.json"
+                    "attrfile": "[% sim_seq_file %].json"
                 },
                 "[% job_id %].700.annotation.source.stats": {
                     "host": "[% shock_url %]",
-                    "origin": "16",
+                    "origin": "5",
                     "node": "-"
                 }
             },
@@ -449,54 +437,47 @@
                     "node": "-",
                     "attrfile": "[% job_id %].statistics.json.attr"
                 },
-                "[% job_id %].299.screen.passed.fna": {
+                "[% screen_passed_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "3",
-                    "node": "-",
+                    "node": "[% screen_passed_node %]",
                     "type": "update",
-                    "attrfile": "[% job_id %].299.screen.passed.fna.json"
+                    "attrfile": "[% screen_passed_file %].json"
                 },
-                "[% job_id %].425.search.rna.fna": {
+                "[% rna_filter_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "4",
-                    "node": "-",
+                    "node": "[% rna_filter_node %]",
                     "type": "update",
-                    "attrfile": "[% job_id %].425.search.rna.fna.json"
+                    "attrfile": "[% rna_filter_file %].json"
                 },
-                "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
+                "[% rna_cluster_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "5",
-                    "node": "-",
+                    "node": "[% rna_cluster_node %]",
                     "type": "update",
-                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].fna.json"
+                    "attrfile": "[% rna_cluster_file %].json"
                 },
-                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                "[% rna_mapping_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "5",
-                    "node": "-",
+                    "node": "[% rna_mapping_node %]",
                     "type": "update",
-                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].mapping.json"
+                    "attrfile": "[% rna_mapping_file %].json"
                 },
-                "[% job_id %].350.genecalling.coding.faa": {
+                "[% genecalling_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "7",
-                    "node": "-",
+                    "node": "[% genecalling_node %]",
                     "type": "update",
-                    "attrfile": "[% job_id %].350.genecalling.coding.faa.json"
+                    "attrfile": "[% genecalling_file %].json"
                 },
-                "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
+                "[% prot_cluster_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "9",
-                    "node": "-",
+                    "node": "[% prot_cluster_node %]",
                     "type": "update",
-                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].faa.json"
+                    "attrfile": "[% prot_cluster_file %].json"
                 },
-                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                "[% prot_mapping_file %]": {
                     "host": "[% shock_url %]",
-                    "origin": "9",
-                    "node": "-",
+                    "node": "[% prot_mapping_node %]",
                     "type": "update",
-                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].mapping.json"
+                    "attrfile": "[% prot_mapping_file %].json"
                 }
             },
             "userattr": {

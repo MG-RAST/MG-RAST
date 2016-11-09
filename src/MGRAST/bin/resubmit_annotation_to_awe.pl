@@ -88,7 +88,7 @@ $vars->{job_id}         = $job_id;
 $vars->{mg_id}          = 'mgm'.$jobj->{metagenome_id};
 $vars->{mg_name}        = $jobj->{name};
 $vars->{job_date}       = $jobj->{created_on};
-$vars->{status}         = $jobj->{public} ? "public" : "ptivate";
+$vars->{status}         = $jobj->{public} ? "public" : "private";
 $vars->{file_format}    = ($jattr->{file_type} && ($jattr->{file_type} eq 'fastq')) ? 'fastq' : 'fasta';
 $vars->{seq_type}       = $jobj->{sequence_type} || $jattr->{sequence_type_guess};
 $vars->{project_id}     = $jobj->{project_id} || '';
@@ -110,56 +110,100 @@ if ($use_docker) {
 }
 
 # get job files
-my @nids = ();
-my $gres = undef;
-my $nget = $agent->get(
+my $sres = undef;
+my $sget = $agent->get(
     $vars->{shock_url}.'/node?query&type=metagenome&limit=0&job_id='.$job_id,
     'Authorization', $Conf::pipeline_token
 );
 eval {
-    $gres = $json->decode($nget->content);
+    $sres = $json->decode($sget->content);
 };
 if ($@) {
-    print STDERR "ERROR: Return from shock is not JSON:\n".$nget->content."\n";
+    print STDERR "ERROR: Return from shock is not JSON:\n".$sget->content."\n";
     exit 1;
 }
-if ($gres->{error}) {
-    print STDERR "ERROR: (shock) ".$gres->{error}[0]."\n";
+if ($sres->{error}) {
+    print STDERR "ERROR: (shock) ".$sres->{error}[0]."\n";
     exit 1;
 }
 
-foreach my $n (@{$gres->{data}}) {
-    unless (exists($n->{attributes}{stage_name}) && exists($n->{attributes}{data_type})) {
+my %delete_file = (
+    $job_id.".450.rna.sims.filter" => 1,
+    $job_id.".450.rna.expand.rna" => 1,
+    $job_id.".450.rna.expand.lca" => 1,
+    $job_id.".650.aa.sims.filter" => 1,
+    $job_id.".650.aa.expand.protein" => 1,
+    $job_id.".650.aa.expand.lca" => 1,
+    $job_id.".650.aa.expand.ontology" => 1,
+    $job_id.".700.annotation.sims.filter.seq.index" => 1,
+    $job_id.".700.annotation.source.stats" => 1
+);
+my @delete_node = ();
+
+foreach my $n (@{$sres->{data}}) {
+    unless (exists($n->{attributes}{stage_name}) && exists($n->{attributes}{data_type}) && exists($n->{file}{name})) {
         next;
     }
-    if ($n->{attributes}{stage_name} eq 'protein.sims') {
-        $vars->{prot_sims_file} = $n->{file}{name};
-        $vars->{prot_sims_node} = $n->{id};
-    } elsif ($n->{attributes}{stage_name} eq 'rna.sims') {
-        $vars->{rna_sims_file} = $n->{file}{name};
-        $vars->{rna_sims_node} = $n->{id};
-    } elsif ($n->{attributes}{stage_name} eq 'filter.sims') {
-        $vars->{sim_seq_file} = $n->{file}{name};
-        $vars->{sim_seq_node} = $n->{id};
-    } elsif ($n->{attributes}{stage_name} eq 'qc') {
+    if (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /assembly\.coverage$/)) {
         $vars->{assembly_file} = $n->{file}{name};
         $vars->{assembly_node} = $n->{id};
-    } elsif (($n->{attributes}{stage_name} eq 'rna.cluster') && ($n->{attributes}{data_type} eq 'cluster')) {
+    } elsif (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /qc\.stats$/)) {
+        $vars->{qc_stats_file} = $n->{file}{name};
+        $vars->{qc_stats_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /upload\.stats$/)) {
+        $vars->{upload_stats_file} = $n->{file}{name};
+        $vars->{upload_stats_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'preprocess') && ($n->{attributes}{data_type} eq 'passed')) {
+        $vars->{preprocess_passed_file} = $n->{file}{name};
+        $vars->{preprocess_passed_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'dereplication') && ($n->{attributes}{data_type} eq 'removed')) {
+        $vars->{dereplication_removed_file} = $n->{file}{name};
+        $vars->{dereplication_removed_node} = $n->{id};
+    } elsif ($n->{attributes}{stage_name} eq 'screen') {
+        $vars->{screen_passed_file} = $n->{file}{name};
+        $vars->{screen_passed_node} = $n->{id};
+    } elsif ($n->{attributes}{stage_name} eq 'rna.filter') {
+        $vars->{rna_filter_file} = $n->{file}{name};
+        $vars->{rna_filter_node} = $n->{id};
+    } elsif ($n->{attributes}{stage_name} eq 'genecalling') {
+        $vars->{genecalling_file} = $n->{file}{name};
+        $vars->{genecalling_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'rna.cluster') && ($n->{file}{name} =~ /cluster\.rna97\.mapping$/)) {
         $vars->{rna_mapping_file} = $n->{file}{name};
         $vars->{rna_mapping_node} = $n->{id};
-    } elsif (($n->{attributes}{stage_name} eq 'protein.cluster') && ($n->{attributes}{data_type} eq 'cluster')) {
+    } elsif (($n->{attributes}{stage_name} eq 'rna.cluster') && ($n->{file}{name} =~ /cluster\.rna97\.fna$/)) {
+        $vars->{rna_cluster_file} = $n->{file}{name};
+        $vars->{rna_cluster_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'protein.cluster') && ($n->{file}{name} =~ /cluster\.aa90\.mapping$/)) {
         $vars->{prot_mapping_file} = $n->{file}{name};
         $vars->{prot_mapping_node} = $n->{id};
-    } elsif (($n->{attributes}{stage_name} eq 'done') && ($n->{attributes}{data_type} eq 'statistics')) {
-        $vars->{mg_stats_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'protein.cluster') && ($n->{file}{name} =~ /cluster\.aa90\.faa$/)) {
+        $vars->{prot_cluster_file} = $n->{file}{name};
+        $vars->{prot_cluster_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'protein.sims') && ($n->{file}{name} =~ /superblat\.sims$/)) {
+        $vars->{prot_sims_file} = $n->{file}{name};
+        $vars->{prot_sims_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'rna.sims') && ($n->{file}{name} =~ /rna\.sims$/)) {
+        $vars->{rna_sims_file} = $n->{file}{name};
+        $vars->{rna_sims_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'filter.sims') && ($n->{file}{name} =~ /annotation\.sims\.filter\.seq$/)) {
+        $vars->{sim_seq_file} = $n->{file}{name};
+        $vars->{sim_seq_node} = $n->{id};
+    } elsif (exists $delete_file{$n->{file}{name}}) {
+        push @delete_node, $n->{id};
     }
 }
 
-foreach my $x (("prot_sims_node", "rna_sims_node", "sim_seq_node", "assembly_node", "rna_mapping_node", "prot_mapping_node", "mg_stats_node")) {
+foreach my $x (("assembly_node", "qc_stats_node", "upload_stats_node", "preprocess_passed_node", "dereplication_removed_node", "screen_passed_node", "rna_filter_node", "genecalling_node", "rna_mapping_node", "rna_cluster_node", "prot_mapping_node", "prot_cluster_node", "prot_sims_node", "rna_sims_node", "sim_seq_node")) {
     if (! $vars->{$x}) {
         print STDERR "ERROR: Incomplete metagenome, missing stage: $x\n";
         exit 1;
     }
+}
+
+# deleting duplicate nodes
+foreach my $n (@delete_node) {
+    $self->agent->delete($Conf::shock_url.'/node/'.$n, ('Authorization', $Conf::pipeline_token));
 }
 
 # create workflow
