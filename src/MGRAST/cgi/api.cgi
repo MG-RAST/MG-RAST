@@ -202,8 +202,7 @@ if ($resource) {
         print STDERR "Redirect: $redirect_uri\n";
         print $cgi->redirect(
             -uri => $redirect_uri,
-            -nph => 1,
-            -status => '301 Moved Permanently'
+            -status => '302 Found'
         );
         exit 0;
     }
