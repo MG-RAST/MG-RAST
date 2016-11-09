@@ -30,6 +30,7 @@ my $help      = 0;
 my $no_start  = 0;
 my $use_docker   = 0;
 my $clientgroups = undef;
+my $image_ver    = "latest";
 
 my $options = GetOptions (
         "job_id=s"    => \$job_id,
@@ -40,6 +41,7 @@ my $options = GetOptions (
         "no_start!"   => \$no_start,
         "use_docker!" => \$use_docker, # enables docker specific workflow entries, dockerimage and environ
     	"clientgroups=s" => \$clientgroups,
+    	"image_ver=s"    => \$image_ver,
         "help!"       => \$help
 );
 
@@ -102,7 +104,7 @@ if (defined $clientgroups) {
 	$vars->{clientgroups} = $clientgroups;
 }
 
-$vars->{docker_image_version} = 'latest';
+$vars->{docker_image_version} = $image_ver;
 if ($use_docker) {
 	$vars->{docker_switch} = '';
 } else {
@@ -203,7 +205,10 @@ foreach my $x (("assembly_node", "qc_stats_node", "upload_stats_node", "preproce
 
 # deleting duplicate nodes
 foreach my $n (@delete_node) {
-    $self->agent->delete($Conf::shock_url.'/node/'.$n, ('Authorization', $Conf::pipeline_token));
+    print "deleting node: $n\n";
+    unless ($no_start) {
+        $agent->delete($vars->{shock_url}.'/node/'.$n, ('Authorization', $Conf::pipeline_token));
+    }
 }
 
 # create workflow
@@ -244,10 +249,8 @@ if ($ares->{error}) {
 }
 
 # get info
-my $awe_id  = $ares->{data}{id};
-my $awe_job = $ares->{data}{jid};
-my $state   = $ares->{data}{state};
-print "awe job (".$ares->{data}{jid}.")\t".$ares->{data}{id}."\n";
+my $awe_id = $ares->{data}{id};
+print "awe job:\t".$awe_id."\n";
 
 # update job
 Pipeline::set_jobcache_info($jobdb, $job_id, 'viewable', 0);
