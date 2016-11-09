@@ -197,9 +197,11 @@ if($user) {
 # if a resource is passed, call the resources module
 if ($resource) {
     #### redirect to depricated API if on list ####
-    if (exists $redirect_resource->{$resource}) {
+    if (exists $redirect_resource{$resource}) {
+        my $redirect_uri = $Conf::old_api.$cgi->url(-absolute=>1, -path_info=>1, -query=>1);
+        print STDERR "Redirect: $redirect_uri\n";
         print $cgi->redirect(
-            -uri => $Conf::old_api.$cgi->url(-absolute=>1, -path_info=>1, -query=>1),
+            -uri => $redirect_uri,
             -nph => 1,
             -status => '301 Moved Permanently'
         );
