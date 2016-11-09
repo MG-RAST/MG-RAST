@@ -266,7 +266,7 @@
             "cmd": {
                 "name": "awe_annotate_summary.pl",
                 "args": "-in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% rna_mapping_file %] -in_maps=@[% prot_mapping_file %] -in_assemb=@[% assembly_file %] -output=[% job_id %].700.annotation.source.stats -type=source",
-                "description": "source annotation summary",
+                "description": "source abundance",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
             "dependsOn": ["0", "1"],
