@@ -52,7 +52,7 @@ sub main {
 	    print $cgi->header(-charset => 'UTF-8');
 	    print $cgi->start_html(-title => 'MG-RAST linkin');
 	    print $error;
-	    print "<p>For detailed information on how to link to MG-RAST please refer to <a href='http://blog.metagenomics.anl.gov/howto/link-to-mg-rast/'>our FAQ</a></p>";
+	    print "<p>For detailed information on how to link to MG-RAST please refer to <a href='https://github.com/MG-RAST/tech-report/wiki/MG-RAST-glossary#accession-numbers-and-linking-to-mg-rast'>MG-RAST User Manual</a></p>";
 	    print $cgi->end_html();
     }
 }
