@@ -37,6 +37,7 @@ my $awe_url    = "";
 my $shock_url  = "";
 my $template   = "";
 my $clientgroups = undef;
+my $image_ver  = "latest";
 my $no_start   = 0;
 my $use_ssh    = 0;
 my $use_docker = 0;
@@ -56,6 +57,7 @@ my $options = GetOptions (
 	"use_ssh!"       => \$use_ssh,
 	"use_docker!"    => \$use_docker, # enables docker specific workflow entries, dockerimage and environ
 	"clientgroups=s" => \$clientgroups,
+	"image_ver=s"    => \$image_ver,
 	"pipeline=s"     => \$pipeline,
 	"type=s"         => \$type,
 	"help!"          => \$help
@@ -245,7 +247,7 @@ if (defined $clientgroups) {
 	$vars->{clientgroups} = $clientgroups;
 }
 
-$vars->{docker_image_version} = 'latest';
+$vars->{docker_image_version} = $image_ver;
 if ($use_docker) {
 	$vars->{docker_switch} = '';
 } else {
@@ -420,10 +422,8 @@ if ($ares->{error}) {
 }
 
 # get info
-my $awe_id  = $ares->{data}{id};
-my $awe_job = $ares->{data}{jid};
-my $state   = $ares->{data}{state};
-print "awe job (".$ares->{data}{jid}.")\t".$ares->{data}{id}."\n";
+my $awe_id = $ares->{data}{id};
+print "awe job:\t".$awe_id."\n";
 
 # update job attributes
 Pipeline::set_job_attributes($jobdb, $job_id, {"pipeline_id" => $awe_id});

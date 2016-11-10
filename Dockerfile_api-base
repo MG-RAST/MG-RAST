@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
   ncbi-blast+ \
   perl-modules \
   liburi-perl \
+  liburi-encode-perl \
   libwww-perl \
   libjson-perl \
   libdbi-perl \
@@ -50,6 +51,7 @@ RUN apt-get install -y python-dev python-pip && \
   gspread \
   xlrd \
   lepl \
+  requests_toolbelt \
   cassandra-driver
 
 ENV PERL_MM_USE_DEFAULT 1

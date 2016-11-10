@@ -12,6 +12,9 @@ bin/*.r
 *\#*
 *\~*
 
+# python files
+*.pyc
+
 # os x files
 *.DS_Store
 
