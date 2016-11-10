@@ -10,7 +10,7 @@ RUN cd /MG-RAST && \
   cp -rv src/MGRAST/bin/* bin/. && \
   cp -rv src/MGRAST/pylib site/lib/. && \
   cd site/CGI && \
-  rm -fv metagenomics.cgi linkin.cgi m5nr.cgi m5nr_rest.cgi
+  rm -fv metagenomics.cgi upload.cgi m5nr.cgi m5nr_rest.cgi
 
 RUN mkdir -p /sites/1/ && \
   cd /sites/1/ && \
