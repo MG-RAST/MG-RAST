@@ -7,7 +7,7 @@ no warnings('once');
 use DBI;
 use Data::Dumper;
 use List::Util qw(max min sum);
-use List::MoreUtils qw(natatime);
+use List::MoreUtils qw(any uniq natatime);
 
 1;
 
@@ -38,7 +38,7 @@ sub new {
     my $self = {
         dbh     => $dbh,    # postgres analysis db handle
         chdl    => $chdl,   # cassnadra m5nr handle
-        chunk   => 2000,    # max # md5s to query at once
+        chunk   => 100,    # max # md5s to query at once
         version => $version || $Conf::m5nr_annotation_version || 1  # m5nr version
     };
     bless $self, $class;
@@ -161,6 +161,7 @@ sub all_job_abundances {
             if ($org && $set->{organism}) {
                 foreach my $o (@{$set->{organism}}) {
                     if ($tax) {
+                        next unless exists $tax_map->{$o};
                         next if (($tax eq 'domain') && ($tax_map->{$o} =~ /other|unknown|unclassified/));
                         unless (exists $org_map->{$tax}{$tax_map->{$o}}) {
                             $org_map->{$taxa->[0]}{$tax_map->{$o}} = 0;
@@ -202,7 +203,7 @@ sub all_job_abundances {
 sub all_job_md5sums {
     my ($self, $job) = @_;
     my @md5s = ();
-    my $sth  = $self->execute_query("SELECT m.md5 FROM md5s m, job_md5s j WHERE j.version=".$self->version." AND j.job=$job AND 'j.md5=m._id'");
+    my $sth  = $self->execute_query("SELECT m.md5 FROM md5s m, job_md5s j WHERE j.version=".$self->version." AND j.job=$job AND j.md5=m._id");
     while (my @row = $sth->fetchrow_array()) {
         push @md5s, $row[0];
     }

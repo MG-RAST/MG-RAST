@@ -12,12 +12,18 @@ my $cgi  = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
-my %private_resources = ( 'job'      => 1,
-                          'notebook' => 1,
-                          'pipeline' => 1,
-                          'resource' => 1,
-                          'status'   => 1,
-                          'user'     => 1 );
+my %private_resources = (
+    'job'      => 1,
+    'notebook' => 1,
+    'pipeline' => 1,
+    'resource' => 1,
+    'status'   => 1,
+    'user'     => 1
+);
+my %redirect_resource = (
+    'matrix'     => 1,
+    'annotation' => 1
+);
 
 # get request method
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
@@ -152,22 +158,31 @@ else {
 # check for authentication
 my $user;
 if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization')) {
-    eval {
-        require Auth;
-        Auth->import();
-        my $message;
-        ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization'));
-        unless($user) {
-	  unless ($message eq "valid kbase user") {
-            print $cgi->header( -type => 'application/json',
-				-status => 401,
-				-charset => 'UTF-8',
-    	                        -Access_Control_Allow_Origin => '*' );
-            print $json->encode( {"ERROR"=> "authentication failed - $message"} );
-            exit 0;
-	  }
+  eval {
+      require Auth;
+      Auth->import();
+      my $message;
+      ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization'));
+      unless($user) {
+        unless ($message eq "valid kbase user") {
+          print $cgi->header( -type => 'application/json',
+                            -status => 401,
+                            -charset => 'UTF-8',
+  	                        -Access_Control_Allow_Origin => '*' );
+          print $json->encode( {"ERROR"=> "authentication failed - $message"} );
+          exit 0;
         }
-    };
+      }
+  };
+  if ($@) {
+    print $cgi->header( -type => 'application/json',
+                      -status => 401,
+                      -charset => 'UTF-8',
+                      -Access_Control_Allow_Origin => '*' );
+    print $json->encode( {"ERROR"=> "authentication failed - $@"} );
+    exit 0;
+    
+  }
 }
 
 # print google analytics
@@ -181,6 +196,16 @@ if($user) {
 
 # if a resource is passed, call the resources module
 if ($resource) {
+    #### redirect to depricated API if on list ####
+    if (exists $redirect_resource{$resource}) {
+        my $redirect_uri = $Conf::old_api.$cgi->url(-absolute=>1, -path_info=>1, -query=>1);
+        print STDERR "Redirect: $redirect_uri\n";
+        print $cgi->redirect(
+            -uri => $redirect_uri,
+            -status => '302 Found'
+        );
+        exit 0;
+    }
     my $error   = '';
     my $package = $Conf::api_resource_dir."::".$resource;
     {

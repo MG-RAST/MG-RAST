@@ -4,7 +4,6 @@ use strict;
 use warnings;
 no warnings('once');
 
-use MGRAST::Abundance;
 use List::MoreUtils qw(any uniq);
 use File::Temp qw(tempfile tempdir);
 
@@ -253,12 +252,11 @@ sub instance {
     unless ($job->public || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
         $self->return_data({"ERROR" => "insufficient permissions for metagenome mgm$id"}, 401);
     }
-    # test postgres access
-    my $testdb = MGRAST::Abundance->new(undef, undef, $Conf::mgrast_write_dbhost);
-    unless ($testdb) {
+    # test cassandra access
+    my $ctest = $self->cassandra_test("job");
+    unless ($ctest) {
         $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }
-    $testdb->DESTROY();
     
     my ($data, $error);
     
@@ -338,8 +336,8 @@ sub sequence_compute {
         return ({"ERROR" => "missing required md5"}, 404);
     }
     my $mgid = "mgm".$id;
-    my $mgdb = MGRAST::Abundance->new(undef, $ver);
-    unless ($mgdb) {
+    my $chdl = $self->cassandra_handle("job", $ver);
+    unless ($chdl) {
         return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }
     
@@ -350,18 +348,11 @@ sub sequence_compute {
         return ({"ERROR" => "unable to retrieve sequence file"}, 500);
     }
     my $node_id = $sim_node->[0]{id};
-    
-    # get seek / length
-    my $md5sum = $mgdb->dbh->selectcol_arrayref("SELECT _id FROM md5s WHERE md5=".$mgdb->dbh->quote($md5));
-    my $query  = "SELECT seek, length FROM job_md5s";
-    $query .= $mgdb->get_where_str([
-        'version = '.$mgdb->version,
-        'job = '.$job->{job_id},
-        'seek IS NOT NULL',
-        'length IS NOT NULL',
-        'md5 = '.$md5sum->[0]
-    ]);
-    my $info = $mgdb->dbh->selectrow_arrayref($query);
+    my $info = $chdl->get_md5_record($job->{job_id}, $md5);
+    $chdl->close();
+    unless ($info && (@$info > 0)) {
+        return ({"ERROR" => "unable to retrieve md5 index"}, 500);
+    }
     
     # get sequences from record
     my $infasta = "";
@@ -385,6 +376,9 @@ sub sequence_compute {
     my ($md5fasta, $error) = $self->md5s2sequences([$md5], $ver, 'fasta');
     if ($error) {
         return ({"ERROR" => $error}, 500);
+    }
+    unless ($md5fasta) {
+        return ({"ERROR" => "unable to retrieve sequence for $md5"}, 500);
     }
     # make md5 seq file
     my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
@@ -416,19 +410,19 @@ sub species_diversity_compute {
     my $ver   = $self->cgi->param('ann_ver') || $self->{m5nr_default};
     my $data  = {};
     
-    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$ver, $Conf::cassandra_m5nr);
-    my $mgdb = MGRAST::Abundance->new($chdl, $ver, $Conf::mgrast_write_dbhost); # write host for pipeline reads
-    unless ($mgdb) {
+    my $mgcass = $self->cassandra_abundance($ver);
+    unless ($mgcass) {
         return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }
     
-    my ($md5_num, $org_map, undef, undef) = $mgdb->all_job_abundances($job->{job_id}, [$level], 1, undef, undef);
+    my ($md5_num, $org_map, undef, undef) = @{ $mgcass->all_annotation_abundances($job->{job_id}, [$level], 1, 0, 0) };
     if ($md5_num == 0) {
         return ({"ERROR" => "no md5 hits available"}, 500);
     }
+    $mgcass->close();
     
     if ($type eq "alphadiversity") {
-        $data = $mgdb->get_alpha_diversity($org_map->{$level});
+        $data = $self->get_alpha_diversity($org_map->{$level});
     } elsif ($type eq "rarefaction") {
         my $snum = $self->cgi->param('seq_num') || 0;
         my $alpha = $self->cgi->param('alpha') ? 1 : 0;
@@ -436,17 +430,16 @@ sub species_diversity_compute {
             my $jstats = $job->stats();
             $snum = $jstats->{sequence_count_raw} || 1;
         }
-        my $rare = $mgdb->get_rarefaction_xy($org_map->{$level}, $snum);
+        my $rare = $self->get_rarefaction_xy($org_map->{$level}, $snum);
         if ($alpha) {
             $data->{rarefaction} = $rare;
-            $data->{alphadiversity} = $mgdb->get_alpha_diversity($org_map->{$level});
+            $data->{alphadiversity} = $self->get_alpha_diversity($org_map->{$level});
         } else {
             $data = $rare;
         }
     } else {
         return ({"ERROR" => "invalid compute type: $type"}, 400);
     }
-    $mgdb->DESTROY();
     
     return ($data, undef);
 }

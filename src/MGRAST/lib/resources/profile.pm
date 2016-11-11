@@ -8,7 +8,6 @@ use POSIX qw(strftime);
 use List::MoreUtils qw(natatime);
 
 use Conf;
-use MGRAST::Abundance;
 use parent qw(resources::resource);
 
 # Override parent constructor
@@ -32,7 +31,7 @@ sub new {
         id        => [ 'string', 'unique metagenome identifier' ],
         created   => [ 'string', 'time the output data was generated' ],
         version   => [ 'integer', 'version number of M5NR used' ],
-        sources   => [ 'list', [ 'string', 'list of the sources used in annotations, order is same as annotation lists' ] ],
+        source    => [ 'string', 'source used in annotations' ],
         columns   => [ 'list', [ 'string', 'list of the columns in data' ] ],
         condensed => [ 'boolean', 'true if annotations are numeric identifiers and not full text' ],
         row_total => [ 'integer', 'number of rows in data matrix' ],
@@ -55,7 +54,7 @@ sub new {
         created => [ 'string', 'time the profile was completed' ],
         md5     => [ 'string', 'md5sum of profile' ],
         rows    => [ 'string', 'number of rows in profile data' ],
-        sources => [ 'list', [ 'string', 'source name used in profile' ]],
+        source  => [ 'string', 'source name used in profile' ],
         data    => $self->{profile}
     };
     return $self;
@@ -139,13 +138,18 @@ sub request {
 }
 
 sub status {
-    my ($self, $uuid) = @_;
+    my ($self, $uuid, $node) = @_;
     
     my $verbosity = $self->cgi->param('verbosity') || "full";
     # get node
-    my $node = $self->get_shock_node($uuid, $self->mgrast_token);
+    if ($uuid) {
+        $node = $self->get_shock_node($uuid, $self->mgrast_token);
+    }
     if (! $node) {
-        $self->return_data( {"ERROR" => "process id $uuid does not exist"}, 404 );
+        $self->return_data( {"ERROR" => "unable to retrieve profile: missing from shock"}, 500 );
+    }
+    if (! $uuid) {
+        $uuid = $node->{id};
     }
     my $obj = $self->status_report_from_node($node, "processing");
     if ($node->{file}{name} && $node->{file}{size}) {
@@ -153,7 +157,7 @@ sub status {
         if ($verbosity eq "full") {
             my ($content, $err) = $self->get_shock_file($uuid, undef, $self->mgrast_token);
             if ($err) {
-                $self->return_data( {"ERROR" => "unable to retrieve data: ".$err}, 404 );
+                $self->return_data( {"ERROR" => "unable to retrieve profile: ".$err}, 500 );
             }
             $obj->{data} = $self->json->decode($content);
         }
@@ -183,14 +187,14 @@ sub submit {
     unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
+    my $mgid  = 'mgm'.$id;
+    my $jobid = $job->{job_id};
     
     # get paramaters
     my $version   = $self->check_version($self->cgi->param('version'));
     my $source    = $self->cgi->param('source') || "RefSeq";
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
-    
-    my @sources = sort split(/,/, $source);
     
     # validate type / source
     my $all_srcs = {};
@@ -201,21 +205,21 @@ sub submit {
         map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
         map { $all_srcs->{$_} = 1 } @{$self->source_by_type('ontology')};
     }
-    foreach my $s (@sources) {
-        unless (exists $all_srcs->{$s}) {
-            $self->return_data( {"ERROR" => "invalid source for profile: ".$s." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
-        }
+    unless (exists $all_srcs->{$source}) {
+        $self->return_data( {"ERROR" => "invalid source for profile: ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
     }
     
     # check for static feature profile node from shock
     my $squery = {
-        id => 'mgm'.$id,
+        id => $mgid,
         type => 'metagenome',
         data_type => 'profile',
         stage_name => 'done'
     };
     my $snodes = $self->get_shock_query($squery, $self->mgrast_token);
-    $self->check_static_profile($snodes, \@sources, $condensed, $version);
+    if ($snodes && (@$snodes > 0)) {
+        $self->check_static_profile($snodes, $source, $condensed, $version);
+    }
     
     # check if temp profile compute node is in shock
     my $tquery = {
@@ -230,12 +234,44 @@ sub submit {
         $self->return_data($obj);
     }
     
-    # test postgres access
-    my $testdb = MGRAST::Abundance->new();
-    unless ($testdb) {
-        $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+    # test cassandra access
+    #my $ctest = $self->cassandra_test("job");
+    #unless ($ctest) {
+    #    $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
+    #}
+    
+    # check if job exists in cassandra DB
+    my $chdl = $self->cassandra_handle("job", $version);
+    unless ($chdl) {
+        $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
-    $testdb->DESTROY();
+    unless ($chdl->has_job($jobid)) {
+        # need to submit profile to postgres backend API
+        my $result = undef;
+        my @options = (
+            "version=".$version,
+            "source=".$source,
+            "format=".$format,
+            "condensed=".(($condensed eq 'true') ? "1" : "0"),
+            "verbosity=".($self->cgi->param('verbosity') || "full")
+        );
+        my @args = $self->token ? ('authorization', "mgrast ".$self->token) : ();
+        my $pqlurl = "http://api-pql.metagenomics.anl.gov/profile/$mgid?".join("&", @options);
+        eval {
+            my $get = $self->agent->get($pqlurl, @args);
+            $result = $self->json->decode( $get->content );
+        };
+        # close handle
+        $chdl->close();
+        # send response
+        if ($@ || (! ref($result))) {
+            $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
+        } else {
+            $self->return_data( $result );
+        }
+    }
+    # close handle
+    $chdl->close();
     
     # need to create new temp node
     $tquery->{row_total} = 0;
@@ -244,13 +280,15 @@ sub submit {
         found => 0
     };
     $tquery->{parameters} = {
-        id => 'mgm'.$id,
-        sources => \@sources,
+        id => $mgid,
+        job_id => $jobid,
+        source => $source,
+        source_type => $self->type_by_source($source),
         format => $format,
         condensed => $condensed,
         version => $version
     };
-    my $node = $self->set_shock_node('mgm'.$id.'.json', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
+    my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
     
     # asynchronous call, fork the process
     my $pid = fork();
@@ -258,12 +296,7 @@ sub submit {
     if ($pid == 0) {
         close STDERR;
         close STDOUT;
-        my ($data, $error) = $self->prepare_data($id, $node, \@sources, $condensed, $version, $format);
-        if ($error) {
-            $data->{STATUS} = $error;
-        }
-        my $fname = $data->{id}."_".join("_", @sources)."_v".$version.".".$format;
-        $self->put_shock_file($fname, $data, $node->{id}, $self->mgrast_token);
+        $self->create_profile($id, $node, $tquery->{parameters});
         exit 0;
     }
     # parent - end html session
@@ -274,220 +307,60 @@ sub submit {
 }
 
 # reformat the data into the requested output format
-sub prepare_data {
-    my ($self, $id, $node, $sources, $condensed, $version, $format) = @_;
-
+sub create_profile {
+    my ($self, $id, $node, $param) = @_;
+    
     # get data
     my $master = $self->connect_to_datasource();
     my $job  = $master->Job->get_objects( {metagenome_id => $id} );
     my $data = $job->[0];
     
-    # set profile based on format
-    my $columns = [];
-    my $profile = {};
+    # cassandra handle
+    my $mgcass = $self->cassandra_profile($param->{version});
     
-    if ($format eq 'biom') {
-        $columns = [{id => "abundance"}, {id => "e-value"}, {id => "percent identity"}, {id => "alignment length"}];
-        $profile = {
-            id                  => "mgm".$id,
-            format              => "Biological Observation Matrix 1.0",
-            format_url          => "http://biom-format.org",
-            type                => "Feature table",
-            generated_by        => "MG-RAST".($Conf::server_version ? " revision ".$Conf::server_version : ""),
-            date                => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-            matrix_type         => "dense",
-            matrix_element_type => "float",
-            shape               => [ 0, scalar(@$columns) ],
-            rows                => [],
-            columns             => $columns,
-            data                => []
-        };
-    } else {
-        $columns = ["md5sum", "abundance", "e-value", "percent identity", "alignment length", "organisms", "functions"];
-	    $profile = {
-            id        => "mgm".$id,
-            created   => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-            version   => $version,
-            sources   => $sources,
-            columns   => $columns,
-            condensed => $condensed,
-            row_total => 0,
-            data      => []
-	    };
-    }
-
-    # get data
-    my $id2ann = {}; # md5_id => { accession => [], function => [], organism => [], ontology => [] }
-    my $id2md5 = {}; # md5_id => md5
-    
-    # db handles
-    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
-    my $mgdb = MGRAST::Abundance->new($chdl, $version);
-    unless ($mgdb) {
-        return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
-    }
-    
-    # run query
-    my $query = "SELECT md5, abundance, exp_avg, len_avg, ident_avg FROM job_md5s WHERE version=".
-                $version." AND job=".$data->{job_id}." AND exp_avg <= -5 AND ident_avg >= 60 AND len_avg >= 15";
-    my $sth   = $mgdb->execute_query($query);
-    
-    # loop through results and build profile
-    my $found = 0;
-    my $md5_row = {};
-    my $total_count = 0;
-    my $batch_count = 0;
-    while (my @row = $sth->fetchrow_array()) {
-        my ($md5, $abun, $eval, $ident, $alen) = @row;
-        if ($format eq 'biom') {
-            $md5_row->{$md5} = [int($abun), toFloat($eval), toFloat($ident), toFloat($alen)];
-        } else {
-            $md5_row->{$md5} = ["", int($abun), toFloat($eval), toFloat($ident), toFloat($alen), [(undef) x scalar(@$sources)], [(undef) x scalar(@$sources)]];
-        }
-        $total_count++;
-        $batch_count++;
-        if ($batch_count == $mgdb->chunk) {
-            $found += $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
-            $md5_row = {};
-            $batch_count = 0;
-        }
-        if (($total_count % 100000) == 0) {
-            my $attr = $node->{attributes};
-            $attr->{progress}{queried} = $total_count;
-            $attr->{progress}{found} = $found;
-            $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
-        }
-    }
-    if ($batch_count > 0) {
-        $found += $self->append_profile($chdl, $profile, $md5_row, $sources, $condensed, $format);
-    }
-    my $attr = $node->{attributes};
-    $attr->{progress}{queried} = $total_count;
-    $attr->{progress}{found} = $found;
-    $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
-    
-    # cleanup
-    $mgdb->end_query($sth);
-    $mgdb->DESTROY();
-	
-	if ($format eq 'biom') {
-	    $profile->{shape}[0] = scalar(@{$profile->{rows}});
-	} else {
-	    $profile->{row_total} = scalar(@{$profile->{data}});
-	    
-	    # store it in shock permanently if mgrast format
-	    my $attr = {
-	        id            => 'mgm'.$id,
-	        job_id        => $data->{job_id},
-	        created       => $data->{created_on},
-	        name          => $data->{name},
-	        owner         => 'mgu'.$data->{owner},
-	        sequence_type => $data->{sequence_type},
-	        status        => $data->{public} ? 'public' : 'private',
-	        project_id    => undef,
-	        project_name  => undef,
+    ### create profile
+    # store it in shock permanently if mgrast format
+    my $attr = undef;
+    if ($param->{format} eq 'mgrast') {
+        $attr = {
+            id            => 'mgm'.$id,
+            job_id        => $data->{job_id},
+            created       => $data->{created_on},
+            name          => $data->{name},
+            owner         => 'mgu'.$data->{owner},
+            sequence_type => $data->{sequence_type},
+            status        => $data->{public} ? 'public' : 'private',
+            project_id    => undef,
+            project_name  => undef,
             type          => 'metagenome',
             data_type     => 'profile',
-            sources       => $sources,
-            row_total     => $profile->{row_total},
-            md5_queried   => $total_count,
-            md5_found     => $found,
-            condensed     => $condensed,
-            version       => $version,
+            source        => $param->{source},
+            row_total     => 0,
+            md5_queried   => 0,
+            md5_found     => 0,
+            condensed     => $param->{condensed},
+            version       => $param->{version},
             file_format   => 'json',
             stage_name    => 'done',
             stage_id      => '999'
-	    };
-	    eval {
-	        my $proj = $data->primary_project;
-	        if ($proj->{id}) {
-	            $attr->{project_id} = 'mgp'.$proj->{id};
-	            $attr->{project_name} = $proj->{name};
+        };
+        eval {
+            my $proj = $data->primary_project;
+            if ($proj->{id}) {
+                $attr->{project_id} = 'mgp'.$proj->{id};
+                $attr->{project_name} = $proj->{name};
             }
-	    };
-	    # update existing node / remove expiration
-	    # file added to node in asynch mode in parent function
-        $node = $self->update_shock_node($node->{id}, $attr, $self->mgrast_token);
-	    $node = $self->update_shock_node_expiration($node->{id}, $self->mgrast_token);
-	    if ($data->{public}) {
-	        $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');
-	    }
+        };
     }
     
-    return ($profile, undef);
-}
-
-sub append_profile {
-    my ($self, $chdl, $profile, $md5_row, $sources, $condensed, $format) = @_;
+    # set shock
+    my $token  = $self->mgrast_token;
+    $mgcass->set_shock($token);
     
-    my @mids    = keys %$md5_row;
-    my %md5_idx = {}; # md5id => row index #
-    my $found   = 0;
-    
-    for (my $si=0; $si<@$sources; $si++) {
-        my $src = $sources->[$si];
-        my $cass_data = [];
-        if ($condensed eq "true") {
-            $cass_data = $chdl->get_id_records_by_id(\@mids, $src);
-        } elsif ($condensed eq "false") {
-            $cass_data = $chdl->get_records_by_id(\@mids, $src);
-        }
-        foreach my $info (@$cass_data) {
-            # set / get row index
-            my $index;
-            unless (exists $md5_idx{$info->{id}}) {
-                # set profile row
-                $found += 1;
-                push @{$profile->{data}}, $md5_row->{$info->{id}};
-                $index = scalar(@{$profile->{data}}) - 1;
-                $md5_idx{$info->{id}} = $index;
-                # set biom row
-                if ($format eq 'biom') {
-                    push @{$profile->{rows}}, { id => $info->{md5}, metadata => {} };
-                }
-            } else {
-                $index = $md5_idx{$info->{id}};
-            }
-
-            if ($format eq 'biom') {
-                # append source specific data in profile row metadata
-                $profile->{rows}[$index]{metadata}{$src} = { function => $info->{function} };
-                if (exists $self->{ontology}{$info->{source}}) {
-                    $profile->{rows}[$index]{metadata}{$src}{ontology} = $info->{accession};
-                } else {
-                    $profile->{rows}[$index]{metadata}{$src}{single}    = $info->{single};
-                    $profile->{rows}[$index]{metadata}{$src}{organism}  = $info->{organism};
-                    if ($info->{accession}) {
-                        $profile->{rows}[$index]{metadata}{$src}{accession} = $info->{accession};
-                    }
-                }
-            } else {
-                # append source specific data in profile data
-                # md5sum, abundance, e-value, percent identity, alignment length, organisms (first is single), functions (either function or ontology)
-                $profile->{data}[$index][0] = $info->{md5};
-                if ($info->{single} && $info->{organism}) {
-                    my @sub_orgs;
-                    if ($condensed eq "true") {
-                        @sub_orgs = grep { $_ != $info->{single} } @{$info->{organism}};
-                    } else {
-                        @sub_orgs = grep { $_ ne $info->{single} } @{$info->{organism}};
-                    }
-                    $profile->{data}[$index][5][$si] = [ $info->{single}, @sub_orgs ];
-                }
-                if (exists($self->{ontology}{$info->{source}}) && $info->{accession}) {
-                    $profile->{data}[$index][6][$si] = $info->{accession};
-                } elsif ($info->{function}) {
-                    $profile->{data}[$index][6][$si] = $info->{function};
-                }
-            }
-        }
-    }
-    return $found;
-}
-
-sub toFloat {
-    my ($x) = @_;
-    return $x * 1.0;
+    ### saves output file or error message in shock
+    $mgcass->compute_profile($node, $param, $attr);
+    $mgcass->close();
+    return undef;
 }
 
 sub status_report_from_node {
@@ -515,7 +388,7 @@ sub status_report_from_node {
         # is permanent shock node
         $report->{parameters} = {
             id         => $node->{attributes}{id},
-            sources    => $node->{attributes}{sources},
+            source     => $node->{attributes}{source},
             format     => 'mgrast',
             condensed  => $node->{attributes}{condensed},
             version    => $node->{attributes}{version}
@@ -525,25 +398,19 @@ sub status_report_from_node {
 }
 
 sub check_static_profile {
-    my ($self, $nodes, $sources, $condensed, $version) = @_;
+    my ($self, $nodes, $source, $condensed, $version) = @_;
     
     # sort results by newest to oldest
     my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
     
     foreach my $n (@$nodes) {
-        my $has_sources  = 1;
-        my %node_sources = map { $_, 1 } @{$n->{attributes}{sources}};
-        foreach my $s (@$sources) {
-            unless (exists $node_sources{$s}) {
-                $has_sources = 0;
-            }
-        }
         if ( $n->{attributes}{condensed} &&
              ($n->{attributes}{condensed} eq $condensed) &&
              $n->{attributes}{version} &&
              (int($n->{attributes}{version}) == int($version)) &&
-             $has_sources ) {
-            $self->status($n->{id});
+             $n->{attributes}{source} &&
+             ($n->{attributes}{source} eq $source) ) {
+            $self->status(undef, $n);
         }
     }
 }

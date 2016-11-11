@@ -16,8 +16,10 @@ use File::Basename;
 use File::Temp qw(tempfile tempdir);
 use Storable qw(dclone);
 use UUID::Tiny ":std";
+use List::Util qw(max min sum);
 use Digest::MD5 qw(md5_hex md5_base64);
 use Template;
+use Inline::Python qw(py_eval);
 
 $CGI::LIST_CONTEXT_WARN = 0;
 $CGI::Application::LIST_CONTEXT_WARN = 0;
@@ -272,6 +274,20 @@ sub source_by_type {
         }
     }
     return \@srcs;
+}
+
+sub type_by_source {
+    my ($self, $source) = @_;
+    foreach my $t (("protein", "rna", "ontology")) {
+        if (exists $self->source->{$t}) {
+            foreach my $s (@{$self->source->{$t}}) {
+                if ($s->[0] eq $source) {
+                    return $t;
+                }
+            }
+        }
+    }
+    return undef;
 }
 
 # hardcoded hierarchy info
@@ -1577,117 +1593,62 @@ sub empty_awe_task {
 #  other server functions  #
 ############################
 
-sub cassandra_m5nr_handle {
-    my ($self, $keyspace, $hosts) = @_;
-    
-    unless ($keyspace && $hosts && (@$hosts > 0)) {
-        $self->return_data( {"ERROR" => "Unable to connect to cassandra cluster"}, 500 );
+sub cassandra_test {
+    my ($self, $db) = @_;
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($hosts && (@$hosts > 0)) {
+        return 0;
     }
+    my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from cass_connection import CassTest|;
+    py_eval($import);
+    my $test = Inline::Python::Object->new('__main__', 'CassTest', $hosts, $db);
+    return $test->test();
+}
 
-    use Inline::Python qw(py_eval);
-    my $python = q(
-from collections import defaultdict
-from cassandra.cluster import Cluster
-from cassandra.policies import RetryPolicy
-from cassandra.query import dict_factory
-
-class CassHandle(object):
-    def __init__(self, keyspace, hosts):
-        self.handle = Cluster(
-            contact_points = hosts,
-            default_retry_policy = RetryPolicy()
-        )
-        self.session = self.handle.connect(keyspace)
-        self.session.default_timeout = 300
-        self.session.row_factory = dict_factory
-    def get_records_by_id(self, ids, source=None):
-        found = []
-        if source:
-            query = "SELECT * FROM id_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
-        else:
-            query = "SELECT * FROM id_annotation WHERE id IN (%s)"%(",".join(map(str, ids)))
-        rows = self.session.execute(query)
-        for r in rows:
-            r['is_protein'] = 1 if r['is_protein'] else 0
-            found.append(r)
-        return found
-    def get_id_records_by_id(self, ids, source=None):
-        found = []
-        if source:
-            query = "SELECT * FROM index_annotation WHERE id IN (%s) AND source='%s'"%(",".join(map(str, ids)), source)
-        else:
-            query = "SELECT * FROM index_annotation WHERE id IN (%s)"%(",".join(map(str, ids)))
-        rows = self.session.execute(query)
-        for r in rows:
-            r['is_protein'] = 1 if r['is_protein'] else 0
-            found.append(r)
-        return found
-    def get_taxa_hierarchy(self):
-        found = {}
-        query = "SELECT * FROM organisms_ncbi"
-        rows = self.session.execute(query)
-        for r in rows:
-            found[r['name']] = [r['tax_domain'], r['tax_phylum'], r['tax_class'], r['tax_order'], r['tax_family'], r['tax_genus'], r['tax_species']]
-        return found
-    def get_ontology_hierarchy(self, source=None):
-        found = defaultdict(dict)
-        if source is None:
-            rows = self.session.execute("SELECT * FROM ont_level1")
-        else:
-            prep = self.session.prepare("SELECT * FROM ont_level1 WHERE source = ?")
-            rows = self.session.execute(prep, [source])
-        for r in rows:
-            found[r['source']][r['level1']] = r['name']
-        if source is None:
-            return found
-        else:
-            return found[source]
-    def get_org_taxa_map(self, taxa):
-        found = {}
-        tname = "tax_"+taxa.lower()
-        query = "SELECT * FROM "+tname
-        rows = self.session.execute(query)
-        for r in rows:
-            found[r['name']] = r[tname]
-        return found
-    def get_ontology_map(self, source, level):
-        found = {}
-        level = level.lower()
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
-        rows = self.session.execute(prep, [source])
-        for r in rows:
-            found[r['name']] = r[level]
-        return found
-    def get_organism_by_taxa(self, taxa, match=None):
-        # if match is given, return subset that contains match, else all
-        found = set()
-        tname = "tax_"+taxa.lower()
-        query = "SELECT * FROM "+tname
-        rows = self.session.execute(query)
-        for r in rows:
-            if match and (match.lower() in r[tname].lower()):
-                found.add(r['name'])
-            elif match is None:
-                found.add(r['name'])
-        return list(found)
-    def get_ontology_by_level(self, source, level, match=None):
-        # if match is given, return subset that contains match, else all
-        found = set()
-        level = level.lower()
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
-        rows = self.session.execute(prep, [source])
-        for r in rows:
-            if match and (match.lower() in r[level].lower()):
-                found.add(r['name'])
-            elif match is None:
-                found.add(r['name'])
-        return list(found)
-    def close(self):
-        self.handle.shutdown()
-);
+sub cassandra_handle {
+    my ($self, $db, $version) = @_;
     
-    py_eval($python);
-    return Inline::Python::Object->new('__main__', 'CassHandle', $keyspace, $hosts);
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($version && $hosts && (@$hosts > 0)) {
+        return undef;
+    }
+    my $test = $self->cassandra_test($db);
+    unless ($test) {
+        return undef;
+    }
+    my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from mgrast_cassandra import *|;
+    py_eval($import);
+    if ($db eq 'm5nr') {
+        return Inline::Python::Object->new('__main__', 'M5nrHandle', $hosts, $version);
+    } elsif ($db eq 'job') {
+        return Inline::Python::Object->new('__main__', 'JobHandle', $hosts, $version);
+    } else {
+        return undef;
+    }
+}
+
+sub cassandra_abundance {
+    my ($self, $version) = @_;
+    
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($version && $hosts && (@$hosts > 0)) {
+        return undef;
+    }
+    my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from abundance import Abundance|;
+    py_eval($import);
+    return Inline::Python::Object->new('__main__', 'Abundance', $hosts, $version);
+}
+
+sub cassandra_profile {
+    my ($self, $version) = @_;
+    
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($version && $hosts && (@$hosts > 0)) {
+        return undef;
+    }
+    my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from profile import Profile|;
+    py_eval($import);
+    return Inline::Python::Object->new('__main__', 'Profile', $hosts, $version);
 }
 
 sub get_solr_query {
@@ -1745,9 +1706,9 @@ sub kbase_idserver {
     }
 }
 
-####################
-#  inbox functions #
-####################
+###################################
+#  inbox and submission functions #
+###################################
 
 # add submission id to inbox node
 sub add_submission {
@@ -2451,7 +2412,7 @@ sub get_file_format {
 }
 
 ###################
-#  misc functions #
+#  math functions #
 ###################
 
 sub uuidv4 {
@@ -2472,6 +2433,71 @@ sub toNum {
     } else {
         return $x * 1.0;
     }
+}
+
+sub get_alpha_diversity {
+    my ($self, $org_map) = @_;
+    # org_map = taxa => abundance
+    my $alpha = 0;
+    my $h1    = 0;
+    my $sum   = sum values %$org_map;
+    
+    unless ($sum) {
+        return $alpha;
+    }
+    foreach my $num (values %$org_map) {
+        my $p = $num / $sum;
+        if ($p > 0) { $h1 += ($p * log(1/$p)) / log(2); }
+    }
+    $alpha = 2 ** $h1;
+    
+    return $alpha;
+}
+
+sub get_rarefaction_xy {
+    my ($self, $org_map, $nseq) = @_;
+    # org_map = taxa => abundance
+    my $rare = [];
+    my $size = ($nseq > 1000) ? int($nseq / 1000) : 1;
+    my @nums = sort {$a <=> $b} values %$org_map;
+    my $k    = scalar @nums;
+
+    for (my $n = 0; $n < $nseq; $n += $size) {
+        my $coeff = nCr2ln($nseq, $n);
+        my $curr  = 0;
+        map { $curr += exp( nCr2ln($nseq - $_, $n) - $coeff ) } @nums;
+        push @$rare, [ $n, $k - $curr ];
+    }
+    
+    return $rare;
+}
+
+# log of N choose R 
+sub nCr2ln {
+    my ($n, $r) = @_;
+
+    my $c = 1;
+    if ($r > $n) {
+        return $c;
+    }
+    if (($r < 50) && ($n < 50)) {
+        map { $c = ($c * ($n - $_)) / ($_ + 1) } (0..($r-1));
+        return log($c);
+    }
+    if ($r <= $n) {
+        $c = gammaln($n + 1) - gammaln($r + 1) - gammaln($n - $r); 
+    } else {
+        $c = -1000;
+    }
+    return $c;
+}
+
+# This is Stirling's formula for gammaln, used for calculating nCr
+sub gammaln {
+    my ($self, $x) = @_;
+    unless ($x > 0) { return 0; }
+    my $s = log($x);
+    return log(2 * 3.14159265458) / 2 + $x * $s + $s / 2 - $x;
 }
 
 # fuzzy math here
