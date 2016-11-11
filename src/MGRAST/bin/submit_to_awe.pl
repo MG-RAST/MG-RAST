@@ -192,8 +192,9 @@ if ($input_file) {
 } elsif ($input_node) {
     # copy input node
     $content = {
-        copy_data => $input_node,
-        attributes => [undef, "attr.json", Content => $json->encode($up_attr)]
+        copy_data    => $input_node,
+        copy_indexes => 1,
+        attributes   => [undef, "attr.json", Content => $json->encode($up_attr)]
     };
 }
 # POST to shock
