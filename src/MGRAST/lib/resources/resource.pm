@@ -1358,7 +1358,7 @@ sub metagenome_stats_from_shock {
     };
     # functions
     eval {
-        $result->{functions} = $stats->{functions};
+        $result->{function} = $stats->{function};
     };
     
     return $result;
