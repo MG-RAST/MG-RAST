@@ -1358,7 +1358,7 @@ sub metagenome_stats_from_shock {
     };
     # functions
     eval {
-        $result->{rarefaction} = $stats->{functions};
+        $result->{functions} = $stats->{functions};
     };
     
     return $result;
@@ -2626,7 +2626,7 @@ sub compute_breakdown {
     }
     
     return {
-        total        => $raw_seqs,
+        total        => int($raw_seqs),
         failed_qc    => abs($qc_fail_seqs),
         unknown      => abs($unknown_all),
         unknown_prot => abs($unkn_aa_reads),
