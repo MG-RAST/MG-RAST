@@ -1258,32 +1258,33 @@ sub metagenome_stats_from_shock {
     }
     
     my $result = {
-        length_histogram => {
-            upload => undef,
-            post_qc => undef
+        'length_histogram' => {
+            'upload' => undef,
+            'post_qc' => undef
         },
-        gc_histogram => {
-            upload => undef,
-            post_qc => undef
+        'gc_histogram' => {
+            'upload' => undef,
+            'post_qc' => undef
         },
-        qc => {
-            bp_profile => undef,
-            drisee     => undef,
-            kmer       => {
-                15_mer => undef,
-                6_mer  => undef
+        'qc' => {
+            'bp_profile' => undef,
+            'drisee'     => undef,
+            'kmer'       => {
+                '15_mer' => undef,
+                '6_mer'  => undef
             }
         },
-        sequence_stats => {},
-        rarefaction    => [],
-        ontology       => {},
-        taxonomy       => {},
-        functions      => [],
-        source         => {}
+        'rarefaction'        => undef,
+        'sequence_breakdown' => {},
+        'sequence_stats'     => {},
+        'ontology'           => {},
+        'taxonomy'           => {},
+        'source'             => {},
+        'function'           => []
     };
     
     # seq stats
-    if ($stats->{sequence_stats}) {
+    if ($stats->{sequence_stats} && (ref($stats->{sequence_stats}) eq 'HASH')) {
         foreach my $key (keys %{$stats->{sequence_stats}}) {
             eval {
                 $result->{sequence_stats}{$key} = $self->toFloat($stats->{sequence_stats}{$key});
@@ -1292,12 +1293,12 @@ sub metagenome_stats_from_shock {
     }
     # seq breakdown - don't ask how its done
     eval {
-        if ($type) {
+        if ($type && $stats->{sequence_stats}) {
             $result->{sequence_breakdown} = $self->compute_breakdown($stats->{sequence_stats}, $type);
         }
     };
     # source
-    if ($stats->{source}) {
+    if ($stats->{source} && (ref($stats->{source}) eq 'HASH')) {
         foreach my $src (keys %{$stats->{source}}) {
             $result->{source}{$src} = {};
             foreach my $type (keys %{$stats->{source}{$src}}) {
@@ -1312,21 +1313,23 @@ sub metagenome_stats_from_shock {
         }
     }
     # qc
-    if ($stats->{qc}) {
+    if ($stats->{qc} && (ref($stats->{qc}) eq 'HASH')) {
         foreach my $qc (keys %{$stats->{qc}}) {
-            foreach my $type (keys %{$stats->{qc}{$qc}}) {
-                eval {
-                    $result->{qc}{$qc}{$type} = $stats->{qc}{$qc}{$type};
-                    if (! $stats->{qc}{$qc}{$type}{data}) {
-                        $result->{qc}{$qc}{$type}{data} = [];
-                    }
-                };
+            if ($stats->{qc}{$qc} && (ref($stats->{qc}{$qc}) eq 'HASH')) {
+                foreach my $type (keys %{$stats->{qc}{$qc}}) {
+                    eval {
+                        $result->{qc}{$qc}{$type} = $stats->{qc}{$qc}{$type};
+                        if (! $stats->{qc}{$qc}{$type}{data}) {
+                            $result->{qc}{$qc}{$type}{data} = [];
+                        }
+                    };
+                }
             }
         }
     }
     # tax / ontol
     foreach my $ann (('taxonomy', 'ontology')) {
-        if ($stats->{$ann}) {
+        if ($stats->{$ann} && (ref($stats->{$ann}) eq 'HASH')) {
             foreach my $type (keys %{$stats->{$ann}}) {
                 eval {
                     if (! $stats->{$ann}{$type}) {
@@ -1340,7 +1343,7 @@ sub metagenome_stats_from_shock {
     }
     # histograms
     foreach my $hist (('gc_histogram', 'length_histogram')) {
-        if ($stats->{$hist}) {
+        if ($stats->{$hist} && (ref($stats->{$hist}) eq 'HASH')) {
             foreach my $type (keys %{$stats->{$hist}}) {
                 eval {
                     if (! $stats->{$hist}{$type}) {
@@ -1353,13 +1356,15 @@ sub metagenome_stats_from_shock {
         }
     }
     # rarefaction
-    eval {
-        $result->{rarefaction} = [ map { [int($_->[0]), $self->toFloat($_->[1])] } @{$stats->{rarefaction}} ];
+    if ($stats->{rarefaction} && (ref($stats->{rarefaction}) eq 'ARRAY')) {
+        eval {
+            $result->{rarefaction} = [ map { [int($_->[0]), $self->toFloat($_->[1])] } @{$stats->{rarefaction}} ];
+        };
     }
     # functions
     eval {
-        $result->{rarefaction} = $stats->{functions};
-    }
+        $result->{function} = $stats->{function} || [];
+    };
     
     return $result;
 }
@@ -2626,7 +2631,7 @@ sub compute_breakdown {
     }
     
     return {
-        total        => $raw_seqs,
+        total        => int($raw_seqs),
         failed_qc    => abs($qc_fail_seqs),
         unknown      => abs($unknown_all),
         unknown_prot => abs($unkn_aa_reads),
