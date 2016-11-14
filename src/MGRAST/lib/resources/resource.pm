@@ -1278,7 +1278,7 @@ sub metagenome_stats_from_shock {
         'rarefaction'    => [],
         'ontology'       => {},
         'taxonomy'       => {},
-        'functions'      => [],
+        'function'       => [],
         'source'         => {}
     };
     
