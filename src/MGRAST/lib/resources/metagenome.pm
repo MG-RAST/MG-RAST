@@ -557,6 +557,7 @@ sub prepare_data {
 	                my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('alpha_diversity_shannon', $proj_jobs, 1) };
 	                $obj->{project_metagenomes} = $proj_jobs;
 	                $obj->{project_alpha_diversity} = { "min" => $min, "max" => $max, "avg" => $avg, "stdv" => $stdv };
+                }
             } else {
 	            map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
             }
