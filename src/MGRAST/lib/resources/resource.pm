@@ -1297,7 +1297,7 @@ sub metagenome_stats_from_shock {
         }
     };
     # source
-    if ($stats->{source}) {
+    if ($stats->{source} && (ref($stats->{source}) eq 'HASH')) {
         foreach my $src (keys %{$stats->{source}}) {
             $result->{source}{$src} = {};
             foreach my $type (keys %{$stats->{source}{$src}}) {
@@ -1312,21 +1312,23 @@ sub metagenome_stats_from_shock {
         }
     }
     # qc
-    if ($stats->{qc}) {
+    if ($stats->{qc} && (ref($stats->{qc}) eq 'HASH')) {
         foreach my $qc (keys %{$stats->{qc}}) {
-            foreach my $type (keys %{$stats->{qc}{$qc}}) {
-                eval {
-                    $result->{qc}{$qc}{$type} = $stats->{qc}{$qc}{$type};
-                    if (! $stats->{qc}{$qc}{$type}{data}) {
-                        $result->{qc}{$qc}{$type}{data} = [];
-                    }
-                };
+            if ($stats->{qc}{$qc} && (ref($stats->{qc}{$qc}) eq 'HASH')) {
+                foreach my $type (keys %{$stats->{qc}{$qc}}) {
+                    eval {
+                        $result->{qc}{$qc}{$type} = $stats->{qc}{$qc}{$type};
+                        if (! $stats->{qc}{$qc}{$type}{data}) {
+                            $result->{qc}{$qc}{$type}{data} = [];
+                        }
+                    };
+                }
             }
         }
     }
     # tax / ontol
     foreach my $ann (('taxonomy', 'ontology')) {
-        if ($stats->{$ann}) {
+        if ($stats->{$ann} && (ref($stats->{$ann}) eq 'HASH')) {
             foreach my $type (keys %{$stats->{$ann}}) {
                 eval {
                     if (! $stats->{$ann}{$type}) {
@@ -1340,7 +1342,7 @@ sub metagenome_stats_from_shock {
     }
     # histograms
     foreach my $hist (('gc_histogram', 'length_histogram')) {
-        if ($stats->{$hist}) {
+        if ($stats->{$hist} && (ref($stats->{$hist}) eq 'HASH')) {
             foreach my $type (keys %{$stats->{$hist}}) {
                 eval {
                     if (! $stats->{$hist}{$type}) {
