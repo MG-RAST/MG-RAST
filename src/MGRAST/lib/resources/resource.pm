@@ -1258,28 +1258,28 @@ sub metagenome_stats_from_shock {
     }
     
     my $result = {
-        length_histogram => {
-            upload => undef,
-            post_qc => undef
+        'length_histogram' => {
+            'upload' => undef,
+            'post_qc' => undef
         },
-        gc_histogram => {
-            upload => undef,
-            post_qc => undef
+        'gc_histogram' => {
+            'upload' => undef,
+            'post_qc' => undef
         },
-        qc => {
-            bp_profile => undef,
-            drisee     => undef,
-            kmer       => {
-                15_mer => undef,
-                6_mer  => undef
+        'qc' => {
+            'bp_profile' => undef,
+            'drisee'     => undef,
+            'kmer'       => {
+                '15_mer' => undef,
+                '6_mer'  => undef
             }
         },
-        sequence_stats => {},
-        rarefaction    => [],
-        ontology       => {},
-        taxonomy       => {},
-        functions      => [],
-        source         => {}
+        'sequence_stats' => {},
+        'rarefaction'    => [],
+        'ontology'       => {},
+        'taxonomy'       => {},
+        'functions'      => [],
+        'source'         => {}
     };
     
     # seq stats
