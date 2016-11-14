@@ -1355,11 +1355,11 @@ sub metagenome_stats_from_shock {
     # rarefaction
     eval {
         $result->{rarefaction} = [ map { [int($_->[0]), $self->toFloat($_->[1])] } @{$stats->{rarefaction}} ];
-    }
+    };
     # functions
     eval {
         $result->{rarefaction} = $stats->{functions};
-    }
+    };
     
     return $result;
 }
