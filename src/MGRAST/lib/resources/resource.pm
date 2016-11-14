@@ -1274,16 +1274,17 @@ sub metagenome_stats_from_shock {
                 '6_mer'  => undef
             }
         },
-        'sequence_stats' => {},
-        'rarefaction'    => [],
-        'ontology'       => {},
-        'taxonomy'       => {},
-        'function'       => [],
-        'source'         => {}
+        'rarefaction'        => undef,
+        'sequence_breakdown' => {},
+        'sequence_stats'     => {},
+        'ontology'           => {},
+        'taxonomy'           => {},
+        'source'             => {},
+        'function'           => []
     };
     
     # seq stats
-    if ($stats->{sequence_stats}) {
+    if ($stats->{sequence_stats} && (ref($stats->{sequence_stats}) eq 'HASH')) {
         foreach my $key (keys %{$stats->{sequence_stats}}) {
             eval {
                 $result->{sequence_stats}{$key} = $self->toFloat($stats->{sequence_stats}{$key});
@@ -1292,7 +1293,7 @@ sub metagenome_stats_from_shock {
     }
     # seq breakdown - don't ask how its done
     eval {
-        if ($type) {
+        if ($type && $stats->{sequence_stats}) {
             $result->{sequence_breakdown} = $self->compute_breakdown($stats->{sequence_stats}, $type);
         }
     };
@@ -1360,7 +1361,7 @@ sub metagenome_stats_from_shock {
     };
     # functions
     eval {
-        $result->{function} = $stats->{function};
+        $result->{function} = $stats->{function} || [];
     };
     
     return $result;
