@@ -499,6 +499,13 @@ sub prepare_data {
 	    if (exists $jdata->{pipeline_id}) {
 	        $obj->{pipeline_id} = $jdata->{pipeline_id};
 	    }
+	    # add pipeline version if exists
+	    if (exists $jdata->{pipeline_version}) {
+	        $obj->{pipeline_version} = $jdata->{pipeline_version};
+	    } else {
+	        $obj->{pipeline_version} = '3.0';
+	    }
+	    
 	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;
 	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
@@ -535,7 +542,6 @@ sub prepare_data {
             delete @{$pparams}{'filter_ln', 'filter_ln_mult', 'filter_ambig', 'max_ambig'};
         }
         $obj->{pipeline_parameters} = $pparams;
-        $obj->{pipeline_version} = '3.0';
         
         if (($verb eq 'mixs') || ($verb eq 'full')) {
             if (! $mddb) {
