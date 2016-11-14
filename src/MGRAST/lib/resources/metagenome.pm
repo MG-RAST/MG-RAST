@@ -499,6 +499,13 @@ sub prepare_data {
 	    if (exists $jdata->{pipeline_id}) {
 	        $obj->{pipeline_id} = $jdata->{pipeline_id};
 	    }
+	    # add pipeline version if exists
+	    if (exists $jdata->{pipeline_version}) {
+	        $obj->{pipeline_version} = $jdata->{pipeline_version};
+	    } else {
+	        $obj->{pipeline_version} = '3.0';
+	    }
+	    
 	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;
 	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
@@ -535,21 +542,23 @@ sub prepare_data {
             delete @{$pparams}{'filter_ln', 'filter_ln_mult', 'filter_ambig', 'max_ambig'};
         }
         $obj->{pipeline_parameters} = $pparams;
-        $obj->{pipeline_version} = '3.0';
         
         if (($verb eq 'mixs') || ($verb eq 'full')) {
             if (! $mddb) {
                 $mddb = MGRAST::Metadata->new();
             }
             my $mixs = $mddb->get_job_mixs($job);
-	    if ($verb eq 'full') {
-	      $obj->{mixs} = $mixs;
-	      my $proj_jobs = $job->primary_project->metagenomes(1);
-	      my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('alpha_diversity_shannon', $proj_jobs, 1) };
-	      $obj->{project_metagenomes} = $proj_jobs;
-	      $obj->{project_alpha_diversity} = { "min" => $min, "max" => $max, "avg" => $avg, "stdv" => $stdv };
+	        if ($verb eq 'full') {
+	            $obj->{mixs} = $mixs;
+	            $obj->{project_metagenomes} = undef;
+                $obj->{project_alpha_diversity} = undef;
+	            if ($obj->{project}) {
+	                my $proj_jobs = $job->primary_project->metagenomes(1);
+	                my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('alpha_diversity_shannon', $proj_jobs, 1) };
+	                $obj->{project_metagenomes} = $proj_jobs;
+	                $obj->{project_alpha_diversity} = { "min" => $min, "max" => $max, "avg" => $avg, "stdv" => $stdv };
             } else {
-	      map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
+	            map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
             }
         }
         if (($verb eq 'metadata') || ($verb eq 'full')) {

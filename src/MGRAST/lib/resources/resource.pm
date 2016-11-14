@@ -1256,56 +1256,112 @@ sub metagenome_stats_from_shock {
     if ($err) {
         $self->return_data( {"ERROR" => $err}, 500 );
     }
+    
+    my $result = {
+        length_histogram => {
+            upload => undef,
+            post_qc => undef
+        },
+        gc_histogram => {
+            upload => undef,
+            post_qc => undef
+        },
+        qc => {
+            bp_profile => undef,
+            drisee     => undef,
+            kmer       => {
+                15_mer => undef,
+                6_mer  => undef
+            }
+        },
+        sequence_stats => {},
+        rarefaction    => [],
+        ontology       => {},
+        taxonomy       => {},
+        functions      => [],
+        source         => {}
+    };
+    
     # seq stats
-    foreach my $key (keys %{$stats->{sequence_stats}}) {
-        $stats->{sequence_stats}{$key} = $self->toFloat($stats->{sequence_stats}{$key});
+    if ($stats->{sequence_stats}) {
+        foreach my $key (keys %{$stats->{sequence_stats}}) {
+            eval {
+                $result->{sequence_stats}{$key} = $self->toFloat($stats->{sequence_stats}{$key});
+            };
+        }
     }
-    # seq breakdown
-    if ($type) {
-        $stats->{sequence_breakdown} = $self->compute_breakdown($stats->{sequence_stats}, $type);
-    }
+    # seq breakdown - don't ask how its done
+    eval {
+        if ($type) {
+            $result->{sequence_breakdown} = $self->compute_breakdown($stats->{sequence_stats}, $type);
+        }
+    };
     # source
-    foreach my $src (keys %{$stats->{source}}) {
-        foreach my $type (keys %{$stats->{source}{$src}}) {
-            if (! $stats->{source}{$src}{$type}) {
-                $stats->{source}{$src}{$type} = [];
-            } else {
-                $stats->{source}{$src}{$type} = [ map { int($_) } @{$stats->{source}{$src}{$type}} ];
+    if ($stats->{source}) {
+        foreach my $src (keys %{$stats->{source}}) {
+            $result->{source}{$src} = {};
+            foreach my $type (keys %{$stats->{source}{$src}}) {
+                eval {
+                    if (! $stats->{source}{$src}{$type}) {
+                        $result->{source}{$src}{$type} = [];
+                    } else {
+                        $result->{source}{$src}{$type} = [ map { int($_) } @{$stats->{source}{$src}{$type}} ];
+                    }
+                };
             }
         }
     }
     # qc
-    foreach my $qc (keys %{$stats->{qc}}) {
-        foreach my $type (keys %{$stats->{qc}{$qc}}) {
-            if (! $stats->{qc}{$qc}{$type}{data}) {                
-                $stats->{qc}{$qc}{$type}{data} = [];
+    if ($stats->{qc}) {
+        foreach my $qc (keys %{$stats->{qc}}) {
+            foreach my $type (keys %{$stats->{qc}{$qc}}) {
+                eval {
+                    $result->{qc}{$qc}{$type} = $stats->{qc}{$qc}{$type};
+                    if (! $stats->{qc}{$qc}{$type}{data}) {
+                        $result->{qc}{$qc}{$type}{data} = [];
+                    }
+                };
             }
         }
     }
     # tax / ontol
     foreach my $ann (('taxonomy', 'ontology')) {
-        foreach my $type (keys %{$stats->{$ann}}) {
-            if (! $stats->{$ann}{$type}) {
-                $stats->{$ann}{$type} = [];
-            } else {
-                $stats->{$ann}{$type} = [ map { [$_->[0], int($_->[1])] } @{$stats->{$ann}{$type}} ];
+        if ($stats->{$ann}) {
+            foreach my $type (keys %{$stats->{$ann}}) {
+                eval {
+                    if (! $stats->{$ann}{$type}) {
+                        $result->{$ann}{$type} = [];
+                    } else {
+                        $result->{$ann}{$type} = [ map { [$_->[0], int($_->[1])] } @{$stats->{$ann}{$type}} ];
+                    }
+                };
             }
         }
     }
     # histograms
     foreach my $hist (('gc_histogram', 'length_histogram')) {
-        foreach my $type (keys %{$stats->{$hist}}) {
-            if (! $stats->{$hist}{$type}) {
-                $stats->{$hist}{$type} = [];
-            } else {
-                $stats->{$hist}{$type} = [ map { [$self->toFloat($_->[0]), int($_->[1])] } @{$stats->{$hist}{$type}} ];
+        if ($stats->{$hist}) {
+            foreach my $type (keys %{$stats->{$hist}}) {
+                eval {
+                    if (! $stats->{$hist}{$type}) {
+                        $result->{$hist}{$type} = [];
+                    } else {
+                        $result->{$hist}{$type} = [ map { [$self->toFloat($_->[0]), int($_->[1])] } @{$stats->{$hist}{$type}} ];
+                    }
+                };
             }
         }
     }
     # rarefaction
-    $stats->{rarefaction} = [ map { [int($_->[0]), $self->toFloat($_->[1])] } @{$stats->{rarefaction}} ];
+    eval {
+        $result->{rarefaction} = [ map { [int($_->[0]), $self->toFloat($_->[1])] } @{$stats->{rarefaction}} ];
+    }
+    # functions
+    eval {
+        $result->{rarefaction} = $stats->{functions};
+    }
     
-    return $stats;
+    return $result;
 }
 
 ###########################
