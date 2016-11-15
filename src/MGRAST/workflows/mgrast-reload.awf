@@ -507,5 +507,6 @@
             "taskid": "8",
             "totalwork": 1
         }
+        [% delete_stats %]
     ]
 }

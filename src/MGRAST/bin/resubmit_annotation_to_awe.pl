@@ -22,8 +22,8 @@ use File::Slurp;
 my $job_id    = "";
 my $awe_url   = "";
 my $shock_url = "";
-my $template  = "mgrast-prod-annotation.awf";
-my $pipeline  = "mgrast-annotation";
+my $template  = "mgrast-reload.awf";
+my $pipeline  = "mgrast-reload";
 my $type      = "metagenome";
 my $priority  = 1000;
 my $help      = 0;
@@ -146,7 +146,10 @@ foreach my $n (@{$sres->{data}}) {
     unless (exists($n->{attributes}{stage_name}) && exists($n->{attributes}{data_type}) && exists($n->{file}{name})) {
         next;
     }
-    if (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /assembly\.coverage$/)) {
+    if (($n->{attributes}{stage_name} eq 'done') && ($n->{file}{name} =~ /statistics\.json$/)) {
+        $vars->{done_stats_file} = $n->{file}{name};
+        $vars->{done_stats_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /assembly\.coverage$/)) {
         $vars->{assembly_file} = $n->{file}{name};
         $vars->{assembly_node} = $n->{id};
     } elsif (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /qc\.stats$/)) {
@@ -196,7 +199,69 @@ foreach my $n (@{$sres->{data}}) {
     }
 }
 
-foreach my $x (("assembly_node", "qc_stats_node", "upload_stats_node", "preprocess_passed_node", "dereplication_removed_node", "screen_passed_node", "rna_filter_node", "genecalling_node", "rna_mapping_node", "rna_cluster_node", "prot_mapping_node", "prot_cluster_node", "prot_sims_node", "rna_sims_node", "sim_seq_node")) {
+$vars->{delete_stats} = "";
+if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
+    my $del_qc = $vars->{shock_url}."/node/".$vars->{qc_stats_node};
+    my $del_up = $vars->{shock_url}."/node/".$vars->{upload_stats_node};
+    $vars->{delete_stats} = qq(,
+{
+    "cmd": {
+        "name": "curl",
+        "args": "-X DELETE -H \"authorization: mgrast ${MGRAST_WEBKEY}\" $del_qc",
+        "description": "clean stage",
+        "environ": {
+            "private": {
+                "MGRAST_WEBKEY": ").$vars->{api_key}.q("
+            }
+        }
+    },
+    "dependsOn": ["8"],
+    "taskid": "9",
+    "totalwork": 1
+},
+{
+    "cmd": {
+        "name": "curl",
+        "args": "-X DELETE -H \"authorization: mgrast ${MGRAST_WEBKEY}\" $del_up",
+        "description": "clean stage",
+        "environ": {
+            "private": {
+                "MGRAST_WEBKEY": ").$vars->{api_key}.q("
+            }
+        }
+    },
+    "dependsOn": ["8"],
+    "taskid": "10",
+    "totalwork": 1
+});
+} elsif ($vars->{done_stats_node}) {
+    my $del_done = $vars->{shock_url}."/node/".$vars->{done_stats_node};
+    $vars->{qc_stats_file}     = $vars->{done_stats_file};
+    $vars->{qc_stats_node}     = $vars->{done_stats_node};
+    $vars->{upload_stats_file} = $vars->{done_stats_file};
+    $vars->{upload_stats_node} = $vars->{done_stats_node};
+    $vars->{delete_stats} = qq(,
+{
+"cmd": {
+    "name": "curl",
+    "args": "-X DELETE -H \"authorization: mgrast ${MGRAST_WEBKEY}\" $del_done",
+    "description": "clean stage",
+    "environ": {
+        "private": {
+            "MGRAST_WEBKEY": ").$vars->{api_key}.q("
+        }
+    }
+},
+"dependsOn": ["8"],
+"taskid": "9",
+"totalwork": 1
+});
+} else {
+    print STDERR "ERROR: Incomplete metagenome, missing qc or done stats\n";
+    exit 1;
+}
+
+foreach my $x (("assembly_node", "preprocess_passed_node", "dereplication_removed_node", "screen_passed_node", "rna_filter_node", "genecalling_node", "rna_mapping_node", "rna_cluster_node", "prot_mapping_node", "prot_cluster_node", "prot_sims_node", "rna_sims_node", "sim_seq_node")) {
     if (! $vars->{$x}) {
         print STDERR "ERROR: Incomplete metagenome, missing stage: $x\n";
         exit 1;
