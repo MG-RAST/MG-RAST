@@ -130,6 +130,7 @@ if ($sres->{error}) {
 }
 
 my %delete_file = (
+    $job_id.".350.genecalling.coding.fna" => 1,
     $job_id.".450.rna.sims.filter" => 1,
     $job_id.".450.rna.expand.rna" => 1,
     $job_id.".450.rna.expand.lca" => 1,
@@ -138,6 +139,11 @@ my %delete_file = (
     $job_id.".650.aa.expand.lca" => 1,
     $job_id.".650.aa.expand.ontology" => 1,
     $job_id.".700.annotation.sims.filter.seq.index" => 1,
+    $job_id.".700.annotation.md5.summary" => 1,
+    $job_id.".700.annotation.function.summary" => 1,
+    $job_id.".700.annotation.organism.summary" => 1,
+    $job_id.".700.annotation.ontology.summary" => 1,
+    $job_id.".700.annotation.lca.summary" => 1,
     $job_id.".700.annotation.source.stats" => 1
 );
 my @delete_node = ();
@@ -170,7 +176,7 @@ foreach my $n (@{$sres->{data}}) {
     } elsif ($n->{attributes}{stage_name} eq 'rna.filter') {
         $vars->{rna_filter_file} = $n->{file}{name};
         $vars->{rna_filter_node} = $n->{id};
-    } elsif ($n->{attributes}{stage_name} eq 'genecalling') {
+    } elsif (($n->{attributes}{stage_name} eq 'genecalling') && ($n->{file}{name} =~ /genecalling\.coding\.faa$/)) {
         $vars->{genecalling_file} = $n->{file}{name};
         $vars->{genecalling_node} = $n->{id};
     } elsif (($n->{attributes}{stage_name} eq 'rna.cluster') && ($n->{file}{name} =~ /cluster\.rna97\.mapping$/)) {
