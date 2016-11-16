@@ -207,7 +207,7 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
 {
     "cmd": {
         "name": "curl",
-        "args": "-X DELETE -H \"authorization: mgrast ${MGRAST_WEBKEY}\" $del_qc",
+        "args": "-X DELETE -H \"authorization: mgrast \${MGRAST_WEBKEY}\" $del_qc",
         "description": "clean stage",
         "environ": {
             "private": {
@@ -222,7 +222,7 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
 {
     "cmd": {
         "name": "curl",
-        "args": "-X DELETE -H \"authorization: mgrast ${MGRAST_WEBKEY}\" $del_up",
+        "args": "-X DELETE -H \"authorization: mgrast \${MGRAST_WEBKEY}\" $del_up",
         "description": "clean stage",
         "environ": {
             "private": {
@@ -244,7 +244,7 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
 {
 "cmd": {
     "name": "curl",
-    "args": "-X DELETE -H \"authorization: mgrast ${MGRAST_WEBKEY}\" $del_done",
+    "args": "-X DELETE -H \"authorization: mgrast \${MGRAST_WEBKEY}\" $del_done",
     "description": "clean stage",
     "environ": {
         "private": {
