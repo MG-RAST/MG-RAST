@@ -635,7 +635,10 @@ sub job_action {
         } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
             my $cmd;
             if ($action eq 'resubmit') {
-                $cmd = $Conf::resubmit_to_awe." --use_docker --job_id ".$job->{job_id}." --awe_id ".$post->{awe_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+                $cmd = $Conf::resubmit_to_awe." --use_docker --job_id ".$job->{job_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
+                if ($post->{awe_id}) {
+                    $cmd .= " --awe_id ".$post->{awe_id};
+                }
             } else {
                 my $jdata = $job->data();
                 $cmd = $Conf::submit_to_awe." --use_docker --job_id ".$job->{job_id}." --input_node ".$post->{input_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;

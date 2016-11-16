@@ -64,16 +64,24 @@ $json = $json->utf8();
 $json->max_size(0);
 $json->allow_nonref;
 
-my $dbh = DBI->connect(
-    "DBI:Pg:dbname=$dbname;host=$dbhost;sslcert=$dbcert/postgresql.crt;sslkey=$dbcert/postgresql.key",
-    $dbuser,
-    $dbpass,
-    {AutoCommit => 0}
-);
-unless ($dbh) {
-    print STDERR "Error: " . $DBI::errstr . "\n"; exit 1;
+# first check if job already loaded in cassandra
+my $info = undef;
+eval {
+    my $req = HTTP::Request->new(POST => $apiurl.'/job/abundance');
+    $req->header('content-type' => 'application/json');
+    $req->header('authorization' => "mgrast $token");
+    $req->content($json->encode({metagenome_id => $mgid, action => 'status'}));
+    my $resp = $agent->request($req);
+    $info = $json->decode( $resp->decoded_content );
+};
+unless ($info && exists($info->{status})) {
+    print STDERR "Unable to query metagenome through API\n"; exit 1;
+}
+if (($info->{status} eq 'exists') && ($info->{loaded} eq 'true')) {
+    print STDERR "Skipping $mgid - already loaded\n"; exit 0;
 }
 
+# get job ID, verify job in system
 my $jobid = 0;
 eval {
     my $get = $agent->get($apiurl.'/metagenome/'.$mgid."?verbosity=minimal", ('Authorization', "mgrast $token"));
@@ -85,6 +93,18 @@ unless ($jobid) {
 }
 print STDERR "Processing $mgid ($jobid)\n";
 
+# get postgres handle
+my $dbh = DBI->connect(
+    "DBI:Pg:dbname=$dbname;host=$dbhost;sslcert=$dbcert/postgresql.crt;sslkey=$dbcert/postgresql.key",
+    $dbuser,
+    $dbpass,
+    {AutoCommit => 0}
+);
+unless ($dbh) {
+    print STDERR "Error: " . $DBI::errstr . "\n"; exit 1;
+}
+
+# set to start loading
 print STDERR "md5 abundance data\n";
 print STDERR "\tset as unloaded\n";
 post_data("start", "md5", undef, undef);
