@@ -201,6 +201,9 @@ foreach my $n (@{$sres->{data}}) {
 
 $vars->{delete_stats} = "";
 if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
+    if ($vars->{done_stats_node}) {
+        push @delete_node, $vars->{done_stats_node};
+    }
     my $del_qc = $vars->{shock_url}."/node/".$vars->{qc_stats_node};
     my $del_up = $vars->{shock_url}."/node/".$vars->{upload_stats_node};
     $vars->{delete_stats} = qq(,
@@ -235,6 +238,12 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
     "totalwork": 1
 });
 } elsif ($vars->{done_stats_node}) {
+    if ($vars->{qc_stats_node}) {
+        push @delete_node, $vars->{qc_stats_node};
+    }
+    if ($vars->{upload_stats_node}) {
+        push @delete_node, $vars->{upload_stats_node};
+    }
     my $del_done = $vars->{shock_url}."/node/".$vars->{done_stats_node};
     $vars->{qc_stats_file}     = $vars->{done_stats_file};
     $vars->{qc_stats_node}     = $vars->{done_stats_node};
