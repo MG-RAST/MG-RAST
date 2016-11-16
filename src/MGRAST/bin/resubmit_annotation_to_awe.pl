@@ -207,11 +207,11 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
 {
     "cmd": {
         "name": "curl",
-        "args": "-X DELETE -H \"authorization: mgrast \${MGRAST_WEBKEY}\" $del_qc",
+        "args": "-X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_qc",
         "description": "clean stage",
         "environ": {
             "private": {
-                "MGRAST_WEBKEY": ").$vars->{api_key}.q("
+                "MGRAST_WEBKEY": ").$vars->{api_key}.qq("
             }
         }
     },
@@ -222,11 +222,11 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
 {
     "cmd": {
         "name": "curl",
-        "args": "-X DELETE -H \"authorization: mgrast \${MGRAST_WEBKEY}\" $del_up",
+        "args": "-X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_up",
         "description": "clean stage",
         "environ": {
             "private": {
-                "MGRAST_WEBKEY": ").$vars->{api_key}.q("
+                "MGRAST_WEBKEY": ").$vars->{api_key}.qq("
             }
         }
     },
@@ -242,19 +242,19 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
     $vars->{upload_stats_node} = $vars->{done_stats_node};
     $vars->{delete_stats} = qq(,
 {
-"cmd": {
-    "name": "curl",
-    "args": "-X DELETE -H \"authorization: mgrast \${MGRAST_WEBKEY}\" $del_done",
-    "description": "clean stage",
-    "environ": {
-        "private": {
-            "MGRAST_WEBKEY": ").$vars->{api_key}.q("
+    "cmd": {
+        "name": "curl",
+        "args": "-X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_done",
+        "description": "clean stage",
+        "environ": {
+            "private": {
+                "MGRAST_WEBKEY": ").$vars->{api_key}.qq("
+            }
         }
-    }
-},
-"dependsOn": ["8"],
-"taskid": "9",
-"totalwork": 1
+    },
+    "dependsOn": ["8"],
+    "taskid": "9",
+    "totalwork": 1
 });
 } else {
     print STDERR "ERROR: Incomplete metagenome, missing qc or done stats\n";
