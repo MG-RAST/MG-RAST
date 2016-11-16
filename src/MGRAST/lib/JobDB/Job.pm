@@ -1330,7 +1330,8 @@ sub user_delete {
   my ($self, $user, $reason) = @_;
   
   my $jobdbm = $self->_master();
-  my $mgid = $self->metagenome_id;
+  my $mgid   = $self->metagenome_id;
+  my $jobid  = $self->job_id;
 
   if ($self->public) {
     return(0, "Unable to delete metagenome '$mgid' as it has been made public.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
@@ -1361,11 +1362,19 @@ sub user_delete {
   foreach my $r (@$job_rights) {
     $r->delete;
   }
+  
+  # delete cassandra data
+  use Inline::Python qw(py_eval);
+  my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from mgrast_cassandra import *|;
+  py_eval($import);
+  my $chdl = Inline::Python::Object->new('__main__', 'JobHandle', $Conf::cassandra_m5nr);
+  $chdl->delete_job($jobid);
+  $chdl->close();
 
   # delete analysis tables
-  use MGRAST::Analysis;
-  my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
-  my $success = $analysisDB->delete_job($self->job_id);
+  #use MGRAST::Analysis;
+  #my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
+  #my $success = $analysisDB->delete_job($self->job_id);
   #unless ($success) {
   #    return (0, "Unable to delete metagenome '$mgid' from Analysis DB");
   #}
@@ -1394,7 +1403,7 @@ sub user_delete {
   # get AWE job
   my $ajobs = [];
   eval {
-    my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.name='.$self->job_id, @auth);
+    my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.name='.$jobid, @auth);
     $ajobs  = $json->decode( $get->content )->{data};
   };
   

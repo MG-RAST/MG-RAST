@@ -284,7 +284,7 @@ class JobHandle(object):
     ## delete all job data
     def delete_job(self, job):
         job = int(job)
-        batch = cql.BatchStatement()
+        batch = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         batch.add(cql.SimpleStatement("DELETE FROM job_info WHERE version = %d AND job = %d"%(self.version, job)))
         batch.add(cql.SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)))
         batch.add(cql.SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"%(self.version, job)))
