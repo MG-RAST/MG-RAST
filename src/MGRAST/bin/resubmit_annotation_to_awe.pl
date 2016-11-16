@@ -84,6 +84,7 @@ unless ($jobj && (scalar(keys %$jobj) > 0) && exists($jobj->{options})) {
     exit 1;
 }
 my $jattr = Pipeline::get_job_attributes($jobdb, $job_id);
+my $jstat = Pipeline::get_job_statistics($jobdb, $job_id);
 
 # populate workflow variables
 $vars->{job_id}         = $job_id;
@@ -93,6 +94,7 @@ $vars->{job_date}       = $jobj->{created_on};
 $vars->{status}         = $jobj->{public} ? "public" : "private";
 $vars->{file_format}    = ($jattr->{file_type} && ($jattr->{file_type} eq 'fastq')) ? 'fastq' : 'fasta';
 $vars->{seq_type}       = $jobj->{sequence_type} || $jattr->{sequence_type_guess};
+$vars->{bp_count}       = $jstat->{bp_count_raw} || 0;
 $vars->{project_id}     = $jobj->{project_id} || '';
 $vars->{project_name}   = $jobj->{project_name} || '';
 $vars->{user}           = 'mgu'.$jobj->{owner} || '';
