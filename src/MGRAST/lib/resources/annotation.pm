@@ -333,7 +333,7 @@ sub prepare_data {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? int($ident) : undef;
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? int($alen)  : undef;
     
-    my $index_set = []
+    my $index_set = [];
     if ($md5s && (@$md5s > 0)) {
         $index_set = $jobhdl->get_md5_records($md5s);
     } else {
