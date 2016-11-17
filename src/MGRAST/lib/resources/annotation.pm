@@ -356,7 +356,7 @@ sub prepare_data {
     # loop through indexes and print data
     my $count = 0;
     foreach my $idx (@$index_set) {
-        my ($seek, $len) = @idx;
+        my ($seek, $len) = @$idx;
         unless (defined($seek) && defined($len) && ($len > 0)) {
             next;
         }
@@ -392,7 +392,7 @@ sub prepare_data {
 }
 
 sub print_recs {
-    my ($self, $recs, $info, $format, $type, $filetype, \%filter_list, $filter) = @_;
+    my ($self, $recs, $info, $format, $type, $filetype, $filter_list, $filter) = @_;
     
     my $count = 0;    
     # process annotations per md5
