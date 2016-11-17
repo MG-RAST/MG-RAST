@@ -207,7 +207,9 @@ foreach my $n (@{$sres->{data}}) {
     }
 }
 
+my $api_token = $vars->{api_key};
 $vars->{delete_stats} = "";
+
 if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
     if ($vars->{done_stats_node}) {
         push @delete_node, $vars->{done_stats_node};
@@ -218,11 +220,14 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
 {
     "cmd": {
         "name": "curl",
-        "args": "-X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_qc",
+        "args": "",
+        "cmd_script": [
+            "curl -s -X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_qc"
+        ],
         "description": "clean stage",
         "environ": {
             "private": {
-                "MGRAST_WEBKEY": ").$vars->{api_key}.qq("
+                "MGRAST_WEBKEY": "$api_token"
             }
         }
     },
@@ -233,11 +238,14 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
 {
     "cmd": {
         "name": "curl",
-        "args": "-X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_up",
+        "args": "",
+        "cmd_script": [
+            "curl -s -X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_up"
+        ],
         "description": "clean stage",
         "environ": {
             "private": {
-                "MGRAST_WEBKEY": ").$vars->{api_key}.qq("
+                "MGRAST_WEBKEY": "$api_token"
             }
         }
     },
@@ -261,11 +269,14 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
 {
     "cmd": {
         "name": "curl",
-        "args": "-X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_done",
+        "args": "",
+        "cmd_script": [
+            "curl -s -X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_done"
+        ],
         "description": "clean stage",
         "environ": {
             "private": {
-                "MGRAST_WEBKEY": ").$vars->{api_key}.qq("
+                "MGRAST_WEBKEY": "$api_token"
             }
         }
     },
