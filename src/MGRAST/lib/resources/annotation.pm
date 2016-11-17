@@ -197,6 +197,28 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
+    # check if job exists in cassandra DB / also tests DB connection
+    my $version = $self->cgi->param('version') || $self->{m5nr_default};
+    my $jobid = $job->{job_id};
+    my $chdl = $self->cassandra_handle("job", $version);
+    unless ($chdl) {
+        $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
+    }
+    unless ($chdl->has_job($jobid)) {
+        # close handle
+        $chdl->close();
+        # need to redirect annotation to postgres backend API
+        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
+        print STDERR "Redirect: $redirect_uri\n";
+        print $self->cgi->redirect(
+            -uri => $redirect_uri,
+            -status => '302 Found'
+        );
+        exit 0;
+    }
+    # close handle
+    $chdl->close();
+    
     $self->prepare_data($job, $format);
 }
 
@@ -278,34 +300,11 @@ sub prepare_data {
     }
     
     # get db handles
-    my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
-    my $mgdb = MGRAST::Abundance->new($chdl, $version);
-    unless ($mgdb) {
+    my $jobhdl  = $self->cassandra_handle("job", $version);
+    my $m5nrhdl = $self->cassandra_handle("m5nr", $version);
+    unless ($jobhdl) {
         $self->return_data({"ERROR" => "Unable to connect to metagenomics analysis database"}, 500);
     }
-    
-    # build queries
-    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= " . ($eval * -1) : "";
-    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
-    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
-    
-    my $query  = "SELECT md5, seek, length FROM job_md5s";
-    my $qwhere = [
-        'version = '.$mgdb->version,
-        'job = '.$data->{job_id},
-        $eval,
-        $ident,
-        $alen,
-        "seek IS NOT NULL",
-        "length IS NOT NULL"
-    ];
-    if (@$md5s) {
-        my $mquery = "SELECT _id FROM md5s WHERE md5 IN (".join(",", map {$mgdb->dbh->quote($_)} @$md5s).")";
-        my $md5ids = $mgdb->dbh->selectcol_arrayref($mquery);
-        push @$qwhere, "md5 IN (".join(",", @$md5ids).")"
-    }
-    $query .= $mgdb->get_where_str($qwhere);
-    $query .= " ORDER BY seek";
     
     # get shock node for file
     my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
@@ -317,17 +316,29 @@ sub prepare_data {
     
     # get filter list
     # filter_list is all taxa names that match filter for given filter_level (organism, ontology only)
+    # def get_organism_by_taxa(self, taxa, match=None):
+    # def get_ontology_by_level(self, source, level, match=None):
     my %filter_list = ();
     if ($filter && $flevel) {
         if ($type eq "organism") {
-            %filter_list = map { $_, 1 } @{$chdl->get_organism_by_taxa($flevel, $filter)};
+            %filter_list = map { $_, 1 } @{$m5nrhdl->get_organism_by_taxa($flevel, $filter)};
         } elsif ($type eq "ontology") {
-            %filter_list = map { $_, 1 } @{$chdl->get_ontology_by_level($source, $flevel, $filter)};
+            %filter_list = map { $_, 1 } @{$m5nrhdl->get_ontology_by_level($source, $flevel, $filter)};
         }
     }
     
-    # start query
-    my $sth = $mgdb->execute_query($query);
+    # get indexes
+    # get_md5_records(self, job, md5s=None, evalue=None, identity=None, alength=None):
+    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? int($eval)  : undef;
+    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? int($ident) : undef;
+    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? int($alen)  : undef;
+    
+    my $index_set = []
+    if ($md5s && (@$md5s > 0)) {
+        $index_set = $jobhdl->get_md5_records($md5s);
+    } else {
+        $index_set = $jobhdl->get_md5_records(undef, $eval, $ident, $alen);
+    }
     
     # print html and line headers - no buffering to stdout
     select STDOUT;
@@ -344,41 +355,48 @@ sub prepare_data {
         
     # loop through indexes and print data
     my $count = 0;
-    my $md5_set = {};
-    my $batch_count = 0;
-    while (my @row = $sth->fetchrow_array()) {
-        my ($md5, $seek, $len) = @row;
-        unless (defined($seek) && defined($len)) {
+    foreach my $idx (@$index_set) {
+        my ($seek, $len) = @idx;
+        unless (defined($seek) && defined($len) && ($len > 0)) {
             next;
         }
-        $md5_set->{$md5} = [$seek, $len];
-        $batch_count++;
-        if ($batch_count == $mgdb->chunk) {
-            $count += $self->print_batch($chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5_set, \%filter_list, $filter);
-            $md5_set = {};
-            $batch_count = 0;
+        # pull record from indexed shock file
+        my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seek.'&length='.$len);
+	    if ($err) {
+		    print "\nERROR downloading: $err\n"; exit 0;
+	    }
+	    chomp $rec;
+	    my @recs = ();
+	    foreach my $line (split(/\n/, $rec)) {
+	        my @tabs = split(/\t/, $line);
+	        if ($tabs[0]) {
+	            $tabs[0] = $mgid."|".$tabs[0]."|".$source;
+	            push @recs, \@tabs;
+	        }
         }
-    }
-    if ($batch_count > 0) {
-        $count += $self->print_batch($chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5_set, \%filter_list, $filter);
+        my @umd5s = uniq map { $_->[1] } @recs;
+        # get m5nr data for md5 set
+        # def get_records_by_md5(self, md5s, source=None, index=False, iterator=False):
+        my $info = $m5nrhdl->get_records_by_md5(\@umd5s, $source);
+        # print processed records, return count
+        $count += $self->print_recs(\@recs, $info, $format, $type, $filetype, \%filter_list, $filter);
     }
 
     # cleanup
-    $mgdb->end_query($sth);
-    $mgdb->DESTROY();
+    $m5nrhdl->close();
+    $jobhdl->close();
     unless (($format eq 'sequence') && ($filetype eq 'fasta')) {
         print "Download complete. $count rows retrieved\n";
     }
     exit 0;
 }
 
-sub print_batch {
-    my ($self, $chdl, $node_id, $format, $type, $filetype, $mgid, $source, $md5s, $filter_list, $filter) = @_;
+sub print_recs {
+    my ($self, $recs, $info, $format, $type, $filetype, \%filter_list, $filter) = @_;
     
     my $count = 0;    
-    # get / process annotations per md5
-    my $data = $chdl->get_records_by_id([keys %$md5s], $source);
-    foreach my $set (@$data) {
+    # process annotations per md5
+    foreach my $set (@$info) {
         # get annotation set based on options / build string
         my @ann = ();
         if ($type eq 'feature') {
@@ -422,29 +440,19 @@ sub print_batch {
         if (@ann == 0) { next; }
         my $ann_str = join(";", @ann);
         
-        # pull data from indexed shock file
-        my ($seek, $len) = @{$md5s->{$set->{id}}};
-        my ($rec, $err) = $self->get_shock_file($node_id, undef, $self->mgrast_token, 'seek='.$seek.'&length='.$len);
-	    if ($err) {
-		    print "\nERROR downloading: $err\n";
-		    exit 0;
-	    }
-	    chomp $rec;
-	    foreach my $line (split(/\n/, $rec)) {
-	        my @tabs = split(/\t/, $line);
-	        unless ($tabs[0]) { next; }
-		    my $rid = $mgid."|".$tabs[0]."|".$source;
-		    my $rec = "";
-		    if (($format eq 'sequence') && (@tabs == 13)) {
+        # process records
+        foreach my $rec (@$recs) {
+		    my $out = "";
+		    if (($format eq 'sequence') && (@$rec == 13)) {
 		        if ($filetype eq 'fasta') {
-		            $rec = ">".$rid."|".$tabs[1]." ".$ann_str."\n".$tabs[12];
+		            $out = ">".$rec->[0]."|".$rec->[1]." ".$ann_str."\n".$rec->[12];
 	            } elsif ($filetype eq 'tab') {
-		            $rec = join("\t", map {$_ || ''} ($rid, $tabs[1], $tabs[12], $ann_str));
+		            $out = join("\t", map {$_ || ''} ($rec->[0], $rec->[1], $rec->[12], $ann_str));
 	            }
 		    } elsif ($format eq 'similarity') {
-		        $rec = join("\t", map {$_ || ''} ($rid, @tabs[1..11], $ann_str));
+		        $out = join("\t", map {$_ || ''} (@$rec[0..11], $ann_str));
 		    }
-		    print $rec."\n";
+		    print $out."\n";
 		    $count += 1;
 	    }
     }
