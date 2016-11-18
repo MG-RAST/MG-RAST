@@ -172,7 +172,7 @@ class JobHandle(object):
                 continue
             pos = bisect.bisect(found, (r[0], None))
             if (pos > 0) and ((found[pos-1][0] + found[pos-1][1]) == r[0]):
-                found[pos-1][1] = found[pos-1][1] + r[1]
+                found[pos-1] = (found[pos-1][0], found[pos-1][1] + r[1])
             else:
                 bisect.insort(found, (r[0], r[1]))
         return found
