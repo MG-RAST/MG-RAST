@@ -95,7 +95,8 @@ sub info {
                                                  "source"   => ['cv', $sources ],
                                                  "type"     => ['cv', $self->{types} ],
                                                  "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
-                                                 "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+                                                 "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'],
+                                                 "no_cutoffs"   => ['boolean', 'do not use any cutoffs. default is to use default cutoffs']
                                              },
 							                 'body' => {} }
 						},
@@ -133,7 +134,8 @@ sub info {
                                                  "source"   => ['cv', $sources ],
                                                  "type"     => ['cv', $self->{types} ],
                                                  "filter"   => ['string', 'text string to filter annotations by: only return those that contain text'],
-                                                 "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only']
+                                                 "filter_level" => ['string', 'hierarchal level to filter annotations by, for organism or ontology only'],
+                                                 "no_cutoffs"   => ['boolean', 'do not use any cutoffs. default is to use default cutoffs']
                                              },
 				                             'body' => {} }
 						},
@@ -236,8 +238,10 @@ sub prepare_data {
     my $flevel  = $cgi->param('filter_level') || undef;
     my $md5s    = [];
     my $mgid    = 'mgm'.$data->{metagenome_id};
+    my $jobid   = $data->{job_id};
     my $version = ($cgi->param('version') && ($cgi->param('version') =~ /^\d+$/)) ? $cgi->param('version') : $self->{m5nr_default};
     my $filetype = $cgi->param('format') || 'tab';
+    my $no_cutoffs = $cgi->param('no_cutoffs') ? 1 : 0;
     
     # post of md5s
     if ($self->method eq 'POST') {
@@ -332,12 +336,17 @@ sub prepare_data {
     $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? int($eval)  : undef;
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? int($ident) : undef;
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? int($alen)  : undef;
+    if ($no_cutoffs) {
+        $eval  = undef;
+        $ident = undef;
+        $alen  = undef;
+    }
     
     my $index_set = [];
     if ($md5s && (@$md5s > 0)) {
-        $index_set = $jobhdl->get_md5_records($md5s);
+        $index_set = $jobhdl->get_md5_records($jobid, $md5s);
     } else {
-        $index_set = $jobhdl->get_md5_records(undef, $eval, $ident, $alen);
+        $index_set = $jobhdl->get_md5_records($jobid, undef, $eval, $ident, $alen);
     }
     
     # print html and line headers - no buffering to stdout
