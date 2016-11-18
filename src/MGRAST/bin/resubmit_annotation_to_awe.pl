@@ -207,52 +207,12 @@ foreach my $n (@{$sres->{data}}) {
     }
 }
 
-my $api_token = $vars->{api_key};
-$vars->{delete_stats} = "";
-
+$vars->{delete_nodes} = "";
 if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
     if ($vars->{done_stats_node}) {
         push @delete_node, $vars->{done_stats_node};
     }
-    my $del_qc = $vars->{shock_url}."/node/".$vars->{qc_stats_node};
-    my $del_up = $vars->{shock_url}."/node/".$vars->{upload_stats_node};
-    $vars->{delete_stats} = qq(,
-{
-    "cmd": {
-        "name": "curl",
-        "args": "",
-        "cmd_script": [
-            "curl -s -X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_qc"
-        ],
-        "description": "clean stage",
-        "environ": {
-            "private": {
-                "MGRAST_WEBKEY": "$api_token"
-            }
-        }
-    },
-    "dependsOn": ["8"],
-    "taskid": "9",
-    "totalwork": 1
-},
-{
-    "cmd": {
-        "name": "curl",
-        "args": "",
-        "cmd_script": [
-            "curl -s -X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_up"
-        ],
-        "description": "clean stage",
-        "environ": {
-            "private": {
-                "MGRAST_WEBKEY": "$api_token"
-            }
-        }
-    },
-    "dependsOn": ["8"],
-    "taskid": "10",
-    "totalwork": 1
-});
+    $vars->{delete_nodes} = $vars->{qc_stats_node}.",".$vars->{upload_stats_node};
 } elsif ($vars->{done_stats_node}) {
     if ($vars->{qc_stats_node}) {
         push @delete_node, $vars->{qc_stats_node};
@@ -260,30 +220,11 @@ if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
     if ($vars->{upload_stats_node}) {
         push @delete_node, $vars->{upload_stats_node};
     }
-    my $del_done = $vars->{shock_url}."/node/".$vars->{done_stats_node};
     $vars->{qc_stats_file}     = $vars->{done_stats_file};
     $vars->{qc_stats_node}     = $vars->{done_stats_node};
     $vars->{upload_stats_file} = $vars->{done_stats_file};
     $vars->{upload_stats_node} = $vars->{done_stats_node};
-    $vars->{delete_stats} = qq(,
-{
-    "cmd": {
-        "name": "curl",
-        "args": "",
-        "cmd_script": [
-            "curl -s -X DELETE -H \\"authorization: mgrast \${MGRAST_WEBKEY}\\" $del_done"
-        ],
-        "description": "clean stage",
-        "environ": {
-            "private": {
-                "MGRAST_WEBKEY": "$api_token"
-            }
-        }
-    },
-    "dependsOn": ["8"],
-    "taskid": "9",
-    "totalwork": 1
-});
+    $vars->{delete_nodes}      = $vars->{done_stats_node};
 } else {
     print STDERR "ERROR: Incomplete metagenome, missing qc or done stats\n";
     exit 1;
