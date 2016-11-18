@@ -42,7 +42,7 @@ sub new {
             "col_01" => ['string', 'query sequence id'],
             "col_02" => ['string', 'hit m5nr id (md5sum)'],
             "col_03" => ['float', 'percentage identity'],
-            "col_04" => ['int', 'alignment length,'],
+            "col_04" => ['int', 'alignment length'],
             "col_05" => ['int', 'number of mismatches'],
             "col_06" => ['int', 'number of gap openings'],
             "col_07" => ['int', 'query start'],
