@@ -158,20 +158,21 @@ class JobHandle(object):
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)
         if md5s and (len(md5s) > 0):
             query += " AND md5 IN (" + ",".join(map(lambda x: "'"+x+"'", md5s)) + ")"
-        else:
+        elif evalue or identity or alength:
             if evalue:
                 query += " AND exp_avg <= %d"%(int(evalue) * -1)
             if identity:
                 query += " AND ident_avg >= %d"%(int(identity))
             if alength:
                 query += " AND len_avg >= %d"%(int(alength))
+            query += " ALLOW FILTERING"
         rows = self.session.execute(query)
         for r in rows:
             if r[1] == 0:
                 continue
             pos = bisect.bisect(found, (r[0], None))
             if (pos > 0) and ((found[pos-1][0] + found[pos-1][1]) == r[0]):
-                found[pos-1][1] = found[pos-1][1] + r[1]
+                found[pos-1] = (found[pos-1][0], found[pos-1][1] + r[1])
             else:
                 bisect.insort(found, (r[0], r[1]))
         return found

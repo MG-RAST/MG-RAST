@@ -240,35 +240,22 @@ sub submit {
     #    $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     #}
     
-    # check if job exists in cassandra DB
+    # check if job exists in cassandra DB / also tests DB connection
     my $chdl = $self->cassandra_handle("job", $version);
     unless ($chdl) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
     unless ($chdl->has_job($jobid)) {
-        # need to submit profile to postgres backend API
-        my $result = undef;
-        my @options = (
-            "version=".$version,
-            "source=".$source,
-            "format=".$format,
-            "condensed=".(($condensed eq 'true') ? "1" : "0"),
-            "verbosity=".($self->cgi->param('verbosity') || "full")
-        );
-        my @args = $self->token ? ('authorization', "mgrast ".$self->token) : ();
-        my $pqlurl = "http://api-pql.metagenomics.anl.gov/profile/$mgid?".join("&", @options);
-        eval {
-            my $get = $self->agent->get($pqlurl, @args);
-            $result = $self->json->decode( $get->content );
-        };
         # close handle
         $chdl->close();
-        # send response
-        if ($@ || (! ref($result))) {
-            $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
-        } else {
-            $self->return_data( $result );
-        }
+        # need to redirect profile to postgres backend API
+        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
+        print STDERR "Redirect: $redirect_uri\n";
+        print $self->cgi->redirect(
+            -uri => $redirect_uri,
+            -status => '302 Found'
+        );
+        exit 0;
     }
     # close handle
     $chdl->close();

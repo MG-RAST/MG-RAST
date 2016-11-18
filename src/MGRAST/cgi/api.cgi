@@ -20,10 +20,7 @@ my %private_resources = (
     'status'   => 1,
     'user'     => 1
 );
-my %redirect_resource = (
-    'matrix'     => 1,
-    'annotation' => 1
-);
+my %redirect_resource = ('matrix' => 1);
 
 # get request method
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
