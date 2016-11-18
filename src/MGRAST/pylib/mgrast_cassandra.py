@@ -158,13 +158,14 @@ class JobHandle(object):
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)
         if md5s and (len(md5s) > 0):
             query += " AND md5 IN (" + ",".join(map(lambda x: "'"+x+"'", md5s)) + ")"
-        else:
+        elif evalue or identity or alength:
             if evalue:
                 query += " AND exp_avg <= %d"%(int(evalue) * -1)
             if identity:
                 query += " AND ident_avg >= %d"%(int(identity))
             if alength:
                 query += " AND len_avg >= %d"%(int(alength))
+            query += " ALLOW FILTERING"
         rows = self.session.execute(query)
         for r in rows:
             if r[1] == 0:
