@@ -512,6 +512,7 @@
                 "name": "delete_nodes.sh",
                 "args": "-s [% shock_url %] -n [% delete_nodes %]",
                 "description": "clean stage",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
                     "private": {
                         "MGRAST_WEBKEY": "[% api_key %]"
