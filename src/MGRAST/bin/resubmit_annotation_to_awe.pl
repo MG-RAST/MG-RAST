@@ -22,8 +22,8 @@ use File::Slurp;
 my $job_id    = "";
 my $awe_url   = "";
 my $shock_url = "";
-my $template  = "mgrast-prod-annotation.awf";
-my $pipeline  = "mgrast-annotation";
+my $template  = "mgrast-reload.awf";
+my $pipeline  = "mgrast-reload";
 my $type      = "metagenome";
 my $priority  = 1000;
 my $help      = 0;
@@ -84,6 +84,7 @@ unless ($jobj && (scalar(keys %$jobj) > 0) && exists($jobj->{options})) {
     exit 1;
 }
 my $jattr = Pipeline::get_job_attributes($jobdb, $job_id);
+my $jstat = Pipeline::get_job_statistics($jobdb, $job_id);
 
 # populate workflow variables
 $vars->{job_id}         = $job_id;
@@ -93,6 +94,7 @@ $vars->{job_date}       = $jobj->{created_on};
 $vars->{status}         = $jobj->{public} ? "public" : "private";
 $vars->{file_format}    = ($jattr->{file_type} && ($jattr->{file_type} eq 'fastq')) ? 'fastq' : 'fasta';
 $vars->{seq_type}       = $jobj->{sequence_type} || $jattr->{sequence_type_guess};
+$vars->{bp_count}       = $jstat->{bp_count_raw} || 0;
 $vars->{project_id}     = $jobj->{project_id} || '';
 $vars->{project_name}   = $jobj->{project_name} || '';
 $vars->{user}           = 'mgu'.$jobj->{owner} || '';
@@ -130,6 +132,7 @@ if ($sres->{error}) {
 }
 
 my %delete_file = (
+    $job_id.".350.genecalling.coding.fna" => 1,
     $job_id.".450.rna.sims.filter" => 1,
     $job_id.".450.rna.expand.rna" => 1,
     $job_id.".450.rna.expand.lca" => 1,
@@ -138,6 +141,11 @@ my %delete_file = (
     $job_id.".650.aa.expand.lca" => 1,
     $job_id.".650.aa.expand.ontology" => 1,
     $job_id.".700.annotation.sims.filter.seq.index" => 1,
+    $job_id.".700.annotation.md5.summary" => 1,
+    $job_id.".700.annotation.function.summary" => 1,
+    $job_id.".700.annotation.organism.summary" => 1,
+    $job_id.".700.annotation.ontology.summary" => 1,
+    $job_id.".700.annotation.lca.summary" => 1,
     $job_id.".700.annotation.source.stats" => 1
 );
 my @delete_node = ();
@@ -146,7 +154,10 @@ foreach my $n (@{$sres->{data}}) {
     unless (exists($n->{attributes}{stage_name}) && exists($n->{attributes}{data_type}) && exists($n->{file}{name})) {
         next;
     }
-    if (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /assembly\.coverage$/)) {
+    if (($n->{attributes}{stage_name} eq 'done') && ($n->{file}{name} =~ /statistics\.json$/)) {
+        $vars->{done_stats_file} = $n->{file}{name};
+        $vars->{done_stats_node} = $n->{id};
+    } elsif (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /assembly\.coverage$/)) {
         $vars->{assembly_file} = $n->{file}{name};
         $vars->{assembly_node} = $n->{id};
     } elsif (($n->{attributes}{stage_name} eq 'qc') && ($n->{file}{name} =~ /qc\.stats$/)) {
@@ -167,7 +178,7 @@ foreach my $n (@{$sres->{data}}) {
     } elsif ($n->{attributes}{stage_name} eq 'rna.filter') {
         $vars->{rna_filter_file} = $n->{file}{name};
         $vars->{rna_filter_node} = $n->{id};
-    } elsif ($n->{attributes}{stage_name} eq 'genecalling') {
+    } elsif (($n->{attributes}{stage_name} eq 'genecalling') && ($n->{file}{name} =~ /genecalling\.coding\.faa$/)) {
         $vars->{genecalling_file} = $n->{file}{name};
         $vars->{genecalling_node} = $n->{id};
     } elsif (($n->{attributes}{stage_name} eq 'rna.cluster') && ($n->{file}{name} =~ /cluster\.rna97\.mapping$/)) {
@@ -196,7 +207,30 @@ foreach my $n (@{$sres->{data}}) {
     }
 }
 
-foreach my $x (("assembly_node", "qc_stats_node", "upload_stats_node", "preprocess_passed_node", "dereplication_removed_node", "screen_passed_node", "rna_filter_node", "genecalling_node", "rna_mapping_node", "rna_cluster_node", "prot_mapping_node", "prot_cluster_node", "prot_sims_node", "rna_sims_node", "sim_seq_node")) {
+$vars->{delete_nodes} = "";
+if ($vars->{qc_stats_node} && $vars->{upload_stats_node}) {
+    if ($vars->{done_stats_node}) {
+        push @delete_node, $vars->{done_stats_node};
+    }
+    $vars->{delete_nodes} = $vars->{qc_stats_node}.",".$vars->{upload_stats_node};
+} elsif ($vars->{done_stats_node}) {
+    if ($vars->{qc_stats_node}) {
+        push @delete_node, $vars->{qc_stats_node};
+    }
+    if ($vars->{upload_stats_node}) {
+        push @delete_node, $vars->{upload_stats_node};
+    }
+    $vars->{qc_stats_file}     = $vars->{done_stats_file};
+    $vars->{qc_stats_node}     = $vars->{done_stats_node};
+    $vars->{upload_stats_file} = $vars->{done_stats_file};
+    $vars->{upload_stats_node} = $vars->{done_stats_node};
+    $vars->{delete_nodes}      = $vars->{done_stats_node};
+} else {
+    print STDERR "ERROR: Incomplete metagenome, missing qc or done stats\n";
+    exit 1;
+}
+
+foreach my $x (("assembly_node", "preprocess_passed_node", "dereplication_removed_node", "screen_passed_node", "rna_filter_node", "genecalling_node", "rna_mapping_node", "rna_cluster_node", "prot_mapping_node", "prot_cluster_node", "prot_sims_node", "rna_sims_node", "sim_seq_node")) {
     if (! $vars->{$x}) {
         print STDERR "ERROR: Incomplete metagenome, missing stage: $x\n";
         exit 1;

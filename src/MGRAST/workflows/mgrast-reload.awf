@@ -506,6 +506,22 @@
             },
             "taskid": "8",
             "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "delete_nodes.sh",
+                "args": "-s [% shock_url %] -n [% delete_nodes %]",
+                "description": "clean stage",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ": {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    }
+                }
+            },
+            "dependsOn": ["8"],
+            "taskid": "9",
+            "totalwork": 1
         }
     ]
 }

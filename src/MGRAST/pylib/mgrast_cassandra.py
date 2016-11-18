@@ -158,20 +158,21 @@ class JobHandle(object):
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)
         if md5s and (len(md5s) > 0):
             query += " AND md5 IN (" + ",".join(map(lambda x: "'"+x+"'", md5s)) + ")"
-        else:
+        elif evalue or identity or alength:
             if evalue:
                 query += " AND exp_avg <= %d"%(int(evalue) * -1)
             if identity:
                 query += " AND ident_avg >= %d"%(int(identity))
             if alength:
                 query += " AND len_avg >= %d"%(int(alength))
+            query += " ALLOW FILTERING"
         rows = self.session.execute(query)
         for r in rows:
             if r[1] == 0:
                 continue
             pos = bisect.bisect(found, (r[0], None))
             if (pos > 0) and ((found[pos-1][0] + found[pos-1][1]) == r[0]):
-                found[pos-1][1] = found[pos-1][1] + r[1]
+                found[pos-1] = (found[pos-1][0], found[pos-1][1] + r[1])
             else:
                 bisect.insort(found, (r[0], r[1]))
         return found
@@ -193,7 +194,6 @@ class JobHandle(object):
             return rows[0][0]
         else:
             return 0
-    
     ## does job exist
     def has_job(self, job):
         job = int(job)
@@ -234,22 +234,34 @@ class JobHandle(object):
     def set_loaded(self, job, loaded):
         job = int(job)
         value = True if loaded else False
-        update = self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
-        self.session.execute(update, [value, datetime.datetime.now(), self.version, job])
+        update = cql.BoundStatement(
+            self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?"),
+            consistency_level=cql.ConsistencyLevel.QUORUM
+        ).bind([value, datetime.datetime.now(), self.version, job])
+        self.session.execute(update)
     def update_info_md5s(self, job, md5s, loaded):
         job = int(job)
         value = True if loaded else False
-        update = self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
-        self.session.execute(update, [int(md5s), value, datetime.datetime.now(), self.version, job])
+        update = cql.BoundStatement(
+            self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?"),
+            consistency_level=cql.ConsistencyLevel.QUORUM
+        ).bind([int(md5s), value, datetime.datetime.now(), self.version, job])
+        self.session.execute(update)
     def update_info_lcas(self, job, lcas, loaded):
         job = int(job)
         value = True if loaded else False
-        update = self.session.prepare("UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
-        self.session.execute(update, [int(lcas), value, datetime.datetime.now(), self.version, job])
+        update = cql.BoundStatement(
+            self.session.prepare("UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?"),
+            consistency_level=cql.ConsistencyLevel.QUORUM
+        ).bind([int(lcas), value, datetime.datetime.now(), self.version, job])
+        self.session.execute(update)
     def insert_job_info(self, job):
         job = int(job)
-        insert = self.session.prepare("INSERT INTO job_info (version, job, md5s, lcas, updated_on, loaded) VALUES (?, ?, ?, ?, ?, ?)")
-        self.session.execute(insert, [self.version, job, 0, 0, datetime.datetime.now(), False])
+        insert = cql.BoundStatement(
+            self.session.prepare("INSERT INTO job_info (version, job, md5s, lcas, updated_on, loaded) VALUES (?, ?, ?, ?, ?, ?)"),
+            consistency_level=cql.ConsistencyLevel.QUORUM
+        ).bind([self.version, job, 0, 0, datetime.datetime.now(), False])
+        self.session.execute(insert)
     ## add rows to job data tables, return current total loaded
     def insert_job_md5s(self, job, rows):
         job = int(job)
@@ -284,7 +296,7 @@ class JobHandle(object):
     ## delete all job data
     def delete_job(self, job):
         job = int(job)
-        batch = cql.BatchStatement()
+        batch = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         batch.add(cql.SimpleStatement("DELETE FROM job_info WHERE version = %d AND job = %d"%(self.version, job)))
         batch.add(cql.SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)))
         batch.add(cql.SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"%(self.version, job)))

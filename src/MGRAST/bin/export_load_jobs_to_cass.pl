@@ -20,6 +20,7 @@ my $dbcert  = "";
 my $apiurl  = "";
 my $token   = "";
 my $batch   = 5000;
+my $force   = 0;
 my $usage   = qq($0
   --mgid    ID of metagenome to export / load
   --version m5nr version #, default 1
@@ -31,6 +32,7 @@ my $usage   = qq($0
   --apiurl  MG-RAST API url
   --token   MG-RAST API user token
   --batch   size of batch insert
+  --force   force load even if exists
 );
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit 1; }
@@ -44,7 +46,8 @@ if ( ! GetOptions(
 	'dbcert:s'  => \$dbcert,
 	'apiurl:s'  => \$apiurl,
 	'token:s'   => \$token,
-	'batch:i'   => \$batch
+	'batch:i'   => \$batch,
+	'force!'    => \$force
    ) ) {
   print STDERR $usage; exit 1;
 }
@@ -65,20 +68,22 @@ $json->max_size(0);
 $json->allow_nonref;
 
 # first check if job already loaded in cassandra
-my $info = undef;
-eval {
-    my $req = HTTP::Request->new(POST => $apiurl.'/job/abundance');
-    $req->header('content-type' => 'application/json');
-    $req->header('authorization' => "mgrast $token");
-    $req->content($json->encode({metagenome_id => $mgid, action => 'status'}));
-    my $resp = $agent->request($req);
-    $info = $json->decode( $resp->decoded_content );
-};
-unless ($info && exists($info->{status})) {
-    print STDERR "Unable to query metagenome through API\n"; exit 1;
-}
-if (($info->{status} eq 'exists') && ($info->{loaded} eq 'true')) {
-    print STDERR "Skipping $mgid - already loaded\n"; exit 0;
+if (! $force) {
+    my $info = undef;
+    eval {
+        my $req = HTTP::Request->new(POST => $apiurl.'/job/abundance');
+        $req->header('content-type' => 'application/json');
+        $req->header('authorization' => "mgrast $token");
+        $req->content($json->encode({metagenome_id => $mgid, action => 'status'}));
+        my $resp = $agent->request($req);
+        $info = $json->decode( $resp->decoded_content );
+    };
+    unless ($info && exists($info->{status})) {
+        print STDERR "Unable to query metagenome through API\n"; exit 1;
+    }
+    if (($info->{status} eq 'exists') && ($info->{loaded} eq 'true')) {
+        print STDERR "Skipping $mgid - already loaded\n"; exit 0;
+    }
 }
 
 # get job ID, verify job in system
