@@ -115,6 +115,10 @@ sub instance {
     if ($file) {
         my $node = undef;
         foreach my $set (@$setlist) {
+	  if (! $job->{public}) {
+	    my $pid = $self->idmap($id);
+	    $set->{file_name} =~ /$id/$pid/;
+	  }
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
                 if ($link) {
                     my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
