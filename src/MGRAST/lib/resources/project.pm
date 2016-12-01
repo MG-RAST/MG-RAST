@@ -732,7 +732,7 @@ sub updateRight {
 	$ubody->param('LASTNAME', $user->lastname);
 	$ubody->param('WHAT', "the metagenome project $project_name");
 	$ubody->param('WHOM', $self->user->firstname.' '.$self->user->lastname);
-	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=MetagenomeProject&project=$pid");
+	$ubody->param('LINK', "http://metagenomics.anl.gov/mgmain.html?mgpage=project&project=$pid");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
 	$user->send_email( $WebConfig::ADMIN_EMAIL,
@@ -824,25 +824,19 @@ sub updateRight {
 	my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobToken.tmpl',
 					die_on_bad_params => 0);
 	$ubody->param('WHAT', "the metagenome project $project_name");
-	$ubody->param('REGISTER', $WebConfig::APPLICATION_URL."?page=Register");
+	$ubody->param('REGISTER', "http://metagenomics.anl.gov/mgmain.html?mgpage=register");
 	$ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
-	$ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
+	$ubody->param('LINK', "http://metagenomics.anl.gov/mgmain.html?mgpage=token&token=$token");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
-    my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
-                                                    from => $WebConfig::ADMIN_EMAIL,
-                                                    to => $user,
-                                                    subject => $WebConfig::APPLICATION_NAME,
-                                                    body => $ubody->output);
-    
-	#my $mailer = Mail::Mailer->new('smtp', Server => $Conf::smtp_host);
-	#if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
-	#		    To      => $user,
-	#		    Subject => $WebConfig::APPLICATION_NAME.' - new data available',
-	#		  })) {
-    if ($email_success) {
-	  #print $mailer $ubody->output;
-	  #$mailer->close();
+	my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
+							from => $WebConfig::ADMIN_EMAIL,
+							to => $user,
+							subject => $WebConfig::APPLICATION_NAME,
+							body => $ubody->output);
+	
+	
+	if ($email_success) {
 	  $self->return_data( {"project" => $return_data}, 200 );
 	} else {
 	  $token_scope->delete();
