@@ -580,8 +580,11 @@ sub process_file {
         unless ($is_valid) {
             $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", $log, @{$md_obj->{data}})}, 422);
         }
-        unless ($post->{metagenome} && (@{$post->{metagenome}} > 0)) {
-            $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
+        unless ($post->{metagenome}) {
+	  $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
+	}
+	if (ref $post->{metagenome} ne "ARRAY") {
+	  $post->{metagenome} = [ $post->{metagenome} ];
         }
         if (($type eq 'update') && (! $post->{project})) {
             $self->return_data({"ERROR" => "Invalid parameters, update requires project ID"}, 404);
