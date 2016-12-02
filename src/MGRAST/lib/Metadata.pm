@@ -721,6 +721,8 @@ sub export_metadata_for_project {
 		sampleNum => 0,
 		samples   => [] };
 
+  # select MetaDataEntry.collection, parent, value, tag, type from ProjectCollection, MetaDataEntry, MetaDataCollection where ProjectCollection.project=".$project->{id}." and MetaDataEntry.collection=ProjectCollection.collection and MetaDataCollection._id=MetaDataEntry.collection limit 100
+  
   foreach my $samp ( @{ $project->collections('sample') } ) {
     my $e_obj = {};
     my $epack = $samp->children('ep');
