@@ -11,6 +11,7 @@ use LWP::UserAgent;
 use HTTP::Request;
 
 my $mgids   = "";
+my $mgfile  = "";
 my $version = 1;
 my $dbhost  = "";
 my $dbname  = "";
@@ -23,6 +24,7 @@ my $batch   = 5000;
 my $force   = 0;
 my $usage   = qq($0
   --mgids   comma seperated IDs of metagenomes to export / load
+  --mgfile  file of IDs of metagenomes to export / load
   --version m5nr version #, default 1
   --dbhost  db host
   --dbname  db name
@@ -38,6 +40,7 @@ my $usage   = qq($0
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit 1; }
 if ( ! GetOptions(
     'mgids:s'   => \$mgids,
+    'mgfile:s'  => \$mgfile,
     'version:i' => \$version,
     'dbhost:s'  => \$dbhost,
 	'dbname:s'  => \$dbname,
@@ -52,7 +55,18 @@ if ( ! GetOptions(
   print STDERR $usage; exit 1;
 }
 
-unless ($mgids && $apiurl && $token) {
+unless ($apiurl && $token) {
+    print STDERR $usage; exit 1;
+}
+
+my @mg_list = ();
+if ($mgids) {
+    @mg_list = split(/,/, $mgids);
+} elsif ($mgfile && (-s $mgfile)) {
+    open INFILE, "<$mgfile";
+    @mg_list = <INFILE>;
+    close INFILE;
+} else {
     print STDERR $usage; exit 1;
 }
 
@@ -77,8 +91,6 @@ my $dbh = DBI->connect(
 unless ($dbh) {
     print STDERR "Error: " . $DBI::errstr . "\n"; exit 1;
 }
-
-my @mg_list = split(/,/, $mgids);
 
 foreach my $mgid (@mg_list) {
     # first check if job already loaded in cassandra
