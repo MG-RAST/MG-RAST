@@ -603,7 +603,7 @@ sub process_file {
                 $job = $job->[0];
                 # check rights
                 unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $mgid) || $self->user && $self->user->has_star_right('edit', 'metagenome'))) {
-                    $self->return_data( {"ERROR" => "Insufficient permissions to view this data"}, 401 );
+                    $self->return_data( {"ERROR" => "Insufficient permissions to edit this data"}, 401 );
                 }
                 push @jobs, $job;
             } else {
