@@ -22,7 +22,7 @@ my $token   = "";
 my $batch   = 5000;
 my $force   = 0;
 my $usage   = qq($0
-  --mgid    comma seperated IDs of metagenomes to export / load
+  --mgids   comma seperated IDs of metagenomes to export / load
   --version m5nr version #, default 1
   --dbhost  db host
   --dbname  db name
