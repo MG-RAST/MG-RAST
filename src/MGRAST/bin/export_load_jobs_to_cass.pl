@@ -66,6 +66,7 @@ if ($mgids) {
     open INFILE, "<$mgfile";
     @mg_list = <INFILE>;
     close INFILE;
+    chomp @mg_list;
 } else {
     print STDERR $usage; exit 1;
 }
