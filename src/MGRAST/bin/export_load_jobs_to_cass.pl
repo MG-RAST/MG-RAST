@@ -118,7 +118,7 @@ foreach my $mgid (@mg_list) {
     # set to start loading
     print STDERR "md5 abundance data\n";
     print STDERR "\tset as unloaded\n";
-    post_data("start", "md5", undef, undef);
+    post_data($mgid, "start", "md5", undef, undef);
 
     print STDERR "\tstart load from postgres\n";
     $count = 0;
@@ -144,21 +144,21 @@ foreach my $mgid (@mg_list) {
         $count += 1;
         $total += 1;
         if ($count == $batch) {
-            post_data("load", "md5", undef, $data);
+            post_data($mgid, "load", "md5", undef, $data);
             $count = 0;
             $data  = [];
         }
     }
     if ($count > 0) {
-        post_data("load", "md5", undef, $data);
+        post_data($mgid, "load", "md5", undef, $data);
     }
     print STDERR "\t$total md5 rows uploaded\n";
     print STDERR "\tset as loaded\n";
-    post_data("end", "md5", $total, undef);
+    post_data($mgid, "end", "md5", $total, undef);
 
     print STDERR "lca abundance data\n";
     print STDERR "\tset as unloaded\n";
-    post_data("start", "lca", undef, undef);
+    post_data($mgid, "start", "lca", undef, undef);
 
     print STDERR "\tstart load from postgres\n";
     $count = 0;
@@ -183,24 +183,24 @@ foreach my $mgid (@mg_list) {
         $count += 1;
         $total += 1;
         if ($count == $batch) {
-            post_data("load", "lca", undef, $data);
+            post_data($mgid, "load", "lca", undef, $data);
             $count = 0;
             $data  = [];        
         }
     }
     if ($count > 0) {
-        post_data("load", "lca", undef, $data);
+        post_data($mgid, "load", "lca", undef, $data);
     }
     print STDERR "\t$total lca rows uploaded\n";
     print STDERR "\tset as loaded\n";
-    post_data("end", "lca", $total, undef);
+    post_data($mgid, "end", "lca", $total, undef);
 }
 
 $dbh->disconnect;
 exit 0;
 
 sub post_data {
-    my ($action, $type, $count, $data) = @_;
+    my ($mgid, $action, $type, $count, $data) = @_;
     
     my $post_data = {
         metagenome_id => $mgid,
@@ -229,7 +229,7 @@ sub post_data {
             return;
         } else {
             $post_attempt += 1;
-            post_data($action, $type, $count, $data);
+            post_data($mgid, $action, $type, $count, $data);
         }
     }
 }
