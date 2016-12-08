@@ -117,7 +117,7 @@ sub instance {
         foreach my $set (@$setlist) {
 	  if (! $job->{public}) {
 	    my $pid = $self->idmap($id);
-	    $set->{file_name} =~ /$id/$pid/;
+	    $set->{file_name} =~ s/$id/$pid/;
 	  }
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
                 if ($link) {
