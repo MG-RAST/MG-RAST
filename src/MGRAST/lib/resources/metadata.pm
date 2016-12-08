@@ -607,7 +607,7 @@ sub process_file {
                 }
                 $job = $job->[0];
                 # check rights
-                unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $mgid) || $self->user && $self->user->has_star_right('edit', 'metagenome') || ($project_obj && ($self->user->has_right(undef, 'edit', 'project', $project_obj->id) || $self->user->has_star_right('edit', 'project')))) {
+                unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $mgid) || $self->user && $self->user->has_star_right('edit', 'metagenome') || ($project_obj && ($self->user->has_right(undef, 'edit', 'project', $project_obj->id) || $self->user->has_star_right('edit', 'project'))))) {
                     $self->return_data( {"ERROR" => "Insufficient permissions to edit this data"}, 401 );
                 }
                 push @jobs, $job;
