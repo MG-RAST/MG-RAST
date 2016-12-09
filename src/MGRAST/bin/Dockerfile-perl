@@ -1,0 +1,11 @@
+# dockerfile for alpine perl to run cassandra load script
+
+FROM alpine
+
+RUN apk update && apk add curl vim perl perl-dbd-pg perl-json perl-lwp-protocol-https
+
+RUN mkdir -p /postgres
+
+COPY export_load_jobs_to_cass.pl /export_load_jobs_to_cass.pl
+
+CMD ["/bin/ash"]
