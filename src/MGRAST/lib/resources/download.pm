@@ -116,7 +116,7 @@ sub instance {
         my $node = undef;
         foreach my $set (@$setlist) {
 	  if (! $job->{public}) {
-	    my $pid = $self->idmap($id);
+	    my $pid = $self->obfuscate($id);
 	    $set->{file_name} =~ s/$id/$pid/;
 	  }
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {

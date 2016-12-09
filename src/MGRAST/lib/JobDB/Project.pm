@@ -193,8 +193,7 @@ sub data {
       return 0;
     }
     my $jstat = $self->_master->ProjectMD->get_objects( { project => $self,
-							  tag     => $tag,
-							  value   => $value
+							  tag     => $tag
 							});
     if (ref $jstat and scalar @$jstat) {
       $jstat->[0]->value($value);
