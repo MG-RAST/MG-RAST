@@ -36,7 +36,7 @@ class Profile(object):
         if param['format'] == 'biom':
             try:
                 profile    = self.init_biom_profile(param['id'], param['source'], param['source_type'])
-                rows, data = self.get_biom_data(param['job_id'], param['source'])
+                rows, data = self.get_biom_data(param['job_id'], param['source'], node)
                 profile['rows'] = rows
                 profile['data'] = data
                 profile['shape'][0] = len(profile['rows'])
