@@ -2642,7 +2642,7 @@ sub compute_breakdown {
 
 # obfuscate an mg-rast id
 sub obfuscate {
-  my ($id) = @_;
+  my ($self, $id) = @_;
   
   my @set = ('0' ..'9', 'a' .. 'f');
   my $str = join '' => map $set[rand @set], 1 .. 10;
@@ -2655,7 +2655,7 @@ sub obfuscate {
 # resolve an obfuscated mg-rast id
 # if it is an mg-rast id already, return it as is
 sub idresolve {
-  my ($id) = @_;
+  my ($self, $id) = @_;
 
   unless ($id =~ /^mgm/ or $id =~ /^mgp/ or $id =~ /^\d+\.\d+$/) { 
     $id = substr $id, 10;
