@@ -89,6 +89,9 @@ sub authenticate {
 	      $verbose.=', "preferences": '.$json->encode($response->{data}->{attributes}->{pref});
 	    }
 	  }
+	  if ($us->has_right(undef, 'edit', 'user', '*')) {
+	    $verbose.=', "admin": true';
+	  }
 	}
 	print $cgi->header(-type => 'application/json',
 			   -status => 200,

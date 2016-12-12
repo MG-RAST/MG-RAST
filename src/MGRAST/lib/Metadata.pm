@@ -712,6 +712,7 @@ env_package: { name:<samp_name-env_package_type: str>, type:<env_package_type: s
 sub export_metadata_for_project {
   my ($self, $project, $all_fields) = @_;
 
+  # get the base project data
   my $pdata = $project->data;
   $pdata->{project_name} = $project->name;
   $pdata->{mgrast_id}    = 'mgp'.$project->id;
@@ -721,55 +722,82 @@ sub export_metadata_for_project {
 		sampleNum => 0,
 		samples   => [] };
 
-  foreach my $samp ( @{ $project->collections('sample') } ) {
-    my $e_obj = {};
-    my $epack = $samp->children('ep');
-    my $sdata = $samp->data;
-    my $sname = $samp->name || 'mgs'.$samp->ID;
+  # get the library / sample / ep data from the db
+  my $dbh  = $self->{_handle}->db_handle;
+  my $data = $dbh->selectall_arrayref("SELECT MetaDataEntry.collection, parent, value, tag, type FROM ProjectCollection, MetaDataEntry, MetaDataCollection WHERE ProjectCollection.project=".$project->{_id}." AND MetaDataEntry.collection=ProjectCollection.collection AND MetaDataCollection._id=MetaDataEntry.collection");
 
-    if (@$epack && $epack->[0]->ep_type) {
-      my $edata = $epack->[0]->data;
-      $edata->{sample_name} = $sname;
-      $edata->{mgrast_id}   = 'mge'.$epack->[0]->ID;
-      $e_obj = { name => $epack->[0]->name || 'mge'.$epack->[0]->ID,
-		 id   => 'mge'.$epack->[0]->ID,
-		 type => $epack->[0]->ep_type,
-		 data => $self->add_template_to_data($epack->[0]->ep_type, $edata, $all_fields) };
-    }
-    $sdata->{sample_name} = $sname;
-    $sdata->{mgrast_id}   = 'mgs'.$samp->ID;
-    my $s_obj = { name   => $sname,
-		  id     => 'mgs'.$samp->ID,
-		  data   => $self->add_template_to_data('sample', $sdata, $all_fields),
-		  libNum => 0,
-		  libraries => []
-		};
-    if (exists $e_obj->{id}) {
-      $s_obj->{envPackage} = $e_obj;
-    }
-
-    foreach my $lib ( @{ $samp->children('library') } ) {
-      next unless ($lib->lib_type);
-      my $ldata = $lib->data;
-      $ldata->{sample_name} = $sname;
-      $ldata->{mgrast_id}   = 'mgl'.$lib->ID;
-      my $lib_jobs = $lib->jobs;
-      if (@$lib_jobs > 0) {
-	$ldata->{metagenome_id} = $lib_jobs->[0]->{metagenome_id};
-	$ldata->{metagenome_name} = $lib_jobs->[0]->{name} || '';
-	if ($lib_jobs->[0]->{file}) { $ldata->{file_name} = $lib_jobs->[0]->{file}; }
-	if ($lib_jobs->[0]->{file_checksum_raw}) { $ldata->{file_checksum} = $lib_jobs->[0]->{file_checksum_raw}; }
+  # iterate over the data and structure it
+  # collection 0 | parent 1 | value 2 | tag 3 | type 4
+  my $samples = {};
+  my $eps = {};
+  my $libs = {};
+  my $errors = [];
+  foreach my $d (@$data) {
+    if ($d->[4] eq 'sample') {
+      if (! $samples->{$d->[0]}) {
+	$samples->{$d->[0]} = { "data" => {} };
       }
-      push @{ $s_obj->{libraries} }, { name => $lib->name || 'mgl'.$lib->ID,
-				       id   => 'mgl'.$lib->ID,
-				       type => $lib->lib_type,
-				       data => $self->add_template_to_data($lib->lib_type, $ldata, $all_fields)};
-      $s_obj->{libNum} += 1;
+      $samples->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
+    } elsif ($d->[4] eq 'ep') {
+      if (! $eps->{$d->[0]}) {
+	$eps->{$d->[0]} = { "parent" => $d->[1], "data" => {}, "id" => "mge".$d->[0] };
+      }
+      $eps->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
+
+    } elsif ($d->[4] eq 'library') {
+      if (! $libs->{$d->[0]}) {
+	$libs->{$d->[0]} = { "parent" => $d->[1], "data" => {}, "id" => "mgl".$d->[0] };
+      }
+      $libs->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
+    }
+  }
+
+  # add the libraries to their samples
+  foreach my $k (keys(%$libs)) {
+    if ($samples->{$libs->{$k}->{"parent"}}) {
+      if (! $samples->{$libs->{$k}->{"parent"}}->{"libraries"}) {
+	$samples->{$libs->{$k}->{"parent"}}->{"libraries"} = [];
+      }
+      $libs->{$k}->{type} = $libs->{$k}->{data}->{investigation_type};
+      delete $libs->{$k}->{data}->{investigation_type};
+      $libs->{$k}->{name} = $libs->{$k}->{data}->{metagenome_name} || "mgl".$k;
+      push(@{$samples->{$libs->{$k}->{"parent"}}->{"libraries"}}, $libs->{$k});
+    }
+  }
+
+  # add the eps to their samples
+  foreach my $k (keys(%$eps)) {
+    if ($samples->{$eps->{$k}->{"parent"}}) {
+      $eps->{$k}->{type} = $eps->{$k}->{data}->{env_package};
+      delete $eps->{$k}->{data}->{env_package};
+      $eps->{$k}->{name} = "mgs".$eps->{$k}->{"parent"}.": ".$eps->{$k}->{type};
+      $samples->{$eps->{$k}->{"parent"}}->{"envPackage"} = $eps->{$k};
+    }
+  }
+
+  # add the samples to the project data structure
+  foreach my $k (keys(%$samples)) {
+    $samples->{$k}->{libNum} = scalar(@{$samples->{$k}->{libraries}});
+    $samples->{$k}->{name} = $samples->{$k}->{id} = "mgs".$k;
+
+    # iterate over the libraries and objectify them
+    foreach my $lib (@{$samples->{$k}->{libraries}}) {
+      delete $lib->{parent};
+      $lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data}, $all_fields);
     }
 
-    push @{ $mdata->{samples} }, $s_obj;
-    $mdata->{sampleNum} += 1;
+    # objectify the ep
+    delete $samples->{$k}->{envPackage}->{parent};
+    $samples->{$k}->{envPackage}->{data} = $self->add_template_to_data($samples->{$k}->{envPackage}->{type}, $samples->{$k}->{envPackage}->{data}, $all_fields);
+
+    # objectify the sample
+    $samples->{$k}->{data} = $self->add_template_to_data('sample', $samples->{$k}->{data}, $all_fields);
+    
+    push(@{$mdata->{samples}}, $samples->{$k});
   }
+
+  $mdata->{sampleNum} = scalar(@{$mdata->{samples}});
+
   return $mdata;
 }
 
