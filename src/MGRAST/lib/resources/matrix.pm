@@ -245,10 +245,11 @@ sub instance {
             $in_cassandra = 0;
         }
     }
+    # close handle
+    $chdl->close();
+    
     # not all in cassandra
     unless ($in_cassandra) {
-        # close handle
-        $chdl->close();
         # need to redirect profile to postgres backend API
         my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
         print STDERR "Redirect: $redirect_uri\n";
@@ -258,11 +259,13 @@ sub instance {
         );
         exit 0;
     }
-    # close handle
-    $chdl->close();
     
     # need to create new temp node
-    my $attr->{parameters} = $params;
+    $attr->{parameters} = $params;
+    $attr->{progress} = {
+        queried => 0,
+        found => 0
+    };
     my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
     
     # asynchronous call, fork the process and return the process id.
@@ -427,6 +430,11 @@ sub process_parameters {
     my $id_map  = $master->Job->get_job_ids($data);
     my @job_ids = map { $id_map->{$_} } @$data;
     
+    # reset type
+    if ($prot_func && ($type eq "function")) {
+        $type = "ontology";
+    }
+    
     return {
         id          => $matrix_id,
         url         => $matrix_url,
@@ -437,6 +445,7 @@ sub process_parameters {
         source      => $source,
         source_type => $self->type_by_source($source),
         result_type => $rtype,
+        hit_type    => $htype,
         evalue      => $eval,
         identity    => $ident,
         length      => $alen,
@@ -444,7 +453,9 @@ sub process_parameters {
         metadata    => $hide_md ? {} : $mddb->get_jobs_metadata_fast($data, 1),
         filter      => $filter,
         filter_level  => $flvl,
-        filter_source => $fsrc
+        filter_source => $fsrc,
+        leaf_node     => $leaf_node,
+        leaf_filter   => $leaf_filter
     };
 }
 
@@ -459,7 +470,7 @@ sub create_matrix {
     $mgcass->set_shock($token);
     
     ### create matrix / saves output file or error message in shock
-    $mgcass->compute_matrix($node, $params);
+    $mgcass->compute_matrix($params, $node);
     $mgcass->close();
     return undef;
 }

@@ -1,4 +1,5 @@
 
+import sys
 import datetime
 import json
 import shock
@@ -78,6 +79,8 @@ class Profile(object):
             # save error to node
             data = {'ERROR': error, "STATUS": 500}
             self.shock.upload(node=node['id'], data=json.dumps(data), file_name='error')
+        else:
+            sys.stderr.write(error+"\n")
         self.close()
     
     def init_mgrast_profile(self, mgid, source, stype, index=False):
