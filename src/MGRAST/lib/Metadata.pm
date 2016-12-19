@@ -1132,7 +1132,7 @@ sub add_valid_metadata {
   
   # get all project collections
   my $query  = "SELECT c._id, c.ID, c.type, c.name c.parent FROM ProjectCollection p, MetaDataCollection c WHERE p.project=".$project->{_id}." AND p.collection=c._id";
-  my $result = $self->_master->db_handle->selectall_arrayref($query);
+  my $result = $mddb->db_handle->selectall_arrayref($query);
   my $namemap = {};
   %$namemap = map { $_->[3] => { "_id" => $_->[0], "ID" => $_->[1], "type" => $_->[2], "name" => $_->[3], "parent" => $_->[4] } } @$result;
   
