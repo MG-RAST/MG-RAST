@@ -574,7 +574,7 @@ sub prepare_data {
         $obj->{created} = "";
     
         if ($self->cgi->param('verbosity')) {
-	  if ($self->cgi->param('verbosity') eq 'permissions') {
+	  if ($self->cgi->param('verbosity') eq 'permissions' || ($self->cgi->param('verbosity') eq 'full')) {
 	    unless (scalar(@$data) == 1) {
 	      $self->return_data({"ERROR" => "verbosity option permissions only allowed for single projects"}, 400);
 	    }
@@ -585,7 +585,9 @@ sub prepare_data {
 	    $obj->{permissions} = { metagenome => [], project => [] };
 	    $obj->{permissions}->{metagenome} = $metagenome_permissions;
 	    $obj->{permissions}->{project} = $project_permissions;
-	    return [ $obj ];
+	    if ($self->cgi->param('verbosity') eq 'permissions') {
+	      return [ $obj ];
+	    }
 	  }
 
             if ($self->cgi->param('verbosity') eq 'full') {
@@ -605,7 +607,7 @@ sub prepare_data {
 	        $obj->{description}    = $desc;
 	        $obj->{funding_source} = $fund;
 		
-		if ($self->cgi->param('verbosity') eq 'summary') {
+		if ($self->cgi->param('verbosity') eq 'summary' || ($self->cgi->param('verbosity') eq 'full')) {
 		  my $jdata = $project->metagenomes_summary();
 		  $obj->{metagenomes} = [];
 		  foreach my $row (@$jdata) {
