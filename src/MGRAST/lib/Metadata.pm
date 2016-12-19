@@ -777,13 +777,15 @@ sub export_metadata_for_project {
 
   # add the samples to the project data structure
   foreach my $k (keys(%$samples)) {
-    $samples->{$k}->{libNum} = scalar(@{$samples->{$k}->{libraries}});
+    $samples->{$k}->{libNum} = $samples->{$k}->{libraries} ? scalar(@{$samples->{$k}->{libraries}}) : 0;
     $samples->{$k}->{name} = $samples->{$k}->{id} = "mgs".$k;
 
     # iterate over the libraries and objectify them
-    foreach my $lib (@{$samples->{$k}->{libraries}}) {
-      delete $lib->{parent};
-      $lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data}, $all_fields);
+    if ($samples->{$k}->{libraries}) {
+      foreach my $lib (@{$samples->{$k}->{libraries}}) {
+	delete $lib->{parent};
+	$lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data}, $all_fields);
+      }
     }
 
     # objectify the ep
