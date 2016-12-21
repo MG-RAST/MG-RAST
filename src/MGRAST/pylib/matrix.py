@@ -43,11 +43,10 @@ class Matrix(object):
             for mg in param['mg_ids']:
                 metadata = param['metadata'][mg] if mg in param['metadata'] else None
                 profile['columns'].append({'id': mg, 'metadata', metadata})
-                profile['shape'][1] += 1
             rows, data = self.get_data(param, node)
-            profile['rows'] = rows
-            profile['data'] = data
-            profile['shape'][0] = len(profile['rows'])
+            profile['rows']  = rows
+            profile['data']  = data
+            profile['shape'] = [ len(profile['rows']), len(param['mg_ids']) ]
         except:
             self.error_exit("unable to build BIOM profile", node)
             return
@@ -92,10 +91,45 @@ class Matrix(object):
         data = []
         found = 0
         md5_row = {}
+        ann_type = 'accession' if param['type'] == 'ontology' else param['type']
         group_map = self.get_group_map(param['type'], param['hit_type'], param['group_level'], param['leaf_node'], param['source'])
         filter_list = self.get_filter_list(param['type'], param['filter'], param['filter_level'], param['filter_source'], param['leaf_filter'])
+        ann_type = param['type']
+        if param['type'] == 'ontology':
+            ann_type = 'accession'
+        elif (param['type'] == 'organism') and (param['hit_type'] != 'all'):
+            ann_type = 'single'
         
         def append_matrix(found, rows, data, md5_row, col):
+            ann_idx = {}
+            ann_data = self.m5nr.get_records_by_md5(md5_row.keys(), source=source, index=False, iterator=True)
+            for info in ann_data:
+                ann_list = info[ann_type]
+                if ann_type == 'single':
+                    ann_list = [ ann_list ]
+                for a in ann_list:
+                    
+                    
+                    if a not in ann_idx:
+                        found += 1
+                        rows.append({'id': a, 'metadata': {}})
+                    
+                if info['md5'] not in md5_idx:
+                    found += 1
+                    rows.append({'id': info['md5'], 'metadata': {}})
+                    data.append(md5_row[info['md5']])
+                    idx = len(data) - 1
+                    md5_idx[info['md5']] = idx
+                idx = md5_idx[info['md5']]
+                # add annotations to row metadata
+                rows[idx]['metadata'] = { 'function': info['function'] }
+                if info['source'] in self.ontology:
+                    rows[idx]['metadata']['ontology'] = info['accession']
+                else:
+                    rows[idx]['metadata']['single'] = info['single']
+                    rows[idx]['metadata']['organism'] = info['organism']
+                    if info['accession']:
+                        rows[idx]['metadata']['accession'] = info['accession']
             # TODO: stuff
             return found, rows, data
         
@@ -113,9 +147,9 @@ class Matrix(object):
                     count = 0
                 if (total % 100000) == 0:
                     self.update_progress(node, total, found)
-                if count > 0:
-                    found, rows, data = append_matrix(found, rows, data, md5_row, col)
-                self.update_progress(node, total, found)
+            if count > 0:
+                found, rows, data = append_matrix(found, rows, data, md5_row, col)
+            self.update_progress(node, total, found)
         return rows, data
     
     # get grouping map: leaf_name => group_name

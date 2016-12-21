@@ -95,8 +95,7 @@ sub info {
                                                 ['identity', 'average percent identity of hits in annotation'],
                                                 ['length', 'average alignment length of hits in annotation']] ],
                       'hit_type' => [ 'cv', [['all', 'returns results based on all organisms that map to top hit per read-feature'],
-                                             ['single', 'returns results based on a single organism for top hit per read-feature'],
-                                             ['lca', 'returns results based on the Least Common Ancestor for all organisms for hits from a read-feature']] ],
+                                             ['single', 'returns results based on a single organism for top hit per read-feature']] ],
                       'source' => [ 'cv', $self->{sources}{organism} ],
                       'group_level' => [ 'cv', $self->hierarchy->{organism} ],
                       'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
@@ -431,7 +430,7 @@ sub process_parameters {
     my @job_ids = map { $id_map->{$_} } @$data;
     
     # reset type
-    if ($prot_func && ($type eq "function")) {
+    if (exists($func_srcs{$source}) && ($type eq "function")) {
         $type = "ontology";
     }
     
@@ -659,7 +658,7 @@ sub prepare_data {
     };
     
     # reset type
-    if ($prot_func && ($type eq "function")) {
+    if (exists($func_srcs{$source}) && ($type eq "function")) {
         $type = "ontology";
     }
     
