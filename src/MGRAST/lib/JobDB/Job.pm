@@ -1334,7 +1334,7 @@ sub user_delete {
   my $jobid  = $self->job_id;
 
   if ($self->public) {
-    return(0, "Unable to delete metagenome '$mgid' as it has been made public.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+    return(0, "Unable to delete metagenome '$mgid' as it has been made public. If someone is sharing this data with you please contact them with inquiries. However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@rt.mcs.anl.gov'>MG-RAST help desk</a>.");
   }
 
   unless( $user && ($user->has_right(undef, 'delete', 'metagenome', $mgid) || $user->has_star_right('delete','metagenome')) ) {
