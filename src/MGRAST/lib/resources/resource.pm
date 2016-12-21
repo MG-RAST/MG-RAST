@@ -2555,7 +2555,7 @@ sub nCr2ln {
 
 # This is Stirling's formula for gammaln, used for calculating nCr
 sub gammaln {
-    my ($self, $x) = @_;
+    my ($x) = @_;
     unless ($x > 0) { return 0; }
     my $s = log($x);
     return log(2 * 3.14159265458) / 2 + $x * $s + $s / 2 - $x;
