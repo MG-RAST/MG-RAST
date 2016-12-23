@@ -262,80 +262,57 @@ sub post_action {
             }
         }
         $self->return_data( {"OK" => "user added as owner"}, 200 );
-    }
-}
-
-sub get_action {
-    my ($self) = @_;
-    
-    # get rest parameters
-    my $rest = $self->rest;
-    # get database
-    my $master = $self->connect_to_datasource();
-    
-    # check id format
-    my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
-    if ((! $id) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
-    }
-    
-    if ($rest->[1] eq 'updateright') {
-        $self->updateRight($rest->[0]);
-        return;
-    }
-    
-    # check permissions
-    unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
-        $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
-    }
-    # get project
-    my $project = $master->Project->init( {id => $id} );
-    unless (ref($project)) {
-        $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
-    }
+      }
     
     # update basic project metadata
-    if ($rest->[1] eq 'updatemetadata') {
-        if ($self->cgi->param('project_name')) {
-            $project->name($self->cgi->param('project_name'));
-        }
-        
-        my $metadbm = MGRAST::Metadata->new->_handle();
-        my $keyval = {};
-        $keyval->{project_description} = $self->cgi->param('project_description');
-        $keyval->{project_funding} = $self->cgi->param('project_funding');
-        $keyval->{PI_email} = $self->cgi->param('pi_email');
-        $keyval->{PI_firstname} = $self->cgi->param('pi_firstname');
-        $keyval->{PI_lastname} = $self->cgi->param('pi_lastname');
-        $keyval->{PI_organization} = $self->cgi->param('pi_organization');
-        $keyval->{PI_organization_country} = $self->cgi->param('pi_organization_country');
-        $keyval->{PI_organization_url} = $self->cgi->param('pi_organization_url');
-        $keyval->{PI_organization_address} = $self->cgi->param('pi_organization_address');
-        $keyval->{email} = $self->cgi->param('email');
-        $keyval->{firstname} = $self->cgi->param('firstname');
-        $keyval->{lastname} = $self->cgi->param('lastname');
-        $keyval->{organization} = $self->cgi->param('organization');
-        $keyval->{organization_country} = $self->cgi->param('organization_country');
-        $keyval->{organization_url} = $self->cgi->param('organization_url');
-        $keyval->{organization_address} = $self->cgi->param('organization_address');
-
-        foreach my $key (keys(%$keyval)) {
-            my $existing = $metadbm->ProjectMD->get_objects( {project => $project, tag => $key} );
-            if (scalar(@$existing)) {
-                while (scalar(@$existing) > 1) {
-                    delete $existing->[0];
-                }
-                $existing->[0]->value($keyval->{$key});
-            } else {
-                $metadbm->ProjectMD->create( {project => $project, tag => $key, value => $keyval->{$key}} );
-            }
-        }
-
-        # return success
-        $self->return_data( {"OK" => "metadata updated"}, 200 );
+    elsif ($rest->[1] eq 'updatemetadata') {
+      my $id = $rest->[0] =~ s/mgp//;
+      my $project = $master->Project->init({id => $id});
+      if ($self->cgi->param('project_name')) {
+	$project->name($self->cgi->param('project_name'));
+      }
+      
+      my $metadbm = MGRAST::Metadata->new->_handle();
+      my $keyval = {};
+      $keyval->{project_description} = $self->cgi->param('project_description');
+      $keyval->{project_funding} = $self->cgi->param('project_funding');
+      $keyval->{PI_email} = $self->cgi->param('pi_email');
+      $keyval->{PI_firstname} = $self->cgi->param('pi_firstname');
+      $keyval->{PI_lastname} = $self->cgi->param('pi_lastname');
+      $keyval->{PI_organization} = $self->cgi->param('pi_organization');
+      $keyval->{PI_organization_country} = $self->cgi->param('pi_organization_country');
+      $keyval->{PI_organization_url} = $self->cgi->param('pi_organization_url');
+      $keyval->{PI_organization_address} = $self->cgi->param('pi_organization_address');
+      $keyval->{email} = $self->cgi->param('email');
+      $keyval->{firstname} = $self->cgi->param('firstname');
+      $keyval->{lastname} = $self->cgi->param('lastname');
+      $keyval->{organization} = $self->cgi->param('organization');
+      $keyval->{organization_country} = $self->cgi->param('organization_country');
+      $keyval->{organization_url} = $self->cgi->param('organization_url');
+      $keyval->{organization_address} = $self->cgi->param('organization_address');
+      
+      foreach my $key (keys(%$keyval)) {
+	my $existing = $metadbm->ProjectMD->get_objects( {project => $project, tag => $key} );
+	if (scalar(@$existing)) {
+	  while (scalar(@$existing) > 1) {
+	    delete $existing->[0];
+	  }
+	  $existing->[0]->value($keyval->{$key});
+	} else {
+	  $metadbm->ProjectMD->create( {project => $project, tag => $key, value => $keyval->{$key}} );
+	}
+      }
+      
+      # return success
+      $self->return_data( {"OK" => "metadata updated"}, 200 );
     }
     # submit project to EBI
     elsif ($rest->[1] eq 'submittoebi') {
+      my $id = $rest->[0] =~ s/mgp//;
+      my $project = $master->Project->init({id => $id});
+      if ($self->cgi->param('project_name')) {
+	$project->name($self->cgi->param('project_name'));
+      }
         my $metadbm = MGRAST::Metadata->new->_handle();
         
         # set ebi_tech in project
@@ -376,9 +353,40 @@ sub get_action {
         }
         # at this point we can submit to EBI
         $self->return_data( {"OK" => "metadata updated for EBI"}, 200 );
+      }
+  }
+
+sub get_action {
+    my ($self) = @_;
+    
+    # get rest parameters
+    my $rest = $self->rest;
+    # get database
+    my $master = $self->connect_to_datasource();
+    
+    # check id format
+    my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
+    
+    if ($rest->[1] eq 'updateright') {
+        $self->updateRight($rest->[0]);
+        return;
+    }
+    
+    # check permissions
+    unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
+        $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+    }
+    # get project
+    my $project = $master->Project->init( {id => $id} );
+    unless (ref($project)) {
+        $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
+    }
+    
     # make the project public
-    elsif ($rest->[1] eq 'makepublic') {
+    if ($rest->[1] eq 'makepublic') {
         my $mgs = $project->metagenomes();
         unless (scalar(@$mgs)) {
             $self->return_data( {"ERROR" => "Cannot publish a project without metagenomes"}, 400 );
