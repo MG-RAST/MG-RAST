@@ -578,13 +578,17 @@ sub prepare_data {
 	    unless (scalar(@$data) == 1) {
 	      $self->return_data({"ERROR" => "verbosity option permissions only allowed for single projects"}, 400);
 	    }
-	    my $rightmaster = $self->user->_master->backend;
-	    my $project_permissions = $rightmaster->get_rows("Rights LEFT OUTER JOIN Scope ON Rights.scope=Scope._id LEFT OUTER JOIN UserHasScope ON Scope._id=UserHasScope.scope LEFT OUTER JOIN User ON User._id=UserHasScope.user WHERE Rights.data_type='project' AND Rights.data_id='".$project->{id}."';", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name, Scope.description"]);
-	    my $mgids = $project->all_metagenome_ids;
-	    my $metagenome_permissions = scalar(@$mgids) ? $rightmaster->get_rows("Rights LEFT OUTER JOIN Scope ON Rights.scope=Scope._id LEFT OUTER JOIN UserHasScope ON Scope._id=UserHasScope.scope LEFT OUTER JOIN User ON User._id=UserHasScope.user WHERE Rights.data_type='metagenome' AND Rights.data_id IN ('".join("', '", @$mgids)."');", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name, Scope.description"]) : [];
-	    $obj->{permissions} = { metagenome => [], project => [] };
-	    $obj->{permissions}->{metagenome} = $metagenome_permissions;
-	    $obj->{permissions}->{project} = $project_permissions;
+	    if ($self->user) {
+	      my $rightmaster = $self->user->_master->backend;
+	      my $project_permissions = $rightmaster->get_rows("Rights LEFT OUTER JOIN Scope ON Rights.scope=Scope._id LEFT OUTER JOIN UserHasScope ON Scope._id=UserHasScope.scope LEFT OUTER JOIN User ON User._id=UserHasScope.user WHERE Rights.data_type='project' AND Rights.data_id='".$project->{id}."';", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name, Scope.description"]);
+	      my $mgids = $project->all_metagenome_ids;
+	      my $metagenome_permissions = scalar(@$mgids) ? $rightmaster->get_rows("Rights LEFT OUTER JOIN Scope ON Rights.scope=Scope._id LEFT OUTER JOIN UserHasScope ON Scope._id=UserHasScope.scope LEFT OUTER JOIN User ON User._id=UserHasScope.user WHERE Rights.data_type='metagenome' AND Rights.data_id IN ('".join("', '", @$mgids)."');", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name, Scope.description"]) : [];
+	      $obj->{permissions} = { metagenome => [], project => [] };
+	      $obj->{permissions}->{metagenome} = $metagenome_permissions;
+	      $obj->{permissions}->{project} = $project_permissions;
+	    } else {
+	      $obj->{permissions} = { metagenome => [], project => [] };
+	    }
 	    if ($self->cgi->param('verbosity') eq 'permissions') {
 	      return [ $obj ];
 	    }
