@@ -140,8 +140,11 @@ foreach my $mgid (@mg_list) {
     $query = "SELECT m.md5, j.abundance, j.exp_avg, j.ident_avg, j.len_avg, j.seek, j.length FROM job_md5s j, md5s m ".
              "WHERE j.version=$version AND j.job=$jobid AND j.md5=m._id AND j.exp_avg <= -3";
     $sth = $dbh->prepare($query);
-    $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
-
+    unless ($sth->execute()) {
+        print STDERR "Postgres error: ".$sth->errstr."\n";
+        next;
+    }
+    
     while (my @row = $sth->fetchrow_array()) {
         my ($md5, $abund, $expa, $identa, $lena, $seek, $length) = @row;
         next unless ($md5 && $abund);

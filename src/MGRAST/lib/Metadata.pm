@@ -777,13 +777,15 @@ sub export_metadata_for_project {
 
   # add the samples to the project data structure
   foreach my $k (keys(%$samples)) {
-    $samples->{$k}->{libNum} = scalar(@{$samples->{$k}->{libraries}});
+    $samples->{$k}->{libNum} = $samples->{$k}->{libraries} ? scalar(@{$samples->{$k}->{libraries}}) : 0;
     $samples->{$k}->{name} = $samples->{$k}->{id} = "mgs".$k;
 
     # iterate over the libraries and objectify them
-    foreach my $lib (@{$samples->{$k}->{libraries}}) {
-      delete $lib->{parent};
-      $lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data}, $all_fields);
+    if ($samples->{$k}->{libraries}) {
+      foreach my $lib (@{$samples->{$k}->{libraries}}) {
+	delete $lib->{parent};
+	$lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data}, $all_fields);
+      }
     }
 
     # objectify the ep
@@ -1131,8 +1133,8 @@ sub add_valid_metadata {
   }
   
   # get all project collections
-  my $query  = "SELECT c._id, c.ID, c.type, c.name c.parent FROM ProjectCollection p, MetaDataCollection c WHERE p.project=".$project->{_id}." AND p.collection=c._id";
-  my $result = $self->_master->db_handle->selectall_arrayref($query);
+  my $query  = "SELECT c._id, c.ID, c.type, c.name, c.parent FROM ProjectCollection p, MetaDataCollection c WHERE p.project=".$project->{_id}." AND p.collection=c._id";
+  my $result = $mddb->db_handle->selectall_arrayref($query);
   my $namemap = {};
   %$namemap = map { $_->[3] => { "_id" => $_->[0], "ID" => $_->[1], "type" => $_->[2], "name" => $_->[3], "parent" => $_->[4] } } @$result;
   
@@ -1167,7 +1169,7 @@ sub add_valid_metadata {
     else {
       # check if this project already has a sample of this name
       if (defined $namemap->{$samp->{name}}) {
-	$samp_coll = $mddb->MetadataCollection->get_objects({"_id" => $namemap->{$samp->{name}}->{_id}})->[0];
+	$samp_coll = $mddb->MetaDataCollection->get_objects({"_id" => $namemap->{$samp->{name}}->{_id}})->[0];
       } else {
 	$samp_coll = $self->add_collection($project, 'sample', $curator, $samp->{name});
       }
