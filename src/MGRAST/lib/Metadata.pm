@@ -1091,27 +1091,26 @@ sub validate_metadata {
   return ($is_valid, $data, $log);
 }
 
-### this handels both new projects / collections and updating existing
+### this handles both new projects / collections and updating existing
 sub add_valid_metadata {
   my ($self, $user, $data, $jobs, $project, $map_by_id, $delete_old) = @_;
 
   unless ($user && ref($user)) {
     return (undef, [], ["invalid user object"]);
   }
-
+  
   my $err_msg = [];
   my $added   = [];
   my $mddb    = $self->{_handle};
   my $curator = $self->add_curator($user);
-  my $job_map = {};
+  my $job_map_id = {};
+  my $job_map_name = {};
   my $job_name_change = []; # [old, new]
-  if ($map_by_id) {
-    %$job_map = map {$_->metagenome_id, $_} grep {$user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) || $user->has_star_right('edit', 'metagenome')} @$jobs;
-  } else {
-    %$job_map = map {$_->name, $_} grep {$user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) || $user->has_star_right('edit', 'metagenome')} @$jobs;
-  }
-  if (scalar(keys %$job_map) < scalar(@$jobs)) {
-    push @$err_msg, "user lacks permission to edit ".(scalar(@$jobs) - scalar(keys %$job_map))." metagenome(s)";
+  %$job_map_id = map {$_->metagenome_id, $_} grep {$user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) || $user->has_star_right('edit', 'metagenome')} @$jobs;
+  %$job_map_name = map {$_->name, $_} grep {$user->has_right(undef, 'edit', 'metagenome', $_->metagenome_id) || $user->has_star_right('edit', 'metagenome')} @$jobs;
+  
+  if (scalar(keys %$job_map_name) < scalar(@$jobs)) {
+    push @$err_msg, "user lacks permission to edit ".(scalar(@$jobs) - scalar(keys %$job_map_name))." metagenome(s)";
   }
   
   ### create project / add jobs and metadata
@@ -1130,9 +1129,22 @@ sub add_valid_metadata {
       $project->data($md->[0], $md->[1]);
     }
   }
-
+  
+  # get all project collections
+  my $query  = "SELECT c._id, c.ID, c.type, c.name c.parent FROM ProjectCollection p, MetaDataCollection c WHERE p.project=".$project->{_id}." AND p.collection=c._id";
+  my $result = $self->_master->db_handle->selectall_arrayref($query);
+  my $namemap = {};
+  %$namemap = map { $_->[3] => { "_id" => $_->[0], "ID" => $_->[1], "type" => $_->[2], "name" => $_->[3], "parent" => $_->[4] } } @$result;
+  
   ## process samples
-  SAMP: foreach my $samp (@{$data->{samples}}) {
+ SAMP: foreach my $samp (@{$data->{samples}}) {
+    
+    # check if the sample has a name
+    unless (defined $samp->{name}) {
+      push @$err_msg, "sample without name, skipped";
+      next SAMP;
+    }
+    
     my $samp_coll = undef;
     # use existing sample if ID given
     if ($samp->{id}) {
@@ -1151,9 +1163,14 @@ sub add_valid_metadata {
 	$samp_coll->name($samp->{name});
       }
     }
-    # else create new sample
+    # else try to get by name or create new sample
     else {
-      $samp_coll = $self->add_collection($project, 'sample', $curator, $samp->{name});
+      # check if this project already has a sample of this name
+      if (defined $namemap->{$samp->{name}}) {
+	$samp_coll = $mddb->MetadataCollection->get_objects({"_id" => $namemap->{$samp->{name}}->{_id}})->[0];
+      } else {
+	$samp_coll = $self->add_collection($project, 'sample', $curator, $samp->{name});
+      }
     }
     # delete / replace sample metadata
     my $samp_mde = $mddb->MetaDataEntry->get_objects({collection => $samp_coll});
@@ -1175,6 +1192,8 @@ sub add_valid_metadata {
 	# valid ep for this sample
 	$ep_coll->name($samp->{envPackage}{name});
       }
+    } elsif (defined $namemap->{$samp->{envPackage}{name}}) {
+      $ep_coll = $mddb->MetaDataCollection->get_objects({_id => $namemap->{$samp->{envPackage}{name}}->{_id}})->[0];
     }
     # create new ep for this sample if not created above
     unless (ref($ep_coll) && ($ep_coll->parent->{ID} == $samp_coll->ID)) {
@@ -1189,18 +1208,27 @@ sub add_valid_metadata {
     my @ep_md = map { [ $_, $samp->{envPackage}{data}{$_}{value} ] } keys %{$samp->{envPackage}{data}};
     push @ep_md, [ 'env_package', $samp->{envPackage}{type} ];
     $self->add_entries($ep_coll, \@ep_md);
-
+    
     ## process libraries for sample
     my $has_lib = 0;
-    LIB: foreach my $lib (@{$samp->{libraries}}) {
+  LIB: foreach my $lib (@{$samp->{libraries}}) {
       # find job associated with library (use id or name for mapping)
-      my $lib_mg  = $map_by_id ? ($lib->{data}{metagenome_id} ? $lib->{data}{metagenome_id}{value} : undef) : $lib->{data}{metagenome_name}{value};
-      my $lib_job = ($lib_mg && exists($job_map->{$lib_mg})) ? $job_map->{$lib_mg} : undef;
+      my $lib_job;
+      if ($lib->{data}{metagenome_id} && $lib->{data}{metagenome_id}{value}) {
+	my $lib_mg = $lib->{data}{metagenome_id}{value};
+	$lib_job = ($lib_mg && exists($job_map_id->{$lib_mg})) ? $job_map_id->{$lib_mg} : undef;
+      }
+      unless (ref $lib_job) {
+	if ($lib->{data}{metagenome_name} && $lib->{data}{metagenome_name}{value}) {
+	  my $lib_mg = $lib->{data}{metagenome_name}{value};
+	  $lib_job = ($lib_mg && exists($job_map_name->{$lib_mg})) ? $job_map_name->{$lib_mg} : undef;
+	}
+      }
       unless ($lib_job && ref($lib_job)) {
 	push @$err_msg, "unable to map a metagenome to library ".$lib->{name};
 	next LIB;
       }
-
+      
       my $lib_coll = undef;
       # use existing library if ID given
       if ($lib->{id}) {
@@ -1219,6 +1247,10 @@ sub add_valid_metadata {
 	  $lib_coll->name($lib->{name});
 	}
       }
+      # check if there is a library of this name
+      elsif (defined $namemap->{$lib->{name}}) {
+	$lib_coll = $mddb->MetaDataCollection->get_objects({_id => $namemap->{$lib->{name}}->{_id}})->[0];
+      }
       # else create new library
       else {
 	$lib_coll = $self->add_collection($project, 'library', $curator, $lib->{name}, $samp_coll);
@@ -1231,7 +1263,7 @@ sub add_valid_metadata {
       }
       my @lib_md = map { [$_, $lib->{data}{$_}{value}] } keys %{$lib->{data}};
       $self->add_entries($lib_coll, \@lib_md);
-
+      
       ### add job to project
       my $msg = $project->add_job($lib_job);
       if ($msg =~ /error/i) {
@@ -1240,7 +1272,7 @@ sub add_valid_metadata {
       } else {
 	## delete old if exists and not same as new
 	if ($delete_old && $lib_job->sample && ref($lib_job->sample) && ($lib_job->sample->ID != $samp_coll->ID)
-	                && $lib_job->library && ref($lib_job->library) && ($lib_job->library->ID != $lib_coll->ID)) {
+	    && $lib_job->library && ref($lib_job->library) && ($lib_job->library->ID != $lib_coll->ID)) {
 	  my $old_samp = $lib_job->sample;
 	  my $os_jobs  = $old_samp->jobs;
 	  if ((@$os_jobs == 1) && ($os_jobs->[0]->job_id == $lib_job->job_id)) {
@@ -1263,9 +1295,9 @@ sub add_valid_metadata {
 	$project->add_collection( $lib_job->library );
 	push @$added, $lib_job;
 	$has_lib = 1;
-
+	
 	# change job name if differs and using id mapping
-	if ($map_by_id && exists($lib->{data}{metagenome_name}) && ($lib->{data}{metagenome_name}{value} ne $lib_job->name)) {
+	if (exists($lib->{data}{metagenome_name}) && ($lib->{data}{metagenome_name}{value} ne $lib_job->name)) {
 	  $lib_job->name( $lib->{data}{metagenome_name}{value} );
 	}
       }
@@ -1276,6 +1308,7 @@ sub add_valid_metadata {
       $samp_coll->delete;
     }
   }
+  
   return ($project->id, $added, $err_msg);
 }
 
