@@ -91,6 +91,7 @@ sub info {
               'parameters'  => {
                   'options' => {
                       'condensed' => ['boolean', 'if true, return condensed profile (integer ids for annotations)'],
+                      'retry'     => ['int', 'force rerun and set retry number, default is zero - no retry'],
                       ## only mgrast format saved as permanent shock node
                       'format'    => ['cv', [['mgrast','compressed json format (default)'],
                                              ['biom','BIOM json format']]],
@@ -195,6 +196,10 @@ sub submit {
     my $source    = $self->cgi->param('source') || "RefSeq";
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
+    my $retry     = int($self->cgi->param('retry')) || 0;
+    unless (($retry =~ /^\d+$/) && ($retry > 0)) {
+        $retry = 0;
+    }
     
     # validate type / source
     my $all_srcs = {};
@@ -210,6 +215,7 @@ sub submit {
     }
     
     # check for static feature profile node from shock
+    # delete if doing retry
     my $squery = {
         id => $mgid,
         type => 'metagenome',
@@ -218,10 +224,11 @@ sub submit {
     };
     my $snodes = $self->get_shock_query($squery, $self->mgrast_token);
     if ($snodes && (@$snodes > 0)) {
-        $self->check_static_profile($snodes, $source, $condensed, $version);
+        $self->check_static_profile($snodes, $source, $condensed, $version, $retry);
     }
     
     # check if temp profile compute node is in shock
+    # this only catches profiles that are currently being created
     my $tquery = {
         type => "temp",
         url_id => $self->url_id,
@@ -272,6 +279,7 @@ sub submit {
         source => $source,
         source_type => $self->type_by_source($source),
         format => $format,
+        retry => $retry,
         condensed => $condensed,
         version => $version
     };
@@ -325,6 +333,7 @@ sub create_profile {
             row_total     => 0,
             md5_queried   => 0,
             md5_found     => 0,
+            retry         => $param->{retry},
             condensed     => $param->{condensed},
             version       => $param->{version},
             file_format   => 'json',
@@ -358,6 +367,7 @@ sub status_report_from_node {
         url     => $self->cgi->url."/".$self->name."/status/".$node->{id},
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
+        retry   => 0,
         md5     => $node->{file}{checksum}{md5} ? $node->{file}{checksum}{md5} : ""
     };
     $report->{progress} = {
@@ -366,6 +376,9 @@ sub status_report_from_node {
         queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || 0,
         found   => $node->{attributes}{progress}{found} || $node->{attributes}{md5_found} || 0
     };
+    if (exists $node->{attributes}{retry}) {
+        $report->{retry} = $node->{attributes}{retry};
+    }
     if (exists $node->{attributes}{row_total}) {
         $report->{rows} = $node->{attributes}{row_total};
     }
@@ -385,7 +398,7 @@ sub status_report_from_node {
 }
 
 sub check_static_profile {
-    my ($self, $nodes, $source, $condensed, $version) = @_;
+    my ($self, $nodes, $source, $condensed, $version, $retry) = @_;
     
     # sort results by newest to oldest
     my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
@@ -397,7 +410,11 @@ sub check_static_profile {
              (int($n->{attributes}{version}) == int($version)) &&
              $n->{attributes}{source} &&
              ($n->{attributes}{source} eq $source) ) {
-            $self->status(undef, $n);
+            if ($retry) {
+                $self->delete_shock_node($n->{id}, $self->mgrast_token);
+            } else {
+                $self->status(undef, $n);
+            }
         }
     }
 }

@@ -82,7 +82,8 @@ sub instance {
   
     # check id format
     my $rest = $self->rest;
-    my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
+    my $tempid = $self->idresolve($rest->[0]);
+    my (undef, $id) = $tempid =~ /^(mgm)?(\d+\.\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
