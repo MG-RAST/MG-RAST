@@ -34,7 +34,7 @@ if ( ! GetOptions(
   print STDERR $usage; exit 1;
 }
 
-unless ($apiurl && $token) {
+unless ($apiurl && $admin_token && $shock_token) {
     print STDERR $usage; exit 1;
 }
 
