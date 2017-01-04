@@ -61,7 +61,7 @@ foreach my $mgid (@mg_list) {
     eval {
         my $get = $agent->get($apiurl.'/download/'.$mgid."?stage=done", ('Authorization', "mgrast $token"));
         my $info = $json->decode( $get->content );
-        $snode = $info->{data}[0]{node_id};
+        $snid = $info->{data}[0]{node_id};
     };
     unless ($snid) {
         print STDERR "ERROR: unable to get statistics node for $mgid from API\n";
@@ -106,16 +106,16 @@ foreach my $mgid (@mg_list) {
     my $status = undef;
     eval {
         my $content = {
-            attributes => [undef, $snode->{file}{name}, Content => $self->json->encode($snode->{attributes})],
-            upload => [undef, "attributes", Content => $self->json->encode($sobj)]
+            attributes => [undef, $snode->{file}{name}, Content => $json->encode($snode->{attributes})],
+            upload => [undef, "attributes", Content => $json->encode($sobj)]
         };
         my @args = (
             'Authorization', "mgrast $token",
             'Content_Type', 'multipart/form-data',
             'Content', $content
         );
-        my $post = $self->agent->post($shock.'/node', @args);
-        $status = $self->json->decode( $post->content );
+        my $post = $agent->post($shock.'/node', @args);
+        $status = $json->decode( $post->content );
     };
     unless ($status) {
         print STDERR "ERROR: unable to POST new statistics node for $mgid to Shock\n";
@@ -126,7 +126,7 @@ foreach my $mgid (@mg_list) {
     $status = undef;
     eval {
         my $del = $agent->delete($shock.'/node/'.$snid, ('Authorization', "mgrast $token"));
-        $status = $self->json->decode( $del->content );
+        $status = $json->decode( $del->content );
     };
     unless ($status) {
         print STDERR "ERROR: unable to DELETE old statistics node $snid for $mgid from Shock\n";
