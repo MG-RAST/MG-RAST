@@ -61,12 +61,17 @@ foreach my $mgid (@mg_list) {
     eval {
         my $get = $agent->get($apiurl.'/download/'.$mgid."?stage=done", ('Authorization', "mgrast $token"));
         my $info = $json->decode( $get->content );
-        $snid = $info->{data}[0]{node_id};
+        foreach my $n (@{$info->{data}}) {
+            if ($n->{data_type} eq 'statistics') {
+                $snid = $n->{node_id};
+            }
+        }
     };
     unless ($snid) {
         print STDERR "ERROR: unable to get statistics node for $mgid from API\n";
         next;
     }
+    print STDERR "Found stats node $snid\n";
     # get stats node and file
     my $snode = undef;
     my $sobj = undef;
@@ -83,12 +88,14 @@ foreach my $mgid (@mg_list) {
         print STDERR "ERROR: unable to get statistics node for $snid ($mgid) from Shock\n";
         next;
     }
+    print STDERR "Downloaded stats node $snid: ".$snode->{file}{name}." ".$snode->{file}{size}."\n";
     # compute rarefaction
     my $rare = undef;
     my $alpha = undef;
     eval {
         my $get = $agent->get($apiurl.'/compute/rarefaction/'.$mgid."?asynchronous=1&alpha=1&level=species&ann_ver=1", ('Authorization', "mgrast $token"));
         my $info = $json->decode( $get->content );
+        print STDERR "Started rarefaction compute: ".$info->{url}."\n";
         while ($info->{status} ne 'done') {
             sleep 30;
             $get = $agent->get($info->{url});
@@ -101,6 +108,7 @@ foreach my $mgid (@mg_list) {
         print STDERR "ERROR: unable to compute rarefaction for $mgid from API\n";
         next;
     }
+    print STDERR "Completed rarefaction compute\n";
     $sobj->{rarefaction} = $rare;
     # post new node with stats attributes and file
     my $status = undef;
@@ -121,7 +129,7 @@ foreach my $mgid (@mg_list) {
         print STDERR "ERROR: unable to POST new statistics node for $mgid to Shock\n";
         next;
     }
-    print STDOUT "New stats node ".$status->{id}." created\n";
+    print STDERR "New stats node ".$status->{id}." created\n";
     # delete old stats node
     $status = undef;
     eval {
@@ -132,7 +140,7 @@ foreach my $mgid (@mg_list) {
         print STDERR "ERROR: unable to DELETE old statistics node $snid for $mgid from Shock\n";
         next;
     }
-    print STDOUT "Old stats node $snid deleted\n";
+    print STDERR "Old stats node $snid deleted\n";
 }
 
 exit 0;
