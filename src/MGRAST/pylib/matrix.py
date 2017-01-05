@@ -91,9 +91,11 @@ class Matrix(object):
         data = []
         found = 0
         md5_row = {}
-        ann_type = 'accession' if param['type'] == 'ontology' else param['type']
+        # group_map = None if not leaf_node
         group_map = self.get_group_map(param['type'], param['hit_type'], param['group_level'], param['leaf_node'], param['source'])
+        # filter_list = None if not leaf_filter and no filter text
         filter_list = self.get_filter_list(param['type'], param['filter'], param['filter_level'], param['filter_source'], param['leaf_filter'])
+        # ann_type = one of: organism, function, accession, single
         ann_type = param['type']
         if param['type'] == 'ontology':
             ann_type = 'accession'
@@ -102,18 +104,55 @@ class Matrix(object):
         
         def append_matrix(found, rows, data, md5_row, col):
             ann_idx = {}
-            ann_data = self.m5nr.get_records_by_md5(md5_row.keys(), source=source, index=False, iterator=True)
-            for info in ann_data:
-                ann_list = info[ann_type]
+            # get filter md5s / skip empty
+            if filter_list and param['filter_source']:
+                qmd5s = get_filter_md5s(md5_row.keys(), param['type'], filter_list, param['filter_source'])
+            else:
+                qmd5s = md5_row.keys()
+            if len(qmd5s) == 0:
+                return found, rows, data
+            
+            ann_data = self.m5nr.get_records_by_md5(qmd5s, source=source, index=False, iterator=True)
+            for info in ann_data:                
+                # get annotations based on type & hit_type
+                annotations = [];
+                if param['type'] == 'function':
+                    annotations = info['function']
+                elif param['type'] == 'ontology':
+                    annotations = info['ontology']
+                elif param['type'] == 'organism':
+                    if param['hit_type'] == 'all':
+                        annotations = info['organism']
+                    elif param['hit_type'] == 'single':
+                        annotations = [ info['single'] ];
+                    elif param['hit_type'] == 'lca':
+                        my $taxa = $set->{lca}[$group_map];
+                        next if ($taxa =~ /^\-/);
+                        $annotations = [ $taxa ];
+                    }
+                }
+                # grouping
+                if (defined($group_map) && ($htype ne 'lca')) {
+                    my %unique = map { $group_map->{$_}, 1 } grep { exists($group_map->{$_}) } @$annotations;
+                    $annotations = [ keys %unique ];
+                }
+                
+                
                 if ann_type == 'single':
+                    # cast string into array so type is consistant
                     ann_list = [ ann_list ]
                 for a in ann_list:
-                    
-                    
-                    if a not in ann_idx:
+                    # this is base / leaf value
+                    val = a
+                    if group_map:
+                        # get annotation up hierarchy
+                        val = group_map[a] if a in group_map else None
+                    if not val:
+                        continue
+                    if val not in ann_idx:
                         found += 1
-                        rows.append({'id': a, 'metadata': {}})
-                    
+                        rows.append({'id': val, 'metadata': {}})
+                #####################    
                 if info['md5'] not in md5_idx:
                     found += 1
                     rows.append({'id': info['md5'], 'metadata': {}})
@@ -166,8 +205,7 @@ class Matrix(object):
                         return 0
             elif mtype == 'ontology':
                 return self.m5nr.get_ontology_map(glevel, source)
-        else:
-            return None
+        return None
     
     # get filter list: all leaf names that match filter for given filter_level (organism, ontology only)
     def get_filter_list(self, mtype, ftext, flevel, fsource, fleaf):
@@ -176,8 +214,18 @@ class Matrix(object):
                 return self.m5nr.get_organism_by_taxa(flevel, ftext)
             elif mtype == 'ontology':
                 return self.m5nr.get_ontology_by_level(fsource, flevel, ftext)
-        else:
-            return None
+        return None
+    
+    # get subset of md5s based on filter list / source
+    def get_filter_md5s(self, md5s, mtype, flist, fsource):
+        fmd5s = []
+        field = 'accession' if mtype == 'ontology' else 'organism'
+        recs  = self.m5nr.get_records_by_md5(md5s, source=fsource, index=False, iterator=True)
+        for r in recs:
+            for a in r[field]:
+                if a in flist:
+                    fmd5s.append(r['md5'])
+        return fmd5s
     
     def update_progress(self, node, total, found):
         if self.shock and node:
