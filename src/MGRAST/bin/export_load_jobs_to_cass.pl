@@ -182,7 +182,10 @@ foreach my $mgid (@mg_list) {
     $data  = [];
     $query = "SELECT lca, abundance, exp_avg, ident_avg, len_avg, md5s, level FROM job_lcas WHERE version=$version AND job=$jobid AND exp_avg <= -3";
     $sth = $dbh->prepare($query);
-    $sth->execute() or die "Couldn't execute statement: ".$sth->errstr;
+    unless ($sth->execute()) {
+        print STDERR "Postgres error: ".$sth->errstr."\n";
+        next;
+    }
 
     while (my @row = $sth->fetchrow_array()) {
         my ($lca, $abund, $expa, $identa, $lena, $md5s, $level) = @row;
