@@ -951,15 +951,161 @@ sub lat_lon {
   return ($lat && $lon) ? [$lat, $lon] : [];
 }
 
+sub  trim { 
+    my $s = shift; 
+    if (defined($s)) {
+        $s =~ s/^\s+|\s+$//g;
+    } 
+    return $s ;
+}
+
+# return iso8601 format
 sub collection_date {
   my ($self) = @_;
-  my $time_set = [];
-  foreach my $tag (('collection_date', 'collection_time', 'collection_timezone')) {
-    last if (($tag eq 'collection_timezone') && (@$time_set == 0));
-    my $val = $self->get_metadata_value($tag, 'sample');
-    if ($val) { push @$time_set, $val; }
+  
+  
+  my $collection_date_value = trim($self->get_metadata_value('collection_date', 'sample'));
+  my $collection_time_value = trim($self->get_metadata_value('collection_time', 'sample'));
+  my $collection_timezone_value = trim($self->get_metadata_value('collection_timezone', 'sample'));
+  
+  
+  ### date
+  my $collection_date="";
+      
+  unless($collection_date_value) {
+      return "";
   }
-  return join(" ", @$time_set);
+  
+  my ($year, $month, $day);
+  if ($collection_date_value =~ /-/) {
+      ($year, $month, $day) = $collection_date_value =~ /^(\d\d\d\d)-(\d\d)-(\d\d)$/
+  } else {
+      ($year, $month, $day) = $collection_date_value =~ /^(\d\d\d\d)(\d\d)(\d\d)$/
+  }
+  
+  unless (defined($year) && defined($month) && defined($day)) {
+      return "ERROR: Could not parse date (".$collection_date_value.")";
+  }
+  
+  # specifying month only (day==0) is not possible, thus will set day to 1.
+  if ($day == 0) {
+      $day = 1
+  }
+  
+  if ( ($year > 3000) || ($month > 12) || ($day > 31) ) {
+      return "ERROR: Could not parse date (".$collection_date_value.")";
+  }
+  
+  $collection_date = sprintf("%04d", $year)."-".sprintf("%02d", $month)."-".sprintf("%02d", $day);
+  
+  
+  ### time
+  unless($collection_time_value) {
+      return $collection_date;
+  }
+  
+  # remove UTC from time
+  if ($collection_time_value =~ /UTC/) {
+      
+      $collection_time_value =~ s/\s*UTC\s*//;
+      
+      if (length($collection_time_value) == 0) {
+          return $collection_date;
+      }
+  }
+  
+  
+  my ($hour, $minute, $second);
+  if ($collection_time_value =~ /:/) {
+      ($hour, $minute, $second) = $collection_time_value =~ /^(\d+):(\d+):(\d+)$/;
+  } else {
+      ($hour, $minute, $second) = $collection_time_value =~ /^(\d\d)(\d\d)(\d\d)$/;
+  }
+  
+  unless (defined($hour) && defined($minute) && defined($second)) {
+      return "ERROR: Could not parse time (".$collection_time_value.")";
+  }
+  
+  if ( ($hour > 24) || ($minute > 60) || ($second > 60) ) {
+      return "ERROR: Could not parse time (".$collection_time_value.")";
+  }
+  
+  $collection_date .= "T" . sprintf("%02d", $hour).":".sprintf("%02d", $minute).":".sprintf("%02d", $second);
+  
+  
+  ### timezone
+  unless($collection_timezone_value) {
+      return $collection_date;
+  }
+  
+  # remove UTC from timezone
+  
+  if ($collection_timezone_value =~ /UTC/) {
+      
+      $collection_timezone_value =~ s/\s*UTC\s*//;
+      
+      if (length($collection_timezone_value) == 0) {
+          return $collection_date."Z";
+      }
+  }
+  
+  
+  
+  # extract sign
+  my ($sign, $day_string) = $collection_timezone_value =~ /^([+-])(.*)/;
+
+  unless (defined($sign)) {
+      return $collection_date."ERROR timezone has no sign in (".$collection_timezone_value.")";
+  }
+  
+  unless (defined($day_string)) {
+      return $collection_date."ERROR no string after sign in (".$collection_timezone_value.")";
+  }
+
+  my ($tz_hour, $tz_minute);
+  if ($day_string =~ /:/) {
+      ($tz_hour, $tz_minute) = $day_string =~  /^(\d+):(\d+)$/;
+  } else {
+      ($tz_hour, $tz_minute) = $day_string =~  /^(\d+)(\d\d)$/;
+      
+      unless (defined($tz_hour)) {
+          ($tz_hour) = $day_string =~  /^(\d+)$/;
+          if (defined($tz_hour)) {
+              $tz_minute = 0;
+          }
+      }
+      
+  }
+  
+  unless (defined $tz_hour) {
+      return $collection_date."ERROR tz_hour not parsed in (".$day_string.")";
+  }
+  
+  if ($tz_hour > 12) {
+      return $collection_date."ERROR tz_hour > 12 in (".$day_string.")";
+  }
+  
+  unless (defined $tz_minute) {
+      return $collection_date."ERROR tz_minute not parsed in (".$day_string.")";
+  }
+  if ($tz_minute > 60) {
+      return $collection_date."ERROR tz_minute > 60 in (".$day_string.")";
+  }
+  
+  # prefix hour and minute with zero if needed
+  $collection_date .= $sign.sprintf("%02d", $tz_hour).sprintf("%02d", $tz_minute);
+  
+  
+  
+  return $collection_date;
+  
+  #my $time_set = [];
+  #foreach my $tag (('collection_date', 'collection_time', 'collection_timezone')) {
+  #  last if (($tag eq 'collection_timezone') && (@$time_set == 0));
+  #  my $val = $self->get_metadata_value($tag, 'sample');
+  #  if ($val) { push @$time_set, $val; }
+  #}
+  #return join(" ", @$time_set);
 }
 
 sub env_package_type {
