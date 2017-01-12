@@ -814,14 +814,20 @@ sub job_action {
             } else {
                 $data->{status} = 0;
             }
-        } elsif ($action eq 'delete') {
+	  } elsif ($action eq 'changesequencetype') {
+	    $job->sequence_type($post->{sequence_type});
+	    $data = { metagenome_id => 'mgm'.$job->metagenome_id,
+		      job_id        => $job->job_id,
+		      sequence_type => $post->{sequence_type}
+		    };
+	  } elsif ($action eq 'delete') {
             # Auf Wiedersehen!
             my $reason = $post->{reason} || "";
             my ($status, $message) = $job->user_delete($self->user, $reason);
             $data = {
                 deleted => $status,
                 error   => $message
-            };
+		    };
         } elsif ($action eq 'addproject') {
             # check id format
             my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;
