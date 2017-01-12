@@ -1372,13 +1372,10 @@ sub user_delete {
   $chdl->close();
 
   # delete analysis tables
-  #use MGRAST::Analysis;
-  #my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
-  #my $success = $analysisDB->delete_job($self->job_id);
-  #unless ($success) {
-  #    return (0, "Unable to delete metagenome '$mgid' from Analysis DB");
-  #}
-
+  use MGRAST::Analysis;
+  my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
+  my $success = $analysisDB->delete_job($self->job_id);
+  
   ######## delete AWE / Shock ##########
   
   # get mgrast token
