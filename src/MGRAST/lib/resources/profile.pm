@@ -350,7 +350,7 @@ sub create_profile {
     }
     
     # set shock
-    my $token  = $self->mgrast_token;
+    my $token = $self->mgrast_token;
     $mgcass->set_shock($token);
     
     ### saves output file or error message in shock

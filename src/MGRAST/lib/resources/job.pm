@@ -415,7 +415,6 @@ sub job_data {
         # caching is done with shock, not memcache
         my $attr = {
             type => "temp",
-            id   => 'mgm'.$job->{metagenome_id},
             url_id => $self->url_id,
             owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
             data_type => "abundance"
@@ -433,6 +432,18 @@ sub job_data {
         }
         
         # need to create new node and fork
+        $attr->{progress} = {
+            completed => 'none',
+            queried => 0,
+            found   => 0
+        };
+        $attr->{parameters} = {
+            id       => 'mgm'.$job->{metagenome_id},
+            job_id   => $job->{job_id},
+            level    => $taxa,
+            ann_type => $ann,
+            version  => $ver
+        };
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
         my $pid = fork();
         # child - get data and POST it
@@ -441,9 +452,12 @@ sub job_data {
             close STDOUT;
             # create DB handels inside child as they break on fork
             $master = $self->connect_to_datasource();
-            my $mgcass = $self->cassandra_abundance($ver);            
             my $jobj = $master->Job->get_objects( {metagenome_id => $id} );
             $job = $jobj->[0];
+            
+            my $mgcass = $self->cassandra_abundance($ver);
+            my $token = $self->mgrast_token;
+            $mgcass->set_shock($token);
             
             # set options
             my $taxa_set = $taxa ? [$taxa] : [map {$_->[0]} reverse @{$self->{taxa}}];
@@ -453,7 +467,7 @@ sub job_data {
             
             # get data
             my $data = {};
-            my ($md5_num, $org_map, $fun_map, $ont_map) = @{ $mgcass->all_annotation_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont) };
+            my ($md5_num, $org_map, $fun_map, $ont_map) = @{ $mgcass->all_annotation_abundances($job->{job_id}, $taxa_set, $get_org, $get_fun, $get_ont, $node) };
             if ($md5_num > 0) {
                 if ($get_org) {
                     $data->{taxonomy} = {};
@@ -952,7 +966,6 @@ sub job_action {
             # caching is done with shock, not memcache
             my $attr = {
                 type => "temp",
-                id   => 'mgm'.$job->metagenome_id,
                 url_id => $unique,
                 owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
                 data_type => "solr"
@@ -970,15 +983,25 @@ sub job_action {
                 $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
             }
             # need to create new node and fork
+            $attr->{progress} = {
+                completed => 'none',
+                queried => 0,
+                found   => 0
+            };
+            $attr->{parameters} = {
+                id       => 'mgm'.$job->metagenome_id,
+                job_id   => $job->job_id,
+                version  => $ver
+            };
             my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
             my $pid = 0;
             if ($sync == 0) {
-             $pid = fork();
+                $pid = fork();
             }
             # child - get data and POST it
             if ($pid == 0) {
                 # create DB handels inside child as they break on fork
-                if ($sync == 1) {
+                if ($sync == 0) {
                     $master = $self->connect_to_datasource();
                 }
                 my $mgcass = $self->cassandra_abundance($ver);
@@ -1038,6 +1061,9 @@ sub job_action {
                         }
                     }
                 }
+                $node->{attributes}{progress}{completed} = 'statistics';
+                $node = $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
+                
                 # annotations - from postdata or mg stats (if not rebuild) or from analysis db
                 my $mg_stats = {};
                 my $get_fun  = 0;
@@ -1075,7 +1101,7 @@ sub job_action {
                 }
                 # get annotations from DB
                 if ($get_org || $get_fun) {
-                    my ($md5_num, $org_map, $fun_map, undef) = @{ $mgcass->all_annotation_abundances($jobid, ['species'], $get_org, $get_fun, 0) };
+                    my ($md5_num, $org_map, $fun_map, undef) = @{ $mgcass->all_annotation_abundances($jobid, ['species'], $get_org, $get_fun, 0, $node) };
                     if ($md5_num == 0) {
                         $self->put_shock_file($filename, qq({"ERROR": "no md5 hits available", "STATUS": 500}), $node->{id}, $self->mgrast_token, 1);
                         exit 0;
@@ -1087,8 +1113,11 @@ sub job_action {
                         $solr_data->{function} = [ keys %{$fun_map} ];
                     }
                 }
-                # get md5 list
+                # get md5 list - refresh node object
                 $solr_data->{md5} = $mgcass->all_md5s($jobid);
+                $node = $self->get_shock_node($node->{id}, $self->mgrast_token);
+                $node->{attributes}{progress}{completed} = 'md5s';
+                $node = $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
                 
                 # close cassandra db
                 $mgcass->close();
@@ -1118,6 +1147,8 @@ sub job_action {
                         $self->return_data({"ERROR" => "error: ".$@});
                     }
                 }
+                $node->{attributes}{progress}{completed} = 'metadata';
+                $node = $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
                 
                 if ($sync == 1) {
                     $self->return_data({"data" => $solr_data});
@@ -1139,13 +1170,14 @@ sub job_action {
                     close(SOLR);
                     $err = $self->solr_post($solr_file);
                 }
-                # POST to shock, triggers end of asynch action
                 if ($err) {
                     $solr_str = qq({"ERROR": "$err", "STATUS": 500});
                 }
                 
+                # POST to shock, triggers end of asynch action
+                $node->{attributes}{progress}{completed} = 'solr';
+                $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
                 $self->put_shock_file($filename, $solr_str, $node->{id}, $self->mgrast_token, 1);
-                
                 exit 0;
             }
             # parent - end html session

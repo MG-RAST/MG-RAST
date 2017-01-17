@@ -1,13 +1,15 @@
 
 import sys
+import time
 import datetime
 import json
 import shock
 import mgrast_cassandra
 from collections import defaultdict
 
+UPDATE_SECS  = 300
 M5NR_VERSION = 1
-CHUNK_SIZE = 100
+CHUNK_SIZE   = 100
 
 class Profile(object):
     def __init__(self, hosts, version=M5NR_VERSION, chunk=CHUNK_SIZE):
@@ -152,6 +154,7 @@ class Profile(object):
         
         total = 0
         count = 0
+        prev  = time.time()
         recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
         for r in recs:
             md5_row[r[0]] = [r[0], r[1], r[2], r[3], r[4], None, None]
@@ -161,11 +164,11 @@ class Profile(object):
                 found, data = append_profile(found, data, md5_row)
                 md5_row = defaultdict(list)
                 count = 0
-            if (total % 100000) == 0:
-                self.update_progress(node, total, found)
+            if (total % 1000) == 0:
+                prev = self.update_progress(node, total, found, prev)
         if count > 0:
             found, data = append_profile(found, data, md5_row)
-        self.update_progress(node, total, found)
+        self.update_progress(node, total, found, 0)
         return data
     
     def get_biom_data(self, job, source, node=None):
@@ -198,6 +201,7 @@ class Profile(object):
         
         total = 0
         count = 0
+        prev  = time.time()
         recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
         for r in recs:
             md5_row[r[0]] = [r[1], r[2], r[3], r[4]]
@@ -207,17 +211,22 @@ class Profile(object):
                 found, rows, data = append_profile(found, rows, data, md5_row)
                 md5_row = defaultdict(list)
                 count = 0
-            if (total % 100000) == 0:
-                self.update_progress(node, total, found)
+            if (total % 1000) == 0:
+                prev = self.update_progress(node, total, found, prev)
         if count > 0:
             found, rows, data = append_profile(found, rows, data, md5_row)
-        self.update_progress(node, total, found)
+        self.update_progress(node, total, found, 0)
         return rows, data
     
-    def update_progress(self, node, total, found):
-        if self.shock and node:
+    # only update if been more than UPDATE_SECS
+    def update_progress(self, node, total, found, prev):
+        now = time.time()
+        if self.shock and node and (now > (prev + UPDATE_SECS)):
             attr = node['attributes']
             attr['progress']['queried'] = total
             attr['progress']['found'] = found
             self.shock.upload(node=node['id'], attr=json.dumps(attr))
+            return now
+        else:
+            return prev
     

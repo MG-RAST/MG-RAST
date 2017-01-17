@@ -262,9 +262,10 @@ sub instance {
     
     # asynchronous call, fork the process and return the process id.
     if ($self->cgi->param('asynchronous')) {
+        my $level = $self->cgi->param('level') || 'species';
+        my $ver  = $self->cgi->param('ann_ver') || $self->{m5nr_default};
         my $attr = {
-            type => "temp",
-            id   => $mgid,
+            type   => "temp",
             url_id => $self->url_id,
             owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
             data_type => $type
@@ -275,6 +276,17 @@ sub instance {
             $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
         }
         # need to create new node and fork
+        $attr->{progress} = {
+            completed => 'none',
+            queried => 0,
+            found   => 0
+        };
+        $attr->{parameters} = {
+            id      => $mgid,
+            job_id  => $job->{job_id},
+            level   => $level,
+            version => $ver
+        };
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
         my $pid = fork();
         # child - get data and dump it
@@ -284,7 +296,7 @@ sub instance {
             if ($type eq 'blast') {
                 ($data, $error) = $self->sequence_compute($id);
             } else {
-                ($data, $error) = $self->species_diversity_compute($type, $id);
+                ($data, $error) = $self->species_diversity_compute($type, $id, $node);
             }
             if ($error) {
                 $data->{STATUS} = $error;
@@ -395,7 +407,7 @@ sub sequence_compute {
 
 # compute alpha diversity and/or rarefaction
 sub species_diversity_compute {
-    my ($self, $type, $id) = @_;
+    my ($self, $type, $id, $node) = @_;
     
     # get data
     my $master = $self->connect_to_datasource();
@@ -415,7 +427,11 @@ sub species_diversity_compute {
         return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
     }
     
-    my ($md5_num, $org_map, undef, undef) = @{ $mgcass->all_annotation_abundances($job->{job_id}, [$level], 1, 0, 0) };
+    if ($node) {
+        my $token = $self->mgrast_token;
+        $mgcass->set_shock($token);
+    }    
+    my ($md5_num, $org_map, undef, undef) = @{ $mgcass->all_annotation_abundances($job->{job_id}, [$level], 1, 0, 0, $node) };
     if ($md5_num == 0) {
         return ({"ERROR" => "no md5 hits available"}, 500);
     }
@@ -439,6 +455,13 @@ sub species_diversity_compute {
         }
     } else {
         return ({"ERROR" => "invalid compute type: $type"}, 400);
+    }
+    
+    # refresh node object
+    if ($node) {
+        $node = $self->get_shock_node($node->{id}, $self->mgrast_token);
+        $node->{attributes}{progress}{completed} = 'compute';
+        $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
     }
     
     return ($data, undef);
