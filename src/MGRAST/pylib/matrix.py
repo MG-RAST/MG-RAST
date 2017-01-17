@@ -1,8 +1,10 @@
 
 import sys
+import time
 import datetime
 import json
 import shock
+import operator
 import mgrast_cassandra
 from collections import defaultdict
 
@@ -46,7 +48,7 @@ class Matrix(object):
             rows, data = self.get_data(param, node)
             profile['rows']  = rows
             profile['data']  = data
-            profile['shape'] = [ len(profile['rows']), len(param['mg_ids']) ]
+            profile['shape'] = [ len(profile['rows']), len(profile['columns']) ]
         except:
             self.error_exit("unable to build BIOM profile", node)
             return
@@ -87,10 +89,11 @@ class Matrix(object):
         }
     
     def get_data(self, param, node=None):
-        rows = []
-        data = []
         found = 0
-        md5_row = {}
+        data  = []
+        row_len = len(param['job_ids'])
+        row_idx = {} # row_id : row_idx
+        md5_val = {} # md5 : value
         # group_map = None if not leaf_node
         group_map = self.get_group_map(param['type'], param['hit_type'], param['group_level'], param['leaf_node'], param['source'])
         # filter_list = None if not leaf_filter and no filter text
@@ -102,93 +105,121 @@ class Matrix(object):
         elif (param['type'] == 'organism') and (param['hit_type'] != 'all'):
             ann_type = 'single'
         
-        def append_matrix(found, rows, data, md5_row, col):
-            ann_idx = {}
+        def append_matrix(cindex, md5_val, found, data, row_idx):
+            next = len(row_idx) # incraments row idx
             # get filter md5s / skip empty
             if filter_list and param['filter_source']:
-                qmd5s = get_filter_md5s(md5_row.keys(), param['type'], filter_list, param['filter_source'])
+                qmd5s = get_filter_md5s(md5_val.keys(), param['type'], filter_list, param['filter_source'])
             else:
-                qmd5s = md5_row.keys()
+                qmd5s = md5_val.keys()
             if len(qmd5s) == 0:
-                return found, rows, data
+                return found, data, row_idx
             
             ann_data = self.m5nr.get_records_by_md5(qmd5s, source=source, index=False, iterator=True)
             for info in ann_data:                
                 # get annotations based on type & hit_type
+                # one of type: organism, function, accession, single
                 annotations = [];
                 if param['type'] == 'function':
                     annotations = info['function']
                 elif param['type'] == 'ontology':
-                    annotations = info['ontology']
+                    annotations = info['accession']
                 elif param['type'] == 'organism':
                     if param['hit_type'] == 'all':
                         annotations = info['organism']
                     elif param['hit_type'] == 'single':
                         annotations = [ info['single'] ];
                     elif param['hit_type'] == 'lca':
-                        my $taxa = $set->{lca}[$group_map];
-                        next if ($taxa =~ /^\-/);
-                        $annotations = [ $taxa ];
-                    }
-                }
+                        try:
+                            taxa = info['lca'][group_map]
+                            if taxa.startswith('-'):
+                                continue
+                            annotations = [ taxa ]
+                        except Exception:
+                            continue
                 # grouping
-                if (defined($group_map) && ($htype ne 'lca')) {
-                    my %unique = map { $group_map->{$_}, 1 } grep { exists($group_map->{$_}) } @$annotations;
-                    $annotations = [ keys %unique ];
-                }
-                
-                
-                if ann_type == 'single':
-                    # cast string into array so type is consistant
-                    ann_list = [ ann_list ]
-                for a in ann_list:
-                    # this is base / leaf value
-                    val = a
-                    if group_map:
-                        # get annotation up hierarchy
-                        val = group_map[a] if a in group_map else None
-                    if not val:
-                        continue
-                    if val not in ann_idx:
-                        found += 1
-                        rows.append({'id': val, 'metadata': {}})
-                #####################    
-                if info['md5'] not in md5_idx:
-                    found += 1
-                    rows.append({'id': info['md5'], 'metadata': {}})
-                    data.append(md5_row[info['md5']])
-                    idx = len(data) - 1
-                    md5_idx[info['md5']] = idx
-                idx = md5_idx[info['md5']]
-                # add annotations to row metadata
-                rows[idx]['metadata'] = { 'function': info['function'] }
-                if info['source'] in self.ontology:
-                    rows[idx]['metadata']['ontology'] = info['accession']
-                else:
-                    rows[idx]['metadata']['single'] = info['single']
-                    rows[idx]['metadata']['organism'] = info['organism']
-                    if info['accession']:
-                        rows[idx]['metadata']['accession'] = info['accession']
-            # TODO: stuff
-            return found, rows, data
+                if group_map and (param['hit_type'] != 'lca'):
+                    unique = set()
+                    for a in annotations:
+                        if a in group_map:
+                            unique.add(group_map[a])
+                    annotations = list(unique)
+                # loop through annotations for row index
+                for a in annotations:
+                    if a in row_idx:
+                        # alrady saw this annotation
+                        rindex = row_idx[a]
+                    else:
+                        # new annotation, add to rows
+                        rindex = next
+                        row_idx[a] = rindex
+                        if param['result_type'] == 'abundance':
+                            # populate data with zero's
+                            data[rindex] = [0 for _ in range(row_len)]
+                        else:
+                            # populate data with tuple of zero's
+                            data[rindex] = [(0,0) for _ in range(row_len)]
+                        next += 1
+                    # get md5 value for job
+                    # curr is int if abundance, tuple otherwise
+                    if info['md5'] in md5_val:
+                        curr = data[rindex][cindex]
+                        data[rindex][cindex] = self.add_value(curr, md5_val[info['md5']], param['result_type'])
+            return found, data, row_idx
         
+        # loop through md5 values
         total = 0
         count = 0
-        for col, job in enumerate(param['job_ids']):
+        prev  = time.time()
+        for cindex, job in enumerate(param['job_ids']):
             recs  = self.jobs.get_job_records(job, ['md5', RESULT_MAP[param['result_type']]], param['evalue'], param['identity'], param['length'])
             for r in recs:
-                md5_row[r[0]] = r[1]
+                md5_val[r[0]] = r[1]
                 total += 1
                 count += 1
                 if count == self.chunk:
-                    found, rows, data = append_matrix(found, rows, data, md5_row, col)
-                    md5_row = {}
+                    found, data, row_idx = append_matrix(cindex, md5_val, found, data, row_idx)
+                    md5_val = {}
                     count = 0
-                if (total % 100000) == 0:
-                    self.update_progress(node, total, found)
+                if (total % 1000) == 0:
+                    prev = self.update_progress(node, total, found, prev)
             if count > 0:
-                found, rows, data = append_matrix(found, rows, data, md5_row, col)
-            self.update_progress(node, total, found)
+                found, data, row_idx = append_matrix(cindex, md5_val, found, data, row_idx)
+            prev = self.update_progress(node, total, found, 0)
+        
+        # transform [ count, sum ] to single average
+        if param['result_type'] != 'abundance':
+            for row in data:
+                for i in range(row_len):
+                    (n, s) = row[i]
+                    if n == 0:
+                        row[i] = 0
+                    else:
+                        row[i] = round((s / n), 3)
+        
+        # build rows
+        rows = []
+        for r, i in sorted(row_idx.items(), key=operator.itemgetter(1)):
+            rows.append({'id' : r, 'metadata' : None})
+            
+        # add row metadata / hierarchy
+        if param['hier_match'] and (len(param['hierarchy']) > 0):
+            for r in rows:
+                for h in param['hierarchy']:
+                    if r['id'] == h[param['hier_match']]:
+                        if 'organism' in h:
+                            h['strain'] = h['organism']
+                            del h['organism']
+                        if 'accession' in h:
+                            del h['accession']
+                        if 'ncbi_tax_id' in h:
+                            tid = h['ncbi_tax_id']
+                            del h['ncbi_tax_id']
+                            r['metadata'] = { 'hierarchy': h, 'ncbi_tax_id': tid }
+                        else:
+                            r['metadata'] = { 'hierarchy': h }
+                        break
+        # done
         return rows, data
     
     # get grouping map: leaf_name => group_name
@@ -227,10 +258,24 @@ class Matrix(object):
                     fmd5s.append(r['md5'])
         return fmd5s
     
-    def update_progress(self, node, total, found):
-        if self.shock and node:
+    # sum if abundance, [ count, sum ] if other
+    def add_value(self, curr, val, rtype):
+        if rtype == 'abundance':
+            # return sum
+            return curr + val
+        else:
+            # return tuple of count, sum
+            return ( curr[0]+1, curr[1]+val )
+    
+    # only update if been more than UPDATE_SECS
+    def update_progress(self, node, total, found, prev):
+        now = time.time()
+        if self.shock and node and (now > (prev + UPDATE_SECS)):
             attr = node['attributes']
             attr['progress']['queried'] = total
             attr['progress']['found'] = found
             self.shock.upload(node=node['id'], attr=json.dumps(attr))
+            return now
+        else:
+            return prev
     
