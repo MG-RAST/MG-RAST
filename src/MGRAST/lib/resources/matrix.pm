@@ -215,9 +215,9 @@ sub instance {
     }
     
     # unique list and sort it - sort required for proper caching
-    my @mgids  = sort keys %mgids;
+    my @mgids = sort keys %mgids;
     # validate / parse request options
-    my $params = $self->process_parameters(\@mgids, $type);
+    my $params = $self->process_parameters($master, \@mgids, $type);
     
     # check if temp profile compute node is in shock
     my $attr = {
@@ -236,12 +236,12 @@ sub instance {
     
     # check if all jobs exist in cassandra DB / also tests DB connection
     my $in_cassandra = 1;
-    my $chdl = $self->cassandra_handle("job", $version);
+    my $chdl = $self->cassandra_handle("job", $params->{version});
     unless ($chdl) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
     foreach my $jid (@{$params->{job_ids}}) {
-        if (! $chdl->has_job($jobid)) {
+        if (! $chdl->has_job($jid)) {
             $in_cassandra = 0;
         }
     }
@@ -284,7 +284,7 @@ sub instance {
 
 # validate / reformat the data into the request paramaters
 sub process_parameters {
-    my ($self, $data, $type) = @_;
+    my ($self, $master, $data, $type) = @_;
     
     # get optional params
     my $cgi = $self->cgi;
@@ -483,8 +483,6 @@ sub process_parameters {
             foreach my $group (@{$result->{$glvl}{groups}}) {
                 push @$hierarchy, $group->{doclist}{docs}[0];
             }
-        } else {
-            ($hierarchy, undef) = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $squery, undef, 0, 1000000, $fields);
         }
     }
     
