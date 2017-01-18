@@ -8,6 +8,7 @@ import operator
 import mgrast_cassandra
 from collections import defaultdict
 
+UPDATE_SECS  = 300
 M5NR_VERSION = 1
 CHUNK_SIZE = 100
 TAXONOMY   = ['domain', 'phylum', 'class', 'order', 'family', 'genus', 'species', 'strain']
@@ -37,27 +38,24 @@ class Matrix(object):
         self.m5nr.close()
         self.jobs.close()
     
-    def compute_matrix(self, param, node=None):
+    def compute_matrix(self, node, param, metadata, hierarchy):
         matrix = None
         ## compute matrix
         try:
             matrix = self.init_matrix(param['id'], param['url'], param['type'], param['source'], param['source_type'], param['result_type'])
             for mg in param['mg_ids']:
-                metadata = param['metadata'][mg] if mg in param['metadata'] else None
-                profile['columns'].append({'id': mg, 'metadata', metadata})
-            rows, data = self.get_data(param, node)
-            profile['rows']  = rows
-            profile['data']  = data
-            profile['shape'] = [ len(profile['rows']), len(profile['columns']) ]
+                mdata = metadata[mg] if mg in metadata else None
+                matrix['columns'].append({'id': mg, 'metadata': mdata})
+            rows, data = self.get_data(node, param, hierarchy)
+            matrix['rows']  = rows
+            matrix['data']  = data
+            matrix['shape'] = [ len(matrix['rows']), len(matrix['columns']) ]
         except:
             self.error_exit("unable to build BIOM profile", node)
             return
-        ## store file in node or return string
-        if node:
-            self.shock.upload(node=node['id'], data=json.dumps(matrix), file_name=param['id']+".biom")
-            return None
-        else:
-            return json.dumps(matrix)
+        ## store file in node
+        self.shock.upload(node=node['id'], data=json.dumps(matrix), file_name=param['id']+".biom")
+        return None
     
     def error_exit(self, error, node=None):
         if node:
@@ -88,7 +86,7 @@ class Matrix(object):
             'data'                : []
         }
     
-    def get_data(self, param, node=None):
+    def get_data(self, node, param, hierarchy):
         found = 0
         data  = []
         row_len = len(param['job_ids'])
@@ -98,24 +96,18 @@ class Matrix(object):
         group_map = self.get_group_map(param['type'], param['hit_type'], param['group_level'], param['leaf_node'], param['source'])
         # filter_list = None if not leaf_filter and no filter text
         filter_list = self.get_filter_list(param['type'], param['filter'], param['filter_level'], param['filter_source'], param['leaf_filter'])
-        # ann_type = one of: organism, function, accession, single
-        ann_type = param['type']
-        if param['type'] == 'ontology':
-            ann_type = 'accession'
-        elif (param['type'] == 'organism') and (param['hit_type'] != 'all'):
-            ann_type = 'single'
         
         def append_matrix(cindex, md5_val, found, data, row_idx):
-            next = len(row_idx) # incraments row idx
+            next_idx = len(row_idx) # incraments row idx
             # get filter md5s / skip empty
             if filter_list and param['filter_source']:
-                qmd5s = get_filter_md5s(md5_val.keys(), param['type'], filter_list, param['filter_source'])
+                qmd5s = self.get_filter_md5s(md5_val.keys(), param['type'], filter_list, param['filter_source'])
             else:
                 qmd5s = md5_val.keys()
             if len(qmd5s) == 0:
                 return found, data, row_idx
             
-            ann_data = self.m5nr.get_records_by_md5(qmd5s, source=source, index=False, iterator=True)
+            ann_data = self.m5nr.get_records_by_md5(qmd5s, source=param['source'], index=False, iterator=True)
             for info in ann_data:                
                 # get annotations based on type & hit_type
                 # one of type: organism, function, accession, single
@@ -151,7 +143,7 @@ class Matrix(object):
                         rindex = row_idx[a]
                     else:
                         # new annotation, add to rows
-                        rindex = next
+                        rindex = next_idx
                         row_idx[a] = rindex
                         if param['result_type'] == 'abundance':
                             # populate data with zero's
@@ -159,7 +151,7 @@ class Matrix(object):
                         else:
                             # populate data with tuple of zero's
                             data[rindex] = [(0,0) for _ in range(row_len)]
-                        next += 1
+                        next_idx += 1
                     # get md5 value for job
                     # curr is int if abundance, tuple otherwise
                     if info['md5'] in md5_val:
@@ -203,9 +195,9 @@ class Matrix(object):
             rows.append({'id' : r, 'metadata' : None})
             
         # add row metadata / hierarchy
-        if param['hier_match'] and (len(param['hierarchy']) > 0):
+        if param['hier_match'] and (len(hierarchy) > 0):
             for r in rows:
-                for h in param['hierarchy']:
+                for h in hierarchy:
                     if r['id'] == h[param['hier_match']]:
                         if 'organism' in h:
                             h['strain'] = h['organism']

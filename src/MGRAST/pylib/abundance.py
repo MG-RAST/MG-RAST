@@ -100,10 +100,10 @@ class Abundance(object):
                 md5s = {}
                 count = 0
             if (total % 1000) == 0:
-                prev = self.update_progress(node, total, found, prev)
+                prev = self.update_progress(node, total, local.found, prev)
         if count > 0:
             add_annotations(md5s)
-        self.update_progress(node, total, found, 0)
+        self.update_progress(node, total, local.found, 0)
         return [total, local.org_map, local.fun_map, local.ont_map]
     
     # only update if been more than UPDATE_SECS

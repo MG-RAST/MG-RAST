@@ -217,7 +217,7 @@ sub instance {
     # unique list and sort it - sort required for proper caching
     my @mgids = sort keys %mgids;
     # validate / parse request options
-    my $params = $self->process_parameters($master, \@mgids, $type);
+    my ($params, $metadata, $hierarchy) = $self->process_parameters($master, \@mgids, $type);
     
     # check if temp profile compute node is in shock
     my $attr = {
@@ -273,7 +273,7 @@ sub instance {
     if ($pid == 0) {
         close STDERR;
         close STDOUT;
-        $self->create_matrix($node, $params);
+        $self->create_matrix($node, $params, $metadata, $hierarchy);
         exit 0;
     }
     # parent - end html session
@@ -439,7 +439,7 @@ sub process_parameters {
         $type = "ontology";
     }
     
-    # column metadata / hierarchies
+    # row hierarchies
     my $hierarchy = [];
     my ($hmatch, $fields, $squery);
     if ($type eq "organism") {
@@ -486,7 +486,15 @@ sub process_parameters {
         }
     }
     
-    return {
+    # column metadata
+    my $metadata = {};
+    if (! $hide_md) {
+        my $mddb = MGRAST::Metadata->new();
+        $metadata = $mddb->get_jobs_metadata_fast($data, 1);
+    }
+    
+    # done
+    my $params = {
         id          => $matrix_id,
         url         => $matrix_url,
         mg_ids      => $data,
@@ -501,8 +509,6 @@ sub process_parameters {
         identity    => $ident,
         length      => $alen,
         version     => $version,
-        metadata    => $hide_md ? {} : $mddb->get_jobs_metadata_fast($data, 1),
-        hierarchy   => $hierarchy,
         hier_match  => $hmatch,
         filter      => $filter,
         filter_level  => $flvl,
@@ -510,20 +516,21 @@ sub process_parameters {
         leaf_node     => $leaf_node,
         leaf_filter   => $leaf_filter
     };
+    return ($params, $metadata, $hierarchy);
 }
 
 sub create_matrix {
-    my ($self, $node, $params) = @_;
+    my ($self, $node, $params, $metadata, $hierarchy) = @_;
     
     # cassandra handle
-    my $mgcass = $self->cassandra_matrix($param->{version});
+    my $mgcass = $self->cassandra_matrix($params->{version});
     
     # set shock
     my $token  = $self->mgrast_token;
     $mgcass->set_shock($token);
     
     ### create matrix / saves output file or error message in shock
-    $mgcass->compute_matrix($params, $node);
+    $mgcass->compute_matrix($node, $params, $metadata, $hierarchy);
     $mgcass->close();
     return undef;
 }
