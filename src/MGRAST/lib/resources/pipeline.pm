@@ -18,7 +18,7 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "pipeline";
-    $self->{version} = '3.0';
+    $self->{version} = '4.0';
     $self->{attributes} = {
         data   => [ 'list', ['object', 'workflow document'] ],
         error  => [ 'list', ['string', 'error that occurred'] ],
