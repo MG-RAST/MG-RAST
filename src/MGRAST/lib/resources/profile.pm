@@ -253,7 +253,6 @@ sub submit {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
     my $in_cassandra = $chdl->has_job($jobid);
-    # close handle
     $chdl->close();
     
     unless ($in_cassandra) {

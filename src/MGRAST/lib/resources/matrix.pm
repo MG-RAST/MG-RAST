@@ -245,7 +245,6 @@ sub instance {
             $in_cassandra = 0;
         }
     }
-    # close handle
     $chdl->close();
     
     # not all in cassandra
