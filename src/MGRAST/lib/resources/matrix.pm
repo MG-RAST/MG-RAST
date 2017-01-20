@@ -261,10 +261,7 @@ sub instance {
     
     # need to create new temp node
     $attr->{parameters} = $params;
-    $attr->{progress} = {
-        queried => 0,
-        found => 0
-    };
+    $attr->{progress} = [ map { {$_ => {queried => 0, found => 0, completed => 0}} } @{$params->{job_ids}} ];
     my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
     
     # asynchronous call, fork the process and return the process id.
@@ -499,6 +496,7 @@ sub process_parameters {
         url         => $matrix_url,
         mg_ids      => $data,
         job_ids     => \@job_ids,
+        resource    => "matrix",
         type        => $type,
         group_level => $glvl,
         source      => $source,

@@ -269,18 +269,20 @@ sub submit {
     # need to create new temp node
     $tquery->{row_total} = 0;
     $tquery->{progress} = {
-        queried => 0,
-        found => 0
+        completed => 0,
+        queried   => 0,
+        found     => 0
     };
     $tquery->{parameters} = {
-        id => $mgid,
-        job_id => $jobid,
-        source => $source,
+        id          => $mgid,
+        job_id      => $jobid,
+        resource    => "profile",
+        source      => $source,
         source_type => $self->type_by_source($source),
-        format => $format,
-        retry => $retry,
-        condensed => $condensed,
-        version => $version
+        format      => $format,
+        retry       => $retry,
+        condensed   => $condensed,
+        version     => $version
     };
     my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
     

@@ -105,6 +105,7 @@ sub info {
 				                                             "alpha" => ["boolean", "if true also return alphadiversity, default is false"],
 				                                             "seq_num" => ["int", "number of sequences in metagenome"],
 				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
+				                                             'retry'   => ['int', 'force rerun and set retry number, default is zero - no retry'],
 				                                             'asynchronous' => ['boolean', "if true return process id to query status resource for results, default is false"] },
 							                 'required' => { 'id' => ["string", "unique object identifier"] },
 							                 'body'     => {} }
@@ -263,7 +264,11 @@ sub instance {
     # asynchronous call, fork the process and return the process id.
     if ($self->cgi->param('asynchronous')) {
         my $level = $self->cgi->param('level') || 'species';
-        my $ver  = $self->cgi->param('ann_ver') || $self->{m5nr_default};
+        my $ver   = $self->cgi->param('ann_ver') || $self->{m5nr_default};
+        my $retry = int($self->cgi->param('retry')) || 0;
+        unless (($retry =~ /^\d+$/) && ($retry > 0)) {
+            $retry = 0;
+        }
         my $attr = {
             type   => "temp",
             url_id => $self->url_id,
@@ -273,19 +278,27 @@ sub instance {
         # already cashed in shock - say submitted in case its running
         my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
         if ($nodes && (@$nodes > 0)) {
-            $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+            if ($retry) {
+                foreach my $n (@$nodes) {
+                    $self->delete_shock_node($n->{id}, $self->mgrast_token);
+                }
+            } else {
+                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+            }
         }
         # need to create new node and fork
         $attr->{progress} = {
             completed => 'none',
-            queried => 0,
-            found   => 0
+            queried   => 0,
+            found     => 0
         };
         $attr->{parameters} = {
-            id      => $mgid,
-            job_id  => $job->{job_id},
-            level   => $level,
-            version => $ver
+            id       => $mgid,
+            job_id   => $job->{job_id},
+            resource => "compute/".$type,
+            level    => $level,
+            version  => $ver,
+            retry    => $retry
         };
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
         my $pid = fork();

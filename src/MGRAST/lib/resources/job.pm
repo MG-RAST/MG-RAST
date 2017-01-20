@@ -280,12 +280,13 @@ sub info {
 				          'method'      => "GET",
 				          'type'        => "asynchronous",
 				          'attributes'  => $self->{attributes}{data},
-				          'parameters'  => { 'options'  => { "level"    => ["cv", $self->{taxa}],
-				                                             "ann_ver"  => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
-                                                             "type"     => ["cv", [["all", "return abundances for all annotations"],
-                                                                                   ["organism", "return abundances for organism annotations"],
-                                                                                   ["ontology", "return abundances for ontology annotations"],
-                                                                                   ["function", "return abundances for function annotations"]] ] },
+				          'parameters'  => { 'options'  => { "level"   => ["cv", $self->{taxa}],
+				                                             "ann_ver" => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
+				                                             'retry'   => ['int', 'force rerun and set retry number, default is zero - no retry'],
+                                                             "type"    => ["cv", [["all", "return abundances for all annotations"],
+                                                                                  ["organism", "return abundances for organism annotations"],
+                                                                                  ["ontology", "return abundances for ontology annotations"],
+                                                                                  ["function", "return abundances for function annotations"]] ] },
 							                 'required' => { "id" => ["string","unique MG-RAST metagenome identifier"] },
 							                 'body'     => {} }
 						},
@@ -318,6 +319,7 @@ sub info {
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "rebuild"       => ["boolean", "re-compute all statistics, default is to not compute if exists"],
+							                                 'retry'         => ['int', 'force rerun and set retry number, default is zero - no retry'],
 							                                 "debug"         => ["boolean", "return solr post data instead of actually posting it"],
 							                                 "ann_ver"       => ["int", 'M5NR annotation version, default '.$self->{m5nr_default}],
      							                             "solr_data"     => ["hash", "key value pairs for solr data"] } }
@@ -399,10 +401,14 @@ sub job_data {
             data          => $job->data()
         });
     } elsif ($type eq "abundance") {
-        my $taxa = $self->cgi->param('level') || "";
-        my $ann  = $self->cgi->param('type') || "all";
-        my $ver  = $self->cgi->param('ann_ver') || $self->{m5nr_default};
+        my $taxa  = $self->cgi->param('level') || "";
+        my $ann   = $self->cgi->param('type') || "all";
+        my $ver   = $self->cgi->param('ann_ver') || $self->{m5nr_default};
+        my $retry = int($self->cgi->param('retry')) || 0;
         # validate parameters
+        unless (($retry =~ /^\d+$/) && ($retry > 0)) {
+            $retry = 0;
+        }
         my %valid_tax = map { $_ => 1 } @{$self->{taxa}};
         my %valid_ann = (all => 1, organism => 1, ontology => 1, function => 1);        
         if ($taxa && (! exists($valid_tax{$taxa}))) {
@@ -422,7 +428,13 @@ sub job_data {
         # already cashed in shock - say submitted in case its running
         my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
         if ($nodes && (@$nodes > 0)) {
-            $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+            if ($retry) {
+                foreach my $n (@$nodes) {
+                    $self->delete_shock_node($n->{id}, $self->mgrast_token);
+                }
+            } else {
+                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+            }
         }
         
         # test cassandra access
@@ -434,15 +446,17 @@ sub job_data {
         # need to create new node and fork
         $attr->{progress} = {
             completed => 'none',
-            queried => 0,
-            found   => 0
+            queried   => 0,
+            found     => 0
         };
         $attr->{parameters} = {
             id       => 'mgm'.$job->{metagenome_id},
             job_id   => $job->{job_id},
+            resource => "job/abundance",
             level    => $taxa,
             ann_type => $ann,
-            version  => $ver
+            version  => $ver,
+            retry    => $retry
         };
         my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
         my $pid = fork();
@@ -961,6 +975,10 @@ sub job_action {
             my $sdata   = $post->{solr_data} || {};
             my $ver     = $post->{ann_ver} || $self->{m5nr_default};
             my $unique  = $self->url_id . md5_hex($self->json->encode($post));
+            my $retry   = int($post->{retry}) || 0;
+            unless (($retry =~ /^\d+$/) && ($retry > 0)) {
+                $retry = 0;
+            }
             
             # asynchronous call, fork the process and return the process id.
             # caching is done with shock, not memcache
@@ -974,7 +992,13 @@ sub job_action {
             if ($sync == 0) {
                 my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
                 if ($nodes && (@$nodes > 0)) {
-                    $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+                    if ($retry) {
+                        foreach my $n (@$nodes) {
+                            $self->delete_shock_node($n->{id}, $self->mgrast_token);
+                        }
+                    } else {
+                        $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+                    }
                 }
             }
             # test cassandra access
@@ -985,13 +1009,15 @@ sub job_action {
             # need to create new node and fork
             $attr->{progress} = {
                 completed => 'none',
-                queried => 0,
-                found   => 0
+                queried   => 0,
+                found     => 0
             };
             $attr->{parameters} = {
                 id       => 'mgm'.$job->metagenome_id,
                 job_id   => $job->job_id,
-                version  => $ver
+                resource => "job/solr",
+                version  => $ver,
+                retry    => $retry
             };
             my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "3D");
             my $pid = 0;

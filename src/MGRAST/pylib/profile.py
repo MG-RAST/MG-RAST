@@ -168,7 +168,7 @@ class Profile(object):
                 prev = self.update_progress(node, total, found, prev)
         if count > 0:
             found, data = append_profile(found, data, md5_row)
-        self.update_progress(node, total, found, 0)
+        self.update_progress(node, total, found, 0) # last update
         return data
     
     def get_biom_data(self, job, source, node=None):
@@ -215,7 +215,7 @@ class Profile(object):
                 prev = self.update_progress(node, total, found, prev)
         if count > 0:
             found, rows, data = append_profile(found, rows, data, md5_row)
-        self.update_progress(node, total, found, 0)
+        self.update_progress(node, total, found, 0) # last update
         return rows, data
     
     # only update if been more than UPDATE_SECS
@@ -225,6 +225,9 @@ class Profile(object):
             attr = node['attributes']
             attr['progress']['queried'] = total
             attr['progress']['found'] = found
+            if prev == 0:
+                # final update
+                attr['progress']['completed'] = 1
             self.shock.upload(node=node['id'], attr=json.dumps(attr))
             return now
         else:

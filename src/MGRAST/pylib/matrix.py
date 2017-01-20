@@ -159,12 +159,13 @@ class Matrix(object):
                         data[rindex][cindex] = self.add_value(curr, md5_val[info['md5']], param['result_type'])
             return found, data, row_idx
         
-        # loop through md5 values
-        total = 0
-        count = 0
-        prev  = time.time()
+        # loop through jobs
         for cindex, job in enumerate(param['job_ids']):
+            total = 0
+            count = 0
+            prev  = time.time()
             recs  = self.jobs.get_job_records(job, ['md5', RESULT_MAP[param['result_type']]], param['evalue'], param['identity'], param['length'])
+            # loop through md5 values
             for r in recs:
                 md5_val[r[0]] = r[1]
                 total += 1
@@ -174,10 +175,10 @@ class Matrix(object):
                     md5_val = {}
                     count = 0
                 if (total % 1000) == 0:
-                    prev = self.update_progress(node, total, found, prev)
+                    prev = self.update_progress(node, job, total, found, prev)
             if count > 0:
                 found, data, row_idx = append_matrix(cindex, md5_val, found, data, row_idx)
-            prev = self.update_progress(node, total, found, 0)
+            prev = self.update_progress(node, job, total, found, 0) # last update for this job
         
         # transform [ count, sum ] to single average
         if param['result_type'] != 'abundance':
@@ -260,12 +261,16 @@ class Matrix(object):
             return ( curr[0]+1, curr[1]+val )
     
     # only update if been more than UPDATE_SECS
-    def update_progress(self, node, total, found, prev):
+    def update_progress(self, node, job, total, found, prev):
         now = time.time()
         if self.shock and node and (now > (prev + UPDATE_SECS)):
             attr = node['attributes']
-            attr['progress']['queried'] = total
-            attr['progress']['found'] = found
+            if job in attr['progress']:
+                attr['progress'][job]['queried'] = total
+                attr['progress'][job]['found'] = found
+                if prev == 0:
+                    # final update
+                    attr['progress'][job]['completed'] = 1
             self.shock.upload(node=node['id'], attr=json.dumps(attr))
             return now
         else:
