@@ -66,6 +66,19 @@ sub template {
   return $self->{data};
 }
 
+sub misc_param {
+    my ($self, $val) = @_;
+    return {
+        aliases    => ['misc_param'],
+        definition => 'any other measurement performed or parameter collected, that is not listed here',
+        required   => 0,
+        type       => 'text',
+        mixs       => 0,
+        unit       => '',
+        value      => $val
+    };
+}
+
 sub get_cv_all {
     my ($self, $tag) = @_;
     my $data = {};
@@ -816,32 +829,15 @@ sub add_template_to_data {
     my @all_fields = grep { $_ ne 'category_type' } keys %{$template->{$cat}};
     map { $data->{$_} = '' } grep { ! exists($data->{$_}) } @all_fields;
   }
-
-  my $misc = 0;
   while ( my ($tag, $val) = each %$data ) {
-    my $ttag = '';
     $val = clean_value($val);
+    next unless ($all || $template->{$cat}{$tag}{required} || (defined($val) && ($val =~ /\S/)));
     if (! exists $template->{$cat}{$tag}) {
-      next unless (defined($val) && ($val =~ /\S/));
-      if ($tag =~ /^misc_param_/) {
-	$ttag = 'misc_param';
-      } else {
-	$misc += 1;
-	$val  = $tag.': '.$val;
-	$tag  = 'misc_param_'.$misc;
-	$ttag = 'misc_param';
-      }
-    } else {
-      $ttag = $tag;
+        $t_data->{$tag} = $self->misc_param($val);
+    else {
+        $t_data->{$tag} = $template->{$cat}{$tag};
+        $t_data->{$tag}{value} = $val;
     }
-    next unless ($all || $template->{$cat}{$ttag}{required} || (defined($val) && ($val =~ /\S/)));
-    $t_data->{$tag}{value} = $val;
-    $t_data->{$tag}{unit}  = $template->{$cat}{$ttag}{unit};
-    $t_data->{$tag}{type}  = $template->{$cat}{$ttag}{type};
-    $t_data->{$tag}{mixs}  = $template->{$cat}{$ttag}{mixs};
-    $t_data->{$tag}{aliases} = $template->{$cat}{$ttag}{aliases};
-    $t_data->{$tag}{required} = $template->{$cat}{$ttag}{required};
-    $t_data->{$tag}{definition} = $template->{$cat}{$ttag}{definition};
   }
   return $t_data;
 }
