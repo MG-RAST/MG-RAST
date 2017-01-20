@@ -596,13 +596,11 @@ def validate_mdraw(mdraw, skip):
 def validate_data(cat, name, data, template, skip):
     validData = {}
     dataMap = template[cat]
-    # check for user defined keys or misc_param_# keys
+    # check for user defined keys
     # add to template for validation
     for key in data.iterkeys():
         if key and (key not in dataMap):
             dataMap[key] = copy.deepcopy(MISC_PARAM)
-            if key.startswith('misc_param_'):
-                dataMap[key]['mixs'] = 1
     # validate data based on template items
     for key, items in dataMap.iteritems():
         items['required'] = int(items['required'])
