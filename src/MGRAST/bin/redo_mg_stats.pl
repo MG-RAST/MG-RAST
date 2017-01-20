@@ -193,6 +193,7 @@ sub async_compute {
     eval {
         my $get  = $agent->get($url."&retry=".$try, ('Authorization', "mgrast $token"));
         my $info = $json->decode($get->content);
+        print STDERR "status: ".$info->{url}."\n";
         while ($info->{status} ne 'done') {
             sleep $waittime;
             $get = $agent->get($info->{url});
