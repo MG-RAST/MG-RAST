@@ -122,7 +122,7 @@ foreach my $mgid (@mg_list) {
             next;
         }
         print STDERR "Completed rarefaction compute\n";
-        $sobj->{rarefaction} = $rare;
+        $sobj->{rarefaction} = $data->{rarefaction};
     }
     
     # compute abundances
