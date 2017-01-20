@@ -172,6 +172,15 @@ sub delete_all {
   $self->delete_children;
   $self->delete_entries;
   $self->delete_project;
+  $self->delete_jobentry;
+}
+
+sub delete_jobentry {
+  my ($self) = @_;
+  foreach my $job ( @{ $self->_master->Job->get_objects({sample => $self}) } ) {
+    $job->sample(undef);
+    $job->library(undef);
+  }
 }
 
 sub delete_project {

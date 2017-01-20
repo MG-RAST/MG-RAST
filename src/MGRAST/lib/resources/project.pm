@@ -145,7 +145,7 @@ sub post_action {
     
     # create a new empty project
     if ($rest->[0] eq 'create') {
-        unless ($self->{user} && $self->{user}->has_star_right('edit', 'user')) {
+        unless ($self->{user}) {
             $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
         }
         unless ($self->{cgi}->param("user")) {
