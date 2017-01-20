@@ -74,8 +74,8 @@ sub info {
             { 'name'        => "info",
 			  'request'     => $self->cgi->url."/".$self->name,
 			  'description' => "Returns description of parameters and attributes.",
-              'method'      => "GET" ,
-              'type'        => "synchronous" ,  
+              'method'      => "GET",
+              'type'        => "synchronous",
               'attributes'  => "self",
               'parameters'  => {
                   'options'  => {},
@@ -86,7 +86,7 @@ sub info {
               'request'     => $self->cgi->url."/".$self->name."/{ID}",
               'description' => "Submits profile creation",
               'method'      => "GET",
-              'type'        => "asynchronous",  
+              'type'        => "asynchronous",
               'attributes'  => $self->{submit},
               'parameters'  => {
                   'options' => {
@@ -107,7 +107,7 @@ sub info {
               'request'     => $self->cgi->url."/".$self->name."/status/{UUID}",
               'description' => "Return profile status and/or results",
               'method'      => "GET",
-              'type'        => "synchronous",  
+              'type'        => "synchronous",
               'attributes'  => $self->{status},
               'parameters'  => {
                   'options' => {

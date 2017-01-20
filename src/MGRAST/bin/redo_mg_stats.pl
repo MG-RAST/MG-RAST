@@ -4,11 +4,15 @@ use strict;
 use warnings;
 
 use JSON;
+use DateTime;
+use DateTime::Format::ISO8601;
 use Data::Dumper;
 use Getopt::Long;
 use LWP::UserAgent;
 use HTTP::Request;
 
+my $waittime  = 120;
+my $errortime = 1800;
 my $mgids  = "";
 my $mgfile = "";
 my $shock  = "http://shock.metagenomics.anl.gov";
@@ -109,21 +113,11 @@ foreach my $mgid (@mg_list) {
     
     # compute rarefaction
     if ($rarefaction) {
-        my $rare = undef;
-        my $alpha = undef;
-        eval {
-            my $get = $agent->get($apiurl.'/compute/rarefaction/'.$mgid."?asynchronous=1&alpha=1&level=species&ann_ver=1", ('Authorization', "mgrast $admin_token"));
-            my $info = $json->decode( $get->content );
-            print STDERR "Started rarefaction compute: ".$info->{url}."\n";
-            while ($info->{status} ne 'done') {
-                sleep 120;
-                $get = $agent->get($info->{url});
-                $info = $json->decode( $get->content );
-            }
-            $rare = $info->{data}{rarefaction};
-            $alpha = $info->{data}{alphadiversity};
-        };
-        unless ($rare && $alpha) {
+        my $url = $apiurl.'/compute/rarefaction/'.$mgid."?asynchronous=1&alpha=1&level=species&ann_ver=1";
+        print STDERR "Started rarefaction compute: ".$url."\n";
+        
+        my $data = async_compute($url, $admin_token, 0);
+        unless ($data->{rarefaction} && $data->{alphadiversity}) {
             print STDERR "ERROR: unable to compute rarefaction for $mgid from API\n";
             next;
         }
@@ -133,26 +127,24 @@ foreach my $mgid (@mg_list) {
     
     # compute abundances
     if ($abundance) {
-        my $adata = undef;
-        eval {
-            my $get = $agent->get($apiurl."/job/abundance/".$mgid."?type=".$abundance."&ann_ver=1", ('Authorization', "mgrast $admin_token"));
-            my $info = $json->decode( $get->content );
-            print STDERR "Started abundance compute: ".$info->{url}."\n";
-            while ($info->{status} ne 'done') {
-                sleep 120;
-                $get = $agent->get($info->{url});
-                $info = $json->decode( $get->content );
-            }
-            $adata = $info->{data};
-        };
-        unless ($adata) {
+        my $url = $apiurl."/job/abundance/".$mgid."?type=".$abundance."&ann_ver=1";
+        print STDERR "Started abundance compute: ".$url."\n";
+        
+        my $data = async_compute($url, $admin_token, 0);
+        unless ($data) {
             print STDERR "ERROR: unable to compute abundances for $mgid from API\n";
             next;
         }
         print STDERR "Completed abundances compute\n";
-        $sobj->{taxonomy} = $adata->{taxonomy};
-        $sobj->{function} = $adata->{function};
-        $sobj->{ontology} = $adata->{ontology};
+        if ($abundance eq 'all') {
+            $sobj->{taxonomy} = $data->{taxonomy};
+            $sobj->{function} = $data->{function};
+            $sobj->{ontology} = $data->{ontology};
+        } elsif ($abundance eq 'organism') {
+            $sobj->{taxonomy} = $data->{taxonomy};
+        } else {
+            $sobj->{$abundance} = $data->{$abundance};
+        }
     }
     
     # post new node with stats attributes and file
@@ -189,6 +181,44 @@ foreach my $mgid (@mg_list) {
         }
         print STDERR "Old stats node $snid deleted\n";
     }
+}
+
+sub async_compute {
+    my ($url, $token, $try) = @_;
+    if ($try > 3) {
+        print STDERR "ERROR: Async process failed $try times\n";
+        exit 1;
+    }
+    my $data = undef;
+    eval {
+        my $get  = $agent->get($url."&retry=".$try, ('Authorization', "mgrast $token"));
+        my $info = $json->decode($get->content);
+        while ($info->{status} ne 'done') {
+            sleep $waittime;
+            $get = $agent->get($info->{url});
+            $info = $json->decode($get->content);
+            my $last = DateTime::Format::ISO8601->parse_datetime($info->{updated});
+            my $now  = shock_time();
+            my $diff = $now->subtract_datetime_absolute($last);
+            if ($diff->seconds > $errortime) {
+                print STDERR "ERROR: Async process died - trying again\n";
+                $try += 1;
+                return async_compute($url, $token, $try);
+            }
+        }
+        $data = $info->{data};
+    };
+    return $data;
+}
+
+sub shock_time {
+    my $dt = undef;
+    eval {
+        my $get = $agent->get($shock);
+        my $info = $json->decode($get->content);
+        $dt = DateTime::Format::ISO8601->parse_datetime($info->{server_time});
+    };
+    return $dt;
 }
 
 exit 0;
