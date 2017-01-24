@@ -145,7 +145,7 @@ sub post_action {
     
     # create a new empty project
     if ($rest->[0] eq 'create') {
-        unless ($self->{user} && $self->{user}->has_star_right('edit', 'user')) {
+        unless ($self->{user}) {
             $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
         }
         unless ($self->{cgi}->param("user")) {
@@ -266,7 +266,8 @@ sub post_action {
     
     # update basic project metadata
     elsif ($rest->[1] eq 'updatemetadata') {
-      my $id = $rest->[0] =~ s/mgp//;
+      my $id = $rest->[0];
+      $id =~ s/mgp//;
       my $project = $master->Project->init({id => $id});
       if ($self->cgi->param('project_name')) {
 	$project->name($self->cgi->param('project_name'));
@@ -308,7 +309,8 @@ sub post_action {
     }
     # submit project to EBI
     elsif ($rest->[1] eq 'submittoebi') {
-      my $id = $rest->[0] =~ s/mgp//;
+      my $id = $rest->[0];
+      $id =~ s/mgp//;
       my $project = $master->Project->init({id => $id});
       if ($self->cgi->param('project_name')) {
 	$project->name($self->cgi->param('project_name'));
@@ -333,7 +335,7 @@ sub post_action {
                 my $val = $self->cgi->param($mg->{metagenome_id});
                 my $attr = {
                     collection => $mg->sample,
-                    tag        => 'ebi_biome',
+                    tag        => 'ncbi_taxon_id',
                     value      => $val,
                     required   => 0,
                     mixs       => 0

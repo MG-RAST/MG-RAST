@@ -1,10 +1,14 @@
 
 import re
+import time
+import json
+import shock
 import mgrast_cassandra
 from collections import defaultdict
 
+UPDATE_SECS  = 300
 M5NR_VERSION = 1
-CHUNK_SIZE = 100
+CHUNK_SIZE   = 100
 SKIP_RE = re.compile('other|unknown|unclassified')
 
 class Abundance(object):
@@ -12,6 +16,10 @@ class Abundance(object):
         self.m5nr = mgrast_cassandra.M5nrHandle(hosts, version)
         self.jobs = mgrast_cassandra.JobHandle(hosts, version)
         self.chunk = int(chunk)
+        self.shock = None
+    
+    def set_shock(self, token=None, bearer='mgrast', url='http://shock.metagenomics.anl.gov'):
+        self.shock = shock.ShockClient(shock_url=url, bearer=bearer, token=token)
     
     def close(self):
         self.m5nr.close()
@@ -25,10 +33,11 @@ class Abundance(object):
             md5s.append(r[0])
         return md5s
     
-    def all_annotation_abundances(self, job, taxa=[], org=0, fun=0, ont=0):
+    def all_annotation_abundances(self, job, taxa=[], org=0, fun=0, ont=0, node=None):
         job = int(job)
         class local:
             tax = ""
+            found   = 0
             tax_map = {}
             org_map = {}                 # tax_lvl : taxa : abundance
             fun_map = defaultdict(int)   # func : abundance
@@ -51,6 +60,7 @@ class Abundance(object):
         def add_annotations(md5s):
             records = self.m5nr.get_records_by_md5(md5s.keys(), iterator=True)
             for rec in records:
+                local.found += 1
                 if fun and rec['function']:
                     for f in rec['function']:
                         local.fun_map[f] += md5s[rec['md5']]
@@ -78,6 +88,7 @@ class Abundance(object):
         
         total = 0
         count = 0
+        prev = time.time()
         md5s = {}
         rows = self.jobs.get_job_records(job, ['md5', 'abundance'])
         for r in rows:
@@ -88,8 +99,25 @@ class Abundance(object):
                 add_annotations(md5s)
                 md5s = {}
                 count = 0
+            if (total % 1000) == 0:
+                prev = self.update_progress(node, total, local.found, prev)
         if count > 0:
             add_annotations(md5s)
-        
+        self.update_progress(node, total, local.found, 0) # last update
         return [total, local.org_map, local.fun_map, local.ont_map]
+    
+    # only update if been more than UPDATE_SECS
+    def update_progress(self, node, total, found, prev):
+        now = time.time()
+        if self.shock and node and (now > (prev + UPDATE_SECS)):
+            attr = node['attributes']
+            attr['progress']['queried'] = total
+            attr['progress']['found'] = found
+            if prev == 0:
+                # final update
+                attr['progress']['completed'] = 'annotation'
+            self.shock.upload(node=node['id'], attr=json.dumps(attr))
+            return now
+        else:
+            return prev
     

@@ -87,8 +87,15 @@ sub instance {
         id => $uuid,
         status => "processing",
         url => $self->cgi->url."/".$self->name."/".$uuid,
-        started => $node->{created_on}
+        started => $node->{created_on},
+        updated => $node->{last_modified}
     };
+    if (exists $node->{attributes}{progress}) {
+        $obj->{progress} = $node->{attributes}{progress};
+    }
+    if (exists $node->{attributes}{parameters}) {
+        $obj->{parameters} = $node->{attributes}{parameters};
+    }
     
     if ($node->{file}{name} && $node->{file}{size}) {
         $obj->{status} = "done";

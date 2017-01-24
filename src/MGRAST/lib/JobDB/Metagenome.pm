@@ -149,7 +149,7 @@ sub get_data {
     $obj->{sample} =~ s/^(.*)\..+/$1/;
     
     if (scalar(keys(%$values))) {
-      $obj->{library} = $job->sample ? "mgl".$job->sample->{ID} : undef;
+      $obj->{library} = $job->library ? "mgl".$job->library->{ID} : undef;
 
       my $pjs = $self->_master->ProjectJob->get_objects( { job => $job } );
       $obj->{project} = scalar(@$pjs) ? "mgp".$pjs->[0]->project->{id} : undef;

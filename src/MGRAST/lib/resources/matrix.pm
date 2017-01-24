@@ -83,7 +83,7 @@ sub info {
               'example'     => [ $self->cgi->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=family&source=RefSeq&evalue=15",
                                  'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evalue < e-15' ],
               'method'      => "GET" ,
-              'type'        => "synchronous or asynchronous" ,  
+              'type'        => "asynchronous",
               'attributes'  => $self->{attributes},
               'parameters'  => {
                   'options'  => {
@@ -116,7 +116,7 @@ sub info {
               'example'     => [ $self->cgi->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=level3&source=Subsystems&identity=80",
                                  'retrieve abundance matrix of Subsystem annotations at level3 for listed metagenomes at % identity > 80' ],
               'method'      => "GET" ,
-              'type'        => "synchronous or asynchronous" ,  
+              'type'        => "asynchronous",
               'attributes'  => $self->{attributes},
               'parameters'  => {
                   'options'  => {
@@ -213,69 +213,75 @@ sub instance {
     if (scalar(keys %mgids) > $self->{max_mgs}) {
         $self->return_data( {"ERROR" => "to many metagenomes requested (".scalar(keys %mgids)."), query is limited to ".$self->{max_mgs}." metagenomes"}, 404 );
     }
+    
     # unique list and sort it - sort required for proper caching
     my @mgids = sort keys %mgids;
+    # validate / parse request options
+    my ($params, $metadata, $hierarchy) = $self->process_parameters($master, \@mgids, $type);
     
-    # test postgres access
-    my $testdb = MGRAST::Abundance->new();
-    unless ($testdb) {
-        $self->return_data({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
+    # check if temp profile compute node is in shock
+    my $attr = {
+        type   => "temp",
+        url_id => $self->url_id,
+        owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
+        data_type => "matrix"
+    };
+    # already cashed in shock - say submitted in case its running
+    my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
+    if ($nodes && (@$nodes > 0)) {
+        # sort results by newest to oldest
+        my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
+        $self->return_data({"status" => "submitted", "id" => $sorted[0]->{id}, "url" => $self->cgi->url."/status/".$sorted[0]->{id}});
     }
-    $testdb->DESTROY();
+    
+    # check if all jobs exist in cassandra DB / also tests DB connection
+    my $in_cassandra = 1;
+    my $chdl = $self->cassandra_handle("job", $params->{version});
+    unless ($chdl) {
+        $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
+    }
+    foreach my $jid (@{$params->{job_ids}}) {
+        if (! $chdl->has_job($jid)) {
+            $in_cassandra = 0;
+        }
+    }
+    $chdl->close();
+    
+    # not all in cassandra
+    unless ($in_cassandra) {
+        # need to redirect profile to postgres backend API
+        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
+        print STDERR "Redirect: $redirect_uri\n";
+        print $self->cgi->redirect(
+            -uri => $redirect_uri,
+            -status => '302 Found'
+        );
+        exit 0;
+    }
+    
+    # need to create new temp node
+    $attr->{parameters} = $params;
+    $attr->{progress} = [ map { {$_ => {queried => 0, found => 0, completed => 0}} } @{$params->{job_ids}} ];
+    my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
     
     # asynchronous call, fork the process and return the process id.
-    # caching is done with shock, not memcache
-    if ($self->cgi->param('asynchronous')) {
-        my $attr = {
-            type => "temp",
-            url_id => $self->url_id,
-            owner  => $self->user ? 'mgu'.$self->user->_id : "anonymous",
-            data_type => "matrix"
-        };
-        # already cashed in shock - say submitted in case its running
-        my $nodes = $self->get_shock_query($attr, $self->mgrast_token);
-        if ($nodes && (@$nodes > 0)) {
-            # sort results by newest to oldest
-            my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
-            $self->return_data({"status" => "submitted", "id" => $sorted[0]->{id}, "url" => $self->cgi->url."/status/".$sorted[0]->{id}});
-        }
-        # need to create new node and fork
-        my $node = $self->set_shock_node("asynchronous", undef, $attr, $self->mgrast_token, undef, undef, "7D");
-        my $pid = fork();
-        # child - get data and dump it
-        if ($pid == 0) {
-            close STDERR;
-            close STDOUT;
-            my ($data, $error) = $self->prepare_data(\@mgids, $type);
-            if ($error) {
-                $data->{STATUS} = $error;
-            }
-            $self->put_shock_file($data->{id}.".biom", $data, $node->{id}, $self->mgrast_token);
-            exit 0;
-        }
-        # parent - end html session
-        else {
-            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
-        }
+    my $pid = fork();
+    # child - get data and dump it
+    if ($pid == 0) {
+        close STDERR;
+        close STDOUT;
+        $self->create_matrix($node, $params, $metadata, $hierarchy);
+        exit 0;
     }
-    # synchronous call, prepare then return data, cached in memcache
+    # parent - end html session
     else {
-        # return cached if exists
-        $self->return_cached();
-        # prepare data
-        my ($data, $error) = $self->prepare_data(\@mgids, $type);
-        # don't cache errors
-        if ($error) {
-            $self->return_data($data, $error);
-        } else {
-            $self->return_data($data, undef, 1); # cache this!
-        }
+        $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
     }
 }
 
-# reformat the data into the requested output format
-sub prepare_data {
-    my ($self, $data, $type) = @_;
+# validate / reformat the data into the request paramaters
+sub process_parameters {
+    my ($self, $master, $data, $type) = @_;
     
     # get optional params
     my $cgi = $self->cgi;
@@ -291,24 +297,24 @@ sub prepare_data {
     my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'RefSeq');
     my $filter = $cgi->param('filter') ? $cgi->param('filter') : "";
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
-    my $hide_an = $cgi->param('hide_annotation') ? 1 : 0;
+    my $hide_hy = $cgi->param('hide_hierarchy') ? 1 : 0;
     my $version = $cgi->param('version') || $self->{m5nr_default};
     my $leaf_node = 0;
     my $prot_func = 0;
     my $leaf_filter = 0;
     my $group_level = $glvl;
     my $filter_level = $flvl;
-   
-    my $matrix_id  = join("_", map {'mgm'.$_} sort @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
-    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} sort @$data).'&group_level='.$glvl.'&source='.$source.
+    
+    my $matrix_id  = join("_", map {'mgm'.$_} @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
+    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} @$data).'&group_level='.$glvl.'&source='.$source.
                      '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen;
     if ($hide_md) {
         $matrix_id .= '_'.$hide_md;
         $matrix_url .= '&hide_metadata='.$hide_md;
     }
-    if ($hide_an) {
-        $matrix_id .= '_'.$hide_an;
-        $matrix_url .= '&hide_annotation='.$hide_an;
+    if ($hide_hy) {
+        $matrix_id .= '_'.$hide_hy;
+        $matrix_url .= '&hide_hierarchy='.$hide_hy;
     }
     if ($filter) {
         $matrix_id .= md5_hex($filter)."_".$fsrc."_".$flvl;
@@ -318,37 +324,29 @@ sub prepare_data {
         $matrix_id .= '_'.$grep;
         $matrix_url .= '&grep='.$grep;
     }
-
-    # initialize analysis obj with mgids
-    unless (exists $self->{m5nr_version}{$version}) {
-        return ({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
-    }
-    my $master = $self->connect_to_datasource();
-    my $chdl   = $self->cassandra_m5nr_handle("m5nr_v".$version, $Conf::cassandra_m5nr);
-    my $mgdb   = MGRAST::Abundance->new($chdl, $version);
-    unless (ref($mgdb)) {
-        return ({"ERROR" => "unable to connect to metagenomics analysis database"}, 500);
-    }
-
+    
     # validate cutoffs
-    if (int($eval) < 1) {
+    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? int($eval)  : undef;
+    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? int($ident) : undef;
+    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? int($alen)  : undef;
+    if (defined($eval) && ($eval < 1)) {
         return ({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 404);
     }
-    if ((int($ident) < 0) || (int($ident) > 100)) {
+    if (defined($ident) && (($ident < 0) || ($ident > 100))) {
         return ({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 404);
     }
-    if (int($alen) < 1) {
+    if (defined($alen) && ($alen < 1)) {
         return ({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 404);
     }
-
+    
     # controlled vocabulary set
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
     my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
     my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
     my %org_srcs   = map { $_->[0], 1 } @{$self->{sources}{organism}};
-    my @tax_hier   = map { $_->[0] } @{$self->hierarchy->{organism}};
-    my @ont_hier   = map { $_->[0] } @{$self->hierarchy->{ontology}};
-                             
+    my @tax_hier   = map { $_->[0] } reverse @{$self->hierarchy->{organism}};
+    my @ont_hier   = map { $_->[0] } reverse @{$self->hierarchy->{ontology}};
+    
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
         return ({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
@@ -430,274 +428,109 @@ sub prepare_data {
             return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, 400);
         }
     }
-    
-    # set matrix
-    @$data = sort @$data;
-    my $mddb = MGRAST::Metadata->new();
-    my $meta = $hide_md ? {} : $mddb->get_jobs_metadata_fast($data, 1);
-    my $columns = [ map { {id => $_, metadata => exists($meta->{$_}) ? $meta->{$_} : undef} } @$data ];
-    my $matrix  = {
-        id                   => $matrix_id,
-        url                  => $matrix_url,
-        format               => "Biological Observation Matrix 1.0",
-        format_url           => "http://biom-format.org",
-        type                 => ($type eq 'organism') ? "Taxon table" : "Function table",
-        generated_by         => "MG-RAST".($Conf::server_version ? " revision ".$Conf::server_version : ""),
-        date                 => strftime("%Y-%m-%dT%H:%M:%S", localtime),
-        matrix_type          => "dense",
-        matrix_element_type  => ($rtype eq 'abundance') ? "int" : "float",
-        matrix_element_value => $rtype,
-        shape                => [ 0, scalar(@$columns) ],
-        rows                 => [],
-        columns              => $columns,
-        data                 => []
-    };
+    my $id_map  = $master->Job->get_job_ids($data);
+    my @job_ids = map { $id_map->{$_} } @$data;
     
     # reset type
-    if ($prot_func && ($type eq "function")) {
+    if (exists($func_srcs{$source}) && ($type eq "function")) {
         $type = "ontology";
     }
     
-    # get grouping map: leaf_name => group_name
-    my $group_map = undef;
-    if (! $leaf_node) {
-        if ($type eq "organism") {
-            if ($htype ne 'lca') {
-                $group_map = $chdl->get_org_taxa_map($glvl);
-            } else {
-                my @levels = reverse @tax_hier;
-                $group_map = first { $levels[$_] eq $glvl } 0..$#levels;
-            }
-        } elsif ($type eq "ontology") {
-            $group_map = $chdl->get_ontology_map($source, $glvl);
-        }
-    }
-    
-    # get filter list: all leaf names that match filter for given filter_level (organism, ontology only)
-    my $filter_list = undef;
-    if ($filter && (! $leaf_filter)) {
-        if ($type eq "organism") {
-            $filter_list = { map { $_, 1 } @{$chdl->get_organism_by_taxa($flvl, $filter)} };
-        } elsif ($type eq "ontology") {
-            $filter_list = { map { $_, 1 } @{$chdl->get_ontology_by_level($fsrc, $flvl, $filter)} };
-        }
-    }
-    
-    # build / start query
-    $eval  = (defined($eval)  && ($eval  =~ /^\d+$/)) ? "exp_avg <= ".($eval * -1) : "";
-    $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? "ident_avg >= $ident" : "";
-    $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? "len_avg >= $alen"    : "";
-    
-    my $id_map = $master->Job->get_job_ids($data);
-    my $query = "SELECT job, md5, ".$result_map->{$rtype}." FROM job_md5s";
-    $query .= $mgdb->get_where_str([
-        'version = '.$mgdb->version,
-        'job IN ('.join(',', values %$id_map).')',
-        $eval,
-        $ident,
-        $alen
-    ]);
-    $query .= " ORDER BY md5";
-    my $sth = $mgdb->execute_query($query);
-    
-    # loop through results and build matrix
-    my $mdata   = []; # 2D array
-    my $md5_set = {}; # md5 => [[job, value]]
-    my $col_idx = { map { $id_map->{$data->[$_]}, $_ } 0..$#$data }; # job_ids with column indexes
-    my $row_idx = {}; # row ids with row index
-    my $count   = 0;
-    while (my @row = $sth->fetchrow_array()) {
-        my ($job, $md5, $val) = @row;
-        if (exists $md5_set->{$md5}) {
-            push @{$md5_set->{$md5}}, [$job, $self->toNum($val, $rtype)];
+    # row hierarchies
+    my $hierarchy = [];
+    my ($hmatch, $fields, $squery);
+    if ($type eq "organism") {
+        if ($leaf_node) {
+            $hmatch = "organism";
+            pop @tax_hier;
+            $fields = [ @tax_hier, 'ncbi_tax_id', 'organism' ];
         } else {
-            $md5_set->{$md5} = [[$job, $self->toNum($val, $rtype)]];
-        }
-        $count++;
-        if ($count == $mgdb->chunk) {
-            $self->append_matrix($chdl, $type, $rtype, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
-            $md5_set = {};
-            $count = 0;
-        }
-    }
-    if ($count > 0) {
-        $self->append_matrix($chdl, $type, $rtype, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list);
-    }
-    
-    # cleanup
-    $mgdb->end_query($sth);
-    $mgdb->DESTROY();
-    
-    # transform [ count, sum ] to single average
-    if ($rtype ne 'abundance') {
-        foreach my $row (@$mdata) {
-            for (my $i=0; $i<@$row; $i++) {
-                my ($num, $sum) = @{$row->[$i]};
-                if ($num == 0) {
-                    $row->[$i] = 0;
-                } else {
-                    $row->[$i] = round($sum / $num);
+            $hmatch = $glvl;
+            foreach my $h (@tax_hier) {
+                push @$fields, $h;
+                if ($h eq $glvl) {
+                    last;
                 }
             }
         }
-    }
-    
-    # finalize matrix
-    $matrix->{rows} = [ map {{id => $_, metadata => undef}} sort {$row_idx->{$a} <=> $row_idx->{$b}} keys %$row_idx ];
-    $matrix->{data} = $mdata;
-    $matrix->{shape}[0] = scalar(@{$matrix->{rows}});
-
-    # column metadata / hierarchies
-    my ($mtype, $fields, $squery);
-    if ($type eq "organism") {
-        $mtype  = 'taxonomy';
-        $fields = [ @tax_hier, 'ncbi_tax_id', 'organism' ];
         $squery = 'object%3Ataxonomy';
-        
     } elsif ($type eq 'ontology') {
-        $mtype  = 'ontology';
-        $fields = [ @ont_hier, 'level4', 'accession' ];
+        if ($leaf_node) {
+            $hmatch = "accession";
+            pop @ont_hier;
+            $fields = [ @ont_hier, 'level4', 'accession' ];
+        } else {
+            $hmatch = $glvl;
+            foreach my $h (@ont_hier) {
+                push @$fields, $h;
+                if ($h eq $glvl) {
+                    last;
+                }
+            }
+        }
         $squery = 'object%3Aontology+AND+source%3A'.$source;
     }
-    if ($squery && (! $hide_md)) {
+    if ($squery && (! $hide_hy)) {
         # get hierarchy from m5nr solr
-        my $hierarchy = [];
-        my $match = "";
-        if (! $leaf_node) {
-            $match = $glvl;
+        if ($leaf_node) {
+            ($hierarchy, undef) = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $squery, undef, 0, 1000000, $fields);
+        } else {
             $squery .= '&group=true&group.field='.$glvl;
             my $result = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $squery, undef, 0, 1000000, $fields);
             foreach my $group (@{$result->{$glvl}{groups}}) {
                 push @$hierarchy, $group->{doclist}{docs}[0];
             }
-        } else {
-            $match = ($type eq "organism") ? 'organism' : 'accession';
-            ($hierarchy, undef) = $self->get_solr_query('GET', $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $squery, undef, 0, 1000000, $fields);
         }
-        foreach my $r (@{$matrix->{rows}}) {
-            foreach my $h (@$hierarchy) {
-                if ($r->{id} eq $h->{$match}) {
-                    if (exists $h->{organism}) {
-                        $h->{strain} = $h->{organism};
-                        delete $h->{organism};
-                    }
-                    if (exists $h->{accession}) {
-                        delete $h->{accession};
-                    }
-                    if (exists $h->{ncbi_tax_id}) {
-                        my $tid = $h->{ncbi_tax_id};
-                        delete $h->{ncbi_tax_id};
-                        $r->{metadata} = { $mtype => $h, ncbi_tax_id => $tid };
-                    } else {
-                        $r->{metadata} = { $mtype => $h };
-                    }
-                    last;
-                }
-            }
-        }
-    }
-                        
-    return ($matrix, undef);
-}
-
-sub append_matrix {
-    my ($self, $chdl, $type, $rtype, $htype, $source, $md5_set, $mdata, $col_idx, $row_idx, $group_map, $filter_list, $filter_src) = @_;
-    
-    my @md5s = keys %$md5_set;
-    my $next = scalar(keys %$row_idx); # incraments
-    my $jnum = scalar(keys %$col_idx); # static
-    
-    # get filter md5s
-    if ($filter_list && $filter_src) {
-        my $field = ($type eq 'organism') ? 'accession' : 'organism';
-        my @filter_md5s = ();
-        my $filter_data = $chdl->get_records_by_id(\@md5s, $filter_src);
-        foreach my $set (@$filter_data) {
-            foreach my $a (@{$set->{$field}}) {
-                if (exists $filter_list->{$a}) {
-                    push @filter_md5s, $set->{id};
-                }
-            }
-        }
-        @md5s = @filter_md5s;
     }
     
-    my $cass_data = $chdl->get_records_by_id(\@md5s, $source);
-    foreach my $set (@$cass_data) {
-        # get annotations based on type & hit_type
-        my $annotations = [];
-        if ($type eq 'function') {
-            $annotations = $set->{function};
-        } elsif ($type eq 'ontology') {
-            $annotations = $set->{accession};
-        } elsif ($type eq 'organism') {
-            if ($htype eq 'all') {
-                $annotations = $set->{organism};
-            } elsif ($htype eq 'single') {
-                $annotations = [ $set->{single} ];
-            } elsif ($htype eq 'lca') {
-                my $taxa = $set->{lca}[$group_map];
-                next if ($taxa =~ /^\-/);
-                $annotations = [ $taxa ];
-            }
-        }
-        # grouping
-        if (defined($group_map) && ($htype ne 'lca')) {
-            my %unique = map { $group_map->{$_}, 1 } grep { exists($group_map->{$_}) } @$annotations;
-            $annotations = [ keys %unique ];
-        }
-        
-        # loop through annotations for row index
-        foreach my $a (@$annotations) {
-            my $rindex;
-            if (exists $row_idx->{$a}) {
-                # alrady saw this annotation
-                $rindex = $row_idx->{$a};
-            } else {
-                # new annotation, add to rows
-                $rindex = $next;
-                $row_idx->{$a} = $rindex;
-                $mdata->[$rindex] = [];
-                if ($rtype eq 'abundance') {
-                    # populate with zero's
-                    map { push @{$mdata->[$rindex]}, 0 } (1..$jnum);
-                } else {
-                    # populate with tuple of zero's
-                    map { push @{$mdata->[$rindex]}, [0, 0] } (1..$jnum);
-                }
-                $next++;
-            }
-            # loop through jobs that have md5 - add value
-            # curr is int if abundance, tuple otherwise
-            foreach my $info (@{$md5_set->{$set->{id}}}) {
-                my ($job, $val) = @$info;
-                my $curr = $mdata->[$rindex][$col_idx->{$job}];
-                $mdata->[$rindex][$col_idx->{$job}] = $self->add_value($curr, $val, $rtype);
-            }
-        }
+    # column metadata
+    my $metadata = {};
+    if (! $hide_md) {
+        my $mddb = MGRAST::Metadata->new();
+        $metadata = $mddb->get_jobs_metadata_fast($data, 1);
     }
+    
+    # done
+    my $params = {
+        id          => $matrix_id,
+        url         => $matrix_url,
+        mg_ids      => $data,
+        job_ids     => \@job_ids,
+        resource    => "matrix",
+        type        => $type,
+        group_level => $glvl,
+        source      => $source,
+        source_type => $self->type_by_source($source),
+        result_type => $rtype,
+        hit_type    => $htype,
+        evalue      => $eval,
+        identity    => $ident,
+        length      => $alen,
+        version     => $version,
+        hier_match  => $hmatch,
+        filter      => $filter,
+        filter_level  => $flvl,
+        filter_source => $fsrc,
+        leaf_node     => $leaf_node,
+        leaf_filter   => $leaf_filter
+    };
+    return ($params, $metadata, $hierarchy);
 }
 
-# sum if abundance, [ count, sum ] if other
-sub add_value {
-    my ($self, $curr, $val, $type) = @_;
-    if ($type eq 'abundance') {
-        # return sum
-        return $curr + $val;
-    } else {
-        # return tuple of count, sum
-        return [ $curr->[0] + 1, $curr->[1] + $val ];
-    }
-}
-
-# Round to nearest thousandth
-sub round {
-    my $val = shift;
-    if ($val > 0) {
-        return ( int( $val * 1000 + 0.5 ) / 1000 );
-    } else {
-        return ( int( $val * 1000 - 0.5 ) / 1000 );
-    }
+sub create_matrix {
+    my ($self, $node, $params, $metadata, $hierarchy) = @_;
+    
+    # cassandra handle
+    my $mgcass = $self->cassandra_matrix($params->{version});
+    
+    # set shock
+    my $token  = $self->mgrast_token;
+    $mgcass->set_shock($token);
+    
+    ### create matrix / saves output file or error message in shock
+    $mgcass->compute_matrix($node, $params, $metadata, $hierarchy);
+    $mgcass->close();
+    return undef;
 }
 
 1;
