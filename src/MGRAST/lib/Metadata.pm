@@ -834,7 +834,7 @@ sub add_template_to_data {
     next unless ($all || $template->{$cat}{$tag}{required} || (defined($val) && ($val =~ /\S/)));
     if (! exists $template->{$cat}{$tag}) {
         $t_data->{$tag} = $self->misc_param($val);
-    else {
+    } else {
         $t_data->{$tag} = $template->{$cat}{$tag};
         $t_data->{$tag}{value} = $val;
     }
