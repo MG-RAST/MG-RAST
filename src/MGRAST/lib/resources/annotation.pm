@@ -206,9 +206,10 @@ sub instance {
     unless ($chdl) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
-    unless ($chdl->has_job($jobid)) {
-        # close handle
-        $chdl->close();
+    my $in_cassandra = $chdl->has_job($jobid);
+    $chdl->close();
+    
+    unless ($in_cassandra) {
         # need to redirect annotation to postgres backend API
         my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
         print STDERR "Redirect: $redirect_uri\n";
@@ -218,8 +219,6 @@ sub instance {
         );
         exit 0;
     }
-    # close handle
-    $chdl->close();
     
     $self->prepare_data($job, $format);
 }

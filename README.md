@@ -61,6 +61,7 @@ skycore push mgrast/v3-web:${TAG}
 export TAG=`date +"%Y%m%d.%H%M"`
 git clone -b api https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
+docker pull mgrast/api-base
 docker build -t mgrast/api:${TAG} .
 skycore push mgrast/api:${TAG}
 ```
