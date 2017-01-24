@@ -123,6 +123,7 @@ foreach my $mgid (@mg_list) {
         }
         print STDERR "Completed rarefaction compute\n";
         $sobj->{rarefaction} = $data->{rarefaction};
+        $sobj->{sequence_stats}{alpha_diversity_shannon} = $data->{alphadiversity};
     }
     
     # compute abundances
@@ -193,6 +194,11 @@ sub async_compute {
     eval {
         my $get  = $agent->get($url."&retry=".$try, ('Authorization', "mgrast $token"));
         my $info = $json->decode($get->content);
+        if ($info->{ERROR}) {
+            print STDERR "ERROR: ".$info->{ERROR}." - trying again\n";
+            $try += 1;
+            return async_compute($url, $token, $try);
+        }
         print STDERR "status: ".$info->{url}."\n";
         while ($info->{status} ne 'done') {
             sleep $waittime;

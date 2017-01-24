@@ -237,8 +237,14 @@ sub submit {
     };
     my $tnodes = $self->get_shock_query($tquery, $self->mgrast_token);
     if ($tnodes && (@$tnodes > 0)) {
-        my $obj = $self->status_report_from_node($tnodes->[0], "submitted");
-        $self->return_data($obj);
+        if ($retry) {
+            foreach my $n (@$tnodes) {
+                $self->delete_shock_node($n->{id}, $self->mgrast_token);
+            }
+        } else {
+            my $obj = $self->status_report_from_node($tnodes->[0], "submitted");
+            $self->return_data($obj);
+        }
     }
     
     # test cassandra access

@@ -83,7 +83,7 @@ sub info {
               'example'     => [ $self->cgi->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=family&source=RefSeq&evalue=15",
                                  'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evalue < e-15' ],
               'method'      => "GET" ,
-              'type'        => "asynchronous" ,  
+              'type'        => "asynchronous",
               'attributes'  => $self->{attributes},
               'parameters'  => {
                   'options'  => {
@@ -116,7 +116,7 @@ sub info {
               'example'     => [ $self->cgi->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=level3&source=Subsystems&identity=80",
                                  'retrieve abundance matrix of Subsystem annotations at level3 for listed metagenomes at % identity > 80' ],
               'method'      => "GET" ,
-              'type'        => "asynchronous" ,  
+              'type'        => "asynchronous",
               'attributes'  => $self->{attributes},
               'parameters'  => {
                   'options'  => {
