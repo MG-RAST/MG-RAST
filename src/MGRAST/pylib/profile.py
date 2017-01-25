@@ -83,6 +83,7 @@ class Profile(object):
             # save error to node
             data = {'ERROR': error, "STATUS": 500}
             self.shock.upload(node=node['id'], data=json.dumps(data), file_name='error')
+            self.shock.update_expiration(node['id'], expiration='1D')
         else:
             sys.stderr.write(error+"\n")
         self.close()
