@@ -43,8 +43,8 @@ class Profile(object):
                 profile['rows'] = rows
                 profile['data'] = data
                 profile['shape'][0] = len(profile['rows'])
-            except:
-                self.error_exit("unable to build BIOM profile", node)
+            except Exception as ex:
+                self.error_exit("unable to build BIOM profile", node, ex)
                 return
         elif param['format'] == 'mgrast':
             try:
@@ -52,8 +52,8 @@ class Profile(object):
                 data    = self.get_mgrast_data(param['job_id'], param['source'], index, node)
                 profile['data'] = data
                 profile['row_total'] = len(profile['data'])
-            except:
-                self.error_exit("unable to build mgrast profile", node)
+            except Exception as ex:
+                self.error_exit("unable to build mgrast profile", node, ex)
                 return
         else:
             self.error_exit("unable to build profile, invalid format", node)
@@ -68,15 +68,17 @@ class Profile(object):
                 self.shock.update_expiration(node['id'])
                 if attr['status'] == 'public':
                     self.shock.add_acl(node=node['id'], acl='read', public=True)
-            except:
-                self.error_exit("unable to update profile shock node "+node['id'], node)
+            except Exception as ex:
+                self.error_exit("unable to update profile shock node "+node['id'], node, ex)
                 return
         
         ## store file in node
         self.shock.upload(node=node['id'], data=json.dumps(profile), file_name=fname)
         return
     
-    def error_exit(self, error, node=None):
+    def error_exit(self, error, node=None, ex=None):
+        if ex:
+            error += ": an exception of type {0} occured. Arguments:\n{1!r}".format(type(ex).__name__, ex.args)
         if node:
             # save error to node
             data = {'ERROR': error, "STATUS": 500}

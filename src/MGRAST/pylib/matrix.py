@@ -50,14 +50,16 @@ class Matrix(object):
             matrix['rows']  = rows
             matrix['data']  = data
             matrix['shape'] = [ len(matrix['rows']), len(matrix['columns']) ]
-        except:
-            self.error_exit("unable to build BIOM profile", node)
+        except Exception as ex:
+            self.error_exit("unable to build BIOM profile", node, ex)
             return
         ## store file in node
         self.shock.upload(node=node['id'], data=json.dumps(matrix), file_name=param['id']+".biom")
         return None
     
-    def error_exit(self, error, node=None):
+    def error_exit(self, error, node=None, ex=None):
+        if ex:
+            error += ": an exception of type {0} occured. Arguments:\n{1!r}".format(type(ex).__name__, ex.args)
         if node:
             # save error to node
             data = {'ERROR': error, "STATUS": 500}
