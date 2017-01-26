@@ -769,7 +769,7 @@ sub export_metadata_for_project {
   foreach my $k (keys(%$libs)) {
     if ($samples->{$libs->{$k}->{"parent"}}) {
       if (! $samples->{$libs->{$k}->{"parent"}}->{"libraries"}) {
-	$samples->{$libs->{$k}->{"parent"}}->{"libraries"} = [];
+	    $samples->{$libs->{$k}->{"parent"}}->{"libraries"} = [];
       }
       $libs->{$k}->{type} = $libs->{$k}->{data}->{investigation_type};
       delete $libs->{$k}->{data}->{investigation_type};
@@ -783,7 +783,7 @@ sub export_metadata_for_project {
     if ($samples->{$eps->{$k}->{"parent"}}) {
       $eps->{$k}->{type} = $eps->{$k}->{data}->{env_package};
       delete $eps->{$k}->{data}->{env_package};
-      $eps->{$k}->{name} = "mgs".$eps->{$k}->{"parent"}.": ".$eps->{$k}->{type};
+      $eps->{$k}->{name} = $eps->{$k}->{data}->{name} || "mgs".$eps->{$k}->{"parent"}.": ".$eps->{$k}->{type};
       $samples->{$eps->{$k}->{"parent"}}->{"envPackage"} = $eps->{$k};
     }
   }
@@ -791,7 +791,7 @@ sub export_metadata_for_project {
   # add the samples to the project data structure
   foreach my $k (keys(%$samples)) {
     $samples->{$k}->{libNum} = $samples->{$k}->{libraries} ? scalar(@{$samples->{$k}->{libraries}}) : 0;
-    $samples->{$k}->{name} = $samples->{$k}->{id} = "mgs".$k;
+    $samples->{$k}->{name} = $samples->{$k}->{data}->{name} || "mgs".$k;
 
     # iterate over the libraries and objectify them
     if ($samples->{$k}->{libraries}) {
@@ -835,7 +835,12 @@ sub add_template_to_data {
     if (! exists $template->{$cat}{$tag}) {
         $t_data->{$tag} = $self->misc_param($val);
     } else {
-        $t_data->{$tag} = $template->{$cat}{$tag};
+        $t_data->{$tag}{unit} = $template->{$cat}{$tag}{unit};
+        $t_data->{$tag}{type} = $template->{$cat}{$tag}{type};
+        $t_data->{$tag}{mixs} = $template->{$cat}{$tag}{mixs};
+        $t_data->{$tag}{aliases} = $template->{$cat}{$tag}{aliases};
+        $t_data->{$tag}{required} = $template->{$cat}{$tag}{required};
+        $t_data->{$tag}{definition} = $template->{$cat}{$tag}{definition};
         $t_data->{$tag}{value} = $val;
     }
   }
