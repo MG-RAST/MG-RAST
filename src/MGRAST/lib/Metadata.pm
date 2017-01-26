@@ -772,7 +772,6 @@ sub export_metadata_for_project {
 	    $samples->{$libs->{$k}->{"parent"}}->{"libraries"} = [];
       }
       $libs->{$k}->{type} = $libs->{$k}->{data}->{investigation_type};
-      delete $libs->{$k}->{data}->{investigation_type};
       $libs->{$k}->{name} = $libs->{$k}->{data}->{metagenome_name} || "mgl".$k;
       push(@{$samples->{$libs->{$k}->{"parent"}}->{"libraries"}}, $libs->{$k});
     }
@@ -783,7 +782,7 @@ sub export_metadata_for_project {
     if ($samples->{$eps->{$k}->{"parent"}}) {
       $eps->{$k}->{type} = $eps->{$k}->{data}->{env_package};
       delete $eps->{$k}->{data}->{env_package};
-      $eps->{$k}->{name} = $eps->{$k}->{data}->{name} || "mgs".$eps->{$k}->{"parent"}.": ".$eps->{$k}->{type};
+      $eps->{$k}->{name} = "mgs".$eps->{$k}->{"parent"}.": ".$eps->{$k}->{type};
       $samples->{$eps->{$k}->{"parent"}}->{"envPackage"} = $eps->{$k};
     }
   }
@@ -791,7 +790,7 @@ sub export_metadata_for_project {
   # add the samples to the project data structure
   foreach my $k (keys(%$samples)) {
     $samples->{$k}->{libNum} = $samples->{$k}->{libraries} ? scalar(@{$samples->{$k}->{libraries}}) : 0;
-    $samples->{$k}->{name} = $samples->{$k}->{data}->{name} || "mgs".$k;
+    $samples->{$k}->{name} = $samples->{$k}->{data}->{sample_name} || "mgs".$k;
 
     # iterate over the libraries and objectify them
     if ($samples->{$k}->{libraries}) {
