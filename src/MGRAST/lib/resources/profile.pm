@@ -290,7 +290,8 @@ sub submit {
         condensed   => $condensed,
         version     => $version
     };
-    my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
+    my $expire = ($format eq 'mgrast') ? "1D" : "7D";
+    my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, $expire);
     
     # asynchronous call, fork the process
     my $pid = fork();
