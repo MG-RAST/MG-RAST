@@ -748,7 +748,7 @@ sub export_metadata_for_project {
   foreach my $d (@$data) {
     if ($d->[4] eq 'sample') {
       if (! $samples->{$d->[0]}) {
-	$samples->{$d->[0]} = { "data" => {} };
+	$samples->{$d->[0]} = { "data" => {}, "id" => "mgs".$d->[0] };
       }
       $samples->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
     } elsif ($d->[4] eq 'ep') {
