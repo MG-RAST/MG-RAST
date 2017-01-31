@@ -235,13 +235,14 @@ sub instance {
       my $impUser = $master->User->get_objects({ login => $rest->[1] });
       if (scalar(@$impUser)) {
 	$impUser = $impUser->[0];
-	if ($cgi->param('active') eq "1") {
+	if ($self->cgi->param('active') eq "1") {
 	  $impUser->active(1);
 	} else {
-	  $impUser->active(0);
+	  $master->db_handle()->do("UPDATE User SET active=0 WHERE login='".$impUser->{login}."'");
+	  $master->db_handle()->commit;
 	}
 	$self->return_data( { "login" => $impUser->{login},
-			      "OK" => "user account ".($impUser->{active} ? "" : "de")."activated" }, 200 );
+			      "OK" => "user account ".($self->cgi->param('active') == "1" ? "" : "de")."activated" }, 200 );
       } else {
 	$self->return_data( {"ERROR" => "user not found"}, 404 );
       }
