@@ -228,6 +228,27 @@ sub instance {
     }
     $self->return_data( { "OK" => "email validated" }, 200 );
   }
+
+  # check for account (de)activation
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'deactivate') {
+    if ($self->user->has_right(undef, 'edit', 'user', '*')) {
+      my $impUser = $master->User->get_objects({ login => $rest->[1] });
+      if (scalar(@$impUser)) {
+	$impUser = $impUser->[0];
+	if ($cgi->param('active') eq "1") {
+	  $impUser->active(1);
+	} else {
+	  $impUser->active(0);
+	}
+	$self->return_data( { "login" => $impUser->{login},
+			      "OK" => "user account ".($impUser->{active} ? "" : "de")."activated" }, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "user not found"}, 404 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+    }
+  }
   
   # check if this is an impersonation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
