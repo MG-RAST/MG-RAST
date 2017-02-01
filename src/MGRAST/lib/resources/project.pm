@@ -569,88 +569,96 @@ sub query {
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $data) = @_;
-
-    my $objects = [];
-    foreach my $project (@$data) {
-        my $url = $self->cgi->url;
-        my $obj = {};
-        $obj->{id}      = "mgp".$project->id;
-        $obj->{name}    = $project->name;
-        $obj->{pi}      = $project->pi;
-        $obj->{status}  = $project->public ? 'public' : 'private';
-        $obj->{version} = 1;
-        $obj->{url}     = $url.'/project/'.$obj->{id};
-        $obj->{created} = "";
+  my ($self, $data) = @_;
+  
+  my $objects = [];
+  foreach my $project (@$data) {
+    my $url = $self->cgi->url;
+    my $obj = {};
+    $obj->{id}      = "mgp".$project->id;
+    $obj->{name}    = $project->name;
+    $obj->{pi}      = $project->pi;
+    $obj->{status}  = $project->public ? 'public' : 'private';
+    $obj->{version} = 1;
+    $obj->{url}     = $url.'/project/'.$obj->{id};
+    $obj->{created} = "";
     
-        if ($self->cgi->param('verbosity')) {
-	  if ($self->cgi->param('verbosity') eq 'permissions' || ($self->cgi->param('verbosity') eq 'full')) {
-	    unless (scalar(@$data) == 1) {
-	      $self->return_data({"ERROR" => "verbosity option permissions only allowed for single projects"}, 400);
-	    }
-	    if ($self->user) {
-	      my $rightmaster = $self->user->_master->backend;
-	      my $project_permissions = $rightmaster->get_rows("Rights LEFT OUTER JOIN Scope ON Rights.scope=Scope._id LEFT OUTER JOIN UserHasScope ON Scope._id=UserHasScope.scope LEFT OUTER JOIN User ON User._id=UserHasScope.user WHERE Rights.data_type='project' AND Rights.data_id='".$project->{id}."';", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name, Scope.description"]);
-	      my $mgids = $project->all_metagenome_ids;
-	      my $metagenome_permissions = scalar(@$mgids) ? $rightmaster->get_rows("Rights LEFT OUTER JOIN Scope ON Rights.scope=Scope._id LEFT OUTER JOIN UserHasScope ON Scope._id=UserHasScope.scope LEFT OUTER JOIN User ON User._id=UserHasScope.user WHERE Rights.data_type='metagenome' AND Rights.data_id IN ('".join("', '", @$mgids)."');", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name, Scope.description"]) : [];
-	      $obj->{permissions} = { metagenome => [], project => [] };
-	      $obj->{permissions}->{metagenome} = $metagenome_permissions;
-	      $obj->{permissions}->{project} = $project_permissions;
-	    } else {
-	      $obj->{permissions} = { metagenome => [], project => [] };
-	    }
-	    if ($self->cgi->param('verbosity') eq 'permissions') {
-	      return [ $obj ];
-	    }
-	  }
+    if ($self->cgi->param('verbosity')) {
+      if ($self->cgi->param('verbosity') eq 'permissions' || ($self->cgi->param('verbosity') eq 'full')) {
+	unless (scalar(@$data) == 1) {
+	  $self->return_data({"ERROR" => "verbosity option permissions only allowed for single projects"}, 400);
+	}
+	if ($self->user) {
+	  my $rightmaster = $self->user->_master->backend;
+	  my $project_permissions = $rightmaster->get_rows("Rights LEFT OUTER JOIN Scope ON Rights.scope=Scope._id LEFT OUTER JOIN UserHasScope ON Scope._id=UserHasScope.scope LEFT OUTER JOIN User ON User._id=UserHasScope.user WHERE Rights.data_type='project' AND Rights.data_id='".$project->{id}."';", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name, Scope.description"]);
+	  my $mgids = $project->all_metagenome_ids;
+	  my $metagenome_permissions = scalar(@$mgids) ? $rightmaster->get_rows("Rights LEFT OUTER JOIN Scope ON Rights.scope=Scope._id LEFT OUTER JOIN UserHasScope ON Scope._id=UserHasScope.scope LEFT OUTER JOIN User ON User._id=UserHasScope.user WHERE Rights.data_type='metagenome' AND Rights.data_id IN ('".join("', '", @$mgids)."');", ["Rights.name, User.firstname, User.lastname, Rights.data_id, Scope.name, Scope.description"]) : [];
+	  $obj->{permissions} = { metagenome => [], project => [] };
+	  $obj->{permissions}->{metagenome} = $metagenome_permissions;
+	  $obj->{permissions}->{project} = $project_permissions;
+	} else {
+	  $obj->{permissions} = { metagenome => [], project => [] };
+	}
+	if ($self->cgi->param('verbosity') eq 'permissions') {
+	  return [ $obj ];
+	}
+      }
+      
+      if ($self->cgi->param('verbosity') eq 'full') {
+	my @jobs      = map { ["mgm".$_, $url.'/metagenome/mgm'.$_] } @{ $project->all_metagenome_ids };
+	my @colls     = @{ $project->collections };
+	my @samples   = map { ["mgs".$_->{ID}, $url."/sample/mgs".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
+	my @libraries = map { ["mgl".$_->{ID}, $url."/library/mgl".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
+	$obj->{metagenomes} = \@jobs;	
+	$obj->{samples}   = \@samples;
+	$obj->{libraries} = \@libraries;
+      }
 
-            if ($self->cgi->param('verbosity') eq 'full') {
-	        my @jobs      = map { ["mgm".$_, $url.'/metagenome/mgm'.$_] } @{ $project->all_metagenome_ids };
-	        my @colls     = @{ $project->collections };
-	        my @samples   = map { ["mgs".$_->{ID}, $url."/sample/mgs".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
-	        my @libraries = map { ["mgl".$_->{ID}, $url."/library/mgl".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
-	        $obj->{metagenomes} = \@jobs;	
-	        $obj->{samples}   = \@samples;
-	        $obj->{libraries} = \@libraries;
-            }
-            if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full') || ($self->cgi->param('verbosity') eq 'summary')) {
-	        my $metadata  = $project->data();
-	        my $desc = $metadata->{project_description} || $metadata->{study_abstract} || " - ";
-	        my $fund = $metadata->{project_funding} || " - ";
-	        $obj->{metadata}       = $metadata;
-	        $obj->{description}    = $desc;
-	        $obj->{funding_source} = $fund;
-		
-		if ($self->cgi->param('verbosity') eq 'summary' || ($self->cgi->param('verbosity') eq 'full')) {
-		  my $jdata = $project->metagenomes_summary();
-		  $obj->{metagenomes} = [];
-		  foreach my $row (@$jdata) {
-		    push(@{$obj->{metagenomes}}, { metagenome_id => $row->[0],
-						   name => $row->[1],
-						   basepairs => $row->[2],
-						   sequences => $row->[3],
-						   biome => $row->[4],
-						   feature => $row->[5],
-						   material => $row->[6],
-						   location => $row->[7],
-						   country => $row->[8],
-						   coordinates => $row->[9],
-						   sequence_type => $row->[10],
-						   sequencing_method => $row->[11],
-						   viewable => $row->[12],
-						   created_on => $row->[13],
-						   attributes => $row->[14],
-						   sample => $row->[15],
-						   library => $row->[16] });
-		  }
-		}
-            } elsif ($self->cgi->param('verbosity') ne 'minimal') {
-	        $self->return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
-            }
-        }
-        push @$objects, $obj;      
+      if (($self->cgi->param('verbosity') eq 'verbose') || ($self->cgi->param('verbosity') eq 'full') || ($self->cgi->param('verbosity') eq 'summary')) {
+	my $metadata  = $project->data();
+	my $desc = $metadata->{project_description} || $metadata->{study_abstract} || " - ";
+	my $fund = $metadata->{project_funding} || " - ";
+	$obj->{metadata}       = $metadata;
+	$obj->{description}    = $desc;
+	$obj->{funding_source} = $fund;
+	
+	if ($self->cgi->param('verbosity') eq 'summary' || ($self->cgi->param('verbosity') eq 'full')) {
+	  my $jdata = $project->metagenomes_summary();
+	  $obj->{metagenomes} = [];
+	  foreach my $row (@$jdata) {
+	    push(@{$obj->{metagenomes}}, { metagenome_id => $row->[0],
+					   name => $row->[1],
+					   basepairs => $row->[2],
+					   sequences => $row->[3],
+					   biome => $row->[4],
+					   feature => $row->[5],
+					   material => $row->[6],
+					   location => $row->[7],
+					   country => $row->[8],
+					   coordinates => $row->[9],
+					   sequence_type => $row->[10],
+					   sequencing_method => $row->[11],
+					   viewable => $row->[12],
+					   created_on => $row->[13],
+					   attributes => $row->[14],
+					   sample => $row->[15],
+					   library => $row->[16] });
+	  }
+	} else {
+	  my $mgmap = $project->metagenomes_id_name();
+	  $obj->{metagenomes} = [];
+	  foreach my $key (keys(%$mgmap)) {
+	     push(@{$obj->{metagenomes}}, { metagenome_id => $key,
+					    name => $mgmap->{$key} });
+	  }
+	}
+      } elsif ($self->cgi->param('verbosity') ne 'minimal') {
+	$self->return_data( {"ERROR" => "invalid value for option verbosity"}, 400 );
+      }
     }
-    return $objects;
+    push @$objects, $obj;      
+  }
+  return $objects;
 }
 
 sub updateRight {
