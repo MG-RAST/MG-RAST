@@ -1198,7 +1198,7 @@ sub add_valid_metadata {
       $ep_coll = $mddb->MetaDataCollection->get_objects({_id => $namemap->{$samp->{envPackage}{name}}->{_id}})->[0];
     }
     # create new ep for this sample if not created above
-    unless (ref($ep_coll) && ($ep_coll->parent->{ID} == $samp_coll->ID)) {
+    unless (ref($ep_coll) && $ep_coll->parent && ($ep_coll->parent->{ID} == $samp_coll->ID)) {
       $ep_coll = $self->add_collection($project, 'ep', $curator, $samp->{envPackage}{name}, $samp_coll);
     }
     # delete / replace ep metadata
