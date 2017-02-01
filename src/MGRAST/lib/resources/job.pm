@@ -1087,8 +1087,7 @@ sub job_action {
                         }
                     }
                 }
-                $node->{attributes}{progress}{completed} = 'statistics';
-                $node = $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
+                $self->update_progress($node, 'statistics');
                 
                 # annotations - from postdata or mg stats (if not rebuild) or from analysis db
                 my $mg_stats = {};
@@ -1110,6 +1109,7 @@ sub job_action {
                         $get_fun = 1;
                     }
                 }
+                $self->update_progress($node, 'function');
                 # organism - species
                 if (exists($sdata->{organism}) && $sdata->{organism}) {
                     $solr_data->{organism} = $sdata->{organism};
@@ -1125,6 +1125,7 @@ sub job_action {
                         $get_org = 1;
                     }
                 }
+                $self->update_progress($node, 'organism');
                 # get annotations from DB
                 if ($get_org || $get_fun) {
                     my ($md5_num, $org_map, $fun_map, undef) = @{ $mgcass->all_annotation_abundances($jobid, ['species'], $get_org, $get_fun, 0, $node) };
@@ -1139,11 +1140,15 @@ sub job_action {
                         $solr_data->{function} = [ keys %{$fun_map} ];
                     }
                 }
-                # get md5 list - refresh node object
-                $solr_data->{md5} = $mgcass->all_md5s($jobid);
+                # get md5 list
+                if (exists($sdata->{md5}) && $sdata->{md5}) {
+                    $solr_data->{md5} = $sdata->{md5};
+                else {
+                    $solr_data->{md5} = $mgcass->all_md5s($jobid);
+                }
+                # refresh node object
                 $node = $self->get_shock_node($node->{id}, $self->mgrast_token);
-                $node->{attributes}{progress}{completed} = 'md5s';
-                $node = $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
+                $self->update_progress($node, 'md5');
                 
                 # close cassandra db
                 $mgcass->close();
@@ -1173,8 +1178,7 @@ sub job_action {
                         $self->return_data({"ERROR" => "error: ".$@});
                     }
                 }
-                $node->{attributes}{progress}{completed} = 'metadata';
-                $node = $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
+                $self->update_progress($node, 'metadata');
                 
                 if ($sync == 1) {
                     $self->return_data({"data" => $solr_data});
@@ -1201,8 +1205,7 @@ sub job_action {
                 }
                 
                 # POST to shock, triggers end of asynch action
-                $node->{attributes}{progress}{completed} = 'solr';
-                $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
+                $self->update_progress($node, 'solr');
                 $self->put_shock_file($filename, $solr_str, $node->{id}, $self->mgrast_token, 1);
                 exit 0;
             }
@@ -1237,6 +1240,12 @@ sub solr_post {
         $err = "solr POST failed: ".$content;
     }
     return $err;
+}
+
+sub update_progress {
+    my ($self, $node, $status) = @_;
+    $node->{attributes}{progress}{completed} = $status;
+    $node = $self->update_shock_node($node->{id}, $node->{attributes}, $self->mgrast_token);
 }
 
 sub id_lookup {

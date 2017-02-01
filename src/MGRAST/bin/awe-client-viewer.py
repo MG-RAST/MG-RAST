@@ -30,6 +30,11 @@ MGP = { 'mgrast-prod': [
     'done stage',
     'notify job completion'
 ] }
+CGS = [
+    'mgrast_dbload',
+    'mgrast_single',
+    'mgrast_multi'
+]
 
 def get_awe(url, token):
     header = {'Accept': 'application/json', 'Authorization': 'mgrast '+token}
@@ -49,22 +54,25 @@ def main(args):
     
     (opts, args) = parser.parse_args()
     AWE_URL = opts.awe_url
-     
-    if opts.token and opts.clientgroup:
-        clients = get_awe(AWE_URL+'/client?total=0&group='+opts.clientgroup, opts.token)
-        stages = MGP[opts.pipeline]
+    stages  = MGP[opts.pipeline]
+    
+    if opts.token:
         if opts.summary:
-            pt = PrettyTable(["stage", "clients"])
+            clients = get_awe(AWE_URL+'/client', opts.token)
+            pt = PrettyTable(["stage"]+CGS)
             for i, s in enumerate(stages):
                 num = 0
+                row = [s]+[0 for _ in range(len(CGS))]
                 for c in clients:
-                    for k, v in c['current_work'].iteritems():
-                        if v is True:
-                            parts = k.split('_')
-                            if int(parts[1]) == i:
-                                num += 1
-                pt.add_row([s, num])
-        else:
+                    if (c['Status'] == 'active-busy') and (c['group'] in CGS):
+                        for k, v in c['current_work'].iteritems():
+                            if v is True:
+                                parts = k.split('_')
+                                if int(parts[1]) == i:
+                                    row[CGS.index(c['group'])+1] += 1
+                pt.add_row(row)
+        elif opts.clientgroup:
+            clients = get_awe(AWE_URL+'/client?group='+opts.clientgroup, opts.token)
             pt = PrettyTable(["name", "host", "status", "job", "stage"])
             sc = sorted(clients, key=itemgetter('name'))
             for c in sc:
@@ -83,7 +91,7 @@ def main(args):
         pt.align = "l"
         print pt
     else:
-        print "Missing required --token and --clientgroup"
+        print "Missing required --token"
         return 1
     return 0
 
