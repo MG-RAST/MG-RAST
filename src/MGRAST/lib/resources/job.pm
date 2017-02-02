@@ -1143,7 +1143,7 @@ sub job_action {
                 # get md5 list
                 if (exists($sdata->{md5}) && $sdata->{md5}) {
                     $solr_data->{md5} = $sdata->{md5};
-                else {
+                } else {
                     $solr_data->{md5} = $mgcass->all_md5s($jobid);
                 }
                 # refresh node object
