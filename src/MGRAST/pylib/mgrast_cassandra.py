@@ -129,7 +129,7 @@ class JobHandle(object):
     ## get iterator for md5 records of a job
     def get_job_records(self, job, fields, evalue=None, identity=None, alength=None):
         job = int(job)
-        query = "SELECT "+",".join(fields)+" from job_md5s WHERE version = ? AND job = ?"
+        query = "SELECT "+",".join(fields)+" FROM job_md5s WHERE version = ? AND job = ?"
         where = [self.version, job]
         if evalue:
             query += " AND exp_avg <= ?"

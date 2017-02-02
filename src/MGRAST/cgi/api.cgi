@@ -20,7 +20,6 @@ my %private_resources = (
     'status'   => 1,
     'user'     => 1
 );
-my %redirect_resource = ('matrix' => 1);
 
 # get request method
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
@@ -193,16 +192,6 @@ if($user) {
 
 # if a resource is passed, call the resources module
 if ($resource) {
-    #### redirect to depricated API if on list ####
-    if (exists $redirect_resource{$resource}) {
-        my $redirect_uri = $Conf::old_api.$cgi->url(-absolute=>1, -path_info=>1, -query=>1);
-        print STDERR "Redirect: $redirect_uri\n";
-        print $cgi->redirect(
-            -uri => $redirect_uri,
-            -status => '302 Found'
-        );
-        exit 0;
-    }
     my $error   = '';
     my $package = $Conf::api_resource_dir."::".$resource;
     {

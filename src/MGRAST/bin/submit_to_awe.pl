@@ -44,6 +44,7 @@ my $use_docker = 0;
 my $help       = 0;
 my $pipeline   = "";
 my $type       = "";
+my $priority   = 0;
 
 my $options = GetOptions (
     "job_id=s"       => \$job_id,
@@ -60,6 +61,7 @@ my $options = GetOptions (
 	"image_ver=s"    => \$image_ver,
 	"pipeline=s"     => \$pipeline,
 	"type=s"         => \$type,
+	"priority=i"     => \$priority,
 	"help!"          => \$help
 );
 
@@ -275,6 +277,10 @@ if (int($up_attr->{statistics}{bp_count}) < 50000000) {
 }
 if (int($up_attr->{statistics}{bp_count}) < 10000000) {
     $vars->{priority} = 50;
+}
+# override with input priority
+if ($priority > 0) {
+    $vars->{priority} = $priority;
 }
 
 # set node output type for preprocessing

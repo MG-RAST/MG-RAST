@@ -74,8 +74,8 @@ sub info {
             { 'name'        => "info",
 			  'request'     => $self->cgi->url."/".$self->name,
 			  'description' => "Returns description of parameters and attributes.",
-              'method'      => "GET" ,
-              'type'        => "synchronous" ,  
+              'method'      => "GET",
+              'type'        => "synchronous",
               'attributes'  => "self",
               'parameters'  => {
                   'options'  => {},
@@ -86,7 +86,7 @@ sub info {
               'request'     => $self->cgi->url."/".$self->name."/{ID}",
               'description' => "Submits profile creation",
               'method'      => "GET",
-              'type'        => "asynchronous",  
+              'type'        => "asynchronous",
               'attributes'  => $self->{submit},
               'parameters'  => {
                   'options' => {
@@ -107,7 +107,7 @@ sub info {
               'request'     => $self->cgi->url."/".$self->name."/status/{UUID}",
               'description' => "Return profile status and/or results",
               'method'      => "GET",
-              'type'        => "synchronous",  
+              'type'        => "synchronous",
               'attributes'  => $self->{status},
               'parameters'  => {
                   'options' => {
@@ -237,8 +237,14 @@ sub submit {
     };
     my $tnodes = $self->get_shock_query($tquery, $self->mgrast_token);
     if ($tnodes && (@$tnodes > 0)) {
-        my $obj = $self->status_report_from_node($tnodes->[0], "submitted");
-        $self->return_data($obj);
+        if ($retry) {
+            foreach my $n (@$tnodes) {
+                $self->delete_shock_node($n->{id}, $self->mgrast_token);
+            }
+        } else {
+            my $obj = $self->status_report_from_node($tnodes->[0], "submitted");
+            $self->return_data($obj);
+        }
     }
     
     # test cassandra access
@@ -252,9 +258,10 @@ sub submit {
     unless ($chdl) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
-    unless ($chdl->has_job($jobid)) {
-        # close handle
-        $chdl->close();
+    my $in_cassandra = $chdl->has_job($jobid);
+    $chdl->close();
+    
+    unless ($in_cassandra) {
         # need to redirect profile to postgres backend API
         my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
         print STDERR "Redirect: $redirect_uri\n";
@@ -264,26 +271,27 @@ sub submit {
         );
         exit 0;
     }
-    # close handle
-    $chdl->close();
     
     # need to create new temp node
     $tquery->{row_total} = 0;
     $tquery->{progress} = {
-        queried => 0,
-        found => 0
+        completed => 0,
+        queried   => 0,
+        found     => 0
     };
     $tquery->{parameters} = {
-        id => $mgid,
-        job_id => $jobid,
-        source => $source,
+        id          => $mgid,
+        job_id      => $jobid,
+        resource    => "profile",
+        source      => $source,
         source_type => $self->type_by_source($source),
-        format => $format,
-        retry => $retry,
-        condensed => $condensed,
-        version => $version
+        format      => $format,
+        retry       => $retry,
+        condensed   => $condensed,
+        version     => $version
     };
-    my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, "7D");
+    my $expire = ($format eq 'mgrast') ? "1D" : "7D";
+    my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, $expire);
     
     # asynchronous call, fork the process
     my $pid = fork();
@@ -350,7 +358,7 @@ sub create_profile {
     }
     
     # set shock
-    my $token  = $self->mgrast_token;
+    my $token = $self->mgrast_token;
     $mgcass->set_shock($token);
     
     ### saves output file or error message in shock

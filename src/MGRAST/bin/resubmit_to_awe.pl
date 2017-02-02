@@ -22,6 +22,7 @@ my $awe_id    = "";
 my $awe_url   = "";
 my $shock_url = "";
 my $template  = "";
+my $priority  = 0;
 my $help      = 0;
 my $use_docker   = 0;
 my $clientgroups = "";
@@ -32,6 +33,7 @@ my $options = GetOptions (
         "awe_url=s"   => \$awe_url,
         "shock_url=s" => \$shock_url,
         "template=s"  => \$template,
+        "priority=i"  => \$priority,
         "use_docker!"    => \$use_docker, # enables docker specific workflow entries, dockerimage and environ
     	"clientgroups=s" => \$clientgroups,
         "help!"       => \$help
@@ -126,6 +128,9 @@ Pipeline::set_jobcache_info($jobdb, $job_id, 'viewable', 0);
 
 # submit job
 my $cmd_str = $Conf::submit_to_awe." --job_id $job_id --input_node $input_node";
+if ($priority > 0) {
+    $cmd_str .= " --priority $priority";
+}
 if ($template ne "") {
     $cmd_str .= " --template $template";
 }

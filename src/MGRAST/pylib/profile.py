@@ -1,12 +1,15 @@
 
+import sys
+import time
 import datetime
 import json
 import shock
 import mgrast_cassandra
 from collections import defaultdict
 
+UPDATE_SECS  = 300
 M5NR_VERSION = 1
-CHUNK_SIZE = 100
+CHUNK_SIZE   = 100
 
 class Profile(object):
     def __init__(self, hosts, version=M5NR_VERSION, chunk=CHUNK_SIZE):
@@ -36,12 +39,12 @@ class Profile(object):
         if param['format'] == 'biom':
             try:
                 profile    = self.init_biom_profile(param['id'], param['source'], param['source_type'])
-                rows, data = self.get_biom_data(param['job_id'], param['source'])
+                rows, data = self.get_biom_data(param['job_id'], param['source'], node)
                 profile['rows'] = rows
                 profile['data'] = data
                 profile['shape'][0] = len(profile['rows'])
-            except:
-                self.error_exit("unable to build BIOM profile", node)
+            except Exception as ex:
+                self.error_exit("unable to build BIOM profile", node, ex)
                 return
         elif param['format'] == 'mgrast':
             try:
@@ -49,8 +52,8 @@ class Profile(object):
                 data    = self.get_mgrast_data(param['job_id'], param['source'], index, node)
                 profile['data'] = data
                 profile['row_total'] = len(profile['data'])
-            except:
-                self.error_exit("unable to build mgrast profile", node)
+            except Exception as ex:
+                self.error_exit("unable to build mgrast profile", node, ex)
                 return
         else:
             self.error_exit("unable to build profile, invalid format", node)
@@ -65,19 +68,24 @@ class Profile(object):
                 self.shock.update_expiration(node['id'])
                 if attr['status'] == 'public':
                     self.shock.add_acl(node=node['id'], acl='read', public=True)
-            except:
-                self.error_exit("unable to update profile shock node "+node['id'], node)
+            except Exception as ex:
+                self.error_exit("unable to update profile shock node "+node['id'], node, ex)
                 return
         
         ## store file in node
         self.shock.upload(node=node['id'], data=json.dumps(profile), file_name=fname)
         return
     
-    def error_exit(self, error, node=None):
+    def error_exit(self, error, node=None, ex=None):
+        if ex:
+            error += ": an exception of type {0} occured. Arguments:\n{1!r}".format(type(ex).__name__, ex.args)
         if node:
             # save error to node
             data = {'ERROR': error, "STATUS": 500}
             self.shock.upload(node=node['id'], data=json.dumps(data), file_name='error')
+            self.shock.update_expiration(node['id'], expiration='1D')
+        else:
+            sys.stderr.write(error+"\n")
         self.close()
     
     def init_mgrast_profile(self, mgid, source, stype, index=False):
@@ -149,6 +157,7 @@ class Profile(object):
         
         total = 0
         count = 0
+        prev  = time.time()
         recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
         for r in recs:
             md5_row[r[0]] = [r[0], r[1], r[2], r[3], r[4], None, None]
@@ -158,11 +167,11 @@ class Profile(object):
                 found, data = append_profile(found, data, md5_row)
                 md5_row = defaultdict(list)
                 count = 0
-            if (total % 100000) == 0:
-                self.update_progress(node, total, found)
+            if (total % 1000) == 0:
+                prev = self.update_progress(node, total, found, prev)
         if count > 0:
             found, data = append_profile(found, data, md5_row)
-        self.update_progress(node, total, found)
+        self.update_progress(node, total, found, 0) # last update
         return data
     
     def get_biom_data(self, job, source, node=None):
@@ -195,6 +204,7 @@ class Profile(object):
         
         total = 0
         count = 0
+        prev  = time.time()
         recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
         for r in recs:
             md5_row[r[0]] = [r[1], r[2], r[3], r[4]]
@@ -204,17 +214,25 @@ class Profile(object):
                 found, rows, data = append_profile(found, rows, data, md5_row)
                 md5_row = defaultdict(list)
                 count = 0
-            if (total % 100000) == 0:
-                self.update_progress(node, total, found)
+            if (total % 1000) == 0:
+                prev = self.update_progress(node, total, found, prev)
         if count > 0:
             found, rows, data = append_profile(found, rows, data, md5_row)
-        self.update_progress(node, total, found)
+        self.update_progress(node, total, found, 0) # last update
         return rows, data
     
-    def update_progress(self, node, total, found):
-        if self.shock and node:
+    # only update if been more than UPDATE_SECS
+    def update_progress(self, node, total, found, prev):
+        now = time.time()
+        if self.shock and node and (now > (prev + UPDATE_SECS)):
             attr = node['attributes']
             attr['progress']['queried'] = total
             attr['progress']['found'] = found
+            if prev == 0:
+                # final update
+                attr['progress']['completed'] = 1
             self.shock.upload(node=node['id'], attr=json.dumps(attr))
+            return now
+        else:
+            return prev
     

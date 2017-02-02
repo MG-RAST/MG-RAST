@@ -167,6 +167,7 @@ sub info {
                                           'type'        => "synchronous",
                                           'attributes'  => $self->{instance},
                                           'parameters'  => { 'options' => {
+                                                                 'nocache'   => ["boolean", "if true do not use cache"],
                                                                  'verbosity' => ['cv', [['minimal','returns only minimal information'],
                                                                                         ['metadata','returns minimal with metadata'],
                                                                                         ['stats','returns minimal with statistics'],
