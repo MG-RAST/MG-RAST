@@ -77,6 +77,7 @@ $json->allow_nonref;
 
 foreach my $mgid (@mg_list) {
     # get stats node id, verify in system
+    print STDERR "Processing $mgid\n";
     my $snid = "";
     eval {
         my $get = $agent->get($apiurl.'/download/'.$mgid."?stage=done", ('Authorization', "mgrast $admin_token"));
@@ -117,13 +118,13 @@ foreach my $mgid (@mg_list) {
         print STDERR "Started rarefaction compute: ".$url."\n";
         
         my $data = async_compute($url, $admin_token, 0);
-        unless ($data->{rarefaction} && $data->{alphadiversity}) {
+        unless ($data && $data->{data} && $data->{data}{rarefaction} && $data->{data}{alphadiversity}) {
             print STDERR "ERROR: unable to compute rarefaction for $mgid from API\n";
             next;
         }
         print STDERR "Completed rarefaction compute\n";
-        $sobj->{rarefaction} = $data->{rarefaction};
-        $sobj->{sequence_stats}{alpha_diversity_shannon} = $data->{alphadiversity};
+        $sobj->{rarefaction} = $data->{data}{rarefaction};
+        $sobj->{sequence_stats}{alpha_diversity_shannon} = $data->{data}{alphadiversity};
     }
     
     # compute abundances
@@ -132,19 +133,19 @@ foreach my $mgid (@mg_list) {
         print STDERR "Started abundance compute: ".$url."\n";
         
         my $data = async_compute($url, $admin_token, 0);
-        unless ($data) {
+        unless ($data && $data->{data}) {
             print STDERR "ERROR: unable to compute abundances for $mgid from API\n";
             next;
         }
         print STDERR "Completed abundances compute\n";
         if ($abundance eq 'all') {
-            $sobj->{taxonomy} = $data->{taxonomy};
-            $sobj->{function} = $data->{function};
-            $sobj->{ontology} = $data->{ontology};
+            $sobj->{taxonomy} = $data->{data}{taxonomy};
+            $sobj->{function} = $data->{data}{function};
+            $sobj->{ontology} = $data->{data}{ontology};
         } elsif ($abundance eq 'organism') {
-            $sobj->{taxonomy} = $data->{taxonomy};
+            $sobj->{taxonomy} = $data->{data}{taxonomy};
         } else {
-            $sobj->{$abundance} = $data->{$abundance};
+            $sobj->{$abundance} = $data->{data}{$abundance};
         }
     }
     
@@ -193,27 +194,32 @@ sub async_compute {
     my $data = undef;
     eval {
         my $get  = $agent->get($url."&retry=".$try, ('Authorization', "mgrast $token"));
-        my $info = $json->decode($get->content);
-        if ($info->{ERROR}) {
-            print STDERR "ERROR: ".$info->{ERROR}." - trying again\n";
+        $data = $json->decode($get->content);
+        if ($data->{ERROR}) {
+            print STDERR "ERROR: ".$data->{ERROR}." - trying again\n";
             $try += 1;
-            return async_compute($url, $token, $try);
+            $data = async_compute($url, $token, $try);
         }
-        print STDERR "status: ".$info->{url}."\n";
-        while ($info->{status} ne 'done') {
+        print STDERR "status: ".$data->{url}."\n";
+        while ($data->{status} ne 'done') {
             sleep $waittime;
-            $get = $agent->get($info->{url});
-            $info = $json->decode($get->content);
-            my $last = DateTime::Format::ISO8601->parse_datetime($info->{updated});
-            my $now  = shock_time();
-            my $diff = $now->subtract_datetime_absolute($last);
-            if ($diff->seconds > $errortime) {
-                print STDERR "ERROR: Async process died - trying again\n";
+            $get = $agent->get($data->{url});
+            $data = $json->decode($get->content);
+            if ($data->{ERROR}) {
+                print STDERR "ERROR: ".$data->{ERROR}." - trying again\n";
                 $try += 1;
-                return async_compute($url, $token, $try);
+                $data = async_compute($url, $token, $try);
+            } else {
+                my $last = DateTime::Format::ISO8601->parse_datetime($data->{updated});
+                my $now  = shock_time();
+                my $diff = $now->subtract_datetime_absolute($last);
+                if ($diff->seconds > $errortime) {
+                    print STDERR "ERROR: Async process died - trying again\n";
+                    $try += 1;
+                    $data = async_compute($url, $token, $try);
+                }
             }
         }
-        $data = $info->{data};
     };
     return $data;
 }
@@ -229,4 +235,3 @@ sub shock_time {
 }
 
 exit 0;
-
