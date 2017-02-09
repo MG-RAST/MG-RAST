@@ -268,6 +268,9 @@ sub post_action {
     elsif ($rest->[1] eq 'updatemetadata') {
       my $id = $rest->[0];
       $id =~ s/mgp//;
+      unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
+	$self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+      }
       my $project = $master->Project->init({id => $id});
       if ($self->cgi->param('project_name')) {
 	$project->name($self->cgi->param('project_name'));
@@ -291,17 +294,15 @@ sub post_action {
       $keyval->{organization_country} = $self->cgi->param('organization_country');
       $keyval->{organization_url} = $self->cgi->param('organization_url');
       $keyval->{organization_address} = $self->cgi->param('organization_address');
-      
+
       foreach my $key (keys(%$keyval)) {
 	my $existing = $metadbm->ProjectMD->get_objects( {project => $project, tag => $key} );
 	if (scalar(@$existing)) {
-	  while (scalar(@$existing) > 1) {
-	    delete $existing->[0];
+	  foreach my $pmd (@$existing) {
+	    $pmd->delete();
 	  }
-	  $existing->[0]->value($keyval->{$key});
-	} else {
-	  $metadbm->ProjectMD->create( {project => $project, tag => $key, value => $keyval->{$key}} );
 	}
+	$metadbm->ProjectMD->create( {project => $project, tag => $key, value => $keyval->{$key}} );
       }
       
       # return success
@@ -311,6 +312,9 @@ sub post_action {
     elsif ($rest->[1] eq 'submittoebi') {
       my $id = $rest->[0];
       $id =~ s/mgp//;
+      unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
+	$self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+      }
       my $project = $master->Project->init({id => $id});
       if ($self->cgi->param('project_name')) {
 	$project->name($self->cgi->param('project_name'));
