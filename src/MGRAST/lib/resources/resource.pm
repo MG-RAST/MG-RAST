@@ -444,7 +444,7 @@ sub header {
     }
     my $size = 0;
     {
-        use bytes;
+        #use bytes;
         if ($text) {
             $size = length($text);
         }
@@ -650,17 +650,19 @@ sub return_data {
         }
         # normal return
         else {
-            if ($self->format eq 'application/json') {
-                $data = $self->json->encode($data);
-            }
-            # cache this!
-            if ($cache_me && $self->memd) {
-                $self->memd->set($self->url_id, $data, $self->{expire});
-            }
-            # send it
-            print $self->header($status, $data);
-            print $data;
-            exit 0;
+	  if ($self->format eq 'application/json') {
+	    $self->format('application/json; charset=UTF-8');
+	    $data = to_json $data;
+	  }
+	  
+	  # cache this!
+	  if ($cache_me && $self->memd) {
+	    $self->memd->set($self->url_id, $data, $self->{expire});
+	  }
+	  # send it
+	  print $self->header($status, $data);
+	  print $data;
+	  exit 0;
         }
     }
 }

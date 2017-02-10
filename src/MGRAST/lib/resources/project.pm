@@ -268,6 +268,9 @@ sub post_action {
     elsif ($rest->[1] eq 'updatemetadata') {
       my $id = $rest->[0];
       $id =~ s/mgp//;
+      unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
+	$self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+      }
       my $project = $master->Project->init({id => $id});
       if ($self->cgi->param('project_name')) {
 	$project->name($self->cgi->param('project_name'));
@@ -275,6 +278,7 @@ sub post_action {
       
       my $metadbm = MGRAST::Metadata->new->_handle();
       my $keyval = {};
+      $keyval->{project_name} = $self->cgi->param('project_name');
       $keyval->{project_description} = $self->cgi->param('project_description');
       $keyval->{project_funding} = $self->cgi->param('project_funding');
       $keyval->{PI_email} = $self->cgi->param('pi_email');
@@ -291,17 +295,15 @@ sub post_action {
       $keyval->{organization_country} = $self->cgi->param('organization_country');
       $keyval->{organization_url} = $self->cgi->param('organization_url');
       $keyval->{organization_address} = $self->cgi->param('organization_address');
-      
+
       foreach my $key (keys(%$keyval)) {
 	my $existing = $metadbm->ProjectMD->get_objects( {project => $project, tag => $key} );
 	if (scalar(@$existing)) {
-	  while (scalar(@$existing) > 1) {
-	    delete $existing->[0];
+	  foreach my $pmd (@$existing) {
+	    $pmd->delete();
 	  }
-	  $existing->[0]->value($keyval->{$key});
-	} else {
-	  $metadbm->ProjectMD->create( {project => $project, tag => $key, value => $keyval->{$key}} );
 	}
+	$metadbm->ProjectMD->create( {project => $project, tag => $key, value => $keyval->{$key}} );
       }
       
       # return success
@@ -311,51 +313,63 @@ sub post_action {
     elsif ($rest->[1] eq 'submittoebi') {
       my $id = $rest->[0];
       $id =~ s/mgp//;
+      unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
+	$self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+      }
       my $project = $master->Project->init({id => $id});
       if ($self->cgi->param('project_name')) {
 	$project->name($self->cgi->param('project_name'));
       }
-        my $metadbm = MGRAST::Metadata->new->_handle();
-        
-        # set ebi_tech in project
-        my $tech = $metadbm->ProjectMD->get_objects( {project => $project, tag => 'ebi_tech'} );
-        if (scalar(@$tech)) {
-            while (scalar(@$tech) > 1) {
-                delete $tech->[0];
-            }
-            $tech->[0]->value($self->cgi->param('ebi_tech'));
-        } else {
-            $metadbm->ProjectMD->create( {project => $project, tag => 'ebi_tech', value => $self->cgi->param('ebi_tech')} );
-        }
+      
+      my $metadbm = MGRAST::Metadata->new->_handle();
 
-        # set the biome in the samples
-        my $mgs = $project->metagenomes();
-        foreach my $mg (@$mgs) {
-            if ($self->cgi->param($mg->{metagenome_id})) {
-                my $val = $self->cgi->param($mg->{metagenome_id});
-                my $attr = {
-                    collection => $mg->sample,
-                    tag        => 'ncbi_taxon_id',
-                    value      => $val,
-                    required   => 0,
-                    mixs       => 0
-                };
-                my $existing = $metadbm->MetaDataEntry->get_objects($attr);
-                if (scalar(@$existing)) {
-                    while (scalar(@$existing) > 1) {
-                        delete $existing->[0];
-                    }
-                    $existing->[0]->value($val);
-                } else {
-                    $metadbm->MetaDataEntry->create( $attr );
-                }
-            } else {
-                $self->return_data( { "ERROR" => "error updating sample biome entries for ebi submission" }, 404 );
-            }
-        }
-        # at this point we can submit to EBI
-        $self->return_data( {"OK" => "metadata updated for EBI"}, 200 );
+      # set the biome and seq_tech in the samples / libraries
+      my $mgs = $project->metagenomes();
+      foreach my $mg (@$mgs) {
+	if ($self->cgi->param('biome'.$mg->{metagenome_id})) {
+	  my $val = $self->cgi->param('biome'.$mg->{metagenome_id});
+	  my $attr = {
+		      collection => $mg->sample,
+		      tag        => 'ncbi_taxon_id',
+		      value      => $val,
+		      required   => 0,
+		      mixs       => 0
+		     };
+	  my $existing = $metadbm->MetaDataEntry->get_objects($attr);
+	  if (scalar(@$existing)) {
+	    foreach my $pmd (@$existing) {
+	      $pmd->delete();
+	    }
+	  }
+	  $metadbm->MetaDataEntry->create( $attr );
+	} else {
+	  $self->return_data( { "ERROR" => "error updating sample biome entries for ebi submission" }, 500 );
+	}
+	
+	if ($self->cgi->param('tech'.$mg->{metagenome_id})) {
+	  my $val = $self->cgi->param('tech'.$mg->{metagenome_id});
+	  my $attr = {
+		      collection => $mg->library,
+		      tag        => 'ebi_tech',
+		      value      => $val,
+		      required   => 0,
+		      mixs       => 0
+		     };
+	  my $existing = $metadbm->MetaDataEntry->get_objects($attr);
+	  if (scalar(@$existing)) {
+	    foreach my $pmd (@$existing) {
+	      $pmd->delete();
+	    }
+	  }
+	  
+	  $metadbm->MetaDataEntry->create( $attr );
+	} else {
+	  $self->return_data( { "ERROR" => "error updating library seq_model entries for ebi submission" }, 500 );
+	}
       }
+      # at this point we can submit to EBI
+      $self->return_data( {"OK" => "metadata updated for EBI"}, 200 );
+    }
   }
 
 sub get_action {
