@@ -444,7 +444,7 @@ sub header {
     }
     my $size = 0;
     {
-        use bytes;
+        #use bytes;
         if ($text) {
             $size = length($text);
         }
