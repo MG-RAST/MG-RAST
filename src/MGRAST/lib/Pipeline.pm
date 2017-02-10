@@ -87,7 +87,7 @@ sub set_job_tag_data {
 sub template_keywords {
     return {
         # versions
-        'pipeline_version'   => "4.01",
+        'pipeline_version'   => "4.0.1",
         'ach_sequence_ver'   => "7",
         'ach_annotation_ver' => "1",
 

@@ -79,14 +79,6 @@ if ($help) {
     exit 1;
 }
 
-# default is production
-unless ($pipeline) {
-    $pipeline = "mgrast-prod";
-}
-unless ($type) {
-    $type = "metagenome";
-}
-
 # set obj handles
 my $jobdb = undef;
 
@@ -135,6 +127,13 @@ if ($submit_id) {
 
 my $template_str = read_file($template);
 
+# default is production
+unless ($pipeline) {
+    $pipeline = "mgrast-prod-".$vars->{pipeline_version};
+}
+unless ($type) {
+    $type = "metagenome";
+}
 
 # get job related info from DB
 my $jobj = Pipeline::get_jobcache_info($jobdb, $job_id);
