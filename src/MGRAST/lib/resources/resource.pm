@@ -44,7 +44,6 @@ sub new {
     my $agent = LWP::UserAgent->new;
     $agent->timeout(600);
     my $json = JSON->new;
-    $json = $json->utf8();
     $json->max_size(0);
     $json->allow_nonref;
     
@@ -583,7 +582,7 @@ sub return_cached {
 
 # print the actual data output
 sub return_data {
-    my ($self, $data, $error, $cache_me) = @_;
+    my ($self, $data, $error, $cache_me, $raw) = @_;
 
     # default status is OK
     my $status = 200;  
@@ -652,7 +651,9 @@ sub return_data {
         else {
 	  if ($self->format eq 'application/json') {
 	    $self->format('application/json; charset=UTF-8');
-	    $data = to_json $data;
+	    unless ($raw) {
+	      $data = to_json $data;
+	    }
 	  }
 	  
 	  # cache this!
