@@ -651,9 +651,7 @@ sub return_data {
         else {
 	  if ($self->format eq 'application/json') {
 	    $self->format('application/json; charset=UTF-8');
-	    unless ($raw) {
-	      $data = to_json $data;
-	    }
+	    $data = to_json($data,{utf8=>1});
 	  }
 	  
 	  # cache this!
