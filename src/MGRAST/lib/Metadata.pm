@@ -830,9 +830,15 @@ sub add_template_to_data {
   }
   while ( my ($tag, $val) = each %$data ) {
     $val = clean_value($val);
-    next unless ($all || $template->{$cat}{$tag}{required} || (defined($val) && ($val =~ /\S/)));
+    next unless (($all || $template->{$cat}{$tag}{required}) && (defined($val) && ($val =~ /\S/)));
     if (! exists $template->{$cat}{$tag}) {
-        $t_data->{$tag} = $self->misc_param($val);
+        $t_data->{$tag}{unit} = '';
+        $t_data->{$tag}{type} = 'text';
+        $t_data->{$tag}{mixs} = 0;
+        $t_data->{$tag}{aliases} = ['misc_param'];
+        $t_data->{$tag}{required} = 0;
+        $t_data->{$tag}{definition} = 'any other measurement performed or parameter collected, that is not listed here';
+        $t_data->{$tag}{value} = $val;
     } else {
         $t_data->{$tag}{unit} = $template->{$cat}{$tag}{unit};
         $t_data->{$tag}{type} = $template->{$cat}{$tag}{type};
