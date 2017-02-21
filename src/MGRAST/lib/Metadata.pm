@@ -889,20 +889,20 @@ sub strict_typing {
         next unless (defined($val) && ($val =~ /\S/));
         if (! exists($template->{$cat}{$tag})) {
             # this is user defined
-            $t_data->{$tag} = $value;
+            $t_data->{$tag} = $val;
         } elsif (($template->{$cat}{$tag}{type} eq 'int') || ($template->{$cat}{$tag}{type} eq 'boolean')) {
             # any integer
-            if ($value =~ /^[+-]?\d+$/) {
-                $t_data->{$tag} = int($value);
+            if ($val =~ /^[+-]?\d+$/) {
+                $t_data->{$tag} = int($val);
             }
         } elsif (($template->{$cat}{$tag}{type} eq 'float') || ($template->{$cat}{$tag}{type} eq 'coordinate')) {
             # any float
-            if ($value =~ /^-?(?:\d+(?:\.\d*)?|\.\d+)$/) {
-                $t_data->{$tag} = $value * 1.0;
+            if ($val =~ /^-?(?:\d+(?:\.\d*)?|\.\d+)$/) {
+                $t_data->{$tag} = $val * 1.0;
             }
         } else {
             # text or whatever
-            $t_data->{$tag} = $value;
+            $t_data->{$tag} = $val;
         }
     }
     return $t_data;
