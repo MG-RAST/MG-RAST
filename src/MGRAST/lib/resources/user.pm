@@ -342,7 +342,7 @@ sub instance {
   
   # check if this is a reset password request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
-    if (! $self->user->has_star_right('edit', 'user')) {
+    if (! $self->user || ! $self->user->has_star_right('edit', 'user')) {
       # passwords may only be reset with a valid recaptcha
       my $ua = $self->{agent};
       $ua->env_proxy();
