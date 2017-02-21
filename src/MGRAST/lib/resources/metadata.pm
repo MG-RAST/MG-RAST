@@ -419,7 +419,7 @@ sub instance {
             $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
         }
         # prepare data / get mixs
-        my $data = $mddb->get_jobs_metadata_fast([$mgid], 1)->{$mgid};
+        my $data = $mddb->get_job_metadata($job, 1, 0);
         my $mixs = $mddb->get_job_mixs($job);
         $data->{mixs} = $mixs;
         $self->return_data($data);

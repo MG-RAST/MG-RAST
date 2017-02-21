@@ -448,7 +448,7 @@ sub prepare_data {
     
     if (($verb eq 'metadata') || ($verb eq 'full')) {
         $mddb = MGRAST::Metadata->new();
-        $jobdata = $mddb->get_jobs_metadata_fast($mgids, 1);
+        $jobdata = $mddb->get_jobs_metadata_fast($mgids, 1, 1);
     }
 
     my $objects = [];
