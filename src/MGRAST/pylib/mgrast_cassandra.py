@@ -140,6 +140,8 @@ class JobHandle(object):
         if alength:
             query += " AND len_avg >= ?"
             where.append(int(alength))
+        if evalue or identity or alength:
+            query += " ALLOW FILTERING"
         prep = self.session.prepare(query)
         return self.session.execute(prep, where)
     ## get index for one md5

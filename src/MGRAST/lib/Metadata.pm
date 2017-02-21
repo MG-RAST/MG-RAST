@@ -287,7 +287,7 @@ where key is same type as input array
 =cut 
 
 sub get_jobs_metadata_fast {
-  my ($self, $job_ids, $is_mgid) = @_;
+  my ($self, $job_ids, $is_mgid, $strict_typing) = @_;
 
   my $data  = {};
   my $projs = {};
@@ -378,6 +378,14 @@ sub get_jobs_metadata_fast {
       }
     }
   }
+  if ($strict_typing) {
+      foreach my $j (keys %$data) {
+          $data->{$j}{project}{data}     = $self->strict_typing('project', $data->{$key}{project}{data});
+          $data->{$j}{sample}{data}      = $self->strict_typing('sample', $data->{$key}{sample}{data});
+          $data->{$j}{library}{data}     = $self->strict_typing($data->{$j}{library}{data}{investigation_type}, $data->{$key}{library}{data});
+          $data->{$j}{env_package}{data} = $self->strict_typing($data->{$j}{sample}{data}{env_package}, $data->{$key}{env_package}{data});
+      }
+  }
   return $data;
 }
 
@@ -392,7 +400,7 @@ where key is metageome_id if is_mgid=1, else job_id (default)
 =cut 
 
 sub get_jobs_metadata {
-  my ($self, $jobs, $is_mgid, $full_data) = @_;
+  my ($self, $jobs, $is_mgid, $full_data, $strict_typing) = @_;
 
   my $data = {};
   foreach my $job (@$jobs) {
@@ -400,15 +408,21 @@ sub get_jobs_metadata {
     if ($job->primary_project) {
       $data->{$key}{project} = {id => 'mgp'.$job->primary_project->id, name => $job->primary_project->name, public => $job->primary_project->public, data => $job->primary_project->data};
       map { $data->{$key}{project}{data}{$_} =~ s/^(gaz|country):\s?//i } grep {$data->{$key}{project}{data}{$_}} keys %{$data->{$key}{project}{data}};
+      if ($strict_typing) {
+          $data->{$key}{project}{data} = $self->strict_typing('project', $data->{$key}{project}{data});
+      }
       if ($full_data) {
-	$data->{$key}{project}{data} = $self->add_template_to_data('project', $data->{$key}{project}{data});
+	      $data->{$key}{project}{data} = $self->add_template_to_data('project', $data->{$key}{project}{data});
       }
     }
     if ($job->sample) {
       $data->{$key}{sample} = {id => 'mgs'.$job->sample->ID, name => $job->sample->name || $job->name, data => $job->sample->data};
       map { $data->{$key}{sample}{data}{$_} =~ s/^(gaz|country|envo):\s?//i } grep {$data->{$key}{sample}{data}{$_}} keys %{$data->{$key}{sample}{data}};
+      if ($strict_typing) {
+          $data->{$key}{sample}{data} = $self->strict_typing('sample', $data->{$key}{sample}{data});
+      }
       if ($full_data) {
-	$data->{$key}{sample}{data} = $self->add_template_to_data('sample', $data->{$key}{sample}{data});
+	      $data->{$key}{sample}{data} = $self->add_template_to_data('sample', $data->{$key}{sample}{data});
       }
     }
     if ($job->library) {
@@ -416,7 +430,7 @@ sub get_jobs_metadata {
       ## type: calculated takes precidence over inputed
       $data->{$key}{library}{type} = $job->sequence_type ? $job->sequence_type : $self->investigation_type_alias($job->library->lib_type);
       unless ($data->{$key}{library}{data}{seq_meth}) {
-	$data->{$key}{library}{data}{seq_meth} = $job->data('sequencing_method_guess')->{sequencing_method_guess} || '';
+	      $data->{$key}{library}{data}{seq_meth} = $job->data('sequencing_method_guess')->{sequencing_method_guess} || '';
       }
       # make sure these are same as job table
       $data->{$key}{library}{data}{metagenome_id}   = $job->{metagenome_id};
@@ -424,15 +438,21 @@ sub get_jobs_metadata {
       if ($job->{file}) { $data->{$key}{library}{data}{file_name} = $job->{file}; }
       if ($job->{file_checksum_raw}) { $data->{$key}{library}{data}{file_checksum} = $job->{file_checksum_raw}; }
       # add template if requested
+      if ($strict_typing) {
+          $data->{$key}{library}{data} = $self->strict_typing($job->library->lib_type, $data->{$key}{library}{data});
+      }
       if ($full_data) {
-	$data->{$key}{library}{data} = $self->add_template_to_data($job->library->lib_type, $data->{$key}{library}{data});
+	      $data->{$key}{library}{data} = $self->add_template_to_data($job->library->lib_type, $data->{$key}{library}{data});
       }
     }
     my $ep = $job->env_package;
     if ($ep) {
       $data->{$key}{env_package} = {id => 'mge'.$ep->ID, name => $ep->name || $job->name.": ".$ep->ep_type, type => $ep->ep_type, data => $ep->data};
+      if ($strict_typing) {
+          $data->{$key}{env_package}{data} = $self->strict_typing($ep->ep_type, $data->{$key}{env_package}{data});
+      }
       if ($full_data) {
-	$data->{$key}{env_package}{data} = $self->add_template_to_data($ep->ep_type, $data->{$key}{env_package}{data});
+	      $data->{$key}{env_package}{data} = $self->add_template_to_data($ep->ep_type, $data->{$key}{env_package}{data});
       }
     }
   }
@@ -449,9 +469,9 @@ category_type => { id => #, name => '', type => '', data => {tag => value} }
 =cut 
 
 sub get_job_metadata {
-  my ($self, $job, $full_data) = @_;
+  my ($self, $job, $full_data, $strict_typing) = @_;
 
-  my $data = $self->get_jobs_metadata([$job], 0, $full_data);
+  my $data = $self->get_jobs_metadata([$job], 0, $full_data, $strict_typing);
   return exists($data->{$job->job_id}) ? $data->{$job->job_id} : {};
 }
 
@@ -473,8 +493,8 @@ sub get_job_mixs {
 	    $mixs->{PI_lastname}  = $pdata->{PI_lastname};
     };
     my $lat_lon = $job->lat_lon;
-    $mixs->{latitude}   = (@$lat_lon > 1) ? $lat_lon->[0] : "";
-    $mixs->{longitude}  = (@$lat_lon > 1) ? $lat_lon->[1] : "";
+    $mixs->{latitude}   = (@$lat_lon > 1) ? ($lat_lon->[0] * 1.0) : undef;
+    $mixs->{longitude}  = (@$lat_lon > 1) ? ($lat_lon->[1] * 1.0) : undef;
     $mixs->{country}    = $job->country || "";
     $mixs->{location}   = $job->location || "";
     $mixs->{biome}      = $job->biome || "";
@@ -731,7 +751,7 @@ sub export_metadata_for_project {
   $pdata->{mgrast_id}    = 'mgp'.$project->id;
   my $mdata = { name => $project->name,
 		id   => 'mgp'.$project->id,
-		data => $self->add_template_to_data('project', $pdata, $all_fields),
+		data => $self->add_template_to_data('project', $pdata),
 		sampleNum => 0,
 		samples   => [] };
 
@@ -796,16 +816,16 @@ sub export_metadata_for_project {
     if ($samples->{$k}->{libraries}) {
       foreach my $lib (@{$samples->{$k}->{libraries}}) {
 	delete $lib->{parent};
-	$lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data}, $all_fields);
+	$lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data});
       }
     }
 
     # objectify the ep
     delete $samples->{$k}->{envPackage}->{parent};
-    $samples->{$k}->{envPackage}->{data} = $self->add_template_to_data($samples->{$k}->{envPackage}->{type}, $samples->{$k}->{envPackage}->{data}, $all_fields);
+    $samples->{$k}->{envPackage}->{data} = $self->add_template_to_data($samples->{$k}->{envPackage}->{type}, $samples->{$k}->{envPackage}->{data});
 
     # objectify the sample
-    $samples->{$k}->{data} = $self->add_template_to_data('sample', $samples->{$k}->{data}, $all_fields);
+    $samples->{$k}->{data} = $self->add_template_to_data('sample', $samples->{$k}->{data});
     
     push(@{$mdata->{samples}}, $samples->{$k});
   }
@@ -819,19 +839,21 @@ sub export_metadata_for_project {
 ## output: { tag => {aliases=>[<str>], definition=><str>, required=><bool>, mixs=><bool>, type=><str>, unit=><str>, value=><str>} }
 ## all required tags will be added
 sub add_template_to_data {
-  my ($self, $cat, $data, $all) = @_;
+  my ($self, $cat, $data) = @_;
   my $t_data   = {};
   my $template = $self->template;
-  my @required = grep { ($_ ne 'category_type') && $template->{$cat}{$_}{required} } keys %{$template->{$cat}};
-  map { $data->{$_} = '' } grep { ! exists($data->{$_}) } @required;
-  if ($all) {
-    my @all_fields = grep { $_ ne 'category_type' } keys %{$template->{$cat}};
-    map { $data->{$_} = '' } grep { ! exists($data->{$_}) } @all_fields;
+  unless (exists $template->{$cat}) {
+      return {};
   }
+  my %required = map { $_, 1 } grep { ($_ ne 'category_type') && $template->{$cat}{$_}{required} } keys %{$template->{$cat}};
+  # add missing required
+  map { $data->{$_} = '' } grep { ! exists($data->{$_}) } keys %required;
   while ( my ($tag, $val) = each %$data ) {
     $val = clean_value($val);
-    next unless (($all || $template->{$cat}{$tag}{required}) && (defined($val) && ($val =~ /\S/)));
-    if (! exists $template->{$cat}{$tag}) {
+    # only skip empty values if not required
+    next unless (exists($required{$tag}) || (defined($val) && ($val =~ /\S/)));
+    if (! exists($template->{$cat}{$tag})) {
+        # this is user defined
         $t_data->{$tag}{unit} = '';
         $t_data->{$tag}{type} = 'text';
         $t_data->{$tag}{mixs} = 0;
@@ -850,6 +872,40 @@ sub add_template_to_data {
     }
   }
   return $t_data;
+}
+
+## input:  { tag => value }
+## output: same as input but with values in correct type based on template
+##         if unable to type cast, remove value
+sub strict_typing {
+    my ($self, $cat, $data) = @_;
+    my $t_data   = {};
+    my $template = $self->template;
+    unless (exists $template->{$cat}) {
+        return {};
+    }
+    while ( my ($tag, $val) = each %$data ) {
+        $val = clean_value($val);
+        next unless (defined($val) && ($val =~ /\S/));
+        if (! exists($template->{$cat}{$tag})) {
+            # this is user defined
+            $t_data->{$tag} = $value;
+        } elsif (($template->{$cat}{$tag}{type} eq 'int') || ($template->{$cat}{$tag}{type} eq 'boolean')) {
+            # any integer
+            if ($value =~ /^[+-]?\d+$/) {
+                $t_data->{$tag} = int($value);
+            }
+        } elsif (($template->{$cat}{$tag}{type} eq 'float') || ($template->{$cat}{$tag}{type} eq 'coordinate')) {
+            # any float
+            if ($value =~ /^-?(?:\d+(?:\.\d*)?|\.\d+)$/) {
+                $t_data->{$tag} = $value * 1.0;
+            }
+        } else {
+            # text or whatever
+            $t_data->{$tag} = $value;
+        }
+    }
+    return $t_data;
 }
 
 sub clean_value {
