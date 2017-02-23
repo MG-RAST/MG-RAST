@@ -44,7 +44,6 @@ sub new {
     my $agent = LWP::UserAgent->new;
     $agent->timeout(600);
     my $json = JSON->new;
-    $json = $json->utf8();
     $json->max_size(0);
     $json->allow_nonref;
     
@@ -444,7 +443,7 @@ sub header {
     }
     my $size = 0;
     {
-        use bytes;
+        #use bytes;
         if ($text) {
             $size = length($text);
         }
@@ -583,7 +582,7 @@ sub return_cached {
 
 # print the actual data output
 sub return_data {
-    my ($self, $data, $error, $cache_me) = @_;
+    my ($self, $data, $error, $cache_me, $raw) = @_;
 
     # default status is OK
     my $status = 200;  
@@ -650,17 +649,19 @@ sub return_data {
         }
         # normal return
         else {
-            if ($self->format eq 'application/json') {
-                $data = $self->json->encode($data);
-            }
-            # cache this!
-            if ($cache_me && $self->memd) {
-                $self->memd->set($self->url_id, $data, $self->{expire});
-            }
-            # send it
-            print $self->header($status, $data);
-            print $data;
-            exit 0;
+	  if ($self->format eq 'application/json') {
+	    $self->format('application/json; charset=UTF-8');
+	    $data = to_json($data,{utf8=>1});
+	  }
+	  
+	  # cache this!
+	  if ($cache_me && $self->memd) {
+	    $self->memd->set($self->url_id, $data, $self->{expire});
+	  }
+	  # send it
+	  print $self->header($status, $data);
+	  print $data;
+	  exit 0;
         }
     }
 }
