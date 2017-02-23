@@ -228,6 +228,28 @@ sub instance {
     }
     $self->return_data( { "OK" => "email validated" }, 200 );
   }
+
+  # check for account (de)activation
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'deactivate') {
+    if ($self->user->has_right(undef, 'edit', 'user', '*')) {
+      my $impUser = $master->User->get_objects({ login => $rest->[1] });
+      if (scalar(@$impUser)) {
+	$impUser = $impUser->[0];
+	if ($self->cgi->param('active') eq "1") {
+	  $impUser->active(1);
+	} else {
+	  $master->db_handle()->do("UPDATE User SET active=0 WHERE login='".$impUser->{login}."'");
+	  $master->db_handle()->commit;
+	}
+	$self->return_data( { "login" => $impUser->{login},
+			      "OK" => "user account ".($self->cgi->param('active') == "1" ? "" : "de")."activated" }, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "user not found"}, 404 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+    }
+  }
   
   # check if this is an impersonation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
@@ -320,20 +342,22 @@ sub instance {
   
   # check if this is a reset password request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
-    # passwords may only be reset with a valid recaptcha
-    my $ua = $self->{agent};
-    $ua->env_proxy();
-    my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', { secret => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
-									       remoteip   => $ENV{'REMOTE_ADDR'},
-									       response   => $self->{cgi}->param('response') } );
-    if ( $resp->is_success ) {
-      my $answer = $self->json->decode($resp->content);
-      if ( ! $answer->{success} ) {
-	$self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
+    if (! $self->user || ! $self->user->has_star_right('edit', 'user')) {
+      # passwords may only be reset with a valid recaptcha
+      my $ua = $self->{agent};
+      $ua->env_proxy();
+      my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', { secret => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+										 remoteip   => $ENV{'REMOTE_ADDR'},
+										 response   => $self->{cgi}->param('response') } );
+      if ( $resp->is_success ) {
+	my $answer = $self->json->decode($resp->content);
+	if ( ! $answer->{success} ) {
+	  $self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
+	}
+      } else {
+	
+	$self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
       }
-    } else {
-
-      $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
     }
     
     # if we get here, recaptcha is successful
@@ -437,18 +461,29 @@ sub instance {
   
   # check if this is a user update
   if ($self->{method} eq 'PUT') {
+    if (defined $self->{cgi}->param('dwp') && $self->user->has_star_right('edit', 'user')) {
+      &set_password($user, $self->cgi->param('dwp'));
+    }
     if (defined $self->{cgi}->param('email')) {
-      # check if this is a new address and verify it if so
-      if ($user->{email} ne uri_unescape($self->{cgi}->param('email'))) {
-	$self->verify_email();
-	$user->{updated_email} = 'verifying';
+      if ($self->user->has_star_right('edit', 'user')) {
+	$user->email(uri_unescape($self->{cgi}->param('email')));
+      } else {
+	# check if this is a new address and verify it if so
+	if ($user->{email} ne uri_unescape($self->{cgi}->param('email'))) {
+	  $self->verify_email();
+	  $user->{updated_email} = 'verifying';
+	}
       }
     }
     if (defined $self->{cgi}->param('email2')) {
-      # check if this is a new address and verify it if so
-      if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2'))) {
-	$self->verify_email(1);
-	$user->{updated_email2} = 'verifying';
+      if ($self->user->has_star_right('edit', 'user')) {
+	$user->email(uri_unescape($self->{cgi}->param('email2')));
+      } else {
+	# check if this is a new address and verify it if so
+	if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2'))) {
+	  $self->verify_email(1);
+	  $user->{updated_email2} = 'verifying';
+	}
       }
     }
     if (defined $self->{cgi}->param('firstname')) {

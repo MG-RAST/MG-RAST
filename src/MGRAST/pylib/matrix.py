@@ -150,10 +150,10 @@ class Matrix(object):
                         row_idx[a] = rindex
                         if param['result_type'] == 'abundance':
                             # populate data with zero's
-                            data[rindex] = [0 for _ in range(row_len)]
+                            data.append([0 for _ in range(row_len)])
                         else:
                             # populate data with tuple of zero's
-                            data[rindex] = [(0,0) for _ in range(row_len)]
+                            data.append([(0,0) for _ in range(row_len)])
                         next_idx += 1
                     # get md5 value for job
                     # curr is int if abundance, tuple otherwise
@@ -202,6 +202,8 @@ class Matrix(object):
         if param['hier_match'] and (len(hierarchy) > 0):
             for r in rows:
                 for h in hierarchy:
+                    if param['hier_match'] not in h:
+                        continue
                     if r['id'] == h[param['hier_match']]:
                         if 'organism' in h:
                             h['strain'] = h['organism']

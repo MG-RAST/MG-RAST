@@ -430,6 +430,7 @@ sub process_parameters {
     }
     my $id_map  = $master->Job->get_job_ids($data);
     my @job_ids = map { $id_map->{$_} } @$data;
+    my @mg_ids  = map { 'mgm'.$_ } @$data;
     
     # reset type
     if (exists($func_srcs{$source}) && ($type eq "function")) {
@@ -494,7 +495,7 @@ sub process_parameters {
     my $params = {
         id          => $matrix_id,
         url         => $matrix_url,
-        mg_ids      => $data,
+        mg_ids      => \@mg_ids,
         job_ids     => \@job_ids,
         resource    => "matrix",
         type        => $type,
@@ -524,7 +525,7 @@ sub create_matrix {
     my $mgcass = $self->cassandra_matrix($params->{version});
     
     # set shock
-    my $token  = $self->mgrast_token;
+    my $token = $self->mgrast_token;
     $mgcass->set_shock($token);
     
     ### create matrix / saves output file or error message in shock
