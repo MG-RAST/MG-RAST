@@ -238,7 +238,6 @@ sub status {
     my $is_admin = $self->user->is_admin('MGRAST') ? 1 : 0;
     
     # get data
-    my $nodes  = $self->submission_nodes($uuid, 1, $is_admin);
     my $jobs   = $self->submission_jobs($uuid, 1, $is_admin);
     my $submit = $jobs->{submit};
     my $pnode  = $self->get_param_node($submit);
@@ -745,7 +744,7 @@ sub submission_jobs {
         "info.userattr.submission" => $uuid
     };
     my $mgrast_query = {
-        "info.pipeline" => 'mgrast-prod',
+        "info.pipeline" => '',
         "info.userattr.submission" => $uuid
     };
     if (! $is_admin) {
@@ -756,8 +755,13 @@ sub submission_jobs {
     my $submit = (scalar(@{$inbox_jobs->{data}}) > 0) ? $inbox_jobs->{data}[0] : {};
     my $data = { submit => $submit };
     if ($full) {
-        my $mgrast_jobs = $self->get_awe_query($mgrast_query, $self->mgrast_token);
-        $data->{pipeline} = $mgrast_jobs->{data} || [];
+        foreach my $p (@{$Conf::pipeline_names}) {
+            $mgrast_query->{"info.pipeline"} = $p;
+            my $mgrast_jobs = $self->get_awe_query($mgrast_query, $self->mgrast_token);
+            if ($mgrast_jobs->{data}) {
+                push( @{$data->{pipeline}}, @{$mgrast_jobs->{data}} );
+            }
+        }
     }
     return $data;
 }
