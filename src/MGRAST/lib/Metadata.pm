@@ -289,6 +289,9 @@ where key is same type as input array
 sub get_jobs_metadata_fast {
   my ($self, $job_ids, $is_mgid, $strict_typing) = @_;
 
+  unless ($job_ids && (@$job_ids > 0)) {
+      return {};
+  }
   my $data  = {};
   my $projs = {};
   my $samps = {};
@@ -881,7 +884,7 @@ sub strict_typing {
     my ($self, $cat, $data) = @_;
     my $t_data   = {};
     my $template = $self->template;
-    unless (exists $template->{$cat}) {
+    unless ($cat && exists($template->{$cat})) {
         return {};
     }
     while ( my ($tag, $val) = each %$data ) {
