@@ -1993,8 +1993,7 @@ sub metadata_validation {
                     suffix    => 'json',
                     file_type => 'json',
                     file_name => $md_basename.".json",
-                    file_size => length($md_string),
-                    checksum  => md5_hex($md_string)
+                    file_size => length($md_string)
                 }
             };
             if ($submit_id) {
