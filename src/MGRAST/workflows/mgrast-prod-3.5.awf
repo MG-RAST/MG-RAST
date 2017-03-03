@@ -1,6 +1,6 @@
 {
     "info": {
-        "pipeline": "[% pipeline %]",
+        "pipeline": "mgrast-prod-3.5",
         "name": "[% job_id %]",
         "project": "[% project_name %]",
         "user": "[% user %]",
@@ -19,7 +19,7 @@
             "project_id": "[% project_id %]",
             "project_name": "[% project_name %]",
             "type": "[% type %]",
-            "pipeline_version": "[% pipeline_version %]",
+            "pipeline_version": "3.5",
             "submission": "[% submission_id %]"
         }
     },
