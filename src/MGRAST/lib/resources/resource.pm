@@ -1336,7 +1336,7 @@ sub metagenome_stats_from_shock {
                     if (! $stats->{$ann}{$type}) {
                         $result->{$ann}{$type} = [];
                     } else {
-                        $result->{$ann}{$type} = [ map { [$_->[0], int($_->[1])] } @{$stats->{$ann}{$type}} ];
+                        $result->{$ann}{$type} = [ map { [$_->[0], int($_->[1])] } grep { $_->[0] && $_->[1] } @{$stats->{$ann}{$type}} ];
                     }
                 };
             }
