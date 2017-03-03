@@ -1,6 +1,6 @@
 {
     "info": {
-        "pipeline": "[% pipeline %]",
+        "pipeline": "mgrast-reload",
         "name": "[% job_id %]",
         "project": "[% project_name %]",
         "user": "[% user %]",
