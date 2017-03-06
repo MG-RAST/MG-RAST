@@ -132,7 +132,7 @@ sub query {
   # get paramaters
   my $limit  = $self->cgi->param('limit') || 10;
   my $offset = $self->cgi->param('offset') || 0;
-  my $order  = $self->cgi->param('order') || "id";
+  my $order  = $self->cgi->param('order') || "metagenome_id";
   my $dir    = $self->cgi->param('direction') || 'asc';
     
   # check CV
@@ -171,7 +171,7 @@ sub query {
   } else {
     push(@$query, [ "public:1" ]);
   }
-  my ($data, $error) = $self->get_elastic_query("http://bio-worker10.mcs.anl.gov:9200/", $query, $order, $dir, $offset, $limit, $in ? [ "id", $in ] : undef);
+  my ($data, $error) = $self->get_elastic_query("http://bio-worker10.mcs.anl.gov:9200/", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $in ? [ "id", $in ] : undef);
   
   if ($error) {
     $self->return_data({"ERROR" => "An error occurred: $error"}, 500);
