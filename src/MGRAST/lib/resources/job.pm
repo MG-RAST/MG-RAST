@@ -31,7 +31,7 @@ sub new {
         resubmit => 1,
         share    => 1,
         public   => 1,
-        viewable => 1,
+	viewable => 1,
         rename   => 1,
         delete   => 1,
         solr     => 1,
@@ -184,6 +184,16 @@ sub info {
 				          'method'      => "POST",
 				          'type'        => "synchronous",
 				          'attributes'  => { "public"  => ['boolean', 'the metagenome is public'] },
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"] } }
+						},
+					   { 'name'        => "check_mixs",
+				          'request'     => $self->cgi->url."/".$self->name."/check_mixs",
+				          'description' => "Check if a metagenome has MiXS data.",
+				          'method'      => "GET",
+				          'type'        => "synchronous",
+				          'attributes'  => { "has_mixs"  => ['boolean', 'the metagenome has MiXS data'] },
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"] } }
@@ -394,6 +404,14 @@ sub job_data {
             job_id        => $job->{job_id},
             data          => $job->stats()
         });
+      } elsif ($type eq "check_mixs") {
+	my $mddb = MGRAST::Metadata->new();
+	my $errors = $mddb->verify_job_metadata($job);
+	if (scalar(@$errors)) {
+	  $self->return_data({ "has_mixs" => 0, "errors" => $errors }, 200);
+	} else {
+	  $self->return_data({ "has_mixs" => 1 }, 200);
+	}
     } elsif ($type eq "attributes") {
         $self->return_data({
             metagenome_id => 'mgm'.$job->{metagenome_id},

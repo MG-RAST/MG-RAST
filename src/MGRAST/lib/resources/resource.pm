@@ -516,9 +516,9 @@ sub check_pagination {
     my $next_offset = $offset + $limit;
     
     my $object = { "limit" => int($limit),
-	               "offset" => int($offset),
-	               "total_count" => int($total_count),
-	               "data" => $data };
+		   "offset" => int($offset),
+		   "total_count" => int($total_count),
+		   "data" => $data };
 
     # don't build urls for POST
     if ($self->method eq 'GET') {
@@ -527,11 +527,11 @@ sub check_pagination {
         $object->{prev} = ($offset > 0) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$prev_offset" : undef;
         $object->{next} = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$next_offset" : undef;
     }
-	if ($order) {
-	    $object->{order} = $order;
+    if ($order) {
+      $object->{order} = $order;
     }
     
-	return $object;
+    return $object;
 }
 
 # get paramaters from POSTDATA or form fields
@@ -1725,6 +1725,31 @@ sub cassandra_matrix {
     return Inline::Python::Object->new('__main__', 'Matrix', $hosts, $version);
 }
 
+sub get_elastic_query {
+  my ($self, $server, $query, $order, $dir, $offset, $limit, $in) = @_;
+
+  my $fields = [];
+  foreach my $q (@$query) {
+    push(@$fields, join(" OR ",@$q));
+  }
+  my $query_string = join(") AND (",@$fields);
+
+  my $instring = "";
+  if ($in) {
+    $instring = " AND (public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
+  }
+  
+  my $content;
+  eval {
+    my $res = $self->agent->get("$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string)".$instring);
+    $content = $self->json->decode( $res->content );
+  };
+  if ($@ || (! ref($content))) {
+    return undef, $@;
+  } else {
+    return $content;
+  }
+}
 
 sub get_solr_query {
     my ($self, $method, $server, $collect, $query, $sort, $offset, $limit, $fields) = @_;
