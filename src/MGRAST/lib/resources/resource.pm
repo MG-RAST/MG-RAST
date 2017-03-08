@@ -43,7 +43,7 @@ sub new {
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
     my $agent = LWP::UserAgent->new;
     $agent->timeout(600);
-    my $json = JSON->new;
+    my $json = JSON->new();
     $json->max_size(0);
     $json->allow_nonref;
     
@@ -651,7 +651,7 @@ sub return_data {
         else {
 	  if ($self->format eq 'application/json') {
 	    $self->format('application/json; charset=UTF-8');
-	    $data = to_json($data,{utf8=>1});
+	    $data = $self->json->encode($data);
 	  }
 	  
 	  # cache this!
