@@ -796,8 +796,8 @@ sub get_download_set {
     my %seen = ();
     my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
     my $stages = [];
-    my $mgdata = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$mgid}, $auth, $authPrefix);
-    @$mgdata = grep { exists($_->{attributes}{stage_id}) && exists($_->{attributes}{data_type}) } @$mgdata;
+    my $mgdata = $self->get_shock_query({'id' => 'mgm'.$mgid}, $auth, $authPrefix);
+    @$mgdata = grep { exists($_->{attributes}{stage_id}) && exists($_->{attributes}{data_type}) && ($_->{attributes}{type} eq 'metagenome')} @$mgdata;
     @$mgdata = sort { ($a->{attributes}{stage_id} cmp $b->{attributes}{stage_id}) ||
                         ($a->{attributes}{data_type} cmp $b->{attributes}{data_type}) } @$mgdata;
     foreach my $node (@$mgdata) {
@@ -1247,7 +1247,7 @@ sub get_shock_query {
 sub metagenome_stats_from_shock {
     my ($self, $mgid, $type) = @_;
     
-    my $params = {type => 'metagenome', data_type => 'statistics', id => $mgid};
+    my $params = {data_type => 'statistics', id => $mgid};
     my $stat_node = $self->get_shock_query($params, $self->mgrast_token);
     if (scalar(@{$stat_node}) == 0) {
         return {};

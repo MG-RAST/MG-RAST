@@ -18,7 +18,7 @@
             "bp_count": "[% bp_count %]",
             "project_id": "[% project_id %]",
             "project_name": "[% project_name %]",
-            "type": "[% type %]",
+            "type": "metagenome",
             "pipeline_version": "4.0.1",
             "submission": "[% submission_id %]"
         }

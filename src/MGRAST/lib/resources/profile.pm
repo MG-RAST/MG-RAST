@@ -218,7 +218,6 @@ sub submit {
     # delete if doing retry
     my $squery = {
         id => $mgid,
-        type => 'metagenome',
         data_type => 'profile',
         stage_name => 'done'
     };
