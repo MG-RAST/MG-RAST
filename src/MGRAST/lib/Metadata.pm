@@ -383,10 +383,10 @@ sub get_jobs_metadata_fast {
   }
   if ($strict_typing) {
       foreach my $j (keys %$data) {
-          $data->{$j}{project}{data}     = $self->strict_typing('project', $data->{$key}{project}{data});
-          $data->{$j}{sample}{data}      = $self->strict_typing('sample', $data->{$key}{sample}{data});
-          $data->{$j}{library}{data}     = $self->strict_typing($data->{$j}{library}{data}{investigation_type}, $data->{$key}{library}{data});
-          $data->{$j}{env_package}{data} = $self->strict_typing($data->{$j}{sample}{data}{env_package}, $data->{$key}{env_package}{data});
+          $data->{$j}{project}{data}     = $self->strict_typing('project', $data->{$j}{project}{data});
+          $data->{$j}{sample}{data}      = $self->strict_typing('sample', $data->{$j}{sample}{data});
+          $data->{$j}{library}{data}     = $self->strict_typing($data->{$j}{library}{data}{investigation_type}, $data->{$j}{library}{data});
+          $data->{$j}{env_package}{data} = $self->strict_typing($data->{$j}{sample}{data}{env_package}, $data->{$j}{env_package}{data});
       }
   }
   return $data;
