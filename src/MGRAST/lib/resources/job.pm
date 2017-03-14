@@ -25,20 +25,22 @@ sub new {
     # Add name / attributes
     $self->{name} = "job";
     $self->{job_actions} = {
-        reserve  => 1,
-        create   => 1,
-        submit   => 1,
-        resubmit => 1,
-        share    => 1,
-        public   => 1,
-        viewable => 1,
-        rename   => 1,
-        delete   => 1,
-        solr     => 1,
-        abundance  => 1,
-        addproject => 1,
-        statistics => 1,
-        attributes => 1
+			    reserve  => 1,
+			    create   => 1,
+			    submit   => 1,
+			    resubmit => 1,
+			    share    => 1,
+			    public   => 1,
+			    viewable => 1,
+			    rename   => 1,
+			    delete   => 1,
+			    solr     => 1,
+			    abundance  => 1,
+			    addproject => 1,
+			    statistics => 1,
+			    attributes => 1,
+			    changesequencetype => 1,
+			    publicationadjust => 1
     };
     $self->{attributes} = {
         reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
@@ -184,6 +186,16 @@ sub info {
 				          'method'      => "POST",
 				          'type'        => "synchronous",
 				          'attributes'  => { "public"  => ['boolean', 'the metagenome is public'] },
+				          'parameters'  => { 'options'  => {},
+							                 'required' => {},
+							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"] } }
+						},
+					   { 'name'        => "check_mixs",
+				          'request'     => $self->cgi->url."/".$self->name."/check_mixs",
+				          'description' => "Check if a metagenome has MiXS data.",
+				          'method'      => "GET",
+				          'type'        => "synchronous",
+				          'attributes'  => { "has_mixs"  => ['boolean', 'the metagenome has MiXS data'] },
 				          'parameters'  => { 'options'  => {},
 							                 'required' => {},
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"] } }
@@ -394,6 +406,14 @@ sub job_data {
             job_id        => $job->{job_id},
             data          => $job->stats()
         });
+      } elsif ($type eq "check_mixs") {
+	my $mddb = MGRAST::Metadata->new();
+	my $errors = $mddb->verify_job_metadata($job);
+	if (scalar(@$errors)) {
+	  $self->return_data({ "has_mixs" => 0, "errors" => $errors }, 200);
+	} else {
+	  $self->return_data({ "has_mixs" => 1 }, 200);
+	}
     } elsif ($type eq "attributes") {
         $self->return_data({
             metagenome_id => 'mgm'.$job->{metagenome_id},
@@ -660,7 +680,29 @@ sub job_action {
                 options   => $job->{options},
                 job_id    => $job->{job_id}
             };
-        } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
+	  } elsif ($action eq 'publicationadjust') {
+	    my $prio = $post->{priority};
+	    my $pmap = {
+			"never"       => 1,
+			"date"        => 5,
+			"6months"     => 10,
+			"3months"     => 15,
+			"immediately" => 20
+		       };
+	    unless ($prio && $pmap->{$prio}) {
+	      $self->return_data( {"ERROR" => "no / invalid priority given"}, 400 );
+	    }
+	    my $awe_id = $post->{awe_id};
+	    unless ($awe_id) {
+	      $self->return_data( {"ERROR" => "no awe id given"}, 400 );
+	    }
+	    my $master = $self->connect_to_datasource();
+	    $master->JobAttributes->get_objects({ job => $job, tag => 'priority'})->[0]->value($prio);
+	    $data = $self->awe_job_action($awe_id, "priority=".$pmap->{$prio}, $self->mgrast_token);
+
+	    $self->return_data($data);
+
+	  } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
             my $cmd;
             if ($action eq 'resubmit') {
                 $cmd = $Conf::resubmit_to_awe." --use_docker --job_id ".$job->{job_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
