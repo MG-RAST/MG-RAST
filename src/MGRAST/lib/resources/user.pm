@@ -147,7 +147,11 @@ sub instance {
   unless ($rest && scalar(@$rest)) {
     $self->return_data( {"ERROR" => "invalid id format"}, 400 );
   }
-  
+
+  for (my $i=0; $i<scalar(@$rest); $i++) {
+    $rest->[$i] = uri_unescape($rest->[$i]);
+  }
+
   # check verbosity
   my $verb = $self->cgi->param('verbosity') || 'minimal';
   unless (exists $self->{cv}{verbosity}{$verb}) {
@@ -197,7 +201,7 @@ sub instance {
   
   # check if this is an email validation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'validateemail') {
-    my $key = uri_unescape($rest->[1]);
+    my $key = $rest->[1];
     my $uid;
     unless ($key =~ /^(\d+)_(\w+)$/) {
       $self->return_data( {"ERROR" => "invalid key"}, 400 );
@@ -444,10 +448,11 @@ sub instance {
   my $user = [];
   if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
     $user = $master->User->get_objects( {"_id" => $1} );
-  } elsif (uri_unescape($rest->[0]) =~ /\@/) {
-    $user = $master->User->get_objects( { "email" => uri_unescape($rest->[0]) } );
   } else { # user login
     $user = $master->User->get_objects( { "login" => $rest->[0] } );
+    if (! scalar(@$user) && $rest->[0] =~ /\@/) {
+      $user = $master->User->get_objects( { "email" => $rest->[0] } );
+    }
   }
   unless (scalar(@$user)) {
     $self->return_data( {"ERROR" => "user '".$rest->[0]."' does not exist"}, 404 );

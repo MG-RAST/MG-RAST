@@ -47,6 +47,7 @@
                 "[% job_id %].075.assembly.coverage": {
                     "host": "[% shock_url %]",
                     "node": "-",
+                    "delete": true,
                     "attrfile": "[% job_id %].075.assembly.coverage.json"
                 },
                 "[% job_id %].075.qc.stats": {
@@ -892,6 +893,7 @@
                 "[% job_id %].700.annotation.lca.summary": {
                     "host": "[% shock_url %]",
                     "node": "-",
+                    "delete": true,
                     "attrfile": "userattr.json"
                 }
             },
