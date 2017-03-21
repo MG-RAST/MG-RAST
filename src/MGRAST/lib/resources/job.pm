@@ -750,9 +750,8 @@ sub job_action {
             };
             # test if id already archived
             my $squery = {
-                id         => $mgid,
-                data_type  => 'awe_workflow',
-                stage_name => 'done'
+                id         => $post->{metagenome_id},
+                data_type  => 'awe_workflow'
             };
             my $nodes = $self->get_shock_query($squery, $self->mgrast_token);
             # not in shock or force to re-archive
@@ -761,7 +760,7 @@ sub job_action {
                 if (! $awe_doc) {
                     $self->return_data( {"ERROR" => "Unable to retrieve pipeline document for ID $awe_id"}, 500 );
                 }
-                if ($awe_doc->{info}{userattr}{id} ne $mgid) {
+                if ($awe_doc->{info}{userattr}{id} ne $post->{metagenome_id}) {
                     $self->return_data( {"ERROR" => "Inputed MG-RAST ID does not match pipeline document"}, 404 );
                 }
                 my $shock_attr = {
@@ -778,9 +777,7 @@ sub job_action {
                     data_type     => 'awe_workflow',
                     workflow_type => 'full',
                     awe_id        => $awe_id,
-                    file_format   => 'json',
-                    stage_name    => 'done',
-                    stage_id      => '999'
+                    file_format   => 'json'
                 };
                 eval {
                     my $proj = $job->primary_project;
