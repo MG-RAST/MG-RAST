@@ -1516,11 +1516,6 @@ sub user_delete {
   my $chdl = Inline::Python::Object->new('__main__', 'JobHandle', $Conf::cassandra_m5nr);
   $chdl->delete_job($jobid);
   $chdl->close();
-
-  # delete analysis tables
-  use MGRAST::Analysis;
-  my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
-  my $success = $analysisDB->delete_job($self->job_id);
   
   ######## delete AWE / Shock ##########
   
