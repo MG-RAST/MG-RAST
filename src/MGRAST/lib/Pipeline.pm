@@ -6,6 +6,7 @@ no warnings('once');
 
 use Conf;
 use DBI;
+use JSON;
 use Template;
 use Data::Dumper;
 use File::Slurp;
@@ -17,6 +18,10 @@ our $priority_map = {
     "3months"     => 15,
     "immediately" => 20
 };
+
+our $json = JSON->new();
+$json->max_size(0);
+$json->allow_nonref;
 
 sub populate_template {
     my ($jobj, $jattr, $jopts, $vars, $input_id, $version, $use_docker) = @_;
@@ -152,7 +157,7 @@ sub set_priority {
     
     my $pnum = 1;
     if ($priority && exists($priority_map->{$priority})) {
-        $pnum = $priority_map->{$jattr->{priority}};
+        $pnum = $priority_map->{$priority};
     }
     # higher priority if smaller data
     if (int($bp_count) < 100000000) {

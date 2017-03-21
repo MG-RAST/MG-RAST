@@ -829,7 +829,7 @@ sub get_download_set {
             push @$mgdata, $nodes->[0];
         } elsif (scalar(@$nodes) > 1) {
             my @sorted = sort { $b->{created_on} cmp $a->{created_on} } @$nodes;
-            push @$mgdata, $sorted->[0];
+            push @$mgdata, $sorted[0];
         }
     }
     # sort by stages

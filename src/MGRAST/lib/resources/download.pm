@@ -340,7 +340,7 @@ sub awe_history {
                 else {
                     foreach my $input (@{$dt->{inputs}}) {
                         my $origin = undef;
-                        if (exists($input->{origin}) && ($input->{origin} ~= /^\d+$/)) {
+                        if (exists($input->{origin}) && ($input->{origin} =~ /^\d+$/)) {
                             $origin = $job_doc->{tasks}[ int($input->{origin}) ]{cmd}{description};
                         }
                         push @{$ht->{inputs}}, {
@@ -383,7 +383,7 @@ sub awe_history {
     
     # POST to shock if created
     my $new_node = undef;
-    if ((scalar(@nodes) == 0) || $force) {
+    if ((scalar(@$nodes) == 0) || $force) {
         my $shock_attr = {
             id            => $mgid,
             job_id        => $job->{job_id},
@@ -414,14 +414,14 @@ sub awe_history {
     }
     
     # delete old from shock if force re-create and success
-    if ((scalar(@nodes) > 0) && $new_node && $force) {
+    if ((scalar(@$nodes) > 0) && $new_node && $force) {
         foreach my $n (@$nodes) {
              $self->delete_shock_node($n->{id}, $self->mgrast_token);
          }
     }
     
     # delete if success and requested and user is admin
-    if (((scalar(@nodes) > 0) || $new_node) && $delete && $self->user->is_admin('MGRAST')) {
+    if (((scalar(@$nodes) > 0) || $new_node) && $delete && $self->user->is_admin('MGRAST')) {
         $self->awe_job_action($awe_id, "delete", $self->mgrast_token);
     }
     
