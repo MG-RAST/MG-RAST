@@ -29,6 +29,7 @@ sub new {
 			    create   => 1,
 			    submit   => 1,
 			    resubmit => 1,
+			    archive  => 1,
 			    share    => 1,
 			    public   => 1,
 			    viewable => 1,
@@ -155,6 +156,19 @@ sub info {
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
 							                                 "awe_id" => ["string", "awe job id of original job"] } }
 						},
+						{ 'name'        => "archive",
+                          'request'     => $self->cgi->url."/".$self->name."/archive",
+                          'description' => "Archive MG-RAST analysis-pipeline document and logs from AWE into Shock",
+                          'method'      => "POST",
+                          'type'        => "synchronous",
+                          'attributes'  => $self->{attributes}{change},
+                          'parameters'  => { 'options'  => {},
+                                             'required' => {},
+                                             'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"],
+                                                             "awe_id" => ["string", "AWE ID of MG-RAST job"],
+                                                             "force"  => ["boolean", "if true, recreate document in Shock from AWE."],
+				                                             "delete" => ["boolean", "if true (and user is admin) delete original document from AWE on completion."] } }
+                        },
 						{ 'name'        => "share",
 				          'request'     => $self->cgi->url."/".$self->name."/share",
 				          'description' => "Share metagenome with another user.",
@@ -668,29 +682,28 @@ sub job_action {
                 options   => $job->{options},
                 job_id    => $job->{job_id}
             };
-	  } elsif ($action eq 'publicationadjust') {
-	    my $prio = $post->{priority};
-	    my $pmap = {
-			"never"       => 1,
-			"date"        => 5,
-			"6months"     => 10,
-			"3months"     => 15,
-			"immediately" => 20
-		       };
-	    unless ($prio && $pmap->{$prio}) {
-	      $self->return_data( {"ERROR" => "no / invalid priority given"}, 400 );
-	    }
-	    my $awe_id = $post->{awe_id};
-	    unless ($awe_id) {
-	      $self->return_data( {"ERROR" => "no awe id given"}, 400 );
-	    }
-	    my $master = $self->connect_to_datasource();
-	    $master->JobAttributes->get_objects({ job => $job, tag => 'priority'})->[0]->value($prio);
-	    $data = $self->awe_job_action($awe_id, "priority=".$pmap->{$prio}, $self->mgrast_token);
+        } elsif ($action eq 'publicationadjust') {
+            my $prio = $post->{priority};
+            my $pmap = {
+                "never"       => 1,
+                "date"        => 5,
+                "6months"     => 10,
+                "3months"     => 15,
+                "immediately" => 20
+            };
+            unless ($prio && $pmap->{$prio}) {
+                $self->return_data( {"ERROR" => "no / invalid priority given"}, 400 );
+            }
+            my $awe_id = $post->{awe_id};
+            unless ($awe_id) {
+                $self->return_data( {"ERROR" => "no awe id given"}, 400 );
+            }
+            my $master = $self->connect_to_datasource();
+            $master->JobAttributes->get_objects({ job => $job, tag => 'priority'})->[0]->value($prio);
+            $data = $self->awe_job_action($awe_id, "priority=".$pmap->{$prio}, $self->mgrast_token);
 
-	    $self->return_data($data);
-
-	  } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
+            $self->return_data($data);
+        } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
             my $cmd;
             if ($action eq 'resubmit') {
                 $cmd = $Conf::resubmit_to_awe." --use_docker --job_id ".$job->{job_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
@@ -722,6 +735,81 @@ sub job_action {
                 };
             } else {
                 $self->return_data( {"ERROR" => "Unknown error, missing AWE job ID:\n".join("\n", @log)}, 500 );
+            }
+        } elsif ($action eq 'archive') {
+            my $awe_id = $post->{awe_id} || undef;
+            my $force  = $post->{force} ? 1 : 0;
+            my $delete = $post->{delete} ? 1 : 0;
+            unless ($awe_id) {
+                $self->return_data( {"ERROR" => "Missing required parameter awe_id (AWE job ID)"}, 404 );
+            }
+            $data = {
+                metagenome_id => $post->{metagenome_id},
+                job_id        => $job->{job_id},
+                status        => 'incomplete'
+            };
+            # test if id already archived
+            my $squery = {
+                id         => $mgid,
+                data_type  => 'awe_workflow',
+                stage_name => 'done'
+            };
+            my $nodes = $self->get_shock_query($squery, $self->mgrast_token);
+            # not in shock or force to re-archive
+            if ((scalar(@$nodes) == 0) || $force) {
+                my $awe_doc = $self->get_awe_full_document($awe_id, $self->mgrast_token);
+                if (! $awe_doc) {
+                    $self->return_data( {"ERROR" => "Unable to retrieve pipeline document for ID $awe_id"}, 500 );
+                }
+                if ($awe_doc->{info}{userattr}{id} ne $mgid) {
+                    $self->return_data( {"ERROR" => "Inputed MG-RAST ID does not match pipeline document"}, 404 );
+                }
+                my $shock_attr = {
+                    id            => $post->{metagenome_id},
+                    job_id        => $job->{job_id},
+                    created       => $job->{created_on},
+                    name          => $job->{name},
+                    owner         => 'mgu'.$job->{owner},
+                    sequence_type => $job->{sequence_type},
+                    status        => $job->{public} ? 'public' : 'private',
+                    project_id    => undef,
+                    project_name  => undef,
+                    type          => 'metagenome',
+                    data_type     => 'awe_workflow',
+                    workflow_type => 'full',
+                    awe_id        => $awe_id,
+                    file_format   => 'json',
+                    stage_name    => 'done',
+                    stage_id      => '999'
+                };
+                eval {
+                    my $proj = $job->primary_project;
+                    if ($proj->{id}) {
+                        $shock_attr->{project_id} = 'mgp'.$proj->{id};
+                        $shock_attr->{project_name} = $proj->{name};
+                    }
+                };
+                # POST to shock
+                my $job_node = $self->set_shock_node($post->{metagenome_id}.'.awe.json', $awe_doc, $shock_attr, $self->mgrast_token);
+                if ($job_node && $job_node->{id}) {
+                    $data->{status} = 'archived';
+                }
+            }
+            # archive was already in shock
+            if (scalar(@$nodes) > 0) {
+                 if ($force && ($data->{status} eq 'archived')) {
+                     # new archive was force created - delete old nodes
+                     foreach my $n (@$nodes) {
+                         $self->delete_shock_node($n->{id}, $self->mgrast_token);
+                     }
+                 } else {
+                     # archive already exists / nothing was done
+                     $data->{status} = 'archived';
+                 }
+            }
+            # delete if success and requested and user is admin
+            if (($data->{status} eq 'archived') && $delete && $self->user->is_admin('MGRAST')) {
+                $self->awe_job_action($awe_id, "delete", $self->mgrast_token);
             }
         } elsif ($action eq 'share') {
             # get user to share with

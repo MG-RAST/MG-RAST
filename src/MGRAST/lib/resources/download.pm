@@ -4,7 +4,9 @@ use strict;
 use warnings;
 no warnings('once');
 
+use Clone qw(clone);
 use Data::Dumper;
+use File::Slurp;
 use List::MoreUtils qw(any uniq);
 use Conf;
 use parent qw(resources::resource);
@@ -18,6 +20,9 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "download";
+    $self->{default_pipeline_version} = "3.0";
+    $self->{default_pipeline_commit}  = "https://github.com/MG-RAST/pipeline";
+    $self->{default_template_version} = "https://github.com/MG-RAST/MG-RAST/tree/api/src/MGRAST/workflows";
     return $self;
 }
 
@@ -55,13 +60,13 @@ sub info {
 							},
 							{ 'name'        => "history",
 				              'request'     => $self->cgi->url."/".$self->name."/{ID}/history",
-				              'description' => "Document of MG-RAST analysis-pipeline workflow and logs.",
+				              'description' => "Summery of MG-RAST analysis-pipeline workflow and commands.",
 				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3/history",
       				                             'Workflow document for mgm4447943.3' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",
 				              'attributes'  => { "data" => [ 'file', 'requested workflow file' ] },
-				              'parameters'  => { 'options'  => { "awe_id" => ["string", "AWE ID of MG-RAST metagenome"],
+				              'parameters'  => { 'options'  => { "awe_id" => ["string", "optional: AWE ID of MG-RAST metagenome"],
 				                                                 "force"  => ["boolean", "if true, recreate document in Shock from AWE."],
 				                                                 "delete" => ["boolean", "if true (and user is admin) delete original document from AWE on completion."] },
 							                     'required' => { "id" => [ "string", "unique metagenome identifier" ] },
@@ -129,7 +134,8 @@ sub instance {
     my $stage   = $self->cgi->param('stage') || undef;
     my $file    = $self->cgi->param('file') || undef;
     my $link    = $self->cgi->param('link') ? 1 : 0;
-    my $setlist = $self->get_download_set($job->{metagenome_id}, $self->mgrast_token);
+    my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
+    my $setlist = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
     
     # return file from shock
     if ($file) {
@@ -177,83 +183,250 @@ sub awe_history {
     my $awe_id = $self->cgi->param('awe_id') || undef;
     my $force  = $self->cgi->param('force') ? 1 : 0;
     my $delete = $self->cgi->param('delete') ? 1 : 0;
+    my $debug  = $self->cgi->param('debug') ? 1 : 0;
+    my $data   = {
+        id   => $mgid,
+        url  => $self->cgi->url."/".$self->name."/".$mgid."?force=".$force,
+        data => []
+    };
+    if ($awe_id) {
+        $data->{url} .= "&awe_id=".$awe_id;
+    }
+    if ($delete) {
+         $data->{url} .= "&delete=".$delete;
+    }
+    if ($debug) {
+         $data->{url} .= "&debug=".$debug;
+    }
+
+    my $job_doc = undef;
+    my $is_template = 0;
     
     # get shock node and file
-    if (! $force) {
-        my $squery = {
-            id         => $mgid,
-            data_type  => 'awe_history',
-            stage_name => 'done'
+    my $squery = {
+        id         => $mgid,
+        data_type  => 'awe_workflow',
+        stage_name => 'done'
+    };
+    my $nodes = $self->get_shock_query($squery, $self->mgrast_token);
+    if ((scalar(@nodes) > 0) && (! $force)) {
+        my ($content, $err) = $self->get_shock_file($nodes->[0]{id}, undef, $self->mgrast_token);
+        if ($err) {
+            $self->return_data( {"ERROR" => "Unable to retrieve processing history: $err"}, 500 );
+        }
+        eval {
+            $job_doc = $self->json->decode($content);
+            if ($nodes->[0]{attributes}{workflow_type} && ($nodes->[0]{attributes}{workflow_type} eq 'template')) {
+                $is_template = 1;
+            }
         };
-        my $nodes = $self->get_shock_query($squery, $self->mgrast_token);
-        if (scalar(@nodes) > 0) {
-            my $content = $self->get_shock_file($nodes->[0]{id}, undef, $self->mgrast_token);
-            my $data = undef;
-            eval {
-                $data = $self->json->decode($content);
-            };
-            if ($data) {
-                return $data;
+    }
+    # got from shock
+    if ($job_doc && $debug) {
+        $data->{node} = $nodes->[0]{id};
+    }
+    
+    # not in shock / create document
+    if (! $job_doc) {
+        # try and find AWE id in DB
+        if (! $awe_id) {
+            my $jdata = $job->data();
+            if ($jdata->{pipeline_id}) {
+                $awe_id = $jdata->{pipeline_id};
+            }
+        }
+        # build from AWE
+        if ($awe_id) {
+            $job_doc = $self->get_awe_full_document($awe_id, $self->mgrast_token);
+        }
+        # no ID or not in AWE - just use template
+        if (! $job_doc) {
+            $job_doc = $self->get_workflow_from_template($job);
+            $is_template = 1;
+        }
+    }
+    
+    # too many errors
+    if (! $job_doc) {
+        $self->return_data( {"ERROR" => "Unable to retrieve processing history"}, 500 );
+    }
+    if ($job_doc->{info}{userattr}{id} ne $mgid) {
+        $self->return_data( {"ERROR" => "MG-RAST ID ($mgid) does not match processing document"}, 404 );
+    }
+    
+    # get static stage info
+    my $stage_info = undef;
+    eval {
+        my $temp_str = read_file($Conf::workflow_dir."/stages-info.json");
+        $stage_info  = $self->json->decode($temp_str);
+    };
+    if (! $stage_info) {
+        $self->return_data( {"ERROR" => "Unable to retrieve pipeline stage information"}, 500 );
+    }
+    
+    # get downloadable files
+    my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
+    my %setmap  = map { $_->{file_name}, $_ } @{ $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token) };
+    my %filemap = map { $_, 0 } keys %setmap;
+    
+    # build history
+    my $awe_history = {
+        id => $job_doc->{id} || undef,
+        info => $job_doc->{info},
+        tasks => [ $stage_info->{upload} ],
+        template => $stage_info->{template}{$version} || $self->{default_template_version},
+        enviroment => $stage_info->{enviroment}{$version} || $self->{default_pipeline_commit}
+    };
+    if (! $awe_history->{info}{submittime}) {
+        $awe_history->{info}{submittime} = $job->{created_on};
+    }
+    $awe_history->{info}{userattr}{status} = $job->{public} ? 'public' : 'private';
+    
+    # upload stage
+    push @{ $awe_history->{tasks}[0]{inputs} }, {
+        file_name => $job->{file},
+        file_size => $job->{file_size_raw},
+        file_md5  => $job->{file_checksum_raw},
+        node_id   => $setlist->[0]{node_id},
+        url       => $setlist->[0]{url}
+    };
+    
+    # remaining stages
+    foreach my $st (@{$stage_info->{tasks}}) {
+        # copy stage
+        my $ht = clone($st);
+        # get useage by version
+        $ht->{uses} = [];
+        foreach my $stu (@{$st->{uses}}) {
+            if  (exists $stu->{versions}{$version}) {
+                my $htu = $clone($stu);
+                delete $htu->{versions};
+                push @{$ht->{uses}}, $htu;
+            }
+        }
+        # get inputs / outputs by members
+        foreach my $dt (@{$job_doc->{tasks}}) {
+            if (exists $st->{members}{ $dt->{cmd}{description} }) {
+                # hash structure
+                if ($is_template) {
+                    while (my ($fname, $input) = each %{$dt->{inputs}}) {
+                        my $origin = undef;
+                        if (exists($input->{origin}) && ($input->{origin} ~= /^\d+$/)) {
+                            $origin = $job_doc->{tasks}[ int($input->{origin}) ]{cmd}{description};
+                        }
+                        push @{$ht->{inputs}}, {
+                            parent => $origin,
+                            file_name => $fname
+                        };
+                    }
+                    while (my ($fname, $output) = each %{$dt->{outputs}}) {
+                        my $hto = {
+                            temperary => (exists($output->{delete}) && ($output->{delete} eq 'true')) ? 1 : 0,
+                            file_name => $fname,
+                        };
+                        if (exists $setmap{$fname}) {
+                            $filemap{$fname}   = 1;
+                            $hto->{file_size}  = $setmap{$fname}{file_size};
+                            $hto->{file_md5}   = $setmap{$fname}{file_md5};
+                            $hto->{node_id}    = $setmap{$fname}{node_id};
+                            $hto->{url}        = $setmap{$fname}{url};
+                            $hto->{statistics} = $setmap{$fname}{statistics};
+                        }
+                        push @{$ht->{outputs}}, $hto;
+                    }
+                }
+                # array structure
+                else {
+                    foreach my $input (@{$dt->{inputs}}) {
+                        my $origin = undef;
+                        if (exists($input->{origin}) && ($input->{origin} ~= /^\d+$/)) {
+                            $origin = $job_doc->{tasks}[ int($input->{origin}) ]{cmd}{description};
+                        }
+                        push @{$ht->{inputs}}, {
+                            parent => $origin,
+                            file_name => $input->{filename},
+                            file_size => $input->{size}
+                        };
+                    }
+                    foreach my $output (@{$dt->{outputs}}) {
+                        my $hto = {
+                            temperary => (exists($output->{delete}) && ($output->{delete} eq 'true')) ? 1 : 0,
+                            file_name => $output->{filename},
+                            file_size => $output->{size}
+                        };
+                        if (exists $setmap{$output->{filename}}) {
+                            $filemap{$output->{filename}} = 1;
+                            $hto->{file_md5}   = $setmap{$output->{filename}}{file_md5};
+                            $hto->{node_id}    = $setmap{$output->{filename}}{node_id};
+                            $hto->{url}        = $setmap{$output->{filename}}{url};
+                            $hto->{statistics} = $setmap{$output->{filename}}{statistics};
+                        }
+                        push @{$ht->{outputs}}, $hto;
+                    }
+                }
+            }
+        }
+        push @{ $awe_history->{tasks} }, $ht;
+    }
+    
+    # bookkeeping to check for missed downloadable files
+    if ($debug) {
+        $awe_history->{missing} = [];
+        while (my ($fname, $status) = each %filemap) {
+            if ($status == 0) {
+                push @{$awe_history->{missing}}, $setmap{$fname};
             }
         }
     }
-    # not in shock / create from AWE
-    if (! $awe_id) {
-        my $jdata = $job->data();
-        if ($jdata->{pipeline_id}) {
-            $awe_id = $jdata->{pipeline_id};
-        }
+    $data->{data} = $awe_history;
+    
+    # POST to shock if created
+    my $new_node = undef;
+    if ((scalar(@nodes) == 0) || $force) {
+        my $shock_attr = {
+            id            => $mgid,
+            job_id        => $job->{job_id},
+            created       => $job->{created_on},
+            name          => $job->{name},
+            owner         => 'mgu'.$job->{owner},
+            sequence_type => $job->{sequence_type},
+            status        => $job->{public} ? 'public' : 'private',
+            project_id    => undef,
+            project_name  => undef,
+            type          => 'metagenome',
+            data_type     => 'awe_workflow',
+            workflow_type => $is_template ? 'template' : 'full',
+            awe_id        => $awe_id,
+            file_format   => 'json',
+            stage_name    => 'done',
+            stage_id      => '999'
+        };
+        eval {
+            my $proj = $job->primary_project;
+            if ($proj->{id}) {
+                $shock_attr->{project_id} = 'mgp'.$proj->{id};
+                $shock_attr->{project_name} = $proj->{name};
+            }
+        };
+        my $new_node = $self->set_shock_node($mgid.'.awe.json', $job_doc, $shock_attr, $self->mgrast_token);
     }
-    my $awe_job = undef;
-    if ($awe_id) {
-        
+    if ($new_node && $debug) {
+        $data->{node} = $new_node->{id};
     }
     
-    # get AWE document and report
-    my $awe_job = $self->get_awe_job($awe_id, $self->mgrast_token);
-    my $awe_log = $self->get_awe_log($awe_id, $self->mgrast_token);
-    if ($awe_job->{info}{id} ne $mgid) {
-        $self->return_data( {"ERROR" => "Inputed MG-RAST ID does not match pipeline document"}, 404)
+    # delete old from shock if force re-create and success
+    if ((scalar(@nodes) > 0) && $new_node && $force) {
+        foreach my $n (@$nodes) {
+             $self->delete_shock_node($n->{id}, $self->mgrast_token);
+         }
     }
-    # condense report, merge into workflow
-    my $task_len = scalar(@{$awe_job->{tasks}})
-    my $awe_history = awe_job;
-    for (my $i=0; $i <= $task_len; $i++) {
-        
-    }
-        
-    ### TODO ###
-    # POST to shock
-    my $shock_attr = {
-        id            => $mgid,
-        job_id        => $job->{job_id},
-        created       => $job->{created_on},
-        name          => $job->{name},
-        owner         => 'mgu'.$job->{owner},
-        sequence_type => $job->{sequence_type},
-        status        => $job->{public} ? 'public' : 'private',
-        project_id    => undef,
-        project_name  => undef,
-        type          => 'metagenome',
-        data_type     => 'awe_history',
-        awe_id        => $awe_id,
-        file_format   => 'json',
-        stage_name    => 'done',
-        stage_id      => '999'
-    };
-    eval {
-        my $proj = $job->primary_project;
-        if ($proj->{id}) {
-            $shock_attr->{project_id} = 'mgp'.$proj->{id};
-            $shock_attr->{project_name} = $proj->{name};
-        }
-    };
-    my $job_node = $self->set_shock_node($mgid.'.awe.json', $awe_history, $shock_attr, $self->mgrast_token);
-    # delete if requested and user is admin
-    if ($job_node && $job_node->{id} && $delete && $self->user->is_admin('MGRAST')) {
+    
+    # delete if success and requested and user is admin
+    if (((scalar(@nodes) > 0) || $new_node) && $delete && $self->user->is_admin('MGRAST')) {
         $self->awe_job_action($awe_id, "delete", $self->mgrast_token);
     }
-    return $awe_history;
+    
+    return $data;
 }
 
 # this produces a generic AWE workflow for a job at a given version
@@ -270,7 +443,7 @@ sub get_workflow_from_template {
     my $jstat = $job->stats();
     my $jopts = Pipeline::get_job_options($job->{options});
     my $vars  = Pipeline::template_keywords();
-    my $version = $jattr->{pipeline_version} || "3.0";
+    my $version = $jattr->{pipeline_version} || $self->{default_pipeline_version};
     $vars->{pipeline_version} = $version;
     $vars->{bp_count} = $jstat->{bp_count_raw};
     $vars->{priority} = Pipeline::set_priority($jstat->{bp_count_raw}, $jattr->{priority});

@@ -787,19 +787,35 @@ sub md5s2sequences {
 
 ## download array of info for metagenome files in shock
 sub get_download_set {
-    my ($self, $mgid, $auth, $seq_only, $authPrefix) = @_;
+    my ($self, $mgid, $version, $auth, $seq_only, $authPrefix) = @_;
 
     if (! $authPrefix) {
       $authPrefix = "mgrast";
     }
 
-    my %seen = ();
+    my $vernum = int( (split(/./))[0] );
+    my %seen   = ();
     my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
     my $stages = [];
-    my $mgdata = $self->get_shock_query({'id' => 'mgm'.$mgid}, $auth, $authPrefix);
-    @$mgdata = grep { exists($_->{attributes}{stage_id}) && exists($_->{attributes}{data_type}) && ($_->{attributes}{type} eq 'metagenome')} @$mgdata;
+    my $mgall  = $self->get_shock_query({'id' => 'mgm'.$mgid}, $auth, $authPrefix);
+    my $mgdata = [];
+    
+    foreach my $node (@$mgall) {
+        # fix malformed stats nodes
+        if ( exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} == 'statistics') &&
+                exists($node->{attributes}{file_format}) && ($node->{attributes}{file_format} == 'json') ) {
+            $node->{attributes}{stage_name} = 'done';
+            $node->{attributes}{stage_id}   = '999';
+        }
+        unless ( exists($node->{attributes}{stage_id}) && exists($node->{attributes}{stage_name}) &&
+                    exists($node->{attributes}{data_type}) && ($node->{attributes}{type} eq 'metagenome') ) {
+            next;
+        }
+        push @$mgdata, $node;
+    }
     @$mgdata = sort { ($a->{attributes}{stage_id} cmp $b->{attributes}{stage_id}) ||
                         ($a->{attributes}{data_type} cmp $b->{attributes}{data_type}) } @$mgdata;
+    
     foreach my $node (@$mgdata) {
         my $attr = $node->{attributes};
         my $file = $node->{file};
@@ -862,10 +878,22 @@ sub get_download_set {
             } elsif (exists($data->{seq_format}) && ($data->{seq_format} eq 'aa')) {
                 $suffix .= '.faa';
             }
+        } elsif ($data->{stage_name} eq 'rna.filter') {
+            $suffix = '.search.rna.fna';
         } elsif ($data->{stage_name} eq 'filter.sims') {
             $suffix = '.annotation.sims.filter.seq';
+        } elsif ($data->{data_type} eq 'md5') {
+            if ($vernum < 4) {
+                $suffix = '.annotation.md5.summary';
+            } else {
+                $suffix = '.annotation.md5.abundance';
+            }
         } elsif ($data->{data_type} eq 'lca') {
-            $suffix = '.annotation.lca.summary';
+            if ($vernum < 4) {
+                $suffix = '.annotation.lca.summary';
+            } else {
+                $suffix = '.annotation.lca.abundance';
+            }
         } elsif ($data->{data_type} eq 'coverage') {
             $suffix = '.assembly.coverage';
         } elsif ($data->{data_type} eq 'statistics') {
@@ -873,7 +901,7 @@ sub get_download_set {
         } else {
             $suffix = ".".$data->{stage_name};
         }
-        $data->{file_name} = $data->{id}.".".$data->{stage_id}.$suffix;
+        $data->{file_name} = $attr->{job_id}.".".$data->{stage_id}.$suffix;
         push @$stages, $data;
     }
     return $stages;
@@ -1469,7 +1497,7 @@ sub get_awe_job {
     my ($self, $id, $auth, $authPrefix, $pass_back_errors) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "mgrast";
+        $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1480,13 +1508,13 @@ sub get_awe_job {
     };
     if ($@ || (! ref($response))) {
         return undef;
-      } elsif (exists($response->{error}) && $response->{error}) {
-	my $err = {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]};
-	if ($pass_back_errors) {
-	  return $err;
-	} else {
-	  $self->return_data( $err, $response->{status} );
-	}
+    } elsif (exists($response->{error}) && $response->{error}) {
+	    my $err = {"ERROR" => "Unable to GET job $id from AWE: ".$response->{error}[0]};
+        if ($pass_back_errors) {
+	        return $err;
+	    } else {
+	        $self->return_data( $err, $response->{status} );
+	    }
     } else {
         return $response->{data};
     }
@@ -1494,10 +1522,10 @@ sub get_awe_job {
 
 # get job report
 sub get_awe_log {
-    my ($self, $id, $auth, $authPrefix) = @_;
+    my ($self, $id, $auth, $authPrefix, $pass_back_errors) = @_;
     
     if (! $authPrefix) {
-      $authPrefix = "mgrast";
+        $authPrefix = "mgrast";
     }
 
     my $response = undef;
@@ -1509,12 +1537,37 @@ sub get_awe_log {
     if ($@ || (! ref($response))) {
         return undef;
     } elsif (exists($response->{error}) && $response->{error}) {
-        $self->return_data( {"ERROR" => "Unable to GET report $id from AWE: ".$response->{error}[0]}, $response->{status} );
+        my $err = {"ERROR" => "Unable to GET report $id from AWE: ".$response->{error}[0]};
+        if ($pass_back_errors) {
+	        return $err;
+	    } else {
+	        $self->return_data( $err, $response->{status} );
+	    }
     } else {
         return $response->{data};
     }
 }
 
+# get merge of awe job and awe report
+sub get_awe_full_document {
+    my ($self, $id, $auth, $authPrefix) = @_;
+    # get objects
+    my $awe_job = $self->get_awe_job($id, $auth, $authPrefix, 1);
+    my $awe_log = $self->get_awe_log($id, $auth, $authPrefix, 1);
+    # check for errors
+    if ((! $awe_job) || (! $awe_log) || exists($awe_job->{ERROR}) || exists($awe_log->{ERROR})) {
+        return undef;
+    }
+    my $task_len = scalar(@{$awe_job->{tasks}})
+    # merge in workunit logs
+    for (my $i=0; $i <= $task_len; $i++) {
+        $awe_job->{tasks}[$i]{workunits} = undef;
+        eval {
+            $awe_job->{tasks}[$i]{workunits} = $awe_log->{tasks}[$i]{workunits};
+        };
+    }
+    return $awe_job;
+}
 
 # get list of jobs for query
 sub get_awe_query {
