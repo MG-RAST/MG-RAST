@@ -798,21 +798,41 @@ sub get_download_set {
     my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
     my $stages = [];
     my $mgall  = $self->get_shock_query({'id' => 'mgm'.$mgid}, $auth, $authPrefix);
+    my $mgmap  = {};
     my $mgdata = [];
-    
+    # filter out non-downloadable nodes
     foreach my $node (@$mgall) {
+        # skip no file
+        unless (exists($node->{file}{checksum}{md5}) || ($node->{file}{size} > 0) || ($node->{file}{name} ne "")) {
+            next;
+        }
+        # skip profiles
+        if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} == 'profile')) {
+            next;
+        }
         # fix malformed stats nodes
-        if ( exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} == 'statistics') &&
-                exists($node->{attributes}{file_format}) && ($node->{attributes}{file_format} == 'json') ) {
+        if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} == 'statistics') &&
+                exists($node->{attributes}{file_format}) && ($node->{attributes}{file_format} == 'json')) {
             $node->{attributes}{stage_name} = 'done';
             $node->{attributes}{stage_id}   = '999';
         }
-        unless ( exists($node->{attributes}{stage_id}) && exists($node->{attributes}{stage_name}) &&
-                    exists($node->{attributes}{data_type}) && ($node->{attributes}{type} eq 'metagenome') ) {
+        unless (exists($node->{attributes}{stage_id}) && exists($node->{attributes}{stage_name}) && exists($node->{attributes}{file_format})
+                    && exists($node->{attributes}{data_type}) && ($node->{attributes}{type} eq 'metagenome')) {
             next;
         }
-        push @$mgdata, $node;
+        my $unique = $node->{attributes}{stage_id}.$node->{attributes}{stage_name}.$node->{attributes}{file_format}.$node->{attributes}{data_type};
+        push @{$mgmap->{$unique}}, $node;
     }
+    # find duplicates and only keep latest
+    foreach my $nodes (values %$mgmap) {
+        if (scalar(@$nodes) == 1) {
+            push @$mgdata, $nodes->[0];
+        } elsif (scalar(@$nodes) > 1) {
+            my @sorted = sort { $b->{created_on} cmp $a->{created_on} } @$nodes;
+            push @$mgdata, $sorted->[0];
+        }
+    }
+    # sort by stages
     @$mgdata = sort { ($a->{attributes}{stage_id} cmp $b->{attributes}{stage_id}) ||
                         ($a->{attributes}{data_type} cmp $b->{attributes}{data_type}) } @$mgdata;
     
@@ -1558,7 +1578,7 @@ sub get_awe_full_document {
     if ((! $awe_job) || (! $awe_log) || exists($awe_job->{ERROR}) || exists($awe_log->{ERROR})) {
         return undef;
     }
-    my $task_len = scalar(@{$awe_job->{tasks}})
+    my $task_len = scalar(@{$awe_job->{tasks}});
     # merge in workunit logs
     for (my $i=0; $i <= $task_len; $i++) {
         $awe_job->{tasks}[$i]{workunits} = undef;

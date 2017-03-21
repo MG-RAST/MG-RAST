@@ -205,11 +205,10 @@ sub awe_history {
     # get shock node and file
     my $squery = {
         id         => $mgid,
-        data_type  => 'awe_workflow',
-        stage_name => 'done'
+        data_type  => 'awe_workflow'
     };
     my $nodes = $self->get_shock_query($squery, $self->mgrast_token);
-    if ((scalar(@nodes) > 0) && (! $force)) {
+    if ((scalar(@$nodes) > 0) && (! $force)) {
         my ($content, $err) = $self->get_shock_file($nodes->[0]{id}, undef, $self->mgrast_token);
         if ($err) {
             $self->return_data( {"ERROR" => "Unable to retrieve processing history: $err"}, 500 );
@@ -266,7 +265,9 @@ sub awe_history {
     
     # get downloadable files
     my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
-    my %setmap  = map { $_->{file_name}, $_ } @{ $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token) };
+    my @setlist = @{ $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token) };
+    my $upload  = shift @setlist;
+    my %setmap  = map { $_->{file_name}, $_ } @setlist;
     my %filemap = map { $_, 0 } keys %setmap;
     
     # build history
@@ -287,8 +288,8 @@ sub awe_history {
         file_name => $job->{file},
         file_size => $job->{file_size_raw},
         file_md5  => $job->{file_checksum_raw},
-        node_id   => $setlist->[0]{node_id},
-        url       => $setlist->[0]{url}
+        node_id   => $upload->{node_id},
+        url       => $upload->{url}
     };
     
     # remaining stages
@@ -299,7 +300,7 @@ sub awe_history {
         $ht->{uses} = [];
         foreach my $stu (@{$st->{uses}}) {
             if  (exists $stu->{versions}{$version}) {
-                my $htu = $clone($stu);
+                my $htu = clone($stu);
                 delete $htu->{versions};
                 push @{$ht->{uses}}, $htu;
             }
@@ -311,7 +312,7 @@ sub awe_history {
                 if ($is_template) {
                     while (my ($fname, $input) = each %{$dt->{inputs}}) {
                         my $origin = undef;
-                        if (exists($input->{origin}) && ($input->{origin} ~= /^\d+$/)) {
+                        if (exists($input->{origin}) && ($input->{origin} =~ /^\d+$/)) {
                             $origin = $job_doc->{tasks}[ int($input->{origin}) ]{cmd}{description};
                         }
                         push @{$ht->{inputs}}, {
@@ -397,9 +398,7 @@ sub awe_history {
             data_type     => 'awe_workflow',
             workflow_type => $is_template ? 'template' : 'full',
             awe_id        => $awe_id,
-            file_format   => 'json',
-            stage_name    => 'done',
-            stage_id      => '999'
+            file_format   => 'json'
         };
         eval {
             my $proj = $job->primary_project;
