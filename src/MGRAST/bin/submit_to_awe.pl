@@ -202,7 +202,7 @@ my $node_id = $sres->{data}{id};
 print "upload shock node\t$node_id\n";
 
 # create workflow from template
-my $workflow_obj = Pipeline::populate_template($jobj, $jattr, $jopts, $vars, $node_id, $version, $use_docker);
+my $workflow_obj = Pipeline::populate_template($jobj, $jattr, $jopts, $vars, $node_id, $vars->{pipeline_version}, $use_docker);
 unless ($workflow_obj) {
     print STDERR "ERROR: unable to populate template and transform to JSON\n";
 	exit 1;

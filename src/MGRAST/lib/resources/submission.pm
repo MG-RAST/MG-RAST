@@ -705,7 +705,7 @@ sub submission_jobs {
     }
     my $inbox_jobs = $self->get_awe_query($inbox_query, $self->token, $self->user_auth);
     my $submit = (scalar(@{$inbox_jobs->{data}}) > 0) ? $inbox_jobs->{data}[0] : {};
-    my $data = { submit => $submit };
+    my $data = { submit => $submit, pipeline => [] };
     if ($full) {
         foreach my $p (@{$Conf::pipeline_names}) {
             $mgrast_query->{"info.pipeline"} = $p;
