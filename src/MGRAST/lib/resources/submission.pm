@@ -610,8 +610,8 @@ sub submit {
     };
     
     # remove any empty tasks
-    my $staskid = scalar(@$tasks);
     @$tasks = grep { ! $_->{skip} } @$tasks;
+    my $staskid = scalar(@$tasks);
 
     # add submission task
     my $submit_task = $self->empty_awe_task(1);
