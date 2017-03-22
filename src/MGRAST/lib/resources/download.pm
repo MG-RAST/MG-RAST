@@ -434,7 +434,7 @@ sub get_workflow_from_template {
     
     use Pipeline;
     my $input_id = "";
-    my $upload   = $self->get_shock_query({'id' => 'mgm'.$mgid, 'stage_name' => 'upload'}, $self->mgrast_token);
+    my $upload   = $self->get_shock_query({'id' => 'mgm'.$job->{metagenome_id}, 'stage_name' => 'upload'}, $self->mgrast_token);
     if ((@$upload > 0) && $upload->[0]{id}) {
         $input_id = $upload->[0]{id};
     }
