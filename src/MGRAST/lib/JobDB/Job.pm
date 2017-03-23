@@ -109,7 +109,7 @@ sub reserve_job_id {
     my $job_id = $max->[0] + 1;
     my $mg_id  = $max->[1] + 1;
     my $sth = $dbh->prepare("INSERT INTO Job (job_id,metagenome_id,name,file,file_size_raw,file_checksum_raw,server_version,owner,_owner_db) VALUES (?,?,?,?,?,?,?,?,?)");
-    $sth->execute($job_id, $mg_id, $name, $file, $size, $md5, 4, $user, 1);
+    $sth->execute($job_id, $mg_id, $name, $file, $size, $md5, 4, $user->_id, 1);
     $sth->finish();
     $dbh->do("UNLOCK TABLES");
     
