@@ -793,7 +793,7 @@ sub get_download_set {
       $authPrefix = "mgrast";
     }
 
-    my $vernum = int( (split(/./))[0] );
+    my $vernum = int( (split(/\./, $version))[0] );
     my %seen   = ();
     my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
     my $stages = [];
@@ -807,12 +807,12 @@ sub get_download_set {
             next;
         }
         # skip profiles
-        if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} == 'profile')) {
+        if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} eq 'profile')) {
             next;
         }
         # fix malformed stats nodes
-        if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} == 'statistics') &&
-                exists($node->{attributes}{file_format}) && ($node->{attributes}{file_format} == 'json')) {
+        if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} eq 'statistics') &&
+                exists($node->{attributes}{file_format}) && ($node->{attributes}{file_format} eq 'json')) {
             $node->{attributes}{stage_name} = 'done';
             $node->{attributes}{stage_id}   = '999';
         }
@@ -863,11 +863,19 @@ sub get_download_set {
 		             file_size  => $file->{size} || undef,
 		             file_md5   => $file->{checksum}{md5} || undef
 		};
-		foreach my $label (('statistics', 'seq_format', 'file_format', 'cluster_percent')) {
+		if (exists $attr->{cluster_percent}) {
+		    $data->{cluster_percent} = $self->strToNum($attr->{cluster_percent});
+	    }
+	    foreach my $label (('statistics', 'seq_format', 'file_format')) {
 		    if (exists $attr->{$label}) {
                 $data->{$label} = $attr->{$label};
             }
 		}
+	    if (exists $data->{statistics}) {
+	        foreach my $k (keys %{$data->{statistics}}) {
+	            $data->{statistics}{$k} = $self->strToNum($data->{statistics}{$k});
+	        }
+	    }
         # rename for subset
         if (exists $subset{$data->{stage_name}}) {
             $data->{stage_name} .= ($attr->{data_type} eq 'removed') ? '.removed' : '.passed';
@@ -2601,6 +2609,15 @@ sub toFloat {
 sub toNum {
     my ($self, $x, $type) = @_;
     if ($type eq 'abundance') {
+        return int($x);
+    } else {
+        return $x * 1.0;
+    }
+}
+
+sub strToNum {
+    my ($self, $x) = @_;
+    if (int($x) == $x) {
         return int($x);
     } else {
         return $x * 1.0;
