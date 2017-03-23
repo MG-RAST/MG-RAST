@@ -131,11 +131,12 @@ sub instance {
     }
 
     # get data / parameters
-    my $stage   = $self->cgi->param('stage') || undef;
-    my $file    = $self->cgi->param('file') || undef;
-    my $link    = $self->cgi->param('link') ? 1 : 0;
+    my $stage = $self->cgi->param('stage') || undef;
+    my $file  = $self->cgi->param('file') || undef;
+    my $link  = $self->cgi->param('link') ? 1 : 0;
+    my $debug = $self->cgi->param('debug') ? 1 : 0;
     my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
-    my $setlist = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
+    my ($setlist, $skip) = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
     
     # return file from shock
     if ($file) {
@@ -173,6 +174,9 @@ sub instance {
     # return all
     else {
         $data->{data} = $setlist;
+        if (debug) {
+            $data->{skip} = $skip;
+        }
     }
     $self->return_data($data);
 }
@@ -265,9 +269,9 @@ sub awe_history {
     
     # get downloadable files
     my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
-    my @setlist = @{ $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token) };
-    my $upload  = shift @setlist;
-    my %setmap  = map { $_->{file_name}, $_ } @setlist;
+    my ($setlist, $skip) = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
+    my $upload  = shift @$setlist;
+    my %setmap  = map { $_->{file_name}, $_ } @$setlist;
     my %filemap = map { $_, 0 } keys %setmap;
     
     # build history
@@ -372,6 +376,7 @@ sub awe_history {
     
     # bookkeeping to check for missed downloadable files
     if ($debug) {
+        $awe_history->{skip} = $skip;
         $awe_history->{missing} = [];
         while (my ($fname, $status) = each %filemap) {
             if ($status == 0) {

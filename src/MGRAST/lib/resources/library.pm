@@ -199,7 +199,11 @@ sub prepare_data {
               $obj->{sample}        = $samp ? ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}] : undef;
 	          $obj->{reads}         = $ljob ? ["mgm".$ljob->{metagenome_id}, $url.'/metagenome/mgm'.$ljob->{metagenome_id}] : undef;
 	          $obj->{metagenome}    = $ljob ? ["mgm".$ljob->{metagenome_id}, $url.'/metagenome/mgm'.$ljob->{metagenome_id}] : undef;
-	          $obj->{sequence_sets} = $ljob ? $self->get_download_set($ljob->{metagenome_id}, $self->mgrast_token, 1) : [];
+	          $obj->{sequence_sets} = [];
+	          if ($ljob) {
+	              my ($seq_sets, $skip) = $self->get_download_set($ljob->{metagenome_id}, $self->mgrast_token, 1);
+	              $obj->{sequence_sets} = $seq_sets;
+	          }
           }
           if ($self->cgi->param('verbosity') eq 'verbose' || $self->cgi->param('verbosity') eq 'full') {
 	          my $mdata = $library->data();

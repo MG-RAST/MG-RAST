@@ -795,6 +795,7 @@ sub get_download_set {
 
     my $vernum = int( (split(/\./, $version))[0] );
     my %seen   = ();
+    my $skip   = {};
     my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
     my $stages = [];
     my $mgall  = $self->get_shock_query({'id' => 'mgm'.$mgid}, $auth, $authPrefix);
@@ -804,10 +805,12 @@ sub get_download_set {
     foreach my $node (@$mgall) {
         # skip no file
         unless (exists($node->{file}{checksum}{md5}) || ($node->{file}{size} > 0) || ($node->{file}{name} ne "")) {
+            $skip->{$node->{id}} = "missing file";
             next;
         }
         # skip profiles
         if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} eq 'profile')) {
+            $skip->{$node->{id}} = "profile node";
             next;
         }
         # fix malformed stats nodes
@@ -818,6 +821,7 @@ sub get_download_set {
         }
         unless (exists($node->{attributes}{stage_id}) && exists($node->{attributes}{stage_name}) && exists($node->{attributes}{file_format})
                     && exists($node->{attributes}{data_type}) && ($node->{attributes}{type} eq 'metagenome')) {
+            $skip->{$node->{id}} = "missing attributes";
             next;
         }
         my $unique = $node->{attributes}{stage_id}.$node->{attributes}{stage_name}.$node->{attributes}{file_format}.$node->{attributes}{data_type};
@@ -845,6 +849,7 @@ sub get_download_set {
              ($attr->{file_format} ne 'fasta') &&
              ($attr->{file_format} ne 'fastq') )
         {
+            $skip->{$node->{id}} = "not sequence file";
             next;
         }
         if (exists $seen{$attr->{stage_id}}) {
@@ -930,7 +935,7 @@ sub get_download_set {
         $data->{file_name} = $attr->{job_id}.".".$data->{stage_id}.$suffix;
         push @$stages, $data;
     }
-    return $stages;
+    return ($stages, $skip);
 }
 
 # add or delete an ACL based on username
