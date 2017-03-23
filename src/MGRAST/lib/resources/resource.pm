@@ -863,10 +863,7 @@ sub get_download_set {
 		             file_size  => $file->{size} || undef,
 		             file_md5   => $file->{checksum}{md5} || undef
 		};
-		if (exists $attr->{cluster_percent}) {
-		    $data->{cluster_percent} = $self->strToNum($attr->{cluster_percent});
-	    }
-	    foreach my $label (('statistics', 'seq_format', 'file_format')) {
+	    foreach my $label (('statistics', 'seq_format', 'file_format', 'cluster_percent')) {
 		    if (exists $attr->{$label}) {
                 $data->{$label} = $attr->{$label};
             }
@@ -896,6 +893,7 @@ sub get_download_set {
             } elsif ($seqtype eq 'aa') {
                 $suffix .= '.faa';
             }
+            $data->{cluster_percent} = int($data->{cluster_percent});
         }
         elsif (($data->{data_type} =~ /^sequence|passed|removed$/) && exists($data->{file_format})) {
             $suffix = ".".$data->{stage_name};
