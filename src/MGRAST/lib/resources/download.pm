@@ -174,8 +174,9 @@ sub instance {
     # return all
     else {
         $data->{data} = $setlist;
-        if (debug) {
+        if ($debug) {
             $data->{skip} = $skip;
+            $data->{url} .= '?debug=1';
         }
     }
     $self->return_data($data);
