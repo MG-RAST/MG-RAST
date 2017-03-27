@@ -840,6 +840,7 @@ sub get_download_set {
     @$mgdata = sort { ($a->{attributes}{stage_id} cmp $b->{attributes}{stage_id}) ||
                         ($a->{attributes}{data_type} cmp $b->{attributes}{data_type}) } @$mgdata;
     
+    # process nodes / create download stages struct
     foreach my $node (@$mgdata) {
         my $attr = $node->{attributes};
         my $file = $node->{file};
@@ -935,6 +936,20 @@ sub get_download_set {
         $data->{file_name} = $attr->{job_id}.".".$data->{stage_id}.$suffix;
         push @$stages, $data;
     }
+    
+    # final check for any missing
+    foreach my $n (@$mgall) {
+        my $in_stage = 0;
+        foreach my $s (@$stages) {
+            if ($s->{node_id} eq $node->{id}) {
+                $in_stage = 1;
+            }
+        }
+        unless ($in_stage || exists($skip->{$node->{id}})) {
+            $skip->{$node->{id}} = "missing download";
+        }
+    }
+    
     return ($stages, $skip);
 }
 
