@@ -941,12 +941,12 @@ sub get_download_set {
     foreach my $n (@$mgall) {
         my $in_stage = 0;
         foreach my $s (@$stages) {
-            if ($s->{node_id} eq $node->{id}) {
+            if ($s->{node_id} eq $n->{id}) {
                 $in_stage = 1;
             }
         }
-        unless ($in_stage || exists($skip->{$node->{id}})) {
-            $skip->{$node->{id}} = "missing download";
+        unless ($in_stage || exists($skip->{$n->{id}})) {
+            $skip->{$n->{id}} = "missing download";
         }
     }
     
