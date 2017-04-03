@@ -319,6 +319,10 @@ sub awe_history {
         }
         # get inputs / outputs by members
         foreach my $dt (@{$job_doc->{tasks}}) {
+            unless ($dt->{cmd} && $dt->{cmd}{description}) {
+                # skip broken tasks
+                next;
+            }
             if (exists $st->{members}{ $dt->{cmd}{description} }) {
                 # hash structure / AWE template
                 if ($is_template) {
