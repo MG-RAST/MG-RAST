@@ -248,6 +248,10 @@ sub awe_history {
         # build from AWE
         if ($awe_id) {
             $job_doc = $self->get_awe_full_document($awe_id, $self->mgrast_token);
+            # fix for reload pipeline
+            if ($job_doc->{info}{pipeline} eq 'mgrast-reload') {
+                $job_doc = undef;
+            }
         }
         # no ID or not in AWE - just use template
         if (! $job_doc) {
