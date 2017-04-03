@@ -46,7 +46,7 @@ sub populate_template {
     $vars->{seq_type}       = $jobj->{sequence_type} || $jattr->{sequence_type_guess};
     $vars->{user}           = 'mgu'.$jobj->{owner} || '';
     $vars->{shock_node}     = $input_id;
-    $vars->{inputfile}      = $jobj->{file} || $vars->{mg_name}.".".$vars->{file_format};
+    $vars->{inputfile}      = $jobj->{file} || $job_id.'.050.upload.'.(($vars->{file_format} eq 'fastq') ? 'fastq' : 'fna');
     $vars->{filter_options} = $jopts->{filter_options} || 'skip';
     $vars->{assembled}      = exists($jattr->{assembled}) ? $jattr->{assembled} : 0;
     $vars->{dereplicate}    = exists($jopts->{dereplicate}) ? $jopts->{dereplicate} : 1;

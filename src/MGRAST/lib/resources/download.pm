@@ -126,7 +126,7 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
-    if ((@$rest > 1) && ($rest->[0] eq 'history')) {
+    if ((@$rest > 1) && ($rest->[1] eq 'history')) {
         $self->return_data( $self->awe_history($mgid, $job) );
     }
 
@@ -290,9 +290,9 @@ sub awe_history {
     
     # upload stage
     push @{ $awe_history->{tasks}[0]{inputs} }, {
-        file_name => $job->{file},
-        file_size => $job->{file_size_raw},
-        file_md5  => $job->{file_checksum_raw},
+        file_name => $job->{file} || $upload->{file_name},
+        file_size => $job->{file_size_raw} || $upload->{file_size},
+        file_md5  => $job->{file_checksum_raw} || $upload->{file_md5},
         node_id   => $upload->{node_id},
         url       => $upload->{url}
     };
@@ -301,6 +301,7 @@ sub awe_history {
     foreach my $st (@{$stage_info->{tasks}}) {
         # copy stage
         my $ht = clone($st);
+        delete $ht->{members};
         # get useage by version
         $ht->{uses} = [];
         foreach my $stu (@{$st->{uses}}) {
@@ -313,7 +314,7 @@ sub awe_history {
         # get inputs / outputs by members
         foreach my $dt (@{$job_doc->{tasks}}) {
             if (exists $st->{members}{ $dt->{cmd}{description} }) {
-                # hash structure
+                # hash structure / AWE template
                 if ($is_template) {
                     while (my ($fname, $input) = each %{$dt->{inputs}}) {
                         my $origin = undef;
@@ -341,7 +342,7 @@ sub awe_history {
                         push @{$ht->{outputs}}, $hto;
                     }
                 }
-                # array structure
+                # array structure / complete AWE workflow
                 else {
                     foreach my $input (@{$dt->{inputs}}) {
                         my $origin = undef;
@@ -377,6 +378,8 @@ sub awe_history {
     
     # bookkeeping to check for missed downloadable files
     if ($debug) {
+        $data->{workflow_type} = $is_template ? 'template' : 'full';
+        $data->{pipeline_version} = $version;
         $awe_history->{skip} = $skip;
         $awe_history->{missing} = [];
         while (my ($fname, $status) = each %filemap) {
@@ -404,7 +407,8 @@ sub awe_history {
             data_type     => 'awe_workflow',
             workflow_type => $is_template ? 'template' : 'full',
             awe_id        => $awe_id,
-            file_format   => 'json'
+            file_format   => 'json',
+            pipeline_version => $version
         };
         eval {
             my $proj = $job->primary_project;

@@ -910,8 +910,15 @@ sub get_download_set {
             } elsif (exists($data->{seq_format}) && ($data->{seq_format} eq 'aa')) {
                 $suffix .= '.faa';
             }
+            if ($data->{stage_name} eq 'rna.filter') {
+                $suffix = '.search.rna.fna';
+            }
+        } elsif ($data->{stage_name} eq 'genecalling') {
+            $suffix = ".genecalling.coding.faa";
         } elsif ($data->{stage_name} eq 'rna.filter') {
             $suffix = '.search.rna.fna';
+        } elsif ($data->{stage_name} eq 'protein.sims') {
+            $suffix = '.superblat.sims';
         } elsif ($data->{stage_name} eq 'filter.sims') {
             $suffix = '.annotation.sims.filter.seq';
         } elsif ($data->{data_type} eq 'md5') {
@@ -928,12 +935,17 @@ sub get_download_set {
             }
         } elsif ($data->{data_type} eq 'coverage') {
             $suffix = '.assembly.coverage';
-        } elsif ($data->{data_type} eq 'statistics') {
-            $suffix = '.statistics.json';
         } else {
             $suffix = ".".$data->{stage_name};
         }
         $data->{file_name} = $attr->{job_id}.".".$data->{stage_id}.$suffix;
+        if ($data->{data_type} eq 'statistics') {
+            # no stage_id in stats file name
+            $data->{file_name} = $attr->{job_id}.'.statistics.json';
+        } elsif (($data->{stage_name} eq 'filter.sims') && ($version eq '3.0')) {
+            # old pipeline naming scheme
+            $data->{file_name} = $attr->{job_id}.'.900.loadDB.sims.filter.seq';
+        }
         push @$stages, $data;
     }
     

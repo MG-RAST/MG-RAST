@@ -43,6 +43,7 @@ sub new {
 			    changesequencetype => 1,
 			    publicationadjust => 1
     };
+    $self->{default_pipeline_version} = "3.0";
     $self->{attributes} = {
         reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
                      "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
@@ -763,6 +764,7 @@ sub job_action {
                 if ($awe_doc->{info}{userattr}{id} ne $post->{metagenome_id}) {
                     $self->return_data( {"ERROR" => "Inputed MG-RAST ID does not match pipeline document"}, 404 );
                 }
+                my $p_version  = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
                 my $shock_attr = {
                     id            => $post->{metagenome_id},
                     job_id        => $job->{job_id},
@@ -777,7 +779,8 @@ sub job_action {
                     data_type     => 'awe_workflow',
                     workflow_type => 'full',
                     awe_id        => $awe_id,
-                    file_format   => 'json'
+                    file_format   => 'json',
+                    pipeline_version => $p_version
                 };
                 eval {
                     my $proj = $job->primary_project;
