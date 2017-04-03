@@ -113,12 +113,14 @@ sub instance {
                 $data = $self->json->decode($content);
             };
             if ($@ || (! $data)) {
-                $self->return_data( {"ERROR" => "invalid data format: ".$@}, 404 );
+                $data = $content;
             }
-            my $error = exists($data->{ERROR}) ? $data->{ERROR} : (exists($data->{error}) ? $data->{error} : undef);
-            if ($error) {
-                my $status = exists($data->{STATUS}) ? $data->{STATUS} : (exists($data->{status}) ? $data->{status} : 500);
-                $self->return_data( {"ERROR" => $error},  $status);
+            if (ref($data) eq "HASH") {
+                my $error = exists($data->{ERROR}) ? $data->{ERROR} : (exists($data->{error}) ? $data->{error} : undef);
+                if ($error) {
+                    my $status = exists($data->{STATUS}) ? $data->{STATUS} : (exists($data->{status}) ? $data->{status} : 500);
+                    $self->return_data( {"ERROR" => $error},  $status);
+                }
             }
             $obj->{data} = $data;
         }

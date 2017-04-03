@@ -377,17 +377,18 @@
                 }
             }, 
             "outputs": {
-                "[% job_id %].700.annotation.sims.filter.seq": {
+                "[% job_id %].900.loadDB.sims.filter.seq": {
                     "host": "[% shock_url %]",
                     "node": "-"
                 },
-                "[% job_id %].700.annotation.source.stats": {
+                "[% job_id %].900.loadDB.source.stats": {
                     "host": "[% shock_url %]",
+                    "delete": true,
                     "node": "-"
                 }
             },
             "userattr": {
-                "stage_id": "700",
+                "stage_id": "900",
                 "stage_name": "annotation.summary"
             },
             "taskid": "10",

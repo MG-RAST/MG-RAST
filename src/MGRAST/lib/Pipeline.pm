@@ -6,7 +6,171 @@ no warnings('once');
 
 use Conf;
 use DBI;
+use JSON;
+use Template;
 use Data::Dumper;
+use File::Slurp;
+
+our $priority_map = {
+    "never"       => 1,
+    "date"        => 5,
+    "6months"     => 10,
+    "3months"     => 15,
+    "immediately" => 20
+};
+
+our $json = JSON->new();
+$json->max_size(0);
+$json->allow_nonref;
+
+sub populate_template {
+    my ($jobj, $jattr, $jopts, $vars, $input_id, $version, $use_docker) = @_;
+    
+    # set template
+    my $tpage = Template->new(ABSOLUTE => 1);
+    my $template = $Conf::workflow_dir."/mgrast-prod-".$version.".awf";
+    my $template_str = read_file($template);
+    
+    # populate workflow variables
+    my $job_id = $jobj->{job_id};
+    if ($use_docker) {
+    	$vars->{docker_switch} = '';
+    } else {
+    	$vars->{docker_switch} = '_'; # disables these entries
+    }
+    $vars->{job_id}         = $job_id;
+    $vars->{mg_id}          = 'mgm'.$jobj->{metagenome_id};
+    $vars->{mg_name}        = $jobj->{name};
+    $vars->{job_date}       = $jobj->{created_on};
+    $vars->{file_format}    = ($jattr->{file_type} && ($jattr->{file_type} eq 'fastq')) ? 'fastq' : 'fasta';
+    $vars->{seq_type}       = $jobj->{sequence_type} || $jattr->{sequence_type_guess};
+    $vars->{user}           = 'mgu'.$jobj->{owner} || '';
+    $vars->{shock_node}     = $input_id;
+    $vars->{inputfile}      = $jobj->{file} || $job_id.'.050.upload.'.(($vars->{file_format} eq 'fastq') ? 'fastq' : 'fna');
+    $vars->{filter_options} = $jopts->{filter_options} || 'skip';
+    $vars->{assembled}      = exists($jattr->{assembled}) ? $jattr->{assembled} : 0;
+    $vars->{dereplicate}    = exists($jopts->{dereplicate}) ? $jopts->{dereplicate} : 1;
+    $vars->{bowtie}         = exists($jopts->{bowtie}) ? $jopts->{bowtie} : 1;
+    $vars->{screen_indexes} = exists($jopts->{screen_indexes}) ? $jopts->{screen_indexes} : 'h_sapiens';
+    $vars->{screen_indexes} = validate_indexes($vars->{screen_indexes});
+    $vars->{project_id}     = "";
+    $vars->{project_name}   = "";
+    # is hash
+    if ($jobj->{project_id} && $jobj->{project_name}) {
+        $vars->{project_id}   = 'mgp'.$jobj->{project_id};
+        $vars->{project_name} = $jobj->{project_name};
+    }
+    # is object
+    elsif ($jobj->{primary_project}) {
+        eval {
+            my $proj = $jobj->primary_project;
+	        if ($proj->{id}) {
+	            $vars->{project_id}   = "mgp".$proj->{id};
+	            $vars->{project_name} = $proj->{name};
+            }
+        };
+    }
+    # set node output type for preprocessing
+    if ($vars->{file_format} eq 'fastq') {
+        $vars->{preprocess_pass} = qq(,
+                        "shockindex": "record");
+        $vars->{preprocess_fail} = "";
+    } elsif ($vars->{filter_options} eq 'skip') {
+        $vars->{preprocess_pass} = qq(,
+                        "type": "copy",
+                        "formoptions": {
+                            "parent_node": "$input_id",
+                            "copy_indexes": "1"
+                        });
+        $vars->{preprocess_fail} = "";
+    } else {
+        $vars->{preprocess_pass} = qq(,
+                        "type": "subset",
+                        "formoptions": {
+                            "parent_node": "$input_id",
+                            "parent_index": "record"
+                        });
+        $vars->{preprocess_fail} = $vars->{preprocess_pass};
+    }
+    # set node output type for dereplication
+    if ($vars->{dereplicate} == 0) {
+        $vars->{dereplicate_pass} = qq(,
+                        "type": "copy",
+                        "formoptions": {                        
+                            "parent_name": "${job_id}.100.preprocess.passed.fna",
+                            "copy_indexes": "1"
+                        });
+        $vars->{dereplicate_fail} = "";
+    } else {
+        $vars->{dereplicate_pass} = qq(,
+                        "type": "subset",
+                        "formoptions": {                        
+                            "parent_name": "${job_id}.100.preprocess.passed.fna",
+                            "parent_index": "record"
+                        });
+        $vars->{dereplicate_fail} = $vars->{dereplicate_pass};
+    }
+    # set node output type for bowtie
+    if ($vars->{bowtie} == 0) {
+        $vars->{bowtie_pass} = qq(,
+                        "type": "copy",
+                        "formoptions": {                        
+                            "parent_name": "${job_id}.150.dereplication.passed.fna",
+                            "copy_indexes": "1"
+                        });
+    } else {
+        $vars->{bowtie_pass} = qq(,
+                        "type": "subset",
+                        "formoptions": {                        
+                            "parent_name": "${job_id}.150.dereplication.passed.fna",
+                            "parent_index": "record"
+                        });
+    }
+    # build bowtie index list
+    my $bowtie_url = $Conf::shock_url;
+    my $bowtie_indexes = bowtie_indexes();
+    $vars->{index_download_urls} = "";
+    foreach my $idx (split(/,/, $vars->{screen_indexes})) {
+        if (exists $bowtie_indexes->{$idx}) {
+            while (my ($ifile, $inode) = each %{$bowtie_indexes->{$idx}}) {
+                $vars->{index_download_urls} .= qq(
+                    "$ifile": {
+                        "url": "${bowtie_url}/node/${inode}?download"
+                    },);
+            }
+        }
+    }
+    chop $vars->{index_download_urls};
+    
+    # replace variables (reads from $template_str and writes to $workflow_str)
+    my $workflow_obj = undef;
+    my $workflow_str = "";
+    eval {
+        $tpage->process(\$template_str, $vars, \$workflow_str);
+        $workflow_obj = $json->decode($workflow_str);
+    };
+    return $workflow_obj;
+}
+
+sub set_priority {
+    my ($bp_count, $priority) = @_;
+    
+    my $pnum = 1;
+    if ($priority && exists($priority_map->{$priority})) {
+        $pnum = $priority_map->{$priority};
+    }
+    # higher priority if smaller data
+    if (int($bp_count) < 100000000) {
+        $pnum = 30;
+    }
+    if (int($bp_count) < 50000000) {
+        $pnum = 40;
+    }
+    if (int($bp_count) < 10000000) {
+        $pnum = 50;
+    }
+    return $pnum;
+}
 
 sub get_jobcache_dbh {
     my ($host, $name, $user, $pass, $key, $cert, $ca) = @_;
@@ -49,6 +213,20 @@ sub get_job_attributes {
 sub get_job_statistics {
     my ($dbh, $jobid) = @_;
     return get_job_tag_data($dbh, $jobid, "JobStatistics");
+}
+
+sub get_job_options {
+    my ($options) = @_;
+    my $jopts = {};
+    foreach my $opt (split(/\&/, $options)) {
+        if ($opt =~ /^filter_options=(.*)/) {
+            $jopts->{filter_options} = $1 || 'skip';
+        } else {
+            my ($k, $v) = split(/=/, $opt);
+            $jopts->{$k} = $v;
+        }
+    }
+    return $jopts;
 }
 
 sub get_job_tag_data {
@@ -94,6 +272,7 @@ sub template_keywords {
         # awe clients
         'clientgroups' => "mgrast_dbload,mgrast_single,mgrast_multi",
         'priority'     => 1,
+        'docker_image_version' => "latest",
 
         # urls
         'shock_url'  => $Conf::shock_url,
@@ -127,6 +306,22 @@ sub template_keywords {
         'm5rna_v10_clust_download_url' => 'http://shock.metagenomics.anl.gov/node/715c7ebe-b6bd-472a-a36e-590c0c737d43?download',
         'm5nr_v10_annotation_url' => 'http://shock.metagenomics.anl.gov/node/7be4ac73-9037-458a-99df-393ef2c34dfe?download'
     };
+}
+
+sub validate_indexes {
+    my ($screen_indexes) = @_;
+    my @valid_indexes  = ();
+    my $bowtie_indexes = bowtie_indexes();
+    foreach my $idx (split(/,/, $screen_indexes)) {
+        if (exists $bowtie_indexes->{$idx}) {
+            push @valid_indexes, $idx;
+        }
+    }
+    if (@valid_indexes == 0) {
+        # just use default
+        @valid_indexes = ('h_sapiens');
+    }
+    return join(",", @valid_indexes);
 }
 
 sub bowtie_indexes {

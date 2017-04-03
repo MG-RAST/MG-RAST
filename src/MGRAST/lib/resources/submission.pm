@@ -229,7 +229,6 @@ sub list {
 sub status {
     my ($self, $uuid) = @_;
     
-    my $full = $self->cgi->param('full') ? 1 : 0;
     my $response = {
         id         => $uuid,
         user       => 'mgu'.$self->user->_id,
@@ -270,16 +269,21 @@ sub status {
     
     # set output
     my $output = {
-        type => $info->{input}{type}, # submission type
-        submission => $info,          # submission inputs / paramaters
-        results => $result,           # info on success or failer of sequences
-        preprocessing => [],          # info of preprocessing pipeline stages
-        metagenomes => [],            # info of analysis pipeline stages per metagenome
+        type => $info->{input}{type},     # submission type
+        submission => $info,              # submission inputs / paramaters
+        results => $result,               # info on success or failer of sequences
+        preprocessing => [],              # info of preprocessing pipeline stages
+        metagenomes => $jobs->{pipeline},         # info of analysis pipeline stages per metagenome
         timestamp => $submit->{info}{submittime}  # submission time
     };
     
     # status of preprocessing workflow
+    # only for multi-step submissions
     foreach my $task (@{$submit->{tasks}}) {
+        # skip submission stage
+        if (exists($task->{userattr}{stage_name}) && ($task->{userattr}{stage_name} eq 'submission')) {
+            next;
+        }
         my $summery = {
             stage => $task->{cmd}{description},
             inputs => [ map { $_->{filename} } @{$task->{inputs}} ],
@@ -289,41 +293,6 @@ sub status {
             $summery->{error} = $self->get_task_report($task, 'stderr', $self->token, $self->user_auth) || 'unknown error';
         }
         push @{$output->{preprocessing}}, $summery;
-    }
-    
-    # check children workflows - get current stage
-    foreach my $pj (@{$jobs->{pipeline}}) {
-        # get current runtime
-        my $runtime = 0;
-        foreach my $pjt (@{$pj->{tasks}}) {
-            if ($pjt->{starteddate} eq "0001-01-01T00:00:00Z") {
-                next; # task hasnt started yet, no runtime
-            }
-            my $start = DateTime::Format::ISO8601->parse_datetime($pjt->{starteddate})->epoch();
-            # if still running just get current time
-            my $end = ($pjt->{completeddate} eq "0001-01-01T00:00:00Z") ? time : DateTime::Format::ISO8601->parse_datetime($pjt->{completeddate})->epoch();
-            # ignore screwy stuff
-            my $total = (($end - $start) < 0) ? 0 : $end - $start;
-            $runtime += $total;
-        }
-        if ($full) {
-            $pj->{info}{runtime} = $runtime;
-            push @{$output->{metagenomes}}, $pj;
-        } else {
-            my $tasknum = scalar(@{$pj->{tasks}});
-            my $summery = {
-                id => $pj->{info}{userattr}{id},
-                job => $pj->{id},
-                name => $pj->{info}{userattr}{name},
-                status => $pj->{state},
-                submittime => $pj->{info}{submittime},
-                completedtime => $pj->{info}{completedtime},
-                runtime => $runtime,
-                totaltasks => $tasknum,
-                completedtasks => $tasknum - $pj->{remaintasks}
-            };
-            push @{$output->{metagenomes}}, $summery;
-        }
     }
     
     $response->{status} = $output;
@@ -338,7 +307,7 @@ sub delete {
     my $jobs  = $self->submission_jobs($uuid, $full);
     
     # delete inbox nodes
-    foreach my $n (@{$nodes->{inbox}}) {
+    foreach my $n (@$nodes) {
         if ($n->{id}) {
             $self->delete_shock_node($n->{id}, $self->token, $self->user_auth);
         }
@@ -641,8 +610,8 @@ sub submit {
     };
     
     # remove any empty tasks
-    my $staskid = scalar(@$tasks);
     @$tasks = grep { ! $_->{skip} } @$tasks;
+    my $staskid = scalar(@$tasks);
 
     # add submission task
     my $submit_task = $self->empty_awe_task(1);
@@ -705,34 +674,15 @@ sub submit {
 }
 
 sub submission_nodes {
-    my ($self, $uuid, $full, $is_admin) = @_;
+    my ($self, $uuid) = @_;
     
     my $user_id = 'mgu'.$self->user->_id;
-    my $inbox_query = {
+    my $query = {
         submission => $uuid,
-        type => 'inbox'
+        type => 'inbox',
+        id => $user_id
     };
-    my $inbox_query2 = {
-        submission => $uuid,
-        type => 'inbox'
-    };
-    my $mgrast_query = {
-        submission => $uuid,
-        type => 'metagenome'
-    };
-    if (! $is_admin) {
-        $inbox_query->{id} = $user_id;
-        $inbox_query2->{id} = $self->user->{login};
-        $mgrast_query->{owner} = $user_id;
-    }
-    my $inbox_nodes = $self->get_shock_query($inbox_query, $self->token, $self->user_auth);
-    push(@$inbox_nodes, @{$self->get_shock_query($inbox_query2, $self->token, $self->user_auth)});
-    my $data = { inbox => $inbox_nodes || [] };
-    if ($full) {
-        my $mgrast_nodes = $self->get_shock_query($mgrast_query, $self->mgrast_token);
-        $data->{mgrast} = $mgrast_nodes || [];
-    }
-    return $data;
+    return $self->get_shock_query($query, $self->token, $self->user_auth);
 }
 
 sub submission_jobs {
@@ -745,7 +695,9 @@ sub submission_jobs {
     };
     my $mgrast_query = {
         "info.pipeline" => '',
-        "info.userattr.submission" => $uuid
+        "info.userattr.submission" => $uuid,
+        "verbosity" => 'minimal',
+        "userattr" => ['id', 'name', 'project_id']
     };
     if (! $is_admin) {
         $inbox_query->{"info.user"} = $user_id;
@@ -753,7 +705,7 @@ sub submission_jobs {
     }
     my $inbox_jobs = $self->get_awe_query($inbox_query, $self->token, $self->user_auth);
     my $submit = (scalar(@{$inbox_jobs->{data}}) > 0) ? $inbox_jobs->{data}[0] : {};
-    my $data = { submit => $submit };
+    my $data = { submit => $submit, pipeline => [] };
     if ($full) {
         foreach my $p (@{$Conf::pipeline_names}) {
             $mgrast_query->{"info.pipeline"} = $p;

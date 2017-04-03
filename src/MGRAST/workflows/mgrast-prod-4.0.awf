@@ -18,7 +18,7 @@
             "bp_count": "[% bp_count %]",
             "project_id": "[% project_id %]",
             "project_name": "[% project_name %]",
-            "type": "[% type %]",
+            "type": "metagenome",
             "pipeline_version": "4.0",
             "submission": "[% submission_id %]"
         }
@@ -252,7 +252,7 @@
             "userattr": {
                 "stage_id": "440",
                 "stage_name": "rna.cluster",
-                "seq_format": "aa",
+                "seq_format": "bp",
                 "cluster_percent": "[% rna_pid %]"
             },
             "taskid": "5",
