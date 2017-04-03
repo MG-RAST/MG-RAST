@@ -423,7 +423,7 @@ sub awe_history {
                 $shock_attr->{project_name} = $proj->{name};
             }
         };
-        my $new_node = $self->set_shock_node($mgid.'.awe.json', $job_doc, $shock_attr, $self->mgrast_token);
+        $new_node = $self->set_shock_node($mgid.'.awe.json', $job_doc, $shock_attr, $self->mgrast_token);
     }
     if ($new_node && $debug) {
         $data->{node} = $new_node->{id};
