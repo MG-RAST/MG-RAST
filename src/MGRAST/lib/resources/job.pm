@@ -893,11 +893,16 @@ sub job_action {
 	  } elsif ($action eq 'delete') {
             # Auf Wiedersehen!
             my $reason = $post->{reason} || "";
-            my ($status, $message) = $job->user_delete($self->user, $reason);
-            $data = {
-                deleted => $status,
-                error   => $message
-		    };
+            eval {
+               my ($status, $message) = $job->user_delete($self->user, $reason);
+               $data = {
+                  deleted => $status,
+                  error   => $message
+                       };
+            };
+            eval {
+               $job->delete();
+            };
         } elsif ($action eq 'addproject') {
             # check id format
             my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;
