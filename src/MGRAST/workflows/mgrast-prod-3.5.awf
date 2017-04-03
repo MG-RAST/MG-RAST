@@ -485,7 +485,7 @@
             "userattr": {
                 "stage_id": "440",
                 "stage_name": "rna.cluster",
-                "seq_format": "aa",
+                "seq_format": "bp",
                 "cluster_percent": "[% rna_pid %]"
             },
             "taskid": "9",

@@ -892,6 +892,10 @@ sub get_download_set {
         my $suffix = "";
         if (exists $data->{cluster_percent}) {
             my $seqtype = (exists($data->{seq_format}) && ($data->{seq_format} eq 'bp')) ? 'rna' : 'aa';
+            if ($data->{stage_name} =~ /rna/) {
+                # some mislabeled rna nodes
+                $seqtype = 'rna';
+            }
             $suffix = ".cluster.".$seqtype.$data->{cluster_percent};
             if ($data->{data_type} eq "cluster") {
                 $suffix .= '.mapping';
