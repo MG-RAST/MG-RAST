@@ -59,7 +59,7 @@ sub info {
 							                     'body'     => {} }
 							},
 							{ 'name'        => "history",
-				              'request'     => $self->cgi->url."/".$self->name."/{ID}/history",
+				              'request'     => $self->cgi->url."/".$self->name."/history/{ID}",
 				              'description' => "Summery of MG-RAST analysis-pipeline workflow and commands.",
 				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3/history",
       				                             'Workflow document for mgm4447943.3' ],
@@ -98,13 +98,20 @@ sub info {
 # the resource is called with an id parameter
 sub instance {
     my ($self) = @_;
-  
-    # check id format
+    
     my $rest = $self->rest;
-    my $tempid = $self->idresolve($rest->[0]);
+    my $restid = $rest->[0];
+    my $history = 0;
+    if ((@$rest > 1) && ($rest->[0] eq 'history')) {
+        $restid = $rest->[1];
+        $history = 1;
+    }
+    
+    # check id format
+    my $tempid = $self->idresolve($restid);
     my (undef, $id) = $tempid =~ /^(mgm)?(\d+\.\d+)$/;
-    if ((! $id) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+    if (! $id) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $restid}, 400 );
     }
 
     # get database
@@ -120,13 +127,12 @@ sub instance {
     unless ($job->viewable) {
         $self->return_data( {"ERROR" => "id ".$rest->[0]." is still processing and unavailable"}, 404 );
     }
-    
     # check rights
     unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
-    if ((@$rest > 1) && ($rest->[1] eq 'history')) {
+    if ($history) {
         $self->return_data( $self->awe_history($mgid, $job) );
     }
 
@@ -191,7 +197,7 @@ sub awe_history {
     my $debug  = $self->cgi->param('debug') ? 1 : 0;
     my $data   = {
         id   => $mgid,
-        url  => $self->cgi->url."/".$self->name."/".$mgid."?force=".$force,
+        url  => $self->cgi->url."/".$self->name."/history/".$mgid."?force=".$force,
         data => []
     };
     if ($awe_id) {

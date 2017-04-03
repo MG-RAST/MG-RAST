@@ -902,7 +902,13 @@ sub get_download_set {
             $data->{cluster_percent} = int($data->{cluster_percent});
         }
         elsif (($data->{data_type} =~ /^sequence|passed|removed$/) && exists($data->{file_format})) {
-            $suffix = ".".$data->{stage_name};
+            if ($data->{stage_name} eq 'rna.filter') {
+                $suffix = '.search.rna';
+            } elsif ($data->{stage_name} eq 'genecalling') {
+                $suffix = '.genecalling.coding';
+            } else {
+                $suffix = ".".$data->{stage_name};
+            }
             if ($data->{file_format} eq 'fastq') {
                 $suffix .= '.fastq';
             } elsif (exists($data->{seq_format}) && ($data->{seq_format} eq 'bp')) {
@@ -910,13 +916,6 @@ sub get_download_set {
             } elsif (exists($data->{seq_format}) && ($data->{seq_format} eq 'aa')) {
                 $suffix .= '.faa';
             }
-            if ($data->{stage_name} eq 'rna.filter') {
-                $suffix = '.search.rna.fna';
-            }
-        } elsif ($data->{stage_name} eq 'genecalling') {
-            $suffix = ".genecalling.coding.faa";
-        } elsif ($data->{stage_name} eq 'rna.filter') {
-            $suffix = '.search.rna.fna';
         } elsif ($data->{stage_name} eq 'protein.sims') {
             $suffix = '.superblat.sims';
         } elsif ($data->{stage_name} eq 'filter.sims') {
