@@ -894,6 +894,7 @@ sub job_action {
             # Auf Wiedersehen!
             my $reason = $post->{reason} || "";
             my ($status, $message) = $job->user_delete($self->user, $reason);
+	    $job->delete;
             $data = {
                 deleted => $status,
                 error   => $message
