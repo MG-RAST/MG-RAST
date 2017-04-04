@@ -285,6 +285,7 @@ sub template_keywords {
         'aa_pid'        => '90',
         'rna_pid'       => '97',
         'm5rna_clust'   => "md5nr.clust",
+        'overlap'       => '10',
 
         # shock data download urls m5nr v1
         'm5nr1_download_url' => "http://shock.metagenomics.anl.gov/node/4406405c-526c-4a63-be22-04b7c2d18434?download",

@@ -118,10 +118,17 @@ sub info {
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => {
-                  'id'         => [ 'string', "RFC 4122 UUID for submission" ],
-                  'user'       => [ 'string', "user id" ],
-                  'status'     => [ 'string', "status message" ],
-                  'timestamp'  => [ 'string', "timestamp for return of this query" ]
+                  'id'          => [ 'string', "RFC 4122 UUID for submission" ],
+                  'user'        => [ 'string', "user id" ],
+                  'error'       => [ 'string', "error message if any" ],
+                  'timestamp'   => [ 'string', "timestamp for return of this query" ],
+                  'pipeline_id' => [ 'string', "AWE ID of submission" ],
+                  'info'        => [ 'hash', "submission AWE job info" ],
+                  'state'       => [ 'string', "state of submission workflow" ],
+                  'type'        => [ 'string', "type of submission" ],
+                  'parameters'  => [ 'hash', "key value pairs of metagenome pipeline parameters" ],
+                  'inputs'      => [ 'list', ['hash', 'input file info'] ],
+                  'outputs'     => [ 'list', ['hash', 'output metagenome info'] ]
               },
               'parameters'  => {
                   'options'  => { "full" => [ "boolean", "if true show full document of running jobs, default is summary" ] },
@@ -229,56 +236,77 @@ sub list {
 sub status {
     my ($self, $uuid) = @_;
     
+    my $full = $self->cgi->param('full') ? 1 : 0;
     my $response = {
         id         => $uuid,
         user       => 'mgu'.$self->user->_id,
+        error      => undef,
         timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     };
     my $is_admin = $self->user->is_admin('MGRAST') ? 1 : 0;
     
     # get data
-    my $jobs   = $self->submission_jobs($uuid, 1, $is_admin);
+    my $jobs   = $self->submission_jobs($uuid, $full, $is_admin);
     my $submit = $jobs->{submit};
     my $pnode  = $self->get_param_node($submit);
 
     if ((! $submit) || (! $pnode)) {
-        $response->{status} = "No submission exists for given ID";
-        $self->return_data($response);
-    } elsif ($submit->{state} eq 'deleted') {
-        $response->{status} = "Deleted submission";
+        $response->{error} = "No submission exists for given ID";
         $self->return_data($response);
     }
     
-    # get submission info - parameters file
+    # add submission workflow info
+    $response->{pipeline_id} = $submit->{id};
+    $response->{info}        = $submit->{info};
+    $response->{state}       = $submit->{state};
+    $response->{type}        = $submit->{info}{description};
+    
+    if ($submit->{state} eq 'deleted') {
+        $response->{error} = "Deleted submission";
+        $self->return_data($response);
+    }
+    
+    # get submission input - parameters file
     my $info = {};
+    my $info_err = "";
     eval {
-        my ($info_text, $err) = $self->get_shock_file($pnode, undef, $is_admin ? $self->{mgrast_token} : $self->token, undef, $self->user_auth);
-        if ($err) {
-            $self->return_data( {"ERROR" => "Unable to fetch Shock file $pnode: $err"}, 500 );
-        }
+        my $info_text = "";
+        ($info_text, $info_err) = $self->get_shock_file($pnode, undef, $is_admin ? $self->{mgrast_token} : $self->token, undef, $self->user_auth);
         $info = $self->json->decode($info_text);
     };
     if (! $info) {
-        $response->{status} = "Broken submission, missing parameter data $pnode";
+        $response->{error} = "Broken submission: ".($info_err || "missing parameter data $pnode");
         $self->return_data($response);
     }
+    $response->{parameters} = $info->{parameters};
+    $response->{inputs}     = [ sort { $a->{filename} cmp $b->{filename} } @{$info->{input}{files}} ];
     
     # get submission results - either stdout from workunit if running or from shock if done
     my $report = $self->get_task_report($submit->{tasks}[-1], 'stdout', $self->token, $self->user_auth);
     my $result = $self->parse_submit_output($report);
+    $response->{outputs} = [];
+    if (exists($result->{submitted}) && (@{$result->{submitted}} > 0)) {
+        # get inputs / outputs in same order
+        $response->{outputs} = [ sort { $a->{filename} cmp $b->{filename} } @{$result->{submitted}} ];
+    }
     
-    # set output
-    my $output = {
-        type => $info->{input}{type},     # submission type
-        submission => $info,              # submission inputs / paramaters
-        results => $result,               # info on success or failer of sequences
-        preprocessing => [],              # info of preprocessing pipeline stages
-        metagenomes => $jobs->{pipeline},         # info of analysis pipeline stages per metagenome
-        timestamp => $submit->{info}{submittime}  # submission time
-    };
+    # info of analysis pipeline stages per metagenome - 'full' option only
+    if ($jobs->{pipeline} && (@{$jobs->{pipeline}} > 0)) {
+        $response->{metagenomes} = [];
+        # get them in same order
+        foreach my $o (@{$response->{outputs}}) {
+            foreach my $m (@{$jobs->{pipeline}}) {
+                if ($o->{metagenome_id} eq $m->{userattr}{id}) {
+                    push @{$response->{metagenomes}}, $m;
+                    last;
+                }
+            }
+        }
+    }
     
     # status of preprocessing workflow
     # only for multi-step submissions
+    my $preprocessing = [];
     foreach my $task (@{$submit->{tasks}}) {
         # skip submission stage
         if (exists($task->{userattr}{stage_name}) && ($task->{userattr}{stage_name} eq 'submission')) {
@@ -292,10 +320,12 @@ sub status {
         if ($task->{state} eq 'suspend') {
             $summery->{error} = $self->get_task_report($task, 'stderr', $self->token, $self->user_auth) || 'unknown error';
         }
-        push @{$output->{preprocessing}}, $summery;
+        push @$preprocessing, $summery;
+    }
+    if (@$preprocessing > 0) {
+        $response->{preprocessing} = $preprocessing;
     }
     
-    $response->{status} = $output;
     $self->return_data($response);
 }
 
@@ -743,7 +773,7 @@ sub parse_submit_output {
         } elsif (scalar(@rest) > 1) {
             if ($type eq 'submitted') {
                 push @{$info->{$type}}, {
-                    file_name => $rest[0],
+                    filename => $rest[0],
                     metagenome_name => $rest[1],
                     pipeline_id => $rest[2],
                     metagenome_id => $rest[3]
