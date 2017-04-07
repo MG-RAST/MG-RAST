@@ -1,4 +1,5 @@
 
+import os
 import json
 import bisect
 import datetime
@@ -15,6 +16,8 @@ def rmqLogger(channel, stype, statement, bulk=0):
         'statement': statement,
         'bulk':      bulk
     }
+    if 'HOSTNAME' in os.environ:
+        body['host'] = os.environ['HOSTNAME']
     try:
         channel.basic_publish(
             exchange='',
