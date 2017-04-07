@@ -7,6 +7,26 @@ import cassandra.query as cql
 
 M5NR_VERSION = 1
 
+def rmqLogger(stype, statement, bulk=0):
+    body = {
+        'timestamp': datetime.datetime.now(),
+        'type':      stype,
+        'statement': statement,
+        'bulk':      bulk
+    }
+    try:
+        connection = cass_connection.rmqConnection()
+        channel = connection.channel()
+        channel.basic_publish(
+            exchange='',
+            routing_key=cass_connection.RM_QUEUE,
+            body=body,
+            properties=cass_connection.RMQ_PROP
+        )
+    except:
+        # silently ignore broken logging
+        pass
+
 class M5nrHandle(object):
     def __init__(self, hosts, version=M5NR_VERSION):
         keyspace = "m5nr_v"+str(version)
@@ -24,6 +44,7 @@ class M5nrHandle(object):
             query = "SELECT * FROM %s WHERE id IN (%s) AND source='%s'"%(table, id_str, source)
         else:
             query = "SELECT * FROM %s WHERE id IN (%s)"%(table, id_str)
+        rmqLogger('select', query)
         rows = self.session.execute(query)
         if iterator:
             return rows
@@ -40,6 +61,7 @@ class M5nrHandle(object):
             query = "SELECT * FROM %s WHERE md5 IN (%s) AND source='%s'"%(table, md5_str, source)
         else:
             query = "SELECT * FROM %s WHERE md5 IN (%s)"%(table, md5_str)
+        rmqLogger('select', query)
         rows = self.session.execute(query)
         if iterator:
             return rows
@@ -52,27 +74,32 @@ class M5nrHandle(object):
     def get_taxa_hierarchy(self):
         found = {}
         query = "SELECT * FROM organisms_ncbi"
+        rmqLogger('select', query)
         rows  = self.session.execute(query)
         for r in rows:
             found[r['name']] = [r['tax_domain'], r['tax_phylum'], r['tax_class'], r['tax_order'], r['tax_family'], r['tax_genus'], r['tax_species']]
         return found
     def get_ontology_hierarchy(self, source=None):
         found = {}
+        query = "SELECT * FROM ontologies"
         if source:
-            prep = self.session.prepare("SELECT * FROM ontologies WHERE source = ?")
+            query += " WHERE source = ?"
+            prep = self.session.prepare(query)
             for r in self.session.execute(prep, [source]):
                 found[r['name']] = [r['level1'], r['level2'], r['level3'], r['level4']]
         else:
-            for r in self.session.execute("SELECT * FROM ontologies"):
+            for r in self.session.execute(query):
                 if r['source'] not in found:
                     found[r['source']] = {}
                 found[r['source']][r['name']] = [r['level1'], r['level2'], r['level3'], r['level4']]
+        rmqLogger('select', query)
         return found
     ### retrieve hierarchy mapping: leaf -> level
     def get_org_taxa_map(self, taxa):
         found = {}
         tname = "tax_"+taxa.lower()
         query = "SELECT * FROM "+tname
+        rmqLogger('select', query)
         rows  = self.session.execute(query)
         for r in rows:
             found[r['name']] = r[tname]
@@ -82,6 +109,7 @@ class M5nrHandle(object):
         level = level.lower()
         query = "SELECT * FROM ont_%s"%level
         if source:
+            query += " WHERE source = ?"
             prep = self.session.prepare(query+" WHERE source = ?")
             for r in self.session.execute(prep, [source]):
                 found[r['name']] = r[level]
@@ -90,6 +118,7 @@ class M5nrHandle(object):
                 if r['source'] not in found:
                     found[r['source']] = {}
                 found[r['source']][r['name']] = r[level]
+        rmqLogger('select', query)
         return found
     ### retrieve hierarchy: leaf list for a level
     def get_organism_by_taxa(self, taxa, match=None):
@@ -97,6 +126,7 @@ class M5nrHandle(object):
         found = set()
         tname = "tax_"+taxa.lower()
         query = "SELECT * FROM "+tname
+        rmqLogger('select', query)
         rows = self.session.execute(query)
         for r in rows:
             if match and (match.lower() in r[tname].lower()):
@@ -109,6 +139,7 @@ class M5nrHandle(object):
         found = set()
         level = level.lower()
         prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+        rmqLogger('select', query)
         rows = self.session.execute(prep, [source])
         for r in rows:
             if match and (match.lower() in r[level].lower()):
@@ -142,12 +173,15 @@ class JobHandle(object):
             where.append(int(alength))
         if evalue or identity or alength:
             query += " ALLOW FILTERING"
+        rmqLogger('select', query)
         prep = self.session.prepare(query)
         return self.session.execute(prep, where)
     ## get index for one md5
     def get_md5_record(self, job, md5):
         job = int(job)
-        prep = self.session.prepare("SELECT seek, length FROM job_md5s WHERE version = ? AND job = ? AND md5 = ?")
+        query = "SELECT seek, length FROM job_md5s WHERE version = ? AND job = ? AND md5 = ?"
+        rmqLogger('select', query)
+        prep = self.session.prepare(query)
         rows = self.session.execute(prep, [self.version, job, md5])
         if (len(rows.current_rows) > 0) and (rows[0][1] > 0):
             return [ rows[0][0], rows[0][1] ]
@@ -168,6 +202,7 @@ class JobHandle(object):
             if alength:
                 query += " AND len_avg >= %d"%(int(alength))
             query += " ALLOW FILTERING"
+        rmqLogger('select', query)
         rows = self.session.execute(query)
         for r in rows:
             if r[1] == 0:
@@ -182,7 +217,8 @@ class JobHandle(object):
     def get_info_count(self, job, val):
         job = int(job)
         query = "SELECT %ss FROM job_info WHERE version = %d AND job = %d"%(val, self.version, job)
-        rows  = self.session.execute(query)
+        rmqLogger('select', query)
+        rows = self.session.execute(query)
         if len(rows.current_rows) > 0:
             return rows[0][0]
         else:
@@ -191,7 +227,8 @@ class JobHandle(object):
     def get_data_count(self, job, val):
         job = int(job)
         query = "SELECT COUNT(*) FROM job_%ss WHERE version = %d AND job = %d"%(val, self.version, job)
-        rows  = self.session.execute(query)
+        rmqLogger('select', query)
+        rows = self.session.execute(query)
         if len(rows.current_rows) > 0:
             return rows[0][0]
         else:
@@ -200,7 +237,8 @@ class JobHandle(object):
     def has_job(self, job):
         job = int(job)
         query = "SELECT * FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
-        rows  = self.session.execute(query)
+        rmqLogger('select', query)
+        rows = self.session.execute(query)
         if len(rows.current_rows) > 0:
             return 1
         else:
@@ -209,6 +247,7 @@ class JobHandle(object):
     def last_updated(self, job):
         job = int(job)
         query = "SELECT updated_on FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rmqLogger('select', query)
         rows = self.session.execute(query)
         if len(rows.current_rows) > 0:
             return rows[0][0]
@@ -217,7 +256,8 @@ class JobHandle(object):
     def is_loaded(self, job):
         job = int(job)
         query = "SELECT loaded FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
-        rows  = self.session.execute(query)
+        rmqLogger('select', query)
+        rows = self.session.execute(query)
         if (len(rows.current_rows) > 0) and rows[0][0]:
             return 1
         else:
@@ -226,7 +266,8 @@ class JobHandle(object):
     def get_job_info(self, job):
         job = int(job)
         query = "SELECT md5s, lcas, loaded, updated_on FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
-        rows  = self.session.execute(query)
+        rmqLogger('select', query)
+        rows = self.session.execute(query)
         if len(rows.current_rows) > 0:
             load = 'true' if rows[0][2] else 'false'
             return dict(md5s=rows[0][0], lcas=rows[0][1], loaded=load, updated_on=rows[0][3])
@@ -236,38 +277,48 @@ class JobHandle(object):
     def set_loaded(self, job, loaded):
         job = int(job)
         value = True if loaded else False
+        cmd = "UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?"
+        rmqLogger('update', cmd)
         update = cql.BoundStatement(
-            self.session.prepare("UPDATE job_info SET loaded = ?, updated_on = ? WHERE version = ? AND job = ?"),
+            self.session.prepare(cmd),
             consistency_level=cql.ConsistencyLevel.QUORUM
         ).bind([value, datetime.datetime.now(), self.version, job])
         self.session.execute(update)
     def update_info_md5s(self, job, md5s, loaded):
         job = int(job)
         value = True if loaded else False
+        cmd = "UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?"
+        rmqLogger('update', cmd)
         update = cql.BoundStatement(
-            self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?"),
+            self.session.prepare(cmd),
             consistency_level=cql.ConsistencyLevel.QUORUM
         ).bind([int(md5s), value, datetime.datetime.now(), self.version, job])
         self.session.execute(update)
     def update_info_lcas(self, job, lcas, loaded):
         job = int(job)
         value = True if loaded else False
+        cmd = "UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?"
+        rmqLogger('update', cmd)
         update = cql.BoundStatement(
-            self.session.prepare("UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?"),
+            self.session.prepare(cmd),
             consistency_level=cql.ConsistencyLevel.QUORUM
         ).bind([int(lcas), value, datetime.datetime.now(), self.version, job])
         self.session.execute(update)
     def insert_job_info(self, job):
         job = int(job)
+        cmd = "INSERT INTO job_info (version, job, md5s, lcas, updated_on, loaded) VALUES (?, ?, ?, ?, ?, ?)"
+        rmqLogger('insert', cmd)
         insert = cql.BoundStatement(
-            self.session.prepare("INSERT INTO job_info (version, job, md5s, lcas, updated_on, loaded) VALUES (?, ?, ?, ?, ?, ?)"),
+            self.session.prepare(cmd),
             consistency_level=cql.ConsistencyLevel.QUORUM
         ).bind([self.version, job, 0, 0, datetime.datetime.now(), False])
         self.session.execute(insert)
     ## add rows to job data tables, return current total loaded
     def insert_job_md5s(self, job, rows):
         job = int(job)
-        insert = self.session.prepare("INSERT INTO job_md5s (version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        cmd = "INSERT INTO job_md5s (version, job, md5, abundance, exp_avg, ident_avg, len_avg, seek, length) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        rmqLogger('insert', cmd, len(rows))
+        insert = self.session.prepare(cmd)
         batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         for (md5, abundance, exp_avg, ident_avg, len_avg, seek, length) in rows:
             if not seek:
@@ -277,20 +328,26 @@ class JobHandle(object):
             batch.add(insert, (self.version, job, md5, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(seek), int(length)))
         # update job_info
         loaded = self.get_info_count(job, 'md5') + len(rows)
-        update = self.session.prepare("UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        cmd = "UPDATE job_info SET md5s = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?"
+        rmqLogger('update', cmd)
+        update = self.session.prepare(cmd)
         batch.add(update, (loaded, False, datetime.datetime.now(), self.version, job))
         # execute atomic batch
         self.session.execute(batch)
         return loaded
     def insert_job_lcas(self, job, rows):
         job = int(job)
-        insert = self.session.prepare("INSERT INTO job_lcas (version, job, lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        cmd = "INSERT INTO job_lcas (version, job, lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        rmqLogger('insert', cmd, len(rows))
+        insert = self.session.prepare(cmd)
         batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
         for (lca, abundance, exp_avg, ident_avg, len_avg, md5s, level) in rows:
             batch.add(insert, (self.version, job, lca, int(abundance), float(exp_avg), float(ident_avg), float(len_avg), int(md5s), int(level)))
         # update job_info
         loaded = self.get_info_count(job, 'lca') + len(rows)
-        update = self.session.prepare("UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?")
+        cmd = "UPDATE job_info SET lcas = ?, loaded = ?, updated_on = ? WHERE version = ? AND job = ?"
+        rmqLogger('update', cmd)
+        update = self.session.prepare(cmd)
         batch.add(update, (loaded, False, datetime.datetime.now(), self.version, job))
         # execute atomic batch
         self.session.execute(batch)
@@ -299,8 +356,14 @@ class JobHandle(object):
     def delete_job(self, job):
         job = int(job)
         batch = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
-        batch.add(cql.SimpleStatement("DELETE FROM job_info WHERE version = %d AND job = %d"%(self.version, job)))
-        batch.add(cql.SimpleStatement("DELETE FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)))
-        batch.add(cql.SimpleStatement("DELETE FROM job_lcas WHERE version = %d AND job = %d"%(self.version, job)))
+        idel = "DELETE FROM job_info WHERE version = %d AND job = %d"%(self.version, job)
+        rmqLogger('delete', idel)
+        batch.add(cql.SimpleStatement(idel))
+        mdel = "DELETE FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)
+        rmqLogger('delete', mdel)
+        batch.add(cql.SimpleStatement(mdel))
+        ldel = "DELETE FROM job_lcas WHERE version = %d AND job = %d"%(self.version, job)
+        rmqLogger('delete', ldel)
+        batch.add(cql.SimpleStatement(ldel))
         self.session.execute(batch)
 

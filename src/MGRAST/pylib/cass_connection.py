@@ -1,8 +1,14 @@
 
+import pika
 from cassandra.cluster import Cluster
 from cassandra.policies import RetryPolicy
 
 CASS_CLUSTER = None
+RMQ_CONN = None
+RMQ_HOST = 'bio-worker20'
+RM_QUEUE = 'cassandra_queries'
+RMQ_CRED = pika.PlainCredentials('mgrast', 'nepotism')
+RMQ_PROP = pika.BasicProperties(delivery_mode = 2)
 
 def create(hosts):
     global CASS_CLUSTER
@@ -15,6 +21,18 @@ def destroy():
     if CASS_CLUSTER:
         CASS_CLUSTER.shutdown()
     CASS_CLUSTER = None
+
+def rmqConnection():
+    global RMQ_CONN
+    if not RMQ_CONN:
+        RMQ_CONN = pika.BlockingConnection(pika.ConnectionParameters(host=RMQ_HOST, credentials=RMQ_CRED))
+    return RMQ_CONN
+
+def rmqClose():
+    global RMQ_CONN
+    if RMQ_CONN:
+        RMQ_CONN.close()
+    RMQ_CONN = None
 
 class CassTest(object):
     def __init__(self, hosts, db):
