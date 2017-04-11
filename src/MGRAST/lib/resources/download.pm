@@ -358,6 +358,12 @@ sub awe_history {
                 }
                 # array structure / complete AWE workflow
                 else {
+                    # timestamp info if exists, only in complete workflows
+                    foreach my $ts (('starteddate', 'completeddate', 'computetime')) {
+                        if (exists $dt->{$ts}) {
+                            $ht->{$ts} = $dt->{$ts};
+                        }
+                    }
                     foreach my $input (@{$dt->{inputs}}) {
                         my $origin = undef;
                         if (exists($input->{origin}) && ($input->{origin} =~ /^\d+$/)) {
