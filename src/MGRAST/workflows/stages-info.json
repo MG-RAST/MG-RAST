@@ -1,0 +1,375 @@
+{
+    "enviroment" : {
+        "3.0" : "https://github.com/MG-RAST/pipeline/tree/86d52e2b9e713aa9ec0a411996ea17325d80ac72",
+        "3.5" : "https://github.com/MG-RAST/pipeline/tree/178ea53cdac5023c459881292c6dc9d52e7b4903",
+        "3.6" : "https://github.com/MG-RAST/pipeline/tree/42dc704eeb2518b51723863fb826d52c62a165b5",
+        "4.0" : "https://github.com/MG-RAST/pipeline/tree/7f8f063c4aa3430123e504cde54d02005767fe99",
+        "4.0.1" : "https://github.com/MG-RAST/pipeline/tree/9ad4e447b47ad9c8343e351b9218f43f7efc7dad"
+    },
+    "template" : {
+        "3.0" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.0.awf",
+        "3.5" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.5.awf",
+        "3.6" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.6.awf",
+        "4.0" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.awf",
+        "4.0.1" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.1.awf"
+    },
+    "upload" : {
+            "title": "Upload",
+            "stage_id": "050",
+            "description": "This is the original submitted sequence file.\nThis is a sequence file in either fasta or fastq format. It may have been edited to change all end-of-line characters into UNIX format.",
+            "inputs": []
+    },
+    "tasks" : [
+        {
+            "title": "Initial sequence statistics",
+            "stage_id": "075",
+            "members": {"qc_stats": 1},
+            "cmd": "awe_qc.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_qc.pl",
+            "description": "Compute statistics for the sequence, determine coverage information and preserve it for later stages.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "DRISEE",
+                    "cmd": "drisee -v -t <format> -f <input>",
+                    "link": "https://github.com/MG-RAST/pipeline/blob/master/bin/drisee",
+                    "paper": "http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1002541"
+                },
+                {
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "Jellyfish",
+                    "cmd": "jellyfish count -C -m <6|15> -c 12 -s 1G <input>",
+                    "link": "https://github.com/gmarcais/Jellyfish/releases",
+                    "paper": "https://academic.oup.com/bioinformatics/issue/27/6"
+                }
+            ]
+        },
+        {
+            "title": "Denoising and normalization",
+            "stage_id": "100",
+            "members": {"preprocess": 1},
+            "cmd": "awe_preprocess.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_preprocess.pl",
+            "fasta": "We are pre-processing FASTA files by removing sequences more than ${length filter deviation multiplicator} standard deviations from the mean length and removing sequences with more than ${maximum ambiguous basepairs} contiguous ambiguous characters.",
+            "fastq": "We are pre-processing FASTQ files using DynamicTrim with the maximum of ${number of low-quality bases to accept} low-quality bases to accept and a phred score cutoff of ${lowest phred score that will be counted}.",
+            "description": "Depending on the options chosen, the preprocessing step filters sequences based on length, number of ambiguous bases and quality values if available.\nThe FASTA formatted file 100.preprocess.passed.fna contains the sequences which were accepted and will be passed on to the next stage of the analysis pipeline.\nThe FASTA formatted file 100.preprocess.removed.fna contains the sequences which were rejected and will not be passed on to the next stage of the analysis pipeline.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "DynamicTrim",
+                    "cmd": "DynamicTrimmer.pl <infile> -h <min_qual> -n <max_lqb>",
+                    "link": "https://sourceforge.net/projects/solexaqa/files/",
+                    "paper": "http://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-485"
+                }
+            ]
+        },
+        {
+            "title": "Removal of sequencing artifacts",
+            "stage_id": "150",
+            "members": {"dereplication": 1},
+            "cmd": "awe_dereplicate.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_dereplicate.pl",
+            "description": "PCR artifacts require removal, sequences are artificially duplicated during the preparation for sequencing (see http://www.nature.com/ismej/journal/v3/n11/full/ismej200972a.html) for metagenomes and metatranscriptomes, the technique cannot be used for amplicon reads.\nThe optional dereplication step removes redundant 'technical replicate' sequences from the metagenomic sample. Technical replicates are identified by binning reads with identical first 50 base-pairs. One copy of each 50-base-pair identical bin is retained.\nThe FASTA formatted file 150.dereplication.passed.fna contains the sequences which were retained and will be passed on to the next stage of the analysis pipeline.\nThe FASTA formatted file 150.dereplication.removed.fna contains the sequences which were rejected and will not be passed on to the next stage of the analysis pipeline.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Host DNA contamination removal",
+            "stage_id": "299",
+            "members": {"screen": 1},
+            "cmd": "awe_bowtie_screen.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_bowtie_screen.pl",
+            "description": "The FASTA formatted file 299.screen.passed.fna contains the sequences which were retained and will be passed on to the next stage of the analysis pipeline.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1},
+                    "name": "Bowtie",
+                    "cmd": "bowtie -f --suppress 5,6 --un <output> -t <index> <input>",
+                    "link": "http://bowtie-bio.sourceforge.net/index.shtml",
+                    "paper": "https://genomebiology.biomedcentral.com/articles/10.1186/gb-2009-10-3-r25"
+                },
+                {
+                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "Bowtie2",
+                    "cmd": "bowtie2 -f --reorder --un <output> -x <index> -U <input>",
+                    "link": "https://github.com/BenLangmead/bowtie2",
+                    "paper": "http://www.nature.com/nmeth/journal/v9/n4/full/nmeth.1923.html"
+                }
+            ]
+        },
+        {
+            "title": "RNA feature identification (aka 'rRNA genecalling')",
+            "stage_id": "425",
+            "members": {"rna detection": 1},
+            "cmd": "awe_search_rna.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_search_rna.pl",
+            "description": "We search all sequences for potentially rRNA genes with a cut-off of 70% identity to ribosomal sequences from a reduced version of M5RNA.\nThe FASTA formatted file 425.search.rna.fna contains the predicted ribosomal sequences.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1, "3.5": 1},
+                    "name": "uclust (via qiime integration)",
+                    "cmd": "qiime-uclust --input <input> --lib <m5rna_reduced> --uc <output> --id 0.75 --rev",
+                    "link": "http://www.drive5.com/uclust/downloads1_2_22q.html",
+                    "paper": "https://www.ncbi.nlm.nih.gov/pubmed/20709691"
+                },
+                {
+                    "versions": {"3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "vsearch",
+                    "cmd": "vsearch --strand both --usearch_global <input> --id 0.70 --db <m5rna_reduced>",
+                    "link": "https://github.com/torognes/vsearch",
+                    "paper": "https://peerj.com/articles/2584/"
+                }
+            ]
+        },
+        {
+            "title": "RNA clustering",
+            "stage_id": "440",
+            "members": {"rna clustering": 1},
+            "cmd": "awe_cluster.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_cluster.pl",
+            "description": "Sequences are clustered at 97% identity. Since 97% identity for ribosomal RNA genes is considered to be the same species, we cluster sequences from the same species together. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.\nThe FASTA formatted file 440.cluster.rna97.fna contains sequence clusters that have at least 70% identity to ribosomal sequences and have sequences within 97% identity.\nThe tab-delimited file 440.cluster.rna97.mapping identifies the sequence clusters and the sequences which describe them, each line describes a single cluster.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1},
+                    "name": "uclust (via qiime integration)",
+                    "cmd": "qiime-uclust --input <input> --uc <output> --id 0.97 --rev",
+                    "link": "http://www.drive5.com/uclust/downloads1_2_22q.html",
+                    "paper": "https://www.ncbi.nlm.nih.gov/pubmed/20709691"
+                },
+                {
+                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "CD-HIT",
+                    "cmd": "cd-hit-est -n 9 -d 0 -c 0.97 -i <input>",
+                    "link": "https://github.com/weizhongli/cdhit",
+                    "paper": "https://academic.oup.com/bioinformatics/article/28/23/3150/192160/CD-HIT-accelerated-for-clustering-the-next"
+                }
+            ]
+        },
+        {
+            "title": "RNA similarity search",
+            "stage_id": "450",
+            "members": {"rna sims blat": 1},
+            "cmd": "awe_blat_rna.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_blat_rna.pl",
+            "description": "The similarity output is the file 450.rna.sims in BLAST m8 format. This includes the identifier for the query which is either the FASTA id or the cluster ID, and the internal identifier (md5sum) for the sequence that it hits.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "Blat",
+                    "cmd": "blat -out=blast8 -t=dna -q=dna -fastMap <m5rna> <input>",
+                    "link": "https://users.soe.ucsc.edu/~kent/src/blatSrc.zip",
+                    "paper": "http://genome.cshlp.org/content/12/4/656.abstract"
+                }
+            ]
+        },
+        {
+            "title": "Identify putative protein coding features (genecalling)",
+            "stage_id": "350",
+            "members": {"genecalling": 1},
+            "cmd": "awe_genecalling.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_genecalling.pl",
+            "description": "Coding regions within the sequences are predicted using FragGeneScan, an ab-initio prokaryotic gene calling algorithm. Using a hidden Markov model for coding regions and non-coding regions, this step identifies the most likely reading frame and translates nucleotide sequences into amino acids sequences. The predicted genes, possibly more than one per fragment, are called features.\nThe nucleotide sequence FASTA formatted file 350.genecalling.coding.fna contains the predicted coding regions.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "FragGeneScan",
+                    "cmd": "run_FragGeneScan.pl -complete 0 -train <type> -genome <input>",
+                    "link": "https://github.com/MG-RAST/FGS",
+                    "paper": "https://www.ncbi.nlm.nih.gov/pubmed/20805240"
+                }
+            ]
+        },
+        {
+            "title": "Filter putative protein features overlapping rRNA features",
+            "stage_id": "375",
+            "members": {"aa filtering": 1},
+            "cmd": "awe_filter_feature.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_filter_feature.pl",
+            "description": "Potentially protein coding features are masked if they overlap with a ribosomal RNA feature.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Amino acid sequence clustering",
+            "stage_id": "550",
+            "members": {"aa clustering": 1},
+            "cmd": "awe_cluster.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_cluster.pl",
+            "description": "Predicted protein coding sequences are clustered at 90% identity. We reduce the amount of sequences that are being searched in the similarity search step, reducing the computational cost. Following the search, the original reads are loaded into MG-RAST for retrieval on-demand.\nThe tab-delimited file 550.cluster.aa90.mapping identifies the sequence clusters and the sequences which describe them, each line describes a single cluster.\nThe amino acid sequence FASTA formatted file 550.cluster.aa90.faa contains the translations of one sequence from each cluster (by cluster ids starting with aa90_) and all the unclustered (singleton) sequences with the original sequence ID.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1},
+                    "name": "uclust (via qiime integration)",
+                    "cmd": "qiime-uclust --input <input> --uc <output> --id 0.90 --rev",
+                    "link": "http://www.drive5.com/uclust/downloads1_2_22q.html",
+                    "paper": "https://www.ncbi.nlm.nih.gov/pubmed/20709691"
+                },
+                {
+                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "CD-HIT",
+                    "cmd": "cd-hit -n 5 -d 0 -c 0.90 -i <input>",
+                    "link": "https://github.com/weizhongli/cdhit",
+                    "paper": "https://academic.oup.com/bioinformatics/article/28/23/3150/192160/CD-HIT-accelerated-for-clustering-the-next"
+                }
+            ]
+        },
+        {
+            "title": "Protein similarity search",
+            "stage_id": "650",
+            "members": {"aa sims blat": 1},
+            "cmd": "awe_blat_prot.py",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_blat_prot.py",
+            "description": "The similarity output from BLAT against the M5NR protein database is the file 650.superblat.sims in BLAST m8 format. This includes the identifier for the query which is either the FASTA id or the cluster ID, and the internal identifier (md5sum) for the sequence that it hits.",
+            "inputs": [],
+            "outputs": [],
+            "uses": [
+                {
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "name": "Blat",
+                    "cmd": "blat -prot -fastMap -out=blast8 <m5nr> <input>",
+                    "link": "https://users.soe.ucsc.edu/~kent/src/blatSrc.zip",
+                    "paper": "http://genome.cshlp.org/content/12/4/656.abstract"
+                }
+            ]
+        },
+        {
+            "title": "Protein similarity annotation",
+            "stage_id": "650",
+            "members": {"aa sims annotation": 1},
+            "cmd": "awe_annotate_sims.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_annotate_sims.pl",
+            "description": "Expand protein similarities into various technical namespaces.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "RNA similarity annotation",
+            "stage_id": "450",
+            "members": {"rna sims annotation": 1},
+            "cmd": "awe_annotate_sims.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_annotate_sims.pl",
+            "description": "Expand rRNA similarities into various technical namespaces.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Merge and index similarities",
+            "stage_id": "700",
+            "members": {"index sim seq": 1},
+            "cmd": "awe_index_sim_seq.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_index_sim_seq.pl",
+            "description": "Map the cluster annotations back for rRNA and protein annotations to the original sequences and create an index for fast access to individual sequences and similarities.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Annotate and index similarities",
+            "stage_id": "700",
+            "members": {"loadDB": 1},
+            "cmd": "pipeline_loadDB",
+            "link": "https://github.com/MG-RAST/pipeline/blob/67fb0f77763a14d179ac02af05ecb6549b0fca2c/stages/pipeline_loadDB",
+            "description": "Expand similarities into various technical namespaces and index them for fast access.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Feature abundance profile",
+            "stage_id": "700",
+            "members": {"md5 annotation summary": 1, "md5 abundance": 1},
+            "cmd": "awe_annotate_summary.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_annotate_summary.pl",
+            "description": "Compute the observed abundance per feature (M5NR hit) from the expanded similarities. We pivot the data structure from one line per similarity to one line per M5NR hit.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "LCA abundance profile",
+            "stage_id": "700",
+            "members": {"lca annotation summary": 1, "lca abundance": 1},
+            "cmd": "awe_annotate_summary.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_annotate_summary.pl",
+            "description": "Compute the observed abundance per LCA from the expanded similarities. We pivot the data structure from one line per similarity to one line per lowest common ancestor.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Data source abundance profile",
+            "stage_id": "700",
+            "members": {"source annotation summary": 1, "source abundance": 1},
+            "cmd": "awe_annotate_summary.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_annotate_summary.pl",
+            "description": "Compute the observed abundance per data source from the expanded similarities. We pivot the data structure from one line per similarity to one line entry of each data source e.g. RefSeq, Subsystems, …",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Abundance profile load",
+            "stage_id": "900",
+            "members": {"md5 summary load": 1, "lca summary load": 1, "abundance cassandra load": 1},
+            "cmd": "awe_load_cass.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_load_cass.pl",
+            "description": "Load the computed profile data into the Cassandra database.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Abundance profile build and load",
+            "stage_id": "900",
+            "members": {"loadDB": 1},
+            "cmd": "pipeline_loadDB",
+            "link": "https://github.com/MG-RAST/pipeline/blob/67fb0f77763a14d179ac02af05ecb6549b0fca2c/stages/pipeline_loadDB",
+            "description": "Compute the abundace profiles from the expanded similarities. We pivot the data structure from one line per similarity to one line per M5NR hit. Load the computed profile data into the database.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Summary statistics",
+            "stage_id": "999",
+            "members": {"done stage": 1},
+            "cmd": "awe_stats.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_done.pl",
+            "description": "Finalize the job and compute summary statistics for the overview page.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        },
+        {
+            "title": "Completed",
+            "stage_id": "999",
+            "members": {"notify job completion": 1},
+            "cmd": "awe_notify.pl",
+            "link": "https://github.com/MG-RAST/pipeline/blob/master/awecmd/awe_notify.pl",
+            "description": "Send email to the user.",
+            "inputs": [],
+            "outputs": [],
+            "uses": []
+        }
+    ]
+}

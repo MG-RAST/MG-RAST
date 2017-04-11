@@ -58,6 +58,11 @@ class Profile(object):
         else:
             self.error_exit("unable to build profile, invalid format", node)
         
+        ## sanity check
+        if len(profile['data']) == 0:
+            self.error_exit("unable to build profile, no data returned", node)
+            return
+        
         ## permanent: update attributes / remove expiration
         if attr:
             attr['row_total']   = profile['row_total'] if 'row_total' in profile else profile['shape'][0]

@@ -256,8 +256,11 @@ sub post_action {
                 delegated => 0
             });
             # update the shock nodes with ACLs
-            my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$mg->{metagenome_id}}, $self->mgrast_token);
+            my $nodes = $self->get_shock_query({'id' => 'mgm'.$mg->{metagenome_id}}, $self->mgrast_token);
             foreach my $n (@$nodes) {
+                if ($n->{attributes}{type} ne 'metagenome') {
+                    next;
+                }
                 $self->edit_shock_acl($n->{id}, $self->mgrast_token, $puser, 'put', 'all');
             }
         }
@@ -424,9 +427,12 @@ sub get_action {
         # make all metagenomes public
         foreach my $job (@$mgs) {
             # update shock nodes
-            my $nodes = $self->get_shock_query({'type' => 'metagenome', 'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
+            my $nodes = $self->get_shock_query({'id' => 'mgm'.$job->{metagenome_id}}, $self->mgrast_token);
             foreach my $n (@$nodes) {
                 my $attr = $n->{attributes};
+                if ($attr->{type} ne 'metagenome') {
+                    next;
+                }
                 $attr->{status} = 'public';
                 $self->update_shock_node($n->{id}, $attr, $self->mgrast_token);
                 $self->edit_shock_public_acl($n->{id}, $self->mgrast_token, 'put', 'read');
