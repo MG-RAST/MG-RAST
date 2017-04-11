@@ -20,12 +20,10 @@ use Pipeline;
 use Conf;
 
 use JSON;
-use Template;
 use Getopt::Long;
 use LWP::UserAgent;
 use HTTP::Request::Common;
 use Data::Dumper;
-
 use File::Slurp;
 
 # options
@@ -35,15 +33,13 @@ my $input_node = "";
 my $submit_id  = "";
 my $awe_url    = "";
 my $shock_url  = "";
-my $template   = "";
+my $version    = "";
 my $clientgroups = undef;
-my $image_ver  = "latest";
+my $image_ver  = "";
 my $no_start   = 0;
 my $use_ssh    = 0;
 my $use_docker = 0;
 my $help       = 0;
-my $pipeline   = "";
-my $type       = "";
 my $priority   = 0;
 
 my $options = GetOptions (
@@ -53,14 +49,12 @@ my $options = GetOptions (
     "submit_id=s"    => \$submit_id,
 	"awe_url=s"      => \$awe_url,
 	"shock_url=s"    => \$shock_url,
-	"template=s"     => \$template,
+	"version=s"      => \$version,
 	"no_start!"      => \$no_start,
 	"use_ssh!"       => \$use_ssh,
 	"use_docker!"    => \$use_docker, # enables docker specific workflow entries, dockerimage and environ
 	"clientgroups=s" => \$clientgroups,
 	"image_ver=s"    => \$image_ver,
-	"pipeline=s"     => \$pipeline,
-	"type=s"         => \$type,
 	"priority=i"     => \$priority,
 	"help!"          => \$help
 );
@@ -80,29 +74,13 @@ if ($help) {
 }
 
 # set obj handles
-my $jobdb = undef;
+my $jobdb = Pipeline::get_jobcache_dbh(
+    $Conf::mgrast_jobcache_host,
+    $Conf::mgrast_jobcache_db,
+	$Conf::mgrast_jobcache_user,
+	$Conf::mgrast_jobcache_password
+);
 
-if ($use_ssh) {
-    my $mspath = $ENV{'HOME'}.'/.mysql/';
-    $jobdb = Pipeline::get_jobcache_dbh(
-    	$Conf::mgrast_jobcache_host,
-	    $Conf::mgrast_jobcache_db,
-    	$Conf::mgrast_jobcache_user,
-    	$Conf::mgrast_jobcache_password,
-	    $mspath.'client-key.pem',
-	    $mspath.'client-cert.pem',
-	    $mspath.'ca-cert.pem'
-    );
-} else {
-    $jobdb = Pipeline::get_jobcache_dbh(
-	    $Conf::mgrast_jobcache_host,
-	    $Conf::mgrast_jobcache_db,
-    	$Conf::mgrast_jobcache_user,
-    	$Conf::mgrast_jobcache_password
-    );
-}
-
-my $tpage = Template->new(ABSOLUTE => 1);
 my $agent = LWP::UserAgent->new();
 $agent->timeout(3600);
 my $json = JSON->new;
@@ -110,29 +88,27 @@ $json = $json->utf8();
 $json->max_size(0);
 $json->allow_nonref;
 
-# get default urls
+# set default url
+if (! $awe_url) {
+    $awe_url = $Conf::awe_url;
+}
+
+# set values based on input options
 my $vars = Pipeline::template_keywords();
 if ($shock_url) {
     $vars->{shock_url} = $shock_url;
 }
-if (! $awe_url) {
-    $awe_url = $Conf::awe_url;
-}
-if (! $template) {
-    $template = $Conf::mgrast_analysis_workflow;
-}
 if ($submit_id) {
     $vars->{submission_id} = $submit_id;
 }
-
-my $template_str = read_file($template);
-
-# default is production
-unless ($pipeline) {
-    $pipeline = "mgrast-prod-".$vars->{pipeline_version};
+if ($version) {
+    $vars->{pipeline_version} = $version;
 }
-unless ($type) {
-    $type = "metagenome";
+if ($image_ver) {
+    $vars->{docker_image_version} = $image_ver;
+}
+if (defined $clientgroups) {
+	$vars->{clientgroups} = $clientgroups;
 }
 
 # get job related info from DB
@@ -143,15 +119,7 @@ unless ($jobj && (scalar(keys %$jobj) > 0) && exists($jobj->{options})) {
 }
 my $jstat = Pipeline::get_job_statistics($jobdb, $job_id);
 my $jattr = Pipeline::get_job_attributes($jobdb, $job_id);
-my $jopts = {};
-foreach my $opt (split(/\&/, $jobj->{options})) {
-    if ($opt =~ /^filter_options=(.*)/) {
-        $jopts->{filter_options} = $1 || 'skip';
-    } else {
-        my ($k, $v) = split(/=/, $opt);
-        $jopts->{$k} = $v;
-    }
-}
+my $jopts = Pipeline::get_job_options($jobj->{options});
 
 # build upload attributes
 my $up_attr = {
@@ -171,14 +139,24 @@ my $up_attr = {
     sequence_type    => $jobj->{sequence_type} || $jattr->{sequence_type_guess},
     pipeline_version => $vars->{pipeline_version}
 };
+
+# project info
 if ($jobj->{project_id} && $jobj->{project_name}) {
     $up_attr->{project_id}   = 'mgp'.$jobj->{project_id};
     $up_attr->{project_name} = $jobj->{project_name};
 }
+
+# stats info
 foreach my $s (keys %$jstat) {
     if ($s =~ /(.+)_raw$/) {
         $up_attr->{statistics}{$1} = $jstat->{$s};
     }
+}
+$vars->{bp_count} = $up_attr->{statistics}{bp_count};
+if ($priority > 0) {
+    $vars->{priority} = $priority;
+} else {
+    $vars->{priority} = Pipeline::set_priority($vars->{bp_count}, $jattr->{priority});
 }
 
 my $content = {};
@@ -220,181 +198,17 @@ if ($sres->{error}) {
 }
 print " ...done.\n";
 
-my $node_id = $sres->{data}->{id};
-my $file_name = $sres->{data}->{file}->{name};
+my $node_id = $sres->{data}{id};
 print "upload shock node\t$node_id\n";
 
-# populate workflow variables
-$vars->{job_id}         = $job_id;
-$vars->{mg_id}          = $up_attr->{id};
-$vars->{mg_name}        = $up_attr->{name};
-$vars->{job_date}       = $up_attr->{created};
-$vars->{file_format}    = $up_attr->{file_format};
-$vars->{seq_type}       = $up_attr->{sequence_type};
-$vars->{bp_count}       = $up_attr->{statistics}{bp_count};
-$vars->{project_id}     = $up_attr->{project_id} || '';
-$vars->{project_name}   = $up_attr->{project_name} || '';
-$vars->{user}           = 'mgu'.$jobj->{owner} || '';
-$vars->{inputfile}      = $file_name;
-$vars->{shock_node}     = $node_id;
-$vars->{filter_options} = $jopts->{filter_options} || 'skip';
-$vars->{assembled}      = exists($jattr->{assembled}) ? $jattr->{assembled} : 0;
-$vars->{dereplicate}    = exists($jopts->{dereplicate}) ? $jopts->{dereplicate} : 1;
-$vars->{bowtie}         = exists($jopts->{bowtie}) ? $jopts->{bowtie} : 1;
-$vars->{screen_indexes} = exists($jopts->{screen_indexes}) ? $jopts->{screen_indexes} : 'h_sapiens';
-$vars->{pipeline}       = $pipeline;
-$vars->{type}           = $type;
-
-if (defined $clientgroups) {
-	$vars->{clientgroups} = $clientgroups;
-}
-
-$vars->{docker_image_version} = $image_ver;
-if ($use_docker) {
-	$vars->{docker_switch} = '';
-} else {
-	$vars->{docker_switch} = '_'; # disables these entries
-}
-
-# set priority
-my $priority_map = {
-    "never"       => 1,
-    "date"        => 5,
-    "6months"     => 10,
-    "3months"     => 15,
-    "immediately" => 20
-};
-if ($jattr->{priority} && exists($priority_map->{$jattr->{priority}})) {
-    $vars->{priority} = $priority_map->{$jattr->{priority}};
-}
-# higher priority if smaller data
-if (int($up_attr->{statistics}{bp_count}) < 100000000) {
-    $vars->{priority} = 30;
-}
-if (int($up_attr->{statistics}{bp_count}) < 50000000) {
-    $vars->{priority} = 40;
-}
-if (int($up_attr->{statistics}{bp_count}) < 10000000) {
-    $vars->{priority} = 50;
-}
-# override with input priority
-if ($priority > 0) {
-    $vars->{priority} = $priority;
-}
-
-# set node output type for preprocessing
-if ($up_attr->{file_format} eq 'fastq') {
-    $vars->{preprocess_pass} = qq(,
-                    "shockindex": "record");
-    $vars->{preprocess_fail} = "";
-} elsif ($vars->{filter_options} eq 'skip') {
-    $vars->{preprocess_pass} = qq(,
-                    "type": "copy",
-                    "formoptions": {
-                        "parent_node": "$node_id",
-                        "copy_indexes": "1"
-                    });
-    $vars->{preprocess_fail} = "";
-} else {
-    $vars->{preprocess_pass} = qq(,
-                    "type": "subset",
-                    "formoptions": {
-                        "parent_node": "$node_id",
-                        "parent_index": "record"
-                    });
-    $vars->{preprocess_fail} = $vars->{preprocess_pass};
-}
-# set node output type for dereplication
-if ($vars->{dereplicate} == 0) {
-    $vars->{dereplicate_pass} = qq(,
-                    "type": "copy",
-                    "formoptions": {                        
-                        "parent_name": "${job_id}.100.preprocess.passed.fna",
-                        "copy_indexes": "1"
-                    });
-    $vars->{dereplicate_fail} = "";
-} else {
-    $vars->{dereplicate_pass} = qq(,
-                    "type": "subset",
-                    "formoptions": {                        
-                        "parent_name": "${job_id}.100.preprocess.passed.fna",
-                        "parent_index": "record"
-                    });
-    $vars->{dereplicate_fail} = $vars->{dereplicate_pass};
-}
-# set node output type for bowtie
-if ($vars->{bowtie} == 0) {
-    $vars->{bowtie_pass} = qq(,
-                    "type": "copy",
-                    "formoptions": {                        
-                        "parent_name": "${job_id}.150.dereplication.passed.fna",
-                        "copy_indexes": "1"
-                    });
-} else {
-    $vars->{bowtie_pass} = qq(,
-                    "type": "subset",
-                    "formoptions": {                        
-                        "parent_name": "${job_id}.150.dereplication.passed.fna",
-                        "parent_index": "record"
-                    });
-}
-
-# check if index exists
-my $has_index = 0;
-my $bowtie_indexes = Pipeline::bowtie_indexes();
-foreach my $idx (split(/,/, $vars->{screen_indexes})) {
-    if (exists $bowtie_indexes->{$idx}) {
-        $has_index = 1;
-    }
-}
-if (! $has_index) {
-    # just use default
-    $vars->{screen_indexes} = 'h_sapiens';
-}
-# build bowtie index list
-my $bowtie_url = $Conf::shock_url;
-$vars->{index_download_urls} = "";
-foreach my $idx (split(/,/, $vars->{screen_indexes})) {
-    if (exists $bowtie_indexes->{$idx}) {
-        while (my ($ifile, $inode) = each %{$bowtie_indexes->{$idx}}) {
-            $vars->{index_download_urls} .= qq(
-                "$ifile": {
-                    "url": "${bowtie_url}/node/${inode}?download"
-                },);
-        }
-    }
-}
-if ($vars->{index_download_urls} eq "") {
-    print STDERR "ERROR: No valid bowtie indexes found in ".$vars->{screen_indexes}."\n";
-    exit 1;
-}
-chop $vars->{index_download_urls};
-
-my $workflow_str = "";
-
-# replace variables (reads from $template_str and writes to $workflow_str)
-$tpage->process(\$template_str, $vars, \$workflow_str) || die $tpage->error()."\n";
-
-#write to file for debugging puposes (first time)
-my $workflow_file = $Conf::temp."/".$job_id.".awe_workflow.json";
-write_file($workflow_file, $workflow_str);
-
-# transform workflow json string into hash
-my $workflow_hash = undef;
-eval {
-	$workflow_hash = $json->decode($workflow_str);
-};
-if ($@) {
-	my $e = $@;
-	print "workflow_str:\n $workflow_str\n";
-	print STDERR "ERROR: workflow is not valid json ($e)\n";
+# create workflow from template
+my $workflow_obj = Pipeline::populate_template($jobj, $jattr, $jopts, $vars, $node_id, $vars->{pipeline_version}, $use_docker);
+unless ($workflow_obj) {
+    print STDERR "ERROR: unable to populate template and transform to JSON\n";
 	exit 1;
 }
-
-#transform workflow hash into json string
-$workflow_str = $json->encode($workflow_hash);
-
-#write to file for debugging puposes (second time)
+my $workflow_str  = $json->encode($workflow_obj);
+my $workflow_file = $Conf::temp."/".$job_id.".awe_workflow.json";
 write_file($workflow_file, $workflow_str);
 
 # test mode
@@ -412,7 +226,6 @@ my $apost = $agent->post(
     #'Content', [ upload => [$workflow_file] ]
 	'Content', [ upload => [undef, "n/a", Content => $workflow_str] ]
 );
-
 
 my $ares = undef;
 eval {
@@ -435,7 +248,7 @@ print "awe job:\t".$awe_id."\n";
 Pipeline::set_job_attributes($jobdb, $job_id, {"pipeline_id" => $awe_id});
 
 sub get_usage {
-    return "USAGE: submit_to_awe.pl -job_id=<job identifier> -input_file=<input file> -input_node=<input shock node> [-submit_id=<submission id> -awe_url=<awe url> -shock_url=<shock url> -template=<template file> -clientgroups=<group list> -no_start -use_docker]\n";
+    return "USAGE: submit_to_awe.pl -job_id=<job identifier> -input_file=<input file> -input_node=<input shock node> [-submit_id=<submission id> -awe_url=<awe url> -shock_url=<shock url> -version=<template version> -clientgroups=<group list> -no_start -use_docker]\n";
 }
 
 # enable hash-resolving in the JSON->encode function

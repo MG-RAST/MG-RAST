@@ -400,9 +400,13 @@ sub instance {
 					  name => 'MGRAST_project_'.$ret_id } );
       }
       if ($token_scope->description && $token_scope->description =~ /^Reviewer_/) {
-	$master->UserHasScope->create( { granted => 1,
-					 scope => $token_scope,
-					 user => $self->user } );
+	my $existing = $master->UserHasScope->get_objects( {scope => $token_scope,
+							    user => $self->user });
+	if (! scalar(@$existing)) {
+	  $master->UserHasScope->create( { granted => 1,
+					   scope => $token_scope,
+					   user => $self->user } );
+	}
       } else {
 	foreach my $right (@$rights) {
 	  $right->scope($uscope);
@@ -410,9 +414,13 @@ sub instance {
 	$token_scope->delete();
       }
       if ($pscope) {
-	$master->UserHasScope->create( { granted => 1,
-					 scope => $pscope,
-					 user => $self->user } );
+	my $existing = $master->UserHasScope->get_objects( {scope => $pscope,
+							    user => $self->user });
+	if (! scalar(@$existing)) {
+	  $master->UserHasScope->create( { granted => 1,
+					   scope => $pscope,
+					   user => $self->user } );
+	}
       }
       
       $self->return_data( { "OK" => "token claimed", "id" => $ret_id, "type" => $ret_type }, 200 );

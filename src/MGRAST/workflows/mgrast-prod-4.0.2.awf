@@ -1,6 +1,6 @@
 {
     "info": {
-        "pipeline": "mgrast-prod-4.0",
+        "pipeline": "mgrast-prod-4.0.1",
         "name": "[% job_id %]",
         "project": "[% project_name %]",
         "user": "[% user %]",
@@ -19,14 +19,14 @@
             "project_id": "[% project_id %]",
             "project_name": "[% project_name %]",
             "type": "metagenome",
-            "pipeline_version": "4.0",
+            "pipeline_version": "4.0.1",
             "submission": "[% submission_id %]"
         }
     },
     "tasks": [
         {
             "cmd": {
-                "name": "awe_qc.pl",
+                "name": "mgrast_qc.pl",
                 "args": "-input @[% inputfile %] -format [% file_format %] -out_prefix [% job_id %].075 -assembled [% assembled %] -filter_options [% filter_options %] -proc 8",
                 "description": "qc_stats",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -67,7 +67,7 @@
         },
         {
             "cmd": {
-                "name": "awe_preprocess.pl",
+                "name": "mgrast_preprocess.pl",
                 "args": "-input @[% inputfile %] -format [% file_format %] -out_prefix [% job_id %].100.preprocess -filter_options [% filter_options %]",
                 "description": "preprocess",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]", 	 	
@@ -108,7 +108,7 @@
         },
         {
             "cmd": {
-                "name": "awe_dereplicate.pl",
+                "name": "mgrast_dereplicate.pl",
                 "args": "-input=@[% job_id %].100.preprocess.passed.fna -out_prefix=[% job_id %].150.dereplication -prefix_length=[% prefix_length %] -dereplicate=[% dereplicate %] -memory=10",
                 "description": "dereplication",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -144,7 +144,7 @@
         },
         {
             "cmd": {
-                "name": "awe_bowtie_screen.pl",
+                "name": "mgrast_bowtie_screen.pl",
                 "args": "-input=@[% job_id %].150.dereplication.passed.fna -output=[% job_id %].299.screen.passed.fna -index=[% screen_indexes %] -bowtie=[% bowtie %] -proc=8",
                 "description": "screen",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -178,7 +178,7 @@
         },
         {
             "cmd": {
-                "name": "awe_search_rna.pl",
+                "name": "mgrast_search_rna.pl",
                 "args": "-input=@[% job_id %].100.preprocess.passed.fna -output=[% job_id %].425.search.rna.fna -rna_nr=[% m5rna_clust %] -size=100 -proc=8",
                 "description": "rna detection",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -220,7 +220,7 @@
         },          
         {
             "cmd": {
-                "name": "awe_cluster.pl",
+                "name": "mgrast_cluster.pl",
                 "args": "-input=@[% job_id %].425.search.rna.fna -out_prefix=[% job_id %].440.cluster -rna -pid=[% rna_pid %] -memory=20", 
                 "description": "rna clustering",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -261,7 +261,7 @@
         },
         {
             "cmd": {
-                "name": "awe_blat_rna.pl",
+                "name": "mgrast_blat_rna.pl",
                 "args": "-input=@[% job_id %].440.cluster.rna97.fna -rna_nr=m5rna -output=[% job_id %].450.rna.sims -assembled=[% assembled %]",
                 "description": "rna sims blat",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -303,7 +303,7 @@
         },
         {
             "cmd": {
-                "name": "awe_genecalling.pl",
+                "name": "mgrast_genecalling.pl",
                 "args": "-input=@[% job_id %].299.screen.passed.fna -out_prefix=[% job_id %].350.genecalling.coding -type=[% fgs_type %] -size=100 -proc=8",
                 "description": "genecalling",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -348,8 +348,8 @@
         },
         {
             "cmd": {
-                "name": "awe_filter_feature.pl",
-                "args": "-in_clust=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_sim=@[% job_id %].450.rna.sims -in_seq=@[% job_id %].350.genecalling.coding.faa -output=[% job_id %].375.filtering.faa -memory=10",
+                "name": "mgrast_filter_feature.pl",
+                "args": "-in_clust=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_sim=@[% job_id %].450.rna.sims -in_seq=@[% job_id %].350.genecalling.coding.faa -output=[% job_id %].375.filtering.faa -overlap=[% overlap %]",
                 "description": "aa filtering",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
@@ -396,7 +396,7 @@
         },
         {   
             "cmd": {
-                "name": "awe_cluster.pl",
+                "name": "mgrast_cluster.pl",
                 "args": "-input=@[% job_id %].375.filtering.faa -out_prefix=[% job_id %].550.cluster -aa -pid=[% aa_pid %] -memory=20",
                 "description": "aa clustering",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -437,7 +437,7 @@
         },
         {
             "cmd": {
-                "name": "awe_blat_prot.py",
+                "name": "mgrast_blat_prot.py",
                 "args": "--input=@[% job_id %].550.cluster.aa[% aa_pid %].faa --output=[% job_id %].650.superblat.sims",
                 "description": "aa sims blat",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -482,7 +482,7 @@
         },
         {
             "cmd": {
-                "name": "awe_annotate_sims.pl",
+                "name": "mgrast_annotate_sims.pl",
                 "args": "-input=@[% job_id %].650.superblat.sims -out_prefix=[% job_id %].650 -aa -ach_ver=[% ach_annotation_ver %] -ann_file=m5nr_v1.bdb",
                 "description": "aa sims annotation",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -537,7 +537,7 @@
         },
         {
             "cmd": {
-                "name": "awe_annotate_sims.pl",
+                "name": "mgrast_annotate_sims.pl",
                 "args": "-input=@[% job_id %].450.rna.sims -out_prefix=[% job_id %].450 -rna -ach_ver=[% ach_annotation_ver %] -ann_file=m5nr_v1.bdb",
                 "description": "rna sims annotation",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -586,7 +586,7 @@
         },
         {
             "cmd": {
-                "name": "awe_index_sim_seq.pl",
+                "name": "mgrast_index_sim_seq.pl",
                 "args": "-in_seqs=@[% job_id %].350.genecalling.coding.fna -in_seqs=@[% job_id %].425.search.rna.fna -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_sims=@[% job_id %].650.aa.sims.filter -in_sims=@[% job_id %].450.rna.sims.filter -output=[% job_id %].700.annotation.sims.filter.seq -memory=10",
                 "description": "index sim seq",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
@@ -655,7 +655,7 @@
         },
         {
             "cmd": {
-                "name": "awe_annotate_summary.pl",
+                "name": "mgrast_annotate_summary.pl",
                 "args": "-in_expand=@[% job_id %].650.aa.sims.filter -in_expand=@[% job_id %].450.rna.sims.filter -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -in_index=@[% job_id %].700.annotation.sims.filter.seq.index -output=[% job_id %].700.annotation.md5.abundance -type=md5",
                 "description": "md5 abundance",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -714,7 +714,7 @@
         },
         {
             "cmd": {
-                "name": "awe_annotate_summary.pl",
+                "name": "mgrast_annotate_summary.pl",
                 "args": "-in_expand=@[% job_id %].650.aa.expand.lca -in_expand=@[% job_id %].450.rna.expand.lca -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.lca.abundance -type=lca",
                 "description": "lca abundance",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -768,7 +768,7 @@
         },
         {
             "cmd": {
-                "name": "awe_annotate_summary.pl",
+                "name": "mgrast_annotate_summary.pl",
                 "args": "-in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.source.stats -type=source",
                 "description": "source abundance",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
@@ -822,7 +822,7 @@
         },
         {
             "cmd": {
-                "name": "awe_load_cass.pl",
+                "name": "mgrast_load_cass.pl",
                 "args": "-job=[% job_id %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -md5=@[% job_id %].700.annotation.md5.abundance -lca=@[% job_id %].700.annotation.lca.abundance",
                 "description": "abundance cassandra load",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
@@ -850,8 +850,8 @@
         },
         {
             "cmd": {
-                "name": "awe_done.pl",
-                "args": "-job=[% job_id %] -nr_ver=[% ach_sequence_ver %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -upload=@[% job_id %].075.upload.stats -qc=@[% job_id %].075.qc.stats -preproc=@[% job_id %].100.preprocess.passed.fna -derep=@[% job_id %].150.dereplication.removed.fna -post_qc=@[% job_id %].299.screen.passed.fna -source=@[% job_id %].700.annotation.source.stats -search=@[% job_id %].425.search.rna.fna -rna_clust=@[% job_id %].440.cluster.rna[% rna_pid %].fna -rna_map=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -genecall=@[% job_id %].350.genecalling.coding.faa -aa_clust=@[% job_id %].550.cluster.aa[% aa_pid %].faa -aa_map=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -ontol=[% job_id %].650.aa.expand.ontology -filter=[% job_id %].700.annotation.sims.filter.seq",
+                "name": "mgrast_stats.pl",
+                "args": "-job=[% job_id %] -nr_ver=[% ach_sequence_ver %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -upload=@[% job_id %].075.upload.stats -qc=@[% job_id %].075.qc.stats -preproc=@[% job_id %].100.preprocess.passed.fna -derep=@[% job_id %].150.dereplication.removed.fna -post_qc=@[% job_id %].299.screen.passed.fna -source=@[% job_id %].700.annotation.source.stats -search=@[% job_id %].425.search.rna.fna -rna_clust=@[% job_id %].440.cluster.rna[% rna_pid %].fna -rna_map=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -genecall=@[% job_id %].350.genecalling.coding.faa -aa_clust=@[% job_id %].550.cluster.aa[% aa_pid %].faa -aa_map=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -ontol=[% job_id %].650.aa.expand.ontology -filter=[% job_id %].700.annotation.sims.filter.seq -md5_abund=@[% job_id %].700.annotation.md5.abundance -m5nr_db=m5nr_v1.annotation.bdb -taxa_hier=m5nr_v1.taxonomy.map.json -ont_hier=m5nr_v1.ontology.map.json",
                 "description": "done stage",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
@@ -860,7 +860,7 @@
                     }
                 }
             },
-            "dependsOn": ["0", "1", "2", "3", "4", "5", "7", "9", "11", "13", "16", "17"],
+            "dependsOn": ["0", "1", "2", "3", "4", "5", "7", "9", "11", "13", "14", "16", "17"],
             "inputs": {
                 "[% job_id %].075.qc.stats": {
                     "host": "[% shock_url %]",
@@ -944,6 +944,11 @@
                     "nofile": true,
                     "attrfile": "[% job_id %].700.annotation.sims.filter.seq.json"
                 },
+                "[% job_id %].700.annotation.md5.abundance": {
+                    "host": "[% shock_url %]",
+                    "origin": "14",
+                    "node": "-"
+                },
                 "[% job_id %].700.annotation.source.stats": {
                     "host": "[% shock_url %]",
                     "origin": "16",
@@ -1006,6 +1011,17 @@
                     "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].mapping.json"
                 }
             },
+            "predata": {
+                "m5nr_v1.annotation.bdb":{
+                    "url": "[% m5nr_full_db_url %]"
+                },
+                "m5nr_v1.taxonomy.map.json":{
+                    "url": "[% m5nr_taxonomy_url %]"
+                },
+                "m5nr_v1.ontology.map.json":{
+                    "url": "[% m5nr_ontology_url %]"
+                }
+            },
             "userattr": {
                 "stage_id": "999",
                 "stage_name": "done"
@@ -1015,7 +1031,7 @@
         },
         {
             "cmd": {
-                "name": "awe_notify.pl",
+                "name": "mgrast_notify.pl",
                 "args": "-user=[% user %] -mgid=[% mg_id %] -api_url=[% mgrast_api %]",
                 "description": "notify job completion",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",

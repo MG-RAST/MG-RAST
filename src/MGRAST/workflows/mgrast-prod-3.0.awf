@@ -1,0 +1,424 @@
+{
+    "info": {
+        "pipeline": "mgrast-prod-3.0",
+        "name": "[% job_id %]",
+        "project": "[% project_name %]",
+        "user": "[% user %]",
+        "xref": "[% xref %]",
+        "clientgroups": "[% clientgroups %]",
+        "priority": 1,
+        "userattr": {
+            "id": "[% mg_id %]",
+            "job_id": "[% job_id %]",
+            "name": "[% mg_name %]",
+            "created": "[% job_date %]",
+            "status": "private",
+            "owner": "[% user %]",
+            "sequence_type": "[% seq_type %]",
+            "bp_count": "[% bp_count %]",
+            "project_id": "[% project_id %]",
+            "project_name": "[% project_name %]",
+            "type": "metagenome",
+            "pipeline_version": "3.0"
+        }
+    },
+    "tasks": [
+        {
+            "cmd": {
+                "name": "pipeline_qc",
+                "args": "-j [% job_id %] -s @[% inputfile %] -n raw -p 4 -k 6,16",
+                "description": "qc_stats"
+            },
+            "dependsOn": [],
+            "inputs": {
+               "[% inputfile %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% shock_node %]"
+                }
+            }, 
+            "outputs": {
+                "[% job_id %].075.assembly.abundance": {
+                    "host": "[% shock_url %]",
+                    "delete": true,
+                    "node": "-"
+                },
+                "[% job_id %].075.qc.stats": {
+                    "host": "[% shock_url %]",
+                    "delete": true,
+                    "node": "-"
+                },
+                "[% job_id %].075.upload.stats": {
+                    "host": "[% shock_url %]",
+                    "delete": true,
+                    "node": "-"
+                }
+            },
+            "userattr": {
+                "stage_id": "075",
+                "stage_name": "qc"
+            },
+            "taskid": "0", 
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_preprocess",
+                "args": "-j [% job_id %] -f @[% inputfile %] -o [% filter_options %]",
+                "description": "preprocess"
+            },
+            "dependsOn": [], 
+            "inputs": {
+               "[% inputfile %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% shock_node %]"
+                }
+            },
+            "outputs": {
+                "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                },
+                "[% job_id %].100.preprocess.removed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "userattr": {
+                "stage_id": "100",
+                "stage_name": "preprocess"
+            },
+            "taskid": "1", 
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_dereplication",
+                "args": "-j [% job_id %] -f @[% job_id %].100.preprocess.passed.fna -prefix_length [% prefix_length %] -r [% dereplicate %]",
+                "description": "dereplication"
+            },
+            "dependsOn": ["1"],
+            "inputs": {
+               "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "1"
+                }
+            },
+            "outputs": {
+                "[% job_id %].150.dereplication.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                },
+                "[% job_id %].150.dereplication.removed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "userattr": {
+                "stage_id": "150",
+                "stage_name": "dereplication"
+            },
+            "taskid": "2",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_screen",
+                "args": "-j [% job_id %] -f @[% job_id %].150.dereplication.passed.fna -i [% screen_indexes %] -t 8 -r [% bowtie %]",
+                "description": "screen"
+            }, 
+            "dependsOn": ["2"], 
+            "inputs": {
+               "[% job_id %].150.dereplication.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "2"
+                }
+            },
+            "outputs": {
+                "[% job_id %].299.screen.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "predata": {[% index_download_urls %]
+            },
+            "userattr": {
+                "stage_id": "299",
+                "stage_name": "screen"
+            },
+            "taskid": "3", 
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_genecalling",
+                "args": "-j [% job_id %] -f @[% job_id %].299.screen.passed.fna -t [% fgs_type %] -p 4",
+                "description": "genecalling"
+            },
+            "dependsOn": ["3"],
+            "inputs": {
+               "[% job_id %].299.screen.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "3"
+                }
+            },
+            "outputs": {
+                "[% job_id %].350.genecalling.coding.faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                },
+                "[% job_id %].350.genecalling.coding.fna": {
+                    "host": "[% shock_url %]",
+                    "delete": true,
+                    "node": "-"
+                }
+            },
+            "userattr": {
+                "stage_id": "350",
+                "stage_name": "genecalling"
+            },
+            "taskid": "4",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_search",
+                "args": "-j [% job_id %] -f @[% job_id %].100.preprocess.passed.fna -r [% m5rna_clust %] -p 4",
+                "description": "rna detection"
+            }, 
+            "dependsOn": ["1"],
+            "inputs": {
+               "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "1"
+                }
+            },
+            "outputs": {
+                "[% job_id %].425.search.rna.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "predata": {
+                "[% m5rna_clust %]":{
+                    "url": "[% m5rna_clust_download_url %]"
+                }
+            },
+            "userattr": {
+                "stage_id": "425",
+                "stage_name": "rna.filter"
+            },
+            "taskid": "5",
+            "totalwork": 1
+        },          
+        {
+            "cmd": {
+                "name": "pipeline_cluster",
+                "args": "-j [% job_id %] -f @[% job_id %].425.search.rna.fna -rna -p [% rna_pid %]", 
+                "description": "rna clustering"
+            }, 
+            "dependsOn": ["5"],
+            "inputs": {
+                "[% job_id %].425.search.rna.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "5"
+                }
+            },
+            "outputs": {
+                "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "userattr": {
+                "stage_id": "440",
+                "stage_name": "rna.cluster"
+            },
+            "taskid": "6",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_rna",
+                "args": "-j [% job_id %] -f @[% job_id %].440.cluster.rna[% rna_pid %].fna -r m5rna",
+                "description": "rna sims blat"
+            }, 
+            "dependsOn": ["6"],
+            "inputs": {
+                "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "6"
+                }
+            },
+            "outputs": {
+                "[% job_id %].450.rna.sims": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "predata": {
+                "m5rna":{
+                    "url": "[% m5rna_download_url %]"
+                }
+            },
+            "userattr": {
+                "stage_id": "450",
+                "stage_name": "rna.sims"
+            },
+            "taskid": "7",
+            "totalwork": 1
+        },
+        {   
+            "cmd": {
+                "name": "pipeline_cluster",
+                "args": "-j [% job_id %] -f @[% job_id %].350.genecalling.coding.faa -aa -p [% aa_pid %]",
+                "description": "aa clustering"
+            },
+            "dependsOn": ["4"],
+            "inputs": {
+                "[% job_id %].350.genecalling.coding.faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "4"
+                }
+            },
+            "outputs": {
+                "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "userattr": {
+                "stage_id": "550",
+                "stage_name": "protein.cluster"
+            },
+            "taskid": "8",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_sims",
+                "args": "-j [% job_id %] -f @[% job_id %].550.cluster.aa[% aa_pid %].faa",
+                "description": "aa sims blat"
+            }, 
+            "dependsOn": ["8"],  
+            "inputs": {
+                "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "8"
+                }
+            }, 
+            "outputs": {
+                "[% job_id %].650.superblat.sims": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "predata": {
+                "md5nr.1":{
+                    "url": "[% m5nr1_download_url %]"
+                },
+                "md5nr.2":{
+                    "url": "[% m5nr2_download_url %]"
+                }
+            },
+            "userattr": {
+                "stage_id": "650",
+                "stage_name": "protein.sims"
+            },
+            "taskid": "9",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_loadDB",
+                "args": "-j [% job_id %] -f @[% inputfile %] -p @[% job_id %].650.superblat.sims -r @[% job_id %].450.rna.sims -c @[% job_id %].550.cluster.aa[% aa_pid %].mapping -m @[% job_id %].440.cluster.rna[% rna_pid %].mapping -d",
+                "description": "loadDB"
+            }, 
+            "dependsOn": ["6", "7", "8", "9"],
+            "inputs": {
+                "[% inputfile %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% shock_node %]"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "6"
+                },
+                "[% job_id %].450.rna.sims": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "7"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "8"
+                },
+                "[% job_id %].650.superblat.sims": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "9"
+                }
+            }, 
+            "outputs": {
+                "[% job_id %].900.loadDB.sims.filter.seq": {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                },
+                "[% job_id %].900.loadDB.source.stats": {
+                    "host": "[% shock_url %]",
+                    "delete": true,
+                    "node": "-"
+                }
+            },
+            "userattr": {
+                "stage_id": "900",
+                "stage_name": "annotation.summary"
+            },
+            "taskid": "10",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "pipeline_done",
+                "args": "-j [% job_id %] -r @[% inputfile %]",
+                "description": "done stage"
+            },
+            "dependsOn": ["0", "10"],
+            "inputs": {
+                "[% inputfile %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% shock_node %]"
+                }
+            },
+            "outputs": {
+                "[% job_id %].statistics.json" : {
+                    "host": "[% shock_url %]",
+                    "node": "-"
+                }
+            },
+            "userattr": {
+                "stage_id": "999",
+                "stage_name": "done"
+            },
+            "taskid": "11",
+            "totalwork": 1
+        }
+    ]
+}

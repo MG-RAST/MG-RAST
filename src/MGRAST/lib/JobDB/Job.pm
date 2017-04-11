@@ -101,20 +101,25 @@ sub reserve_job_id {
         print STDRER "reserve_job_id called without a user";
         return undef;
     }
-
-    # get next id
+    
+    # get and insert next IDs, need to lock to prevent race conditions
     my $dbh = $master->db_handle;
+    $dbh->do("LOCK TABLES Job WRITE");
     my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
-    my $job_id  = $max->[0] + 1;
-    my $mg_id   = $max->[1] + 1;
-    my $options = { owner => $user,
-                    job_id => $job_id,
-                    metagenome_id => $mg_id,
-                    name => $name,
-                    file => $file,
-                    file_size_raw => $size,
-                    file_checksum_raw => $md5,
-                    server_version => 3 };
+    my $job_id = $max->[0] + 1;
+    my $mg_id  = $max->[1] + 1;
+    my $sth = $dbh->prepare("INSERT INTO Job (job_id,metagenome_id,name,file,file_size_raw,file_checksum_raw,server_version,owner,_owner_db) VALUES (?,?,?,?,?,?,?,?,?)");
+    $sth->execute($job_id, $mg_id, $name, $file, $size, $md5, 4, $user->_id, 1);
+    $sth->finish();
+    $dbh->do("UNLOCK TABLES");
+    
+    # get job object
+    my $job = $master->Job->get_objects({metagenome_id => $mg_id});
+    unless ($job && @$job) {
+        print STDRER "Can't create job\n";
+        return undef;
+    }
+    $job = $job->[0];
     
     # Connect to User/Rights DB
     my $dbm = DBMaster->new(-database => $Conf::webapplication_db,
@@ -122,7 +127,7 @@ sub reserve_job_id {
   			                -host     => $Conf::webapplication_host,
   			                -user     => $Conf::webapplication_user,
   	);
-  			 
+  	
     # check rights
     my $rights = ['view', 'edit', 'delete'];
     foreach my $right_name (@$rights) {
@@ -142,13 +147,6 @@ sub reserve_job_id {
   	            return undef;
             }
         }
-    }
-    
-    # create job
-    my $job = $master->Job->create($options);
-    unless (ref $job) {
-        print STDRER "Can't create job\n";
-        return undef;
     }
     
     return $job;
@@ -1516,11 +1514,6 @@ sub user_delete {
   my $chdl = Inline::Python::Object->new('__main__', 'JobHandle', $Conf::cassandra_m5nr);
   $chdl->delete_job($jobid);
   $chdl->close();
-
-  # delete analysis tables
-  use MGRAST::Analysis;
-  my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
-  my $success = $analysisDB->delete_job($self->job_id);
   
   ######## delete AWE / Shock ##########
   
