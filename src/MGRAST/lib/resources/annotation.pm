@@ -179,10 +179,10 @@ sub instance {
     my ($self, $format, $mgid) = @_;
     
     # check id format
-    my $rest = $self->rest;
-    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
+    my $tempid = $self->idresolve($rest->[0]);
+    my (undef, $id) = $tempid =~ /^(mgm)?(\d+\.\d+)$/;
     if ((! $id) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: ".$mgid}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
 
     # get data
