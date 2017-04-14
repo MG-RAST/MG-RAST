@@ -7,7 +7,7 @@ no warnings('once');
 use Conf;
 use parent qw(resources::resource);
 
-use URI::Encode qw(uri_encode uri_decode);
+use URI::Escape qw(uri_escape uri_unescape);
 
 # Override parent constructor
 sub new {
@@ -44,7 +44,7 @@ sub info {
 				    { 'name'        => "instance",
 				      'request'     => $self->cgi->url."/".$self->name,				      
 				      'description' => "Returns what you gave it.",
-				      'example'     => [ $self->cgi->url."/".$self->name."?code=200&obj=".uri_encode('{"test":"ok"}'),
+				      'example'     => [ $self->cgi->url."/".$self->name."?code=200&obj=".uri_escape('{"test":"ok"}'),
     				                     'return success, test - ok' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -66,7 +66,7 @@ sub instance {
       $self->return_data( {"ERROR" => "code parameter must be a valid HTTP error code"}, 400 );
     }
     
-    my $data = uri_decode($self->cgi->param('obj'));
+    my $data = uri_unescape($self->cgi->param('obj'));
     
     print  $self->cgi->header( -type => "application/json",
 			       -status => $self->cgi->param('code'),

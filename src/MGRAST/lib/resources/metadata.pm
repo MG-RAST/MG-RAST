@@ -419,7 +419,7 @@ sub instance {
             $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
         }
         # prepare data / get mixs
-        my $data = $mddb->get_jobs_metadata_fast([$mgid], 1)->{$mgid};
+        my $data = $mddb->get_job_metadata($job, 1, 0);
         my $mixs = $mddb->get_job_mixs($job);
         $data->{mixs} = $mixs;
         $self->return_data($data);
@@ -580,13 +580,21 @@ sub process_file {
         unless ($is_valid) {
             $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", $log, @{$md_obj->{data}})}, 422);
         }
-        unless ($post->{metagenome} && (@{$post->{metagenome}} > 0)) {
-            $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
+        unless ($post->{metagenome}) {
+	  $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
+	}
+	if (ref $post->{metagenome} ne "ARRAY") {
+	  $post->{metagenome} = [ $post->{metagenome} ];
         }
         if (($type eq 'update') && (! $post->{project})) {
             $self->return_data({"ERROR" => "Invalid parameters, update requires project ID"}, 404);
         }
-        
+
+	# get project object (if exists)
+        my $project_name = $md_obj->{data}{project_name}{value};
+        my $project_id   = ($type eq 'update') ? $post->{project} : (exists($md_obj->{id}) ? $md_obj->{id} : '');
+        my $project_obj  = undef;
+
         # get metagenome objects
         my @jobs = ();
         foreach my $id (@{$post->{metagenome}}) {
@@ -599,19 +607,14 @@ sub process_file {
                 }
                 $job = $job->[0];
                 # check rights
-                unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $mgid) || $self->user && $self->user->has_star_right('edit', 'metagenome'))) {
-                    $self->return_data( {"ERROR" => "Insufficient permissions to view this data"}, 401 );
+                unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $mgid) || $self->user && $self->user->has_star_right('edit', 'metagenome') || ($project_obj && ($self->user->has_right(undef, 'edit', 'project', $project_obj->id) || $self->user->has_star_right('edit', 'project'))))) {
+                    $self->return_data( {"ERROR" => "Insufficient permissions to edit this data"}, 401 );
                 }
                 push @jobs, $job;
             } else {
                 $self->return_data( {"ERROR" => "Invalid metagenome id format: ".$id}, 400 );
             }
         }
-        
-        # get project object (if exists)
-        my $project_name = $md_obj->{data}{project_name}{value};
-        my $project_id   = ($type eq 'update') ? $post->{project} : (exists($md_obj->{id}) ? $md_obj->{id} : '');
-        my $project_obj  = undef;
         
         # get project from id or name, or create it
         my $projects = [];

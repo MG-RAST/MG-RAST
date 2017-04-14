@@ -86,17 +86,43 @@ sub instance {
     my $obj = {
         id => $uuid,
         status => "processing",
-        url => $self->cgi->url."/".$self->name."/".$uuid
+        url => $self->cgi->url."/".$self->name."/".$uuid,
+        started => $node->{created_on},
+        updated => $node->{last_modified}
     };
+    if (exists $node->{attributes}{progress}) {
+        $obj->{progress} = $node->{attributes}{progress};
+    }
+    if (exists $node->{attributes}{parameters}) {
+        $obj->{parameters} = $node->{attributes}{parameters};
+    }
     
     if ($node->{file}{name} && $node->{file}{size}) {
         $obj->{status} = "done";
+        $obj->{size}   = $node->{file}{size};
+        $obj->{md5}    = $node->{file}{checksum}{md5};
+        $obj->{completed} = $node->{file}{created_on};
         if ($verbosity eq "full") {
             my ($content, $err) = $self->get_shock_file($uuid, undef, $self->mgrast_token);
             if ($err) {
                 $self->return_data( {"ERROR" => "unable to retrieve data: ".$err}, 404 );
             }
-            $obj->{data} = $self->json->decode($content);
+            # handle error in content
+            my $data = undef;
+            eval {
+                $data = $self->json->decode($content);
+            };
+            if ($@ || (! $data)) {
+                $data = $content;
+            }
+            if (ref($data) eq "HASH") {
+                my $error = exists($data->{ERROR}) ? $data->{ERROR} : (exists($data->{error}) ? $data->{error} : undef);
+                if ($error) {
+                    my $status = exists($data->{STATUS}) ? $data->{STATUS} : (exists($data->{status}) ? $data->{status} : 500);
+                    $self->return_data( {"ERROR" => $error},  $status);
+                }
+            }
+            $obj->{data} = $data;
         }
     }
     

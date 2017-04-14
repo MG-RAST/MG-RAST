@@ -75,7 +75,7 @@ sub instance {
   if ($self->rest->[0] eq 'twitter') {
     my $count = $self->rest->[1] || 5;
     my $data = `curl -s -X GET -H "Authorization: Bearer AAAAAAAAAAAAAAAAAAAAAF%2BttwAAAAAADIFy3lxo9On1Qjx3SWZPCGIEOGU%3DeeNP5cxZXM7W70fE2A30dk2Hw4IwAuK3TSNEaK7pCJU1TY4VJ0" "https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=mg_rast&count=$count&trim_user=1"`;
-    $self->return_data($self->json->decode($data));
+    $self->return_data($self->json->utf8->decode($data));
   }
 
   # get the current messasge (if any) from SHOCK
@@ -102,11 +102,22 @@ sub instance {
   if ($cdata) {
     $counts = $cdata;
   } else {
+    my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('drisee_score_raw', undef, undef, 1) };
+    my ($dbmaster, $error) = WebApplicationDBHandle->new();
+    my $usercount = undef;
+    unless ($error) {
+      $usercount = $dbmaster->db_handle->selectrow_array('SELECT count(*) FROM User');
+    }
     $counts = {
 	       "metagenomes" => $master->Job->count_all(),
 	       "public_metagenomes" => $master->Job->count_public(),
 	       "sequences" => $master->Job->count_total_sequences(),
-	       "basepairs" => $master->Job->count_total_bp()
+	       "basepairs" => $master->Job->count_total_bp(),
+	       "driseemin" => $min,
+	       "driseemax" => $max,
+	       "driseeavg" => $avg,
+	       "driseestdv" => $stdv,
+	       "usercount" => $usercount
 	      };
     $memd->set("mgcounts", $counts, 7200);
   }
@@ -122,6 +133,11 @@ sub instance {
 	      "public_metagenomes" => $counts->{public_metagenomes},
 	      "sequences" => $counts->{sequences},
 	      "basepairs" => $counts->{basepairs},
+	      "driseemin" => $counts->{driseemin},
+	      "driseemax" => $counts->{driseemax},
+	      "driseeavg" => $counts->{driseeavg},
+	      "driseestdv" => $counts->{driseestdv},
+	      "usercount" => $counts->{usercount},
 	      "url" => $self->cgi->url."/".$self->name."/MG-RAST"
 	     };
   

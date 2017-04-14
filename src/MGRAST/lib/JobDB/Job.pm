@@ -101,20 +101,25 @@ sub reserve_job_id {
         print STDRER "reserve_job_id called without a user";
         return undef;
     }
-
-    # get next id
+    
+    # get and insert next IDs, need to lock to prevent race conditions
     my $dbh = $master->db_handle;
+    $dbh->do("LOCK TABLES Job WRITE");
     my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
-    my $job_id  = $max->[0] + 1;
-    my $mg_id   = $max->[1] + 1;
-    my $options = { owner => $user,
-                    job_id => $job_id,
-                    metagenome_id => $mg_id,
-                    name => $name,
-                    file => $file,
-                    file_size_raw => $size,
-                    file_checksum_raw => $md5,
-                    server_version => 3 };
+    my $job_id = $max->[0] + 1;
+    my $mg_id  = $max->[1] + 1;
+    my $sth = $dbh->prepare("INSERT INTO Job (job_id,metagenome_id,name,file,file_size_raw,file_checksum_raw,server_version,owner,_owner_db) VALUES (?,?,?,?,?,?,?,?,?)");
+    $sth->execute($job_id, $mg_id, $name, $file, $size, $md5, 4, $user->_id, 1);
+    $sth->finish();
+    $dbh->do("UNLOCK TABLES");
+    
+    # get job object
+    my $job = $master->Job->get_objects({metagenome_id => $mg_id});
+    unless ($job && @$job) {
+        print STDRER "Can't create job\n";
+        return undef;
+    }
+    $job = $job->[0];
     
     # Connect to User/Rights DB
     my $dbm = DBMaster->new(-database => $Conf::webapplication_db,
@@ -122,7 +127,7 @@ sub reserve_job_id {
   			                -host     => $Conf::webapplication_host,
   			                -user     => $Conf::webapplication_user,
   	);
-  			 
+  	
     # check rights
     my $rights = ['view', 'edit', 'delete'];
     foreach my $right_name (@$rights) {
@@ -142,13 +147,6 @@ sub reserve_job_id {
   	            return undef;
             }
         }
-    }
-    
-    # create job
-    my $job = $master->Job->create($options);
-    unless (ref $job) {
-        print STDRER "Can't create job\n";
-        return undef;
     }
     
     return $job;
@@ -428,6 +426,36 @@ sub get_jobs_for_user_fast {
 			 });
     }
     return @out;
+}
+
+sub get_sequence_types {
+    my ($self, $mgids) = @_;
+    
+    my %data = map { $_, "Unknown" } @$mgids;
+    my $dbh  = $self->_master()->db_handle;
+    my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
+    my $query   = "select metagenome_id, sequence_type from Job where metagenome_id in (".$id_list.")";
+    my $result  = $dbh->selectall_arrayref($query);
+    foreach my $r (@$result) {
+        if (exists $data{$r->[0]}) {
+            $data{$r->[0]} = $r->[1];
+        }
+    }
+    return \%data;
+}
+
+sub get_job_ids {
+    my ($self, $mgids) = @_;
+    
+    my $data = {};
+    my $dbh  = $self->_master()->db_handle;
+    my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
+    my $query   = "select metagenome_id, job_id from Job where metagenome_id in (".$id_list.")";
+    my $result  = $dbh->selectall_arrayref($query);
+    if ($result && @$result) {
+        map { $data->{$_->[0]} = $_->[1] } @$result;
+    }
+    return $data;
 }
 
 sub get_public_jobs {
@@ -921,15 +949,161 @@ sub lat_lon {
   return ($lat && $lon) ? [$lat, $lon] : [];
 }
 
+sub  trim { 
+    my $s = shift; 
+    if (defined($s)) {
+        $s =~ s/^\s+|\s+$//g;
+    } 
+    return $s ;
+}
+
+# return iso8601 format
 sub collection_date {
   my ($self) = @_;
-  my $time_set = [];
-  foreach my $tag (('collection_date', 'collection_time', 'collection_timezone')) {
-    last if (($tag eq 'collection_timezone') && (@$time_set == 0));
-    my $val = $self->get_metadata_value($tag, 'sample');
-    if ($val) { push @$time_set, $val; }
+  
+  
+  my $collection_date_value = trim($self->get_metadata_value('collection_date', 'sample'));
+  my $collection_time_value = trim($self->get_metadata_value('collection_time', 'sample'));
+  my $collection_timezone_value = trim($self->get_metadata_value('collection_timezone', 'sample'));
+  
+  
+  ### date
+  my $collection_date="";
+      
+  unless($collection_date_value) {
+      return "";
   }
-  return join(" ", @$time_set);
+  
+  my ($year, $month, $day);
+  if ($collection_date_value =~ /-/) {
+      ($year, $month, $day) = $collection_date_value =~ /^(\d\d\d\d)-(\d\d)-(\d\d)$/
+  } else {
+      ($year, $month, $day) = $collection_date_value =~ /^(\d\d\d\d)(\d\d)(\d\d)$/
+  }
+  
+  unless (defined($year) && defined($month) && defined($day)) {
+      return "ERROR: Could not parse date (".$collection_date_value.")";
+  }
+  
+  # specifying month only (day==0) is not possible, thus will set day to 1.
+  if ($day == 0) {
+      $day = 1
+  }
+  
+  if ( ($year > 3000) || ($month > 12) || ($day > 31) ) {
+      return "ERROR: Could not parse date (".$collection_date_value.")";
+  }
+  
+  $collection_date = sprintf("%04d", $year)."-".sprintf("%02d", $month)."-".sprintf("%02d", $day);
+  
+  
+  ### time
+  unless($collection_time_value) {
+      return $collection_date;
+  }
+  
+  # remove UTC from time
+  if ($collection_time_value =~ /UTC/) {
+      
+      $collection_time_value =~ s/\s*UTC\s*//;
+      
+      if (length($collection_time_value) == 0) {
+          return $collection_date;
+      }
+  }
+  
+  
+  my ($hour, $minute, $second);
+  if ($collection_time_value =~ /:/) {
+      ($hour, $minute, $second) = $collection_time_value =~ /^(\d+):(\d+):(\d+)$/;
+  } else {
+      ($hour, $minute, $second) = $collection_time_value =~ /^(\d\d)(\d\d)(\d\d)$/;
+  }
+  
+  unless (defined($hour) && defined($minute) && defined($second)) {
+      return "ERROR: Could not parse time (".$collection_time_value.")";
+  }
+  
+  if ( ($hour > 24) || ($minute > 60) || ($second > 60) ) {
+      return "ERROR: Could not parse time (".$collection_time_value.")";
+  }
+  
+  $collection_date .= "T" . sprintf("%02d", $hour).":".sprintf("%02d", $minute).":".sprintf("%02d", $second);
+  
+  
+  ### timezone
+  unless($collection_timezone_value) {
+      return $collection_date;
+  }
+  
+  # remove UTC from timezone
+  
+  if ($collection_timezone_value =~ /UTC/) {
+      
+      $collection_timezone_value =~ s/\s*UTC\s*//;
+      
+      if (length($collection_timezone_value) == 0) {
+          return $collection_date."Z";
+      }
+  }
+  
+  
+  
+  # extract sign
+  my ($sign, $day_string) = $collection_timezone_value =~ /^([+-])(.*)/;
+
+  unless (defined($sign)) {
+      return $collection_date."ERROR timezone has no sign in (".$collection_timezone_value.")";
+  }
+  
+  unless (defined($day_string)) {
+      return $collection_date."ERROR no string after sign in (".$collection_timezone_value.")";
+  }
+
+  my ($tz_hour, $tz_minute);
+  if ($day_string =~ /:/) {
+      ($tz_hour, $tz_minute) = $day_string =~  /^(\d+):(\d+)$/;
+  } else {
+      ($tz_hour, $tz_minute) = $day_string =~  /^(\d+)(\d\d)$/;
+      
+      unless (defined($tz_hour)) {
+          ($tz_hour) = $day_string =~  /^(\d+)$/;
+          if (defined($tz_hour)) {
+              $tz_minute = 0;
+          }
+      }
+      
+  }
+  
+  unless (defined $tz_hour) {
+      return $collection_date."ERROR tz_hour not parsed in (".$day_string.")";
+  }
+  
+  if ($tz_hour > 12) {
+      return $collection_date."ERROR tz_hour > 12 in (".$day_string.")";
+  }
+  
+  unless (defined $tz_minute) {
+      return $collection_date."ERROR tz_minute not parsed in (".$day_string.")";
+  }
+  if ($tz_minute > 60) {
+      return $collection_date."ERROR tz_minute > 60 in (".$day_string.")";
+  }
+  
+  # prefix hour and minute with zero if needed
+  $collection_date .= $sign.sprintf("%02d", $tz_hour).sprintf("%02d", $tz_minute);
+  
+  
+  
+  return $collection_date;
+  
+  #my $time_set = [];
+  #foreach my $tag (('collection_date', 'collection_time', 'collection_timezone')) {
+  #  last if (($tag eq 'collection_timezone') && (@$time_set == 0));
+  #  my $val = $self->get_metadata_value($tag, 'sample');
+  #  if ($val) { push @$time_set, $val; }
+  #}
+  #return join(" ", @$time_set);
 }
 
 sub env_package_type {
@@ -1300,10 +1474,11 @@ sub user_delete {
   my ($self, $user, $reason) = @_;
   
   my $jobdbm = $self->_master();
-  my $mgid = $self->metagenome_id;
+  my $mgid   = $self->metagenome_id;
+  my $jobid  = $self->job_id;
 
   if ($self->public) {
-    return(0, "Unable to delete metagenome '$mgid' as it has been made public.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+    return(0, "Unable to delete metagenome '$mgid' as it has been made public. If someone is sharing this data with you please contact them with inquiries. However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@rt.mcs.anl.gov'>MG-RAST help desk</a>.");
   }
 
   unless( $user && ($user->has_right(undef, 'delete', 'metagenome', $mgid) || $user->has_star_right('delete','metagenome')) ) {
@@ -1331,15 +1506,15 @@ sub user_delete {
   foreach my $r (@$job_rights) {
     $r->delete;
   }
-
-  # delete analysis tables
-  use MGRAST::Analysis;
-  my $analysisDB = new MGRAST::Analysis( $jobdbm->db_handle );
-  my $success = $analysisDB->delete_job($self->job_id);
-  #unless ($success) {
-  #    return (0, "Unable to delete metagenome '$mgid' from Analysis DB");
-  #}
-
+  
+  # delete cassandra data
+  use Inline::Python qw(py_eval);
+  my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from mgrast_cassandra import *|;
+  py_eval($import);
+  my $chdl = Inline::Python::Object->new('__main__', 'JobHandle', $Conf::cassandra_m5nr);
+  $chdl->delete_job($jobid);
+  $chdl->close();
+  
   ######## delete AWE / Shock ##########
   
   # get mgrast token
@@ -1364,7 +1539,7 @@ sub user_delete {
   # get AWE job
   my $ajobs = [];
   eval {
-    my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.name='.$self->job_id, @auth);
+    my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.name='.$jobid, @auth);
     $ajobs  = $json->decode( $get->content )->{data};
   };
   

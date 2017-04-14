@@ -33,6 +33,9 @@ sub authenticate {
       use Conf;
       my ($u,$p) = split(/\:/, decode_base64($key));
       my $us = $master->User->init( { login => $u } );
+      if (ref $us && ! $us->{active}) {
+	$us = undef;
+      }
       if (ref $us and crypt($p, $us->password) eq $us->password) {
         my $pref = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $us } );
 	unless (scalar(@$pref)) {
@@ -88,6 +91,9 @@ sub authenticate {
 	    } else {
 	      $verbose.=', "preferences": '.$json->encode($response->{data}->{attributes}->{pref});
 	    }
+	  }
+	  if ($us->has_right(undef, 'edit', 'user', '*')) {
+	    $verbose.=', "admin": true';
 	  }
 	}
 	print $cgi->header(-type => 'application/json',
@@ -249,6 +255,9 @@ sub authenticate {
       $preference = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $u } );
       if (scalar(@$preference) && $preference->[0]->value > time) {
 	$user = $preference->[0]->user;
+	if (! $user->{active}) {
+	  return (undef, "user deactivated");
+	}
 	return ($user);
       } else {
 	return (undef, "webkey expired");
@@ -257,7 +266,9 @@ sub authenticate {
 
       # return the user connected to the preference
       $user = $preference->[0]->user;
-      
+      if (! $user->{active}) {
+	return (undef, "user deactivated");
+      }
       return ($user);
     }
   } else {
@@ -265,6 +276,9 @@ sub authenticate {
     my $sessions = $master->UserSession->get_objects({ 'session_id' => $auth_value });
     if (scalar(@$sessions)) {
       $user = $sessions->[0]->user;
+      if (! $user->{active}) {
+	return (undef, "user deactivated");
+      }
       return ($user);
     }
 

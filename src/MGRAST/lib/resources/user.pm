@@ -147,7 +147,11 @@ sub instance {
   unless ($rest && scalar(@$rest)) {
     $self->return_data( {"ERROR" => "invalid id format"}, 400 );
   }
-  
+
+  for (my $i=0; $i<scalar(@$rest); $i++) {
+    $rest->[$i] = uri_unescape($rest->[$i]);
+  }
+
   # check verbosity
   my $verb = $self->cgi->param('verbosity') || 'minimal';
   unless (exists $self->{cv}{verbosity}{$verb}) {
@@ -197,9 +201,9 @@ sub instance {
   
   # check if this is an email validation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'validateemail') {
-    my $key = uri_unescape($rest->[1]);
+    my $key = $rest->[1];
     my $uid;
-    unless ($key =~ /^(\d+)_([0..9a..zA..Z]+)$/) {
+    unless ($key =~ /^(\d+)_(\w+)$/) {
       $self->return_data( {"ERROR" => "invalid key"}, 400 );
     } else {
       $uid = $1;
@@ -227,6 +231,28 @@ sub instance {
       $user->email2($email);
     }
     $self->return_data( { "OK" => "email validated" }, 200 );
+  }
+
+  # check for account (de)activation
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'deactivate') {
+    if ($self->user->has_right(undef, 'edit', 'user', '*')) {
+      my $impUser = $master->User->get_objects({ login => $rest->[1] });
+      if (scalar(@$impUser)) {
+	$impUser = $impUser->[0];
+	if ($self->cgi->param('active') eq "1") {
+	  $impUser->active(1);
+	} else {
+	  $master->db_handle()->do("UPDATE User SET active=0 WHERE login='".$impUser->{login}."'");
+	  $master->db_handle()->commit;
+	}
+	$self->return_data( { "login" => $impUser->{login},
+			      "OK" => "user account ".($self->cgi->param('active') == "1" ? "" : "de")."activated" }, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "user not found"}, 404 );
+      }
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+    }
   }
   
   # check if this is an impersonation
@@ -320,22 +346,22 @@ sub instance {
   
   # check if this is a reset password request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
-    # passwords may only be reset with a valid recaptcha
-    my $ua = $self->{agent};
-    $ua->env_proxy();
-    my $version = $self->{cgi}->param('version') && $self->{cgi}->param('version') == 2 ? 'site' : '';
-    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6LfbRfYSAAAAAMBm8TnvpveuFNRRJsuNsFbx7IfY',
-										      remoteip   => $ENV{'REMOTE_ADDR'},
-										      challenge  => $self->{cgi}->param('challenge'),
-										      response   => $self->{cgi}->param('response') }
-			);
-    if ( $resp->is_success ) {
-      my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
-      if ( $answer !~ /true/ ) {
-	$self->return_data( {"ERROR" => "recaptcha failed"}, 400 );
+    if (! $self->user || ! $self->user->has_star_right('edit', 'user')) {
+      # passwords may only be reset with a valid recaptcha
+      my $ua = $self->{agent};
+      $ua->env_proxy();
+      my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', { secret => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+										 remoteip   => $ENV{'REMOTE_ADDR'},
+										 response   => $self->{cgi}->param('response') } );
+      if ( $resp->is_success ) {
+	my $answer = $self->json->decode($resp->content);
+	if ( ! $answer->{success} ) {
+	  $self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
+	}
+      } else {
+	
+	$self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
       }
-    } else {
-      $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
     }
     
     # if we get here, recaptcha is successful
@@ -350,22 +376,72 @@ sub instance {
       $self->return_data( {"ERROR" => "login and email do not match or are not registered"}, 400 );
     }
   }
+
+  # check if this is a token claim
+  if (scalar(@$rest) == 2 && $rest->[0] eq 'claimtoken') {
+    my $token = $rest->[1];
+    if ($self->user) {      
+      my $token_scope = $master->Scope->get_objects( { name => 'token:'.$token } );
+      if (scalar(@$token_scope)) {
+	$token_scope = $token_scope->[0];
+      } else {
+	$self->return_data( {"ERROR" => "unknown token"}, 404 );
+      }
+
+      # we have a valid token and a valid user
+      my $uscope = $self->user->get_user_scope;
+      my $rights = $master->Rights->get_objects( { scope => $token_scope } );
+      my $ret_id = $rights->[0]->data_id;
+      my $ret_type = "metagenome";
+      my $pscope = undef;
+      if ($rights->[0]->data_type eq 'project') {
+	$ret_type = "project";
+	$pscope = $master->Scope->init( { application => undef,
+					  name => 'MGRAST_project_'.$ret_id } );
+      }
+      if ($token_scope->description && $token_scope->description =~ /^Reviewer_/) {
+	my $existing = $master->UserHasScope->get_objects( {scope => $token_scope,
+							    user => $self->user });
+	if (! scalar(@$existing)) {
+	  $master->UserHasScope->create( { granted => 1,
+					   scope => $token_scope,
+					   user => $self->user } );
+	}
+      } else {
+	foreach my $right (@$rights) {
+	  $right->scope($uscope);
+	}
+	$token_scope->delete();
+      }
+      if ($pscope) {
+	my $existing = $master->UserHasScope->get_objects( {scope => $pscope,
+							    user => $self->user });
+	if (! scalar(@$existing)) {
+	  $master->UserHasScope->create( { granted => 1,
+					   scope => $pscope,
+					   user => $self->user } );
+	}
+      }
+      
+      $self->return_data( { "OK" => "token claimed", "id" => $ret_id, "type" => $ret_type }, 200 );
+    } else {
+      $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+    }
+  }
   
   # check if this is a user creation
   if ($self->{method} eq 'POST') {
     # users may only be created with a valid recaptcha
     my $ua = $self->{agent};
     $ua->env_proxy();
-    my $version = $rest->[0] eq 'recaptcha' ? 'site' : '';
-    my $resp = $ua->post( 'http://www.google.com/recaptcha/api/'.$version.'verify', { privatekey => '6LfbRfYSAAAAAMBm8TnvpveuFNRRJsuNsFbx7IfY',
-										      remoteip   => $ENV{'REMOTE_ADDR'},
-										      challenge  => $rest->[0] eq 'recaptcha' ? undef : $rest->[0],
-										      response   => $self->{cgi}->param('response') }
+    my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', { secret => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+									       remoteip   => $ENV{'REMOTE_ADDR'},
+									       response   => $self->{cgi}->param('response') }
 			);
     if ( $resp->is_success ) {
-      my ( $answer, $message ) = split( /\n/, $resp->content, 2 );
-      if ( $answer !~ /true/ ) {
-	$self->return_data( {"ERROR" => "recaptcha failed"}, 400 );
+      my $answer = $self->json->decode($resp->content);
+      if ( ! $answer->{success} ) {
+	$self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
       }
     } else {
       $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
@@ -380,10 +456,11 @@ sub instance {
   my $user = [];
   if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
     $user = $master->User->get_objects( {"_id" => $1} );
-  } elsif (uri_unescape($rest->[0]) =~ /\@/) {
-    $user = $master->User->get_objects( { "email" => uri_unescape($rest->[0]) } );
   } else { # user login
     $user = $master->User->get_objects( { "login" => $rest->[0] } );
+    if (! scalar(@$user) && $rest->[0] =~ /\@/) {
+      $user = $master->User->get_objects( { "email" => $rest->[0] } );
+    }
   }
   unless (scalar(@$user)) {
     $self->return_data( {"ERROR" => "user '".$rest->[0]."' does not exist"}, 404 );
@@ -397,18 +474,29 @@ sub instance {
   
   # check if this is a user update
   if ($self->{method} eq 'PUT') {
+    if (defined $self->{cgi}->param('dwp') && $self->user->has_star_right('edit', 'user')) {
+      &set_password($user, $self->cgi->param('dwp'));
+    }
     if (defined $self->{cgi}->param('email')) {
-      # check if this is a new address and verify it if so
-      if ($user->{email} ne uri_unescape($self->{cgi}->param('email'))) {
-	$self->verify_email();
-	$user->{updated_email} = 'verifying';
+      if ($self->user->has_star_right('edit', 'user')) {
+	$user->email(uri_unescape($self->{cgi}->param('email')));
+      } else {
+	# check if this is a new address and verify it if so
+	if ($user->{email} ne uri_unescape($self->{cgi}->param('email'))) {
+	  $self->verify_email();
+	  $user->{updated_email} = 'verifying';
+	}
       }
     }
     if (defined $self->{cgi}->param('email2')) {
-      # check if this is a new address and verify it if so
-      if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2'))) {
-	$self->verify_email(1);
-	$user->{updated_email2} = 'verifying';
+      if ($self->user->has_star_right('edit', 'user')) {
+	$user->email(uri_unescape($self->{cgi}->param('email2')));
+      } else {
+	# check if this is a new address and verify it if so
+	if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2'))) {
+	  $self->verify_email(1);
+	  $user->{updated_email2} = 'verifying';
+	}
       }
     }
     if (defined $self->{cgi}->param('firstname')) {

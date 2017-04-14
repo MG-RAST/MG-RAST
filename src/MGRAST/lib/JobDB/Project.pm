@@ -193,8 +193,7 @@ sub data {
       return 0;
     }
     my $jstat = $self->_master->ProjectMD->get_objects( { project => $self,
-							  tag     => $tag,
-							  value   => $value
+							  tag     => $tag
 							});
     if (ref $jstat and scalar @$jstat) {
       $jstat->[0]->value($value);
@@ -472,8 +471,17 @@ sub metagenomes_summary {
   
   my $project_jobs = $self->_master->ProjectJob->get_objects( {project => $self} );
   my $user = $self->_master->{_user};
-
-  if (@$project_jobs > 0) {    
+    
+  if (@$project_jobs > 0) {
+    my $jdbh = $self->_master->db_handle();
+    my $samp_lib_hash = {};
+    my $mdc = $jdbh->selectall_arrayref('select Job.metagenome_id, MetaDataCollection.ID, MetaDataCollection.type from Job, MetaDataCollection where Job.primary_project='.$self->_id.' and (MetaDataCollection._id=Job.library or MetaDataCollection._id=Job.sample)', { Slice => {} });
+    foreach my $row (@$mdc) {
+      unless (exists $samp_lib_hash->{$row->{metagenome_id}}) {
+	$samp_lib_hash->{$row->{metagenome_id}} = {};
+      }
+      $samp_lib_hash->{$row->{metagenome_id}}->{$row->{type}} = $row->{ID};
+    }
     my @pdata = ();
     my $user_jobs = {};
     my $ujr = defined($user) ? $user->has_right_to(undef, 'view', 'metagenome') : [];
@@ -499,14 +507,18 @@ sub metagenomes_summary {
 		     $pj->seq_method,
 		     $pj->viewable,
 		     $pj->created_on,
-		     {}
+		     {},
+		     $samp_lib_hash->{$pj->{metagenome_id}}->{sample} ? "mgs".$samp_lib_hash->{$pj->{metagenome_id}}->{sample} : undef,
+		     $samp_lib_hash->{$pj->{metagenome_id}}->{library} ? "mgl".$samp_lib_hash->{$pj->{metagenome_id}}->{library}: undef
 		  ];
       $i++;
     }
-    my $jdbh  = $self->_master->db_handle();
-    my $res = $jdbh->selectall_arrayref('SELECT tag, value, job FROM JobAttributes WHERE job IN ('.join(", ", map { $_->{_id} } @pjobs).')', { Slice => {} });
-    foreach my $row (@$res) {
-      $data[$jindices->{$row->{job}}]->[14]->{$row->{tag}} = $row->{value};
+    if (scalar(@pjobs)) {
+      $jdbh = $self->_master->db_handle();
+      my $res = $jdbh->selectall_arrayref('SELECT tag, value, job FROM JobAttributes WHERE job IN ('.join(", ", map { $_->{_id} } @pjobs).')', { Slice => {} });
+      foreach my $row (@$res) {
+	$data[$jindices->{$row->{job}}]->[14]->{$row->{tag}} = $row->{value};
+      }
     }
   }
   return \@data;

@@ -1,4 +1,15 @@
-#!/soft/packages/perl/5.12.1/bin/perl
+#!/usr/bin/perl
+
+BEGIN {
+    unshift @INC, qw(
+              /MG-RAST/site/lib
+              /MG-RAST/site/lib/WebApplication
+              /MG-RAST/site/lib/PPO
+              /MG-RAST/site/lib/MGRAST
+              /MG-RAST/site/lib/Babel
+              /MG-RAST/conf
+        );
+}
 
 use warnings;
 use strict;
@@ -14,9 +25,10 @@ sub usage {
   print "select_project_for_jobs.pl -jobs <file with job ids> -project <project id>\n";
 }
 
-my ($jobs, $project);
+my ($jobs, $project, $mgid);
 
 GetOptions( 'jobs=s' => \$jobs,
+	    'usemgid=s' => \$mgid,
             'project=s' => \$project );
 
 unless ($jobs and $project) {
@@ -66,7 +78,12 @@ unless (ref($p)) {
 # get the jobs
 my $js = [];
 foreach my $jid (@$jids) {
-  my $job = $mgmaster->Job->get_objects( { job_id => $jid } );
+  my $job;
+  if ($mgid) {
+    $job = $mgmaster->Job->get_objects( { metagenome_id => $jid } );
+  } else {
+    $job = $mgmaster->Job->get_objects( { job_id => $jid } );
+  }
   if (scalar(@$job)) {
     push(@$js, $job->[0]);
   } else {
@@ -81,8 +98,8 @@ foreach my $job (@$js) {
   foreach my $pj (@$pjs) {
     $pj->delete;
   }
-  $job->primary_project($project);
-  $mgmaster->ProjectJob->create({job => $job, project => $project});
+  $job->primary_project($p);
+  $mgmaster->ProjectJob->create({job => $job, project => $p});
 }
 
 

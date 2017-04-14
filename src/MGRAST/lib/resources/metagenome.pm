@@ -9,7 +9,6 @@ use List::Util qw(first max min sum);
 use POSIX qw(strftime floor);
 
 use MGRAST::Metadata;
-use MGRAST::Analysis;
 use Conf;
 use parent qw(resources::resource);
 
@@ -23,7 +22,6 @@ sub new {
     # Add name / attributes
     my %rights = $self->user ? map {$_, 1} grep {$_ ne '*'} @{$self->user->has_right_to(undef, 'view', 'metagenome')} : ();
     $self->{name} = "metagenome";
-    $self->{mgdb} = undef;
     $self->{rights} = \%rights;
     $self->{cv} = {
         verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
@@ -169,6 +167,7 @@ sub info {
                                           'type'        => "synchronous",
                                           'attributes'  => $self->{instance},
                                           'parameters'  => { 'options' => {
+                                                                 'nocache'   => ["boolean", "if true do not use cache"],
                                                                  'verbosity' => ['cv', [['minimal','returns only minimal information'],
                                                                                         ['metadata','returns minimal with metadata'],
                                                                                         ['stats','returns minimal with statistics'],
@@ -219,7 +218,8 @@ sub instance {
     }
     
     # check id format
-    my (undef, $id) = $rest->[0] =~ /^(mgm)?(\d+\.\d+)$/;
+    my $tempid = $self->idresolve($rest->[0]);
+    my (undef, $id) = $tempid =~ /^(mgm)?(\d+\.\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
@@ -257,7 +257,9 @@ sub instance {
     }
 
     # return cached if exists
-    $self->return_cached();
+    unless ($self->cgi->param('nocache')) {
+      $self->return_cached();
+    }
     
     # prepare data
     my $data = $self->prepare_data([$job], $verb);
@@ -442,20 +444,11 @@ sub prepare_data {
     @$mgids = map { $_->{metagenome_id} } @$data;
     my $jobdata = {};
     my $mddb = undef;
+    my $master = $self->connect_to_datasource();
     
     if (($verb eq 'metadata') || ($verb eq 'full')) {
         $mddb = MGRAST::Metadata->new();
-        $jobdata = $mddb->get_jobs_metadata_fast($mgids, 1);
-    }
-    if (($verb eq 'stats') || ($verb eq 'full')) {
-        # initialize analysis obj with mgids
-        my $master = $self->connect_to_datasource();
-        my $mgdb = MGRAST::Analysis->new( $master->db_handle );
-        unless (ref($mgdb)) {
-            $self->return_data({"ERROR" => "could not connect to analysis database"}, 500);
-        }
-        $mgdb->set_jobs($mgids);
-        $self->{mgdb} = $mgdb;
+        $jobdata = $mddb->get_jobs_metadata_fast($mgids, 1, 1);
     }
 
     my $objects = [];
@@ -470,6 +463,7 @@ sub prepare_data {
         $obj->{status} = ($verb eq 'pipeline') ? 'pipeline' : ($job->{public} ? 'public' : 'private');
         $obj->{created} = $job->{created_on};
         $obj->{md5_checksum} = $job->{file_checksum_raw};
+        $obj->{owner}   = 'mgu'.$job->{owner};
         $obj->{version} = 1;
         $obj->{project} = undef;
         $obj->{sample}  = undef;
@@ -510,6 +504,13 @@ sub prepare_data {
 	    if (exists $jdata->{pipeline_id}) {
 	        $obj->{pipeline_id} = $jdata->{pipeline_id};
 	    }
+	    # add pipeline version if exists
+	    if (exists $jdata->{pipeline_version}) {
+	        $obj->{pipeline_version} = $jdata->{pipeline_version};
+	    } else {
+	        $obj->{pipeline_version} = '3.0';
+	    }
+	    
 	    # add pipeline info
 	    my $pparams = $self->pipeline_defaults;
 	    $pparams->{assembled} = (exists($jdata->{assembled}) && $jdata->{assembled}) ? 'yes' : 'no';
@@ -546,7 +547,6 @@ sub prepare_data {
             delete @{$pparams}{'filter_ln', 'filter_ln_mult', 'filter_ambig', 'max_ambig'};
         }
         $obj->{pipeline_parameters} = $pparams;
-        $obj->{pipeline_version} = '3.0';
         
         if (($verb eq 'mixs') || ($verb eq 'full')) {
             if (! $mddb) {
@@ -555,8 +555,16 @@ sub prepare_data {
             my $mixs = $mddb->get_job_mixs($job);
 	        if ($verb eq 'full') {
 	            $obj->{mixs} = $mixs;
+	            $obj->{project_metagenomes} = undef;
+                $obj->{project_alpha_diversity} = undef;
+	            if ($obj->{project}) {
+	                my $proj_jobs = $job->primary_project->metagenomes(1);
+	                my ($min, $max, $avg, $stdv) = @{ $master->JobStatistics->stats_for_tag('alpha_diversity_shannon', $proj_jobs, 1) };
+	                $obj->{project_metagenomes} = $proj_jobs;
+	                $obj->{project_alpha_diversity} = { "min" => $min, "max" => $max, "avg" => $avg, "stdv" => $stdv };
+                }
             } else {
-                map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
+	            map { $obj->{$_} = $mixs->{$_} } keys %$mixs;
             }
         }
         if (($verb eq 'metadata') || ($verb eq 'full')) {

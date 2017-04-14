@@ -6,7 +6,6 @@ no warnings('once');
 
 use List::Util qw(first);
 use List::MoreUtils qw(any uniq);
-use File::Temp qw(tempfile tempdir);
 use URI::Escape;
 use Digest::MD5;
 
@@ -23,14 +22,9 @@ sub new {
     # Add name / attributes
     $self->{url} = $Conf::url_base ? $Conf::url_base : $self->cgi->url;
     $self->{name} = "m5nr";
-    $self->{default} = '10';
+    $self->{m5nr_default} = '10';
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
-    $self->{version} = {
-        '1' => '20100309',
-        '9' => '20130801',
-        '10' => '20131215'
-    };
 	$self->{attributes} = { taxonomy => { data => [ 'list', ['object', [{'organism' => [ 'string', 'organism name' ],
 	                                                                     'species'  => [ 'string', 'organism species' ],
                                                                          'genus'    => [ 'string', 'organism genus' ],
@@ -112,7 +106,8 @@ sub info {
 									            'filter' => ['string', 'text of ontology group (filter_level) to filter by'],
 									            'min_level' => ['cv', $self->hierarchy->{ontology}],
 									            'exact'  => ['boolean', "if true return only those ontologies that exactly match filter, default is false"],
-									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+									            'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}],
+									            'compressed' => ['boolean', 'if true, return full compressed ontology, other options ignored'],
 									        },
 							                'required' => {},
 							                'body'     => {} }
@@ -130,7 +125,8 @@ sub info {
 	                                            'filter' => ['string', 'text of taxonomy group (filter_level) to filter by'],
 									            'min_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
 									            'exact'  => ['boolean', "if true return only those taxonomies that exactly match filter, default is false"],
-									            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+									            'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}],
+									            'compressed' => ['boolean', 'if true, return full compressed taxonomy, other options ignored'],
 									        },
 							                'required' => {},
 							                'body'     => {} }
@@ -144,7 +140,7 @@ sub info {
 					     'type'        => "synchronous",  
 					     'attributes'  => $self->{attributes}{sources},
 					     'parameters'  => { 'options'  => {
-					                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+					                            'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
 					                        },
 							                'required' => {},
 							                'body'     => {} }
@@ -161,7 +157,7 @@ sub info {
    					                            'limit'  => ['integer','maximum number of items requested'],
                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                 'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
     					                    },
    							                'required' => { "id" => ["string", "unique identifier from source DB"] },
    							                'body'     => {} }
@@ -180,7 +176,7 @@ sub info {
     					                        'limit'  => ['integer','maximum number of items requested'],
                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                 'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
        					                    },
       							            'required' => { 'text' => ['string', 'text string of partial alias'] },
       							            'body'     => {} }
@@ -201,7 +197,7 @@ sub info {
    					                            'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
    					                            'format' => ['cv', [['fasta', 'return sequences in fasta format'],
                                                                     ['json', 'return sequences in json struct']] ],
-   					                            'version' => ['integer', 'M5NR version, default '.$self->{default}]
+   					                            'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
    					                        },
    							                'required' => { "id" => ["string", "unique identifier in form of md5 checksum"] },
    							                'body'     => {} }
@@ -221,7 +217,7 @@ sub info {
    					                            'limit'  => ['integer','maximum number of items requested'],
                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                 'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
     					                    },
    							                'required' => { "text" => ["string", "text string of partial function name"] },
    							                'body'     => {} }
@@ -242,7 +238,7 @@ sub info {
    					                            'limit'  => ['integer','maximum number of items requested'],
                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                 'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
      					                    },
    							                'required' => { "text" => ["string", "text string of partial organism name"] },
    							                'body'     => {} }
@@ -260,7 +256,7 @@ sub info {
    					                            'limit'  => ['integer','maximum number of items requested'],
                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                 'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
       					                    },
    							                'required' => { "text" => ["string", "text string of protein sequence"] },
    							                'body'     => {} }
@@ -278,7 +274,7 @@ sub info {
       					                         'limit'  => ['integer','maximum number of items requested'],
                                                  'offset' => ['integer','zero based index of the first data object to be returned'],
                                                  'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                 'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                 'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
        					                     },
       							             'required' => {},
       							             'options'  => {} }
@@ -298,7 +294,7 @@ sub info {
          					                    'limit'  => ['integer','maximum number of items requested'],
                                                 'offset' => ['integer','zero based index of the first data object to be returned'],
                                                 'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
           					                },
          							        'required' => {},
          							        'options'  => {} }
@@ -320,7 +316,7 @@ sub info {
                                                     'sequence' => ['boolean', "if true return sequence output, else return annotation output, default is false"],
                                                     'format' => ['cv', [['fasta', 'return sequences in fasta format'],
                                                                         ['json', 'return sequences in json struct']] ],
-                                                    'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
       					                        },
       							                'required' => {},
       							                'options'  => {} }
@@ -342,7 +338,7 @@ sub info {
       					                            'limit'  => ['integer','maximum number of items requested'],
                                                     'offset' => ['integer','zero based index of the first data object to be returned'],
                                                     'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                    'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
        					                        },
       							                'required' => {},
       							                'options'  => {} }
@@ -365,7 +361,7 @@ sub info {
       					                            'limit'  => ['integer','maximum number of items requested'],
                                                     'offset' => ['integer','zero based index of the first data object to be returned'],
                                                     'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                    'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
         					                    },
       							                'required' => {},
       							                'options'  => {} }
@@ -384,7 +380,7 @@ sub info {
       					                            'limit'  => ['integer','maximum number of items requested'],
                                                     'offset' => ['integer','zero based index of the first data object to be returned'],
                                                     'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                    'version' => ['integer', 'M5NR version, default '.$self->{default}]
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
          					                    },
       							                'required' => {},
       							                'options'  => {} }
@@ -419,15 +415,31 @@ sub static {
     my $url = $self->{url}.'/m5nr/'.$type;
     my $solr = 'object%3A';
     my $limit = 1000000;
-    my $exact = $self->cgi->param('exact')  ? 1 : 0;
+    my $exact = $self->cgi->param('exact') ? 1 : 0;
     my $filter = $self->cgi->param('filter') || '';
     my $min_lvl = $self->cgi->param('min_level') || '';
-    my $version = $self->cgi->param('version') || $self->{default};
+    my $version = $self->cgi->param('version') || $self->{m5nr_default};
+    my $compressed = $self->cgi->param('compressed') ? 1 : 0;
     my $fields = [];
     my $grouped = 0;
     
     # validate version
     $self->check_version($version);
+    
+    # stream full compressed version from shock
+    if ($compressed && (($type eq 'ontology') || ($type eq 'taxonomy'))) {
+        my $query = {
+            type => 'reference',
+            data_type => 'm5nr hierarchy',
+            name => $type,
+            version => $version
+        };
+        my $nodes = $self->get_shock_query($query, $self->mgrast_token);
+        if (scalar(@$nodes) != 1) {
+            $self->return_data({"ERROR" => "missing compressed $type hierarchy for version $version"}, 404)
+        }
+        $self->return_shock_file($nodes->[0]{id}, $nodes->[0]{file}{size}, $nodes->[0]{file}{name}, $self->mgrast_token);
+    }
     
     # return cached if exists
     $self->return_cached();
@@ -531,7 +543,7 @@ sub query {
     my $inverse  = $self->cgi->param('inverse')   ? 1 : 0;
     my $sequence = $self->cgi->param('sequence')  ? 1 : 0;
     my $format   = $self->cgi->param('format')    ? $self->cgi->param('format') : 'fasta';
-    my $version  = $self->cgi->param('version') || $self->{default};
+    my $version  = $self->cgi->param('version') || $self->{m5nr_default};
     
     # build data / url
     my $post = ($self->method eq 'POST') ? 1 : 0;
@@ -583,7 +595,15 @@ sub query {
     
     # get sequences if requested
     if (($type eq 'md5') && $sequence) {
-        $self->md5s2sequences($data, $version, $format);
+        my ($result, $error) = $self->md5s2sequences($data, $version, $format);
+        if ($error) {
+            $self->return_data( {"ERROR" => $error}, 500 );
+        }
+        if ($format eq 'fasta') {
+            $self->download_text($result, "md5s_".(scalar(@$data)).".fasta");
+        } else {
+            $self->return_data( {version => $version, data => $result} );
+        }
     }
     
     # strip wildcards
@@ -601,7 +621,7 @@ sub query {
     # get results
     my ($result, $total);
     if ($type eq 'md5') {
-        my @clean = map { $self->clean_md5($_) } @$data;
+        my @clean = grep { $self->clean_md5($_) } @$data;
         ($result, $total) = $self->query_annotation($version, 'md5', \@clean, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
         ($result, $total) = $self->query_annotation($version, 'accession', $data, undef, $offset, $limit, $order, 1);
@@ -626,74 +646,10 @@ sub query {
     $self->return_data($obj);
 }
 
-sub clean_md5 {
-    my ($self, $md5) = @_;
-    my $clean = $md5;
-    $clean =~ s/[^a-zA-Z0-9]//g;
-    unless ($clean && (length($clean) == 32)) {
-        $self->return_data({"ERROR" => "invalid md5 was entered ($md5)"}, 404);
-    }
-    return $clean;
-}
-
-# return sequence data for md5s as fasta or json
-sub md5s2sequences {
-    my ($self, $md5s, $version, $format) = @_;
-    
-    # clean md5s
-    my @clean = map { $self->clean_md5($_) } @$md5s;
-    
-    # make id file
-    my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.ids');
-    map { print $tfh "lcl|$_\n" } @clean;
-    close($tfh);
-    
-    # get m5nr
-    my $seqs = "";
-    my $m5nr = "";
-    if ($Conf::m5nr_fasta && (-f $Conf::m5nr_fasta)) {
-        $m5nr = $Conf::m5nr_fasta;
-    } elsif ($Conf::m5nr_dir && (-d $Conf::m5nr_dir)) {
-        $m5nr = $Conf::m5nr_dir."/".$self->{version}{$version}."/md5nr";
-    } else {
-        $self->return_data({"ERROR" => "missing M5NR sequence data"}, 500);
-    }
-    
-    # get seqs
-    eval {
-        my $fastacmd = $Conf::fastacmd;
-        foreach my $line (`$fastacmd -d $m5nr -i $tfile -l 0 -t T -p T`) {
-            if ((! $line) || ($line =~ /^\s+$/) || ($line =~ /^\[fastacmd\]/)) {
-                next;
-            }
-            if ($line =~ /^>/) {
-                $line = (split(/\s/, $line))[0]."\n";
-            }
-            $seqs .= $line;
-        }
-    };
-    if ($@) {
-        $self->return_data({"ERROR" => "unable to access M5NR sequence data"}, 500);
-    }
-    
-    # output
-    if ($format eq 'fasta') {
-        $self->download_text($seqs, "md5s_".(scalar(@clean)).".fasta");
-    } else {
-        my $data = {'version' => $version, 'data' => []};
-        my @lines = split(/\n/, $seqs);
-        chomp @lines;
-        for (my $i = 0; $i < scalar(@lines); $i += 2) {
-            push @{$data->{data}}, {'md5' => (split(/\|/, $lines[$i]))[1], 'sequence' => $lines[$i+1]};
-        }
-        $self->return_data($data);
-    }
-}
-
 sub check_version {
     my ($self, $version) = @_;
-    unless (exists $self->{version}{$version}) {
-        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{version}})}, 404);
+    unless (exists $self->{m5nr_version}{$version}) {
+        $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
     }
 }
 

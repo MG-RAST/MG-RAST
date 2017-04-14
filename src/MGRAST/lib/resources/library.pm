@@ -133,7 +133,7 @@ sub query {
   
     # add libraries with job: public or rights
     foreach my $jl (@$job_library) {
-        next unless ($library_map->{$jl->[0]});
+        next unless ($jl->[0] && $library_map->{$jl->[0]});
         $job_lib_map->{$jl->[0]} = 1;
         if (($jl->[2] == 1) || exists($self->rights->{$jl->[1]}) || exists($self->rights->{'*'})) {
             $libraries_hash->{"mgl".$library_map->{$jl->[0]}} = $library_map->{$jl->[0]};
@@ -199,7 +199,11 @@ sub prepare_data {
               $obj->{sample}        = $samp ? ["mgs".$samp->{ID}, $url."/sample/mgs".$samp->{ID}] : undef;
 	          $obj->{reads}         = $ljob ? ["mgm".$ljob->{metagenome_id}, $url.'/metagenome/mgm'.$ljob->{metagenome_id}] : undef;
 	          $obj->{metagenome}    = $ljob ? ["mgm".$ljob->{metagenome_id}, $url.'/metagenome/mgm'.$ljob->{metagenome_id}] : undef;
-	          $obj->{sequence_sets} = $ljob ? $self->get_download_set($ljob->{metagenome_id}, $self->mgrast_token, 1) : [];
+	          $obj->{sequence_sets} = [];
+	          if ($ljob) {
+	              my ($seq_sets, $skip) = $self->get_download_set($ljob->{metagenome_id}, $self->mgrast_token, 1);
+	              $obj->{sequence_sets} = $seq_sets;
+	          }
           }
           if ($self->cgi->param('verbosity') eq 'verbose' || $self->cgi->param('verbosity') eq 'full') {
 	          my $mdata = $library->data();

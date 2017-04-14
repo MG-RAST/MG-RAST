@@ -1,0 +1,727 @@
+#!/usr/bin/env python
+
+import os, sys, copy
+import urllib2, json
+import string
+import datetime
+import gspread
+import xlrd
+from optparse import OptionParser
+from collections import defaultdict
+from HTMLParser import HTMLParser
+from lepl.apps.rfc3696 import Email, HttpUrl
+from openpyxl.reader.excel import load_workbook
+
+__doc__ = """Script to validate metadata from filled out MG-RAST v3 xlsx template"""
+
+MGRAST_URL = 'http://api.metagenomics.anl.gov/'
+MGRASTID = 'mgrast_id'
+GEO_DIR  = {'N':1, 'S':-1, 'E':1, 'W':-1}
+ID_COL   = 0
+HEADER   = 1
+TEMPLATE = None
+CV_PARAM = None
+ENVO_VER = None
+LOG_FILE = None
+JSON_FILE = None
+INVALID   = []
+MISC_PARAM = {
+    'aliases': ['misc_param'],
+    'definition' : 'any other measurement performed or parameter collected, that is not listed here',
+    'mixs': 0,
+    'required': 0,
+    'type': 'text',
+    'unit': ''
+}
+EXCEL_DATE_START = datetime.datetime(1899, 12, 30)
+valid_email    = Email()
+valid_http_url = HttpUrl()
+valid_name_str = string.ascii_letters+string.digits+'+-_()@; :.'
+
+class MLStripper(HTMLParser):
+    def __init__(self):
+        self.reset()
+        self.fed = []
+    def handle_data(self, d):
+        self.fed.append(d)
+    def get_data(self):
+        return ''.join(self.fed)
+
+def strip_tags(html):
+    s = MLStripper()
+    s.feed(html)
+    return s.get_data()
+
+def clean_name(text):
+    clean = ''
+    text  = str(text)
+    for c in text:
+        clean += c if c in valid_name_str else '_'
+    return clean
+
+def errorMsg(err, exit=0):
+    if LOG_FILE:
+        lhdl = open(LOG_FILE, 'a')
+        lhdl.write("[error] "+err+"\n")
+        lhdl.close()
+    else:
+        sys.stderr.write("[error] "+err+"\n")
+    if exit:
+        os._exit(1)
+
+def write_json(fname, object):
+    jhdl = open(fname, 'w')
+    json.dump(object, jhdl)
+    jhdl.write("\n")
+    jhdl.close()
+
+def add_invalid(category, field, name, value, problem):
+    global INVALID
+    INVALID.append([category, field, name, value, problem])
+
+def obj_from_url(url):
+    try:
+        req = urllib2.Request(url, headers={'Accept': 'application/json'})
+        res = urllib2.urlopen(req)
+    except urllib2.HTTPError, error:
+        try:
+            eobj = json.loads(error.read())
+            errorMsg("%s (%s)"%(eobj['ERROR'], error.code), 1)
+        except:
+            errorMsg("%s (%s)"%(error.read(), error.code), 1)
+    if not res:
+        return None
+    obj = json.loads(res.read())
+    if not obj:
+        return None
+    if 'ERROR' in obj:
+        errorMsg(obj['ERROR'], 1)
+    return obj
+
+def mgrast_api(request):
+    url = MGRAST_URL+'metadata/'+request
+    obj = obj_from_url(url)
+    if len(obj) == 0:
+        errorMsg("no data available: %s"%url, 1)
+    return obj
+
+def get_envo_version(pdata):
+    global ENVO_VER, CV_PARAM
+    if ("envo_release" not in pdata) or (not pdata["envo_release"]):
+        ENVO_VER = CV_PARAM["latest_version"]["biome"]
+        pdata["envo_release"] = ENVO_VER
+        #print "using latest ENVO version %s"%(ENVO_VER)
+    else:
+        ENVO_VER = pdata["envo_release"]
+        for name in CV_PARAM["ontology"].iterkeys():
+            if ENVO_VER not in CV_PARAM["versions"][name]:
+                errorMsg("envo_release '%s' for %s is not valid, use one of: %s"%(ENVO_VER, name, ", ".join(CV_PARAM["versions"][name])))
+            elif ENVO_VER != CV_PARAM["latest_version"][name]:
+                # update it with listed version
+                CV_PARAM["ontology"][name] = mgrast_api("cv?label=%s&version=%s"%(name, ENVO_VER))
+                #print "switching ENVO %s to version %s"%(name, ENVO_VER)
+
+def validate_type(key, val, atype, name=False):
+    ### return string of valid value, else None
+    if atype == 'text':
+        try:
+            intVal = int(val)
+            floatVal = float(val)
+            if intVal == floatVal:
+                return unicode(intVal)
+            else:
+                return unicode(floatVal)
+        except ValueError:
+            return unicode(clean_name(strip_tags(val))) if name else unicode(strip_tags(val))
+    elif atype == 'int':
+        try:
+            intVal = int(val)
+        except ValueError:
+            return None
+        return intVal
+    elif atype == 'float':
+        try:
+            floatVal = float(val)
+        except ValueError:
+            return None
+        return floatVal
+    elif atype == 'boolean':
+        strVal = unicode(val).lower()
+        if (strVal == '1') or (strVal == 'yes') or (strVal == 'true'):
+            return 1
+        else:
+            return 0
+    elif (atype == 'email') and valid_email(val):
+        return strip_tags(str(val))
+    elif atype == 'url':
+        return strip_tags(str(val))
+    elif atype == 'date':
+        if isinstance(val, datetime.datetime):
+            return unicode(val.date())
+        elif isinstance(val, basestring):
+            try:
+                dVal = datetime.datetime.strptime(val, "%Y-%m-%d")
+            except ValueError:
+                return None
+            return unicode(dVal.date())
+        elif isinstance(val, int):
+            try:
+                dVal = datetime.datetime.strptime(str(val), "%Y")
+            except ValueError:
+                return None
+            return unicode(dVal.date())
+        elif isinstance(val, float):
+            try:
+                dVal = EXCEL_DATE_START + datetime.timedelta(days=int(val))
+            except ValueError:
+                return None
+            return unicode(dVal.date())
+        else:
+            return None
+    elif atype == 'time':
+        if isinstance(val, datetime.datetime):
+            return unicode(val.time())
+        elif isinstance(val, datetime.time):
+            return unicode(val)
+        elif isinstance(val, basestring):
+            try:
+                tVal = datetime.datetime.strptime(val, "%H:%M:%S")
+            except ValueError:
+                return None
+            return unicode(tVal.time())
+        else:
+            try:
+                floatVal = float(val)
+            except ValueError:
+                return None
+            secsVal = int(floatVal * 86400)
+            return unicode(datetime.timedelta(seconds=secsVal))
+    elif atype == 'timezone':
+        try:
+            intVal = int(val)
+            return None
+        except ValueError:
+            if val.startswith('UTC'):
+                return val
+            else:
+                return None
+    elif atype == 'coordinate':
+        try:
+            floatVal = float(val)
+        except ValueError:
+            floatVal = convert_coordinate(val)
+        if coordinate_in_range(key, floatVal):
+            return floatVal
+        else:
+            return None
+    elif (atype == 'select') and (key in CV_PARAM['select']):
+        try:
+            cleanVal = int(val)
+            cleanVal = unicode(cleanVal)
+        except ValueError:
+            cleanVal = unicode(val)
+        if cleanVal in CV_PARAM['select'][key]:
+            return cleanVal
+        elif cleanVal.lower() in CV_PARAM['select'][key]:
+            return cleanVal.lower()
+        else:
+            return None
+    elif (atype == 'ontology') and (key in CV_PARAM['ontology']):
+        try:
+            cleanVal = int(val)
+            cleanVal = unicode(cleanVal)
+        except ValueError:
+            cleanVal = unicode(val)
+        for oterm, oid in CV_PARAM['ontology'][key]:
+            if (cleanVal.lower() == oterm.lower()) or (cleanVal == oid):
+                return oterm
+        return None
+    else:
+        return None
+
+def coordinate_in_range(pos, coord):
+    if coord is None:
+        return False
+    elif (pos == 'latitude') and (coord >= -90) and (coord <= 90):
+        return True
+    elif (pos == 'longitude') and (coord >= -180) and (coord <= 180):
+        return True
+    else:
+        return False
+
+def convert_coordinate(coord):
+    if coord == '':
+        return None
+    elif coord[0] in GEO_DIR:
+        geodir = coord[0]
+        coord  = coord[1:].strip()
+    elif coord[-1] in GEO_DIR:
+        geodir = coord[-1]
+        coord  = coord[:-1].strip()
+    else:
+        return None
+    try:
+        fCoord = float(coord)
+    except ValueError:
+        dms = coord.replace(u'\xb0',' ').replace("'",' ').replace('"',' ').strip().split()
+        dms.extend([0,0,0])
+        try:
+            fdms = float(dms[0]) + (float(dms[1]) / 60.0) + (float(dms[2]) / 3600.0)
+        except ValueError:
+            return None
+        return fdms * GEO_DIR[geodir]
+    return fCoord * GEO_DIR[geodir]
+
+def google_to_mdraw(url, dupe, inc, login, password):
+    gclient = gspread.login(login, password)
+    gbook   = gclient.open_by_url(url)
+    tables  = dict([(x.title, sheet_to_table(x, 'google')) for x in gbook.worksheets()])
+    if inc:
+      return tables_to_mdraw_inc(tables, dupe)
+    else:
+      return tables_to_mdraw(tables, dupe)
+
+def xlsx_to_mdraw(xxfile, dupe, inc):
+    xxbook = load_workbook(filename = xxfile)
+    tables = dict([(x, sheet_to_table(xxbook.get_sheet_by_name(x), 'xlsx')) for x in xxbook.get_sheet_names()])
+    if inc:
+      return tables_to_mdraw_inc(tables, dupe)
+    else:
+      return tables_to_mdraw(tables, dupe)
+
+def xls_to_mdraw(xfile, dupe, inc):
+    xbook  = xlrd.open_workbook(xfile)
+    tables = dict([(x, sheet_to_table(xbook.sheet_by_name(x), 'xls')) for x in xbook.sheet_names()])
+    if inc:
+      return tables_to_mdraw_inc(tables, dupe)
+    else:
+      return tables_to_mdraw(tables, dupe)
+
+def sheet_to_table(sheet, source):
+    table = []
+    if source == 'xlsx':
+        maxRow = sheet.max_row
+        maxCol = sheet.max_column
+        for r in range(maxRow):
+            row = []
+            for c in range(maxCol):
+                row.append( sheet.cell(row=r,column=c).value )
+            table.append(row)
+    if source == 'xls':
+        maxRow = sheet.nrows
+        maxCol = sheet.ncols
+        for r in range(maxRow):
+            row = []
+            for c in range(maxCol):
+                row.append( sheet.cell_value(r, c) )
+            table.append(row)
+    elif source == 'google':
+        maxRow = sheet.row_count
+        maxCol = sheet.col_count
+        for r in range(maxRow):
+            row = []
+            for c in range(maxCol):
+                row.append( sheet.cell(r+1,c+1).value )
+            table.append(row)
+    return table
+
+def update_header_size(tables):
+    global HEADER
+    if 'README' not in tables:
+        errorMsg("missing 'README' sheet", 1)
+    if len(tables['README']) < 9:
+        errorMsg("malformed 'README' sheet", 1)
+    HEADER = 0
+    for h in tables['README'][8:]:
+        if h[0]:
+            HEADER += 1
+        else:
+            break
+
+def tables_to_mdraw_inc(tables, dupe):
+    ## keep only sheets / rows that have primary ids, map library / env_package to samples
+    ## MDraw:  { name:<proj_name: str>, data:<proj_data: dict>, sampleNum:<number_samples: int>, samples:<list of sample objs> }
+    ## data (raw):   { key: <value: str|int|float|time|datetime> }
+    ## data (valid): { key: {qiime_tag:<str>, mgrast_tag:<str>, definition:<str>, required:<bool>, mixs:<bool>, type:<str>, value:<str|int|float|time|datetime>} }
+    ## sample: { name:<samp_name: str>, data:<samp_data: dict>, envPackage:<env_package obj>, libNum:<number_libraries: int>, libraries:<list of library objs> }
+    ## library:     { name:<metagenome_name: str>, type:<library_type: str>, data<library_data: dict> }
+    ## env_package: { name:<samp_name-env_package_type: str>, type:<env_package_type: str>, data<env_package_data: dict> }
+    update_header_size(tables)
+    pdata = data_from_table(tables, 'project')
+    get_envo_version(pdata[0][1])
+    sdata = data_from_table(tables, 'sample')
+    ldata = dict([(x, data_from_table(tables,'library '+x)) for x in TEMPLATE['library']])
+    edata = dict([(x, data_from_table(tables,'ep '+x)) for x in TEMPLATE['ep']])
+    snMap = defaultdict(list)
+    nDupe = False
+
+    # test for missing sheets (all but ep)
+    libNames = []
+    missing  = []
+    lnum = 0
+    for l in ldata:
+        if ldata[l]:
+            lnum += 1
+            libNames.append("'library "+l+"'")
+    for e in edata:
+        if edata[e]:
+            snMap['ep '+e] = map(lambda x: x[0], edata[e])
+    if not pdata: missing.append('project')
+    if not sdata: missing.append('sample')
+    if len(missing) > 0:
+        for m in missing:
+            errorMsg("no %s entries found (sheet is empty starting at row %d)"%(m, HEADER+1))
+        os._exit(1)
+    snMap['sample'] = map(lambda x: x[0], sdata)
+
+    mName = []
+    fName = []
+    mdraw = { 'name': clean_name(pdata[0][0]), 'data': pdata[0][1], 'id': id_from_data(pdata[0][1], MGRASTID), 'sampleNum': 0, 'samples': [] }
+    for sampName, sampData in sdata:
+        # ep is messy - look for existance of vaild ep term, if no ep sheet make obj from just term
+        if 'env_package' not in sampData:
+            errorMsg("sample '%s' missing required field 'env_package'"%sampName)
+            add_invalid('sample', 'env_package', sampName, '', 'required field empty')
+            continue
+        s_ep = validate_type('env_package', sampData['env_package'], 'select')
+        if s_ep is None:
+            bad_type = 'not one of: %s'%', '.join(CV_PARAM['select']['env_package'])
+            errorMsg("sample '%s' field 'env_package' %s: '%s'"%(sampName, bad_type, unicode(sampData['env_package'])))
+            add_invalid('sample', 'env_package', sampName, sampData['env_package'], bad_type)
+            continue
+        else:
+            s_ep = strip_tags(s_ep)
+        eps = find_sample_sub_inc(sampName, edata, s_ep, None, None)
+        if len(eps) == 0:
+            eps.append( {'name': "%s: %s"%(sampName, s_ep), 'type': s_ep, 'data': {'sample_name': sampName}} )
+        # find libs
+        libs = find_sample_sub_inc(sampName, ldata, None, mName, fName)
+        # create samp obj
+        mdraw['samples'].append({ 'name': sampName,
+                                  'data': sampData,
+                                  'id': id_from_data(sampData, MGRASTID),
+                                  'libNum': len(libs),
+                                  'libraries': libs,
+                                  'envPackage': eps[0] })
+    sampNum = len(mdraw['samples'])
+    if sampNum == 0:
+        errorMsg("no sample entries found with matching library", 1)
+    # test for duplicate names
+    for dtype, dnames in snMap.iteritems():
+        if has_name_dupe(dnames):
+            nDupe = True
+            errorMsg("'sample_name' values in sheet '%s' are not unique"%dtype)
+    if has_name_dupe(mName) and (not dupe):
+        nDupe = True
+        errorMsg("'metagenome_name' values in %s are not unique"%' and '.join(libNames))
+    if has_name_dupe(fName):
+        nDupe = True
+        errorMsg("'file_name' values in %s are not unique"%' and '.join(libNames))
+    if nDupe:
+        os._exit(1)
+    mdraw['sampleNum'] = sampNum
+    return mdraw
+
+def tables_to_mdraw(tables, dupe):
+    ## keep only sheets / rows that have primary ids, map library / env_package to samples
+    ## MDraw:  { name:<proj_name: str>, data:<proj_data: dict>, sampleNum:<number_samples: int>, samples:<list of sample objs> }
+    ## data (raw):   { key: <value: str|int|float|time|datetime> }
+    ## data (valid): { key: {qiime_tag:<str>, mgrast_tag:<str>, definition:<str>, required:<bool>, mixs:<bool>, type:<str>, value:<str|int|float|time|datetime>} }
+    ## sample: { name:<samp_name: str>, data:<samp_data: dict>, envPackage:<env_package obj>, libNum:<number_libraries: int>, libraries:<list of library objs> }
+    ## library:     { name:<metagenome_name: str>, type:<library_type: str>, data<library_data: dict> }
+    ## env_package: { name:<samp_name-env_package_type: str>, type:<env_package_type: str>, data<env_package_data: dict> }
+    update_header_size(tables)
+    pdata = data_from_table(tables, 'project')
+    get_envo_version(pdata[0][1])
+    sdata = data_from_table(tables, 'sample')
+    ldata = dict([(x, data_from_table(tables,'library '+x)) for x in TEMPLATE['library']])
+    edata = dict([(x, data_from_table(tables,'ep '+x)) for x in TEMPLATE['ep']])
+    snMap = defaultdict(list)
+    nDupe = False
+
+    # test for missing sheets (all but ep)
+    libNames = []
+    missing  = []
+    lnum = 0
+    for l in ldata:
+        if ldata[l]:
+            lnum += 1
+            libNames.append("'library "+l+"'")
+    for e in edata:
+        if edata[e]:
+            snMap['ep '+e] = map(lambda x: x[0], edata[e])
+    if not pdata: missing.append('project')
+    if not sdata: missing.append('sample')
+    if lnum == 0: missing.append('library')
+    if len(missing) > 0:
+        for m in missing:
+            errorMsg("no %s entries found (sheet is empty starting at row %d)"%(m, HEADER+1))
+        os._exit(1)
+    snMap['sample'] = map(lambda x: x[0], sdata)
+
+    mName = []
+    fName = []
+    mdraw = { 'name': clean_name(pdata[0][0]), 'data': pdata[0][1], 'id': id_from_data(pdata[0][1], MGRASTID), 'sampleNum': 0, 'samples': [] }
+    for sampName, sampData in sdata:
+        # ep is messy - look for existance of vaild ep term, if no ep sheet make obj from just term
+        if 'env_package' not in sampData:
+            errorMsg("sample '%s' missing required field 'env_package'"%sampName)
+            add_invalid('sample', 'env_package', sampName, '', 'required field empty')
+            continue
+        s_ep = validate_type('env_package', sampData['env_package'], 'select')
+        if s_ep is None:
+            bad_type = 'not one of: %s'%', '.join(CV_PARAM['select']['env_package'])
+            errorMsg("sample '%s' field 'env_package' %s: '%s'"%(sampName, bad_type, unicode(sampData['env_package'])))
+            add_invalid('sample', 'env_package', sampName, sampData['env_package'], bad_type)
+            continue
+        else:
+            s_ep = strip_tags(s_ep)
+        eps = find_sample_sub(sampName, edata, s_ep, None, None)
+        if len(eps) == 0:
+            eps.append( {'name': "%s: %s"%(sampName, s_ep), 'type': s_ep, 'data': {'sample_name': sampName}} )
+        # find libs
+        libs = find_sample_sub(sampName, ldata, None, mName, fName)
+        if len(libs) == 0:
+            continue
+        # create samp obj
+        mdraw['samples'].append({ 'name': sampName,
+                                  'data': sampData,
+                                  'id': id_from_data(sampData, MGRASTID),
+                                  'libNum': len(libs),
+                                  'libraries': libs,
+                                  'envPackage': eps[0] })
+    sampNum = len(mdraw['samples'])
+    if sampNum == 0:
+        errorMsg("no sample entries found with matching library", 1)
+    # test for duplicate names
+    for dtype, dnames in snMap.iteritems():
+        if has_name_dupe(dnames):
+            nDupe = True
+            errorMsg("'sample_name' values in sheet '%s' are not unique"%dtype)
+    if has_name_dupe(mName) and (not dupe):
+        nDupe = True
+        errorMsg("'metagenome_name' values in %s are not unique"%' and '.join(libNames))
+    if has_name_dupe(fName):
+        nDupe = True
+        errorMsg("'file_name' values in %s are not unique"%' and '.join(libNames))
+    if nDupe:
+        os._exit(1)
+    mdraw['sampleNum'] = sampNum
+    return mdraw
+
+def data_from_table(tables, name):
+    if name not in tables:
+        return None
+    data  = [] # [ <row_name>, <row_data obj> ]
+    table = tables[name]
+    row_start = HEADER
+    row_max   = get_max_rows(table, row_start)
+    col_max   = len(table[0])
+    if row_max < 1:
+        return None
+    for r in range(row_start, row_max+row_start):
+        rowData = {}
+        rowName = table[r][ID_COL]
+        if not rowName:
+            continue
+        for c in range(col_max):
+            tag = table[0][c]
+            val = table[r][c]
+            if val is not None:
+                rowData[tag] = val
+        if len(rowData.keys()) > 0:
+            data.append([ rowName, rowData ])
+    if len(data) > 0:
+        return data
+    else:
+        return None
+
+def id_from_data(data, id_name):
+    if id_name in data:
+        return data[id_name]
+    else:
+        return None
+
+def find_sample_sub_inc(sname, inData, ep_name, mName, fName):
+    outData = []
+    for typeName, typeData in inData.iteritems():
+        if typeData is None:
+            continue
+        for name, data in typeData:
+            if data['sample_name'] != sname:
+                continue
+            if not ep_name:
+                if ('metagenome_name' in data) and ('investigation_type' in data):
+                    data['investigation_type'] = typeName
+                    outData.append({'name': clean_name(data['metagenome_name']), 'id': id_from_data(data, MGRASTID), 'type': typeName, 'data': data})
+                    mName.append( clean_name(data['metagenome_name']) )
+                    if ('file_name' in data) and data['file_name']:
+                        fName.append( data['file_name'] )
+            elif ep_name == typeName:
+                outData.append({'name': "%s: %s"%(sname,typeName), 'id': id_from_data(data, MGRASTID), 'type': typeName, 'data': data})
+    return outData
+
+def find_sample_sub(sname, inData, ep_name, mName, fName):
+    outData = []
+    for typeName, typeData in inData.iteritems():
+        if typeData is None:
+            continue
+        for name, data in typeData:
+            if data['sample_name'] != sname:
+                continue
+            if not ep_name:
+                if ('metagenome_name' in data) and ('investigation_type' in data):
+                    data['investigation_type'] = typeName
+                    outData.append({'name': clean_name(data['metagenome_name']), 'id': id_from_data(data, MGRASTID), 'type': typeName, 'data': data})
+                    mName.append( clean_name(data['metagenome_name']) )
+                    if ('file_name' in data) and data['file_name']:
+                        fName.append( data['file_name'] )
+            elif ep_name == typeName:
+                outData.append({'name': "%s: %s"%(sname,typeName), 'id': id_from_data(data, MGRASTID), 'type': typeName, 'data': data})
+    if (len(outData) == 0) and (not ep_name):
+        errorMsg("sample '%s' missing library"%sname)
+        add_invalid('library', 'sample_name', sname, '', "sample '%s' missing library"%sname)
+    return outData
+
+def validate_mdraw(mdraw, skip):
+    mdvalid = copy.deepcopy(mdraw)
+    mdvalid['data'] = validate_data('project', mdraw['name'], mdraw['data'], TEMPLATE['project'], skip)
+    for i, sample in enumerate(mdraw['samples']):
+        mdvalid['samples'][i]['data'] = validate_data('sample', sample['name'], sample['data'], TEMPLATE['sample'], skip)
+        mdvalid['samples'][i]['envPackage']['data'] = validate_data(sample['envPackage']['type'], sample['envPackage']['name'], sample['envPackage']['data'], TEMPLATE['ep'], skip)
+        for j, lib in enumerate(sample['libraries']):
+            mdvalid['samples'][i]['libraries'][j]['data'] = validate_data(lib['type'], lib['name'], lib['data'], TEMPLATE['library'], skip)
+    return mdvalid
+
+def validate_data(cat, name, data, template, skip):
+    validData = {}
+    dataMap = template[cat]
+    # check for user defined keys
+    # add to template for validation
+    for key in data.iterkeys():
+        if key and (key not in dataMap):
+            dataMap[key] = copy.deepcopy(MISC_PARAM)
+    # validate data based on template items
+    for key, items in dataMap.iteritems():
+        items['required'] = int(items['required'])
+        items['mixs']     = int(items['mixs'])
+        has_value = False if (key not in data) or (data[key] is None) or (data[key] == "") or (data[key] is False) else True
+        if items['required'] and (not skip) and (not has_value):
+            add_invalid(cat, key, name, '', 'missing required')
+            errorMsg("%s '%s' missing required field '%s'"%(cat, name, key))
+        if has_value:
+            try:
+                data[key] = data[key].strip()
+            except (ValueError, AttributeError, TypeError):
+                pass
+            # hack for different country terms
+            clean = True if key == 'metagenome_name' else False
+            term = key
+            if (items['type'] == 'select') and key.endswith('country'):
+                term = 'country'
+            validVal = validate_type(term, data[key], items['type'], name=clean)
+            if validVal is None:
+                bad_type = 'found in %s ontology'%key if items['type'] == 'ontology' else 'type '+items['type']
+                bad_type = 'one of: %s'%', '.join(CV_PARAM['select'][term]) if items['type'] == 'select' else bad_type
+                add_invalid(cat, key, name, data[key], 'not '+bad_type)
+                errorMsg("%s '%s' field '%s' not %s: '%s'"%(cat, name, key, bad_type, unicode(data[key]).encode('ascii','replace')))
+            validData[key] = copy.deepcopy(items)
+            validData[key]['value'] = validVal
+    return validData
+
+def has_name_dupe(nameList):
+    if len(nameList) == 0:
+        return False
+    nameDict = dict([(x,1) for x in nameList])
+    if len(nameList) > len(nameDict.keys()):
+        return True
+    else:
+        return False
+
+def get_max_rows(table, row_start):
+    num = 0
+    for row in table[row_start:]:
+        if row[ID_COL] is None:
+            break
+        num += 1
+    return num
+
+usage   = "usage: %prog [options] spreadsheet_path\n" + __doc__
+version = "%prog 1.1"
+
+def main(args):
+    global LOG_FILE, JSON_FILE, HEADER, TEMPLATE, CV_PARAM
+    parser = OptionParser(usage=usage, version=version)
+    parser.add_option("-f", "--format", dest="format", default='xlsx', help="Format of input spreadsheet: xlsx, xls, or google (default 'xlsx')")
+    parser.add_option("--login", dest="login", default=None, help="For 'google' format: google email")
+    parser.add_option("--password", dest="password", default=None, help="For 'google' format: google password")
+    parser.add_option("-l", "--log", dest="log", default=None, help="File to output validation messages (succes/error). default is STDOUT/STDERR")
+    parser.add_option("-j", "--json", dest="json", default=None, help="File to output json structure of parsed spreadsheet.  default no output")
+    parser.add_option("-s", "--skip_required", dest="skip", action="store_true", default=False, help="Skip checking for required metadata (other than needed for mapping)")
+    parser.add_option("-d", "--allow_duplicate", dest="dupe", action="store_true", default=False, help="Allow duplicate metagenome_name values")
+    parser.add_option("-i", "--allow_incomplete", dest="inc", action="store_true", default=False, help="Allow incomplete metadata speadsheets (will validate fields with empty library and ep tabs.)")
+    
+    (opts, args) = parser.parse_args()
+    if len(args) < 1:
+        parser.error("Missing input file name")
+    
+    md_source = args[0]
+    LOG_FILE  = opts.log
+    JSON_FILE = opts.json
+    if (opts.format == 'xlsx') and (not (os.path.isfile(md_source) and (os.path.splitext(md_source)[1][1:].strip() == 'xlsx'))):
+        parser.error("Invalid %s file: %s"%(opts.format, md_source))
+    if (opts.format == 'xls') and (not (os.path.isfile(md_source) and (os.path.splitext(md_source)[1][1:].strip() == 'xls'))):
+        parser.error("Invalid %s file: %s"%(opts.format, md_source))
+    if (opts.format == 'google') and (not valid_http_url(md_source)):
+        parser.error("Invalid %s url: %s"%(opts.format, md_source))
+    
+    # get template / controled vocab from mgrast
+    TEMPLATE = mgrast_api('template')
+    CV_PARAM = mgrast_api('cv')
+    
+    # object from source (xlsx file or google link): create hierarchy / test connections
+    mdraw = None
+    if opts.format == 'xlsx':
+        try:
+            mdraw = xlsx_to_mdraw(md_source, opts.dupe, opts.inc)
+        except:
+            try:
+                mdraw = xls_to_mdraw(md_source, opts.dupe, opts.inc)
+            except:
+                errorMsg('Invald file format: '+md_source, 1)
+    elif opts.format == 'xls':
+        try:
+            mdraw = xls_to_mdraw(md_source, opts.dupe, opts.inc)
+        except:
+            try:
+                mdraw = xlsx_to_mdraw(md_source, opts.dupe, opts.inc)
+            except:
+                errorMsg('Invald file format: '+md_source, 1)
+    elif opts.format == 'google':
+        mdraw = google_to_mdraw(md_source, opts.dupe, opts.inc, opts.login, opts.password)
+    #pprint.pprint(mdraw)
+
+    # validate required and type
+    mdvalid = validate_mdraw(mdraw, opts.skip)
+    #pprint.pprint(mdvalid)
+
+    if len(INVALID) > 0:
+        mdvalid = { 'is_valid': 0, 'data': INVALID }
+        message = "Invalid Metadata\n"
+    else:
+        mdvalid['is_valid'] = 1;
+        message = "Valid MG-RAST Metadata\n"
+
+    if LOG_FILE:
+        lhdl = open(LOG_FILE, 'a')
+        lhdl.write(message)
+        lhdl.close()
+    else:
+        sys.stdout.write(message)
+    if JSON_FILE:
+        write_json(JSON_FILE, mdvalid)
+    
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

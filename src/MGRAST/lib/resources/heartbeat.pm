@@ -26,8 +26,7 @@ sub new {
       'AWEDB' => 'mongo',
       'M5NR' => $Conf::m5nr_solr,
       'solr' => $Conf::job_solr,
-      'postgres' => 'db',
-      'mySQL' => 'db',
+      'mySQL' => 'mysql',
       'cassandra' => $Conf::cassandra_m5nr
   };
   $self->{attributes} = { "service" => [ 'string', "cv", [
@@ -39,8 +38,8 @@ sub new {
 							   ['AWEDB', 'worker engine mongodb'],
 							   ['M5NR', 'non-redundant sequence database'],
 							   ['solr', 'search engine'],
-							   ['postgres', 'analysis database'],
-							   ['mySQL', 'job database']
+							   ['mySQL', 'job database'],
+							   ['cassandra', 'analysis database'],
 							 ] ],
 			  "status"  => [ 'boolean', 'service is up or not' ],
 			  "url"     => [ 'url', 'resource location of this resource']
@@ -96,27 +95,14 @@ sub instance {
   
   my $status = 0;
   
-  if ($self->{services}->{$id} eq 'db') {
-    if ($id eq 'postgres') {
-      my $dbh = DBI->connect(
-			     "DBI:Pg:database=".$Conf::mgrast_db.";host=".$Conf::mgrast_dbhost.";".$Conf::pgsslcert,
-			     $Conf::mgrast_dbuser,
-			     $Conf::mgrast_dbpass
-			    );
-      if ($dbh) {
-	      $status = 1;
-      }
-    } else {
-      my $jobcache_db = $Conf::mgrast_jobcache_db;
-      my $jobcache_host = $Conf::mgrast_jobcache_host;
-      my $jobcache_user = $Conf::mgrast_jobcache_user;
-      my $jobcache_password = $Conf::mgrast_jobcache_password;      
-      my $dbh = DBI->connect("DBI:mysql:database=".$jobcache_db.";host=".$jobcache_host.";",
-			     $jobcache_user,
-			     $jobcache_password);
-      if ($dbh) {
-	      $status = 1;
-      }
+  if ($self->{services}->{$id} eq 'mysql') {
+    my $jobcache_db = $Conf::mgrast_jobcache_db;
+    my $jobcache_host = $Conf::mgrast_jobcache_host;
+    my $jobcache_user = $Conf::mgrast_jobcache_user;
+    my $jobcache_password = $Conf::mgrast_jobcache_password;      
+    my $dbh = DBI->connect("DBI:mysql:database=".$jobcache_db.";host=".$jobcache_host.";", $jobcache_user, $jobcache_password);
+    if ($dbh) {
+      $status = 1;
     }
   } elsif ($self->{services}->{$id} eq 'mongo') {
       my ($host, $port);

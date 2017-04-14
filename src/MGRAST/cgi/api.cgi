@@ -12,12 +12,14 @@ my $cgi  = new CGI;
 my $json = new JSON;
 $json = $json->utf8();
 
-my %private_resources = ( 'job'      => 1,
-                          'notebook' => 1,
-                          'pipeline' => 1,
-                          'resource' => 1,
-                          'status'   => 1,
-                          'user'     => 1 );
+my %private_resources = (
+    'job'      => 1,
+    'notebook' => 1,
+    'pipeline' => 1,
+    'resource' => 1,
+    'status'   => 1,
+    'user'     => 1
+);
 
 # get request method
 $ENV{'REQUEST_METHOD'} =~ tr/a-z/A-Z/;
@@ -152,22 +154,31 @@ else {
 # check for authentication
 my $user;
 if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization')) {
-    eval {
-        require Auth;
-        Auth->import();
-        my $message;
-        ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization'));
-        unless($user) {
-	  unless ($message eq "valid kbase user") {
-            print $cgi->header( -type => 'application/json',
-				-status => 401,
-				-charset => 'UTF-8',
-    	                        -Access_Control_Allow_Origin => '*' );
-            print $json->encode( {"ERROR"=> "authentication failed - $message"} );
-            exit 0;
-	  }
+  eval {
+      require Auth;
+      Auth->import();
+      my $message;
+      ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization'));
+      unless($user) {
+        unless ($message eq "valid kbase user") {
+          print $cgi->header( -type => 'application/json',
+                            -status => 401,
+                            -charset => 'UTF-8',
+  	                        -Access_Control_Allow_Origin => '*' );
+          print $json->encode( {"ERROR"=> "authentication failed - $message"} );
+          exit 0;
         }
-    };
+      }
+  };
+  if ($@) {
+    print $cgi->header( -type => 'application/json',
+                      -status => 401,
+                      -charset => 'UTF-8',
+                      -Access_Control_Allow_Origin => '*' );
+    print $json->encode( {"ERROR"=> "authentication failed - $@"} );
+    exit 0;
+    
+  }
 }
 
 # print google analytics
