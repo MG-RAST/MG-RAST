@@ -235,12 +235,13 @@ sub request {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self, $type, $mgid) = @_;
+    my ($self, $type, $tempid) = @_;
     
     # check id format
+    my $mgid = $self->idresolve($tempid);
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if (! $id) {
-        $self->return_data({"ERROR" => "invalid id format: $mgid"}, 400);
+        $self->return_data({"ERROR" => "invalid id format: ".$tempid}, 400);
     }
     # get data
     my $master = $self->connect_to_datasource();
