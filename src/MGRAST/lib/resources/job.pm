@@ -384,13 +384,14 @@ sub request {
 }
 
 sub job_data {
-    my ($self, $type, $mgid) = @_;
+    my ($self, $type, $tempid) = @_;
     
     my $master = $self->connect_to_datasource();
     # check id format
+    my $mgid = $self->idresolve($tempid);
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if (! $id) {
-        $self->return_data( {"ERROR" => "invalid id format: $mgid"}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: ".$tempid}, 400 );
     }
     # check rights
     unless ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome'))) {
@@ -596,10 +597,13 @@ sub job_action {
         unless ($post->{metagenome_id}) {
             $self->return_data( {"ERROR" => "missing metagenome id"}, 400 );
         }
-        my (undef, $id) = $post->{metagenome_id} =~ /^(mgm)?(\d+\.\d+)$/;
+        my $tempid = $self->idresolve($post->{metagenome_id});
+        my (undef, $id) = $tempid =~ /^(mgm)?(\d+\.\d+)$/;
         if (! $id) {
             $self->return_data( {"ERROR" => "invalid id format: ".$post->{metagenome_id}}, 400 );
         }
+        $post->{metagenome_id} = $tempid;
+        
         # check rights
         unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'metagenome'))) {
             $self->return_data( {"ERROR" => "insufficient permissions for metagenome ".$post->{metagenome_id}}, 401 );
