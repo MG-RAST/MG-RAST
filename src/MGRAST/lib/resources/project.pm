@@ -454,7 +454,7 @@ sub get_action {
     elsif ($rest->[1] eq 'movemetagenomes') {
         # get second project
         my $tempid2 = $self->idresolve($self->cgi->param('target'));
-        my ($id2) = tempid2 =~ /^mgp(\d+)$/;
+        my ($id2) = $tempid2 =~ /^mgp(\d+)$/;
         if (! $id2) {
             $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
         }
