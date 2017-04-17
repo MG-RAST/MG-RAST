@@ -176,13 +176,13 @@ sub request {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self, $format, $mgid) = @_;
+    my ($self, $format, $tempid) = @_;
     
-    # check id format
     my $rest = $self->rest;
+    my $mgid = $self->idresolve($tempid);
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if ((! $id) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: ".$mgid}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: ".$tempid}, 400 );
     }
 
     # get data

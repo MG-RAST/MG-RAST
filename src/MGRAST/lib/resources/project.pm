@@ -175,7 +175,7 @@ sub post_action {
         unless ($self->{cgi}->param("id")) {
             $self->return_data( {"ERROR" => "missing parameter id"}, 400 );
         }
-        my $id = $self->{cgi}->param('id');
+        my $id = $self->idresolve($self->{cgi}->param('id'));
         $id =~ s/^mgp//;
         unless ($self->{user} && ($self->{user}->has_star_right('edit', 'user') || $self->{user}->has_right(undef, 'edit', 'project', $id))) {
             $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
@@ -199,7 +199,8 @@ sub post_action {
     # add ownership of all project data to another user
     if ($rest->[1] eq 'chown') {
         # check id format
-        my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
+        my $tempid = $self->idresolve($rest->[0]);
+        my ($id) = $tempid =~ /^mgp(\d+)$/;
         if ((! $id) && scalar(@$rest)) {
             $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
         }
@@ -269,7 +270,7 @@ sub post_action {
     
     # update basic project metadata
     elsif ($rest->[1] eq 'updatemetadata') {
-      my $id = $rest->[0];
+      my $id = $self->idresolve($rest->[0]);
       $id =~ s/mgp//;
       unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
 	$self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
@@ -314,7 +315,7 @@ sub post_action {
     }
     # submit project to EBI
     elsif ($rest->[1] eq 'submittoebi') {
-      my $id = $rest->[0];
+      my $id = $self->idresolve($rest->[0]);
       $id =~ s/mgp//;
       unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
 	$self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
@@ -384,13 +385,14 @@ sub get_action {
     my $master = $self->connect_to_datasource();
     
     # check id format
-    my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
+    my $tempid = $self->idresolve($rest->[0]);
+    my ($id) = $tempid =~ /^mgp(\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
     
     if ($rest->[1] eq 'updateright') {
-        $self->updateRight($rest->[0]);
+        $self->updateRight($id);
         return;
     }
     
@@ -401,7 +403,7 @@ sub get_action {
     # get project
     my $project = $master->Project->init( {id => $id} );
     unless (ref($project)) {
-        $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
+        $self->return_data( {"ERROR" => "id not found: ".$rest->[0]}, 404 );
     }
     
     # make the project public
@@ -451,7 +453,8 @@ sub get_action {
     # move metagenomes to a different project
     elsif ($rest->[1] eq 'movemetagenomes') {
         # get second project
-        my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
+        my $tempid2 = $self->idresolve($self->cgi->param('target'));
+        my ($id2) = $tempid2 =~ /^mgp(\d+)$/;
         if (! $id2) {
             $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
         }
