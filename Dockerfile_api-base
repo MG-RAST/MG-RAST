@@ -7,7 +7,6 @@ FROM httpd:2.4
 
 # MG-RAST dependencies
 RUN apt-get update && apt-get install -y \
-  libpq-dev \
   make \
   curl \
   ncbi-blast+ \
@@ -18,7 +17,6 @@ RUN apt-get update && apt-get install -y \
   libjson-perl \
   libdbi-perl \
   libdbd-mysql-perl \
-  libdbd-pg-perl \
   libdigest-md5-perl \
   libfile-slurp-perl \
   libhtml-strip-perl \
