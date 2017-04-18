@@ -10,10 +10,11 @@ import cassandra.query as cql
 M5NR_VERSION = 1
 
 def rmqLogger(channel, stype, statement, bulk=0):
+    truncate = (statement[:98] + '..') if len(statement) > 100 else statement
     body = {
         'timestamp': datetime.datetime.now().isoformat(),
         'type':      stype,
-        'statement': statement,
+        'statement': truncate,
         'bulk':      bulk
     }
     if 'HOSTNAME' in os.environ:
