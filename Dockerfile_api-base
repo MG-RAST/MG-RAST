@@ -51,7 +51,8 @@ RUN apt-get install -y python-dev python-pip && \
   xlrd \
   lepl \
   requests_toolbelt \
-  cassandra-driver
+  cassandra-driver \
+  pika
 
 ENV PERL_MM_USE_DEFAULT 1
 RUN cpan Inline::Python
