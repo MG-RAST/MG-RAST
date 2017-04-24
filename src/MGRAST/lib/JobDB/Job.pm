@@ -105,6 +105,7 @@ sub reserve_job_id {
     # get and insert next IDs, need to lock to prevent race conditions
     my $dbh = $master->db_handle;
     $dbh->do("LOCK TABLES Job WRITE");
+    $dbh->commit();
     my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
     my $job_id = $max->[0] + 1;
     my $mg_id  = $max->[1] + 1;
@@ -112,6 +113,7 @@ sub reserve_job_id {
     $sth->execute($job_id, $mg_id, $name, $file, $size, $md5, 4, $user->_id, 1);
     $sth->finish();
     $dbh->do("UNLOCK TABLES");
+    $dbh->commit();
     
     # get job object
     my $job = $master->Job->get_objects({metagenome_id => $mg_id});
