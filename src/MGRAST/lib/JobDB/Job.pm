@@ -109,9 +109,15 @@ sub reserve_job_id {
     $sth->execute($name, $file, $size, $md5, 4, $user->_id, 1);
     $sth->finish();
     $dbh->commit();
+    my $insertid = $dbh->selectcol_arrayref("SELECT LAST_INSERT_ID()");
+    unless ($insertid && @$insertid) {
+        print STDRER "Can't create job\n";
+        return undef;
+    }
+    $insertid = $insertid->[0];
     
     # get job object
-    my $job = $master->Job->get_objects({metagenome_id => $mg_id});
+    my $job = $master->Job->get_objects({_id => $insertid});
     unless ($job && @$job) {
         print STDRER "Can't create job\n";
         return undef;
@@ -130,17 +136,17 @@ sub reserve_job_id {
     foreach my $right_name (@$rights) {
         my $objs = $dbm->Rights->get_objects({ scope     => $user->get_user_scope,
   					                           data_type => 'metagenome',
-  					                           data_id   => $mg_id,
+  					                           data_id   => $job->{metagenome_id},
   					                           name      => $right_name,
   					                           granted   => 1 });
         unless (@$objs > 0) {
             my $right = $dbm->Rights->create({ scope     => $user->get_user_scope,
   					                           data_type => 'metagenome',
-  					                           data_id   => $mg_id,
+  					                           data_id   => $job->{metagenome_id},
   					                           name      => $right_name,
   					                           granted   => 1 });
             unless (ref $right) {
-  	            print STDRER "Unable to create Right $right_name - metagenome - $mg_id.";
+  	            print STDRER "Unable to create Right $right_name - metagenome - ".$job->{metagenome_id};
   	            return undef;
             }
         }
