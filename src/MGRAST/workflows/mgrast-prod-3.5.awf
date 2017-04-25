@@ -18,7 +18,7 @@
             "bp_count": "[% bp_count %]",
             "project_id": "[% project_id %]",
             "project_name": "[% project_name %]",
-            "type": "[% type %]",
+            "type": "metagenome",
             "pipeline_version": "3.5",
             "submission": "[% submission_id %]"
         }
@@ -47,6 +47,7 @@
                 "[% job_id %].075.assembly.coverage": {
                     "host": "[% shock_url %]",
                     "node": "-",
+                    "delete": true,
                     "attrfile": "[% job_id %].075.assembly.coverage.json"
                 },
                 "[% job_id %].075.qc.stats": {
@@ -484,7 +485,7 @@
             "userattr": {
                 "stage_id": "440",
                 "stage_name": "rna.cluster",
-                "seq_format": "aa",
+                "seq_format": "bp",
                 "cluster_percent": "[% rna_pid %]"
             },
             "taskid": "9",
@@ -892,6 +893,7 @@
                 "[% job_id %].700.annotation.lca.summary": {
                     "host": "[% shock_url %]",
                     "node": "-",
+                    "delete": true,
                     "attrfile": "userattr.json"
                 }
             },

@@ -218,7 +218,6 @@ sub submit {
     # delete if doing retry
     my $squery = {
         id => $mgid,
-        type => 'metagenome',
         data_type => 'profile',
         stage_name => 'done'
     };
@@ -344,9 +343,7 @@ sub create_profile {
             retry         => $param->{retry},
             condensed     => $param->{condensed},
             version       => $param->{version},
-            file_format   => 'json',
-            stage_name    => 'done',
-            stage_id      => '999'
+            file_format   => 'json'
         };
         eval {
             my $proj = $data->primary_project;
@@ -411,7 +408,7 @@ sub check_static_profile {
     # sort results by newest to oldest
     my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
     
-    foreach my $n (@$nodes) {
+    foreach my $n (@sorted) {
         if ( $n->{attributes}{condensed} &&
              ($n->{attributes}{condensed} eq $condensed) &&
              $n->{attributes}{version} &&

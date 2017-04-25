@@ -179,10 +179,10 @@ sub instance {
     my ($self, $format, $mgid) = @_;
     
     # check id format
-    my $rest = $self->rest;
-    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
+    my $tempid = $self->idresolve($rest->[0]);
+    my (undef, $id) = $tempid =~ /^(mgm)?(\d+\.\d+)$/;
     if ((! $id) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: ".$mgid}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
 
     # get data
@@ -310,7 +310,7 @@ sub prepare_data {
     }
     
     # get shock node for file
-    my $params = {type => 'metagenome', data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
+    my $params = {data_type => 'similarity', stage_name => 'filter.sims', id => $mgid};
     my $sim_node = $self->get_shock_query($params, $self->mgrast_token);
     unless ((@$sim_node > 0) && exists($sim_node->[0]{id})) {
         $self->return_data({"ERROR" => "Unable to retrieve $format file"}, 500);

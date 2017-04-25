@@ -53,6 +53,12 @@ class Matrix(object):
         except Exception as ex:
             self.error_exit("unable to build BIOM profile", node, ex)
             return
+        
+        ## sanity check
+        if len(matrix['data']) == 0:
+            self.error_exit("unable to build BIOM profile, no data returned", node)
+            return
+        
         ## store file in node
         self.shock.upload(node=node['id'], data=json.dumps(matrix), file_name=param['id']+".biom")
         return None

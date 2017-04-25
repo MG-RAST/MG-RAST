@@ -463,6 +463,7 @@ sub prepare_data {
         $obj->{status} = ($verb eq 'pipeline') ? 'pipeline' : ($job->{public} ? 'public' : 'private');
         $obj->{created} = $job->{created_on};
         $obj->{md5_checksum} = $job->{file_checksum_raw};
+        $obj->{owner}   = 'mgu'.$job->{owner};
         $obj->{version} = 1;
         $obj->{project} = undef;
         $obj->{sample}  = undef;
