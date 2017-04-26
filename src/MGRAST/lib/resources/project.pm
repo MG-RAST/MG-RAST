@@ -345,6 +345,22 @@ sub post_action {
 	    }
 	  }
 	  $metadbm->MetaDataEntry->create( $attr );
+
+	  $val = $self->cgi->param('biomename'.$mg->{metagenome_id});
+	  $attr = {
+		      collection => $mg->sample,
+		      tag        => 'ncbi_taxon_name',
+		      value      => $val,
+		      required   => 0,
+		      mixs       => 0
+		  };
+	  $existing = $metadbm->MetaDataEntry->get_objects($attr);
+	  if (scalar(@$existing)) {
+	    foreach my $pmd (@$existing) {
+	      $pmd->delete();
+	    }
+	  }
+	  $metadbm->MetaDataEntry->create( $attr );
 	} else {
 	  $self->return_data( { "ERROR" => "error updating sample biome entries for ebi submission" }, 500 );
 	}
