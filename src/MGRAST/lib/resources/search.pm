@@ -94,35 +94,66 @@ sub new {
 # this method must return a description of the resource
 sub info {
     my ($self) = @_;
-    my $content = { 'name' => $self->name,
+    my $content = {
+            'name' => $self->name,
 		    'url' => $self->cgi->url."/".$self->name,
 		    'description' => "Elastic search for Metagenomes.",
 		    'type' => 'object',
 		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
-		    'requests' => [ { 'name'        => "info",
+		    'requests' => [
+                    { 'name'        => "info",
 				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
-				      'method'      => "GET" ,
-				      'type'        => "synchronous" ,  
+				      'method'      => "GET",
+				      'type'        => "synchronous",
 				      'attributes'  => "self",
-				      'parameters'  => { 'options'     => {},
-							 'required'    => {},
-							 'body'        => {} } },
+				      'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
+					},
 				    { 'name'        => "query",
-				      'request'     => $self->cgi->url."/".$self->name,				      
+				      'request'     => $self->cgi->url."/".$self->name,
 				      'description' => "Elastic search",
 				      'example'     => [ $self->cgi->url."/".$self->name."?material=saline water",
-							 'return the first ten datasets that have saline water as the sample material' ],
-				      'method'      => "GET" ,
-				      'type'        => "synchronous" ,  
-				      'attributes'  => $self->attributes ,
-				      'parameters'  => { 'options'     => {},
-							 'required'    => {},
-							 'body'        => {} } }
-				     ]
-				 };
-
+                                         'return the first ten datasets that have saline water as the sample material' ],
+				      'method'      => "GET",
+				      'type'        => "synchronous",
+				      'attributes'  => $self->attributes,
+				      'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
+				    },
+				    { 'name'        => "upsert",
+				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				      'description' => "Elastic Upsert",
+				      'method'      => "GET",
+				      'type'        => "synchronous",
+				      'attributes'  => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
+                                         "status"        => [ 'string', 'status of action' ] },
+				      'parameters'  => {'options' => {}, 'required' => {"id" => ["string","unique object identifier"]}, 'body' => {}}
+				    },
+            ]
+    };
     $self->return_data($content);
+}
+
+# the resource is called with an id parameter
+# create ES document and upsert to ES server
+sub instance {
+    my ($self) = @_;
+    
+    # check id format
+    my $rest = $self->rest;
+    my $mgid = $self->idresolve($rest->[0]);
+    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+    }
+    
+    # check rights
+    unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $id) || $self->user->has_star_right('edit', 'metagenome'))) {
+        $self->return_data( {"ERROR" => "insufficient permissions for metagenome ".$mgid}, 401 );
+    }
+    
+    # create and upsert
+    my $success = $self->upsert_to_elasticsearch($id);
+    $self->return_data({ metagenome_id => $mgid, status => $success ? "updated" : "failed" });
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
