@@ -169,6 +169,7 @@ foreach my $job (@$jobs) {
   
   # Job
   $job->[6] =~ s/\s/T/;
+  $job->[6] =~ s/\-00/-01/g;
   my $entry = '{ "id": "mgm'.$job->[1].'", "job_info_job_id": '.$job->[2].', "job_info_public": '.($job->[3] ? "true" : "false").', "job_info_name": "'.$job->[4].'", "job_info_sequence_type": "'.($job->[5]||"unknown").'", "job_info_created": "'.$job->[6].'"';
 
   # job attributes
@@ -207,7 +208,7 @@ foreach my $job (@$jobs) {
 
   # library
   if ($job->[8] && exists $collections->{$job->[8]}) {
-    $entry .= ', "library_library_name": "'.$collections->{$job->[8]}->[1].'", "library_library_id": "'.$collections->{$job->[8]}->[2].'"';
+    $entry .= ', "library_library_name": "'.&cleanse($collections->{$job->[8]}->[1]).'", "library_library_id": "'.$collections->{$job->[8]}->[2].'"';
 
     if (exists $metadata->{$collections->{$job->[8]}->[0]}) {
 
@@ -261,6 +262,10 @@ foreach my $job (@$jobs) {
 	if ($sampMap->{$k}->[1]) {
 	  $entry .= sprintf("%g", $metadata->{$collections->{$job->[9]}->[0]}->{$k});
 	} else {
+      if ($k eq 'collection_date') {
+          $metadata->{$collections->{$job->[9]}->[0]}->{$k} =~ s/\s/T/;
+          $metadata->{$collections->{$job->[9]}->[0]}->{$k} =~ s/\-00/-01/g;
+      }
 	  $entry .= '"'.$metadata->{$collections->{$job->[9]}->[0]}->{$k}.'"';
 	}
       }
