@@ -1,0 +1,79 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+use JSON;
+use File::Slurp;
+
+sub TO_JSON { return { %{ shift() } }; }
+
+sub usage {
+    print "es_schema_parse.pl >>> parse elasticsearch schema to create perl hash of fields\n";
+    print "es_schema_parse.pl -input <path to input schema file> -output <path to output file>\n";
+}
+
+# read in parameters
+my $input  = '';
+my $output = '';
+
+GetOptions(
+    'input=s'  => \$input,
+    'output=s' => \$output
+);
+
+unless ($input and $output) {
+    &usage();
+    exit 0;
+}
+
+my $json = JSON->new();
+$json->max_size(0);
+$json->allow_nonref;
+
+my $schema_str = read_file($input);
+my $schema_obj = $json->decode($schema_str);
+my $properties = $schema_obj->{mappings}{metagenome_metadata}{properties};
+
+my @prefix = ("job_info_", "job_stat_", "project_", "sample_", "library_", "pipeline_parameters_");
+
+open(OUTF, ">$output") or die "could not open outfile: $output";
+
+# header
+print OUTF "# this is an auto-generated package\n";
+print OUTF "package MGRAST::ElasticSearch;\n\n";
+print OUTF "use strict;\n";
+print OUTF "use warnings;\n";
+print OUTF "no warnings('once');\n\n";
+
+# field map
+print OUTF "our $fields = {\n";
+print OUTF "\tall => 'all',\n";
+print OUTF "\tmetagenome_id => 'id',\n";
+foreach my $pf (@prefix) {
+    foreach my $prop (keys %$properties) {
+        if ($prop =~ /^$pf(.*)/) {
+            my $name = $1;
+            if (exists($properties->{$prop}{fields}) && exists($properties->{$prop}{fields}{keyword})) {
+                print OUTF "\t$name => '$prop.keyword',\n";
+            } else {
+                print OUTF "\t$name => '$prop',\n";
+            }
+        }
+    }
+}
+print OUTF "};\n\n";
+
+# type map
+print OUTF "our $types = {\n";
+print OUTF "\tmetagenome_id => 'keyword',\n";
+foreach my $pf (@prefix) {
+    foreach my $prop (keys %$properties) {
+        if ($prop =~ /^$pf(.*)/ && exists($properties->{$prop}{type})) {
+            my $name = $1;
+            print OUTF "\t$name => '".$properties->{$prop}{type}."',\n";
+        }
+    }
+}
+print OUTF "};\n\n1;\n";
+

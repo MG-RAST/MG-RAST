@@ -93,6 +93,24 @@
                 "job_info_mixs_compliant" : {
                     "type": "boolean"
                 },
+                "job_stat_bp_count": {
+                    "type": "long"
+                },
+                "job_stat_sequence_count": {
+                    "type": "integer"
+                },
+                "job_stat_average_length": {
+                    "type": "float"
+                },
+                "job_stat_average_gc_ratio": {
+                    "type": "float"
+                },
+                "job_stat_alpha_diversity": {
+                    "type": "float"
+                },
+                "job_stat_drisee_score": {
+                    "type": "float"
+                },
                 "project_PI_firstname" : {
                     "type": "text",
                     "fields": {
