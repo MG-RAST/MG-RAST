@@ -389,6 +389,7 @@ sub remove_job {
   my $dbh = $self->_master()->db_handle();
   my $str = "UPDATE Job SET primary_project = NULL, _primary_project_db = NULL WHERE job_id = ".$job->job_id;
   $dbh->do($str);
+  $dbh->commit();
 
   return "success: job removed";
 }

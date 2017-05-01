@@ -10,6 +10,8 @@ import cassandra.query as cql
 M5NR_VERSION = 1
 
 def rmqLogger(channel, stype, statement, bulk=0):
+    if not channel:
+        return
     truncate = (statement[:98] + '..') if len(statement) > 100 else statement
     body = {
         'timestamp': datetime.datetime.now().isoformat(),
@@ -36,7 +38,11 @@ class M5nrHandle(object):
         self.session = cass_connection.create(hosts).connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = cql.dict_factory
-        self.channel = cass_connection.rmqConnection().channel()
+        self.channel = None
+        try:
+            self.channel = cass_connection.rmqConnection().channel()
+        except:
+            pass
     def close(self):
         cass_connection.destroy()
     ### retrieve M5NR records
@@ -159,7 +165,11 @@ class JobHandle(object):
         self.session = cass_connection.create(hosts).connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = cql.tuple_factory
-        self.channel = cass_connection.rmqConnection().channel()
+        self.channel = None
+        try:
+            self.channel = cass_connection.rmqConnection().channel()
+        except:
+            pass
     def close(self):
         cass_connection.destroy()
     ## get iterator for md5 records of a job

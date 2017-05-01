@@ -35,6 +35,8 @@ sub new {
 		  direction => {'asc' => 1, 'desc' => 1},
 		  match => {'any' => 1, 'all' => 1}
 		};
+
+  $self->json->utf8();
   
   return $self;
 }

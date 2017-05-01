@@ -1840,6 +1840,23 @@ sub cassandra_matrix {
     return Inline::Python::Object->new('__main__', 'Matrix', $hosts, $version);
 }
 
+sub upsert_to_elasticsearch {
+    # this is metagenome ID without 'mgm' prefix - for JobDB queries
+    # assume rights checking has already been done
+    # returns boolean, success or failure
+    my ($self, $id) = @_;
+    
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        return 0;
+    }
+    $job = $job->[0];
+    
+    
+    
+    return 1;
+}
+
 sub get_elastic_query {
   my ($self, $server, $query, $order, $dir, $offset, $limit, $in) = @_;
 
@@ -1851,13 +1868,15 @@ sub get_elastic_query {
 
   my $instring = "";
   if ($in) {
-    $instring = " AND (public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
+    $instring = " AND (job_info_public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
   }
+  $query_string .= $instring;
+  $query_string =~ s/\s/\%20/g;
   
   my $content;
   eval {
-    my $res = $self->agent->get("$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string)".$instring);
-    $content = $self->json->decode( $res->content );
+    my $res = `curl -u elastic:mgrast "$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string$instring)"`;
+    $content = $self->json->decode( $res );
   };
   if ($@ || (! ref($content))) {
     return undef, $@;
