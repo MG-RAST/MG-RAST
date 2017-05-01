@@ -5,6 +5,7 @@ use warnings;
 use Getopt::Long;
 use JSON;
 use File::Slurp;
+use POSIX qw(strftime);
 
 sub TO_JSON { return { %{ shift() } }; }
 
@@ -40,7 +41,11 @@ my @prefix = ("job_info_", "job_stat_", "project_", "sample_", "library_", "pipe
 open(OUTF, ">$output") or die "could not open outfile: $output";
 
 # header
+print OUTF "###################################\n";
 print OUTF "# this is an auto-generated package\n";
+print OUTF "# created by: /MG-RAST/bin/elastic_schema_parse.pl\n";
+print OUTF "# created on: ".strftime("%Y-%m-%dT%H:%M:%S", gmtime)."\n";
+print OUTF "###################################\n";
 print OUTF "package MGRAST::ElasticSearch;\n\n";
 print OUTF "use strict;\n";
 print OUTF "use warnings;\n";
