@@ -184,7 +184,8 @@ sub instance {
     my %p_rights = map {$_, 1} (@$p_private, @$p_public);
 
     # get unique list of mgids based on user rights and inputed ids
-    foreach my $id (@ids) {
+    foreach my $tempid (@ids) {
+        my $id = $self->idresolve($tempid);
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
             if ($m_star || exists($m_rights{$1})) {
@@ -203,7 +204,7 @@ sub instance {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
         } else {
-            $self->return_data( {"ERROR" => "unknown id in matrix call: ".$id}, 404 );
+            $self->return_data( {"ERROR" => "unknown id in matrix call: ".$tempid}, 404 );
         }
         $seen->{$id} = 1;
     }

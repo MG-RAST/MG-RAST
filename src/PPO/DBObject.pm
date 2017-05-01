@@ -10,6 +10,7 @@ no warnings 'redefine';
 
 use Carp;
 use Class::ISA;
+use Data::Dumper;
 
 # definition of the different attribute types
 use constant DB_SCALAR => 1;
@@ -369,7 +370,7 @@ sub set_attributes {
     my $id = $self->_master->backend->insert_row( $self->_table, $data );
     
     unless ($id) {
-      die "Creating new object failed.";
+      die "Creating new object failed. Table: ".$self->_table." Data: ".Dumper($data);
     }
     
     # update the perl object

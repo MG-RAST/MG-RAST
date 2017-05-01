@@ -167,12 +167,13 @@ sub status {
 }
 
 sub submit {
-    my ($self, $mid) = @_;
+    my ($self, $tempid) = @_;
     
     # check id format
+    my $mid = $self->idresolve($tempid);
     my ($id) = $mid =~ /^mgm(\d+\.\d+)$/;
     unless ($id) {
-        $self->return_data( {"ERROR" => "invalid id format: " . $mid}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: ".$tempid}, 400 );
     }
     # get database / data
     my $master = $self->connect_to_datasource();

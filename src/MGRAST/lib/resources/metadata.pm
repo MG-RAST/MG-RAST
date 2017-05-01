@@ -377,11 +377,12 @@ sub list_values {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self, $id) = @_;
+    my ($self, $tempid) = @_;
     
     # get database
     my $master = $self->connect_to_datasource();
     my $mddb = MGRAST::Metadata->new();
+    my $id = $self->idresolve($tempid);
     
     # project export
     if ($id =~ /^mgp(\d+)$/) {
@@ -426,7 +427,7 @@ sub instance {
     }
     # bad id
     else {
-        $self->return_data( {"ERROR" => "invalid id format: ".$id}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: ".$tempid}, 400 );
     }
 }
 
