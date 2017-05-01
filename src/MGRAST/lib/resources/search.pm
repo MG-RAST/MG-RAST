@@ -27,30 +27,30 @@ sub new {
 		      "pipeline_version" => "job_info_pipeline_version",
 		      "sequence_type" => "job_info_sequence_type",
 		      "version" => "job_info_version",
-		      "name" => "job_info_name",
+		      "name" => "job_info_name.keyword",
 		      "seq_method" => "job_info_seq_method",
 		      "created" => "job_info_created",
 		      "mixs_compliant" => "job_info_mixs_compliant",
-		      "pi_firstname" => "project_PI_firstname",
-		      "pi_lastname" => "project_PI_lastname",
-		      "pi_organization" => "project_PI_organization",
+		      "pi_firstname" => "project_PI_firstname.keyword",
+		      "pi_lastname" => "project_PI_lastname.keyword",
+		      "pi_organization" => "project_PI_organization.keyword",
 		      "pi_organization_country" => "project_PI_organization_country",
-		      "firstname" => "project_firstname",
-		      "lastname" => "project_lastname",
+		      "firstname" => "project_firstname.keyword",
+		      "lastname" => "project_lastname.keyword",
 		      "organization_country" => "project_organization_country",
-		      "project_name" => "project_project_name",
-		      "project_funding" => "project_project_funding",
+		      "project_name" => "project_project_name.keyword",
+		      "project_funding" => "project_project_funding.keyword",
 		      "project_id" => "project_project_id",
 		      "gold_id" => "library_gold_id",
 		      "ncbi_id" => "project_ncbi_id",
 		      "pubmed_id" => "library_pubmed_id",
 		      "project" => "project_all",
 		      "library_id" => "library_library_id",
-		      "library_name" => "library_library_name",
+		      "library_name" => "library_library_name.keyword",
 		      "library" => "library_all",
 		      "sample_id" => "sample_sample_id",
 		      "collection_date" => "sample_collection_date",
-		      "feature" => "sample_feature",
+		      "feature" => "sample_feature.keyword",
 		      "latitude" => "sample_latitude",
 		      "longitude" => "sample_longitude",
 		      "altitude" => "sample_altitude",
@@ -59,20 +59,20 @@ sub new {
 		      "continent" => "sample_continent",
 		      "biome" => "sample_biome",
 		      "temperature" => "sample_temperature",
-		      "sample_name" => "sample_sample_name",
+		      "sample_name" => "sample_sample_name.keyword",
 		      "country" => "sample_country",
 		      "env_package_type" => "sample_env_package_type",
 		      "env_package_name" => "sample_env_package_name",
 		      "env_package_id" => "sample_env_package_id",
 		      "env_package" => "sample_env_package_all",
-		      "location" => "sample_location",
-		      "material" => "sample_material",
+		      "location" => "sample_location.keyword",
+		      "material" => "sample_material.keyword",
 		      "sample" => "sample_sample_all",
 		      "aa_pid" => "pipeline_parameters_aa_pid",
 		      "assembled" => "pipeline_parameters_assembled",
 		      "bowtie" => "pipeline_parameters_bowtie",
 		      "dereplicate" => "pipeline_parameters_dereplicate",
-		      "fgs_type" => "pipeline_parameters_fgs_type",
+		      "fgs_type" => "pipeline_parameters_fgs_type.keyword",
 		      "file_type" => "pipeline_parameters_file_type",
 		      "filter_ambig" => "pipeline_parameters_filter_ambig",
 		      "filter_ln" => "pipeline_parameters_filter_ln",
@@ -129,6 +129,8 @@ sub info {
 sub query {
   my ($self) = @_;
 
+  $self->json->utf8();
+
   # get paramaters
   my $limit  = $self->cgi->param('limit') || 10;
   my $offset = $self->cgi->param('offset') || 0;
@@ -169,9 +171,9 @@ sub query {
       @$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
     }
   } else {
-    push(@$query, [ "public:1" ]);
+    push(@$query, [ "job_info_public:1" ]);
   }
-  my ($data, $error) = $self->get_elastic_query("http://bio-worker10.mcs.anl.gov:9200/", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $in ? [ "id", $in ] : undef);
+  my ($data, $error) = $self->get_elastic_query("http://bio-worker10.mcs.anl.gov:9200/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $in ? [ "id", $in ] : undef);
   
   if ($error) {
     $self->return_data({"ERROR" => "An error occurred: $error"}, 500);
@@ -192,7 +194,12 @@ sub prepare_data {
   $obj->{version} = 1;
   $obj->{data} = [];
 
-  my %rev = reverse %{$self->{fields}};
+  my %rev = ();
+  foreach my $key (keys(%{$self->{fields}})) {
+    my $val = $self->{fields}->{$key};
+    $val =~ s/\.keyword$//;
+    $rev{$val} = $key;
+  }
   foreach my $set (@$d) {
     my $entry = {};
     foreach my $k (keys(%{$set->{_source}})) {

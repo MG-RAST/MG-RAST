@@ -1851,13 +1851,15 @@ sub get_elastic_query {
 
   my $instring = "";
   if ($in) {
-    $instring = " AND (public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
+    $instring = " AND (job_info_public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
   }
+  $query_string .= $instring;
+  $query_string =~ s/\s/\%20/g;
   
   my $content;
   eval {
-    my $res = $self->agent->get("$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string)".$instring);
-    $content = $self->json->decode( $res->content );
+    my $res = `curl -u elastic:mgrast "$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string$instring)"`;
+    $content = $self->json->decode( $res );
   };
   if ($@ || (! ref($content))) {
     return undef, $@;
