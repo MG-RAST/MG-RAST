@@ -1,4 +1,8 @@
+###################################
 # this is an auto-generated package
+# created by: /MG-RAST/bin/elastic_schema_parse.pl
+# created on: 2017-05-01T20:43:08
+###################################
 package MGRAST::ElasticSearch;
 
 use strict;
