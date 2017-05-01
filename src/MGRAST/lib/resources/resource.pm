@@ -1840,6 +1840,23 @@ sub cassandra_matrix {
     return Inline::Python::Object->new('__main__', 'Matrix', $hosts, $version);
 }
 
+sub upsert_to_elasticsearch {
+    # this is metagenome ID without 'mgm' prefix - for JobDB queries
+    # assume rights checking has already been done
+    # returns boolean, success or failure
+    my ($self, $id) = @_;
+    
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        return 0;
+    }
+    $job = $job->[0];
+    
+    
+    
+    return 1;
+}
+
 sub get_elastic_query {
   my ($self, $server, $query, $order, $dir, $offset, $limit, $in) = @_;
 
