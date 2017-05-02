@@ -93,22 +93,22 @@
                 "job_info_mixs_compliant" : {
                     "type": "boolean"
                 },
-                "job_stat_bp_count": {
+                "job_stat_bp_count_raw": {
                     "type": "long"
                 },
-                "job_stat_sequence_count": {
+                "job_stat_sequence_count_raw": {
                     "type": "integer"
                 },
-                "job_stat_average_length": {
+                "job_stat_average_length_raw": {
                     "type": "float"
                 },
-                "job_stat_average_gc_ratio": {
+                "job_stat_average_gc_ratio_raw": {
                     "type": "float"
                 },
-                "job_stat_alpha_diversity": {
+                "job_stat_drisee_score_raw": {
                     "type": "float"
                 },
-                "job_stat_drisee_score": {
+                "job_stat_alpha_diversity_shannon": {
                     "type": "float"
                 },
                 "project_PI_firstname" : {
