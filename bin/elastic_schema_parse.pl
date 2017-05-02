@@ -36,7 +36,7 @@ my $schema_str = read_file($input);
 my $schema_obj = $json->decode($schema_str);
 my $properties = $schema_obj->{mappings}{metagenome_metadata}{properties};
 
-my @prefix = ("job_info_", "job_stat_", "project_", "sample_", "library_", "pipeline_parameters_");
+my @prefix = ("job_info_", "job_stat_", "project_", "sample_", "env_package_", "library_", "pipeline_parameters_");
 
 open(OUTF, ">$output") or die "could not open outfile: $output";
 
