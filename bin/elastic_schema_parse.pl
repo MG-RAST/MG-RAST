@@ -69,6 +69,20 @@ foreach my $pf (@prefix) {
 }
 print OUTF "};\n\n";
 
+# prefix map
+print OUTF "our \$prefixes = {\n";
+foreach my $pf (@prefix) {
+    print OUTF "\t'$pf' => [\n";
+    foreach my $prop (keys %$properties) {
+        if ($prop =~ /^$pf(.*)/) {
+            my $name = $1;
+            print OUTF "\t\t'$name',\n";
+        }
+    }
+    print OUTF "\t],\n";
+}
+print OUTF "};\n\n";
+
 # type map
 print OUTF "our \$types = {\n";
 print OUTF "\tmetagenome_id => 'keyword',\n";

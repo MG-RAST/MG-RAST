@@ -63,18 +63,6 @@
                 "job_info_job_id" : {
                     "type": "integer"
                 },
-                "job_info_public" : {
-                    "type": "boolean"
-                },
-                "job_info_pipeline_version" : {
-                    "type": "keyword"
-                },
-                "job_info_sequence_type" : {
-                    "type": "keyword"
-                },
-                "job_info_version" : {
-                    "type": "integer"
-                },
                 "job_info_name" : {
                     "type": "text",
                     "fields": {
@@ -82,6 +70,15 @@
                             "type": "keyword"
                         }
                     }
+                },
+                "job_info_public" : {
+                    "type": "boolean"
+                },
+                "job_info_sequence_type" : {
+                    "type": "keyword"
+                },
+                "job_info_version" : {
+                    "type": "integer"
                 },
                 "job_info_seq_method" : {
                     "type": "keyword"
@@ -110,6 +107,17 @@
                 },
                 "job_stat_alpha_diversity_shannon": {
                     "type": "float"
+                },
+                "project_project_id" : {
+                    "type": "keyword"
+                },
+                "project_project_name" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
                 },
                 "project_PI_firstname" : {
                     "type": "text",
@@ -165,14 +173,6 @@
                         }
                     }
                 },
-                "project_project_name" : {
-                    "type": "text",
-                    "fields": {
-                        "keyword": { 
-                            "type": "keyword"
-                        }
-                    }
-                },
                 "project_project_funding" : {
                    "type": "text",
                     "fields": {
@@ -181,20 +181,8 @@
                         }
                     }
                 },
-                "project_project_id" : {
-                    "type": "keyword"
-                },
-                "library_gold_id" : {
-                    "type": "keyword"
-                },
                 "project_ncbi_id" : {
                     "type": "keyword"
-                },
-                "library_pubmed_id" : {
-                    "type": "keyword"
-                },
-                "project_all" : {
-                    "type": "text"
                 },
                 "library_library_id" : {
                     "type": "keyword"
@@ -207,7 +195,19 @@
                         }
                     }
                 },
-                "library_all" : {
+                "library_investigation_type" : {
+                    "type": "keyword"
+                },
+                "library_gold_id" : {
+                    "type": "keyword"
+                },
+                "library_pubmed_id" : {
+                    "type": "keyword"
+                },
+                "sample_sample_id" : {
+                    "type": "keyword"
+                },
+                "sample_sample_name" : {
                     "type": "text",
                     "fields": {
                         "keyword": { 
@@ -215,13 +215,29 @@
                         }
                     }
                 },
-                "sample_sample_id" : {
-                    "type": "keyword"
-                },
                 "sample_collection_date" : {
                     "type": "date"
                 },
+                "sample_env_package" : {
+                    "type": "keyword"
+                },
+                "sample_biome" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
+                },
                 "sample_feature" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "sample_material" : {
                     "type": "text",
                     "fields": {
                         "keyword": { 
@@ -247,34 +263,11 @@
                 "sample_continent" : {
                     "type": "keyword"
                 },
-                "sample_biome" : {
-                    "type": "keyword"
-                },
                 "sample_temperature" : {
                     "type": "float"
                 },
-                "sample_sample_name" : {
-                    "type": "text",
-                    "fields": {
-                        "keyword": { 
-                            "type": "keyword"
-                        }
-                    }
-                },
                 "sample_country" : {
                     "type": "keyword"
-                },
-                "sample_env_package_type" : {
-                    "type": "keyword"
-                },
-                "sample_env_package_name" : {
-                    "type": "keyword"
-                },
-                "sample_env_package_id" : {
-                    "type": "keyword"
-                },
-                "sample_env_package_all" : {
-                    "type": "text"
                 },
                 "sample_location" : {
                     "type": "text",
@@ -284,7 +277,10 @@
                         }
                     }
                 },
-                "sample_material" : {
+                "env_package_env_package_id" : {
+                    "type": "keyword"
+                },
+                "env_package_env_package_name" : {
                     "type": "text",
                     "fields": {
                         "keyword": { 
@@ -292,8 +288,11 @@
                         }
                     }
                 },
-                "sample_sample_all" : {
-                    "type": "text"
+                "env_package_env_package_type" : {
+                    "type": "keyword"
+                },
+                "pipeline_parameters_pipeline_version" : {
+                    "type": "keyword"
                 },
                 "pipeline_parameters_aa_pid" : {
                     "type" : "integer"

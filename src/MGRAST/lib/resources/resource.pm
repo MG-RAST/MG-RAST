@@ -6,6 +6,9 @@ no warnings('once');
 
 use Auth;
 use Conf;
+use MGRAST::Metadata;
+use MGRAST::ElasticSearch;
+
 use CGI;
 use JSON;
 use URI::Escape;
@@ -1846,13 +1849,21 @@ sub upsert_to_elasticsearch {
     # returns boolean, success or failure
     my ($self, $id) = @_;
     
+    # get job
+    my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
         return 0;
     }
     $job = $job->[0];
     
+    # get data
+    my $mddb = MGRAST::Metadata->new();
+    my $m_data = $mddb->get_job_metadata($job);
+    my $a_data = $job->data();
+    my $s_data = $job->stats();
     
+    # map 
     
     return 1;
 }

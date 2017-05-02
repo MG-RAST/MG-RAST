@@ -81,7 +81,7 @@ foreach my $e (@$ep) {
 }
 
 my $jaMap = {
-	     "pipeline_version" => [ "job_info_pipeline_version", 0 ],
+	     "pipeline_version" => [ "pipeline_parameters_pipeline_version", 0 ],
 	     "aa_pid" => [ "pipeline_parameters_aa_pid", 1 ],
 	     "assembled" => [ "pipeline_parameters_assembled", 2 ],
 	     "bowtie" => [ "pipeline_parameters_bowtie", 2 ],
@@ -118,16 +118,17 @@ my $pMap = {
 my $libMap = {
 	      "gold_id" => "library_gold_id",
 	      "pubmed_id" => "library_pubmed_id",
-	      "seq_meth" => "job_info_seq_method"
+	      "seq_meth" => "job_info_seq_method",
+	      "investigation_type" => "library_investigation_type"
 	     };
 
 my $sampMap = {
-	       "env_package_type" => [ "sample_env_package_type", 0 ],
+	       "env_package_type" => [ "env_package_env_package_type", 0 ],
 	       "altitude" => [ "sample_altitude", 1 ],
 	       "depth" => [ "sample_depth", 1 ],
 	       "elevation" => [ "sample_elevation", 1 ],
 	       "continent" => [ "sample_continent", 0 ],
-	       "env_package_id" => [ "sample_env_package_id", 0 ],
+	       "env_package_id" => [ "env_package_env_package_id", 0 ],
 	       "temperature" => [ "sample_temperature", 1 ],
 	       "biome" => [ "sample_biome", 0 ],
 	       "collection_date" => [ "sample_collection_date", 0 ],
@@ -135,7 +136,7 @@ my $sampMap = {
 	       "latitude" => [ "sample_latitude", 1 ],
 	       "longitude" => [ "sample_longitude", 1 ],
 	       "country" => [ "sample_country", 0 ],
-	       "env_package_name" => [ "sample_env_package_name", 0 ],
+	       "env_package_name" => [ "env_package_env_package_name", 0 ],
 	       "location" => [ "sample_location", 0 ],
 	       "material" => [ "sample_material", 0 ]
 	      };
