@@ -119,7 +119,8 @@ my $libMap = {
 	      "gold_id" => "library_gold_id",
 	      "pubmed_id" => "library_pubmed_id",
 	      "seq_meth" => "job_info_seq_method",
-	      "investigation_type" => "library_investigation_type"
+	      "investigation_type" => "library_investigation_type",
+	      "target_gene" => "library_target_gene"
 	     };
 
 my $sampMap = {

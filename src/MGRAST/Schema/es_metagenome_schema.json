@@ -204,6 +204,9 @@
                 "library_pubmed_id" : {
                     "type": "keyword"
                 },
+                "library_target_gene" : {
+                    "type": "text"
+                },
                 "sample_sample_id" : {
                     "type": "keyword"
                 },
