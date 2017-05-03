@@ -52,7 +52,7 @@ if ($mgid) {
 
 my $ep = $dbh->selectall_arrayref("SELECT parent, _id FROM MetaDataCollection WHERE type='ep' AND parent IS NOT NULL".(($mgid && $sid) ? " AND parent=$sid" : ""));
 my $sample_ep = {};
-%$sample_ep = map { $_->[0] => $_->[1] } $@ep;
+%$sample_ep = map { $_->[0] => $_->[1] } @$ep;
 if ($mgid && $sid && exists($sample_ep->{$sid})) {
     $eid = $sample_ep->{$sid};
 }
@@ -77,7 +77,6 @@ foreach my $j (@$js) {
   $jobstatistics->{$j->[0]}->{$j->[1]} = $j->[2];
 }
 
-my $sSet = "(".join(",", map { "'".$_."'" } @{$pMap->{'job_stat_'}}).")";
 my $p = $dbh->selectall_arrayref("SELECT _id, name, id FROM Project".(($mgid && $pid) ? " WHERE _id=$pid" : ""));
 my $projects = {};
 %$projects = map { $_->[0] => {'project_name' => $_->[1], 'project_id' => $_->[2]} } @$p;
