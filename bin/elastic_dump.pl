@@ -58,7 +58,7 @@ if ($mgid && $sid && exists($sample_ep->{$sid})) {
 }
 
 my $aSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'pipeline_parameters_'}}, 'sequencing_method_guess')).")";
-my $ja = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobAttributes WHERE value IS NOT NULL AND job IS NOT NULL AND tag IS IN $aSet".($mgid ? " AND job=$jid" : ""));
+my $ja = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobAttributes WHERE value IS NOT NULL AND job IS NOT NULL AND tag IN $aSet".($mgid ? " AND job=$jid" : ""));
 my $jobattributes = {};
 foreach my $j (@$ja) {
   if (! exists $jobattributes->{$j->[0]}) {
@@ -68,7 +68,7 @@ foreach my $j (@$ja) {
 }
 
 my $sSet = "(".join(",", map { "'".$_."'" } @{$pMap->{'job_stat_'}}).")";
-my $js = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobStatistics WHERE value IS NOT NULL AND job IS NOT NULL AND tag IS IN $sSet".($mgid ? " AND job=$jid" : ""));
+my $js = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobStatistics WHERE value IS NOT NULL AND job IS NOT NULL AND tag IN $sSet".($mgid ? " AND job=$jid" : ""));
 my $jobstatistics = {};
 foreach my $j (@$js) {
   if (! exists $jobstatistics->{$j->[0]}) {
@@ -82,7 +82,7 @@ my $projects = {};
 %$projects = map { $_->[0] => {'project_name' => $_->[1], 'project_id' => $_->[2]} } @$p;
 
 my $pSet = "(".join(",", map { "'".$_."'" } @{$pMap->{'project_'}}).")";
-my $pmd = $dbh->selectall_arrayref("SELECT project, tag, value FROM ProjectMD WHERE value IS NOT NULL AND project IS NOT NULL AND tag IS IN $pSet".(($mgid && $pid) ? " AND project=$pid" : ""));
+my $pmd = $dbh->selectall_arrayref("SELECT project, tag, value FROM ProjectMD WHERE value IS NOT NULL AND project IS NOT NULL AND tag IN $pSet".(($mgid && $pid) ? " AND project=$pid" : ""));
 my $projectMD = {};
 foreach my $p (@$pmd) {
   if (! exists $projectMD->{$p->[0]}) {
@@ -96,7 +96,7 @@ my $collections = {};
 %$collections = map { $_->[0] => {'name' => $_->[1], 'id' => $_->[2]} } @$col;
 
 my $mSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'sample_'}}, @{$pMap->{'library_'}})).")";
-my $mde = $dbh->selectall_arrayref("SELECT collection, tag, value FROM MetaDataEntry WHERE value IS NOT NULL AND collection IS NOT NULL AND tag IS IN $mSet".(($mgid && $sid && $lid && $eid) ? " AND collection IN ($sid, $lid, $eid)" : ""));
+my $mde = $dbh->selectall_arrayref("SELECT collection, tag, value FROM MetaDataEntry WHERE value IS NOT NULL AND collection IS NOT NULL AND tag IN $mSet".(($mgid && $sid && $lid && $eid) ? " AND collection IN ($sid, $lid, $eid)" : ""));
 my $metadata = {};
 foreach my $m (@$mde) {
   if (! exists $metadata->{$m->[0]} ) {
