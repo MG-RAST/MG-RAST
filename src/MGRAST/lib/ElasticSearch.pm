@@ -22,7 +22,7 @@ our $mixs = [
 	'sample_collection_date',
 	'library_investigation_type',
 	'library_seq_meth'
-]
+];
 
 our $ids = {
 	'id' => 'mgm',
@@ -30,7 +30,7 @@ our $ids = {
 	'sample_sample_id' => 'mgs',
 	'library_library_id' => 'mgl',
 	'env_package_env_package_id' => 'mge'
-}
+};
 
 our $fields = {
 	all => 'all',
