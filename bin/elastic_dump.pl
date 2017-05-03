@@ -103,9 +103,11 @@ my $ep = $dbh->selectall_arrayref("SELECT parent, _id FROM MetaDataCollection WH
 my $sample_ep = {};
 %$sample_ep = map { $_->[0] => $_->[1] } $@ep;
 
+my $fMap = $ElasticSearch::fields;
 my $tMap = $ElasticSearch::types;
 my $mMap = $ElasticSearch::mixs;
-my $fMap = $ElasticSearch::fields;
+my $iMap = $ElasticSearch::ids;
+map { $fMap->{$_} = (split(/\./, $fMap->{$_}))[0] } keys %$fMap;
 
 if ($outfile ne "stream") {
   open(FH, ">$outfile") or die "could not open outfile: $outfile";
@@ -222,8 +224,8 @@ foreach my $jid (keys %$jobs) {
     $jdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
     
     # id prefixes
-    foreach my $id ((["id", "mgm"], ["project_project_id", "mgp"], ["sample_sample_id", "mgs"], ["library_library_id", "mgl"], ["env_package_env_package_id", "mge"])) {
-        my ($k, $pre) = @$id;
+    foreach my $k (keys %$iMap) {
+        my $pre = $iMap->{$k};
         unless ($jdata->{$k} =~ /^$pre/) {
             $jdata->{$k} = $pre.$jdata->{$k};
         }
