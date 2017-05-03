@@ -73,7 +73,7 @@ print OUTF "\t'id' => 'mgm',\n";
 print OUTF "\t'project_project_id' => 'mgp',\n";
 print OUTF "\t'sample_sample_id' => 'mgs',\n";
 print OUTF "\t'library_library_id' => 'mgl',\n";
-print OUTF "\t'env_package_env_package_id' => 'mge',\n";
+print OUTF "\t'env_package_env_package_id' => 'mge'\n";
 print OUTF "}\n\n";
 
 # field map
