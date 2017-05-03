@@ -69,7 +69,7 @@ print OUTF "]\n\n";
 
 # id prefixes
 print OUTF "our \$ids = {\n";
-print OUTF "\t'id' => 'mgm'\n,";
+print OUTF "\t'id' => 'mgm',\n";
 print OUTF "\t'project_project_id' => 'mgp',\n";
 print OUTF "\t'sample_sample_id' => 'mgs',\n";
 print OUTF "\t'library_library_id' => 'mgl',\n";
