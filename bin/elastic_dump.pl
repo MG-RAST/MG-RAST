@@ -249,6 +249,9 @@ if ($outfile ne "stream") {
 
 sub typecast {
     my ($type, $val) = @_;
+    unless (defined($val)) {
+        return undef;
+    }
     if (($type eq 'text') || ($type eq 'keyword')) {
         $val =~ s/^\s+//;
         $val =~ s/\s+$//;
