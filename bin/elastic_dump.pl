@@ -17,7 +17,7 @@ sub usage {
 }
 
 my ($username, $password, $mgid, $outfile, $host);
-my ($jid, $pid, $sid, $lid);
+my ($jid, $pid, $sid, $lid, $eid);
 
 GetOptions(
     'user=s'    => \$username,
@@ -50,8 +50,15 @@ if ($mgid) {
     $lid = $jobs->{$jid}{'library'};
 }
 
+my $ep = $dbh->selectall_arrayref("SELECT parent, _id FROM MetaDataCollection WHERE type='ep' AND parent IS NOT NULL".(($mgid && $sid) ? " AND parent=$sid" : ""));
+my $sample_ep = {};
+%$sample_ep = map { $_->[0] => $_->[1] } $@ep;
+if ($mgid && $sid && exists($sample_ep->{$sid})) {
+    $eid = $sample_ep->{$sid};
+}
+
 my $aSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'pipeline_parameters_'}}, 'sequencing_method_guess')).")";
-my $ja = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobAttributes WHERE value IS NOT NULL AND job IS NOT NULL AND tag IS IN $aSet".($mgid ? " AND job=$j_id" : ""));
+my $ja = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobAttributes WHERE value IS NOT NULL AND job IS NOT NULL AND tag IS IN $aSet".($mgid ? " AND job=$jid" : ""));
 my $jobattributes = {};
 foreach my $j (@$ja) {
   if (! exists $jobattributes->{$j->[0]}) {
@@ -61,7 +68,7 @@ foreach my $j (@$ja) {
 }
 
 my $sSet = "(".join(",", map { "'".$_."'" } @{$pMap->{'job_stat_'}}).")";
-my $js = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobStatistics WHERE value IS NOT NULL AND job IS NOT NULL AND tag IS IN $sSet".($mgid ? " AND job=$j_id" : ""));
+my $js = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobStatistics WHERE value IS NOT NULL AND job IS NOT NULL AND tag IS IN $sSet".($mgid ? " AND job=$jid" : ""));
 my $jobstatistics = {};
 foreach my $j (@$js) {
   if (! exists $jobstatistics->{$j->[0]}) {
@@ -99,10 +106,6 @@ foreach my $m (@$mde) {
   $metadata->{$m->[0]}->{$m->[1]} = $m->[2];
 }
 
-my $ep = $dbh->selectall_arrayref("SELECT parent, _id FROM MetaDataCollection WHERE type='ep' AND parent IS NOT NULL".(($mgid && $sid) ? " AND parent=$sid" : ""));
-my $sample_ep = {};
-%$sample_ep = map { $_->[0] => $_->[1] } $@ep;
-
 my $fMap = $ElasticSearch::fields;
 my $tMap = $ElasticSearch::types;
 my $mMap = $ElasticSearch::mixs;
@@ -129,10 +132,8 @@ foreach my $jid (keys %$jobs) {
     $pid = $job->{'primary_project'};
     $sid = $job->{'sample'};
     $lid = $job->{'library'};
-    if ($sid && $sample_ep->{$sid}) {
-        $eid = $sample_ep->{$sid};
-    }
-
+    $eid = ($sid && $sample_ep->{$sid}) ? $sample_ep->{$sid} : undef;
+    
     # job_info
     foreach my $k (%$job) {
         if (exists $fMap->{$k}) {
@@ -233,11 +234,9 @@ foreach my $jid (keys %$jobs) {
     
     my $entry = $json->encode($jdata);
     if ($outfile ne "stream") {
-        print FH $entry;
-        print FH ($count == $num ? "" : ",")."\n";
+        print FH $entry.($count == $total ? "" : ",")."\n";
     } else {
-        print $entry;
-        print ($count == $num ? "" : ",")."\n";
+        print $entry.($count == $total ? "" : ",")."\n";
     }
     $count++;
 }
