@@ -3,7 +3,7 @@
 # created by: /MG-RAST/bin/elastic_schema_parse.pl
 # created on: 2017-05-02T21:43:05
 ###################################
-package MGRAST::ElasticSearch;
+package ElasticSearch;
 
 use strict;
 use warnings;

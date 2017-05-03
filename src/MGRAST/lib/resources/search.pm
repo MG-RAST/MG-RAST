@@ -4,8 +4,8 @@ use strict;
 use warnings;
 no warnings('once');
 
-use MGRAST::ElasticSearch;
 use Conf;
+use ElasticSearch;
 use parent qw(resources::resource);
 
 use URI::Escape qw(uri_escape uri_unescape);
@@ -20,7 +20,7 @@ sub new {
   # Add name / attributes
   $self->{name} = "search";
   $self->{attributes} = {};
-  $self->{fields} = $MGRAST::ElasticSearch::fields;
+  $self->{fields} = $ElasticSearch::fields;
   
   return $self;
 }

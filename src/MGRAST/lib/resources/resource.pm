@@ -6,8 +6,8 @@ no warnings('once');
 
 use Auth;
 use Conf;
+use ElasticSearch;
 use MGRAST::Metadata;
-use MGRAST::ElasticSearch;
 
 use CGI;
 use JSON;

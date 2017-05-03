@@ -46,10 +46,26 @@ print OUTF "# this is an auto-generated package\n";
 print OUTF "# created by: /MG-RAST/bin/elastic_schema_parse.pl\n";
 print OUTF "# created on: ".strftime("%Y-%m-%dT%H:%M:%S", gmtime)."\n";
 print OUTF "###################################\n";
-print OUTF "package MGRAST::ElasticSearch;\n\n";
+print OUTF "package ElasticSearch;\n\n";
 print OUTF "use strict;\n";
 print OUTF "use warnings;\n";
 print OUTF "no warnings('once');\n\n";
+
+# mixs list
+print OUTF "our \$mixs = [\n";
+print OUTF "\t'project_project_name',\n";
+print OUTF "\t'sample_biome',\n";
+print OUTF "\t'sample_feature',\n";
+print OUTF "\t'sample_material',\n";
+print OUTF "\t'sample_latitude',\n";
+print OUTF "\t'sample_longitude',\n";
+print OUTF "\t'sample_country',\n";
+print OUTF "\t'sample_location',\n";
+print OUTF "\t'sample_env_package',\n";
+print OUTF "\t'sample_collection_date',\n";
+print OUTF "\t'library_investigation_type',\n";
+print OUTF "\t'library_seq_meth'\n";
+print OUTF "]\n\n";
 
 # field map
 print OUTF "our \$fields = {\n";
