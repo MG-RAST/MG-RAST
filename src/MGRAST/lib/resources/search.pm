@@ -87,7 +87,11 @@ sub instance {
     }
     
     # create and upsert
-    my $success = $self->upsert_to_elasticsearch($id);
+    my $debug = $self->cgi->param('debug');
+    my $success = $self->upsert_to_elasticsearch($id, $debug);
+    if ($debug) {
+        $self->return_data($success);
+    }
     $self->return_data({ metagenome_id => $mgid, status => $success ? "updated" : "failed" });
 }
 

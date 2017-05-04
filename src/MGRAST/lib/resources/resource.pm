@@ -1847,7 +1847,7 @@ sub upsert_to_elasticsearch {
     # this is metagenome ID without 'mgm' prefix - for JobDB queries
     # assume rights checking has already been done
     # returns boolean, success or failure
-    my ($self, $id) = @_;
+    my ($self, $id, $debug) = @_;
     
     # get job
     my $master = $self->connect_to_datasource();
@@ -1910,6 +1910,10 @@ sub upsert_to_elasticsearch {
         if (! defined($esdata->{$k})) {
             delete $esdata->{$k};
         }
+    }
+    
+    if ($debug) {
+        return $esdata;
     }
     
     # PUT docuemnt
