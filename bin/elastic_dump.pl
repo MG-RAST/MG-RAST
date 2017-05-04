@@ -82,7 +82,7 @@ my $p = $dbh->selectall_arrayref("SELECT _id, name, id FROM Project".(($mgid && 
 my $projects = {};
 %$projects = map { $_->[0] => {'project_name' => $_->[1], 'project_id' => $_->[2]} } @$p;
 
-my $pSet = "(".join(",", map { "'".$_."'" } @{$pMap->{'project_'}}).")";
+my $pSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'project_'}}, 'ebi_id')).")";
 my $pmd = $dbh->selectall_arrayref("SELECT project, tag, value FROM ProjectMD WHERE value IS NOT NULL AND project IS NOT NULL AND tag IN $pSet".(($mgid && $pid) ? " AND project=$pid" : ""));
 my $projectMD = {};
 foreach my $p (@$pmd) {
@@ -96,7 +96,7 @@ my $col = $dbh->selectall_arrayref("SELECT _id, name, ID FROM MetaDataCollection
 my $collections = {};
 %$collections = map { $_->[0] => {'name' => $_->[1], 'id' => $_->[2]} } @$col;
 
-my $mSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'sample_'}}, @{$pMap->{'library_'}})).")";
+my $mSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'sample_'}}, @{$pMap->{'library_'}}, 'ebi_id')).")";
 my $mde = $dbh->selectall_arrayref("SELECT collection, tag, value FROM MetaDataEntry WHERE value IS NOT NULL AND collection IS NOT NULL AND tag IN $mSet".(($mgid && $sid && $lid && $eid) ? " AND collection IN ($sid, $lid, $eid)" : ""));
 my $metadata = {};
 foreach my $m (@$mde) {
@@ -198,8 +198,7 @@ foreach my $jid (keys %$jobs) {
                 if (($k eq 'ebi_id') && defined($metadata->{$cid}{$k})) {
                     my $kx = $col->[0].$k;
                     $jdata->{ $fMap->{$kx} } = typecast($tMap->{$kx}, $metadata->{$cid}{$k});
-                }
-                if (exists($fMap->{$k}) && defined($metadata->{$cid}{$k})) {
+                } elsif (exists($fMap->{$k}) && defined($metadata->{$cid}{$k})) {
                     $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $metadata->{$cid}{$k});
                 }
             }
