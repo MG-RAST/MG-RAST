@@ -297,6 +297,12 @@
                 "sample_sample_ebi_id" : {
                     "type": "keyword"
                 },
+                "sample_ebi_taxonomy_id" : {
+                    "type" : "integer"
+                },
+                "sample_ebi_taxonomy_name" : {
+                    "type" : "text"
+                },
                 "env_package_env_package_id" : {
                     "type": "keyword"
                 },
