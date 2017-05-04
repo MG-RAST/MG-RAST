@@ -105,6 +105,8 @@ foreach my $m (@$mde) {
   $metadata->{$m->[0]}->{$m->[1]} = $m->[2];
 }
 
+$dbh->disconnect();
+
 my $fMap = $ElasticSearch::fields;
 my $tMap = $ElasticSearch::types;
 my $mMap = $ElasticSearch::mixs;
