@@ -1858,7 +1858,7 @@ sub upsert_to_elasticsearch {
     $job = $job->[0];
     
     # get data
-    my $esdata = { id => "mgm".$id };
+    my $esdata = {};
     my $mddb   = MGRAST::Metadata->new();
     my $mixs   = $mddb->is_job_compliant($job);
     my $m_data = $mddb->get_job_metadata($job);
@@ -1891,10 +1891,10 @@ sub upsert_to_elasticsearch {
     # job metadata
     foreach my $md (('project', 'sample', 'library', 'env_package')) {
         if (exists($m_data->{$md}) && $m_data->{$md}{id} && $m_data->{$md}{name} && $m_data->{$md}{data}) {
-            $esdata->{ $fMap->{$md.'_id'} } = $m_data->{$md}{id};
-            $esdata->{ $fMap->{$md.'_name'} } = $m_data->{$md}{name};
+            $esdata->{ $fMap->{$md.'_id'} } = $self->jsonTypecast($tMap->{$md.'_id'}, $m_data->{$md}{id});
+            $esdata->{ $fMap->{$md.'_name'} } = $self->jsonTypecast($tMap->{$md.'_name'}, $m_data->{$md}{name});
             if (exists($fMap->{$md.'_type'}) && $m_data->{$md}{type}) {
-                $esdata->{ $fMap->{$md.'_type'} } = $m_data->{$md}{type};
+                $esdata->{ $fMap->{$md.'_type'} } = $self->jsonTypecast($tMap->{$md.'_type'}, $m_data->{$md}{type});
             }
             foreach my $k (keys %{$m_data->{$md}{data}}) {
                 if ($k && (exists $fMap->{$k}) && defined($m_data->{$md}{data}{$k})) {
@@ -1903,6 +1903,7 @@ sub upsert_to_elasticsearch {
             }
         }
     }
+    $esdata->{id} = "mgm".$id;
     $esdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
     
     # clean
