@@ -37,6 +37,7 @@ $outfile = $outfile || "dump.json";
 my $json = JSON->new();
 $json->max_size(0);
 $json->allow_nonref;
+$json->utf8();
 
 my $pMap = $ElasticSearch::prefixes;
 
@@ -258,6 +259,7 @@ sub typecast {
         $val =~ s/^\s+//;
         $val =~ s/\s+$//;
         $val =~ s/\s+/ /g;
+        $val = lc($val);
     } elsif (($type eq 'integer') || ($type eq 'long')) {
         if ($val =~ /^[+-]?\d+$/) {
             $val = int($val);
