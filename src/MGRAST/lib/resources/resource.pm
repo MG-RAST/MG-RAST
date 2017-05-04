@@ -1858,13 +1858,79 @@ sub upsert_to_elasticsearch {
     $job = $job->[0];
     
     # get data
-    my $mddb = MGRAST::Metadata->new();
+    my $esdata = { id => "mgm".$id };
+    my $mddb   = MGRAST::Metadata->new();
+    my $mixs   = $mddb->is_job_compliant($job);
     my $m_data = $mddb->get_job_metadata($job);
     my $a_data = $job->data();
     my $s_data = $job->stats();
     
-    # map 
+    # map
+    my $tMap = $ElasticSearch::types;
+    my $fMap = $ElasticSearch::fields;
+    map { $fMap->{$_} = (split(/\./, $fMap->{$_}))[0] } keys %$fMap;
     
+    # job info
+    foreach my $k (keys %$job) {
+        if ($k && exists($fMap->{$k}) && defined($job->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $job->{$k});
+        }
+    }
+    # job attributes
+    foreach my $k (keys %$a_data) {
+        if ($k && (exists $fMap->{$k}) && defined($a_data->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $a_data->{$k});
+        }
+    }
+    # job stats
+    foreach my $k (keys %$s_data) {
+        if ($k && (exists $fMap->{$k}) && defined($s_data->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $s_data->{$k});
+        }
+    }
+    # job metadata
+    foreach my $md (('project', 'sample', 'library', 'env_package')) {
+        if (exists($m_data->{$md}) && $m_data->{$md}{id} && $m_data->{$md}{name} && $m_data->{$md}{data}) {
+            $esdata->{ $fMap->{$md.'_id'} } = $m_data->{$md}{id};
+            $esdata->{ $fMap->{$md.'_name'} } = $m_data->{$md}{name};
+            if (exists($fMap->{$md.'_type'}) && $m_data->{$md}{type}) {
+                $esdata->{ $fMap->{$md.'_type'} } = $m_data->{$md}{type};
+            }
+            foreach my $k (keys %{$m_data->{$md}{data}}) {
+                if ($k && (exists $fMap->{$k}) && defined($m_data->{$md}{data}{$k})) {
+                    $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k};
+                }
+            }
+        }
+    }
+    $esdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
+    
+    # clean
+    foreach my $k (keys %$esdata) {
+        if (! defined($esdata->{$k})) {
+            delete $esdata->{$k}
+        }
+    }
+    
+    # PUT docuemnt
+    $self->json->utf8();
+    my $entry = $self->json->encode($esdata);
+    my $esurl = $Conf::es_host."/metagenome_index/metagenome/".$esdata->{id};
+    my $response;
+    eval {
+        my @args = (
+            'Authorization', $Conf::es_auth,
+            'Content_Type', 'application/json',
+            'Content', $entry
+        );
+        my $req = POST($esurl, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode( $put->content );
+    };
+    if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
+        return 0;
+    }
     return 1;
 }
 
@@ -1889,8 +1955,8 @@ sub get_elastic_query {
   
   my $content;
   eval {
-    my $res = `curl -u elastic:mgrast "$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string)"`;
-    $content = $self->json->decode( $res );
+    my $res = $self->agent->get("$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string)", ('Authorization', $Conf::es_auth));
+    $content = $self->json->decode( $res->content );
   };
   if ($@ || (! ref($content))) {
     return undef, $@;
@@ -2154,6 +2220,7 @@ sub metadata_validation {
         # add metadata json format to inbox
         if ($is_inbox && $self->user) {
             my $md_basename = fileparse($node->{file}{name}, qr/\.[^.]*/);
+            $self->json->utf8();
             my $md_string = $self->json->encode($data);
             my $json_attr = {
                 type  => 'inbox',
@@ -2689,6 +2756,39 @@ sub strToNum {
     } else {
         return $x * 1.0;
     }
+}
+
+sub jsonTypecast {
+    my ($self, $type, $val) = @_;
+    unless (defined($val)) {
+        return undef;
+    }
+    if (($type eq 'text') || ($type eq 'keyword')) {
+        $val =~ s/^\s+//;
+        $val =~ s/\s+$//;
+        $val =~ s/\s+/ /g;
+        $val = lc($val);
+    } elsif (($type eq 'integer') || ($type eq 'long')) {
+        if ($val =~ /^[+-]?\d+$/) {
+            $val = int($val);
+        } else {
+            $val = undef;
+        }
+    } elsif ($type eq 'float') {
+        if ($val =~ /^[+-]?\d*\.?\d+$/) {
+            $val = $val * 1.0
+        } else {
+            $val = undef;
+        }
+    } elsif ($type eq 'date') {
+        $val =~ s/^\s+//;
+        $val =~ s/\s+$//;
+        $val =~ s/\s+/T/;
+        $val =~ s/\-00/-01/g;
+    } elsif ($type eq 'boolean') {
+        $val = $val ? JSON::true : JSON::false;
+    }
+    return $val;
 }
 
 sub get_alpha_diversity {
