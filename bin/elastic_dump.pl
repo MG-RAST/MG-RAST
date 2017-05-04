@@ -135,7 +135,7 @@ foreach my $jid (keys %$jobs) {
     
     # job_info
     foreach my $k (%$job) {
-        if (exists $fMap->{$k}) {
+        if ($k && exists($fMap->{$k}) && defined($job->{$k})) {
             $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $job->{$k});
         }
     }
@@ -143,7 +143,7 @@ foreach my $jid (keys %$jobs) {
     # job attributes
     if (exists $jobattributes->{$jid}) {
         foreach my $k (keys %{$jobattributes->{$jid}}) {
-            if (exists $fMap->{$k}) {
+            if ($k && (exists $fMap->{$k}) && defined($jobattributes->{$jid}{$k})) {
                 $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $jobattributes->{$jid}{$k});
             }
         }
@@ -152,7 +152,7 @@ foreach my $jid (keys %$jobs) {
     # job statistics
     if (exists $jobstatistics->{$jid}) {
         foreach my $k (keys %{$jobstatistics->{$jid}}) {
-            if (exists $fMap->{$k}) {
+            if ($k && exists($fMap->{$k}) && defined($jobstatistics->{$jid}{$k})) {
                 $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $jobstatistics->{$jid}{$k});
             }
         }
@@ -161,13 +161,13 @@ foreach my $jid (keys %$jobs) {
     # project
     if ($pid && exists($projects->{$pid})) {
         foreach my $k (keys %{$projects->{$pid}}) {
-            if (exists $fMap->{$k}) {
+            if ($k && exists($fMap->{$k}) && defined($projects->{$pid}{$k})) {
                 $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $projects->{$pid}{$k});
             }
         }
         if (exists $projectMD->{$pid}) {
             foreach my $k (keys %{$projectMD->{$pid}}) {
-                if (exists $fMap->{$k}) {
+                if ($k && exists($fMap->{$k}) && defined($projectMD->{$pid}{$k})) {
                     $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $projectMD->{$pid}{$k});
                 }
             }
@@ -180,14 +180,14 @@ foreach my $jid (keys %$jobs) {
         if ($cid && exists($collections->{$cid})) {
             foreach my $k (keys %{$collections->{$cid}}) {
                 $k = $col->[0].$k;
-                if (exists $fMap->{$k}) {
+                if (exists($fMap->{$k}) && defined($collections->{$cid}{$k})) {
                     $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $collections->{$cid}{$k});
                 }
             }
         }
-        if (exists $metadata->{$cid}) {
+        if ($cid && exists($metadata->{$cid})) {
             foreach my $k (keys %{$metadata->{$cid}}) {
-                if (exists $fMap->{$k}) {
+                if (exists($fMap->{$k}) && defined($metadata->{$cid}{$k})) {
                     $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $metadata->{$cid}{$k});
                 }
             }
@@ -226,7 +226,7 @@ foreach my $jid (keys %$jobs) {
     # id prefixes
     foreach my $k (keys %$iMap) {
         my $pre = $iMap->{$k};
-        unless ($jdata->{$k} =~ /^$pre/) {
+        if (exists($jdata->{$k}) && ($jdata->{$k} !~ /^$pre/)) {
             $jdata->{$k} = $pre.$jdata->{$k};
         }
     }
