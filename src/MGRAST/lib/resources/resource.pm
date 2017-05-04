@@ -1899,7 +1899,7 @@ sub upsert_to_elasticsearch {
             foreach my $k (keys %{$m_data->{$md}{data}}) {
                 # special case for ebi_id
                 if (($k eq 'ebi_id') && defined($m_data->{$md}{data}{$k})) {
-                    $kx = $md.'_'.$k;
+                    my $kx = $md.'_'.$k;
                     $esdata->{ $fMap->{$kx} } = $self->jsonTypecast($tMap->{$kx}, $m_data->{$md}{data}{$k});
                 } elsif ($k && (exists $fMap->{$k}) && defined($m_data->{$md}{data}{$k})) {
                     $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k});
