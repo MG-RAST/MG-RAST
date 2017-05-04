@@ -121,6 +121,10 @@ sub query {
       my @param = $self->cgi->param($field);
       my $entries = [];
       foreach my $p (@param) {
+	if ($p =~ /\s/) {
+	  my @items = split(/\s/, $p);
+	  $p = "(".join(" AND ", @items).")";
+	}
 	if ($field eq "all") {
 	  push(@$entries, $p);
 	} else {
