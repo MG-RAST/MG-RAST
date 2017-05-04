@@ -1858,7 +1858,7 @@ sub upsert_to_elasticsearch {
     $job = $job->[0];
     
     # get data
-    my $esdata = { id => "mgm".$id };
+    my $esdata = {};
     my $mddb   = MGRAST::Metadata->new();
     my $mixs   = $mddb->is_job_compliant($job);
     my $m_data = $mddb->get_job_metadata($job);
@@ -1903,6 +1903,7 @@ sub upsert_to_elasticsearch {
             }
         }
     }
+    $esdata->{id} = "mgm".$id;
     $esdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
     
     # clean
