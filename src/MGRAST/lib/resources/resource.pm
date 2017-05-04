@@ -1883,10 +1883,13 @@ sub get_elastic_query {
   }
   $query_string .= $instring;
   $query_string =~ s/\s/\%20/g;
+  if ($query_string eq "") {
+    $query_string = "*";
+  }
   
   my $content;
   eval {
-    my $res = `curl -u elastic:mgrast "$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string$instring)"`;
+    my $res = `curl -u elastic:mgrast "$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string)"`;
     $content = $self->json->decode( $res );
   };
   if ($@ || (! ref($content))) {
