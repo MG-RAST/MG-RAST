@@ -1898,7 +1898,7 @@ sub upsert_to_elasticsearch {
             }
             foreach my $k (keys %{$m_data->{$md}{data}}) {
                 if ($k && (exists $fMap->{$k}) && defined($m_data->{$md}{data}{$k})) {
-                    $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k};
+                    $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k});
                 }
             }
         }
@@ -1908,7 +1908,7 @@ sub upsert_to_elasticsearch {
     # clean
     foreach my $k (keys %$esdata) {
         if (! defined($esdata->{$k})) {
-            delete $esdata->{$k}
+            delete $esdata->{$k};
         }
     }
     
