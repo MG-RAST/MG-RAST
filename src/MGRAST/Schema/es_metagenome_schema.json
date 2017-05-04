@@ -63,18 +63,6 @@
                 "job_info_job_id" : {
                     "type": "integer"
                 },
-                "job_info_public" : {
-                    "type": "boolean"
-                },
-                "job_info_pipeline_version" : {
-                    "type": "keyword"
-                },
-                "job_info_sequence_type" : {
-                    "type": "keyword"
-                },
-                "job_info_version" : {
-                    "type": "integer"
-                },
                 "job_info_name" : {
                     "type": "text",
                     "fields": {
@@ -83,33 +71,47 @@
                         }
                     }
                 },
-                "job_info_seq_method" : {
+                "job_info_public" : {
+                    "type": "boolean"
+                },
+                "job_info_sequence_type" : {
                     "type": "keyword"
                 },
-                "job_info_created": {
+                "job_info_created_on": {
                     "type": "date",
                     "format": "strict_date_optional_time||epoch_millis"
                 },
                 "job_info_mixs_compliant" : {
                     "type": "boolean"
                 },
-                "job_stat_bp_count": {
+                "job_stat_bp_count_raw": {
                     "type": "long"
                 },
-                "job_stat_sequence_count": {
+                "job_stat_sequence_count_raw": {
                     "type": "integer"
                 },
-                "job_stat_average_length": {
+                "job_stat_average_length_raw": {
                     "type": "float"
                 },
-                "job_stat_average_gc_ratio": {
+                "job_stat_average_gc_ratio_raw": {
                     "type": "float"
                 },
-                "job_stat_alpha_diversity": {
+                "job_stat_drisee_score_raw": {
                     "type": "float"
                 },
-                "job_stat_drisee_score": {
+                "job_stat_alpha_diversity_shannon": {
                     "type": "float"
+                },
+                "project_project_id" : {
+                    "type": "keyword"
+                },
+                "project_project_name" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
                 },
                 "project_PI_firstname" : {
                     "type": "text",
@@ -151,12 +153,6 @@
                         }
                     }
                 },
-                "project_PI_organization_country" : {
-                    "type": "keyword"
-                },
-                "project_organization_country" : {
-                    "type": "keyword"
-                },
                 "project_organization" : {
                     "type": "text",
                     "fields": {
@@ -165,13 +161,11 @@
                         }
                     }
                 },
-                "project_project_name" : {
-                    "type": "text",
-                    "fields": {
-                        "keyword": { 
-                            "type": "keyword"
-                        }
-                    }
+                "project_PI_organization_country" : {
+                    "type": "keyword"
+                },
+                "project_organization_country" : {
+                    "type": "keyword"
                 },
                 "project_project_funding" : {
                    "type": "text",
@@ -181,20 +175,14 @@
                         }
                     }
                 },
-                "project_project_id" : {
-                    "type": "keyword"
-                },
-                "library_gold_id" : {
-                    "type": "keyword"
-                },
                 "project_ncbi_id" : {
                     "type": "keyword"
                 },
-                "library_pubmed_id" : {
+                "project_greengenes_id" : {
                     "type": "keyword"
                 },
-                "project_all" : {
-                    "type": "text"
+                "project_ebi_id" : {
+                    "type": "keyword"
                 },
                 "library_library_id" : {
                     "type": "keyword"
@@ -207,7 +195,31 @@
                         }
                     }
                 },
-                "library_all" : {
+                "library_investigation_type" : {
+                    "type": "keyword"
+                },
+                "library_seq_meth" : {
+                    "type": "keyword"
+                },
+                "library_target_gene" : {
+                    "type": "text"
+                },
+                "library_mrna_percent" : {
+                    "type": "float"
+                },
+                "library_gold_id" : {
+                    "type": "keyword"
+                },
+                "library_pubmed_id" : {
+                    "type": "keyword"
+                },
+                "library_ebi_id" : {
+                    "type": "keyword"
+                },
+                "sample_sample_id" : {
+                    "type": "keyword"
+                },
+                "sample_sample_name" : {
                     "type": "text",
                     "fields": {
                         "keyword": { 
@@ -215,13 +227,34 @@
                         }
                     }
                 },
-                "sample_sample_id" : {
-                    "type": "keyword"
-                },
                 "sample_collection_date" : {
                     "type": "date"
                 },
+                "sample_env_package" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "sample_biome" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
+                },
                 "sample_feature" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "sample_material" : {
                     "type": "text",
                     "fields": {
                         "keyword": { 
@@ -244,37 +277,14 @@
                 "sample_elevation" : {
                     "type": "float"
                 },
-                "sample_continent" : {
-                    "type": "keyword"
-                },
-                "sample_biome" : {
-                    "type": "keyword"
-                },
                 "sample_temperature" : {
                     "type": "float"
                 },
-                "sample_sample_name" : {
-                    "type": "text",
-                    "fields": {
-                        "keyword": { 
-                            "type": "keyword"
-                        }
-                    }
+                "sample_continent" : {
+                    "type": "keyword"
                 },
                 "sample_country" : {
                     "type": "keyword"
-                },
-                "sample_env_package_type" : {
-                    "type": "keyword"
-                },
-                "sample_env_package_name" : {
-                    "type": "keyword"
-                },
-                "sample_env_package_id" : {
-                    "type": "keyword"
-                },
-                "sample_env_package_all" : {
-                    "type": "text"
                 },
                 "sample_location" : {
                     "type": "text",
@@ -284,7 +294,13 @@
                         }
                     }
                 },
-                "sample_material" : {
+                "sample_ebi_id" : {
+                    "type": "keyword"
+                },
+                "env_package_env_package_id" : {
+                    "type": "keyword"
+                },
+                "env_package_env_package_name" : {
                     "type": "text",
                     "fields": {
                         "keyword": { 
@@ -292,8 +308,16 @@
                         }
                     }
                 },
-                "sample_sample_all" : {
-                    "type": "text"
+                "env_package_env_package_type" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "pipeline_parameters_pipeline_version" : {
+                    "type": "keyword"
                 },
                 "pipeline_parameters_aa_pid" : {
                     "type" : "integer"
