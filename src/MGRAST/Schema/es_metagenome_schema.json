@@ -300,7 +300,13 @@
                 "sample_ebi_taxonomy_id" : {
                     "type" : "integer"
                 },
-                "sample_ebi_taxonomy_name" : {
+                "sample_ebi_taxonomy_scientific_name" : {
+                    "type" : "text"
+                },
+                "sample_envo_id" : {
+                    "type" : "keyword"
+                },
+                "sample_envo_label" : {
                     "type" : "text"
                 },
                 "env_package_env_package_id" : {
