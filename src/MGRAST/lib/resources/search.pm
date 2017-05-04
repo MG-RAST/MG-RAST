@@ -128,7 +128,9 @@ sub query {
 	if ($field eq "all") {
 	  push(@$entries, $p);
 	} else {
-	  push(@$entries, $self->{fields}->{$field}.':'.$p);
+	  my $key = $self->{fields}->{$field};
+	  $key =~ s/\.keyword$//;
+	  push(@$entries, $key.':'.$p);
 	}
       }
       push(@$query, $entries);
