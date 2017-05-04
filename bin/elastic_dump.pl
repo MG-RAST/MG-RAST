@@ -171,10 +171,10 @@ foreach my $jid (keys %$jobs) {
         if (exists $projectMD->{$pid}) {
             foreach my $k (keys %{$projectMD->{$pid}}) {
                 # special case for ebi_id
-                if ($k eq 'ebi_id') {
-                    $k = 'project_'.$k;
-                }
-                if ($k && exists($fMap->{$k}) && defined($projectMD->{$pid}{$k})) {
+                if (($k eq 'ebi_id') && defined($projectMD->{$pid}{$k})) {
+                    $kx = 'project_'.$k;
+                    $jdata->{ $fMap->{$kx} } = typecast($tMap->{$kx}, $projectMD->{$pid}{$k});
+                } elsif ($k && exists($fMap->{$k}) && defined($projectMD->{$pid}{$k})) {
                     $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $projectMD->{$pid}{$k});
                 }
             }
@@ -195,8 +195,9 @@ foreach my $jid (keys %$jobs) {
         if ($cid && exists($metadata->{$cid})) {
             foreach my $k (keys %{$metadata->{$cid}}) {
                 # special case for ebi_id
-                if ($k eq 'ebi_id') {
-                    $k = $col->[0].$k;
+                if (($k eq 'ebi_id') && defined($metadata->{$cid}{$k})) {
+                    $kx = $col->[0].$k;
+                    $jdata->{ $fMap->{$kx} } = typecast($tMap->{$kx}, $metadata->{$cid}{$k});
                 }
                 if (exists($fMap->{$k}) && defined($metadata->{$cid}{$k})) {
                     $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $metadata->{$cid}{$k});
