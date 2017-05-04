@@ -200,14 +200,14 @@ foreach my $jid (keys %$jobs) {
     # special case fix
     unless (exists $jdata->{library_seq_meth}) {
         if (exists $jobattributes->{$jid}{sequencing_method_guess}) {
-            $jdata->{library_seq_meth} = $jobattributes->{$jid}{sequencing_method_guess}
+            $jdata->{library_seq_meth} = $jobattributes->{$jid}{sequencing_method_guess};
         }
     }
     
     # clean
     foreach my $k (keys %$jdata) {
         if (! defined($jdata->{$k})) {
-            delete $jdata->{$k}
+            delete $jdata->{$k};
         }
     }
     
@@ -280,7 +280,7 @@ sub typecast {
     } elsif ($type eq 'boolean') {
         $val = $val ? JSON::true : JSON::false;
     }
-    return $val
+    return $val;
 }
 
 sub TO_JSON { return { %{ shift() } }; }
