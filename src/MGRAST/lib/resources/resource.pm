@@ -1944,7 +1944,7 @@ sub upsert_to_elasticsearch {
 }
 
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $offset, $limit, $in) = @_;
+  my ($self, $server, $query, $order, $dir, $offset, $limit, $in, $private) = @_;
 
   my $fields = [];
   foreach my $q (@$query) {
@@ -1954,7 +1954,12 @@ sub get_elastic_query {
 
   my $instring = "";
   if ($in) {
-    $instring = ($query_string eq "" ? "" : " AND ")."(job_info_public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
+    $instring = ($query_string eq "" ? "" : " AND ");
+    if ($private) {
+      $instring .= "".$in->[0] .":(".join(" OR ", @{$in->[1]}).")";
+    } else {
+      $instring .= "(job_info_public:1 OR ".$in->[0] .":(".join(" OR ", @{$in->[1]})."))";
+    }
   }
   $query_string .= $instring;
   $query_string =~ s/\s/\%20/g;
