@@ -1954,7 +1954,7 @@ sub get_elastic_query {
 
   my $instring = "";
   if ($in) {
-    $instring = " AND (job_info_public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
+    $instring = ($query_string eq "" ? "" : " AND ")."(job_info_public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
   }
   $query_string .= $instring;
   $query_string =~ s/\s/\%20/g;
@@ -1964,8 +1964,9 @@ sub get_elastic_query {
   
   my $content;
   eval {
-    my $res = $self->agent->get("$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string)", ('Authorization', $Conf::es_auth));
-    $content = $self->json->decode( $res->content );
+    my $curl = 'curl -s -u '.$Conf::es_auth.' "'.$server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')"';
+    my $res = `$curl`;
+    $content = $self->json->decode( $res );
   };
   if ($@ || (! ref($content))) {
     return undef, $@;
