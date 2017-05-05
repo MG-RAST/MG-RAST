@@ -546,6 +546,7 @@ sub instance {
     # prepare data
     my $data = $self->prepare_data( [$project] );
     $data = $data->[0];
+    $self->json->utf8();
     $self->return_data($data, undef, 1); # cache this!
 }
 
@@ -602,7 +603,7 @@ sub query {
 
     # check for pagination
     $data = $self->check_pagination($data, $total, $limit);
-
+    $self->json->utf8();
     $self->return_data($data);
 }
 
