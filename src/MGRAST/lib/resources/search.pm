@@ -148,7 +148,7 @@ sub query {
   } else {
     push(@$query, [ "job_info_public:1" ]);
   }
-  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $in ? [ "id", $in ] : undef);
+  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $in ? [ "id", $in ] : undef, defined $self->cgi->param('public') && $self->cgi->param('public') == 0 );
   
   if ($error) {
     $self->return_data({"ERROR" => "An error occurred: $error"}, 500);
@@ -178,7 +178,11 @@ sub prepare_data {
   foreach my $set (@$d) {
     my $entry = {};
     foreach my $k (keys(%{$set->{_source}})) {
-      $entry->{$rev{$k}} = $set->{_source}->{$k};
+      if (defined $rev{$k}) {
+	$entry->{$rev{$k}} = $set->{_source}->{$k};
+      } else {
+	$entry->{$k} = $set->{_source}->{$k};
+      }
     }
     push(@{$obj->{data}}, $entry);
   }
