@@ -182,6 +182,8 @@ sub info {
 # the resource is called with an id parameter
 sub instance {
     my ($self) = @_;
+
+    $self->json->utf8();
     
     # check verbosity
     my $verb = $self->cgi->param('verbosity') || 'minimal';
@@ -271,6 +273,8 @@ sub instance {
 sub query {
     my ($self) = @_;
 
+    $self->json->utf8();
+    
     # get database
     my $master = $self->connect_to_datasource();
     
