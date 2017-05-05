@@ -297,10 +297,10 @@
                 "sample_sample_ebi_id" : {
                     "type": "keyword"
                 },
-                "sample_ebi_taxonomy_id" : {
+                "sample_ncbi_taxonomy_id" : {
                     "type" : "integer"
                 },
-                "sample_ebi_taxonomy_scientific_name" : {
+                "sample_ncbi_taxonomy_scientific_name" : {
                     "type" : "text"
                 },
                 "sample_envo_id" : {
