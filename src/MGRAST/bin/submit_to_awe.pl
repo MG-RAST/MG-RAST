@@ -165,12 +165,14 @@ $HTTP::Request::Common::DYNAMIC_FILE_UPLOAD = 1;
 if ($input_file) {
     # upload input to shock
     $content = {
+        priority   => 9,
         upload     => [$input_file],
         attributes => [undef, "$input_file.json", Content => $json->encode($up_attr)]
     };
 } elsif ($input_node) {
     # copy input node
     $content = {
+        priority     => 9,
         copy_data    => $input_node,
         copy_indexes => 1,
         attributes   => [undef, "attr.json", Content => $json->encode($up_attr)]
