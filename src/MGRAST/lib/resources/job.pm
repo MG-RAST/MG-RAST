@@ -901,6 +901,8 @@ sub job_action {
             # update mysql db
             $job->public(1);
             $job->set_publication_date();
+            # update elasticsearch
+            $self->upsert_to_elasticsearch($job->metagenome_id);
             $data = { public => $job->public ? 1 : 0 };
         } elsif ($action eq 'viewable') {
             my $state = 1;
@@ -917,29 +919,32 @@ sub job_action {
             };
             if ($post->{name}) {
                 $job->name($post->{name});
+                $self->upsert_to_elasticsearch($job->metagenome_id);
                 $data->{status} = 1;
             } else {
                 $data->{status} = 0;
             }
 	  } elsif ($action eq 'changesequencetype') {
-	    $job->sequence_type($post->{sequence_type});
-	    $data = { metagenome_id => 'mgm'.$job->metagenome_id,
+          $job->sequence_type($post->{sequence_type});
+          $self->upsert_to_elasticsearch($job->metagenome_id);
+          $data = {
+              metagenome_id => 'mgm'.$job->metagenome_id,
 		      job_id        => $job->job_id,
 		      sequence_type => $post->{sequence_type}
-		    };
+          };
 	  } elsif ($action eq 'delete') {
-            # Auf Wiedersehen!
-            my $reason = $post->{reason} || "";
-            eval {
-               my ($status, $message) = $job->user_delete($self->user, $reason);
-               $data = {
+          # Auf Wiedersehen!
+          my $reason = $post->{reason} || "";
+          my $mgid = 'mgm'.$job->{metagenome_id};
+          eval {
+              my ($status, $message) = $job->user_delete($self->user, $reason);
+              $job->delete();
+              $self->delete_from_elasticsearch($mgid);
+              $data = {
                   deleted => $status,
                   error   => $message
-                       };
-            };
-            eval {
-               $job->delete();
-            };
+              };
+          };
         } elsif ($action eq 'addproject') {
             # check id format
             my (undef, $pid) = $post->{project_id} =~ /^(mgp)?(\d+)$/;

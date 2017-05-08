@@ -1866,9 +1866,19 @@ sub delete_from_elasticsearch {
 }
 
 sub upsert_to_elasticsearch {
-    # expects job object
+    # input is metagenome ID - for JobDB queries
+    # assume rights checking has already been done
     # returns boolean, success or failure
-    my ($self, $job, $debug) = @_;
+    my ($self, $mgid, $debug) = @_;
+    
+    # get job
+    my $master = $self->connect_to_datasource();
+    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        return 0;
+    }
+    $job = $job->[0];
     
     # get data
     my $esdata = {};
