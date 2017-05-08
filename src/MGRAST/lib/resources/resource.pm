@@ -1843,14 +1843,37 @@ sub cassandra_matrix {
     return Inline::Python::Object->new('__main__', 'Matrix', $hosts, $version);
 }
 
+sub delete_from_elasticsearch {
+    # returns boolean, success or failure
+    my ($self, $mgid) = @_;
+    
+    unless ($mgid) {
+        return 0;
+    }
+    if ($mgid !~ /^mgm/) {
+        $mgid = 'mgm'.$mgid;
+    }
+    my $esurl = $Conf::es_host."/metagenome_index/metagenome/".$mgid;
+    my $response = undef;
+    eval {
+        my $del = $self->agent->delete($esurl);
+        $response = $self->json->decode($del->content);
+    };
+    if ($@ || (! ref($response)) || $response->{error} || (! $response->{result}) || ($response->{result} eq 'not_found')) {
+        return 0;
+    }
+    return 1;
+}
+
 sub upsert_to_elasticsearch {
-    # this is metagenome ID without 'mgm' prefix - for JobDB queries
+    # input is metagenome ID - for JobDB queries
     # assume rights checking has already been done
     # returns boolean, success or failure
-    my ($self, $id, $debug) = @_;
+    my ($self, $mgid, $debug) = @_;
     
     # get job
     my $master = $self->connect_to_datasource();
+    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
         return 0;
@@ -1925,17 +1948,16 @@ sub upsert_to_elasticsearch {
     $self->json->utf8();
     my $entry = $self->json->encode($esdata);
     my $esurl = $Conf::es_host."/metagenome_index/metagenome/".$esdata->{id};
-    my $response;
+    my $response = undef;
     eval {
         my @args = (
-            'Authorization', $Conf::es_auth,
             'Content_Type', 'application/json',
             'Content', $entry
         );
         my $req = POST($esurl, @args);
         $req->method('PUT');
         my $put = $self->agent->request($req);
-        $response = $self->json->decode( $put->content );
+        $response = $self->json->decode($put->content);
     };
     if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
         return 0;
@@ -1969,9 +1991,8 @@ sub get_elastic_query {
   
   my $content;
   eval {
-    my $curl = 'curl -s "'.$server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')"';
-    my $res = `$curl`;
-    $content = $self->json->decode( $res );
+      my $res  = $self->agent->get($server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')');
+      $content = $self->json->decode($res->content);
   };
   if ($@ || (! ref($content))) {
     return undef, $@;

@@ -576,22 +576,21 @@ sub process_file {
         } else {
             $data = {is_valid => 0, message => $log, errors => $md_obj->{data}};
         }
-    }
-    elsif (($type eq 'import') || ($type eq 'update')) {
+    } elsif (($type eq 'import') || ($type eq 'update')) {
         unless ($is_valid) {
             $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", $log, @{$md_obj->{data}})}, 422);
         }
         unless ($post->{metagenome}) {
-	  $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
-	}
-	if (ref $post->{metagenome} ne "ARRAY") {
-	  $post->{metagenome} = [ $post->{metagenome} ];
+            $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
+	    }
+        if (ref $post->{metagenome} ne "ARRAY") {
+            $post->{metagenome} = [ $post->{metagenome} ];
         }
         if (($type eq 'update') && (! $post->{project})) {
             $self->return_data({"ERROR" => "Invalid parameters, update requires project ID"}, 404);
         }
 
-	# get project object (if exists)
+	    # get project object (if exists)
         my $project_name = $md_obj->{data}{project_name}{value};
         my $project_id   = ($type eq 'update') ? $post->{project} : (exists($md_obj->{id}) ? $md_obj->{id} : '');
         my $project_obj  = undef;
@@ -642,6 +641,10 @@ sub process_file {
         my ($pnum, $added, $err_msg) = $mddb->add_valid_metadata($self->user, $md_obj, \@jobs, $project_obj, $mapbyid);
         if ($added && scalar(@$added)) {
             @$added = map { 'mgm'.$_->{metagenome_id} } @$added;
+        }
+        # update elasticsearch
+        foreach my $mgid (@$added) {
+            $self->upsert_to_elasticsearch($mgid);
         }
         $data = {project => 'mgp'.$pnum, added => $added, errors => $err_msg};
     }
