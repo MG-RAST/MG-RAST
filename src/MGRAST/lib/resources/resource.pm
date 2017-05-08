@@ -1969,7 +1969,7 @@ sub get_elastic_query {
   
   my $content;
   eval {
-    my $curl = 'curl -s -u '.$Conf::es_auth.' "'.$server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')"';
+    my $curl = 'curl -s "'.$server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')"';
     my $res = `$curl`;
     $content = $self->json->decode( $res );
   };
