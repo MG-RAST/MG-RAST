@@ -1928,7 +1928,6 @@ sub upsert_to_elasticsearch {
     my $response;
     eval {
         my @args = (
-            'Authorization', $Conf::es_auth,
             'Content_Type', 'application/json',
             'Content', $entry
         );
@@ -1969,9 +1968,8 @@ sub get_elastic_query {
   
   my $content;
   eval {
-    my $curl = 'curl -s "'.$server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')"';
-    my $res = `$curl`;
-    $content = $self->json->decode( $res );
+      my $res  = $self->agent->get($server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')');
+      $content = $self->json->decode( $res->content );
   };
   if ($@ || (! ref($content))) {
     return undef, $@;
