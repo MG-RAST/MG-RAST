@@ -86,9 +86,17 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions for metagenome ".$mgid}, 401 );
     }
     
+    # get job
+    my $master = $self->connect_to_datasource();
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        $self->return_data( {"ERROR" => "id ".$rest->[0]." does not exist"}, 404 );
+    }
+    $job = $job->[0];
+    
     # create and upsert
     my $debug = $self->cgi->param('debug');
-    my $success = $self->upsert_to_elasticsearch($id, $debug);
+    my $success = $self->upsert_to_elasticsearch($job, $debug);
     if ($debug) {
         $self->return_data($success);
     }
