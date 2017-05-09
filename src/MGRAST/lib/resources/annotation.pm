@@ -386,9 +386,6 @@ sub prepare_data {
         # get m5nr data for md5 set
         # def get_records_by_md5(self, md5s, source=None, index=False, iterator=False):
         my $info = $m5nrhdl->get_records_by_md5(\@umd5s, $source);
-        foreach my $set (@$info) {
-            print $self->json->encode($set)."\n";
-        }
         # print processed records, return count
         $count += $self->print_recs(\@recs, $info, $format, $type, $filetype, \%filter_list, $filter);
     }
