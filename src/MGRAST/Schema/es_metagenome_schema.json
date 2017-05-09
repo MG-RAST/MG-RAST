@@ -181,7 +181,7 @@
                 "project_greengenes_id" : {
                     "type": "keyword"
                 },
-                "project_ebi_id" : {
+                "project_project_ebi_id" : {
                     "type": "keyword"
                 },
                 "library_library_id" : {
@@ -213,7 +213,7 @@
                 "library_pubmed_id" : {
                     "type": "keyword"
                 },
-                "library_ebi_id" : {
+                "library_library_ebi_id" : {
                     "type": "keyword"
                 },
                 "sample_sample_id" : {
@@ -294,8 +294,20 @@
                         }
                     }
                 },
-                "sample_ebi_id" : {
+                "sample_sample_ebi_id" : {
                     "type": "keyword"
+                },
+                "sample_ncbi_taxonomy_id" : {
+                    "type" : "integer"
+                },
+                "sample_ncbi_taxonomy_scientific_name" : {
+                    "type" : "text"
+                },
+                "sample_envo_id" : {
+                    "type" : "keyword"
+                },
+                "sample_envo_label" : {
+                    "type" : "text"
                 },
                 "env_package_env_package_id" : {
                     "type": "keyword"

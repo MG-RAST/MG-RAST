@@ -1843,14 +1843,37 @@ sub cassandra_matrix {
     return Inline::Python::Object->new('__main__', 'Matrix', $hosts, $version);
 }
 
+sub delete_from_elasticsearch {
+    # returns boolean, success or failure
+    my ($self, $mgid) = @_;
+    
+    unless ($mgid) {
+        return 0;
+    }
+    if ($mgid !~ /^mgm/) {
+        $mgid = 'mgm'.$mgid;
+    }
+    my $esurl = $Conf::es_host."/metagenome_index/metagenome/".$mgid;
+    my $response = undef;
+    eval {
+        my $del = $self->agent->delete($esurl);
+        $response = $self->json->decode($del->content);
+    };
+    if ($@ || (! ref($response)) || $response->{error} || (! $response->{result}) || ($response->{result} eq 'not_found')) {
+        return 0;
+    }
+    return 1;
+}
+
 sub upsert_to_elasticsearch {
-    # this is metagenome ID without 'mgm' prefix - for JobDB queries
+    # input is metagenome ID - for JobDB queries
     # assume rights checking has already been done
     # returns boolean, success or failure
-    my ($self, $id) = @_;
+    my ($self, $mgid, $debug) = @_;
     
     # get job
     my $master = $self->connect_to_datasource();
+    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
         return 0;
@@ -1858,18 +1881,92 @@ sub upsert_to_elasticsearch {
     $job = $job->[0];
     
     # get data
-    my $mddb = MGRAST::Metadata->new();
+    my $esdata = {};
+    my $mddb   = MGRAST::Metadata->new();
+    my $mixs   = $mddb->is_job_compliant($job);
     my $m_data = $mddb->get_job_metadata($job);
     my $a_data = $job->data();
     my $s_data = $job->stats();
     
-    # map 
+    # map
+    my $tMap = $ElasticSearch::types;
+    my $fMap = $ElasticSearch::fields;
+    map { $fMap->{$_} = (split(/\./, $fMap->{$_}))[0] } keys %$fMap;
     
+    # job info
+    foreach my $k (keys %$job) {
+        if ($k && exists($fMap->{$k}) && defined($job->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $job->{$k});
+        }
+    }
+    # job attributes
+    foreach my $k (keys %$a_data) {
+        if ($k && (exists $fMap->{$k}) && defined($a_data->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $a_data->{$k});
+        }
+    }
+    # job stats
+    foreach my $k (keys %$s_data) {
+        if ($k && (exists $fMap->{$k}) && defined($s_data->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $s_data->{$k});
+        }
+    }
+    # job metadata
+    foreach my $md (('project', 'sample', 'library', 'env_package')) {
+        if (exists($m_data->{$md}) && $m_data->{$md}{id} && $m_data->{$md}{name} && $m_data->{$md}{data}) {
+            $esdata->{ $fMap->{$md.'_id'} } = $self->jsonTypecast($tMap->{$md.'_id'}, $m_data->{$md}{id});
+            $esdata->{ $fMap->{$md.'_name'} } = $self->jsonTypecast($tMap->{$md.'_name'}, $m_data->{$md}{name});
+            if (exists($fMap->{$md.'_type'}) && $m_data->{$md}{type}) {
+                $esdata->{ $fMap->{$md.'_type'} } = $self->jsonTypecast($tMap->{$md.'_type'}, $m_data->{$md}{type});
+            }
+            foreach my $k (keys %{$m_data->{$md}{data}}) {
+                # special case for ebi_id
+                if (($k eq 'ebi_id') && defined($m_data->{$md}{data}{$k})) {
+                    my $kx = $md.'_'.$k;
+                    $esdata->{ $fMap->{$kx} } = $self->jsonTypecast($tMap->{$kx}, $m_data->{$md}{data}{$k});
+                } elsif ($k && (exists $fMap->{$k}) && defined($m_data->{$md}{data}{$k})) {
+                    $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k});
+                }
+            }
+        }
+    }
+    $esdata->{id} = "mgm".$id;
+    $esdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
+    
+    # clean
+    foreach my $k (keys %$esdata) {
+        if (! defined($esdata->{$k})) {
+            delete $esdata->{$k};
+        }
+    }
+    
+    if ($debug) {
+        return $esdata;
+    }
+    
+    # PUT docuemnt
+    $self->json->utf8();
+    my $entry = $self->json->encode($esdata);
+    my $esurl = $Conf::es_host."/metagenome_index/metagenome/".$esdata->{id};
+    my $response = undef;
+    eval {
+        my @args = (
+            'Content_Type', 'application/json',
+            'Content', $entry
+        );
+        my $req = POST($esurl, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode($put->content);
+    };
+    if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
+        return 0;
+    }
     return 1;
 }
 
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $offset, $limit, $in) = @_;
+  my ($self, $server, $query, $order, $dir, $offset, $limit, $in, $private) = @_;
 
   my $fields = [];
   foreach my $q (@$query) {
@@ -1879,15 +1976,23 @@ sub get_elastic_query {
 
   my $instring = "";
   if ($in) {
-    $instring = " AND (job_info_public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
+    $instring = ($query_string eq "" ? "" : " AND ");
+    if ($private) {
+      $instring .= "".$in->[0] .":(".join(" OR ", @{$in->[1]}).")";
+    } else {
+      $instring .= "(job_info_public:1 OR ".$in->[0] .":(".join(" OR ", @{$in->[1]})."))";
+    }
   }
   $query_string .= $instring;
   $query_string =~ s/\s/\%20/g;
+  if ($query_string eq "") {
+    $query_string = "*";
+  }
   
   my $content;
   eval {
-    my $res = `curl -u elastic:mgrast "$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string$instring)"`;
-    $content = $self->json->decode( $res );
+      my $res  = $self->agent->get($server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')');
+      $content = $self->json->decode($res->content);
   };
   if ($@ || (! ref($content))) {
     return undef, $@;
@@ -2151,6 +2256,7 @@ sub metadata_validation {
         # add metadata json format to inbox
         if ($is_inbox && $self->user) {
             my $md_basename = fileparse($node->{file}{name}, qr/\.[^.]*/);
+            $self->json->utf8();
             my $md_string = $self->json->encode($data);
             my $json_attr = {
                 type  => 'inbox',
@@ -2686,6 +2792,39 @@ sub strToNum {
     } else {
         return $x * 1.0;
     }
+}
+
+sub jsonTypecast {
+    my ($self, $type, $val) = @_;
+    unless (defined($val)) {
+        return undef;
+    }
+    if (($type eq 'text') || ($type eq 'keyword')) {
+        $val =~ s/^\s+//;
+        $val =~ s/\s+$//;
+        $val =~ s/\s+/ /g;
+        $val = lc($val);
+    } elsif (($type eq 'integer') || ($type eq 'long')) {
+        if ($val =~ /^[+-]?\d+$/) {
+            $val = int($val);
+        } else {
+            $val = undef;
+        }
+    } elsif ($type eq 'float') {
+        if ($val =~ /^[+-]?\d*\.?\d+$/) {
+            $val = $val * 1.0
+        } else {
+            $val = undef;
+        }
+    } elsif ($type eq 'date') {
+        $val =~ s/^\s+//;
+        $val =~ s/\s+$//;
+        $val =~ s/\s+/T/;
+        $val =~ s/\-00/-01/g;
+    } elsif ($type eq 'boolean') {
+        $val = $val ? JSON::true : JSON::false;
+    }
+    return $val;
 }
 
 sub get_alpha_diversity {
