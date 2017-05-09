@@ -77,13 +77,7 @@
                 "job_info_sequence_type" : {
                     "type": "keyword"
                 },
-                "job_info_version" : {
-                    "type": "integer"
-                },
-                "job_info_seq_method" : {
-                    "type": "keyword"
-                },
-                "job_info_created": {
+                "job_info_created_on": {
                     "type": "date",
                     "format": "strict_date_optional_time||epoch_millis"
                 },
@@ -159,12 +153,6 @@
                         }
                     }
                 },
-                "project_PI_organization_country" : {
-                    "type": "keyword"
-                },
-                "project_organization_country" : {
-                    "type": "keyword"
-                },
                 "project_organization" : {
                     "type": "text",
                     "fields": {
@@ -172,6 +160,12 @@
                             "type": "keyword"
                         }
                     }
+                },
+                "project_PI_organization_country" : {
+                    "type": "keyword"
+                },
+                "project_organization_country" : {
+                    "type": "keyword"
                 },
                 "project_project_funding" : {
                    "type": "text",
@@ -182,6 +176,12 @@
                     }
                 },
                 "project_ncbi_id" : {
+                    "type": "keyword"
+                },
+                "project_greengenes_id" : {
+                    "type": "keyword"
+                },
+                "project_project_ebi_id" : {
                     "type": "keyword"
                 },
                 "library_library_id" : {
@@ -198,10 +198,22 @@
                 "library_investigation_type" : {
                     "type": "keyword"
                 },
+                "library_seq_meth" : {
+                    "type": "keyword"
+                },
+                "library_target_gene" : {
+                    "type": "text"
+                },
+                "library_mrna_percent" : {
+                    "type": "float"
+                },
                 "library_gold_id" : {
                     "type": "keyword"
                 },
                 "library_pubmed_id" : {
+                    "type": "keyword"
+                },
+                "library_library_ebi_id" : {
                     "type": "keyword"
                 },
                 "sample_sample_id" : {
@@ -219,7 +231,12 @@
                     "type": "date"
                 },
                 "sample_env_package" : {
-                    "type": "keyword"
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
                 },
                 "sample_biome" : {
                     "type": "text",
@@ -260,11 +277,11 @@
                 "sample_elevation" : {
                     "type": "float"
                 },
-                "sample_continent" : {
-                    "type": "keyword"
-                },
                 "sample_temperature" : {
                     "type": "float"
+                },
+                "sample_continent" : {
+                    "type": "keyword"
                 },
                 "sample_country" : {
                     "type": "keyword"
@@ -276,6 +293,21 @@
                             "type": "keyword"
                         }
                     }
+                },
+                "sample_sample_ebi_id" : {
+                    "type": "keyword"
+                },
+                "sample_ncbi_taxonomy_id" : {
+                    "type" : "integer"
+                },
+                "sample_ncbi_taxonomy_scientific_name" : {
+                    "type" : "text"
+                },
+                "sample_envo_id" : {
+                    "type" : "keyword"
+                },
+                "sample_envo_label" : {
+                    "type" : "text"
                 },
                 "env_package_env_package_id" : {
                     "type": "keyword"
@@ -289,7 +321,12 @@
                     }
                 },
                 "env_package_env_package_type" : {
-                    "type": "keyword"
+                    "type": "text",
+                    "fields": {
+                        "keyword": { 
+                            "type": "keyword"
+                        }
+                    }
                 },
                 "pipeline_parameters_pipeline_version" : {
                     "type": "keyword"

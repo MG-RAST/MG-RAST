@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use Getopt::Long;
-
+use ElasticSearch;
 use Data::Dumper;
 use JSON;
 use DBI;
@@ -17,12 +17,15 @@ sub usage {
 }
 
 my ($username, $password, $mgid, $outfile, $host);
+my ($jid, $pid, $sid, $lid, $eid);
 
-GetOptions( 'user=s' => \$username,
-	    'pass=s' => \$password,
-            'id=s' => \$mgid,
-	    'host=s' => \$host,
-	    'outfile=s' => \$outfile );
+GetOptions(
+    'user=s'    => \$username,
+    'pass=s'    => \$password,
+    'id=s'      => \$mgid,
+    'host=s'    => \$host,
+    'outfile=s' => \$outfile
+);
 
 unless ($username) {
   &usage;
@@ -31,15 +34,32 @@ unless ($username) {
 
 $outfile = $outfile || "dump.json";
 
+my $json = JSON->new();
+$json->max_size(0);
+$json->allow_nonref;
+$json->utf8();
+
+my $pMap = $ElasticSearch::prefixes;
+
 my $dbh = DBI->connect("DBI:mysql:database=JobDB".($host ? ";host=$host": ""), $username, $password, { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) || die "Database connect error: $@";
 
-my $jobs = $dbh->selectall_arrayref("SELECT _id, metagenome_id, job_id, public, name, sequence_type, created_on, primary_project, library, sample FROM Job".($mgid ? " WHERE metagenome_id=$mgid" : ""));
-my $j_id = $jobs->[0]->[0];
-my $pid = $jobs->[0]->[7];
-my $sid = $jobs->[0]->[8];
-my $lid = $jobs->[0]->[9];
+my $jobs = $dbh->selectall_hashref("SELECT _id, primary_project, sample, library, metagenome_id, job_id, public, name, sequence_type, created_on FROM Job".($mgid ? " WHERE metagenome_id='$mgid'" : ""), "_id");
+if ($mgid) {
+    $jid = (keys %$jobs)[0];
+    $pid = $jobs->{$jid}{'primary_project'};
+    $sid = $jobs->{$jid}{'sample'};
+    $lid = $jobs->{$jid}{'library'};
+}
 
-my $ja = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobAttributes WHERE value IS NOT NULL AND tag IN ('pipeline_version', 'aa_pid', 'assembled', 'bowtie', 'dereplicate', 'fgs_type', 'file_type', 'filter_ambig', 'filter_ln', 'filter_ln_mult', 'm5nr_annotation_version', 'm5nr_sims_version', 'm5rna_annotation_version', 'm5rna_sims_version', 'max_ambig', 'prefix_length', 'priority', 'rna_pid', 'screen_indexes') AND job IS NOT NULL".($mgid ? " AND job=$j_id" : ""));
+my $ep = $dbh->selectall_arrayref("SELECT parent, _id FROM MetaDataCollection WHERE type='ep' AND parent IS NOT NULL".(($mgid && $sid) ? " AND parent=$sid" : ""));
+my $sample_ep = {};
+%$sample_ep = map { $_->[0] => $_->[1] } @$ep;
+if ($mgid && $sid && exists($sample_ep->{$sid})) {
+    $eid = $sample_ep->{$sid};
+}
+
+my $aSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'pipeline_parameters_'}}, 'sequencing_method_guess')).")";
+my $ja = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobAttributes WHERE value IS NOT NULL AND job IS NOT NULL AND tag IN $aSet".($mgid ? " AND job=$jid" : ""));
 my $jobattributes = {};
 foreach my $j (@$ja) {
   if (! exists $jobattributes->{$j->[0]}) {
@@ -48,11 +68,22 @@ foreach my $j (@$ja) {
   $jobattributes->{$j->[0]}->{$j->[1]} = $j->[2];
 }
 
-my $p = $dbh->selectall_arrayref("SELECT _id, name, id FROM Project".($mgid ? " WHERE _id=$pid" : ""));
-my $projects;
-%$projects = map { $_->[0] => $_ } @$p;
+my $sSet = "(".join(",", map { "'".$_."'" } @{$pMap->{'job_stat_'}}).")";
+my $js = $dbh->selectall_arrayref("SELECT job, tag, value FROM JobStatistics WHERE value IS NOT NULL AND job IS NOT NULL AND tag IN $sSet".($mgid ? " AND job=$jid" : ""));
+my $jobstatistics = {};
+foreach my $j (@$js) {
+  if (! exists $jobstatistics->{$j->[0]}) {
+    $jobstatistics->{$j->[0]} = {};
+  }
+  $jobstatistics->{$j->[0]}->{$j->[1]} = $j->[2];
+}
 
-my $pmd = $dbh->selectall_arrayref("SELECT project, tag, value FROM ProjectMD WHERE value IS NOT NULL AND tag IN ('organization', 'organization_country', 'firstname', 'lastname', 'funding', 'pi_organization', 'pi_organization_country', 'pi_firstname', 'pi_lastname', 'ncbi_id')".($mgid ? " AND project=$pid" : ""));
+my $p = $dbh->selectall_arrayref("SELECT _id, name, id FROM Project".(($mgid && $pid) ? " WHERE _id=$pid" : ""));
+my $projects = {};
+%$projects = map { $_->[0] => {'project_name' => $_->[1], 'project_id' => $_->[2]} } @$p;
+
+my $pSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'project_'}}, 'ebi_id')).")";
+my $pmd = $dbh->selectall_arrayref("SELECT project, tag, value FROM ProjectMD WHERE value IS NOT NULL AND project IS NOT NULL AND tag IN $pSet".(($mgid && $pid) ? " AND project=$pid" : ""));
 my $projectMD = {};
 foreach my $p (@$pmd) {
   if (! exists $projectMD->{$p->[0]}) {
@@ -61,11 +92,12 @@ foreach my $p (@$pmd) {
   $projectMD->{$p->[0]}->{$p->[1]} = $p->[2];
 }
 
-my $col = $dbh->selectall_arrayref("SELECT _id, name, ID FROM MetaDataCollection".($mgid && $sid && $lid ? " WHERE _id IN ($sid, $lid)" : ""));
-my $collections;
-%$collections = map { $_->[0] => $_ } @$col;
+my $col = $dbh->selectall_arrayref("SELECT _id, name, ID FROM MetaDataCollection".(($mgid && $sid && $lid && $eid) ? " WHERE _id IN ($sid, $lid, $eid)" : ""));
+my $collections = {};
+%$collections = map { $_->[0] => {'name' => $_->[1], 'id' => $_->[2]} } @$col;
 
-my $mde = $dbh->selectall_arrayref("SELECT collection, tag, value FROM MetaDataEntry WHERE value IS NOT NULL AND tag IN ('gold_id', 'pubmed_id', 'collection_date', 'feature', 'latitude', 'longitude', 'altitude', 'depth', 'elevation', 'continent', 'biome', 'temperature', 'country', 'env_package_type', 'env_package_name', 'env_package_id', 'location', 'seq_meth', 'mrna_percent', 'target_gene', 'investigation_type', 'material')".($mgid && $sid && $lid ? " AND collection IN ($sid, $lid)" : ""));
+my $mSet = "(".join(",", map { "'".$_."'" } (@{$pMap->{'sample_'}}, @{$pMap->{'library_'}}, 'ebi_id')).")";
+my $mde = $dbh->selectall_arrayref("SELECT collection, tag, value FROM MetaDataEntry WHERE value IS NOT NULL AND collection IS NOT NULL AND tag IN $mSet".(($mgid && $sid && $lid && $eid) ? " AND collection IN ($sid, $lid, $eid)" : ""));
 my $metadata = {};
 foreach my $m (@$mde) {
   if (! exists $metadata->{$m->[0]} ) {
@@ -74,246 +106,190 @@ foreach my $m (@$mde) {
   $metadata->{$m->[0]}->{$m->[1]} = $m->[2];
 }
 
-my $ep = $dbh->selectall_arrayref("SELECT parent, value, name FROM MetaDataCollection, MetaDataEntry WHERE tag='env_package' AND MetaDataCollection._id=MetaDataEntry.collection AND parent IS NOT NULL".($mgid && $sid ? " AND parent=$sid" : ""));
-foreach my $e (@$ep) {
-  $metadata->{$e->[0]}->{env_package_type} = $e->[1];
-  $metadata->{$e->[0]}->{env_package_name} = $e->[2];
-}
+$dbh->disconnect();
 
-my $jaMap = {
-	     "pipeline_version" => [ "pipeline_parameters_pipeline_version", 0 ],
-	     "aa_pid" => [ "pipeline_parameters_aa_pid", 1 ],
-	     "assembled" => [ "pipeline_parameters_assembled", 2 ],
-	     "bowtie" => [ "pipeline_parameters_bowtie", 2 ],
-	     "dereplicate" => [ "pipeline_parameters_dereplicate", 2 ],
-	     "fgs_type" => [ "pipeline_parameters_fgs_type", 0 ],
-	     "file_type" => [ "pipeline_parameters_file_type", 0 ],
-	     "filter_ambig" => [ "pipeline_parameters_filter_ambig", 2 ],
-	     "filter_ln" => [ "pipeline_parameters_filter_ln", 2 ],
-	     "filter_ln_mult" => [ "pipeline_parameters_filter_ln_mult", 1 ],
-	     "m5nr_annotation_version" => [ "pipeline_parameters_m5nr_annotation_version", 1 ],
-	     "m5nr_sims_version" => [ "pipeline_parameters_m5nr_sims_version", 1 ],
-	     "m5rna_annotation_version" => [ "pipeline_parameters_m5rna_annotation_version", 1 ],
-	     "m5rna_sims_version" => [ "pipeline_parameters_m5rna_sims_version", 1 ],
-	     "max_ambig" => [ "pipeline_parameters_max_ambig", 1 ],
-	     "prefix_length" => [ "pipeline_parameters_prefix_length", 1 ],
-	     "priority" => [ "pipeline_parameters_priority", 0 ],
-	     "rna_pid" => [ "pipeline_parameters_rna_pid", 1 ],
-	     "screen_indexes" => [ "pipeline_parameters_screen_indexes", 0 ]
-	    };
-
-my $pMap = {
-	    "organization" => "project_organization",
-	    "organization_country" => "project_organization_country",
-	    "firstname" => "project_firstname",
-	    "lastname" => "project_lastname",
-	    "funding" => "project_funding",
-	    "PI_organization" => "project_PI_organization",
-	    "PI_organization_country" => "project_PI_organization_country",
-	    "PI_firstname" => "project_PI_firstname",
-	    "PI_lastname" => "project_PI_lastname",
-	    "ncbi_id" => "project_ncbi_id"
-	   };
-
-my $libMap = {
-	      "gold_id" => "library_gold_id",
-	      "pubmed_id" => "library_pubmed_id",
-	      "seq_meth" => "job_info_seq_method",
-	      "investigation_type" => "library_investigation_type"
-	     };
-
-my $sampMap = {
-	       "env_package_type" => [ "env_package_env_package_type", 0 ],
-	       "altitude" => [ "sample_altitude", 1 ],
-	       "depth" => [ "sample_depth", 1 ],
-	       "elevation" => [ "sample_elevation", 1 ],
-	       "continent" => [ "sample_continent", 0 ],
-	       "env_package_id" => [ "env_package_env_package_id", 0 ],
-	       "temperature" => [ "sample_temperature", 1 ],
-	       "biome" => [ "sample_biome", 0 ],
-	       "collection_date" => [ "sample_collection_date", 0 ],
-	       "feature" => [ "sample_feature", 0 ],
-	       "latitude" => [ "sample_latitude", 1 ],
-	       "longitude" => [ "sample_longitude", 1 ],
-	       "country" => [ "sample_country", 0 ],
-	       "env_package_name" => [ "env_package_env_package_name", 0 ],
-	       "location" => [ "sample_location", 0 ],
-	       "material" => [ "sample_material", 0 ]
-	      };
-
-my $mixsList = [
-		"biome",
-		"collection_date",
-		"feature",
-		"latitude",
-		"longitude",
-		"country",
-		"env_package_name",
-		"location",
-		"material"
-	       ];
+my $fMap = $ElasticSearch::fields;
+my $tMap = $ElasticSearch::types;
+my $mMap = $ElasticSearch::mixs;
+my $iMap = $ElasticSearch::ids;
+map { $fMap->{$_} = (split(/\./, $fMap->{$_}))[0] } keys %$fMap;
 
 if ($outfile ne "stream") {
   open(FH, ">$outfile") or die "could not open outfile: $outfile";
-
   print FH "[\n";
 } else {
   print "[\n";
 }
 
 my $count = 1;
-my $num = scalar(@$jobs);
-foreach my $job (@$jobs) {
+my $total = scalar(keys %$jobs);
 
-  my $mixs = 1;
-  my $hasSM = 0;
-  
-  # Job
-  $job->[6] =~ s/\s/T/;
-  $job->[6] =~ s/\-00/-01/g;
-  my $entry = '{ "id": "mgm'.$job->[1].'", "job_info_job_id": '.$job->[2].', "job_info_public": '.($job->[3] ? "true" : "false").', "job_info_name": "'.$job->[4].'", "job_info_sequence_type": "'.($job->[5]||"unknown").'", "job_info_created": "'.$job->[6].'"';
-
-  # job attributes
-  if (exists $jobattributes->{$job->[0]}) {
-    foreach my $k (keys %{$jobattributes->{$job->[0]}}) {
-      $entry .= ', "'.$jaMap->{$k}->[0].'": ';
-      if ($jaMap->{$k}->[1] == 0) {
-	$entry .= '"'.$jobattributes->{$job->[0]}->{$k}.'"';
-      } elsif ($jaMap->{$k}->[1] == 1) {
-	$entry .= sprintf("%g", $jobattributes->{$job->[0]}->{$k});
-      } else {
-	$entry .= $jobattributes->{$job->[0]}->{$k} ? "true" : "false";
-      }
-    }
-  }
-
-  # project
-  if ($job->[7] && exists $projects->{$job->[7]}) {
-    $projects->{$job->[7]}->[1] = &cleanse($projects->{$job->[7]}->[1]);
+foreach my $jid (keys %$jobs) {
     
-    $entry .= ', "project_project_name": "'.$projects->{$job->[7]}->[1].'", "project_project_id": "mgp'.$projects->{$job->[7]}->[2].'"';
+    my $jdata = {};
+    my $mixs  = 1;
+    my $job   = $jobs->{$jid};
+    my $eid   = undef;
 
-    # project md
-    if (exists $projectMD->{$projects->{$job->[7]}[0]}) {
-
-      foreach my $k (keys %{$projectMD->{$projects->{$job->[7]}[0]}}) {
-	$projectMD->{$projects->{$job->[7]}[0]}->{$k} = &cleanse($projectMD->{$projects->{$job->[7]}[0]}->{$k});
-	$entry .= ', "'.$pMap->{$k}.'": "'.$projectMD->{$projects->{$job->[7]}[0]}->{$k}.'"';
-      }
-      
-    } else {
-      $mixs = 0;
+    $pid = $job->{'primary_project'};
+    $sid = $job->{'sample'};
+    $lid = $job->{'library'};
+    $eid = ($sid && $sample_ep->{$sid}) ? $sample_ep->{$sid} : undef;
+    
+    # job_info
+    foreach my $k (%$job) {
+        if ($k && exists($fMap->{$k}) && defined($job->{$k})) {
+            $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $job->{$k});
+        }
+    }
+  
+    # job attributes
+    if (exists $jobattributes->{$jid}) {
+        foreach my $k (keys %{$jobattributes->{$jid}}) {
+            if ($k && (exists $fMap->{$k}) && defined($jobattributes->{$jid}{$k})) {
+                $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $jobattributes->{$jid}{$k});
+            }
+        }
     }
     
-  }
-
-  # library
-  if ($job->[8] && exists $collections->{$job->[8]}) {
-    $entry .= ', "library_library_name": "'.&cleanse($collections->{$job->[8]}->[1]).'", "library_library_id": "'.$collections->{$job->[8]}->[2].'"';
-
-    if (exists $metadata->{$collections->{$job->[8]}->[0]}) {
-
-      foreach my $k (keys %{$metadata->{$collections->{$job->[8]}->[0]}}) {
-	next unless exists $libMap->{$k};
-	$metadata->{$collections->{$job->[8]}->[0]}->{$k} = &cleanse($metadata->{$collections->{$job->[8]}->[0]}->{$k});
-	$entry .= ', "'.$libMap->{$k}.'": "'.$metadata->{$collections->{$job->[8]}->[0]}->{$k}.'"';
-      }
-
-      if (! exists $metadata->{$collections->{$job->[8]}->[0]}->{seq_meth}) {
-	$mixs = 0;
-      } else {
-	$hasSM = 1;
-      }
-      
-      if (exists $metadata->{$collections->{$job->[8]}->[0]}->{investigation_type}) {
-	if ($metadata->{$collections->{$job->[8]}->[0]}->{investigation_type} eq 'metatranscriptome' && ! exists $metadata->{$collections->{$job->[8]}->[0]}->{mrna_percent}) {
-	  $mixs = 0;
-	} elsif ($metadata->{$collections->{$job->[8]}->[0]}->{investigation_type} eq 'mimarks-survey' && ! exists $metadata->{$collections->{$job->[8]}->[0]}->{target_gene}) {
-	  $mixs = 0;
-	}
-      } else {
-	$mixs = 0;
-      }
-      
-    } else {
-      $mixs = 0;
+    # job statistics
+    if (exists $jobstatistics->{$jid}) {
+        foreach my $k (keys %{$jobstatistics->{$jid}}) {
+            if ($k && exists($fMap->{$k}) && defined($jobstatistics->{$jid}{$k})) {
+                $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $jobstatistics->{$jid}{$k});
+            }
+        }
     }
     
-  } else {
-    $mixs = 0;
-  }
-
-  unless ($hasSM) {
-    if (exists $jobattributes->{$job->[0]} && exists $jobattributes->{$job->[0]}->{sequencing_method_guess}) {
-      $entry .= ', "job_info_seq_method": "'.$jobattributes->{$job->[0]}->{sequencing_method_guess}.'"';
+    # project
+    if ($pid && exists($projects->{$pid})) {
+        foreach my $k (keys %{$projects->{$pid}}) {
+            if ($k && exists($fMap->{$k}) && defined($projects->{$pid}{$k})) {
+                $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $projects->{$pid}{$k});
+            }
+        }
+        if (exists $projectMD->{$pid}) {
+            foreach my $k (keys %{$projectMD->{$pid}}) {
+                # special case for ebi_id
+                if (($k eq 'ebi_id') && defined($projectMD->{$pid}{$k})) {
+                    my $kx = 'project_'.$k;
+                    $jdata->{ $fMap->{$kx} } = typecast($tMap->{$kx}, $projectMD->{$pid}{$k});
+                } elsif ($k && exists($fMap->{$k}) && defined($projectMD->{$pid}{$k})) {
+                    $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $projectMD->{$pid}{$k});
+                }
+            }
+        }
     }
-  }
-
-  # sample
-  if ($job->[9] && exists $collections->{$job->[9]}) {
-    $collections->{$job->[9]}->[1] = &cleanse($collections->{$job->[9]}->[1]);
-    $entry .= ', "sample_sample_name": "'.$collections->{$job->[9]}->[1].'", "sample_sample_id": "'.$collections->{$job->[9]}->[2].'"';
-
-    if (exists $metadata->{$collections->{$job->[9]}->[0]}) {
-
-      foreach my $k (keys %{$metadata->{$collections->{$job->[9]}->[0]}}) {
-	next unless $sampMap->{$k};
-	$entry .= ', "'.$sampMap->{$k}->[0].'": ';
-	$metadata->{$collections->{$job->[9]}->[0]}->{$k} = &cleanse($metadata->{$collections->{$job->[9]}->[0]}->{$k});
-	if ($sampMap->{$k}->[1]) {
-	  $entry .= sprintf("%g", $metadata->{$collections->{$job->[9]}->[0]}->{$k});
-	} else {
-      if ($k eq 'collection_date') {
-          $metadata->{$collections->{$job->[9]}->[0]}->{$k} =~ s/\s/T/;
-          $metadata->{$collections->{$job->[9]}->[0]}->{$k} =~ s/\-00/-01/g;
-      }
-	  $entry .= '"'.$metadata->{$collections->{$job->[9]}->[0]}->{$k}.'"';
-	}
-      }
-      
-      foreach my $m (@$mixsList) {
-	unless (exists $metadata->{$collections->{$job->[9]}->[0]}->{$m}) {
-	  $mixs = 0;
-	  last;
-	}
-      }
+    
+    # collections - need to double prefix for id and name
+    foreach my $col ((['sample_', $sid], ['library_', $lid], ['env_package_', $eid])) {
+        my $cid = $col->[1];
+        if ($cid && exists($collections->{$cid})) {
+            foreach my $k (keys %{$collections->{$cid}}) {
+                $k = $col->[0].$k;
+                if (exists($fMap->{$k}) && defined($collections->{$cid}{$k})) {
+                    $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $collections->{$cid}{$k});
+                }
+            }
+        }
+        if ($cid && exists($metadata->{$cid})) {
+            foreach my $k (keys %{$metadata->{$cid}}) {
+                # special case for ebi_id
+                if (($k eq 'ebi_id') && defined($metadata->{$cid}{$k})) {
+                    my $kx = $col->[0].$k;
+                    $jdata->{ $fMap->{$kx} } = typecast($tMap->{$kx}, $metadata->{$cid}{$k});
+                } elsif (exists($fMap->{$k}) && defined($metadata->{$cid}{$k})) {
+                    $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $metadata->{$cid}{$k});
+                }
+            }
+        }
+    }
+    
+    # special case fix
+    unless (exists $jdata->{library_seq_meth}) {
+        if (exists $jobattributes->{$jid}{sequencing_method_guess}) {
+            $jdata->{library_seq_meth} = $jobattributes->{$jid}{sequencing_method_guess};
+        }
+    }
+    
+    # clean
+    foreach my $k (keys %$jdata) {
+        if (! defined($jdata->{$k})) {
+            delete $jdata->{$k};
+        }
+    }
+    
+    # mixs
+    foreach my $m (@$mMap) {
+        if (! exists($jdata->{$m})) {
+            $mixs = 0;
+        }
+    }
+    if (exists $jdata->{library_investigation_type}) {
+        if (($jdata->{library_investigation_type} eq 'metatranscriptome') && (! exists($jdata->{library_mrna_percent}))) {
+            $mixs = 0;
+        } elsif (($jdata->{library_investigation_type} eq 'mimarks-survey') && (! exists($jdata->{library_target_gene}))) {
+            $mixs = 0;
+        }
+    }
+    $jdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
+    
+    # id prefixes
+    foreach my $k (keys %$iMap) {
+        my $pre = $iMap->{$k};
+        if (exists($jdata->{$k}) && ($jdata->{$k} !~ /^$pre/)) {
+            $jdata->{$k} = $pre.$jdata->{$k};
+        }
+    }
+    
+    my $entry = $json->encode($jdata);
+    if ($outfile ne "stream") {
+        print FH $entry.($count == $total ? "" : ",")."\n";
     } else {
-      $mixs = 0;
+        print $entry.($count == $total ? "" : ",")."\n";
     }
-  } else {
-    $mixs = 0;
-  }
-
-  $entry .= ', "job_info_mixs_compliant": '.($mixs ? "true" : "false");
-  
-  # close
-  $entry .= ' }'.($count == $num ? "" : ",")."\n";
-
-  if ($outfile ne "stream") {
-    print FH $entry;
-  } else {
-    print $entry;
-  }
-  
-
-  $count++;
+    $count++;
 }
 
 if ($outfile ne "stream") {
   print FH "]\n";
-  
   close FH;
 } else {
   print "]\n";
 }
 
-sub cleanse {
-  my ($val) = @_;
-
-  $val =~ s/\\//g;
-  $val =~ s/"/\\"/g;
-  $val =~ s/\t/ /g;
-  $val =~ s/\s\s+/ /g;
-
-  return $val;
+sub typecast {
+    my ($type, $val) = @_;
+    unless (defined($val)) {
+        return undef;
+    }
+    if (($type eq 'text') || ($type eq 'keyword')) {
+        $val =~ s/^\s+//;
+        $val =~ s/\s+$//;
+        $val =~ s/\s+/ /g;
+        $val = lc($val);
+    } elsif (($type eq 'integer') || ($type eq 'long')) {
+        if ($val =~ /^[+-]?\d+$/) {
+            $val = int($val);
+        } else {
+            $val = undef;
+        }
+    } elsif ($type eq 'float') {
+        if ($val =~ /^[+-]?\d*\.?\d+$/) {
+            $val = $val * 1.0
+        } else {
+            $val = undef;
+        }
+    } elsif ($type eq 'date') {
+        $val =~ s/^\s+//;
+        $val =~ s/\s+$//;
+        $val =~ s/\s+/T/;
+        $val =~ s/\-00/-01/g;
+    } elsif ($type eq 'boolean') {
+        $val = $val ? JSON::true : JSON::false;
+    }
+    return $val;
 }
+
+sub TO_JSON { return { %{ shift() } }; }
+
