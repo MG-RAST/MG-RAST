@@ -360,7 +360,7 @@ sub prepare_data {
     unless (($format eq 'sequence') && ($filetype eq 'fasta')) {
         print join("\t", @head)."\n";
     }
-        
+    
     # loop through indexes and print data
     my $count = 0;
     foreach my $idx (@$index_set) {
@@ -386,6 +386,9 @@ sub prepare_data {
         # get m5nr data for md5 set
         # def get_records_by_md5(self, md5s, source=None, index=False, iterator=False):
         my $info = $m5nrhdl->get_records_by_md5(\@umd5s, $source);
+        foreach my $set (@$info) {
+            print $self->json->encode($set)."\n";
+        }
         # print processed records, return count
         $count += $self->print_recs(\@recs, $info, $format, $type, $filetype, \%filter_list, $filter);
     }
@@ -402,7 +405,8 @@ sub prepare_data {
 sub print_recs {
     my ($self, $recs, $info, $format, $type, $filetype, $filter_list, $filter) = @_;
     
-    my $count = 0;    
+    my $count = 0;
+    my $md5_ann = {};
     # process annotations per md5
     foreach my $set (@$info) {
         # get annotation set based on options / build string
@@ -446,24 +450,26 @@ sub print_recs {
             }
         }
         if (@ann == 0) { next; }
-        my $ann_str = join(";", @ann);
-        
-        # process records
-        foreach my $rec (@$recs) {
-		    my $out = "";
-		    if (($format eq 'sequence') && (@$rec == 13)) {
-		        if ($filetype eq 'fasta') {
-		            $out = ">".$rec->[0]."|".$rec->[1]." ".$ann_str."\n".$rec->[12];
-	            } elsif ($filetype eq 'tab') {
-		            $out = join("\t", map {$_ || ''} ($rec->[0], $rec->[1], $rec->[12], $ann_str));
-	            }
-		    } elsif ($format eq 'similarity') {
-		        $out = join("\t", map {$_ || ''} (@$rec[0..11], $ann_str));
-		    }
-		    print $out."\n";
-		    $count += 1;
-	    }
+        $md5_ann->{$set->{md5}} = join(";", @ann);
     }
+    
+    # process records
+    foreach my $rec (@$recs) {
+	    my $out = "";
+	    my $md5 = $rec->[1];
+	    unless ($md5_ann->{$md5}) { next; }
+	    if (($format eq 'sequence') && (@$rec == 13)) {
+	        if ($filetype eq 'fasta') {
+	            $out = ">".$rec->[0]."|".$md5." ".$md5_ann->{$md5}."\n".$rec->[12];
+	        } elsif ($filetype eq 'tab') {
+	            $out = join("\t", map {$_ || ''} ($rec->[0], $md5, $rec->[12], $md5_ann->{$md5}));
+	        }
+	    } elsif ($format eq 'similarity') {
+	        $out = join("\t", map {$_ || ''} (@$rec[0..11], $md5_ann->{$md5}));
+	    }
+	    print $out."\n";
+	    $count += 1;
+	}
     return $count;
 }
 
