@@ -4,6 +4,9 @@ use strict;
 use warnings;
 no warnings('once');
 
+use File::Slurp;
+use POSIX qw(strftime);
+
 use MGRAST::Metadata;
 use Conf;
 use parent qw(resources::resource);
@@ -37,8 +40,6 @@ sub new {
         "cv" => {
             "ontology" => [ 'hash', [{'key' => ['string', 'metadata label'],
                             'value' => ['list', [ 'list', ['string', 'ontology term and ID'] ]]}, 'list of CV terms for metadata'] ],
-            "ont_info" => [ 'hash', [{'key' => ['string', 'metadata label'],
-                            'value' => ['list', ['string', 'ontology url and ID']]}, 'term IDs for metadata'] ],
             "select"   => [ 'hash', [{'key' => ['string', 'metadata label'],
                             'value' => ['list', ['string', 'CV term']]}, 'list of CV terms for metadata'] ]
         },
@@ -129,6 +130,22 @@ sub info {
                                      'version' => ['string', 'version of CV ontology to use']
                                 }}
             },
+            { 'name'        => "cv",
+              'request'     => $self->cgi->url."/".$self->name."/cv",
+              'description' => "Update metadata CV select list, requires admin auth token",
+              'method'      => "POST",
+              'type'        => "synchronous",
+              'attributes'  => { "status"    => ['string', 'status of update'],
+                                 "timestamp" => ['date', 'time of completion'] },
+              'parameters'  => { 'options'  => {},
+                                 'required' => {},
+                                 'body'     => {
+                                     'data'   => ['list', ['string', 'select item to add']],
+                                     'label'  => ['string', 'metadata label'],
+                                     'action' => ['cv', [['add', 'add POSTed values to current list'],
+                           								 ['replace', 'replace current list with POSTed values']]],
+                                }}
+            },
             { 'name'        => "ontology",
               'request'     => $self->cgi->url."/".$self->name."/ontology",
               'description' => "Returns static ontology used in metadata for the given name and version.",
@@ -142,6 +159,36 @@ sub info {
                                     'version' => ['string', 'version of ontology to use'] },
                                  'body'     => {},
                                  'options'  => {} }
+            },
+            { 'name'        => "ontology",
+              'request'     => $self->cgi->url."/".$self->name."/ontology",
+              'description' => "Update metadata CV ontology with new version, requires admin auth token",
+              'method'      => "POST",
+              'type'        => "synchronous",
+              'attributes'  => { "status"    => ['string', 'status of update'],
+                                 "timestamp" => ['date', 'time of completion'] },
+              'parameters'  => { 'options'  => {},
+                                 'required' => {},
+                                 'body'     => {
+                                     'upload'  => ['file', 'file with data'],
+                                     'name'    => ['string', 'ontology name'],
+                                     'term'    => ['string', 'term ID for lookup, required for ENVO'],
+                                     'version' => ['string', 'version of ontology to add']
+                                }}
+            },
+            { 'name'        => "ontology",
+              'request'     => $self->cgi->url."/".$self->name."/ontology",
+              'description' => "Remove metadata CV ontology with given version, requires admin auth token",
+              'method'      => "DELETE",
+              'type'        => "synchronous",
+              'attributes'  => { "status"    => ['string', 'status of update'],
+                                 "timestamp" => ['date', 'time of completion'] },
+              'parameters'  => { 'options'  => {},
+                                 'required' => {},
+                                 'body'     => {
+                                     'name'    => ['string', 'ontology name'],
+                                     'version' => ['string', 'version of ontology to add']
+                                 }}
             },
             { 'name'        => "version",
               'request'     => $self->cgi->url."/".$self->name."/version",
@@ -157,7 +204,7 @@ sub info {
             },
             { 'name'        => "view",
               'request'     => $self->cgi->url."/".$self->name."/view/{label}",
-              'description' => "Returns list of unique metadata values for given label",
+              'description' => "Returns list of unique metadata values submitted by users for given label",
               'example'     => [ $self->cgi->url."/".$self->name."/view/biome",
                                  'all biome values' ],
               'method'      => "GET",
@@ -263,6 +310,10 @@ sub request {
         $self->info();
     } elsif ($self->rest->[0] =~ /^(template|cv|ontology|version)$/) {
         $self->static($self->rest->[0]);
+    } elsif (($self->rest->[0] =~ /^(cv|ontology)$/) && ($self->method eq 'POST')) {
+        $self->update($self->rest->[0]);
+    } elsif (($self->rest->[0] eq 'ontology') && ($self->method eq 'DELETE')) {
+        $self->delete_ont();
     } elsif (($self->rest->[0] eq 'view') && (scalar(@{$self->rest}) == 2)) {
         $self->list_values($self->rest->[1]);
     } elsif (($self->rest->[0] eq 'export') && (scalar(@{$self->rest}) == 2)) {
@@ -315,13 +366,11 @@ sub static {
                 latest_version => $latest,
                 versions => $mddb->cv_ontology_versions(),
                 ontology => {},
-                ont_info => {},
                 select => $mddb->get_cv_all()
             };
             while ( ($label, $ver) = each(%$latest) ) {
                 if (exists $self->{ontologies}{$label}) {
                     $data->{ontology}{$label} = $mddb->get_cv_ontology($label, $ver);
-                    $data->{ont_info}{$label} = $mddb->cv_ontology_info($label);
                 }
             }
         }
@@ -329,10 +378,13 @@ sub static {
     } elsif ($type eq 'ontology') {
         my $ver  = $self->cgi->param('version') || '';
         my $name = $self->cgi->param('name') || '';
-        unless ($ver && $name) {
-            $self->return_data( {"ERROR" => "'name' and 'version' are required parameters"}, 404 );
+        unless ($name) {
+            $self->return_data( {"ERROR" => "'name' is a required parameter"}, 404 );
         }
-        my $nodes = $self->get_shock_query({'type'=>'ontology', 'name'=>$name, 'version'=>$ver});
+        unless ($ver) {
+            $ver = $mddb->cv_latest_version($name);
+        }
+        my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $name, 'version' => $ver});
         unless ($nodes && (@$nodes == 1)) {
             $self->return_data( {"ERROR" => "ontology data for $name (version $ver) is missing or corrupt"}, 500 );
         }
@@ -350,6 +402,144 @@ sub static {
     		             unit       => $o->unit };
             $data->{$o->category_type}{$o->category}{$o->tag} = $info;
         }
+    }
+    $self->return_data($data);
+}
+
+# delete ontology based on given name and version
+sub delete_ont {
+    my ($self) = @_;
+    
+    unless ($self->user->is_admin('MGRAST')) {
+        $self->info();
+    }
+    my $post = $self->get_post_data(["name", "version"]);
+    unless ($post->{data} && @{$post->{data}} && $post->{label}) {
+        $self->return_data({"ERROR" => "Missing parameters, requires: name, version"}, 404);
+    }
+    # delete from mysql
+    my $mddb = MGRAST::Metadata->new();
+    $mddb->del_cv_ontology($post->{name}, $post->{version});
+    # delete from shock
+    my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $post->{name}, 'version' => $post->{version}});
+    foreach my $n (@$nodes) {
+        $self->delete_shock_node($n->{id}, $self->mgrast_token)
+    }
+    $self->return_data({status => "completed", timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)});
+}
+
+# update metadata CV select list or ontology
+sub update {
+    my ($self, $type) = @_;
+    
+    unless ($self->user->is_admin('MGRAST')) {
+        $self->info();
+    }
+    
+    my $data = { status => "", timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime) };
+    my $mddb = MGRAST::Metadata->new();
+    
+    if ($type eq 'cv') {
+        my $post = $self->get_post_data(["data", "label", "action"]);
+        unless ($post->{data} && @{$post->{data}} && $post->{label}) {
+            $self->return_data({"ERROR" => "Missing parameters, requires: data, label"}, 404);
+        }
+        my $dataset = {};
+        unless ($post->{action} && ($post->{action} eq 'replace')) {
+            # default is to add current to new
+            my $current = $mddb->get_cv_select($post->{label});
+            map { $dataset->{$_} = 1 } @$current;
+        }
+        map { $dataset->{$_} = 1 } @{$post->{data}};
+        $mddb->del_cv_select($post->{label});
+        $mddb->put_cv_select($post->{label}, [keys %$dataset]);
+        data->{status} = "completed";
+    }
+    elsif ($type eq 'ontology') {
+        my $post = $self->get_post_data(["upload", "name", "term", "version"]);
+        unless ($post->{upload} && $post->{name} && $post->{version}) {
+            $self->return_data({"ERROR" => "Missing parameters, requires: upload, name, term, version"}, 404);
+        }
+        # check if this version already exists
+        my $current = $mddb->get_cv_ontology($post->{name}, $post->{version});
+        if ($current && (@$current > 0)) {
+            $self->return_data({"ERROR" => "Ontology ".$post->{name}." at version ".$post->{version}." already exists with ".scalar(@$current)." terms"}, 404);
+        }
+        
+        # get file
+        my $tmp_dir = $Conf::temp;
+        my $fname = $post->{upload};
+        if ($fname =~ /\.\./) {
+            $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
+        }
+        if ($fname !~ /^[\w\d_\.]+$/) {
+            $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, . and number characters"}, 400);
+        }
+        my $fhdl = $self->cgi->upload('upload');
+        unless ($fhdl) {
+            $self->return_data({"ERROR" => "Storing object failed - could not obtain filehandle"}, 507);
+        }
+        my $io_handle = $fhdl->handle;
+        if (open FH, ">$tmp_dir/$fname") {
+            my ($bytesread, $buffer);
+            while ($bytesread = $io_handle->read($buffer, 4096)) {
+        	    print FH $buffer;
+        	}
+            close FH;
+        } else {
+            $self->return_data({"ERROR" => "Storing object failed - could not open target file"}, 507);
+        }
+        
+        my $list = [];
+        my $hier = undef;
+        
+        if ($post->{name} eq 'ebi_taxonomy') {
+            # get flattened list
+            my $hier_str = read_file("$tmp_dir/$fname");
+            $hier = $self->json->decode($hier_str);
+            foreach my $n (@{$hier->{nodes}}) {
+                push @$list, [ $n->{label}, $n->{id} ];
+            }
+        }
+        elsif ($post->{name} =~ /^(biome|feature|material)$/) {
+            unless ($post->{term}) {
+                $self->return_data({"ERROR" => "Missing 'term' parameter"}, 404);
+            }
+            # get flattened list
+            my $lcmd = $Conf::parse_obo." -i $tmp_dir/$fname -g descendents -t ".$post->{term};
+            eval {
+                my $temp = `$lcmd`;
+                $list = $self->json->decode($temp);
+            };
+            if ($@ || (! $list)) {
+                $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}}, 500);
+            }
+            # get hierarchy struct
+            my $hinfo = {
+                'type' => 'ontology',
+                'name' => $post->{name},
+                'showRoot' => JSON::false,
+                'rootNode' => $post->{term},
+                'version'  => $post->{version}
+            };
+            my $hcmd = $Conf::parse_obo." -f -i $tmp_dir/$fname -g descendents -t ".$post->{term}." -m '".$self->json->encode($hinfo)."'";
+            eval {
+                my $temp = `$hcmd`;
+                $hier = $self->json->decode($temp);
+            };
+            if ($@ || (! $hier)) {
+                $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}}, 500);
+            }
+        }
+        # update mysql DB
+        $mddb->put_cv_ontology($post->{name}, $post->{version}, $list);
+        # set latest version
+        $mddb->set_cv_latest_version($post->{name}, $post->{version}, $hier->{rootNode});
+        # POST to shock / make public
+        my $node = $self->set_shock_node($post->{name}."_".$post->{version}, undef, $hier, $self->mgrast_token);
+        $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');        
+        
+        data->{status} = "completed";
     }
     $self->return_data($data);
 }
