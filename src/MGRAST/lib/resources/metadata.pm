@@ -381,6 +381,9 @@ sub static {
         unless ($name) {
             $self->return_data( {"ERROR" => "'name' is a required parameter"}, 404 );
         }
+        unless (exists $onts->{$name}) {
+            $self->return_data( {"ERROR" => "No ontology exists for $name"}, 404 );
+        }
         unless ($ver) {
             $ver = $mddb->cv_latest_version($name);
         }
@@ -415,13 +418,18 @@ sub delete_ont {
     }
     # delete from mysql
     my $mddb = MGRAST::Metadata->new();
+    # check if this version already exists
+    my $current = $mddb->get_cv_ontology($post->{name}, $post->{version});
+    unless ($current && (@$current > 0)) {
+        $self->return_data({"ERROR" => "Ontology ".$post->{name}." at version ".$post->{version}." does not exist"}, 404);
+    }
     $mddb->del_cv_ontology($post->{name}, $post->{version});
     # delete from shock
     my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $post->{name}, 'version' => $post->{version}});
     foreach my $n (@$nodes) {
         $self->delete_shock_node($n->{id}, $self->mgrast_token)
     }
-    $self->return_data({status => "completed", timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)});
+    $self->return_data({status => "completed", deleted => scalar(@$current), timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)});
 }
 
 # update metadata CV select list or ontology
