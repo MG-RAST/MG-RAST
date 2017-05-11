@@ -121,7 +121,7 @@ sub cv_ontology_types {
     my ($self) = @_;
     my $ont = {};
     my $dbh = $self->{_handle}->db_handle;
-    my $tmp = $dbh->selectrow_arrayref("SELECT DISTINCT tag FROM MetaDataCV WHERE type='ontology'");
+    my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT tag FROM MetaDataCV WHERE type='ontology'");
     if ($tmp && @$tmp) {
         map { $ont->{$_} = 1 } @$tmp;
     }    
