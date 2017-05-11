@@ -448,8 +448,8 @@ sub update {
         # delete and replace
         $mddb->del_cv_select($post->{label});
         $mddb->put_cv_select($post->{label}, [keys %$dataset]);
-        data->{updated} = scalar(@{$post->{data}});
-        data->{status}  = "completed";
+        $data->{updated} = scalar(@{$post->{data}});
+        $data->{status}  = "completed";
     }
     elsif ($type eq 'ontology') {
         my $post = $self->get_post_data(["upload", "name", "term", "version", "debug"]);
@@ -553,7 +553,8 @@ sub update {
             my $node = $self->set_shock_node($post->{name}."_".$post->{version}, undef, $hier, $self->mgrast_token);
             $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');        
         }
-        data->{status} = "completed";
+        $data->{updated} = scalar(@$list);
+        $data->{status}   = "completed";
     }
     $self->return_data($data);
 }
