@@ -307,7 +307,7 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif ($self->rest->[0] =~ /^(template|cv|ontology|version)$/) {
+    } elsif (($self->rest->[0] =~ /^(template|cv|ontology|version)$/) && ($self->method eq 'GET')) {
         $self->static($self->rest->[0]);
     } elsif (($self->rest->[0] =~ /^(cv|ontology)$/) && ($self->method eq 'POST')) {
         $self->update($self->rest->[0]);
