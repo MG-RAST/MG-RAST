@@ -117,6 +117,17 @@ sub del_cv_select {
   $dbh->commit;
 }
 
+sub cv_ontology_types {
+    my ($self) = @_;
+    my $ont = {};
+    my $dbh = $self->{_handle}->db_handle;
+    my $tmp = $dbh->selectrow_arrayref("SELECT DISTINCT tag FROM MetaDataCV WHERE type='ontology'");
+    if ($tmp && @$tmp) {
+        map { $ont->{$_} = 1 } @$tmp;
+    }    
+    return $ont;
+}
+
 sub get_cv_ontology {
   my ($self, $tag, $version) = @_;
   if (! $version) {

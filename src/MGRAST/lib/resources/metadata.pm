@@ -20,7 +20,6 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "metadata";
-    $self->{ontologies} = { 'biome' => 1, 'feature' => 1, 'material' => 1 };
     $self->{attributes} = {
         "template" => {
             "project" => [ 'hash', [{'key' => ['string', 'project type'],
@@ -333,12 +332,14 @@ sub request {
 sub static {
     my ($self, $type) = @_;
     
+    my $mddb = MGRAST::Metadata->new();
+    my $onts = $mddb->cv_ontology_types();
     my $data = {};
+    
     # get versions for ontologies
     if ($type eq 'version') {
-        my $mddb  = MGRAST::Metadata->new();
         my $label = $self->cgi->param('label') || '';
-        if ($label && exists($self->{ontologies}{$label})) {
+        if ($label && exists($onts->{$label})) {
             $data = $mddb->cv_ontology_versions($label);
         } else {
             $data = $mddb->cv_ontology_versions();
@@ -347,13 +348,12 @@ sub static {
     } elsif ($type eq 'cv') {
         my $ver   = $self->cgi->param('version') || '';
         my $label = $self->cgi->param('label') || '';
-        my $mddb  = MGRAST::Metadata->new();
         # get a specific label / version
         if ($label) {
-            if (exists $self->{ontologies}{$label}) {
+            if (exists $onts->{$label}) {
                 $data = $mddb->get_cv_ontology($label, $ver);
             } else {
-                # select options as versionless
+                # select options are versionless
                 $data = $mddb->get_cv_select($label);
             }
             if (! $data) {
@@ -369,7 +369,7 @@ sub static {
                 select => $mddb->get_cv_all()
             };
             while ( ($label, $ver) = each(%$latest) ) {
-                if (exists $self->{ontologies}{$label}) {
+                if (exists $onts->{$label}) {
                     $data->{ontology}{$label} = $mddb->get_cv_ontology($label, $ver);
                 }
             }
@@ -391,16 +391,12 @@ sub static {
         $data = $nodes->[0]->{attributes};
     # get template data
     } elsif ($type eq 'template') {
-        my $master = $self->connect_to_datasource();
-        my $objs = $master->MetaDataTemplate->get_objects();
-        foreach my $o (@$objs) {
-            my $info = { aliases    => [ $o->mgrast_tag, $o->qiime_tag ],
-    		             definition => $o->definition,
-    		             required   => $o->required,
-    		             mixs       => $o->mixs,
-    		             type       => $o->type,
-    		             unit       => $o->unit };
-            $data->{$o->category_type}{$o->category}{$o->tag} = $info;
+        my $temp = $mddb->template();
+        foreach my $cat (keys %$temp) {
+            my $cat_type = $temp->{$cat}{category_type};
+            my $cat_data = $temp->{$cat};
+            delete $cat_data->{category_type};
+            $data->{$cat_type}{$cat} = $cat_data;
         }
     }
     $self->return_data($data);
@@ -414,7 +410,7 @@ sub delete_ont {
         $self->info();
     }
     my $post = $self->get_post_data(["name", "version"]);
-    unless ($post->{data} && @{$post->{data}} && $post->{label}) {
+    unless ($post->{name} && $post->{version}) {
         $self->return_data({"ERROR" => "Missing parameters, requires: name, version"}, 404);
     }
     # delete from mysql
@@ -435,7 +431,6 @@ sub update {
     unless ($self->user->is_admin('MGRAST')) {
         $self->info();
     }
-    
     my $data = { status => "", timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime) };
     my $mddb = MGRAST::Metadata->new();
     
@@ -447,23 +442,24 @@ sub update {
         my $dataset = {};
         unless ($post->{action} && ($post->{action} eq 'replace')) {
             # default is to add current to new
-            my $current = $mddb->get_cv_select($post->{label});
-            map { $dataset->{$_} = 1 } @$current;
+            map { $dataset->{$_} = 1 } @{$mddb->get_cv_select($post->{label})};
         }
         map { $dataset->{$_} = 1 } @{$post->{data}};
+        # delete and replace
         $mddb->del_cv_select($post->{label});
         $mddb->put_cv_select($post->{label}, [keys %$dataset]);
-        data->{status} = "completed";
+        data->{updated} = scalar(@{$post->{data}});
+        data->{status}  = "completed";
     }
     elsif ($type eq 'ontology') {
-        my $post = $self->get_post_data(["upload", "name", "term", "version"]);
+        my $post = $self->get_post_data(["upload", "name", "term", "version", "debug"]);
         unless ($post->{upload} && $post->{name} && $post->{version}) {
-            $self->return_data({"ERROR" => "Missing parameters, requires: upload, name, term, version"}, 404);
+            $self->return_data({"ERROR" => "Missing parameters, requires: upload, name, version"}, 404);
         }
         # check if this version already exists
         my $current = $mddb->get_cv_ontology($post->{name}, $post->{version});
         if ($current && (@$current > 0)) {
-            $self->return_data({"ERROR" => "Ontology ".$post->{name}." at version ".$post->{version}." already exists with ".scalar(@$current)." terms"}, 404);
+            $self->return_data({"ERROR" => "Ontology ".$post->{name}." at version ".$post->{version}." already exists with ".scalar(@$current)." entries"}, 404);
         }
         
         # get file
@@ -495,10 +491,21 @@ sub update {
         
         if ($post->{name} eq 'ebi_taxonomy') {
             # get flattened list
-            my $hier_str = read_file("$tmp_dir/$fname");
-            $hier = $self->json->decode($hier_str);
-            foreach my $n (@{$hier->{nodes}}) {
-                push @$list, [ $n->{label}, $n->{id} ];
+            eval {
+                my $hier_str = read_file("$tmp_dir/$fname");
+                $hier = $self->json->decode($hier_str);
+            };
+            if ($@ || (! $hier)) {
+                $self->return_data({"ERROR" => "Unable to JSON decode file $fname"}, 500);
+            }
+            eval {
+                foreach my $n (@{$hier->{nodes}}) {
+                    push @$list, [ $n->{label}, $n->{id} ];
+                }
+                $post->{term} = $hier->{rootNode};
+            };
+            if ($@ || (! $list)) {
+                $self->return_data({"ERROR" => "Unable to parse file $fname, invalid JSON struct"}, 500);
             }
         }
         elsif ($post->{name} =~ /^(biome|feature|material)$/) {
@@ -531,14 +538,21 @@ sub update {
                 $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}}, 500);
             }
         }
-        # update mysql DB
-        $mddb->put_cv_ontology($post->{name}, $post->{version}, $list);
-        # set latest version
-        $mddb->set_cv_latest_version($post->{name}, $post->{version}, $hier->{rootNode});
-        # POST to shock / make public
-        my $node = $self->set_shock_node($post->{name}."_".$post->{version}, undef, $hier, $self->mgrast_token);
-        $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');        
-        
+        if ($post->{debug}) {
+            $data->{name}      = $post->{name};
+            $data->{version}   = $post->{version};
+            $data->{term}      = $post->{term};
+            $data->{list}      = $list;
+            $data->{hierarchy} = $hier;
+        } else {
+            # update mysql DB
+            $mddb->put_cv_ontology($post->{name}, $post->{version}, $list);
+            # set latest version
+            $mddb->set_cv_latest_version($post->{name}, $post->{version}, $post->{term});
+            # POST to shock / make public
+            my $node = $self->set_shock_node($post->{name}."_".$post->{version}, undef, $hier, $self->mgrast_token);
+            $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');        
+        }
         data->{status} = "completed";
     }
     $self->return_data($data);
