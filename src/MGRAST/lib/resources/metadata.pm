@@ -402,6 +402,7 @@ sub static {
             $data->{$cat_type}{$cat} = $cat_data;
         }
     }
+    $self->json->utf8();
     $self->return_data($data);
 }
 
@@ -420,14 +421,11 @@ sub delete_ont {
     my $mddb = MGRAST::Metadata->new();
     # check if this version already exists
     my $current = $mddb->get_cv_ontology($post->{name}, $post->{version});
-    unless ($current && (@$current > 0)) {
-        $self->return_data({"ERROR" => "Ontology ".$post->{name}." at version ".$post->{version}." does not exist"}, 404);
-    }
     $mddb->del_cv_ontology($post->{name}, $post->{version});
     # delete from shock
     my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $post->{name}, 'version' => $post->{version}});
     foreach my $n (@$nodes) {
-        $self->delete_shock_node($n->{id}, $self->mgrast_token)
+        $self->delete_shock_node($n->{id}, $self->token) # admin user token for delete
     }
     $self->return_data({status => "completed", deleted => scalar(@$current), timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)});
 }
@@ -476,7 +474,7 @@ sub update {
         if ($fname =~ /\.\./) {
             $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
         }
-        if ($fname !~ /^[\w\d_\.]+$/) {
+        if ($fname !~ /^[\w\d_\.\-]+$/) {
             $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, . and number characters"}, 400);
         }
         my $fhdl = $self->cgi->upload('upload');
@@ -527,7 +525,7 @@ sub update {
                 $list = $self->json->decode($temp);
             };
             if ($@ || (! $list)) {
-                $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}}, 500);
+                $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}." for list"}, 500);
             }
             # get hierarchy struct
             my $hinfo = {
@@ -543,7 +541,7 @@ sub update {
                 $hier = $self->json->decode($temp);
             };
             if ($@ || (! $hier)) {
-                $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}}, 500);
+                $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}." for hierarchy"}, 500);
             }
         }
         if ($post->{debug}) {
@@ -735,7 +733,7 @@ sub process_file {
         if ($fname =~ /\.\./) {
             $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
         }
-        if ($fname !~ /^[\w\d_\.]+$/) {
+        if ($fname !~ /^[\w\d_\.\-]+$/) {
             $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, . and number characters"}, 400);
         }
         
