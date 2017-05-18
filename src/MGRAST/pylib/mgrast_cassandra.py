@@ -148,8 +148,9 @@ class M5nrHandle(object):
         # if match is given, return subset that contains match, else all
         found = set()
         level = level.lower()
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+        query = "SELECT * FROM ont_%s WHERE source = ?"%level
         rmqLogger(self.channel, 'select', query)
+        prep = self.session.prepare(query)
         rows = self.session.execute(prep, [source])
         for r in rows:
             if match and (match.lower() in r[level].lower()):

@@ -99,6 +99,53 @@ sub get_cv_select {
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
+sub put_cv_select {
+  my ($self, $tag, $data) = @_;
+  my $dbh = $self->{_handle}->db_handle;
+  my $sth = $dbh->prepare("INSERT INTO MetaDataCV (type, tag, value) VALUES ('select', '$tag', ?)");
+  foreach my $row (@$data) {
+      $sth->execute($row);
+  }
+  $sth->finish;
+  $dbh->commit;
+}
+
+sub del_cv_select {
+  my ($self, $tag) = @_;
+  my $dbh = $self->{_handle}->db_handle;
+  $dbh->do("DELETE FROM MetaDataCV WHERE type='select' AND tag='$tag'");
+  $dbh->commit;
+}
+
+sub cv_ontology_info {
+    my ($self) = @_;
+    my $out = {};
+    my $dbh = $self->{_handle}->db_handle;
+    my $tmp = $dbh->selectall_arrayref("SELECT tag, value, value_id, value_version FROM MetaDataCV WHERE type='ontology_info'");
+    if ($tmp && @$tmp) {
+        map { $out->{$_->[0]} = [] } @$tmp;
+        foreach my $row (@$tmp) {
+            push @{$out->{$row->[0]}}, {
+                label => $row->[1],
+                id    => $row->[2],
+                url   => $row->[3]
+            };
+        }
+    }
+    return $out;
+}
+
+sub cv_ontology_types {
+    my ($self) = @_;
+    my $ont = {};
+    my $dbh = $self->{_handle}->db_handle;
+    my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT tag FROM MetaDataCV WHERE type='ontology'");
+    if ($tmp && @$tmp) {
+        map { $ont->{$_} = 1 } @$tmp;
+    }    
+    return $ont;
+}
+
 sub get_cv_ontology {
   my ($self, $tag, $version) = @_;
   if (! $version) {
@@ -109,11 +156,22 @@ sub get_cv_ontology {
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
-sub cv_ontology_info {
-  my ($self, $tag) = @_;
-  my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectrow_arrayref("SELECT DISTINCT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ont_info'");
-  return ($tmp && @$tmp) ? $tmp : ['', ''];
+sub put_cv_ontology {
+    my ($self, $tag, $version, $data) = @_;
+    my $dbh = $self->{_handle}->db_handle;
+    my $sth = $dbh->prepare("INSERT INTO MetaDataCV (type, tag, value_version, value, value_id) VALUES ('ontology', '$tag', '$version', ?, ?)");
+    foreach my $row (@$data) {
+        $sth->execute($row->[0], $row->[1]);
+    }
+    $sth->finish;
+    $dbh->commit;
+}
+
+sub del_cv_ontology {
+    my ($self, $tag, $version) = @_;
+    my $dbh = $self->{_handle}->db_handle;
+    $dbh->do("DELETE FROM MetaDataCV WHERE type='ontology' AND tag='$tag' AND value_version='$version'");
+    $dbh->commit;
 }
 
 sub cv_ontology_versions {
@@ -149,6 +207,15 @@ sub cv_latest_version {
           return {};
       }
   }
+}
+
+sub set_cv_latest_version {
+    my ($self, $tag, $version) = @_;
+    my $dbh = $self->{_handle}->db_handle;
+    my $sth = $dbh->prepare("UPDATE MetaDataCV SET value=? WHERE type='latest_version' AND tag='$tag'");
+    $sth->execute($version);
+    $sth->finish;
+    $dbh->commit;
 }
 
 =pod
