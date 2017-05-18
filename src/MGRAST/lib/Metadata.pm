@@ -117,6 +117,24 @@ sub del_cv_select {
   $dbh->commit;
 }
 
+sub cv_ontology_info {
+    my ($self) = @_;
+    my $out = {};
+    my $dbh = $self->{_handle}->db_handle;
+    my $tmp = $dbh->selectcol_arrayref("SELECT tag, value, value_id, value_version FROM MetaDataCV WHERE type='ontology_info'");
+    if ($tmp && @$tmp) {
+        map { $out->{$_->0} = [] } @$tmp;
+        foreach my $row (@$tmp) {
+            push @{$out->{$row->[0]}}, {
+                label => $row->[1],
+                id    => $row->[2],
+                url   => $row->[3]
+            };
+        }
+    }
+    return $out;
+}
+
 sub cv_ontology_types {
     my ($self) = @_;
     my $ont = {};
@@ -192,10 +210,10 @@ sub cv_latest_version {
 }
 
 sub set_cv_latest_version {
-    my ($self, $tag, $version, $id) = @_;
+    my ($self, $tag, $version) = @_;
     my $dbh = $self->{_handle}->db_handle;
-    my $sth = $dbh->prepare("UPDATE MetaDataCV SET value=?, value_id=? WHERE type='latest_version' AND tag='$tag'");
-    $sth->execute($version, $id);
+    my $sth = $dbh->prepare("UPDATE MetaDataCV SET value=? WHERE type='latest_version' AND tag='$tag'");
+    $sth->execute($version);
     $sth->finish;
     $dbh->commit;
 }

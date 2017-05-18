@@ -171,7 +171,7 @@ sub info {
                                  'body'     => {
                                      'upload'  => ['file', 'file with data'],
                                      'name'    => ['string', 'ontology name'],
-                                     'term'    => ['string', 'term ID for lookup, required for ENVO'],
+                                     'root'    => ['string', 'root ID for lookup'],
                                      'version' => ['string', 'version of ontology to add']
                                 }}
             },
@@ -191,15 +191,30 @@ sub info {
             },
             { 'name'        => "version",
               'request'     => $self->cgi->url."/".$self->name."/version",
-              'description' => "Returns all versions available for given ontology name.",
-              'example'     => [ $self->cgi->url."/".$self->name."/version?name=biome",
+              'description' => "Returns all versions available for given ontology.",
+              'example'     => [ $self->cgi->url."/".$self->name."/version?label=biome",
                                  'metadata version lookup' ],
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => $self->attributes->{version},
-              'parameters'  => { 'options'  => { 'label' => ['string', 'metadata label'] },
+              'parameters'  => { 'options'  => { 'label' => ['string', 'ontology metadata label'] },
                                  'required' => {},
                                  'body'     => {} }
+            },
+            { 'name'        => "version",
+              'request'     => $self->cgi->url."/".$self->name."/version",
+              'description' => "Change latest_version for given ontology, requires admin auth token.",
+              'example'     => [ $self->cgi->url."/".$self->name."/version",
+                                 'metadata version lookup' ],
+              'method'      => "POST",
+              'type'        => "synchronous",
+              'attributes'  => $self->attributes->{version},
+              'parameters'  => { 'options'  => {},
+                                 'required' => {},
+                                 'body'     => {
+                                     'label'   => ['string', 'ontology metadata label'],
+                                     'version' => ['string', 'version of ontology to add']
+                                 } }
             },
             { 'name'        => "view",
               'request'     => $self->cgi->url."/".$self->name."/view/{label}",
@@ -309,7 +324,7 @@ sub request {
         $self->info();
     } elsif (($self->rest->[0] =~ /^(template|cv|ontology|version)$/) && ($self->method eq 'GET')) {
         $self->static($self->rest->[0]);
-    } elsif (($self->rest->[0] =~ /^(cv|ontology)$/) && ($self->method eq 'POST')) {
+    } elsif (($self->rest->[0] =~ /^(cv|ontology|version)$/) && ($self->method eq 'POST')) {
         $self->update($self->rest->[0]);
     } elsif (($self->rest->[0] eq 'ontology') && ($self->method eq 'DELETE')) {
         $self->delete_ont();
@@ -364,9 +379,10 @@ sub static {
             my $latest = $mddb->cv_latest_version();
             $data = {
                 latest_version => $latest,
-                versions => $mddb->cv_ontology_versions(),
-                ontology => {},
-                select => $mddb->get_cv_all()
+                versions       => $mddb->cv_ontology_versions(),
+                ontology_info  => $mddb->cv_ontology_info(),
+                ontology       => {},
+                select         => $mddb->get_cv_all()
             };
             while ( ($label, $ver) = each(%$latest) ) {
                 if (exists $onts->{$label}) {
@@ -388,10 +404,16 @@ sub static {
             $ver = $mddb->cv_latest_version($name);
         }
         my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $name, 'version' => $ver});
-        unless ($nodes && (@$nodes == 1)) {
+        unless ($nodes && (@$nodes > 0)) {
             $self->return_data( {"ERROR" => "ontology data for $name (version $ver) is missing or corrupt"}, 500 );
         }
+        my ($content, $err) = $self->get_shock_file($nodes->[0]->{id});
+        if ($err) {
+            $self->return_data( {"ERROR" => "unable to retrieve $name (version $ver) ontology: ".$err}, 500 );
+        }
+        # top level info from shock attributes, nodes from shock file
         $data = $nodes->[0]->{attributes};
+        $data->{nodes} = $self->json->decode($content);
     # get template data
     } elsif ($type eq 'template') {
         my $temp = $mddb->template();
@@ -440,7 +462,20 @@ sub update {
     my $data = { status => "", timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime) };
     my $mddb = MGRAST::Metadata->new();
     
-    if ($type eq 'cv') {
+    if ($type eq 'version') {
+        my $post = $self->get_post_data(["label", "version"]);
+        unless ($post->{label} && $post->{version}) {
+            $self->return_data({"ERROR" => "Missing parameters, requires: label, version"}, 404);
+        }
+        my %current = map { $_, 1 } @{$mddb->cv_ontology_versions($label)};
+        if (exists $current{$post->{version}}) {
+            $mddb->set_cv_latest_version($post->{label}, $post->{version});
+        } else {
+            $self->return_data({"ERROR" => "Invalid version, does not exist: ".$post->{version}}, 404);
+        }
+        $data->{status}  = "completed";
+    }
+    elsif ($type eq 'cv') {
         my $post = $self->get_post_data(["data", "label", "action"]);
         unless ($post->{data} && @{$post->{data}} && $post->{label}) {
             $self->return_data({"ERROR" => "Missing parameters, requires: data, label"}, 404);
@@ -458,9 +493,9 @@ sub update {
         $data->{status}  = "completed";
     }
     elsif ($type eq 'ontology') {
-        my $post = $self->get_post_data(["upload", "name", "term", "version", "debug"]);
-        unless ($post->{upload} && $post->{name} && $post->{version}) {
-            $self->return_data({"ERROR" => "Missing parameters, requires: upload, name, version"}, 404);
+        my $post = $self->get_post_data(["upload", "name", "root", "version", "debug"]);
+        unless ($post->{upload} && $post->{name} && $post->{root} && $post->{version}) {
+            $self->return_data({"ERROR" => "Missing parameters, requires: upload, name, root, version"}, 404);
         }
         # check if this version already exists
         my $current = $mddb->get_cv_ontology($post->{name}, $post->{version});
@@ -492,71 +527,50 @@ sub update {
             $self->return_data({"ERROR" => "Storing object failed - could not open target file"}, 507);
         }
         
-        my $list = [];
+        # get hierarchy from file
         my $hier = undef;
+        eval {
+            my $hier_str = read_file("$tmp_dir/$fname");
+            $hier = $self->json->decode($hier_str);
+        };
+        if ($@ || (! $hier)) {
+            $self->return_data({"ERROR" => "Unable to JSON decode file $fname"}, 500);
+        }
         
-        if ($post->{name} eq 'ebi_taxonomy') {
-            # get flattened list
-            eval {
-                my $hier_str = read_file("$tmp_dir/$fname");
-                $hier = $self->json->decode($hier_str);
-            };
-            if ($@ || (! $hier)) {
-                $self->return_data({"ERROR" => "Unable to JSON decode file $fname"}, 500);
+        # get flat list from hierarchy
+        my $list = [];
+        eval {
+            foreach my $id (keys %$hier) {
+                push @$list, [ $hier->{$id}{label}, $id ];
             }
-            eval {
-                foreach my $n (@{$hier->{nodes}}) {
-                    push @$list, [ $n->{label}, $n->{id} ];
-                }
-                $post->{term} = $hier->{rootNode};
-            };
-            if ($@ || (! $list)) {
-                $self->return_data({"ERROR" => "Unable to parse file $fname, invalid JSON struct"}, 500);
-            }
+        };
+        if ($@ || (! $list)) {
+            $self->return_data({"ERROR" => "Unable to parse file $fname, invalid JSON struct"}, 500);
         }
-        elsif ($post->{name} =~ /^(biome|feature|material)$/) {
-            unless ($post->{term}) {
-                $self->return_data({"ERROR" => "Missing 'term' parameter"}, 404);
-            }
-            # get flattened list
-            my $lcmd = $Conf::parse_obo." -i $tmp_dir/$fname -g descendents -t ".$post->{term};
-            eval {
-                my $temp = `$lcmd`;
-                $list = $self->json->decode($temp);
-            };
-            if ($@ || (! $list)) {
-                $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}." for list"}, 500);
-            }
-            # get hierarchy struct
-            my $hinfo = {
-                'type' => 'ontology',
-                'name' => $post->{name},
-                'showRoot' => JSON::false,
-                'rootNode' => $post->{term},
-                'version'  => $post->{version}
-            };
-            my $hcmd = $Conf::parse_obo." -f -i $tmp_dir/$fname -g descendents -t ".$post->{term}." -m '".$self->json->encode($hinfo)."'";
-            eval {
-                my $temp = `$hcmd`;
-                $hier = $self->json->decode($temp);
-            };
-            if ($@ || (! $hier)) {
-                $self->return_data({"ERROR" => "Unable to parse file $fname with ".$post->{name}." term ".$post->{term}." for hierarchy"}, 500);
-            }
-        }
+        
+        # get hierarchy info struct
+        my $hier_info = {
+            'type' => 'ontology',
+            'name' => $post->{name},
+            'showRoot'  => JSON::false,
+            'rootNode'  => $post->{root},
+            'version'   => $post->{version},
+            'nodeCount' => scalar(@$list)
+        };
+        
         if ($post->{debug}) {
             $data->{name}      = $post->{name};
             $data->{version}   = $post->{version};
-            $data->{term}      = $post->{term};
+            $data->{root}      = $post->{root};
             $data->{list}      = $list;
             $data->{hierarchy} = $hier;
         } else {
             # update mysql DB
             $mddb->put_cv_ontology($post->{name}, $post->{version}, $list);
             # set latest version
-            $mddb->set_cv_latest_version($post->{name}, $post->{version}, $post->{term});
+            $mddb->set_cv_latest_version($post->{name}, $post->{version});
             # POST to shock / make public
-            my $node = $self->set_shock_node($post->{name}."_".$post->{version}, undef, $hier, $self->mgrast_token);
+            my $node = $self->set_shock_node($post->{name}."_".$post->{version}, $hier, $hier_info, $self->mgrast_token);
             $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');        
         }
         $data->{updated} = scalar(@$list);
