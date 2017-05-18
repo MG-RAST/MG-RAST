@@ -1042,6 +1042,8 @@ sub set_shock_node {
     }
     my $response = undef;
     my $content = {};
+    $self->json->utf8();
+    
     if ($file) {
         my $file_str = $not_json ? $file : $self->json->encode($file);
         $content->{upload} = [undef, $name, Content => $file_str];
