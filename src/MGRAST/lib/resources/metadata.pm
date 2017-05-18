@@ -407,13 +407,12 @@ sub static {
         unless ($nodes && (@$nodes > 0)) {
             $self->return_data( {"ERROR" => "ontology data for $name (version $ver) is missing or corrupt"}, 500 );
         }
-        my ($content, $err) = $self->get_shock_file($nodes->[0]->{id});
-        if ($err) {
-            $self->return_data( {"ERROR" => "unable to retrieve $name (version $ver) ontology: ".$err}, 500 );
-        }
-        # top level info from shock attributes, nodes from shock file
         $data = $nodes->[0]->{attributes};
-        $data->{nodes} = $self->json->decode($content);
+        $data->{nodes} = {};
+        eval {
+            my ($content, $err) = $self->get_shock_file($nodes->[0]->{id});
+            $data->{nodes} = $self->json->decode($content);
+        };
     # get template data
     } elsif ($type eq 'template') {
         my $temp = $mddb->template();
@@ -439,10 +438,10 @@ sub delete_ont {
     unless ($post->{name} && $post->{version}) {
         $self->return_data({"ERROR" => "Missing parameters, requires: name, version"}, 404);
     }
-    # delete from mysql
     my $mddb = MGRAST::Metadata->new();
     # check if this version already exists
     my $current = $mddb->get_cv_ontology($post->{name}, $post->{version});
+    # delete from mysql
     $mddb->del_cv_ontology($post->{name}, $post->{version});
     # delete from shock
     my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $post->{name}, 'version' => $post->{version}});
@@ -467,7 +466,7 @@ sub update {
         unless ($post->{label} && $post->{version}) {
             $self->return_data({"ERROR" => "Missing parameters, requires: label, version"}, 404);
         }
-        my %current = map { $_, 1 } @{$mddb->cv_ontology_versions($label)};
+        my %current = map { $_, 1 } @{$mddb->cv_ontology_versions($post->{label})};
         if (exists $current{$post->{version}}) {
             $mddb->set_cv_latest_version($post->{label}, $post->{version});
         } else {

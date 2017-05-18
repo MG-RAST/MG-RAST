@@ -121,9 +121,9 @@ sub cv_ontology_info {
     my ($self) = @_;
     my $out = {};
     my $dbh = $self->{_handle}->db_handle;
-    my $tmp = $dbh->selectcol_arrayref("SELECT tag, value, value_id, value_version FROM MetaDataCV WHERE type='ontology_info'");
+    my $tmp = $dbh->selectall_arrayref("SELECT tag, value, value_id, value_version FROM MetaDataCV WHERE type='ontology_info'");
     if ($tmp && @$tmp) {
-        map { $out->{$_->0} = [] } @$tmp;
+        map { $out->{$_->[0]} = [] } @$tmp;
         foreach my $row (@$tmp) {
             push @{$out->{$row->[0]}}, {
                 label => $row->[1],
