@@ -13,12 +13,14 @@ my $json = new JSON;
 $json = $json->utf8();
 
 my %private_resources = (
-    'job'      => 1,
-    'notebook' => 1,
-    'pipeline' => 1,
-    'resource' => 1,
-    'status'   => 1,
-    'user'     => 1
+    'heartbeat' => 1,
+    'job'       => 1,
+    'pipeline'  => 1,
+    'resource'  => 1,
+    'status'    => 1,
+    'server'    => 1,
+    'test'      => 1,
+    'user'      => 1
 );
 
 # get request method
@@ -72,7 +74,9 @@ if (opendir(my $dh, $resource_path)) {
   my @res = grep { -f "$resource_path/$_" } readdir($dh);
   closedir $dh;
   @$resources = map { my ($r) = $_ =~ /^(.*)\.pm$/; $r ? $r: (); } grep { $_ =~ /^[a-zA-Z](.*)\.pm$/ } @res;
-  @$resources = grep { ! exists($private_resources{$_}) } @$resources;
+  unless ($cgi->param('all')) {
+      @$resources = grep { ! exists($private_resources{$_}) } @$resources;
+  }
 } else {
   if ($cgi->param('POSTDATA') && ! $resource) {
     print $cgi->header(-type => 'application/json',
