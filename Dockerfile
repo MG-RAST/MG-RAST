@@ -1,9 +1,6 @@
 # MG-RAST API
 
-# MG-RAST API base 
-
 FROM httpd:2.4
-
 
 # MG-RAST dependencies
 RUN apt-get update && apt-get install -y \
@@ -36,8 +33,7 @@ RUN apt-get update && apt-get install -y \
   libtemplate-perl \
   libclass-isa-perl
   
-  
-  
+
 # R dependencies
 RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-cran-xml && \
   echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
@@ -74,12 +70,8 @@ RUN mkdir -p /sites/1/ && \
 # Configuration in mounted directory
 RUN cd /MG-RAST/conf && ln -s /api-server-conf/Conf.pm
 
-# certificates need to be in daemon home directory
-RUN ln -s /api-server-conf/postgresql/ /usr/sbin/.postgresql
-
 # m5nr blast files in mounted dir
 RUN mkdir -p /m5nr
 
 # Execute:
-# /etc/init.d/postfix start
 # /usr/local/apache2/bin/httpd -DFOREGROUND -f /api-server-conf/httpd.conf
