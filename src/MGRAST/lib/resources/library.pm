@@ -201,7 +201,7 @@ sub prepare_data {
 	          $obj->{metagenome}    = $ljob ? ["mgm".$ljob->{metagenome_id}, $url.'/metagenome/mgm'.$ljob->{metagenome_id}] : undef;
 	          $obj->{sequence_sets} = [];
 	          if ($ljob) {
-	              my ($seq_sets, $skip) = $self->get_download_set($ljob->{metagenome_id}, $self->mgrast_token, 1);
+	              my ($seq_sets, $skip) = $self->get_download_set($ljob->{metagenome_id}, undef, $self->mgrast_token, 1);
 	              $obj->{sequence_sets} = $seq_sets;
 	          }
           }
