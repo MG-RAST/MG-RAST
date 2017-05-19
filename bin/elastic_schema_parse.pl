@@ -51,6 +51,14 @@ print OUTF "use strict;\n";
 print OUTF "use warnings;\n";
 print OUTF "no warnings('once');\n\n";
 
+# ontology terms
+print OUTF "our \$ontology = {\n";
+print OUTF "\t'sample_biome' => 'biome',\n";
+print OUTF "\t'sample_feature' => 'feature',\n";
+print OUTF "\t'sample_material' => 'material',\n";
+print OUTF "\t'sample_metagenome_taxonomy' => 'metagenome_taxonomy'\n";
+print OUTF "};\n\n";
+
 # mixs list
 print OUTF "our \$mixs = [\n";
 print OUTF "\t'project_project_name',\n";

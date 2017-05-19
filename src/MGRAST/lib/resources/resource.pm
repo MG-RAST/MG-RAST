@@ -1891,6 +1891,7 @@ sub upsert_to_elasticsearch {
     my $s_data = $job->stats();
     
     # map
+    my $oMap = $ElasticSearch::ontology;
     my $tMap = $ElasticSearch::types;
     my $fMap = $ElasticSearch::fields;
     map { $fMap->{$_} = (split(/\./, $fMap->{$_}))[0] } keys %$fMap;
@@ -1934,6 +1935,16 @@ sub upsert_to_elasticsearch {
     }
     $esdata->{id} = "mgm".$id;
     $esdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
+    
+    # ontology IDs
+    foreach my $ofield (keys %$oMap) {
+        if (exists $esdata->{$ofield}) {
+            my $oid = $mddb->get_cv_ontology_id($oMap->{$ofield}, $esdata->{$ofield});
+            if ($oid) {
+                $esdata->{ $ofield.'_id' } = $oid;
+            }
+        }
+    }
     
     # clean
     foreach my $k (keys %$esdata) {
