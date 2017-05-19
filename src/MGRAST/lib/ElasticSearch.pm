@@ -9,6 +9,13 @@ use strict;
 use warnings;
 no warnings('once');
 
+our $ontology = {
+	'sample_biome' => 'biome',
+	'sample_feature' => 'feature',
+	'sample_material' => 'material',
+	'sample_metagenome_taxonomy' => 'metagenome_taxonomy'
+};
+
 our $mixs = [
 	'project_project_name',
 	'sample_biome',
