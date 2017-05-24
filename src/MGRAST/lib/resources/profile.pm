@@ -309,7 +309,7 @@ sub create_profile {
     my $mgcass = $self->cassandra_profile($param->{version});
     
     ### create profile
-    # store it in shock permanently if mgrast format
+    # store it in shock permanently if mgrast / lca format
     my $attr = undef;
     if ($param->{format} =~ /^(mgrast|lca)$/) {
         $attr = {
@@ -327,8 +327,6 @@ sub create_profile {
             format        => $param->{format},
             source        => $param->{source},
             row_total     => 0,
-            md5_queried   => 0,
-            md5_found     => 0,
             retry         => $param->{retry},
             condensed     => $param->{condensed},
             version       => $param->{version},
@@ -367,8 +365,8 @@ sub status_report_from_node {
     $report->{progress} = {
         started => $node->{created_on},
         updated => $node->{last_modified},
-        queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || 0,
-        found   => $node->{attributes}{progress}{found} || $node->{attributes}{md5_found} || 0
+        queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || $node->{attributes}{lca_queried} || 0,
+        found   => $node->{attributes}{progress}{found} || $node->{attributes}{md5_found} || $node->{attributes}{lca_found} || 0
     };
     if (exists $node->{attributes}{retry}) {
         $report->{retry} = $node->{attributes}{retry};

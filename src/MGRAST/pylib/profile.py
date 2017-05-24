@@ -74,13 +74,13 @@ class Profile(object):
         
         ## permanent: update attributes / remove expiration
         if attr:
-            attr['row_total']   = profile['row_total'] if 'row_total' in profile else profile['shape'][0]
-            if param['format'] == 'mgrast':
-                attr['md5_queried'] = node['attributes']['progress']['queried']
-                attr['md5_found']   = node['attributes']['progress']['found']
-            elif param['format'] == 'lca':
+            attr['row_total'] = profile['row_total'] if 'row_total' in profile else profile['shape'][0]
+            if param['format'] == 'lca':
                 attr['lca_queried'] = node['attributes']['progress']['queried']
                 attr['lca_found']   = node['attributes']['progress']['found']
+            else:
+                attr['md5_queried'] = node['attributes']['progress']['queried']
+                attr['md5_found']   = node['attributes']['progress']['found']
             try:
                 self.shock.upload(node=node['id'], attr=json.dumps(attr))
                 self.shock.update_expiration(node['id'])
