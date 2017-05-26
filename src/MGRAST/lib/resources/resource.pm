@@ -1981,30 +1981,36 @@ sub upsert_to_elasticsearch {
 sub get_elastic_query {
   my ($self, $server, $query, $order, $dir, $offset, $limit, $in, $private) = @_;
 
-  my $fields = [];
-  foreach my $q (@$query) {
-    push(@$fields, join(" OR ",@$q));
-  }
-  my $query_string = join(") AND (",@$fields);
+  my $postJSON = { "from" => $offset,
+		   "size" => $limit,
+		   "sort" => [ { $order => { "order" => $dir } } ],
+		   "query" => {} };
 
-  my $instring = "";
   if ($in) {
-    $instring = ($query_string eq "" ? "" : " AND ");
-    if ($private) {
-      $instring .= "".$in->[0] .":(".join(" OR ", @{$in->[1]}).")";
-    } else {
-      $instring .= "(job_info_public:1 OR ".$in->[0] .":(".join(" OR ", @{$in->[1]})."))";
-    }
+    $postJSON->{query}->{"bool"} = { "filter" => [ { "terms" => { $in->[0] => $in->[1] } } ] };
   }
-  $query_string .= $instring;
-  $query_string =~ s/\s/\%20/g;
-  if ($query_string eq "") {
-    $query_string = "*";
+
+  my $fields = [];
+  foreach my $q (keys %$query) {
+    unless (defined $postJSON->{query}) {
+      $postJSON->{query}->{"bool"} = { "filter" => [ ] };
+    }
+    my $entries = [];
+    if ($query->{$q}->{type} eq 'boolean') {
+      for (my $i=0; $i<scalar(@{$query->{$q}->{entries}}); $i++) {
+	if ($query->{$q}->{entries}->[$i]) {
+	  $query->{$q}->{entries}->[$i] = JSON::true;
+	} else {
+	  $query->{$q}->{entries}->[$i] = JSON::false;
+	}
+      }
+    }
+    push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "terms" => { $q => $query->{$q}->{entries} } });
   }
   
   my $content;
   eval {
-      my $res  = $self->agent->get($server.'/_search?from='.$offset.'&size='.$limit.'&sort='.$order.':'.$dir.'&q=('.$query_string.')');
+      my $res  = $self->agent->post($server.'/_search', Content => $self->json->encode($postJSON));
       $content = $self->json->decode($res->content);
   };
   if ($@ || (! ref($content))) {
