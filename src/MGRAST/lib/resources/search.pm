@@ -145,6 +145,9 @@ sub query {
     if (! $self->user->has_star_right('view', 'metagenome')) {
       @$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
     }
+    unless (scalar(@$in)) {
+      $in = undef;
+    }
   } else {
     $query->{"job_info_public"} = { "entries" => [ 1 ], "type" => "boolean" };
   }
