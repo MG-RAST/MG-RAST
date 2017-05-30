@@ -119,25 +119,25 @@ sub query {
   $self->cgi->param('direction', $dir);
 
   # get query fields
-  my $query = [];
+  my $query = {};
   foreach my $field (keys %{$self->{fields}}) {
     if ($self->cgi->param($field)) {
+      my $type = $ElasticSearch::types->{$field};
       my @param = $self->cgi->param($field);
       my $entries = [];
       foreach my $p (@param) {
 	if ($p =~ /\s/) {
-	  my @items = split(/\s/, $p);
-	  $p = "(".join(" AND ", @items).")";
-	}
-	if ($field eq "all") {
-	  push(@$entries, $p);
+	  push(@$entries, split(/\s/, $p));
 	} else {
-	  my $key = $self->{fields}->{$field};
-	  $key =~ s/\.keyword$//;
-	  push(@$entries, $key.':'.$p);
+	  push(@$entries, $p);
 	}
       }
-      push(@$query, $entries);
+      unless ($field eq "all") {
+	my $key = $self->{fields}->{$field};
+	$key =~ s/\.keyword$//;
+	$field = $key;
+      }
+      $query->{$field} = { "entries" => $entries, "type" => $type };
     }
   }
   my $in = undef;
@@ -145,8 +145,14 @@ sub query {
     if (! $self->user->has_star_right('view', 'metagenome')) {
       @$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
     }
+    unless (scalar(@$in)) {
+      $in = undef;
+    }
   } else {
-    push(@$query, [ "job_info_public:1" ]);
+    $query->{"job_info_public"} = { "entries" => [ 1 ], "type" => "boolean" };
+  }
+  if (defined $self->cgi->param('public') && $self->cgi->param('public') == 1) {
+    $in = undef;
   }
   my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $in ? [ "id", $in ] : undef, defined $self->cgi->param('public') && $self->cgi->param('public') == 0 );
   

@@ -178,8 +178,8 @@
         },
         {
             "cmd": {
-                "name": "mgrast_search_rna.pl",
-                "args": "-input=@[% job_id %].100.preprocess.passed.fna -output=[% job_id %].425.search.rna.fna -rna_nr=[% m5rna_clust %] -size=100 -proc=8",
+                "name": "mgrast_sortme_rna.pl",
+                "args": "-input=@[% job_id %].100.preprocess.passed.fna -output=[% job_id %].425.search.rna.fna -rna_nr=[% m5rna_clust %] -index=[% m5rna_index %] -proc=8 -mem=4096 -eval=0.1 -ident=75",
                 "description": "rna detection",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             }, 
@@ -205,6 +205,18 @@
             "predata": {
                 "[% m5rna_clust %]":{
                     "url": "[% m5rna_clust_download_url %]"
+                },
+                "[% m5rna_index_burst %]":{
+                    "url": "[% m5rna_index_burst_download_url %]"
+                },
+                "[% m5rna_index_kmer %]":{
+                    "url": "[% m5rna_index_kmer_download_url %]"
+                },
+                "[% m5rna_index_pos %]":{
+                    "url": "[% m5rna_index_pos_download_url %]"
+                },
+                "[% m5rna_index_stat %]":{
+                    "url": "[% m5rna_index_stat_download_url %]"
                 }
             },
             "userattr": {
