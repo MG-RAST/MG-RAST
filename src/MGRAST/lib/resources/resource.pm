@@ -1988,24 +1988,37 @@ sub get_elastic_query {
 
   if ($in) {
     $postJSON->{query}->{"bool"} = { "filter" => [ { "terms" => { $in->[0] => $in->[1] } } ] };
+  } else {
+    $postJSON->{query}->{"bool"} = { "filter" => [ ] };
   }
-
-  my $fields = [];
   foreach my $q (keys %$query) {
-    unless (defined $postJSON->{query}) {
-      $postJSON->{query}->{"bool"} = { "filter" => [ ] };
-    }
-    my $entries = [];
-    if ($query->{$q}->{type} eq 'boolean') {
+    my $bools = [];
+    my $wilds = {};
+    if ($q eq 'all') {
+      push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "match" => { "_all" => join(' ', @{$query->{$q}->{entries}}) } });
+    } else {
       for (my $i=0; $i<scalar(@{$query->{$q}->{entries}}); $i++) {
-	if ($query->{$q}->{entries}->[$i]) {
-	  $query->{$q}->{entries}->[$i] = JSON::true;
+	if ($query->{$q}->{type} eq 'boolean') {
+	  if ($query->{$q}->{entries}->[$i]) {
+	    $query->{$q}->{entries}->[$i] = JSON::true;
+	  } else {
+	    $query->{$q}->{entries}->[$i] = JSON::false;
+	  }
+	}
+	$query->{$q}->{entries}->[$i] = lc $query->{$q}->{entries}->[$i];
+	if ($query->{$q}->{entries}->[$i] =~ /\*/) {
+	  $wilds->{$q} = $query->{$q}->{entries}->[$i];
 	} else {
-	  $query->{$q}->{entries}->[$i] = JSON::false;
+	  push(@$bools, $query->{$q}->{entries}->[$i]);
 	}
       }
+      if (scalar(@$bools)) {
+	push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "terms" => { $q => $bools } });
+      }
+      if (scalar(keys %$wilds)) {
+	push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "wildcard" => $wilds });
+      }
     }
-    push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "terms" => { $q => $query->{$q}->{entries} } });
   }
   
   my $content;
