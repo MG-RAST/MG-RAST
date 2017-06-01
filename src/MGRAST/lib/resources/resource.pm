@@ -1978,10 +1978,6 @@ sub get_elastic_query {
   if ($in) {
     $postJSON->{query}->{"bool"} = { "filter" => [ { "terms" => { $in->[0] => $in->[1] } } ] };
   } else {
-
-  }
-
-  if (scalar(keys %$query)) {
     $postJSON->{query}->{"bool"} = { "filter" => [ ] };
   }
   foreach my $q (keys %$query) {
