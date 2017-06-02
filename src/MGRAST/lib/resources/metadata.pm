@@ -446,7 +446,7 @@ sub delete_ont {
     # delete from shock
     my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $post->{name}, 'version' => $post->{version}});
     foreach my $n (@$nodes) {
-        $self->delete_shock_node($n->{id}, $self->token) # admin user token for delete
+        $self->delete_shock_node($n->{id}, $self->mgrast_token);
     }
     $self->return_data({status => "completed", deleted => scalar(@$current), timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)});
 }

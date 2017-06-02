@@ -13,7 +13,7 @@
         "3.6" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.6.awf",
         "4.0" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.awf",
         "4.0.1" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.1.awf",
-        "4.0.2" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.2.awf",
+        "4.0.2" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.2.awf"
     },
     "upload" : {
             "title": "Upload",
