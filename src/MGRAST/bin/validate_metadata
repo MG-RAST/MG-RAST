@@ -25,6 +25,7 @@ ENVO_VER = None
 LOG_FILE = None
 JSON_FILE = None
 INVALID   = []
+ENVO_FIELD = ['biome', 'feature', 'material']
 MISC_PARAM = {
     'aliases': ['misc_param'],
     'definition' : 'any other measurement performed or parameter collected, that is not listed here',
@@ -114,6 +115,8 @@ def get_envo_version(pdata):
     else:
         ENVO_VER = pdata["envo_release"]
         for name in CV_PARAM["ontology"].iterkeys():
+            if name not in ENVO_FIELD:
+                continue
             if ENVO_VER not in CV_PARAM["versions"][name]:
                 errorMsg("envo_release '%s' for %s is not valid, use one of: %s"%(ENVO_VER, name, ", ".join(CV_PARAM["versions"][name])))
             elif ENVO_VER != CV_PARAM["latest_version"][name]:
