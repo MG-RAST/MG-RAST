@@ -9,6 +9,7 @@ use Data::Dumper;
 use parent qw(resources::resource);
 use WebApplicationDBHandle;
 use URI::Escape;
+use MGRAST::Mailer;
 
 # Override parent constructor
 sub new {
@@ -1391,9 +1392,11 @@ sub verify_email {
   $message .= "To verify your email address, please click the link below.\n";
   $message .= "<a href='".$Conf::cgi_url."/user/validateemail/".$user->_id."_".$key."'>verify email address</a>";
   
-  $user->send_email( "mg-rast\@mcs.anl.gov",
-		     'MG-RAST - verify email',
-		     $message );
+  MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
+			      from => "mg-rast\@mcs.anl.gov",
+			      to => $email,
+			      subject => 'MG-RAST - verify email',
+			      body => $message);
   
   return 1;
 }
