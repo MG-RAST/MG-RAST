@@ -898,7 +898,7 @@ sub updateRight {
 					die_on_bad_params => 0);
 	$ubody->param('WHAT', "the metagenome project $project_name");
 	$ubody->param('REGISTER', "http://metagenomics.anl.gov/mgmain.html?mgpage=register");
-	$ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
+	$ubody->param('WHOM', $self->user->firstname.' '.$self->user->lastname);
 	$ubody->param('LINK', "http://metagenomics.anl.gov/mgmain.html?mgpage=token&token=$token");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
