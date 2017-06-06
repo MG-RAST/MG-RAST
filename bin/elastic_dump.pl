@@ -106,8 +106,18 @@ foreach my $m (@$mde) {
   $metadata->{$m->[0]}->{$m->[1]} = $m->[2];
 }
 
+my $ont = $dbh->selectall_arrayref("SELECT tag, value, value_id FROM MetaDataCV WHERE type='ontology'";
+my $ontology = {};
+foreach my $o (@$ont) {
+  if (! exists $ontology->{$o->[0]} ) {
+    $ontology->{$o->[0]} = {};
+  }
+  $ontology->{$o->[0]}->{$o->[1]} = $o->[2];
+}
+
 $dbh->disconnect();
 
+my $oMap = $ElasticSearch::ontology;
 my $fMap = $ElasticSearch::fields;
 my $tMap = $ElasticSearch::types;
 my $mMap = $ElasticSearch::mixs;
@@ -201,6 +211,17 @@ foreach my $jid (keys %$jobs) {
                 } elsif (exists($fMap->{$k}) && defined($metadata->{$cid}{$k})) {
                     $jdata->{ $fMap->{$k} } = typecast($tMap->{$k}, $metadata->{$cid}{$k});
                 }
+            }
+        }
+    }
+    
+    # ontologies - get IDs
+    foreach my $ofield (keys %$oMap) {
+        if (exists $jdata->{$ofield}) {
+            my $oname  = $oMap->{$ofield};
+            my $ovalue = $jdata->{$ofield};
+            if (exists($ontology->{$oname}) && exists($ontology->{$oname}{$ovalue})) {
+                $jdata->{ $ofield.'_id' } = $ontology->{$oname}{$ovalue};
             }
         }
     }

@@ -38,8 +38,8 @@
         }
     },
     "mappings" : {
-        "metagenome_metadata" : { 
-            "dynamic_templates": [ { 
+        "metagenome_metadata" : {
+            "dynamic_templates": [ {
                     "double_t": {
                         "match" : "*_d", 
                         "mapping": {
@@ -66,7 +66,7 @@
                 "job_info_name" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -108,7 +108,7 @@
                 "project_project_name" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -116,7 +116,7 @@
                 "project_PI_firstname" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -124,7 +124,7 @@
                 "project_PI_lastname" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -132,7 +132,7 @@
                 "project_firstname" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -140,7 +140,7 @@
                 "project_lastname" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -148,7 +148,7 @@
                 "project_PI_organization" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -156,7 +156,7 @@
                 "project_organization" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -170,7 +170,7 @@
                 "project_project_funding" : {
                    "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -190,7 +190,7 @@
                 "library_library_name" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -222,7 +222,7 @@
                 "sample_sample_name" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -233,7 +233,7 @@
                 "sample_env_package" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -241,26 +241,46 @@
                 "sample_biome" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
+                },
+                "sample_biome_id" : {
+                    "type": "keyword"
                 },
                 "sample_feature" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
                 },
+                "sample_feature_id" : {
+                    "type": "keyword"
+                },
                 "sample_material" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
+                },
+                "sample_material_id" : {
+                    "type": "keyword"
+                },
+                "sample_metagenome_taxonomy" : {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "sample_metagenome_taxonomy_id" : {
+                    "type": "keyword"
                 },
                 "sample_latitude" : {
                     "type": "float"
@@ -289,7 +309,7 @@
                 "sample_location" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -315,7 +335,7 @@
                 "env_package_env_package_name" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -323,7 +343,7 @@
                 "env_package_env_package_type" : {
                     "type": "text",
                     "fields": {
-                        "keyword": { 
+                        "keyword": {
                             "type": "keyword"
                         }
                     }
@@ -401,7 +421,7 @@
                 "function" : {
                     "type": "text",
                     "fields": {
-                        "raw": { 
+                        "raw": {
                             "type": "keyword"
                         }
                     },
@@ -410,7 +430,7 @@
                 "organism" : {
                     "type": "text",
                     "fields": {
-                        "raw": { 
+                        "raw": {
                             "type": "keyword"
                         }
                     },

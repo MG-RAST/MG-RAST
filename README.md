@@ -16,7 +16,6 @@ server at http://metagenomics.anl.gov, we are not resourced to help
 with local installations. So as much as we'd like to we can't help
 with local installations of this software.
 
-
 ### REQUIREMENTS 
 
 Hardware 
@@ -29,31 +28,20 @@ resources.
 
 Systems-Software
 
-1. MySQL 
-2. PostGres 
-3. Perl 
-4. R 
-5. Apache
-6. NGINX
+1. MySQL
+2. Cassandra
+3. Perl
+4. Python
+5. R
+6. Apache
+7. NGINX
 
 For the bioinformatics software and databases used in MG-RAST please see 
 [the tools and data entry in our blog](http://blog.metagenomics.anl.gov/tools-and-data-used-in-mg-rast/)
 
 
-
 ### INSTRUCTIONS 
 type make
-
-
-### web-v3 docker
-
-```bash
-export TAG=`date +"%Y%m%d.%H%M"`
-git clone -b master https://github.com/MG-RAST/MG-RAST.git
-cd MG-RAST
-docker build --force-rm --no-cache --rm -t mgrast/v3-web:${TAG} -f ./Dockerfile_v3-web .
-skycore push mgrast/v3-web:${TAG}
-```
 
 ### API server
 
@@ -61,7 +49,6 @@ skycore push mgrast/v3-web:${TAG}
 export TAG=`date +"%Y%m%d.%H%M"`
 git clone -b api https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
-docker pull mgrast/api-base
 docker build --force-rm --no-cache --rm -t mgrast/api:${TAG} .
 skycore push mgrast/api:${TAG}
 ```

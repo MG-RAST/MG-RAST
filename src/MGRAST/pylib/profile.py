@@ -36,7 +36,25 @@ class Profile(object):
         profile = None
         
         ## if we throw an error, save it in shock node
-        if param['format'] == 'biom':
+        if param['format'] == 'mgrast':
+            try:
+                profile = self.init_mgrast_profile(param['id'], param['source'], param['source_type'], index)
+                data    = self.get_mgrast_data(param['job_id'], param['source'], index, node)
+                profile['data'] = data
+                profile['row_total'] = len(profile['data'])
+            except Exception as ex:
+                self.error_exit("unable to build mgrast profile", node, ex)
+                return
+        elif param['format'] == 'lca':
+            try:
+                profile = self.init_lca_profile(param['id'])
+                data    = self.get_lca_data(param['job_id'], node)
+                profile['data'] = data
+                profile['row_total'] = len(profile['data'])
+            except Exception as ex:
+                self.error_exit("unable to build lca profile", node, ex)
+                return
+        elif param['format'] == 'biom':
             try:
                 profile    = self.init_biom_profile(param['id'], param['source'], param['source_type'])
                 rows, data = self.get_biom_data(param['job_id'], param['source'], node)
@@ -45,15 +63,6 @@ class Profile(object):
                 profile['shape'][0] = len(profile['rows'])
             except Exception as ex:
                 self.error_exit("unable to build BIOM profile", node, ex)
-                return
-        elif param['format'] == 'mgrast':
-            try:
-                profile = self.init_mgrast_profile(param['id'], param['source'], param['source_type'], index)
-                data    = self.get_mgrast_data(param['job_id'], param['source'], index, node)
-                profile['data'] = data
-                profile['row_total'] = len(profile['data'])
-            except Exception as ex:
-                self.error_exit("unable to build mgrast profile", node, ex)
                 return
         else:
             self.error_exit("unable to build profile, invalid format", node)
@@ -65,9 +74,13 @@ class Profile(object):
         
         ## permanent: update attributes / remove expiration
         if attr:
-            attr['row_total']   = profile['row_total'] if 'row_total' in profile else profile['shape'][0]
-            attr['md5_queried'] = node['attributes']['progress']['queried']
-            attr['md5_found']   = node['attributes']['progress']['found']
+            attr['row_total'] = profile['row_total'] if 'row_total' in profile else profile['shape'][0]
+            if param['format'] == 'lca':
+                attr['lca_queried'] = node['attributes']['progress']['queried']
+                attr['lca_found']   = node['attributes']['progress']['found']
+            else:
+                attr['md5_queried'] = node['attributes']['progress']['queried']
+                attr['md5_found']   = node['attributes']['progress']['found']
             try:
                 self.shock.upload(node=node['id'], attr=json.dumps(attr))
                 self.shock.update_expiration(node['id'])
@@ -104,7 +117,18 @@ class Profile(object):
             'condensed'   : 'true' if index else 'false',
             'row_total'   : 0,
             'data'        : []
-	    }    
+	    }
+    
+    def init_lca_profile(self, mgid):
+        return {
+            'id'          : mgid,
+            'created'     : datetime.datetime.now().isoformat(),
+            'version'     : self.version,
+            'source'      : 'LCA',
+            'columns'     : ["lca", "abundance", "e-value", "percent identity", "alignment length", "md5s", "level"],
+            'row_total'   : 0,
+            'data'        : []
+	    }
     
     def init_biom_profile(self, mgid, source, stype):
         return {
@@ -176,6 +200,23 @@ class Profile(object):
                 prev = self.update_progress(node, total, found, prev)
         if count > 0:
             found, data = append_profile(found, data, md5_row)
+        self.update_progress(node, total, found, 0) # last update
+        return data
+    
+    def get_lca_data(self, job, node=None):
+        data  = []
+        found = 0
+        total = 0
+        prev  = time.time()
+        recs  = self.jobs.get_lca_records(job, ['lca', 'abundance', 'exp_avg', 'ident_avg', 'len_avg', 'md5s', 'level'])
+        for r in recs:
+            total += 1
+            if not r[0]:
+                continue
+            data.append(r)
+            found += 1
+            if (total % 1000) == 0:
+                prev = self.update_progress(node, total, found, prev)
         self.update_progress(node, total, found, 0) # last update
         return data
     

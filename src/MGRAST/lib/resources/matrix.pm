@@ -235,29 +235,10 @@ sub instance {
         $self->return_data({"status" => "submitted", "id" => $sorted[0]->{id}, "url" => $self->cgi->url."/status/".$sorted[0]->{id}});
     }
     
-    # check if all jobs exist in cassandra DB / also tests DB connection
-    my $in_cassandra = 1;
-    my $chdl = $self->cassandra_handle("job", $params->{version});
-    unless ($chdl) {
+    # test cassandra access
+    my $ctest = $self->cassandra_test("job");
+    unless ($ctest) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
-    }
-    foreach my $jid (@{$params->{job_ids}}) {
-        if (! $chdl->has_job($jid)) {
-            $in_cassandra = 0;
-        }
-    }
-    $chdl->close();
-    
-    # not all in cassandra
-    unless ($in_cassandra) {
-        # need to redirect profile to postgres backend API
-        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
-        print STDERR "Redirect: $redirect_uri\n";
-        print $self->cgi->redirect(
-            -uri => $redirect_uri,
-            -status => '302 Found'
-        );
-        exit 0;
     }
     
     # need to create new temp node

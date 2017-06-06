@@ -90,10 +90,11 @@ sub info {
               'attributes'  => $self->{submit},
               'parameters'  => {
                   'options' => {
-                      'condensed' => ['boolean', 'if true, return condensed profile (integer ids for annotations)'],
+                      'condensed' => ['boolean', 'if true, return condensed profile (integer ids for annotations, non-lca only)'],
                       'retry'     => ['int', 'force rerun and set retry number, default is zero - no retry'],
-                      ## only mgrast format saved as permanent shock node
+                      ## mgrast and lca formats saved as permanent shock node
                       'format'    => ['cv', [['mgrast','compressed json format (default)'],
+                                             ['lca', 'compressed json format with LCA annotations'],
                                              ['biom','BIOM json format']]],
                       'source'    => ['cv', $self->{sources}],
                       'version'   => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
@@ -194,25 +195,30 @@ sub submit {
     
     # get paramaters
     my $version   = $self->check_version($self->cgi->param('version'));
-    my $source    = $self->cgi->param('source') || "RefSeq";
+    my $source    = $self->cgi->param('source') || 'RefSeq';
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
-    my $format    = ($self->cgi->param('format') && ($self->cgi->param('format') eq 'biom')) ? 'biom' : 'mgrast';
+    my $format    = $self->cgi->param('format') || 'mgrast';
     my $retry     = int($self->cgi->param('retry')) || 0;
     unless (($retry =~ /^\d+$/) && ($retry > 0)) {
         $retry = 0;
     }
     
-    # validate type / source
-    my $all_srcs = {};
-    if ($job->{sequence_type} =~ /^Amplicon/) {
-        map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
+    if ($format eq 'lca') {
+        $source    = 'LCA';
+        $condensed = 'false';
     } else {
-        map { $all_srcs->{$_} = 1 } @{$self->source_by_type('protein')};
-        map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
-        map { $all_srcs->{$_} = 1 } @{$self->source_by_type('ontology')};
-    }
-    unless (exists $all_srcs->{$source}) {
-        $self->return_data( {"ERROR" => "invalid source for profile: ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
+        # validate type / source
+        my $all_srcs = {};
+        if ($job->{sequence_type} =~ /^Amplicon/) {
+            map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
+        } else {
+            map { $all_srcs->{$_} = 1 } @{$self->source_by_type('protein')};
+            map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
+            map { $all_srcs->{$_} = 1 } @{$self->source_by_type('ontology')};
+        }
+        unless (exists $all_srcs->{$source}) {
+            $self->return_data( {"ERROR" => "invalid source for profile: ".$source." - valid types are [".join(", ", keys %$all_srcs)."]"}, 400 );
+        }
     }
     
     # check for static feature profile node from shock
@@ -248,28 +254,9 @@ sub submit {
     }
     
     # test cassandra access
-    #my $ctest = $self->cassandra_test("job");
-    #unless ($ctest) {
-    #    $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
-    #}
-    
-    # check if job exists in cassandra DB / also tests DB connection
-    my $chdl = $self->cassandra_handle("job", $version);
-    unless ($chdl) {
+    my $ctest = $self->cassandra_test("job");
+    unless ($ctest) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
-    }
-    my $in_cassandra = $chdl->has_job($jobid);
-    $chdl->close();
-    
-    unless ($in_cassandra) {
-        # need to redirect profile to postgres backend API
-        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
-        print STDERR "Redirect: $redirect_uri\n";
-        print $self->cgi->redirect(
-            -uri => $redirect_uri,
-            -status => '302 Found'
-        );
-        exit 0;
     }
     
     # need to create new temp node
@@ -284,13 +271,13 @@ sub submit {
         job_id      => $jobid,
         resource    => "profile",
         source      => $source,
-        source_type => $self->type_by_source($source),
+        source_type => $self->type_by_source($source) || undef,
         format      => $format,
         retry       => $retry,
         condensed   => $condensed,
         version     => $version
     };
-    my $expire = ($format eq 'mgrast') ? "1D" : "7D";
+    my $expire = ($format =~ /^(mgrast|lca)$/) ? "1D" : "7D";
     my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, $expire);
     
     # asynchronous call, fork the process
@@ -322,9 +309,9 @@ sub create_profile {
     my $mgcass = $self->cassandra_profile($param->{version});
     
     ### create profile
-    # store it in shock permanently if mgrast format
+    # store it in shock permanently if mgrast / lca format
     my $attr = undef;
-    if ($param->{format} eq 'mgrast') {
+    if ($param->{format} =~ /^(mgrast|lca)$/) {
         $attr = {
             id            => 'mgm'.$id,
             job_id        => $data->{job_id},
@@ -337,10 +324,9 @@ sub create_profile {
             project_name  => undef,
             type          => 'metagenome',
             data_type     => 'profile',
+            format        => $param->{format},
             source        => $param->{source},
             row_total     => 0,
-            md5_queried   => 0,
-            md5_found     => 0,
             retry         => $param->{retry},
             condensed     => $param->{condensed},
             version       => $param->{version},
@@ -379,8 +365,8 @@ sub status_report_from_node {
     $report->{progress} = {
         started => $node->{created_on},
         updated => $node->{last_modified},
-        queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || 0,
-        found   => $node->{attributes}{progress}{found} || $node->{attributes}{md5_found} || 0
+        queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || $node->{attributes}{lca_queried} || 0,
+        found   => $node->{attributes}{progress}{found} || $node->{attributes}{md5_found} || $node->{attributes}{lca_found} || 0
     };
     if (exists $node->{attributes}{retry}) {
         $report->{retry} = $node->{attributes}{retry};
@@ -395,7 +381,7 @@ sub status_report_from_node {
         $report->{parameters} = {
             id         => $node->{attributes}{id},
             source     => $node->{attributes}{source},
-            format     => 'mgrast',
+            format     => $node->{attributes}{format},
             condensed  => $node->{attributes}{condensed},
             version    => $node->{attributes}{version}
         };

@@ -146,6 +146,13 @@ sub cv_ontology_types {
     return $ont;
 }
 
+sub get_cv_ontology_id {
+    my ($self, $tag, $value) = @_;
+    my $dbh = $self->{_handle}->db_handle;
+    my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT value_id FROM MetaDataCV WHERE tag='$tag' AND type='ontology' AND value='$value'");
+    return ($tmp && @$tmp) ? $tmp->[0] : undef;
+}
+
 sub get_cv_ontology {
   my ($self, $tag, $version) = @_;
   if (! $version) {

@@ -4,14 +4,16 @@
         "3.5" : "https://github.com/MG-RAST/pipeline/tree/178ea53cdac5023c459881292c6dc9d52e7b4903",
         "3.6" : "https://github.com/MG-RAST/pipeline/tree/42dc704eeb2518b51723863fb826d52c62a165b5",
         "4.0" : "https://github.com/MG-RAST/pipeline/tree/7f8f063c4aa3430123e504cde54d02005767fe99",
-        "4.0.1" : "https://github.com/MG-RAST/pipeline/tree/9ad4e447b47ad9c8343e351b9218f43f7efc7dad"
+        "4.0.1" : "https://github.com/MG-RAST/pipeline/tree/9ad4e447b47ad9c8343e351b9218f43f7efc7dad",
+        "4.0.2" : "https://github.com/MG-RAST/pipeline"
     },
     "template" : {
         "3.0" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.0.awf",
         "3.5" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.5.awf",
         "3.6" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.6.awf",
         "4.0" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.awf",
-        "4.0.1" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.1.awf"
+        "4.0.1" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.1.awf",
+        "4.0.2" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.2.awf"
     },
     "upload" : {
             "title": "Upload",
@@ -31,14 +33,14 @@
             "outputs": [],
             "uses": [
                 {
-                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "DRISEE",
                     "cmd": "drisee -v -t <format> -f <input>",
                     "link": "https://github.com/MG-RAST/pipeline/blob/master/bin/drisee",
                     "paper": "http://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1002541"
                 },
                 {
-                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "Jellyfish",
                     "cmd": "jellyfish count -C -m <6|15> -c 12 -s 1G <input>",
                     "link": "https://github.com/gmarcais/Jellyfish/releases",
@@ -59,7 +61,7 @@
             "outputs": [],
             "uses": [
                 {
-                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "DynamicTrim",
                     "cmd": "DynamicTrimmer.pl <infile> -h <min_qual> -n <max_lqb>",
                     "link": "https://sourceforge.net/projects/solexaqa/files/",
@@ -96,7 +98,7 @@
                     "paper": "https://genomebiology.biomedcentral.com/articles/10.1186/gb-2009-10-3-r25"
                 },
                 {
-                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "Bowtie2",
                     "cmd": "bowtie2 -f --reorder --un <output> -x <index> -U <input>",
                     "link": "https://github.com/BenLangmead/bowtie2",
@@ -127,6 +129,13 @@
                     "cmd": "vsearch --strand both --usearch_global <input> --id 0.70 --db <m5rna_reduced>",
                     "link": "https://github.com/torognes/vsearch",
                     "paper": "https://peerj.com/articles/2584/"
+                },
+                {
+                    "versions": {"4.0.2": 1},
+                    "name": "SortMeRNA",
+                    "cmd": "sortmerna -e 0.1 --blast '1 cigar qcov qstrand' --reads <input> --ref <m5rna_reduced>",
+                    "link": "https://github.com/biocore/sortmerna",
+                    "paper": "https://doi.org/10.1093/bioinformatics/bts611"
                 }
             ]
         },
@@ -148,7 +157,7 @@
                     "paper": "https://www.ncbi.nlm.nih.gov/pubmed/20709691"
                 },
                 {
-                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "CD-HIT",
                     "cmd": "cd-hit-est -n 9 -d 0 -c 0.97 -i <input>",
                     "link": "https://github.com/weizhongli/cdhit",
@@ -167,7 +176,7 @@
             "outputs": [],
             "uses": [
                 {
-                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "Blat",
                     "cmd": "blat -out=blast8 -t=dna -q=dna -fastMap <m5rna> <input>",
                     "link": "https://users.soe.ucsc.edu/~kent/src/blatSrc.zip",
@@ -186,7 +195,7 @@
             "outputs": [],
             "uses": [
                 {
-                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "FragGeneScan",
                     "cmd": "run_FragGeneScan.pl -complete 0 -train <type> -genome <input>",
                     "link": "https://github.com/MG-RAST/FGS",
@@ -223,7 +232,7 @@
                     "paper": "https://www.ncbi.nlm.nih.gov/pubmed/20709691"
                 },
                 {
-                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "CD-HIT",
                     "cmd": "cd-hit -n 5 -d 0 -c 0.90 -i <input>",
                     "link": "https://github.com/weizhongli/cdhit",
@@ -242,7 +251,7 @@
             "outputs": [],
             "uses": [
                 {
-                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1},
+                    "versions": {"3.0": 1, "3.5": 1, "3.6": 1, "4.0": 1, "4.0.1": 1, "4.0.2": 1},
                     "name": "Blat",
                     "cmd": "blat -prot -fastMap -out=blast8 <m5nr> <input>",
                     "link": "https://users.soe.ucsc.edu/~kent/src/blatSrc.zip",

@@ -192,6 +192,25 @@ class JobHandle(object):
         rmqLogger(self.channel, 'select', query)
         prep = self.session.prepare(query)
         return self.session.execute(prep, where)
+    ## get iterator for lca records of a job
+    def get_lca_records(self, job, fields, evalue=None, identity=None, alength=None):
+        job = int(job)
+        query = "SELECT "+",".join(fields)+" FROM job_lcas WHERE version = ? AND job = ?"
+        where = [self.version, job]
+        if evalue:
+            query += " AND exp_avg <= ?"
+            where.append(int(evalue) * -1)
+        if identity:
+            query += " AND ident_avg >= ?"
+            where.append(int(identity))
+        if alength:
+            query += " AND len_avg >= ?"
+            where.append(int(alength))
+        if evalue or identity or alength:
+            query += " ALLOW FILTERING"
+        rmqLogger(self.channel, 'select', query)
+        prep = self.session.prepare(query)
+        return self.session.execute(prep, where)
     ## get index for one md5
     def get_md5_record(self, job, md5):
         job = int(job)
