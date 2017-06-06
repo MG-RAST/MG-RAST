@@ -9,6 +9,7 @@ use Data::Dumper;
 use parent qw(resources::resource);
 use WebApplicationDBHandle;
 use URI::Escape;
+use MGRAST::Mailer;
 
 # Override parent constructor
 sub new {
@@ -679,8 +680,21 @@ sub instance {
     }
     
     my $jdbh  = $jobdb->db_handle();
-    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND (JobAttributes.tag="priority" OR JobAttributes.tag="completedtime") AND (Job.public IS NULL OR Job.public=0) AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
-    $self->return_data({ "priorities" => $res });
+    my $res_comp = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND JobAttributes.tag="completedtime" AND (Job.public IS NULL OR Job.public=0) AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
+    my $res_prio = $jdbh->selectall_arrayref('SELECT Job.metagenome_id, JobAttributes.value FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND JobAttributes.tag="priority" AND (Job.public IS NULL OR Job.public=0) AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC');
+    my $prios = {};
+    foreach my $r (@$res_prio) {
+      $prios->{$r->[0]} = $r->[1];
+    }
+    my $retval = [];
+    foreach my $r (@$res_comp) {
+      if ($prios->{$r->{metagenome_id}}) {
+	$r->{priority} = $prios->{$r->{metagenome_id}};
+	push(@$retval, $r);
+      }
+    }
+    
+    $self->return_data({ "priorities" => $retval });
   }
   # get the user preferences
   elsif ($verb eq 'preferences') {
@@ -1391,9 +1405,11 @@ sub verify_email {
   $message .= "To verify your email address, please click the link below.\n";
   $message .= "<a href='".$Conf::cgi_url."/user/validateemail/".$user->_id."_".$key."'>verify email address</a>";
   
-  $user->send_email( "mg-rast\@mcs.anl.gov",
-		     'MG-RAST - verify email',
-		     $message );
+  MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
+			      from => "mg-rast\@mcs.anl.gov",
+			      to => $email,
+			      subject => 'MG-RAST - verify email',
+			      body => $message);
   
   return 1;
 }
