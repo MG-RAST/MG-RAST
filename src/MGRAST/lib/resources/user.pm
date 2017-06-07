@@ -368,6 +368,20 @@ sub instance {
     }
     
     # if we get here, recaptcha is successful
+    # check if we have email only
+    if (! $self->{cgi}->param('login')) {
+      my $user = $master->User->get_objects( { email => $self->{cgi}->param('email') } );
+      if (! scalar(@$user)) {
+	$user = $master->User->get_objects( { email2 => $self->{cgi}->param('email') } );
+      }
+      if (scalar(@$user)) {
+	$user = $user->[0];
+	$user->send_email( "mg-rast\@mcs.anl.gov", "MG-RAST account", "You requested to retrieve the login associated with your MG-RAST account.\n\nYour login associated with this email address is:\n\n".$user->{login}."\n\nYou can use the forgot password link on our site to reset your password." );
+	$self->return_data( {"OK" => "credentials sent"}, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "email address is not registered"}, 400 );
+      }
+    }
     # now check if the login and email address correspond
     my $user = $master->User->get_objects( { login => $self->{cgi}->param('login'), email => $self->{cgi}->param('email') } );
     if ($user && scalar(@$user)) {
