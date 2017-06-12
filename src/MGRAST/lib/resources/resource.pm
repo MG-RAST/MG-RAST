@@ -2210,23 +2210,19 @@ sub get_barcode_files {
         $self->return_data( {"ERROR" => $err}, 500 );
     }
     my @lines = split(/\n/, $bar_text);
-    # QIIME barcode format
-    if ($lines[0] =~ /^\#SampleID\tBarcodeSequence/) {
+    # skip header: Illumina or Qiime style
+    if ($lines[0] =~ /^#?SampleID\t/) {
         shift @lines;
-        foreach my $line (@lines) {
-            next unless ($line);
-            my @parts = split(/\t/, $line);
-            $bar_files->{$parts[0]} = 1;
-        }
     }
-    # simple barcode format
-    else {
-        foreach my $line (@lines) {
-            next unless ($line);
-            my ($b, $n) = split(/\t/, $line);
-            next unless ($b);
-            my $fname = $n ? $n : $b;
-            $bar_files->{$fname} = 1;
+    foreach my $line (@lines) {
+        next unless ($line);
+        my @bset = split(/\t/, $line);
+        next unless ($bset[0] && $bset[1]);
+        # find which column has barcodes
+        if ($bset[1] =~ /^[ATGCatgc]+$/ ) {
+            $bar_files->{$bset[1]} = 1;
+        } elsif ($bset[0] =~ /^[ATGCatgc]+$/ ) {
+            $bar_files->{$bset[0]} = 1;
         }
     }
     if (scalar(keys %$bar_files) < 2) {
@@ -2325,10 +2321,10 @@ sub metadata_validation {
             foreach my $library (@{$sample->{libraries}}) {
                 next unless (exists($library->{data}) && exists($library->{data}{forward_barcodes}));
                 my $mg_name = "";
-                if (exists $library->{data}{file_name}) {
-                    $mg_name = fileparse($library->{data}{file_name}{value}, qr/\.[^.]*/);
-                } elsif (exists $library->{data}{metagenome_name}) {
+                if (exists $library->{data}{metagenome_name}) {
                     $mg_name = $library->{data}{metagenome_name}{value};
+                } elsif (exists $library->{data}{file_name}) {
+                    $mg_name = fileparse($library->{data}{file_name}{value}, qr/\.[^.]*/);
                 } else {
                     next;
                 }
@@ -2336,9 +2332,10 @@ sub metadata_validation {
             }
         }
         $bar_count = scalar(keys(%$barcodes));
+        # barcode file: SampleID \t Barcode
         if (($bar_count > 0) && $extract_barcodes && $self->user) {
             my $bar_name = fileparse($node->{file}{name}, qr/\.[^.]*/).".barcodes";
-            my $bar_data = join("\n", map { $barcodes->{$_}."\t".$_ } keys %$barcodes)."\n";
+            my $bar_data = join("\n", map { $_."\t".$barcodes->{$_} } keys %$barcodes)."\n";
             my $bar_attr = {
                 type  => 'inbox',
                 id    => 'mgu'.$self->user->_id,
@@ -2366,53 +2363,6 @@ sub metadata_validation {
         $data = $data->{data};
     }
     return ($is_valid, $data, $log, $bar_id, $bar_count, $json_node);
-}
-
-# if input node has no dependency, then value is -1 and it is a shock node id,
-# otherwise shock node does not exist and its a filename
-# returns 1 task
-sub build_index_merge_task {
-    my ($self, $taskid, $depend_idx, $depend_seq, $index, $seq, $outfile, $auth, $authPrefix) = @_;
-    
-    my $idx_task = $self->empty_awe_task(1);
-    $idx_task->{cmd}{description} = "merge index barcodes";
-    $idx_task->{cmd}{name} = "merge_index.py";
-    $idx_task->{taskid} = "$taskid";
-    
-    # index node exist - no dependencies
-    if ($depend_idx < 0) {
-        # get / verify nodes
-        my $idx_node = $self->node_from_inbox_id($index, $auth, $authPrefix);
-        unless (exists $idx_node->{attributes}{stats_info}) {
-            ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
-        }
-        $index = $idx_node->{file}{name};
-        $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => $idx_node->{id}};
-        $idx_task->{userattr}{parent_index_file} = $idx_node->{id};
-    } else {
-        $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx"};
-        push @{$idx_task->{dependsOn}}, "$depend_idx";
-    }
-    # seq node exist - no dependencies
-    if ($depend_seq < 0) {
-        # get / verify nodes
-        my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
-            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
-        }
-        $seq = $seq_node->{file}{name};
-        $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
-        $idx_task->{userattr}{parent_index_file} = $seq_node->{id};
-    } else {
-        $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
-        push @{$idx_task->{dependsOn}}, "$depend_seq";
-    }
-    
-    $idx_task->{outputs}{$outfile} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $idx_task->{cmd}{args} = '-i @'.$index.' -s @'.$seq.' -o '.$outfile;
-    $idx_task->{userattr}{stage_name} = "merge_index";
-    
-    return $idx_task;
 }
 
 # if input node has no dependency, then value is -1 and it is a shock node id,
@@ -2515,11 +2465,11 @@ sub build_sff_fastq_task {
 # otherwise shock node does not exist and its a filename
 # returns array of 2 tasks
 sub build_pair_join_task {
-    my ($self, $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $outprefix, $retain, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix) = @_;
     
     my $pj_task = $self->empty_awe_task(1);
     $pj_task->{cmd}{description} = "merge mate-pairs";
-    $pj_task->{cmd}{name} = "pairend_join.py";
+    $pj_task->{cmd}{name} = "fastq-join";
     $pj_task->{taskid} = "$taskid";
     
     # p1 node exist - no dependencies
@@ -2554,44 +2504,51 @@ sub build_pair_join_task {
         $pj_task->{inputs}{$pair2} = {host => $Conf::shock_url, node => "-", origin => "$depend_p2"};
         push @{$pj_task->{dependsOn}}, "$depend_p2";
     }
-    # has index file
-    my $index_opt = "";
-    if ($index) {
-        # index node exist - no dependencies
-        if ($depend_idx < 0) {
-            my $idx_node = $self->node_from_inbox_id($index, $auth, $authPrefix);
-            unless (exists $idx_node->{attributes}{stats_info}) {
-                ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
-            }
-            unless ($self->seq_type_from_node($idx_node, $auth, $authPrefix) eq 'fastq') {
-                $self->return_data( {"ERROR" => "index file must be fastq format"}, 400 );
-            }
-            $index = $idx_node->{file}{name};
-            $pj_task->{inputs}{$index} = {host => $Conf::shock_url, node => $idx_node->{id}};
-        } else {
-            $pj_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx"};
-            push @{$pj_task->{dependsOn}}, "$depend_idx";
-        }
-        $index_opt = '-i @'.$index.' ';
-    }
 
     # build pair join task
-    my $retain_opt = $retain ? "" : "-j ";
-    my $out_file = $outprefix.".fastq";
-    $pj_task->{outputs}{$out_file} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $pj_task->{cmd}{args} = $retain_opt.$index_opt.'-m 8 -p 10 -t . -o '.$out_file.' @'.$pair1.' @'.$pair2;
+    my @outfiles = map { $outprefix.'.'.$_.'.fastq' } ('join', 'un1', 'un2');
+    my $seqfile  = $outfiles[0];
+    $pj_task->{cmd}{args} = '-m 8 -p 10 @'.$pair1.' @'.$pair2.' -o '.$outprefix.'.%.fastq';
     $pj_task->{userattr}{stage_name} = "pair_join";
+    $pj_task->{outputs}{$outfiles[0]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+    if ($retain) {
+        $pj_task->{outputs}{$outfiles[1]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+        $pj_task->{outputs}{$outfiles[2]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+    }
+    my @tasks = ($pj_task);
+    my $depend = $taskid;
+    
+    # merge if retain
+    if ($retain) {
+        $seqfile = $outprefix.'.fastq';
+        $taskid += 1;
+        my $merge_task = $self->empty_awe_task(1);
+        $merge_task->{cmd}{description} = "merge unjoined";
+        $merge_task->{cmd}{name} = "sed";
+        $merge_task->{cmd}{args} = "-n w'$seqfile' ".join(' ', map { '@'.$_ } @outfiles);
+        $merge_task->{dependsOn} = ["$depend"];
+        $merge_task->{taskid} = $taskid;
+        $merge_task->{userattr}{stage_name} = "pair_join";
+        foreach my $outf (@outfiles) {
+            $merge_task->{inputs}{$outf} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
+        }
+        $merge_task->{outputs}{$seqfile} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+        push @tasks, $merge_task;
+    }
     
     # build seq stats task - not sff file
-    my ($seq_task) = $self->build_seq_stat_task($taskid+1, $taskid, $out_file, "fastq", $auth, $authPrefix);
-    return ($pj_task, $seq_task);
+    $taskid += 1;
+    my ($seq_task) = $self->build_seq_stat_task($taskid, $taskid-1, $seqfile, "fastq", $auth, $authPrefix);
+    push @tasks, $seq_task;
+    
+    return @tasks;
 }
 
 # if input node has no dependency, then value is -1 and it is a shock node id,
 # otherwise shock node does not exist and its a filename
 # returns array of 2 or more tasks
-sub build_demultiplex_task {
-    my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $rc_bar, $auth, $authPrefix) = @_;
+sub build_demultiplex_454_task {
+    my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $auth, $authPrefix) = @_;
     
     my $seq_type = "";
     my $bc_names = [];
@@ -2630,11 +2587,10 @@ sub build_demultiplex_task {
         $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
     }
     
-    my $rc_bar_opt = $rc_bar ? "" : "-r ";
-    $dm_task->{cmd}{args} = $rc_bar_opt.'-f '.$seq_type.' -b @'.$barcode.' -i @'.$seq;
+    $dm_task->{cmd}{args} = '-f '.$seq_type.' -b @'.$barcode.' -i @'.$seq;
     
     # build outputs
-    push @$bc_names, "nobarcode.".$basename;
+    push @$bc_names, "unmatched";
     foreach my $fname (@$bc_names) {
         $dm_task->{outputs}{"$fname.$seq_type"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     }
@@ -2647,6 +2603,207 @@ sub build_demultiplex_task {
         $taskid += 1;
         my ($seq_task) = $self->build_seq_stat_task($taskid, $depend, "$fname.$seq_type", $seq_type, $auth, $authPrefix);
         push @tasks, $seq_task;
+    }
+    
+    return @tasks;
+}
+
+# if input node has no dependency, then value is -1 and it is a shock node id,
+# otherwise shock node does not exist and its a filename
+# returns array of 2 or more tasks
+sub build_demultiplex_illumina_task {
+    my ($self, $taskid, $depend_seq, $depend_bc, $depend_idx1, $depend_idx2, $seq, $barcode, $index1, $index2, $auth, $authPrefix) = @_;
+    
+    my $double_bc = $index2 ? 1 : 0;
+    my $bc_names  = [];
+    my $dm_task   = $self->empty_awe_task(1);
+    $dm_task->{cmd}{description} = "demultiplex";
+    $dm_task->{cmd}{name} = "fastq-multx";
+    $dm_task->{taskid} = "$taskid";
+    
+    # seq 1 node exist - no dependencies
+    if ($depend_seq < 0) {
+        my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
+        unless (exists $seq_node->{attributes}{stats_info}) {
+            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
+        }
+        $seq = $seq_node->{file}{name};
+        $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
+        $dm_task->{userattr}{parent_seq_file} = $seq_node->{id};
+    } else {
+        $dm_task->{inputs}{$seq1} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
+        push @{$dm_task->{dependsOn}}, "$depend_seq";
+    }
+    # bc node exist - no dependencies
+    if ($depend_bc < 0) {
+        my $bc_node = $self->node_from_inbox_id($barcode, $auth, $authPrefix);
+        unless (exists $bc_node->{attributes}{stats_info}) {
+            ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
+        }
+        $barcode = $bc_node->{file}{name};
+        $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
+        $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
+        $dm_task->{userattr}{parent_barcode_file} = $bc_node->{id};
+    } else {
+        $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
+    }
+    # index 1 node exist - no dependencies
+    if ($depend_idx1 < 0) {
+        my $idx_node = $self->node_from_inbox_id($index1, $auth, $authPrefix);
+        unless (exists $idx_node->{attributes}{stats_info}) {
+            ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
+        }
+        $index1 = $idx_node->{file}{name};
+        $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => $idx_node->{id}};
+        $dm_task->{userattr}{parent_index_file} = $idx_node->{id};
+    } else {
+        $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx1"};
+        push @{$dm_task->{dependsOn}}, "$depend_idx1";
+    }
+    # index 2 node exist - no dependencies
+    if ($double_bc) {
+        if ($depend_idx2 < 0) {
+            my $idx_node = $self->node_from_inbox_id($index2, $auth, $authPrefix);
+            unless (exists $idx_node->{attributes}{stats_info}) {
+                ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
+            }
+            $index2 = $idx_node->{file}{name};
+            $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => $idx_node->{id}};
+            $dm_task->{userattr}{parent_index_file_2} = $idx_node->{id};
+        } else {
+            $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx2"};
+            push @{$dm_task->{dependsOn}}, "$depend_idx2";
+        }
+        # double bc command
+        $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$index2.' @'.$seq.' -o n/a -o n/a -o %.fastq';
+    } else {
+        # single bc command
+        $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$seq.' -o n/a -o %.fastq';
+    }
+    
+    # build outputs
+    push @$bc_names, "unmatched";
+    foreach my $fname (@$bc_names) {
+        $dm_task->{outputs}{$fname.'.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+    }
+    $dm_task->{userattr}{stage_name} = "demultiplex";
+    
+    # add seq stats - not sff file
+    my @tasks = ($dm_task);
+    my $depend = $taskid;
+    foreach my $fname (@$bc_names) {
+        $taskid += 1;
+        my ($seq_task) = $self->build_seq_stat_task($taskid, $depend, $fname.'.fastq', 'fastq', $auth, $authPrefix);
+        push @tasks, $seq_task;
+    }
+    
+    return @tasks;
+}
+
+# if input node has no dependency, then value is -1 and it is a shock node id,
+# otherwise shock node does not exist and its a filename
+# creates pair-join task for each paired demultiplex output
+# returns array of 2 or more tasks
+sub build_demultiplex_pairjoin_task {
+    my ($self, $taskid, $depend_seq1, $depend_seq2, $depend_bc, $depend_idx1, $depend_idx2, $seq1, $seq2, $barcode, $index1, $index2, $retain, $auth, $authPrefix) = @_;
+    
+    my $double_bc = $index2 ? 1 : 0;
+    my $bc_names  = [];
+    my $dm_task   = $self->empty_awe_task(1);
+    $dm_task->{cmd}{description} = "demultiplex";
+    $dm_task->{cmd}{name} = "fastq-multx";
+    $dm_task->{taskid} = "$taskid";
+    
+    # seq 1 node exist - no dependencies
+    if ($depend_seq1 < 0) {
+        my $seq_node = $self->node_from_inbox_id($seq1, $auth, $authPrefix);
+        unless (exists $seq_node->{attributes}{stats_info}) {
+            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
+        }
+        $seq1 = $seq_node->{file}{name};
+        $dm_task->{inputs}{$seq1} = {host => $Conf::shock_url, node => $seq_node->{id}};
+        $dm_task->{userattr}{parent_seq_file_1} = $seq_node->{id};
+    } else {
+        $dm_task->{inputs}{$seq1} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq1"};
+        push @{$dm_task->{dependsOn}}, "$depend_seq1";
+    }
+    if ($depend_seq2 < 0) {
+        my $seq_node = $self->node_from_inbox_id($seq2, $auth, $authPrefix);
+        unless (exists $seq_node->{attributes}{stats_info}) {
+            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
+        }
+        $seq2 = $seq_node->{file}{name};
+        $dm_task->{inputs}{$seq2} = {host => $Conf::shock_url, node => $seq_node->{id}};
+        $dm_task->{userattr}{parent_seq_file_2} = $seq_node->{id};
+    } else {
+        $dm_task->{inputs}{$seq2} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq2"};
+        push @{$dm_task->{dependsOn}}, "$depend_seq2";
+    }
+    # bc node exist - no dependencies
+    if ($depend_bc < 0) {
+        my $bc_node = $self->node_from_inbox_id($barcode, $auth, $authPrefix);
+        unless (exists $bc_node->{attributes}{stats_info}) {
+            ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
+        }
+        $barcode = $bc_node->{file}{name};
+        $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
+        $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
+        $dm_task->{userattr}{parent_barcode_file} = $bc_node->{id};
+    } else {
+        $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
+    }
+    # index 1 node exist - no dependencies
+    if ($depend_idx1 < 0) {
+        my $idx_node = $self->node_from_inbox_id($index1, $auth, $authPrefix);
+        unless (exists $idx_node->{attributes}{stats_info}) {
+            ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
+        }
+        $index1 = $idx_node->{file}{name};
+        $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => $idx_node->{id}};
+        $dm_task->{userattr}{parent_index_file} = $idx_node->{id};
+    } else {
+        $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx1"};
+        push @{$dm_task->{dependsOn}}, "$depend_idx1";
+    }
+    # index 2 node exist - no dependencies
+    if ($double_bc) {
+        if ($depend_idx2 < 0) {
+            my $idx_node = $self->node_from_inbox_id($index2, $auth, $authPrefix);
+            unless (exists $idx_node->{attributes}{stats_info}) {
+                ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
+            }
+            $index2 = $idx_node->{file}{name};
+            $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => $idx_node->{id}};
+            $dm_task->{userattr}{parent_index_file_2} = $idx_node->{id};
+        } else {
+            $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx2"};
+            push @{$dm_task->{dependsOn}}, "$depend_idx2";
+        }
+        # double bc command
+        $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$index2.' @'.$seq1.' @'.$seq2.' -o n/a -o n/a -o %.R1.fastq -o %.R2.fastq';
+    } else {
+        # single bc command
+        $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$seq1.' @'.$seq2.' -o n/a -o %.R1.fastq -o %.R2.fastq';
+    }
+    
+    # build outputs
+    my @outpairs = ();
+    push @$bc_names, "unmatched";
+    foreach my $fname (@$bc_names) {
+        $dm_task->{outputs}{$fname.'.R1.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+        $dm_task->{outputs}{$fname.'.R2.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+        push @outpairs, [$fname.'.R1.fastq', $fname.'.R2.fastq'];
+    }
+    $dm_task->{userattr}{stage_name} = "demultiplex";
+    
+    # add pair-join for each output pair
+    my @tasks = ($dm_task);
+    my $depend = $taskid;
+    foreach my $pair (@outpairs) {
+        # my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix) = @_;
+        my @pj_tasks = $self->build_pair_join_task($taskid+1, $depend, $depend, $pair[0], $pair[1], $retain, $auth, $authPrefix);
+        $taskid += scalar(@pj_tasks);
+        push @tasks, @pj_tasks;
     }
     
     return @tasks;

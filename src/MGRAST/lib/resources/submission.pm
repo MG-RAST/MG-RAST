@@ -35,8 +35,8 @@ sub new {
         "pair_file_1"    => [ "string", "RFC 4122 UUID for pair 1 file" ],
         "pair_file_2"    => [ "string", "RFC 4122 UUID for pair 2 file" ],
         "index_file"     => [ "string", "RFC 4122 UUID for index (barcode) file" ],
+        "index_file_2"   => [ "string", "RFC 4122 UUID for second index file, for double barcodes (optional)" ],
         "mg_name"        => [ "string", "name of metagenome for pair-join"],
-        "rc_index"       => [ "boolean", "If true barcodes in index file are reverse compliment of mapping file, default is false" ],
         "retain"         => [ "boolean", "If true retain non-overlapping sequences, default is false" ],
         # pipeline flags
         "assembled"    => [ "boolean", "if true sequences are assembeled, default is false" ],
@@ -388,8 +388,8 @@ sub submit {
     my $pair_file_1    = $post->{'pair_file_1'} || "";
     my $pair_file_2    = $post->{'pair_file_2'} || "";
     my $index_file     = $post->{'index_file'} || "";
+    my $index_file_2   = $post->{'index_file_2'} || "";
     my $mg_name        = $post->{'mg_name'} || "";
-    my $rc_index       = $post->{'rc_index'} ? 1 : 0;
     my $retain         = $post->{'retain'} ? 1 : 0;
     my $seq_files      = $post->{'seq_files'} || [];
     if ($seq_files && (! ref($seq_files))) {
@@ -504,24 +504,31 @@ sub submit {
                 'barcode' => $self->node_id_to_inbox($barcode_file, $self->token, $self->user_auth)
             }
         };
+        if ($index_file_2) {
+            $self->add_submission($index_file_2, $uuid, $self->token, $self->user_auth);
+            $input->{'files'}{'index2'} = $self->node_id_to_inbox($index_file_2, $self->token, $self->user_auth);
+        }
         my $outprefix = $mg_name || $self->uuidv4();
         # need stats on input files, each one can be 1 or 2 tasks
-        push @$tasks, $self->build_seq_stat_task(0, -1, $pair_file_1, undef, $self->token, $self->user_auth);
+        my $p1_tid = 0;
+        push @$tasks, $self->build_seq_stat_task($p1_tid, -1, $pair_file_1, undef, $self->token, $self->user_auth);
+        my $p1_fname = (keys %{$tasks->[$p1_tid]->{outputs}})[0];
         my $p2_tid = scalar(@$tasks);
-        my $p1_fname = (keys %{$tasks->[$p2_tid-1]->{outputs}})[0];
         push @$tasks, $self->build_seq_stat_task($p2_tid, -1, $pair_file_2, undef, $self->token, $self->user_auth);
+        my $p2_fname = (keys %{$tasks->[$p2_tid]->{outputs}})[0];
         my $idx_tid = scalar(@$tasks);
-        my $p2_fname = (keys %{$tasks->[$idx_tid-1]->{outputs}})[0];
         push @$tasks, $self->build_seq_stat_task($idx_tid, -1, $index_file, undef, $self->token, $self->user_auth);
-        my $pj_tid = scalar(@$tasks);
-        my $idx_fname = (keys %{$tasks->[$pj_tid-1]->{outputs}})[0];
-        # pair join - this is 2 tasks, dependent on previous tasks  
-        # $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $outprefix, $retain, $auth, $authPrefix
-        push @$tasks, $self->build_pair_join_task($pj_tid, $p2_tid-1, $idx_tid-1, $pj_tid-1, $p1_fname, $p2_fname, $idx_fname, $outprefix, $retain, $self->token, $self->user_auth);
-        # demultiplex it - # of tasks = barcode_count + 1 (start at task 3)
-        my $dm_tid = scalar(@$tasks);
-        # $taskid, $depend_seq, $depend_bc, $seq, $barcode, $rc_bar, $auth, $authPrefix
-        @submit = $self->build_demultiplex_task($dm_tid, $dm_tid-1, -1, $outprefix.".fastq", $barcode_file, $rc_index, $self->token, $self->user_auth);
+        my $idx_fname = (keys %{$tasks->[$idx_tid]->{outputs}})[0];
+        my $idx2_fname = undef;
+        my $pjd_tid = scalar(@$tasks);
+        if ($index_file_2) {
+            push @$tasks, $self->build_seq_stat_task($pjd_tid, -1, $index_file_2, undef, $self->token, $self->user_auth);
+            $idx2_fname = (keys %{$tasks->[$pjd_tid]->{outputs}})[0];
+            $pjd_tid = scalar(@$tasks);
+        }
+        # this is 2 or more tasks, dependent on previous tasks
+        # $taskid, $depend_seq1, $depend_seq2, $depend_bc, $depend_idx1, $depend_idx2, $seq1, $seq2, $barcode, $index1, $index2, $retain, $auth, $authPrefix
+        @submit = $self->build_demultiplex_pairjoin_task($pjd_tid, $p1_tid, $p2_tid, -1, $idx_tid, $pjd_tid-1, $p1_fname, $p2_fname, $barcode_file, $idx_fname, $idx2_fname, $retain, $self->token, $self->user_auth);
         push @$tasks, @submit;
     } elsif ($pair_file_1 && $pair_file_2) {
         $self->add_submission($pair_file_1, $uuid, $self->token, $self->user_auth);
@@ -535,15 +542,16 @@ sub submit {
         };
         my $outprefix = $mg_name || $self->uuidv4();
         # need stats on input files, each one can be 1 or 2 tasks
-        push @$tasks, $self->build_seq_stat_task(0, -1, $pair_file_1, undef, $self->token, $self->user_auth);
-        my $p2_tid = scalar(@$tasks);
+        my $p1_tid = 0;
+        push @$tasks, $self->build_seq_stat_task($p1_tid, -1, $pair_file_1, undef, $self->token, $self->user_auth);
         my $p1_fname = (keys %{$tasks->[$p2_tid-1]->{outputs}})[0];
+        my $p2_tid = scalar(@$tasks);
         push @$tasks, $self->build_seq_stat_task($p2_tid, -1, $pair_file_2, undef, $self->token, $self->user_auth);
-        my $pj_tid = scalar(@$tasks);
         my $p2_fname = (keys %{$tasks->[$pj_tid-1]->{outputs}})[0];
+        my $pj_tid = scalar(@$tasks);
         # pair join - this is 2 tasks, dependent on previous tasks
-        # $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $outprefix, $retain, $auth, $authPrefix
-        @submit = $self->build_pair_join_task($pj_tid, $p2_tid-1, $pj_tid-1, undef, $p1_fname, $p2_fname, undef, $outprefix, $retain, $self->token, $self->user_auth);
+        # $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix
+        @submit = $self->build_pair_join_task($pj_tid, $p1_tid, $p2_tid, $p1_fname, $p2_fname, $outprefix, $retain, $self->token, $self->user_auth);
         push @$tasks, @submit;
     } elsif ($multiplex_file && $barcode_file) {
         $self->add_submission($multiplex_file, $uuid, $self->token, $self->user_auth);
@@ -555,21 +563,33 @@ sub submit {
                 'barcode' => $self->node_id_to_inbox($barcode_file, $self->token, $self->user_auth)
             }
         };
-        # need stats on input file, can be 1 or 2 tasks
+        # need stats on input file
         push @$tasks, $self->build_seq_stat_task(0, -1, $multiplex_file, undef, $self->token, $self->user_auth);
+        my $dm_tid = scalar(@$tasks);
         my $mult_fname = (keys %{$tasks->[0]->{outputs}})[0];
-        my $index_fname = undef;
-        # is this illumina format with index file?
+        # do illumina style demultiplex
         if ($index_file) {
             $self->add_submission($index_file, $uuid, $self->token, $self->user_auth);
-            $input->{files}{index} = $self->node_id_to_inbox($index_file, $self->token, $self->user_auth);
+            $input->{'files'}{'index'} = $self->node_id_to_inbox($index_file, $self->token, $self->user_auth);
             push @$tasks, $self->build_seq_stat_task(1, -1, $index_file, undef, $self->token, $self->user_auth);
-            $index_fname = (keys %{$tasks->[1]->{outputs}})[0];
+            $dm_tid = scalar(@$tasks);
+            my $idx_fname = (keys %{$tasks->[1]->{outputs}})[0];
+            my $idx2_fname = undef;
+            if ($index_file_2) {
+                $self->add_submission($index_file_2, $uuid, $self->token, $self->user_auth);
+                $input->{'files'}{'index2'} = $self->node_id_to_inbox($index_file_2, $self->token, $self->user_auth);
+                push @$tasks, $self->build_seq_stat_task(2, -1, $index_file_2, undef, $self->token, $self->user_auth);
+                $dm_tid = scalar(@$tasks);
+                $idx2_fname = (keys %{$tasks->[2]->{outputs}})[0];
+            }
+            # $taskid, $depend_seq, $depend_bc, $depend_idx1, $depend_idx2, $seq, $barcode, $index1, $index2, $auth, $authPrefix
+            @submit = $self->build_demultiplex_illumina_task($dm_tid, 0, -1, 1, 2, $mult_fname, $barcode_file, $idx_fname, $idx2_fname, $self->token, $self->user_auth);
         }
-        my $dm_tid = scalar(@$tasks);
-        # just demultiplex - # of tasks = barcode_count + 1 (start at task 1/2)
-        # $taskid, $depend_seq, $depend_bc, $seq, $barcode, $rc_bar, $auth, $authPrefix
-        @submit = $self->build_demultiplex_task($dm_tid, 0, -1, $mult_fname, $barcode_file, $rc_index, $self->token, $self->user_auth);
+        # do 454 style demultiplex
+        else {
+            # $taskid, $depend_seq, $depend_bc, $seq, $barcode, $auth, $authPrefix
+            @submit = $self->build_demultiplex_454_task($dm_tid, 0, -1, $mult_fname, $barcode_file, $self->token, $self->user_auth);
+        }
         push @$tasks, @submit;
     } elsif (scalar(@$seq_files) > 0) {
         $input = {
