@@ -412,6 +412,9 @@ sub validate_metadata {
 sub seq_stats {
     my ($self, $uuid) = @_;
     
+    my $post  = $self->get_post_data(['debug']);
+    my $debug = $post->{'debug'} ? 1 : 0;
+    
     my $response = {
         id        => $self->{wf_info}{user_id},
         user      => $self->{wf_info}{user_name},
@@ -429,7 +432,7 @@ sub seq_stats {
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_seqstats";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
     $self->add_node_action(undef, $node, $job, 'stats');
     
     # return data
@@ -443,8 +446,10 @@ sub sff_to_fastq {
     my ($self) = @_;
 
     # get and validate sequence file
-    my $post = $self->get_post_data(['sff_file']);
-    my $uuid = exists($post->{'sff_file'}) ? $post->{'sff_file'} : "";
+    my $post  = $self->get_post_data(['sff_file', 'debug']);
+    my $uuid  = exists($post->{'sff_file'}) ? $post->{'sff_file'} : "";
+    my $debug = $post->{'debug'} ? 1 : 0;
+    
     unless ($uuid) {
         $self->return_data( {"ERROR" => "this request type requires the sff_file parameter"}, 400 );
     }
@@ -453,7 +458,7 @@ sub sff_to_fastq {
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_sff2fastq";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
     $self->add_node_action($uuid, undef, $job, 'sff2fastq');
     
     # return data
@@ -471,11 +476,13 @@ sub demultiplex {
     my ($self) = @_;
     
     # get and validate files
-    my $post = $self->get_post_data(['seq_file', 'index_file', 'index_file_2', 'barcode_file']);
+    my $post = $self->get_post_data(['seq_file', 'index_file', 'index_file_2', 'barcode_file', 'debug']);
     my $seq_file    = exists($post->{'seq_file'}) ? $post->{'seq_file'} : "";
     my $index_file  = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
     my $index2_file = exists($post->{'index_file_2'}) ? $post->{'index_file_2'} : "";
     my $bar_file    = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
+    my $debug       = $post->{'debug'} ? 1 : 0;
+    
     unless ($seq_file && $bar_file) {
         $self->return_data( {"ERROR" => "this request type requires both the seq_file and barcode_file parameters"}, 400 );
     }
@@ -493,7 +500,7 @@ sub demultiplex {
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_demultiplex";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
     $self->add_node_action($seq_file, undef, $job, 'demultiplex');
     $self->add_node_action($bar_file, undef, $job, 'demultiplex');
     if ($index_file) {
@@ -517,11 +524,13 @@ sub pairjoin {
     my ($self) = @_;
     
     # get and validate sequence files
-    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'output', 'retain']);
+    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'output', 'retain', 'debug']);
     my $pair1_file  = exists($post->{'pair_file_1'}) ? $post->{'pair_file_1'} : "";
     my $pair2_file  = exists($post->{'pair_file_2'}) ? $post->{'pair_file_2'} : "";
     my $outprefix   = exists($post->{'output'}) ? $post->{'output'} : $self->uuidv4();
-    my $retain      = exists($post->{'retain'}) ? $post->{'retain'} : 0;
+    my $retain      = $post->{'retain'} ? 1 : 0;
+    my $debug       = $post->{'debug'} ? 1 : 0;
+    
     unless ($pair1_file && $pair2_file) {
         $self->return_data( {"ERROR" => "this request type requires both the pair_file_1 and pair_file_2 parameters"}, 400 );
     }
@@ -535,7 +544,7 @@ sub pairjoin {
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_pairjoin";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
     $self->add_node_action($pair1_file, undef, $job, "pairjoin");
     $self->add_node_action($pair2_file, undef, $job, "pairjoin");
     
@@ -553,13 +562,15 @@ sub pairjoin_demultiplex {
     my ($self) = @_;
     
     # get and validate sequence files
-    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'index_file', 'index_file_2', 'barcode_file', 'retain']);
+    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'index_file', 'index_file_2', 'barcode_file', 'retain', 'debug']);
     my $pair1_file  = exists($post->{'pair_file_1'}) ? $post->{'pair_file_1'} : "";
     my $pair2_file  = exists($post->{'pair_file_2'}) ? $post->{'pair_file_2'} : "";
     my $index_file  = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
     my $index2_file = exists($post->{'index_file_2'}) ? $post->{'index_file_2'} : "";
     my $bar_file    = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
-    my $retain      = exists($post->{'retain'}) ? $post->{'retain'} : 0;
+    my $retain      = $post->{'retain'} ? 1 : 0;
+    my $debug       = $post->{'debug'} ? 1 : 0;
+    
     unless ($pair1_file && $pair2_file) {
         $self->return_data( {"ERROR" => "this request type requires both the pair_file_1 and pair_file_2 parameters"}, 400 );
     }
@@ -572,7 +583,7 @@ sub pairjoin_demultiplex {
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_pairjoin_demultiplex";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
     $self->add_node_action($pair1_file, undef, $job, "pairjoin_demultiplex");
     $self->add_node_action($pair2_file, undef, $job, "pairjoin_demultiplex");
     $self->add_node_action($bar_file, undef, $job, "pairjoin_demultiplex");
