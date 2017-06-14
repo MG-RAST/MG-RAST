@@ -85,6 +85,8 @@ sub info {
             { 'name'        => "instance",
               'request'     => $self->cgi->url."/".$self->name."/{ID}",
               'description' => "Submits profile creation",
+              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?source=RefSeq&format=biom",
+                               'retrieve BIOM profile of RefSeq annotations' ],
               'method'      => "GET",
               'type'        => "asynchronous",
               'attributes'  => $self->{submit},
@@ -225,8 +227,7 @@ sub submit {
     # delete if doing retry
     my $squery = {
         id => $mgid,
-        data_type => 'profile',
-        stage_name => 'done'
+        data_type => 'profile'
     };
     my $snodes = $self->get_shock_query($squery, $self->mgrast_token);
     if ($snodes && (@$snodes > 0)) {
