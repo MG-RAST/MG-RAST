@@ -2219,9 +2219,9 @@ sub get_barcode_files {
         my @bset = split(/\t/, $line);
         next unless ($bset[0] && $bset[1]);
         # find which column has barcodes
-        if ($bset[1] =~ /^[ATGCatgc]+$/ ) {
+        if ($bset[1] =~ /^[ATGCatgc-]+$/ ) {
             $bar_files->{$bset[1]} = 1;
-        } elsif ($bset[0] =~ /^[ATGCatgc]+$/ ) {
+        } elsif ($bset[0] =~ /^[ATGCatgc-]+$/ ) {
             $bar_files->{$bset[0]} = 1;
         }
     }
@@ -2631,7 +2631,7 @@ sub build_demultiplex_illumina_task {
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
         $dm_task->{userattr}{parent_seq_file} = $seq_node->{id};
     } else {
-        $dm_task->{inputs}{$seq1} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
+        $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
         push @{$dm_task->{dependsOn}}, "$depend_seq";
     }
     # bc node exist - no dependencies
@@ -2801,7 +2801,7 @@ sub build_demultiplex_pairjoin_task {
     my $depend = $taskid;
     foreach my $pair (@outpairs) {
         # my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix) = @_;
-        my @pj_tasks = $self->build_pair_join_task($taskid+1, $depend, $depend, $pair[0], $pair[1], $retain, $auth, $authPrefix);
+        my @pj_tasks = $self->build_pair_join_task($taskid+1, $depend, $depend, $pair->[0], $pair->[1], $retain, $auth, $authPrefix);
         $taskid += scalar(@pj_tasks);
         push @tasks, @pj_tasks;
     }
