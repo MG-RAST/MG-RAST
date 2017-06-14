@@ -2380,7 +2380,7 @@ sub build_seq_stat_task {
     
     my $seq_task = $self->empty_awe_task(1);
     $seq_task->{cmd}{description} = "sequence stats";
-    $seq_task->{cmd}{name} = "awe_seq_length_stats.pl";
+    $seq_task->{cmd}{name} = "mgrast_seq_length_stats.pl";
     $seq_task->{taskid} = "$taskid";
     
     # seq node exist - no dependencies
