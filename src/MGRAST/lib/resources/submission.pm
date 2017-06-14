@@ -544,10 +544,10 @@ sub submit {
         # need stats on input files, each one can be 1 or 2 tasks
         my $p1_tid = 0;
         push @$tasks, $self->build_seq_stat_task($p1_tid, -1, $pair_file_1, undef, $self->token, $self->user_auth);
-        my $p1_fname = (keys %{$tasks->[$p2_tid-1]->{outputs}})[0];
+        my $p1_fname = (keys %{$tasks->[$p1_tid]->{outputs}})[0];
         my $p2_tid = scalar(@$tasks);
         push @$tasks, $self->build_seq_stat_task($p2_tid, -1, $pair_file_2, undef, $self->token, $self->user_auth);
-        my $p2_fname = (keys %{$tasks->[$pj_tid-1]->{outputs}})[0];
+        my $p2_fname = (keys %{$tasks->[$p2_tid]->{outputs}})[0];
         my $pj_tid = scalar(@$tasks);
         # pair join - this is 2 tasks, dependent on previous tasks
         # $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix
