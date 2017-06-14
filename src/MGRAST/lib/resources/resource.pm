@@ -2465,7 +2465,7 @@ sub build_sff_fastq_task {
 # otherwise shock node does not exist and its a filename
 # returns array of 2 tasks
 sub build_pair_join_task {
-    my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $userattr, $auth, $authPrefix) = @_;
     
     my $pj_task = $self->empty_awe_task(1);
     $pj_task->{cmd}{description} = "merge mate-pairs";
@@ -2483,7 +2483,7 @@ sub build_pair_join_task {
         }
         $pair1 = $p1_node->{file}{name};
         $pj_task->{inputs}{$pair1} = {host => $Conf::shock_url, node => $p1_node->{id}};
-        $pj_task->{userattr}{parent_seq_file_1} = $p1_node->{id};
+        $pj_task->{userattr}{parent_R1_file} = $p1_node->{id};
     } else {
         $pj_task->{inputs}{$pair1} = {host => $Conf::shock_url, node => "-", origin => "$depend_p1"};
         push @{$pj_task->{dependsOn}}, "$depend_p1";
@@ -2499,7 +2499,7 @@ sub build_pair_join_task {
         }
         $pair2 = $p2_node->{file}{name};
         $pj_task->{inputs}{$pair2} = {host => $Conf::shock_url, node => $p2_node->{id}};
-        $pj_task->{userattr}{parent_seq_file_2} = $p2_node->{id};
+        $pj_task->{userattr}{parent_R2_file} = $p2_node->{id};
     } else {
         $pj_task->{inputs}{$pair2} = {host => $Conf::shock_url, node => "-", origin => "$depend_p2"};
         push @{$pj_task->{dependsOn}}, "$depend_p2";
@@ -2510,6 +2510,9 @@ sub build_pair_join_task {
     my $seqfile  = $outfiles[0];
     $pj_task->{cmd}{args} = '-m 8 -p 10 @'.$pair1.' @'.$pair2.' -o '.$outprefix.'.%.fastq';
     $pj_task->{userattr}{stage_name} = "pair_join";
+    if ($userattr && ref($userattr)) {
+        @{$pj_task->{userattr}}{keys %$userattr} = values %$userattr;
+    }
     $pj_task->{outputs}{$outfiles[0]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     if ($retain) {
         $pj_task->{outputs}{$outfiles[1]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
@@ -2528,11 +2531,10 @@ sub build_pair_join_task {
         $merge_task->{cmd}{args} = "-n w'$seqfile' ".join(' ', map { '@'.$_ } @outfiles);
         $merge_task->{dependsOn} = ["$depend"];
         $merge_task->{taskid} = $taskid;
-        $merge_task->{userattr}{stage_name} = "pair_join";
         foreach my $outf (@outfiles) {
-            $merge_task->{inputs}{$outf} = {host => $Conf::shock_url, node => "-", origin => "$depend"};
+            $merge_task->{inputs}{$outf} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
         }
-        $merge_task->{outputs}{$seqfile} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+        $merge_task->{outputs}{$seqfile} = {host => $Conf::shock_url, node => "-", attrfile => "input_attr.json"};
         push @tasks, $merge_task;
     }
     
@@ -2553,7 +2555,7 @@ sub build_demultiplex_454_task {
     my $seq_type = "";
     my $bc_names = [];
     my $dm_task  = $self->empty_awe_task(1);
-    $dm_task->{cmd}{description} = "demultiplex";
+    $dm_task->{cmd}{description} = "demultiplex 454";
     $dm_task->{cmd}{name} = "demultiplex.py";
     $dm_task->{taskid} = "$taskid";
     
@@ -2566,7 +2568,7 @@ sub build_demultiplex_454_task {
         $seq = $seq_node->{file}{name};
         $seq_type = $self->seq_type_from_node($seq_node, $auth, $authPrefix);
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
-        $dm_task->{userattr}{parent_seq_file} = $seq_node->{id};
+        $dm_task->{userattr}{parent_multx_file} = $seq_node->{id};
     } else {
         $seq_type = (split(/\./, $seq))[-1];
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
@@ -2582,7 +2584,6 @@ sub build_demultiplex_454_task {
         $barcode = $bc_node->{file}{name};
         $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
         $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
-        $dm_task->{userattr}{parent_barcode_file} = $bc_node->{id};
     } else {
         $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
     }
@@ -2617,7 +2618,7 @@ sub build_demultiplex_illumina_task {
     my $double_bc = $index2 ? 1 : 0;
     my $bc_names  = [];
     my $dm_task   = $self->empty_awe_task(1);
-    $dm_task->{cmd}{description} = "demultiplex";
+    $dm_task->{cmd}{description} = "demultiplex illumina";
     $dm_task->{cmd}{name} = "fastq-multx";
     $dm_task->{taskid} = "$taskid";
     
@@ -2629,7 +2630,7 @@ sub build_demultiplex_illumina_task {
         }
         $seq = $seq_node->{file}{name};
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
-        $dm_task->{userattr}{parent_seq_file} = $seq_node->{id};
+        $dm_task->{userattr}{parent_multx_file} = $seq_node->{id};
     } else {
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
         push @{$dm_task->{dependsOn}}, "$depend_seq";
@@ -2643,7 +2644,6 @@ sub build_demultiplex_illumina_task {
         $barcode = $bc_node->{file}{name};
         $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
         $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
-        $dm_task->{userattr}{parent_barcode_file} = $bc_node->{id};
     } else {
         $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
     }
@@ -2655,7 +2655,6 @@ sub build_demultiplex_illumina_task {
         }
         $index1 = $idx_node->{file}{name};
         $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => $idx_node->{id}};
-        $dm_task->{userattr}{parent_index_file} = $idx_node->{id};
     } else {
         $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx1"};
         push @{$dm_task->{dependsOn}}, "$depend_idx1";
@@ -2669,7 +2668,6 @@ sub build_demultiplex_illumina_task {
             }
             $index2 = $idx_node->{file}{name};
             $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => $idx_node->{id}};
-            $dm_task->{userattr}{parent_index_file_2} = $idx_node->{id};
         } else {
             $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx2"};
             push @{$dm_task->{dependsOn}}, "$depend_idx2";
@@ -2710,7 +2708,7 @@ sub build_demultiplex_pairjoin_task {
     my $double_bc = $index2 ? 1 : 0;
     my $bc_names  = [];
     my $dm_task   = $self->empty_awe_task(1);
-    $dm_task->{cmd}{description} = "demultiplex";
+    $dm_task->{cmd}{description} = "demultiplex illumina";
     $dm_task->{cmd}{name} = "fastq-multx";
     $dm_task->{taskid} = "$taskid";
     
@@ -2722,7 +2720,7 @@ sub build_demultiplex_pairjoin_task {
         }
         $seq1 = $seq_node->{file}{name};
         $dm_task->{inputs}{$seq1} = {host => $Conf::shock_url, node => $seq_node->{id}};
-        $dm_task->{userattr}{parent_seq_file_1} = $seq_node->{id};
+        $dm_task->{userattr}{parent_R1_file} = $seq_node->{id};
     } else {
         $dm_task->{inputs}{$seq1} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq1"};
         push @{$dm_task->{dependsOn}}, "$depend_seq1";
@@ -2734,7 +2732,7 @@ sub build_demultiplex_pairjoin_task {
         }
         $seq2 = $seq_node->{file}{name};
         $dm_task->{inputs}{$seq2} = {host => $Conf::shock_url, node => $seq_node->{id}};
-        $dm_task->{userattr}{parent_seq_file_2} = $seq_node->{id};
+        $dm_task->{userattr}{parent_R2_file} = $seq_node->{id};
     } else {
         $dm_task->{inputs}{$seq2} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq2"};
         push @{$dm_task->{dependsOn}}, "$depend_seq2";
@@ -2748,7 +2746,6 @@ sub build_demultiplex_pairjoin_task {
         $barcode = $bc_node->{file}{name};
         $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
         $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
-        $dm_task->{userattr}{parent_barcode_file} = $bc_node->{id};
     } else {
         $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
     }
@@ -2760,7 +2757,6 @@ sub build_demultiplex_pairjoin_task {
         }
         $index1 = $idx_node->{file}{name};
         $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => $idx_node->{id}};
-        $dm_task->{userattr}{parent_index_file} = $idx_node->{id};
     } else {
         $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx1"};
         push @{$dm_task->{dependsOn}}, "$depend_idx1";
@@ -2774,7 +2770,6 @@ sub build_demultiplex_pairjoin_task {
             }
             $index2 = $idx_node->{file}{name};
             $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => $idx_node->{id}};
-            $dm_task->{userattr}{parent_index_file_2} = $idx_node->{id};
         } else {
             $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx2"};
             push @{$dm_task->{dependsOn}}, "$depend_idx2";
@@ -2786,12 +2781,12 @@ sub build_demultiplex_pairjoin_task {
         $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$seq1.' @'.$seq2.' -o n/a -o %.R1.fastq -o %.R2.fastq';
     }
     
-    # build outputs
+    # build outputs, set intermediate files to delete
     my @outpairs = ();
     push @$bc_names, "unmatched";
     foreach my $fname (@$bc_names) {
-        $dm_task->{outputs}{$fname.'.R1.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-        $dm_task->{outputs}{$fname.'.R2.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+        $dm_task->{outputs}{$fname.'.R1.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
+        $dm_task->{outputs}{$fname.'.R2.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
         push @outpairs, [$fname.'.R1.fastq', $fname.'.R2.fastq'];
     }
     $dm_task->{userattr}{stage_name} = "demultiplex";
@@ -2799,9 +2794,10 @@ sub build_demultiplex_pairjoin_task {
     # add pair-join for each output pair
     my @tasks = ($dm_task);
     my $depend = $taskid;
+    my $userattr = {parent_R1_file => $dm_task->{userattr}{parent_R1_file}, parent_R2_file => $dm_task->{userattr}{parent_R2_file}};
     foreach my $pair (@outpairs) {
         # my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix) = @_;
-        my @pj_tasks = $self->build_pair_join_task($taskid+1, $depend, $depend, $pair->[0], $pair->[1], $retain, $auth, $authPrefix);
+        my @pj_tasks = $self->build_pair_join_task($taskid+1, $depend, $depend, $pair->[0], $pair->[1], $retain, $userattr, $auth, $authPrefix);
         $taskid += scalar(@pj_tasks);
         push @tasks, @pj_tasks;
     }

@@ -531,7 +531,7 @@ sub pairjoin {
     $outprefix =~ s/\.fq$//;
     
     # get tasks
-    my @tasks = $self->build_pair_join_task(0, -1, -1, $pair1_file, $pair2_file, $outprefix, $retain, $self->token, $self->user_auth);
+    my @tasks = $self->build_pair_join_task(0, -1, -1, $pair1_file, $pair2_file, $outprefix, $retain, undef, $self->token, $self->user_auth);
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_pairjoin";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     

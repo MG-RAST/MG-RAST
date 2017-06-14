@@ -551,7 +551,7 @@ sub submit {
         my $pj_tid = scalar(@$tasks);
         # pair join - this is 2 tasks, dependent on previous tasks
         # $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix
-        @submit = $self->build_pair_join_task($pj_tid, $p1_tid, $p2_tid, $p1_fname, $p2_fname, $outprefix, $retain, $self->token, $self->user_auth);
+        @submit = $self->build_pair_join_task($pj_tid, $p1_tid, $p2_tid, $p1_fname, $p2_fname, $outprefix, $retain, undef, $self->token, $self->user_auth);
         push @$tasks, @submit;
     } elsif ($multiplex_file && $barcode_file) {
         $self->add_submission($multiplex_file, $uuid, $self->token, $self->user_auth);
