@@ -727,7 +727,6 @@ sub submit {
         task_list     => $self->json->encode($tasks)
     };
     my $job = $self->submit_awe_template($info, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
-    
     $response->{job} = $job;
     $response->{info} = $param_obj;
     $self->return_data($response);

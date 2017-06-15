@@ -435,6 +435,9 @@ sub seq_stats {
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
     $self->add_node_action(undef, $node, $job, 'stats');
     
     # return data
@@ -461,6 +464,9 @@ sub sff_to_fastq {
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
     $self->add_node_action($uuid, undef, $job, 'sff2fastq');
     
     # return data
@@ -505,6 +511,9 @@ sub demultiplex {
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
     $self->add_node_action($seq_file, undef, $job, 'demultiplex');
     $self->add_node_action($bar_norm, undef, $job, 'demultiplex');
     if ($index_file) {
@@ -549,6 +558,9 @@ sub pairjoin {
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
     $self->add_node_action($pair1_file, undef, $job, "pairjoin");
     $self->add_node_action($pair2_file, undef, $job, "pairjoin");
     
@@ -590,6 +602,9 @@ sub pairjoin_demultiplex {
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
     $self->add_node_action($pair1_file, undef, $job, "pairjoin_demultiplex");
     $self->add_node_action($pair2_file, undef, $job, "pairjoin_demultiplex");
     $self->add_node_action($bar_norm, undef, $job, "pairjoin_demultiplex");
