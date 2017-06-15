@@ -666,7 +666,7 @@ sub submit {
     # add submission task
     my $submit_task = $self->empty_awe_task(1);
     $submit_task->{cmd}{description} = 'mg submit '.scalar(@$sub_files);
-    $submit_task->{cmd}{name} = "awe_submit_to_mgrast.pl";
+    $submit_task->{cmd}{name} = "mgrast_submit.pl";
     $submit_task->{cmd}{args} = '-input @'.$self->{param_file};
     $submit_task->{cmd}{environ}{private} = {"USER_AUTH" => $self->token, "MGRAST_API" => $self->cgi->url};
     $submit_task->{taskid} = "$staskid";
