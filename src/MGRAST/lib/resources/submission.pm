@@ -32,7 +32,7 @@ sub new {
         "seq_files"      => [ "list", ["string", "RFC 4122 UUID for sequence file"] ],
         "multiplex_file" => [ "string", "RFC 4122 UUID for file to demultiplex" ],
         "barcode_file"   => [ "string", "RFC 4122 UUID for barcode mapping file" ],
-        "rc_barcode"     => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ]
+        "rc_barcode"     => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ],
         "pair_file_1"    => [ "string", "RFC 4122 UUID for pair 1 file" ],
         "pair_file_2"    => [ "string", "RFC 4122 UUID for pair 2 file" ],
         "index_file"     => [ "string", "RFC 4122 UUID for index (barcode) file" ],
