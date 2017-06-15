@@ -2257,7 +2257,7 @@ sub normalize_barcode_file {
     my @names = map { $_->[0] } @cdata;
     if ($to_update) {
         # create new barcode file with same metadata as old
-        my $ctext = join("\n", map { $_->[0]."\t".$_->[1] } @cdata);
+        my $ctext = join("\n", map { $_->[0]."\t".$_->[1] } @cdata)."\n";
         my $bar_node = $self->get_shock_node($uuid, $auth, $authPrefix);
         my $new_node = $self->set_shock_node($bar_node->{file}{name}, $ctext, $bar_node->{attributes}, $auth, 1, $authPrefix, "5D");
         $self->delete_shock_node($uuid, $auth, $authPrefix);

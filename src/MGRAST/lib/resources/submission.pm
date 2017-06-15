@@ -32,6 +32,7 @@ sub new {
         "seq_files"      => [ "list", ["string", "RFC 4122 UUID for sequence file"] ],
         "multiplex_file" => [ "string", "RFC 4122 UUID for file to demultiplex" ],
         "barcode_file"   => [ "string", "RFC 4122 UUID for barcode mapping file" ],
+        "rc_barcode"     => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ]
         "pair_file_1"    => [ "string", "RFC 4122 UUID for pair 1 file" ],
         "pair_file_2"    => [ "string", "RFC 4122 UUID for pair 2 file" ],
         "index_file"     => [ "string", "RFC 4122 UUID for index (barcode) file" ],
@@ -385,6 +386,7 @@ sub submit {
     my $metadata_file  = $post->{'metadata_file'} || "";
     my $multiplex_file = $post->{'multiplex_file'} || "";
     my $barcode_file   = $post->{'barcode_file'} || "";
+    my $rc_barcode     = $post->{'rc_barcode'} ? 1 : 0;
     my $pair_file_1    = $post->{'pair_file_1'} || "";
     my $pair_file_2    = $post->{'pair_file_2'} || "";
     my $index_file     = $post->{'index_file'} || "";
@@ -450,6 +452,14 @@ sub submit {
         $self->return_data( {"ERROR" => "Must include multiplex_file and barcode_file together to demultiplex"}, 400 );
     } elsif (! ($pair_file_1 || $multiplex_file || (@$seq_files > 0))) {
         $self->return_data( {"ERROR" => "No sequence files provided"}, 400 );
+    }
+    
+    # normalize barcode file if exists
+    my $bar_names = undef;
+    if ($barcode_file) {
+        my ($b_norm, $b_names) = $self->normalize_barcode_file($barcode_file, $rc_barcode, $self->token, $self->user_auth);
+        $barcode_file = $b_norm;
+        $bar_names = $b_names;
     }
     
     # get project if exists from name or id
@@ -528,7 +538,7 @@ sub submit {
         }
         # this is 2 or more tasks, dependent on previous tasks
         # $taskid, $depend_seq1, $depend_seq2, $depend_bc, $depend_idx1, $depend_idx2, $seq1, $seq2, $barcode, $index1, $index2, $retain, $auth, $authPrefix
-        @submit = $self->build_demultiplex_pairjoin_task($pjd_tid, $p1_tid, $p2_tid, -1, $idx_tid, $pjd_tid-1, $p1_fname, $p2_fname, $barcode_file, $idx_fname, $idx2_fname, $retain, $self->token, $self->user_auth);
+        @submit = $self->build_demultiplex_pairjoin_task($pjd_tid, $p1_tid, $p2_tid, -1, $idx_tid, $pjd_tid-1, $p1_fname, $p2_fname, $barcode_file, $idx_fname, $idx2_fname, $bar_names, $retain, $self->token, $self->user_auth);
         push @$tasks, @submit;
     } elsif ($pair_file_1 && $pair_file_2) {
         $self->add_submission($pair_file_1, $uuid, $self->token, $self->user_auth);
@@ -583,12 +593,12 @@ sub submit {
                 $idx2_fname = (keys %{$tasks->[2]->{outputs}})[0];
             }
             # $taskid, $depend_seq, $depend_bc, $depend_idx1, $depend_idx2, $seq, $barcode, $index1, $index2, $auth, $authPrefix
-            @submit = $self->build_demultiplex_illumina_task($dm_tid, 0, -1, 1, 2, $mult_fname, $barcode_file, $idx_fname, $idx2_fname, $self->token, $self->user_auth);
+            @submit = $self->build_demultiplex_illumina_task($dm_tid, 0, -1, 1, 2, $mult_fname, $barcode_file, $idx_fname, $idx2_fname, $bar_names, $self->token, $self->user_auth);
         }
         # do 454 style demultiplex
         else {
             # $taskid, $depend_seq, $depend_bc, $seq, $barcode, $auth, $authPrefix
-            @submit = $self->build_demultiplex_454_task($dm_tid, 0, -1, $mult_fname, $barcode_file, $self->token, $self->user_auth);
+            @submit = $self->build_demultiplex_454_task($dm_tid, 0, -1, $mult_fname, $barcode_file, $bar_names, $self->token, $self->user_auth);
         }
         push @$tasks, @submit;
     } elsif (scalar(@$seq_files) > 0) {
