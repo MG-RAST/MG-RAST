@@ -219,6 +219,9 @@ sub instance {
     my @mgids = sort keys %mgids;
     # validate / parse request options
     my ($params, $metadata, $hierarchy) = $self->process_parameters($master, \@mgids, $type);
+    if (exists $params->{'ERROR'}) {
+        $self->return_data( {"ERROR" => $params->{'ERROR'}}, 400 );
+    }
     
     # check if temp profile compute node is in shock
     my $attr = {
@@ -315,13 +318,13 @@ sub process_parameters {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? int($ident) : undef;
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? int($alen)  : undef;
     if (defined($eval) && ($eval < 1)) {
-        return ({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 404);
+        return ({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, undef, undef);
     }
     if (defined($ident) && (($ident < 0) || ($ident > 100))) {
-        return ({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 404);
+        return ({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, undef, undef);
     }
     if (defined($alen) && ($alen < 1)) {
-        return ({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 404);
+        return ({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, undef, undef);
     }
     
     # controlled vocabulary set
@@ -334,7 +337,7 @@ sub process_parameters {
     
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
-        return ({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
+        return ({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, undef, undef);
     }
     if ($type eq 'organism') {
         if ( any {$_ eq $glvl} @tax_hier ) {
@@ -342,7 +345,7 @@ sub process_parameters {
                 $leaf_node = 1;
             }
         } else {
-            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @tax_hier)."]"}, 404);
+            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @tax_hier)."]"}, undef, undef);
         }
         if ( any {$_ eq $flvl} @ont_hier ) {
             if ($flvl eq 'function') {
@@ -352,13 +355,13 @@ sub process_parameters {
                 $leaf_filter = 1;
             }
         } else {
-            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @ont_hier)."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @ont_hier)."]"}, undef, undef);
         }
         unless (exists $org_srcs{$source}) {
-            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, undef, undef);
         }
         unless (exists $func_srcs{$fsrc}) {
-            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, undef, undef);
         }
     } elsif ($type eq 'function') {
         $htype = 'all';
@@ -375,23 +378,23 @@ sub process_parameters {
                 $leaf_node = 1;
             }
         } else {
-            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @ont_hier)."]"}, 404);
+            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @ont_hier)."]"}, undef, undef);
         }
         if ( any {$_ eq $flvl} @tax_hier ) {
             if ($flvl eq 'strain') {
                 $leaf_filter = 1;
             }
         } else {
-            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @tax_hier)."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @tax_hier)."]"}, undef, undef);
         }
         unless (exists($func_srcs{$source}) || exists($prot_srcs{$source})) {
-            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, undef, undef);
         }
         unless (exists $org_srcs{$fsrc}) {
-            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %org_srcs)."]"}, undef, undef);
         }
     } else {
-        return ({"ERROR" => "invalid resource type was entered ($type)."}, 404);
+        return ({"ERROR" => "invalid resource type was entered ($type)."}, undef, undef);
     }
 
     # validate metagenome type combinations
@@ -401,16 +404,16 @@ sub process_parameters {
     map { $num_amp += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
     if ($num_amp) {
         if ($num_amp != scalar(@$data)) {
-            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, 400);
+            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, undef, undef);
         }
         if ($type eq 'function') {
-            return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, 400);
+            return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, undef, undef);
         }
         if (exists $prot_srcs{$source}) {
-            return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, 400);
+            return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, undef, undef);
         }
         if ($filter) {
-            return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, 400);
+            return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, undef, undef);
         }
     }
     my $id_map  = $master->Job->get_job_ids($data);
