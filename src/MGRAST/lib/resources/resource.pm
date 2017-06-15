@@ -2201,34 +2201,69 @@ sub get_file_info {
     return ($node, $err_msg);
 }
 
-sub get_barcode_files {
-    my ($self, $uuid, $auth, $authPrefix) = @_;
+sub normalize_barcode_file {
+    my ($self, $uuid, $rc_barcode, $auth, $authPrefix) = @_;
     
-    my $bar_files = {};
-    my ($bar_text, $err) = $self->get_shock_file($uuid, undef, $auth, undef, $authPrefix);
+    my $to_update = 0;
+    my ($btext, $err) = $self->get_shock_file($uuid, undef, $auth, undef, $authPrefix);
     if ($err) {
         $self->return_data( {"ERROR" => $err}, 500 );
     }
-    my @lines = split(/\n/, $bar_text);
-    # skip header: Illumina or Qiime style
-    if ($lines[0] =~ /^#?SampleID\t/) {
-        shift @lines;
+    chomp $btext;
+    
+    my @cdata = ();
+    my @bdata = map { [ split(/\t/, $_) ] } split(/\n/, $btext);
+    if ($bdata[0][0] =~ /^#?SampleID$/) {
+        # skip header: Illumina or Qiime style
+        $to_update = 1;
+        shift @bdata;
     }
-    foreach my $line (@lines) {
-        next unless ($line);
-        my @bset = split(/\t/, $line);
-        next unless ($bset[0] && $bset[1]);
-        # find which column has barcodes
-        if ($bset[1] =~ /^[ATGCatgc-]+$/ ) {
-            $bar_files->{$bset[1]} = 1;
-        } elsif ($bset[0] =~ /^[ATGCatgc-]+$/ ) {
-            $bar_files->{$bset[0]} = 1;
+    foreach my $set (@bdata) {
+        unless ($set->[0] && $set->[1]) {
+            $to_update = 1;
+            next;
+        }
+        if ($set->[1] =~ /^[ATGCatgc-]+$/ ) {
+            # correct in second column
+            push @cdata, $set;
+        } elsif ($set->[0] =~ /^[ATGCatgc-]+$/ ) {
+            # incorrect in first column
+            push @cdata, [ $set->[1], $set->[0] ];
+            $to_update = 1;
+        } else {
+            # row is missing barcode, skip it
+            $to_update = 1;
         }
     }
-    if (scalar(keys %$bar_files) < 2) {
+    if ($rc_barcode) {
+        $to_update = 1;
+        for (my $i=0; $i<scalar(@cdata); $i++) {
+            my $rcseq = $cdata[$i][1];
+            $rcseq =~ tr/ATGCatgc/TACGtacg/;
+            if ($rcseq =~ /-/) {
+                # reverse double barcodes properly
+                my @parts = split(/-/, $rcseq);
+                $rcseq = reverse($parts[0]).'-'.reverse($parts[1])
+            } else {
+                $rcseq = reverse($rcseq);
+            }
+            $cdata[$i][1] = $rcseq;
+        }
+    }
+    # sanity check
+    if (scalar(@cdata) < 2) {
         $self->return_data( {"ERROR" => "number of barcodes in barcode_file must be greater than 1"}, 400 );
     }
-    return [keys %$bar_files];
+    my @names = map { $_->[0] } @cdata;
+    if ($to_update) {
+        # create new barcode file with same metadata as old
+        my $ctext = join("\n", map { $_->[0]."\t".$_->[1] } @cdata);
+        my $bar_node = $self->get_shock_node($uuid, $auth, $authPrefix);
+        my $new_node = $self->set_shock_node($bar_node->{file}{name}, $ctext, $bar_node->{attributes}, $auth, 1, $authPrefix, "5D");
+        $self->delete_shock_node($uuid, $auth, $authPrefix);
+        $uuid = $new_node->{id};
+    }
+    return ($uuid, \@names);
 }
 
 sub metadata_validation {
@@ -2550,10 +2585,9 @@ sub build_pair_join_task {
 # otherwise shock node does not exist and its a filename
 # returns array of 2 or more tasks
 sub build_demultiplex_454_task {
-    my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $bc_names, $auth, $authPrefix) = @_;
     
     my $seq_type = "";
-    my $bc_names = [];
     my $dm_task  = $self->empty_awe_task(1);
     $dm_task->{cmd}{description} = "demultiplex 454";
     $dm_task->{cmd}{name} = "demultiplex.py";
@@ -2582,7 +2616,6 @@ sub build_demultiplex_454_task {
             ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
         }
         $barcode = $bc_node->{file}{name};
-        $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
         $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
     } else {
         $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
@@ -2613,10 +2646,9 @@ sub build_demultiplex_454_task {
 # otherwise shock node does not exist and its a filename
 # returns array of 2 or more tasks
 sub build_demultiplex_illumina_task {
-    my ($self, $taskid, $depend_seq, $depend_bc, $depend_idx1, $depend_idx2, $seq, $barcode, $index1, $index2, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend_seq, $depend_bc, $depend_idx1, $depend_idx2, $seq, $barcode, $index1, $index2, $bc_names, $auth, $authPrefix) = @_;
     
     my $double_bc = $index2 ? 1 : 0;
-    my $bc_names  = [];
     my $dm_task   = $self->empty_awe_task(1);
     $dm_task->{cmd}{description} = "demultiplex illumina";
     $dm_task->{cmd}{name} = "fastq-multx";
@@ -2642,7 +2674,6 @@ sub build_demultiplex_illumina_task {
             ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
         }
         $barcode = $bc_node->{file}{name};
-        $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
         $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
     } else {
         $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
@@ -2703,10 +2734,9 @@ sub build_demultiplex_illumina_task {
 # creates pair-join task for each paired demultiplex output
 # returns array of 2 or more tasks
 sub build_demultiplex_pairjoin_task {
-    my ($self, $taskid, $depend_seq1, $depend_seq2, $depend_bc, $depend_idx1, $depend_idx2, $seq1, $seq2, $barcode, $index1, $index2, $retain, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend_seq1, $depend_seq2, $depend_bc, $depend_idx1, $depend_idx2, $seq1, $seq2, $barcode, $index1, $index2, $bc_names, $retain, $auth, $authPrefix) = @_;
     
     my $double_bc = $index2 ? 1 : 0;
-    my $bc_names  = [];
     my $dm_task   = $self->empty_awe_task(1);
     $dm_task->{cmd}{description} = "demultiplex illumina";
     $dm_task->{cmd}{name} = "fastq-multx";
@@ -2744,7 +2774,6 @@ sub build_demultiplex_pairjoin_task {
             ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
         }
         $barcode = $bc_node->{file}{name};
-        $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
         $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
     } else {
         $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );

@@ -269,7 +269,8 @@ sub info {
                   'body'     => { "seq_file"     => [ "string", "RFC 4122 UUID for sequence file" ],
                                   "index_file"   => [ "string", "RFC 4122 UUID for index file (optional)" ],
                                   "index_file_2" => [ "string", "RFC 4122 UUID for second index file, for double barcodes (optional)" ],
-                                  "barcode_file" => [ "string", "RFC 4122 UUID for barcode mapping file" ] }
+                                  "barcode_file" => [ "string", "RFC 4122 UUID for barcode mapping file" ],
+                                  "rc_barcode"   => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ] }
               }
             },
             { 'name'        => "pair_join",
@@ -305,7 +306,8 @@ sub info {
                                   "index_file"   => [ "string", "RFC 4122 UUID for index file" ],
                                   "index_file_2" => [ "string", "RFC 4122 UUID for second index file, for double barcodes (optional)" ],
                                   "barcode_file" => [ "string", "RFC 4122 UUID for barcode mapping file" ],
-                                  "retain"       => [ "boolean", "If true retain non-overlapping sequences, default is false" ] }
+                                  "retain"       => [ "boolean", "If true retain non-overlapping sequences, default is false" ],
+                                  "rc_barcode"   => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ] }
               }
             }
         ]
@@ -476,25 +478,27 @@ sub demultiplex {
     my ($self) = @_;
     
     # get and validate files
-    my $post = $self->get_post_data(['seq_file', 'index_file', 'index_file_2', 'barcode_file', 'debug']);
+    my $post = $self->get_post_data(['seq_file', 'index_file', 'index_file_2', 'barcode_file', 'rc_barcode', 'debug']);
     my $seq_file    = exists($post->{'seq_file'}) ? $post->{'seq_file'} : "";
     my $index_file  = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
     my $index2_file = exists($post->{'index_file_2'}) ? $post->{'index_file_2'} : "";
     my $bar_file    = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
+    my $rc_barcode  = $post->{'rc_barcode'} ? 1 : 0;
     my $debug       = $post->{'debug'} ? 1 : 0;
     
     unless ($seq_file && $bar_file) {
         $self->return_data( {"ERROR" => "this request type requires both the seq_file and barcode_file parameters"}, 400 );
     }
+    my ($bar_norm, $bar_names) = $self->normalize_barcode_file($bar_file, $rc_barcode, $self->token, $self->user_auth);
     
     my @tasks = ();
     # do illumina style demultiplex
     if ($index_file) {
-        push @tasks, $self->build_demultiplex_illumina_task(0, -1, -1, -1, -1, $seq_file, $bar_file, $index_file, $index2_file, $self->token, $self->user_auth);
+        push @tasks, $self->build_demultiplex_illumina_task(0, -1, -1, -1, -1, $seq_file, $bar_norm, $index_file, $index2_file, $bar_names, $self->token, $self->user_auth);
     }
     # do 454 style demultiplex
     else {
-        push @tasks, $self->build_demultiplex_454_task(0, -1, -1, $seq_file, $bar_file, $self->token, $self->user_auth);
+        push @tasks, $self->build_demultiplex_454_task(0, -1, -1, $seq_file, $bar_norm, $bar_names, $self->token, $self->user_auth);
     }
     
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_demultiplex";
@@ -502,7 +506,7 @@ sub demultiplex {
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
     $self->add_node_action($seq_file, undef, $job, 'demultiplex');
-    $self->add_node_action($bar_file, undef, $job, 'demultiplex');
+    $self->add_node_action($bar_norm, undef, $job, 'demultiplex');
     if ($index_file) {
         $self->add_node_action($index_file, undef, $job, 'demultiplex');
     }
@@ -562,13 +566,14 @@ sub pairjoin_demultiplex {
     my ($self) = @_;
     
     # get and validate sequence files
-    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'index_file', 'index_file_2', 'barcode_file', 'retain', 'debug']);
+    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'index_file', 'index_file_2', 'barcode_file', 'retain', 'rc_barcode', 'debug']);
     my $pair1_file  = exists($post->{'pair_file_1'}) ? $post->{'pair_file_1'} : "";
     my $pair2_file  = exists($post->{'pair_file_2'}) ? $post->{'pair_file_2'} : "";
     my $index_file  = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
     my $index2_file = exists($post->{'index_file_2'}) ? $post->{'index_file_2'} : "";
     my $bar_file    = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
     my $retain      = $post->{'retain'} ? 1 : 0;
+    my $rc_barcode  = $post->{'rc_barcode'} ? 1 : 0;
     my $debug       = $post->{'debug'} ? 1 : 0;
     
     unless ($pair1_file && $pair2_file) {
@@ -577,16 +582,17 @@ sub pairjoin_demultiplex {
     unless ($index_file && $bar_file) {
         $self->return_data( {"ERROR" => "this request type requires both the index_file and barcode_file parameters"}, 400 );
     }
+    my ($bar_norm, $bar_names) = $self->normalize_barcode_file($bar_file, $rc_barcode, $self->token, $self->user_auth);
     
     # get tasks
-    my @tasks = $self->build_demultiplex_pairjoin_task(0, -1, -1, -1, -1, -1, $pair1_file, $pair2_file, $bar_file, $index_file, $index2_file, $retain, $self->token, $self->user_auth);
+    my @tasks = $self->build_demultiplex_pairjoin_task(0, -1, -1, -1, -1, -1, $pair1_file, $pair2_file, $bar_norm, $index_file, $index2_file, $bar_names, $retain, $self->token, $self->user_auth);
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_pairjoin_demultiplex";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
     my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
     $self->add_node_action($pair1_file, undef, $job, "pairjoin_demultiplex");
     $self->add_node_action($pair2_file, undef, $job, "pairjoin_demultiplex");
-    $self->add_node_action($bar_file, undef, $job, "pairjoin_demultiplex");
+    $self->add_node_action($bar_norm, undef, $job, "pairjoin_demultiplex");
     $self->add_node_action($index_file, undef, $job, "pairjoin_demultiplex");
     if ($index2_file) {
         $self->add_node_action($index2_file, undef, $job, 'pairjoin_demultiplex');
@@ -595,12 +601,11 @@ sub pairjoin_demultiplex {
     $self->return_data({
         id        => $self->{wf_info}{user_id},
         user      => $self->{wf_info}{user_name},
-        status    => "demultiplex and pair-join is being run on files: $pair1_file, $pair2_file, $index_file, $bar_file",
+        status    => "demultiplex and pair-join is being run on files: $pair1_file, $pair2_file, $index_file".($index2_file ? ", $index2_file" : ""),
         awe_id    => $Conf::awe_url.'/job/'.$job->{id},
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     });
 }
-
 
 sub view_inbox {
     my ($self, $uuid) = @_;
