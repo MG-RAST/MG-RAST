@@ -2565,7 +2565,7 @@ sub build_pair_join_task {
         $merge_task->{cmd}{name} = "sed";
         $merge_task->{cmd}{args} = "-n w'$seqfile' ".join(' ', map { '@'.$_ } @outfiles);
         $merge_task->{dependsOn} = ["$depend"];
-        $merge_task->{taskid} = $taskid;
+        $merge_task->{taskid} = "$taskid";
         foreach my $outf (@outfiles) {
             $merge_task->{inputs}{$outf} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
         }
