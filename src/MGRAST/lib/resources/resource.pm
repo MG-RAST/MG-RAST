@@ -2550,8 +2550,9 @@ sub build_pair_join_task {
     }
     $pj_task->{outputs}{$outfiles[0]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     if ($retain) {
-        $pj_task->{outputs}{$outfiles[1]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-        $pj_task->{outputs}{$outfiles[2]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+        $pj_task->{outputs}{$outfiles[0]}{delete} = JSON::true;
+        $pj_task->{outputs}{$outfiles[1]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
+        $pj_task->{outputs}{$outfiles[2]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
     }
     my @tasks = ($pj_task);
     my $depend = $taskid;
