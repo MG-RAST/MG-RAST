@@ -270,7 +270,7 @@ sub info {
                                   "index_file"   => [ "string", "RFC 4122 UUID for index file (optional)" ],
                                   "index_file_2" => [ "string", "RFC 4122 UUID for second index file, for double barcodes (optional)" ],
                                   "barcode_file" => [ "string", "RFC 4122 UUID for barcode mapping file" ],
-                                  "rc_barcode"   => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ] }
+                                  "rc_index"     => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ] }
               }
             },
             { 'name'        => "pair_join",
@@ -307,7 +307,7 @@ sub info {
                                   "index_file_2" => [ "string", "RFC 4122 UUID for second index file, for double barcodes (optional)" ],
                                   "barcode_file" => [ "string", "RFC 4122 UUID for barcode mapping file" ],
                                   "retain"       => [ "boolean", "If true retain non-overlapping sequences, default is false" ],
-                                  "rc_barcode"   => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ] }
+                                  "rc_index"     => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ] }
               }
             }
         ]
@@ -484,12 +484,12 @@ sub demultiplex {
     my ($self) = @_;
     
     # get and validate files
-    my $post = $self->get_post_data(['seq_file', 'index_file', 'index_file_2', 'barcode_file', 'rc_barcode', 'debug']);
+    my $post = $self->get_post_data(['seq_file', 'index_file', 'index_file_2', 'barcode_file', 'rc_index', 'debug']);
     my $seq_file    = exists($post->{'seq_file'}) ? $post->{'seq_file'} : "";
     my $index_file  = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
     my $index2_file = exists($post->{'index_file_2'}) ? $post->{'index_file_2'} : "";
     my $bar_file    = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
-    my $rc_barcode  = $post->{'rc_barcode'} ? 1 : 0;
+    my $rc_barcode  = $post->{'rc_index'} ? 1 : 0;
     my $debug       = $post->{'debug'} ? 1 : 0;
     
     unless ($seq_file && $bar_file) {
@@ -578,14 +578,14 @@ sub pairjoin_demultiplex {
     my ($self) = @_;
     
     # get and validate sequence files
-    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'index_file', 'index_file_2', 'barcode_file', 'retain', 'rc_barcode', 'debug']);
+    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'index_file', 'index_file_2', 'barcode_file', 'retain', 'rc_index', 'debug']);
     my $pair1_file  = exists($post->{'pair_file_1'}) ? $post->{'pair_file_1'} : "";
     my $pair2_file  = exists($post->{'pair_file_2'}) ? $post->{'pair_file_2'} : "";
     my $index_file  = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
     my $index2_file = exists($post->{'index_file_2'}) ? $post->{'index_file_2'} : "";
     my $bar_file    = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
     my $retain      = $post->{'retain'} ? 1 : 0;
-    my $rc_barcode  = $post->{'rc_barcode'} ? 1 : 0;
+    my $rc_barcode  = $post->{'rc_index'} ? 1 : 0;
     my $debug       = $post->{'debug'} ? 1 : 0;
     
     unless ($pair1_file && $pair2_file) {
