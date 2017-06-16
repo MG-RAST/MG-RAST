@@ -2817,7 +2817,7 @@ sub build_demultiplex_pairjoin_task {
     foreach my $fname (@$bc_names) {
         $dm_task->{outputs}{$fname.'.R1.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
         $dm_task->{outputs}{$fname.'.R2.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
-        push @outpairs, [$fname.'.R1.fastq', $fname.'.R2.fastq'];
+        push @outpairs, [$fname.'.R1.fastq', $fname.'.R2.fastq', $fname];
     }
     $dm_task->{userattr}{stage_name} = "demultiplex";
     
@@ -2825,9 +2825,9 @@ sub build_demultiplex_pairjoin_task {
     my @tasks = ($dm_task);
     my $depend = $taskid;
     my $userattr = {parent_R1_file => $dm_task->{userattr}{parent_R1_file}, parent_R2_file => $dm_task->{userattr}{parent_R2_file}};
-    foreach my $pair (@outpairs) {
-        # my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $auth, $authPrefix) = @_;
-        my @pj_tasks = $self->build_pair_join_task($taskid+1, $depend, $depend, $pair->[0], $pair->[1], $retain, $userattr, $auth, $authPrefix);
+    foreach my $set (@outpairs) {
+        # my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $userattr, $auth, $authPrefix) = @_;
+        my @pj_tasks = $self->build_pair_join_task($taskid+1, $depend, $depend, $set->[0], $set->[1], $set->[2], $retain, $userattr, $auth, $authPrefix);
         $taskid += scalar(@pj_tasks);
         push @tasks, @pj_tasks;
     }

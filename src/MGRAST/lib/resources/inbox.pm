@@ -906,6 +906,7 @@ sub update_node_actions {
     }
     # check and update
     foreach my $act (@$old_actions) {
+        next unless ($act->{id});
         # do nothing with completed
         if ($act->{status} eq 'completed') {
             push @$new_actions, $act;
