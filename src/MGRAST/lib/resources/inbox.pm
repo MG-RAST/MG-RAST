@@ -910,14 +910,9 @@ sub update_node_actions {
         if ($act->{status} eq 'completed') {
             push @$new_actions, $act;
         } else {
-	  my $job = $self->get_awe_job($act->{id}, $self->token, $self->user_auth, 1);
-	  # if the job no longer exists, drop
-	  if ($job->{ERROR}) {
-	    next;
-	  }
-	  
-            # drop if deleted
-            if ($job->{state} eq 'deleted') {
+            my $job = $self->get_awe_job($act->{id}, $self->token, $self->user_auth, 1);
+            # if the job no longer exists, drop
+            if ((! $job) || (! ref($job)) || $job->{ERROR} || ($job->{state} eq 'deleted')) {
                 next;
             }
             # get error if suspend
