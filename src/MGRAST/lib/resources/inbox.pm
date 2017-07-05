@@ -73,13 +73,13 @@ sub info {
     my ($self) = @_;
     my $content = {
         'name' => $self->name,
-        'url' => $self->cgi->url."/".$self->name,
+        'url' => $self->url."/".$self->name,
         'description' => "inbox receives user inbox data upload, requires authentication, see http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#api_submission for details",
         'type' => 'object',
-        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'documentation' => $self->url.'/api.html#'.$self->name,
         'requests' => [
             { 'name'        => "info",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "Returns description of parameters and attributes.",
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -91,9 +91,9 @@ sub info {
               }
             },
             { 'name'        => "view",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "lists the contents of the user inbox",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'"',
                   			     'lists the contents of the user inbox, auth is required' ],
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -105,9 +105,9 @@ sub info {
               }
             },
             { 'name'        => "view_pending",
-              'request'     => $self->cgi->url."/".$self->name."/pending",
+              'request'     => $self->url."/".$self->name."/pending",
               'description' => "view status of AWE inbox actions",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/pending?queued&completed"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/pending?queued&completed"',
                                  "rename file 'sequences.fastq' in user inbox, auth is required" ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -119,9 +119,9 @@ sub info {
               }
             },
             { 'name'        => "upload",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "receives user inbox data upload, auto-uncompress if has .gz or .bz2 file extension",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "upload=@sequences.fastq" "'.$self->cgi->url."/".$self->name.'"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "upload=@sequences.fastq" "'.$self->url."/".$self->name.'"',
                     			 "upload file 'sequences.fastq' to user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -133,9 +133,9 @@ sub info {
               }
             },
             { 'name'        => "delete",
-              'request'     => $self->cgi->url."/".$self->name."/{UUID}",
+              'request'     => $self->url."/".$self->name."/{UUID}",
               'description' => "delete indicated file from inbox",
-              'example'     => [ 'curl -X DELETE -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X DELETE -H "auth: auth_key" "'.$self->url."/".$self->name.'/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "delete file 'sequences.fastq' from user inbox, auth is required" ],
               'method'      => "DELETE",
               'type'        => "synchronous",
@@ -148,9 +148,9 @@ sub info {
               }
             },
             { 'name'        => "unpack",
-              'request'     => $self->cgi->url."/".$self->name."/unpack/{UUID}",
+              'request'     => $self->url."/".$self->name."/unpack/{UUID}",
               'description' => "unpacks an archive upload into mutlple inbox files. supports: .zip, .tar, .tar.gz, .tar.bz2",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" -F "format=tar" "'.$self->cgi->url."/".$self->name.'/upload/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" -F "format=tar" "'.$self->url."/".$self->name.'/upload/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "unpack tar file with given id in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -167,9 +167,9 @@ sub info {
               }
             },
             { 'name'        => "file_info",
-              'request'     => $self->cgi->url."/".$self->name."/info/{UUID}",
+              'request'     => $self->url."/".$self->name."/info/{UUID}",
               'description' => "get basic file info - returns results and updates shock node",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/info/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/info/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "get basic info for file with given id in user inbox, auth is required" ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -182,9 +182,9 @@ sub info {
               }
             },
             { 'name'        => "validate_metadata",
-              'request'     => $self->cgi->url."/".$self->name."/validate/{UUID}",
+              'request'     => $self->url."/".$self->name."/validate/{UUID}",
               'description' => "validate metadata spreadsheet in inbox",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/validate/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/validate/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "validate metadata file with given id in user inbox, auth is required" ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -197,9 +197,9 @@ sub info {
               }
             },
             { 'name'        => "seq_stats",
-              'request'     => $self->cgi->url."/".$self->name."/stats/{UUID}",
+              'request'     => $self->url."/".$self->name."/stats/{UUID}",
               'description' => "runs sequence stats on file in user inbox - submits AWE job",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/stats/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/stats/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "runs seq stats on file with given id in user inbox, auth is required" ],
               'method'      => "GET",
               'type'        => "asynchronous",
@@ -212,9 +212,9 @@ sub info {
               }
             },
             { 'name'        => "cancel",
-              'request'     => $self->cgi->url."/".$self->name."/cancel/{UUID}",
+              'request'     => $self->url."/".$self->name."/cancel/{UUID}",
               'description' => "cancel (delete) given AWE job ID",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/cancel/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/cancel/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "cancel (delete) given AWE job ID, auth is required" ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -227,9 +227,9 @@ sub info {
               }
             },
             { 'name'        => "rename",
-              'request'     => $self->cgi->url."/".$self->name."/rename",
+              'request'     => $self->url."/".$self->name."/rename",
               'description' => "rename indicated file from inbox",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/rename"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" "'.$self->url."/".$self->name.'/rename"',
                                  "rename file in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -242,9 +242,9 @@ sub info {
               }
             },
             { 'name'        => "sff_to_fastq",
-              'request'     => $self->cgi->url."/".$self->name."/sff2fastq",
+              'request'     => $self->url."/".$self->name."/sff2fastq",
               'description' => "create fastq file from sff file - submits AWE job",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "sff_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->cgi->url."/".$self->name.'/sff2fastq"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "sff_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->url."/".$self->name.'/sff2fastq"',
                                  "create fastq file from sff file with given id in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -256,9 +256,9 @@ sub info {
               }
             },
             { 'name'        => "demultiplex",
-              'request'     => $self->cgi->url."/".$self->name."/demultiplex",
+              'request'     => $self->url."/".$self->name."/demultiplex",
               'description' => "demultiplex seq file with barcode file - submits AWE job",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "seq_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "barcode_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->cgi->url."/".$self->name.'/demultiplex"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "seq_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "barcode_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->url."/".$self->name.'/demultiplex"',
                                  "demultiplex seq file with barcode file for given ids in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -274,9 +274,9 @@ sub info {
               }
             },
             { 'name'        => "pair_join",
-              'request'     => $self->cgi->url."/".$self->name."/pairjoin",
+              'request'     => $self->url."/".$self->name."/pairjoin",
               'description' => "merge overlapping paired-end fastq files - submits AWE job",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "retain=1" -F "pair_file_1=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "pair_file_2=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->cgi->url."/".$self->name.'/pairjoin"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "retain=1" -F "pair_file_1=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "pair_file_2=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->url."/".$self->name.'/pairjoin"',
                                  "merge overlapping paired-end fastq files for given ids, retain non-overlapping pairs" ],
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -291,9 +291,9 @@ sub info {
               }
             },
             { 'name'        => "pair_join_demultiplex",
-              'request'     => $self->cgi->url."/".$self->name."/pairjoin_demultiplex",
+              'request'     => $self->url."/".$self->name."/pairjoin_demultiplex",
               'description' => "merge overlapping paired-end fastq files and demultiplex based on index file - submits AWE job",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "pair_file_1=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "pair_file_2=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "index_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->cgi->url."/".$self->name.'/pairjoin_demultiplex"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "pair_file_1=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "pair_file_2=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "index_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->url."/".$self->name.'/pairjoin_demultiplex"',
                                  "merge overlapping paired-end fastq files then demultiplex with index file, for given ids" ],
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -651,7 +651,7 @@ sub view_inbox {
             user      => $self->user->login,
             timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
             files     => $files,
-            url       => $self->cgi->url."/".$self->name
+            url       => $self->url."/".$self->name
         });
     }
 }

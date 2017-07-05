@@ -74,13 +74,13 @@ sub info {
     my ($self) = @_;
     my $content = {
         'name' => $self->name,
-        'url' => $self->cgi->url."/".$self->name,
+        'url' => $self->url."/".$self->name,
         'description' => "submission runs input through a series of validation and pre-processing steps, then submits the results to the MG-RAST anaylsis pipeline",
         'type' => 'object',
-        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'documentation' => $self->url.'/api.html#'.$self->name,
         'requests' => [
             { 'name'        => "info",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "Returns description of parameters and attributes.",
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -92,7 +92,7 @@ sub info {
               }
             },
             { 'name'        => "list",
-              'request'     => $self->cgi->url."/".$self->name."/list",
+              'request'     => $self->url."/".$self->name."/list",
               'description' => "list all submissions by user",
               'method'      => "GET",
               'type'        => "synchronous",
@@ -114,7 +114,7 @@ sub info {
               }
             },
             { 'name'        => "status",
-              'request'     => $self->cgi->url."/".$self->name."/{UUID}",
+              'request'     => $self->url."/".$self->name."/{UUID}",
               'description' => "get status of submission from ID",
               'method'      => "GET",
               'type'        => "synchronous",
@@ -139,7 +139,7 @@ sub info {
               }
             },
             { 'name'        => "delete",
-              'request'     => $self->cgi->url."/".$self->name."/{UUID}",
+              'request'     => $self->url."/".$self->name."/{UUID}",
               'description' => "delete all files and running processes for given submission ID",
               'method'      => "DELETE",
               'type'        => "synchronous",
@@ -157,7 +157,7 @@ sub info {
               }
             },
             { 'name'        => "submit",
-              'request'     => $self->cgi->url."/".$self->name."/submit",
+              'request'     => $self->url."/".$self->name."/submit",
               'description' => "start new submission",
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -678,7 +678,7 @@ sub submit {
     $submit_task->{cmd}{description} = 'mg submit '.scalar(@$sub_files);
     $submit_task->{cmd}{name} = "mgrast_submit.pl";
     $submit_task->{cmd}{args} = '-input @'.$self->{param_file};
-    $submit_task->{cmd}{environ}{private} = {"USER_AUTH" => $self->token, "MGRAST_API" => $self->cgi->url};
+    $submit_task->{cmd}{environ}{private} = {"USER_AUTH" => $self->token, "MGRAST_API" => $self->url};
     $submit_task->{taskid} = "$staskid";
     $submit_task->{dependsOn} = $sub_tids;
     $submit_task->{outputs} = {

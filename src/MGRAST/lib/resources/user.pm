@@ -47,12 +47,12 @@ sub new {
 sub info {
   my ($self) = @_;
   my $content = { 'name' => $self->name,
-		  'url' => $self->cgi->url."/".$self->name,
+		  'url' => $self->url."/".$self->name,
 		  'description' => "The user resource returns information about a user.",
 		  'type' => 'object',
-		  'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		  'documentation' => $self->url.'/api.html#'.$self->name,
 		  'requests' => [ { 'name'        => "info",
-				    'request'     => $self->cgi->url."/".$self->name,
+				    'request'     => $self->url."/".$self->name,
 				    'description' => "Returns description of parameters and attributes.",
 				    'method'      => "GET" ,
 				    'type'        => "synchronous" ,  
@@ -61,9 +61,9 @@ sub info {
 						       'required'    => {},
 						       'body'        => {} } },
 				  { 'name'        => "instance",
-				    'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				    'request'     => $self->url."/".$self->name."/{ID}",
 				    'description' => "Returns a single user object.",
-				    'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
+				    'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
 						       "info for user 'johndoe'" ],
 				    'method'      => "GET",
 				    'type'        => "synchronous" ,  
@@ -72,9 +72,9 @@ sub info {
 						       'required'    => { "id" => [ "string", "unique user login or ID" ] },
 						       'body'        => {} } },
 				  { 'name'        => "delete",
-				    'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				    'request'     => $self->url."/".$self->name."/{ID}",
 				    'description' => "Delete a user object.",
-				    'example'     => [ 'curl -X DELETE -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
+				    'example'     => [ 'curl -X DELETE -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
 						       "error or success message" ],
 				    'method'      => "DELETE",
 				    'type'        => "synchronous" ,  
@@ -83,9 +83,9 @@ sub info {
                                                          'required'    => { "id" => [ "string", "unique user login or ID" ] },
                                                          'body'        => {} } },
 				    { 'name'        => "update",
-                                      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+                                      'request'     => $self->url."/".$self->name."/{ID}",
                                       'description' => "Returns a single user object.",
-                                      'example'     => [ 'curl -X PUT -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe?firstname=Jim"',
+                                      'example'     => [ 'curl -X PUT -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe?firstname=Jim"',
 							 "set firstname of user 'johndoe' to 'Jim'" ],
                                       'method'      => "PUT",
                                       'type'        => "synchronous" ,  
@@ -94,9 +94,9 @@ sub info {
                                                          'required'    => { "id" => [ "string", "unique user login or ID" ] },
                                                          'body'        => {} } },
 				    { 'name'        => "query",
-                                      'request'     => $self->cgi->url."/".$self->name,
+                                      'request'     => $self->url."/".$self->name,
                                       'description' => "Returns a matching list of user objects.",
-                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'?lastname=Doe&firstname=John"',
+                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'?lastname=Doe&firstname=John"',
 							 "info for users with firstname 'John' and lastname 'Doe'" ],
                                       'method'      => "GET",
                                       'type'        => "synchronous" ,  
@@ -1146,7 +1146,7 @@ sub query {
 sub prepare_data {
     my ($self, $user) = @_;
 
-    my $url = $self->cgi->url;
+    my $url = $self->url;
 
     my $result = [];
     my $islist = 1;
@@ -1166,7 +1166,7 @@ sub prepare_data {
       $obj->{entry_date} = $u->{entry_date};
       $obj->{active}     = $u->{active};
       $obj->{comment}    = $u->{comment};
-      $obj->{url}        = $self->cgi->url.'/'.$self->{name}.'/'.$obj->{id};
+      $obj->{url}        = $self->url.'/'.$self->{name}.'/'.$obj->{id};
 
       if (defined $u->{preferences}) { $obj->{preferences} = $u->{preferences} };
       if (defined $u->{rights}) { $obj->{rights} = $u->{rights} };

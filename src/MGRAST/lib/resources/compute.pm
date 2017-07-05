@@ -64,13 +64,13 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		            'url' => $self->cgi->url."/".$self->name,
+		            'url' => $self->url."/".$self->name,
 		            'description' => "Calculate various statistics for given input data.",
 		            'type' => 'object',
-		            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		            'documentation' => $self->url.'/api.html#'.$self->name,
 		            'requests' => [
 		                { 'name'        => "info",
-				          'request'     => $self->cgi->url."/".$self->name,
+				          'request'     => $self->url."/".$self->name,
 				          'description' => "Returns description of parameters and attributes.",
 				          'method'      => "GET",
 				          'type'        => "synchronous",  
@@ -80,9 +80,9 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "alphadiversity",
-				          'request'     => $self->cgi->url."/".$self->name."/alphadiversity/{ID}",
+				          'request'     => $self->url."/".$self->name."/alphadiversity/{ID}",
 				          'description' => "Calculate alpha diversity value for given ID and taxon level.",
-				          'example'     => [ $self->cgi->url."/".$self->name."/alphadiversity/mgm4447943.3?level=order",
+				          'example'     => [ $self->url."/".$self->name."/alphadiversity/mgm4447943.3?level=order",
              				                 "retrieve alpha diversity for order taxon" ],
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
@@ -94,9 +94,9 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "rarefaction",
-				          'request'     => $self->cgi->url."/".$self->name."/rarefaction/{ID}",
+				          'request'     => $self->url."/".$self->name."/rarefaction/{ID}",
 				          'description' => "Calculate rarefaction x-y coordinates for given ID and taxon level.",
-				          'example'     => [ $self->cgi->url."/".$self->name."/rarefaction/mgm4447943.3?level=order",
+				          'example'     => [ $self->url."/".$self->name."/rarefaction/mgm4447943.3?level=order",
              				                 "retrieve rarefaction for order taxon" ],
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
@@ -111,9 +111,9 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "blast",
-				          'request'     => $self->cgi->url."/".$self->name."/blast/{ID}",
+				          'request'     => $self->url."/".$self->name."/blast/{ID}",
 				          'description' => "Produce NCBI-BLAST sequence alinments for given md5sum and its hits.",
-				          'example'     => [ $self->cgi->url."/".$self->name."/blast/mgm4447943.3?md5=15bf1950bd9867099e72ea6516e3d602",
+				          'example'     => [ $self->url."/".$self->name."/blast/mgm4447943.3?md5=15bf1950bd9867099e72ea6516e3d602",
              				                 "retrieve sequence alignment for reads from mgm4447943.3 against m5nr feature" ],
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
@@ -127,9 +127,9 @@ sub info {
 							                 'body'     => {} }
 						},
 				        { 'name'        => "normalize",
-				          'request'     => $self->cgi->url."/".$self->name."/normalize",
+				          'request'     => $self->url."/".$self->name."/normalize",
 				          'description' => "Calculate normalized values for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/normalize"',
+				          'example'     => [ 'curl -X POST -d \'{'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/normalize"',
              				                 "retrieve normalized values for input abundances" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -142,9 +142,9 @@ sub info {
           							                         "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]] } }
 						},
                         # { 'name'        => "significance",
-                        #                         'request'     => $self->cgi->url."/".$self->name."/significance",
+                        #                         'request'     => $self->url."/".$self->name."/significance",
                         #                         'description' => "Calculate significance values for given input data.",
-                        #                         'example'     => [ 'curl -X POST -d \'{"test":"Kruskal-Wallis","groups":["whale","whale","cow","cow"],'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/significance"',
+                        #                         'example'     => [ 'curl -X POST -d \'{"test":"Kruskal-Wallis","groups":["whale","whale","cow","cow"],'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/significance"',
                         #                                            "retrieve significance values for input abundances and groups using the 'Kruskal-Wallis' significance test" ],
                         #                         'method'      => "POST",
                         #                         'type'        => "synchronous",
@@ -160,9 +160,9 @@ sub info {
                         #                                                                "raw" => ["boolean", "option to use raw data (not normalize)"] } }
                         # },
 						{ 'name'        => "distance",
-				          'request'     => $self->cgi->url."/".$self->name."/distance",
+				          'request'     => $self->url."/".$self->name."/distance",
 				          'description' => "Calculate a distance matrix for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{"distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/distance"',
+				          'example'     => [ 'curl -X POST -d \'{"distance":"euclidean",'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/distance"',
                  				             "retrieve distance matrix of normalized input abundances using 'euclidean' distance method" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -177,9 +177,9 @@ sub info {
 							                                 "raw" => ["boolean", "option to use raw data (not normalize)"] } }
 						},
 						{ 'name'        => "heatmap",
-				          'request'     => $self->cgi->url."/".$self->name."/heatmap",
+				          'request'     => $self->url."/".$self->name."/heatmap",
 				          'description' => "Calculate a dendrogram for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{"raw":0,"cluster":"mcquitty",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/heatmap"',
+				          'example'     => [ 'curl -X POST -d \'{"raw":0,"cluster":"mcquitty",'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/heatmap"',
                				                 "retrieve dendrogram of normalized input abundances using 'mcquitty' cluster method" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -195,9 +195,9 @@ sub info {
      							                             "raw" => ["boolean", "option to use raw data (not normalize)"] } }
 						},
 						{ 'name'        => "pcoa",
-				          'request'     => $self->cgi->url."/".$self->name."/pcoa",
+				          'request'     => $self->url."/".$self->name."/pcoa",
 				          'description' => "Calculate a PCoA for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{"raw":1,"distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/pcoa"',
+				          'example'     => [ 'curl -X POST -d \'{"raw":1,"distance":"euclidean",'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/pcoa"',
                  				             "retrieve PCO of raw input abundances using 'euclidean' distance method" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -284,7 +284,7 @@ sub instance {
                     $self->delete_shock_node($n->{id}, $self->mgrast_token);
                 }
             } else {
-                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->url."/status/".$nodes->[0]->{id}});
             }
         }
         # need to create new node and fork
@@ -320,7 +320,7 @@ sub instance {
         }
         # parent - end html session
         else {
-            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
+            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->url."/status/".$node->{id}});
         }
     }
     # synchronous call, prepare then return data

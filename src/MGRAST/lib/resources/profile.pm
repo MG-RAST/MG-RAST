@@ -66,13 +66,13 @@ sub info {
     my ($self) = @_;
     my $content = {
         'name'         => $self->name,
-        'url'          => $self->cgi->url."/".$self->name,
+        'url'          => $self->url."/".$self->name,
         'description'  => "A feature profile in json format that contains abundance and similarity values along with annotations",
         'type'          => 'object',
-        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'documentation' => $self->url.'/api.html#'.$self->name,
         'requests'      => [
             { 'name'        => "info",
-			  'request'     => $self->cgi->url."/".$self->name,
+			  'request'     => $self->url."/".$self->name,
 			  'description' => "Returns description of parameters and attributes.",
               'method'      => "GET",
               'type'        => "synchronous",
@@ -83,9 +83,9 @@ sub info {
                   'body'     => {} }
 			},
             { 'name'        => "instance",
-              'request'     => $self->cgi->url."/".$self->name."/{ID}",
+              'request'     => $self->url."/".$self->name."/{ID}",
               'description' => "Submits profile creation",
-              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?source=RefSeq&format=biom",
+              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?source=RefSeq&format=biom",
                                'retrieve BIOM profile of RefSeq annotations' ],
               'method'      => "GET",
               'type'        => "asynchronous",
@@ -107,7 +107,7 @@ sub info {
                   'body'     => {} }
             },
             { 'name'        => "status",
-              'request'     => $self->cgi->url."/".$self->name."/status/{UUID}",
+              'request'     => $self->url."/".$self->name."/status/{UUID}",
               'description' => "Return profile status and/or results",
               'method'      => "GET",
               'type'        => "synchronous",
@@ -357,7 +357,7 @@ sub status_report_from_node {
     my $report = {
         id      => $node->{id},
         status  => $status,
-        url     => $self->cgi->url."/".$self->name."/status/".$node->{id},
+        url     => $self->url."/".$self->name."/status/".$node->{id},
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
         retry   => 0,

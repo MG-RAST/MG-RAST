@@ -31,12 +31,12 @@ sub new {
 sub info {
     my ($self)  = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "An analysis file from the processing of a metagenome from a specific stage in its analysis",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
-				              'request'     => $self->cgi->url."/".$self->name,
+				              'request'     => $self->url."/".$self->name,
 				              'description' => "Returns description of parameters and attributes.",
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -46,9 +46,9 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "instance",
-				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{ID}",
 				              'description' => "Returns a single sequence file.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?file=350.1",
+				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?file=350.1",
       				                             'download fasta file of gene-called protein sequences (from stage 350)' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -59,9 +59,9 @@ sub info {
 							                     'body'     => {} }
 							},
 							{ 'name'        => "history",
-				              'request'     => $self->cgi->url."/".$self->name."/history/{ID}",
+				              'request'     => $self->url."/".$self->name."/history/{ID}",
 				              'description' => "Summery of MG-RAST analysis-pipeline workflow and commands.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3/history",
+				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3/history",
       				                             'Workflow document for mgm4447943.3' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",
@@ -73,9 +73,9 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "setlist",
-				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{ID}",
 				              'description' => "Returns a list of sets of sequence files for the given id.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?stage=650",
+				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?stage=650",
         				                         'view all available files from stage 650' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -163,7 +163,7 @@ sub instance {
     # return stage(s) list
     my $data = {
         id   => $mgid,
-        url  => $self->cgi->url."/".$self->name."/".$mgid,
+        url  => $self->url."/".$self->name."/".$mgid,
         data => []
     };
     if ($stage) {
@@ -194,7 +194,7 @@ sub awe_history {
     my $debug  = $self->cgi->param('debug') ? 1 : 0;
     my $data   = {
         id   => $mgid,
-        url  => $self->cgi->url."/".$self->name."/history/".$mgid."?force=".$force,
+        url  => $self->url."/".$self->name."/history/".$mgid."?force=".$force,
         data => []
     };
     if ($awe_id) {

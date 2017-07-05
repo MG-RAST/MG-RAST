@@ -31,13 +31,13 @@ sub info {
     my ($self) = @_;
     my $content = {
             'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "Elastic search for Metagenomes.",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [
                     { 'name'        => "info",
-				      'request'     => $self->cgi->url."/".$self->name,
+				      'request'     => $self->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
 				      'method'      => "GET",
 				      'type'        => "synchronous",
@@ -45,9 +45,9 @@ sub info {
 				      'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
 					},
 				    { 'name'        => "query",
-				      'request'     => $self->cgi->url."/".$self->name,
+				      'request'     => $self->url."/".$self->name,
 				      'description' => "Elastic search",
-				      'example'     => [ $self->cgi->url."/".$self->name."?material=saline water",
+				      'example'     => [ $self->url."/".$self->name."?material=saline water",
                                          'return the first ten datasets that have saline water as the sample material' ],
 				      'method'      => "GET",
 				      'type'        => "synchronous",
@@ -55,7 +55,7 @@ sub info {
 				      'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
 				    },
 				    { 'name'        => "upsert",
-				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				      'request'     => $self->url."/".$self->name."/{ID}",
 				      'description' => "Elastic Upsert",
 				      'method'      => "GET",
 				      'type'        => "synchronous",

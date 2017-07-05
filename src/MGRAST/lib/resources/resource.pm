@@ -44,6 +44,7 @@ sub new {
         $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000};
     };
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
+    my $self_url = get_self_url($params->{cgi}, $params->{is_ssl});
     my $agent = LWP::UserAgent->new;
     $agent->timeout(600);
     my $json = JSON->new();
@@ -94,6 +95,7 @@ sub new {
         memd          => $memd,
         json          => $json,
         cgi           => $params->{cgi},
+        url           => $self_url,
         rest          => $params->{rest_parameters} || [],
         method        => $params->{method},
         submethod     => $params->{submethod},
@@ -141,6 +143,15 @@ sub get_url_id {
     return md5_hex($rurl);
 }
 
+sub get_self_url {
+    my ($cgi, $is_ssl) = @_;
+    my $cgi_url = $cgi->url;
+    if ($is_ssl) {
+        $cgi_url =~ s/http/https/;
+    }
+    return $cgi_url;
+}
+
 # get functions for class variables
 sub agent {
     my ($self) = @_;
@@ -157,6 +168,10 @@ sub json {
 sub cgi {
     my ($self) = @_;
     return $self->{cgi};
+}
+sub url {
+    my ($self) = @_;
+    return $self->{url};
 }
 sub rest {
     my ($self) = @_;
@@ -527,9 +542,9 @@ sub check_pagination {
     # don't build urls for POST
     if ($self->method eq 'GET') {
         my $add_params  = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'offset'} @params);
-        $object->{url}  = $self->cgi->url."/".$self->name.$path."?$add_params&offset=$offset";
-        $object->{prev} = ($offset > 0) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$prev_offset" : undef;
-        $object->{next} = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$next_offset" : undef;
+        $object->{url}  = $self->url."/".$self->name.$path."?$add_params&offset=$offset";
+        $object->{prev} = ($offset > 0) ? $self->url."/".$self->name.$path."?$add_params&offset=$prev_offset" : undef;
+        $object->{next} = (($offset < $total_count) && ($total_count > $limit)) ? $self->url."/".$self->name.$path."?$add_params&offset=$next_offset" : undef;
     }
     if ($order) {
       $object->{order} = $order;
@@ -864,7 +879,7 @@ sub get_download_set {
         }
         my $file_id = $attr->{stage_id}.'.'.$seen{$attr->{stage_id}};
         my $data = { id  => "mgm".$mgid,
-		             url => $self->cgi->url.'/download/mgm'.$mgid.'?file='.$file_id,
+		             url => $self->url.'/download/mgm'.$mgid.'?file='.$file_id,
 		             node_id    => $node->{id},
 		             stage_id   => $attr->{stage_id},
 		             stage_name => $attr->{stage_name},
