@@ -253,7 +253,7 @@ if ($resource) {
 else {
   my $cgi_url = $Conf::url_base ? $Conf::url_base : $cgi->url;
   if ($is_ssl) {
-      $cgi_url =~ s/http/https/;
+      $cgi_url =~ s/^http/https/;
   }
   $cgi_url =~ s/^(.*)\/$/$1/;
   $cgi_url =~ s/^(.*)\/api.cgi$/$1/;

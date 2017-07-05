@@ -147,7 +147,7 @@ sub get_self_url {
     my ($cgi, $is_ssl) = @_;
     my $cgi_url = $cgi->url;
     if ($is_ssl) {
-        $cgi_url =~ s/http/https/;
+        $cgi_url =~ s/^http/https/;
     }
     return $cgi_url;
 }
