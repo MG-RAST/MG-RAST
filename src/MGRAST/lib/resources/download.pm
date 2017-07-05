@@ -405,6 +405,7 @@ sub awe_history {
             }
         }
     }
+    $awe_history->{tasks} = $self->fix_download_filenames($awe_history->{tasks}, $restid);
     $data->{data} = $awe_history;
     
     # POST to shock if created
