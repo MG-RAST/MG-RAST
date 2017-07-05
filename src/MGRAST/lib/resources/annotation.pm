@@ -199,25 +199,10 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
-    # check if job exists in cassandra DB / also tests DB connection
-    my $version = $self->cgi->param('version') || $self->{m5nr_default};
-    my $jobid = $job->{job_id};
-    my $chdl = $self->cassandra_handle("job", $version);
-    unless ($chdl) {
+    # test cassandra access
+    my $ctest = $self->cassandra_test("job");
+    unless ($ctest) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
-    }
-    my $in_cassandra = $chdl->has_job($jobid);
-    $chdl->close();
-    
-    unless ($in_cassandra) {
-        # need to redirect annotation to postgres backend API
-        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
-        print STDERR "Redirect: $redirect_uri\n";
-        print $self->cgi->redirect(
-            -uri => $redirect_uri,
-            -status => '302 Found'
-        );
-        exit 0;
     }
     
     $self->prepare_data($job, $format);
