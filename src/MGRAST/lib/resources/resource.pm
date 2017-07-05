@@ -972,6 +972,39 @@ sub get_download_set {
     return ($stages, $skip);
 }
 
+sub fix_download_filenames {
+    my ($self, $data, $id) = @_;
+    foreach my $d (@$data) {
+        if (exists $d->{file_name}) {
+            $d->{file_name} = $self->fix_download_filename($d->{file_name}, $id);
+        }
+        if (exists $d->{inputs}) {
+            foreach my $i (@{$d->{inputs}}) {
+                if (exists $i->{file_name}) {
+                    $i->{file_name} = $self->fix_download_filename($i->{file_name}, $id);
+                }
+            }
+        }
+        if (exists $d->{outputs}) {
+            foreach my $o (@{$d->{outputs}}) {
+                if (exists $o->{file_name}) {
+                    $o->{file_name} = $self->fix_download_filename($o->{file_name}, $id);
+                }
+            }
+        }
+    }
+    return $data;
+}
+
+sub fix_download_filename {
+    my ($self, $fname, $id) = @_;
+    # has jobid prefix
+    if ($fname =~ /^(\d+)\.(.*)/) {
+        $fname = $id.".".$2;
+    }
+    return $fname
+}
+
 # add or delete an ACL based on username
 sub edit_shock_acl {
     my ($self, $id, $auth, $user, $action, $acl, $authPrefix) = @_;

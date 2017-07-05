@@ -133,7 +133,7 @@ sub instance {
     }
     
     if ($history) {
-        $self->return_data( $self->awe_history($mgid, $job) );
+        $self->return_data( $self->awe_history($restid, $mgid, $job) );
     }
 
     # get data / parameters
@@ -143,15 +143,12 @@ sub instance {
     my $debug = $self->cgi->param('debug') ? 1 : 0;
     my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
     my ($setlist, $skip) = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
+    $setlist = $self->fix_download_filenames($setlist, $restid);
     
     # return file from shock
     if ($file) {
         my $node = undef;
         foreach my $set (@$setlist) {
-            if (! $job->{public}) {
-                my $pid = $self->obfuscate($mgid);
-                $set->{file_name} =~ s/$mgid/$pid/;
-            }
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
                 if ($link) {
                     my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
@@ -189,7 +186,7 @@ sub instance {
 }
 
 sub awe_history {
-    my ($self, $mgid, $job) = @_;
+    my ($self, $restid, $mgid, $job) = @_;
     
     my $awe_id = $self->cgi->param('awe_id') || undef;
     my $force  = $self->cgi->param('force') ? 1 : 0;
