@@ -210,7 +210,7 @@ sub instance {
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $job, $format) = @_;
+    my ($self, $data, $format) = @_;
 
     my $cgi     = $self->cgi;
     my $type    = $cgi->param('type') ? $cgi->param('type') : 'organism';
@@ -221,9 +221,9 @@ sub prepare_data {
     my $filter  = $cgi->param('filter') || undef;
     my $flevel  = $cgi->param('filter_level') || undef;
     my $md5s    = [];
-    my $mgid    = 'mgm'.$job->metagenome_id;
-    my $jobid   = $job->job_id;
-    my $swap    = $self->to_swap($job);
+    my $mgid    = 'mgm'.$data->metagenome_id;
+    my $jobid   = $data->job_id;
+    my $swap    = $self->to_swap($data);
     my $version = ($cgi->param('version') && ($cgi->param('version') =~ /^\d+$/)) ? $cgi->param('version') : $self->{m5nr_default};
     my $filetype = $cgi->param('format') || 'tab';
     my $no_cutoffs = $cgi->param('no_cutoffs') ? 1 : 0;

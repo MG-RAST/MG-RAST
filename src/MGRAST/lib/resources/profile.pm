@@ -201,7 +201,7 @@ sub submit {
     my $source    = $self->cgi->param('source') || 'RefSeq';
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = $self->cgi->param('format') || 'mgrast';
-    my $retry     = int($self->cgi->param('retry')) || 0;
+    my $retry     = $self->cgi->param('retry') ? int($self->cgi->param('retry')) : 0;
     my $debug     = $self->cgi->param('debug') ? 1 : 0;
     unless (($retry =~ /^\d+$/) && ($retry > 0)) {
         $retry = 0;
@@ -320,7 +320,7 @@ sub create_profile {
     
     ### create profile
     # store it in shock permanently if mgrast / lca format
-    $param->{swap} = $self->to_swap($job);
+    $param->{swap} = $self->to_swap($data);
     my $attr = undef;
     if ($param->{format} =~ /^(mgrast|lca)$/) {
         $attr = {
