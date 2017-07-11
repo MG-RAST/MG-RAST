@@ -191,8 +191,9 @@ class Profile(object):
         recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
         for r in recs:
             if swap:
-                r[3], r[4] = r[4], r[3]
-            md5_row[r[0]] = [r[0], r[1], r[2], r[3], r[4], None, None]
+                md5_row[r[0]] = [r[0], r[1], r[2], r[4], r[3], None, None]
+            else:
+                md5_row[r[0]] = [r[0], r[1], r[2], r[3], r[4], None, None]
             total += 1
             count += 1
             if count == self.chunk:
@@ -217,8 +218,9 @@ class Profile(object):
             if not r[0]:
                 continue
             if swap:
-                r[3], r[4] = r[4], r[3]
-            data.append(r)
+                data.append([r[0], r[1], r[2], r[4], r[3], r[5], r[6]])
+            else:
+                data.append([r[0], r[1], r[2], r[3], r[4], r[5], r[6]])
             found += 1
             if (total % 1000) == 0:
                 prev = self.update_progress(node, total, found, prev)
@@ -259,8 +261,9 @@ class Profile(object):
         recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
         for r in recs:
             if swap:
-                r[3], r[4] = r[4], r[3]
-            md5_row[r[0]] = [r[1], r[2], r[3], r[4]]
+                md5_row[r[0]] = [r[1], r[2], r[4], r[3]]
+            else:
+                md5_row[r[0]] = [r[1], r[2], r[3], r[4]]
             total += 1
             count += 1
             if count == self.chunk:
