@@ -113,7 +113,8 @@ sub new {
         rights        => {},
         attributes    => {},
         m5nr_version  => {'1' => '20100309', '7' => '20120401', '9' => '20130801', '10' => '20131215'},
-        m5nr_default  => 1
+        m5nr_default  => 1,
+        default_pipeline_version => "3.0"
     };
     bless $self, $class;
     return $self;
@@ -812,7 +813,7 @@ sub get_download_set {
       $authPrefix = "mgrast";
     }
 
-    my $vernum = int( (split(/\./, $version))[0] );
+    my $vernum = $self->normailze_pipeline_version($version);
     my %seen   = ();
     my $skip   = {};
     my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
@@ -944,13 +945,13 @@ sub get_download_set {
         } elsif ($data->{stage_name} eq 'filter.sims') {
             $suffix = '.annotation.sims.filter.seq';
         } elsif ($data->{data_type} eq 'md5') {
-            if ($vernum < 4) {
+            if ($vernum < 400) {
                 $suffix = '.annotation.md5.summary';
             } else {
                 $suffix = '.annotation.md5.abundance';
             }
         } elsif ($data->{data_type} eq 'lca') {
-            if ($vernum < 4) {
+            if ($vernum < 400) {
                 $suffix = '.annotation.lca.summary';
             } else {
                 $suffix = '.annotation.lca.abundance';
@@ -964,7 +965,7 @@ sub get_download_set {
         if ($data->{data_type} eq 'statistics') {
             # no stage_id in stats file name
             $data->{file_name} = $attr->{job_id}.'.statistics.json';
-        } elsif (($data->{stage_name} eq 'filter.sims') && ($version eq '3.0')) {
+        } elsif (($data->{stage_name} eq 'filter.sims') && ($vernum == 300)) {
             # old pipeline naming scheme
             $data->{file_name} = $attr->{job_id}.'.900.loadDB.sims.filter.seq';
         }
@@ -3259,6 +3260,45 @@ sub idresolve {
   return $id;
 }
 
+sub normailze_pipeline_version {
+    my ($self, $pv) = @_;
+    my @nums = split(/\./, $pv);
+    my $nv = $nums[0] * 100;
+    if (scalar(@nums) > 1) {
+        $nv += ($nums[1] * 10);
+    }
+    if (scalar(@nums) > 2) {
+        $nv += ($nums[2] * 1);
+    }
+    return $nv;
+}
+
+sub to_swap {
+    my ($self, $job) = @_;
+    my $pv = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
+    my $nv = $self->normailze_pipeline_version($pv);
+    if (($nv < 400) || ($nv > 402)) {
+        return undef;
+    } else {
+        return 1;
+    }
+}
+
+sub to_swap_set {
+    my ($self, $mgids) = @_;
+    my $master = $self->connect_to_datasource();
+    my $pv_set = $master->Job->get_job_pipelines($mgids, $self->{default_pipeline_version});
+    my $sw_set = [];
+    foreach my $m (@$mgids) {
+        my $nv = $self->normailze_pipeline_version($pv_set->{$m});
+        if (($nv < 400) || ($nv > 402)) {
+            push @$sw_set, undef;
+        } else {
+            push @$sw_set, 1;
+        }
+    }
+    return $sw_set;
+}
 
 ###################################################
 #  stub functions - replace these in child class  #

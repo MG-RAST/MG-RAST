@@ -174,8 +174,10 @@ class JobHandle(object):
     def close(self):
         cass_connection.destroy()
     ## get iterator for md5 records of a job
-    def get_job_records(self, job, fields, evalue=None, identity=None, alength=None):
+    def get_job_records(self, job, fields, swap=None, evalue=None, identity=None, alength=None):
         job = int(job)
+        if swap:
+            identity, alength = alength, identity
         query = "SELECT "+",".join(fields)+" FROM job_md5s WHERE version = ? AND job = ?"
         where = [self.version, job]
         if evalue:
@@ -193,8 +195,10 @@ class JobHandle(object):
         prep = self.session.prepare(query)
         return self.session.execute(prep, where)
     ## get iterator for lca records of a job
-    def get_lca_records(self, job, fields, evalue=None, identity=None, alength=None):
+    def get_lca_records(self, job, fields, swap=None, evalue=None, identity=None, alength=None):
         job = int(job)
+        if swap:
+            identity, alength = alength, identity
         query = "SELECT "+",".join(fields)+" FROM job_lcas WHERE version = ? AND job = ?"
         where = [self.version, job]
         if evalue:
@@ -223,8 +227,10 @@ class JobHandle(object):
         else:
             return None
     ## get indexes for given md5 list or cutoff values
-    def get_md5_records(self, job, md5s=None, evalue=None, identity=None, alength=None):
+    def get_md5_records(self, job, swap=None, md5s=None, evalue=None, identity=None, alength=None):
         job = int(job)
+        if swap:
+            identity, alength = alength, identity
         found = []
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)
         if md5s and (len(md5s) > 0):

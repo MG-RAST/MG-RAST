@@ -311,6 +311,7 @@ sub create_profile {
     
     ### create profile
     # store it in shock permanently if mgrast / lca format
+    $param->{swap} = $self->to_swap($job);
     my $attr = undef;
     if ($param->{format} =~ /^(mgrast|lca)$/) {
         $attr = {

@@ -20,7 +20,6 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "download";
-    $self->{default_pipeline_version} = "3.0";
     $self->{default_pipeline_commit}  = "https://github.com/MG-RAST/pipeline";
     $self->{default_template_version} = "https://github.com/MG-RAST/MG-RAST/tree/api/src/MGRAST/workflows";
     return $self;

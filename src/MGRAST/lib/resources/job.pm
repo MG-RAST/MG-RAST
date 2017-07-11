@@ -43,7 +43,6 @@ sub new {
 			    changesequencetype => 1,
 			    publicationadjust => 1
     };
-    $self->{default_pipeline_version} = "3.0";
     $self->{attributes} = {
         reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
                      "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],

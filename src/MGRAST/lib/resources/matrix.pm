@@ -485,6 +485,7 @@ sub process_parameters {
         url         => $matrix_url,
         mg_ids      => \@mg_ids,
         job_ids     => \@job_ids,
+        swaps       => $self->to_swap_set(\@mg_ids),
         resource    => "matrix",
         type        => $type,
         group_level => $glvl,

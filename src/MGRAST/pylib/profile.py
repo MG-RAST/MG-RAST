@@ -31,6 +31,7 @@ class Profile(object):
         self.jobs.close()
     
     def compute_profile(self, node, param, attr=None):
+        swap    = True if ('swap' in param) and param['swap'] else False
         index   = True if param['condensed'] == 'true' else False
         fname   = "%s_%s_v%d.%s"%(param['id'], param['source'], self.version, param['format'])
         profile = None
@@ -39,7 +40,7 @@ class Profile(object):
         if param['format'] == 'mgrast':
             try:
                 profile = self.init_mgrast_profile(param['id'], param['source'], param['source_type'], index)
-                data    = self.get_mgrast_data(param['job_id'], param['source'], index, node)
+                data    = self.get_mgrast_data(param['job_id'], param['source'], index, node, swap)
                 profile['data'] = data
                 profile['row_total'] = len(profile['data'])
             except Exception as ex:
@@ -48,7 +49,7 @@ class Profile(object):
         elif param['format'] == 'lca':
             try:
                 profile = self.init_lca_profile(param['id'])
-                data    = self.get_lca_data(param['job_id'], node)
+                data    = self.get_lca_data(param['job_id'], node, swap)
                 profile['data'] = data
                 profile['row_total'] = len(profile['data'])
             except Exception as ex:
@@ -57,7 +58,7 @@ class Profile(object):
         elif param['format'] == 'biom':
             try:
                 profile    = self.init_biom_profile(param['id'], param['source'], param['source_type'])
-                rows, data = self.get_biom_data(param['job_id'], param['source'], node)
+                rows, data = self.get_biom_data(param['job_id'], param['source'], node, swap)
                 profile['rows'] = rows
                 profile['data'] = data
                 profile['shape'][0] = len(profile['rows'])
@@ -153,7 +154,7 @@ class Profile(object):
             ]
         }
     
-    def get_mgrast_data(self, job, source, index=False, node=None):
+    def get_mgrast_data(self, job, source, index=False, node=None, swap=False):
         data = []
         found = 0
         md5_row = defaultdict(list)
@@ -189,6 +190,8 @@ class Profile(object):
         prev  = time.time()
         recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
         for r in recs:
+            if swap:
+                r[3], r[4] = r[4], r[3]
             md5_row[r[0]] = [r[0], r[1], r[2], r[3], r[4], None, None]
             total += 1
             count += 1
@@ -203,7 +206,7 @@ class Profile(object):
         self.update_progress(node, total, found, 0) # last update
         return data
     
-    def get_lca_data(self, job, node=None):
+    def get_lca_data(self, job, node=None, swap=False):
         data  = []
         found = 0
         total = 0
@@ -213,6 +216,8 @@ class Profile(object):
             total += 1
             if not r[0]:
                 continue
+            if swap:
+                r[3], r[4] = r[4], r[3]
             data.append(r)
             found += 1
             if (total % 1000) == 0:
@@ -220,7 +225,7 @@ class Profile(object):
         self.update_progress(node, total, found, 0) # last update
         return data
     
-    def get_biom_data(self, job, source, node=None):
+    def get_biom_data(self, job, source, node=None, swap=False):
         rows = []
         data = []
         found = 0
@@ -253,6 +258,8 @@ class Profile(object):
         prev  = time.time()
         recs  = self.jobs.get_job_records(job, ['md5', 'abundance', 'exp_avg', 'ident_avg', 'len_avg'])
         for r in recs:
+            if swap:
+                r[3], r[4] = r[4], r[3]
             md5_row[r[0]] = [r[1], r[2], r[3], r[4]]
             total += 1
             count += 1

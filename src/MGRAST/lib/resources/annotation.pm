@@ -210,7 +210,7 @@ sub instance {
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $data, $format) = @_;
+    my ($self, $job, $format) = @_;
 
     my $cgi     = $self->cgi;
     my $type    = $cgi->param('type') ? $cgi->param('type') : 'organism';
@@ -221,8 +221,9 @@ sub prepare_data {
     my $filter  = $cgi->param('filter') || undef;
     my $flevel  = $cgi->param('filter_level') || undef;
     my $md5s    = [];
-    my $mgid    = 'mgm'.$data->{metagenome_id};
-    my $jobid   = $data->{job_id};
+    my $mgid    = 'mgm'.$job->metagenome_id;
+    my $jobid   = $job->job_id;
+    my $swap    = $self->to_swap($job);
     my $version = ($cgi->param('version') && ($cgi->param('version') =~ /^\d+$/)) ? $cgi->param('version') : $self->{m5nr_default};
     my $filetype = $cgi->param('format') || 'tab';
     my $no_cutoffs = $cgi->param('no_cutoffs') ? 1 : 0;
@@ -328,9 +329,9 @@ sub prepare_data {
     
     my $index_set = [];
     if ($md5s && (@$md5s > 0)) {
-        $index_set = $jobhdl->get_md5_records($jobid, $md5s);
+        $index_set = $jobhdl->get_md5_records($jobid, $swap, $md5s);
     } else {
-        $index_set = $jobhdl->get_md5_records($jobid, undef, $eval, $ident, $alen);
+        $index_set = $jobhdl->get_md5_records($jobid, $swap, undef, $eval, $ident, $alen);
     }
     
     # print html and line headers - no buffering to stdout
