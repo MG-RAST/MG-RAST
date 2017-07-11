@@ -5,6 +5,7 @@ use warnings;
 no warnings('once');
 
 use POSIX qw(strftime);
+use Data::Dumper;
 use List::MoreUtils qw(natatime);
 
 use Conf;
@@ -201,6 +202,7 @@ sub submit {
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = $self->cgi->param('format') || 'mgrast';
     my $retry     = int($self->cgi->param('retry')) || 0;
+    my $debug     = $self->cgi->param('debug') ? 1 : 0;
     unless (($retry =~ /^\d+$/) && ($retry > 0)) {
         $retry = 0;
     }
@@ -280,6 +282,13 @@ sub submit {
     };
     my $expire = ($format =~ /^(mgrast|lca)$/) ? "1D" : "7D";
     my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, $expire);
+    
+    # debug - run synchronously
+    if ($debug) {
+        print STDERR Dumper($node);
+        $self->create_profile($id, $node, $tquery->{parameters});
+        $self->return_data($node);
+    }
     
     # asynchronous call, fork the process
     my $pid = fork();
