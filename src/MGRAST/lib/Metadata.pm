@@ -642,7 +642,7 @@ sub verify_job_metadata {
     push(@$errors, "mandatory term 'investigation type' missing");
   }
   my $lib = $data->{library}{data}{investigation_type};
-  unless (exists $mixs->{library}{$lib}) {
+  unless ($lib && exists($mixs->{library}{$lib})) {
     push(@$errors, "library missing");
   }
   foreach my $cat (keys %$mixs) {
