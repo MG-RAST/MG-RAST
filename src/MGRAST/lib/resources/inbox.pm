@@ -73,13 +73,13 @@ sub info {
     my ($self) = @_;
     my $content = {
         'name' => $self->name,
-        'url' => $self->cgi->url."/".$self->name,
+        'url' => $self->url."/".$self->name,
         'description' => "inbox receives user inbox data upload, requires authentication, see http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#api_submission for details",
         'type' => 'object',
-        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'documentation' => $self->url.'/api.html#'.$self->name,
         'requests' => [
             { 'name'        => "info",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "Returns description of parameters and attributes.",
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -91,9 +91,9 @@ sub info {
               }
             },
             { 'name'        => "view",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "lists the contents of the user inbox",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'"',
                   			     'lists the contents of the user inbox, auth is required' ],
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -105,9 +105,9 @@ sub info {
               }
             },
             { 'name'        => "view_pending",
-              'request'     => $self->cgi->url."/".$self->name."/pending",
+              'request'     => $self->url."/".$self->name."/pending",
               'description' => "view status of AWE inbox actions",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/pending?queued&completed"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/pending?queued&completed"',
                                  "rename file 'sequences.fastq' in user inbox, auth is required" ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -119,9 +119,9 @@ sub info {
               }
             },
             { 'name'        => "upload",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "receives user inbox data upload, auto-uncompress if has .gz or .bz2 file extension",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "upload=@sequences.fastq" "'.$self->cgi->url."/".$self->name.'"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "upload=@sequences.fastq" "'.$self->url."/".$self->name.'"',
                     			 "upload file 'sequences.fastq' to user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -133,9 +133,9 @@ sub info {
               }
             },
             { 'name'        => "delete",
-              'request'     => $self->cgi->url."/".$self->name."/{UUID}",
+              'request'     => $self->url."/".$self->name."/{UUID}",
               'description' => "delete indicated file from inbox",
-              'example'     => [ 'curl -X DELETE -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X DELETE -H "auth: auth_key" "'.$self->url."/".$self->name.'/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "delete file 'sequences.fastq' from user inbox, auth is required" ],
               'method'      => "DELETE",
               'type'        => "synchronous",
@@ -148,9 +148,9 @@ sub info {
               }
             },
             { 'name'        => "unpack",
-              'request'     => $self->cgi->url."/".$self->name."/unpack/{UUID}",
+              'request'     => $self->url."/".$self->name."/unpack/{UUID}",
               'description' => "unpacks an archive upload into mutlple inbox files. supports: .zip, .tar, .tar.gz, .tar.bz2",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" -F "format=tar" "'.$self->cgi->url."/".$self->name.'/upload/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" -F "format=tar" "'.$self->url."/".$self->name.'/upload/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "unpack tar file with given id in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -167,9 +167,9 @@ sub info {
               }
             },
             { 'name'        => "file_info",
-              'request'     => $self->cgi->url."/".$self->name."/info/{UUID}",
+              'request'     => $self->url."/".$self->name."/info/{UUID}",
               'description' => "get basic file info - returns results and updates shock node",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/info/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/info/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "get basic info for file with given id in user inbox, auth is required" ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -182,9 +182,9 @@ sub info {
               }
             },
             { 'name'        => "validate_metadata",
-              'request'     => $self->cgi->url."/".$self->name."/validate/{UUID}",
+              'request'     => $self->url."/".$self->name."/validate/{UUID}",
               'description' => "validate metadata spreadsheet in inbox",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/validate/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/validate/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "validate metadata file with given id in user inbox, auth is required" ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -197,9 +197,9 @@ sub info {
               }
             },
             { 'name'        => "seq_stats",
-              'request'     => $self->cgi->url."/".$self->name."/stats/{UUID}",
+              'request'     => $self->url."/".$self->name."/stats/{UUID}",
               'description' => "runs sequence stats on file in user inbox - submits AWE job",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/stats/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/stats/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "runs seq stats on file with given id in user inbox, auth is required" ],
               'method'      => "GET",
               'type'        => "asynchronous",
@@ -212,9 +212,9 @@ sub info {
               }
             },
             { 'name'        => "cancel",
-              'request'     => $self->cgi->url."/".$self->name."/cancel/{UUID}",
+              'request'     => $self->url."/".$self->name."/cancel/{UUID}",
               'description' => "cancel (delete) given AWE job ID",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/cancel/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/cancel/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "cancel (delete) given AWE job ID, auth is required" ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -227,9 +227,9 @@ sub info {
               }
             },
             { 'name'        => "rename",
-              'request'     => $self->cgi->url."/".$self->name."/rename",
+              'request'     => $self->url."/".$self->name."/rename",
               'description' => "rename indicated file from inbox",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/rename"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" "'.$self->url."/".$self->name.'/rename"',
                                  "rename file in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -242,9 +242,9 @@ sub info {
               }
             },
             { 'name'        => "sff_to_fastq",
-              'request'     => $self->cgi->url."/".$self->name."/sff2fastq",
+              'request'     => $self->url."/".$self->name."/sff2fastq",
               'description' => "create fastq file from sff file - submits AWE job",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "sff_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->cgi->url."/".$self->name.'/sff2fastq"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "sff_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->url."/".$self->name.'/sff2fastq"',
                                  "create fastq file from sff file with given id in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -256,9 +256,9 @@ sub info {
               }
             },
             { 'name'        => "demultiplex",
-              'request'     => $self->cgi->url."/".$self->name."/demultiplex",
+              'request'     => $self->url."/".$self->name."/demultiplex",
               'description' => "demultiplex seq file with barcode file - submits AWE job",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "seq_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "barcode_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->cgi->url."/".$self->name.'/demultiplex"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "seq_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "barcode_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->url."/".$self->name.'/demultiplex"',
                                  "demultiplex seq file with barcode file for given ids in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -266,16 +266,17 @@ sub info {
               'parameters'  => {
                   'options'  => {},
                   'required' => { "auth" => [ "string", "unique string of text generated by MG-RAST for your account" ] },
-                  'body'     => { "seq_file"      => [ "string", "RFC 4122 UUID for sequence file" ],
-                                  "index_file"    => [ "string", "RFC 4122 UUID for index file (optional)" ],
-                                  "barcode_file"  => [ "string", "RFC 4122 UUID for barcode mapping file" ],
-                                  "rc_index"      => [ "boolean", "If true barcodes in index file are reverse compliment of mapping file, default is false" ] }
+                  'body'     => { "seq_file"     => [ "string", "RFC 4122 UUID for sequence file" ],
+                                  "index_file"   => [ "string", "RFC 4122 UUID for index file (optional)" ],
+                                  "index_file_2" => [ "string", "RFC 4122 UUID for second index file, for double barcodes (optional)" ],
+                                  "barcode_file" => [ "string", "RFC 4122 UUID for barcode mapping file" ],
+                                  "rc_index"     => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ] }
               }
             },
             { 'name'        => "pair_join",
-              'request'     => $self->cgi->url."/".$self->name."/pairjoin",
+              'request'     => $self->url."/".$self->name."/pairjoin",
               'description' => "merge overlapping paired-end fastq files - submits AWE job",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "retain=1" -F "pair_file_1=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "pair_file_2=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->cgi->url."/".$self->name.'/pairjoin"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "retain=1" -F "pair_file_1=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "pair_file_2=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->url."/".$self->name.'/pairjoin"',
                                  "merge overlapping paired-end fastq files for given ids, retain non-overlapping pairs" ],
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -290,9 +291,9 @@ sub info {
               }
             },
             { 'name'        => "pair_join_demultiplex",
-              'request'     => $self->cgi->url."/".$self->name."/pairjoin_demultiplex",
+              'request'     => $self->url."/".$self->name."/pairjoin_demultiplex",
               'description' => "merge overlapping paired-end fastq files and demultiplex based on index file - submits AWE job",
-              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "pair_file_1=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "pair_file_2=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "index_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->cgi->url."/".$self->name.'/pairjoin_demultiplex"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "pair_file_1=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "pair_file_2=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" -F "index_file=cfb3d9e1-c9ba-4260-95bf-e410c57b1e49" "'.$self->url."/".$self->name.'/pairjoin_demultiplex"',
                                  "merge overlapping paired-end fastq files then demultiplex with index file, for given ids" ],
               'method'      => "POST",
               'type'        => "asynchronous",
@@ -300,12 +301,13 @@ sub info {
               'parameters'  => {
                   'options'  => {},
                   'required' => { "auth" => [ "string", "unique string of text generated by MG-RAST for your account" ] },
-                  'body'     => { "pair_file_1"   => [ "string", "RFC 4122 UUID for pair 1 file" ],
-                                  "pair_file_2"   => [ "string", "RFC 4122 UUID for pair 2 file" ],
-                                  "index_file"    => [ "string", "RFC 4122 UUID for index file" ],
-                                  "barcode_file"  => [ "string", "RFC 4122 UUID for barcode mapping file" ],
-                                  "rc_index"      => [ "boolean", "If true barcodes in index file are reverse compliment of mapping file, default is false" ],
-                                  "retain"        => [ "boolean", "If true retain non-overlapping sequences, default is false" ] }
+                  'body'     => { "pair_file_1"  => [ "string", "RFC 4122 UUID for pair 1 file" ],
+                                  "pair_file_2"  => [ "string", "RFC 4122 UUID for pair 2 file" ],
+                                  "index_file"   => [ "string", "RFC 4122 UUID for index file" ],
+                                  "index_file_2" => [ "string", "RFC 4122 UUID for second index file, for double barcodes (optional)" ],
+                                  "barcode_file" => [ "string", "RFC 4122 UUID for barcode mapping file" ],
+                                  "retain"       => [ "boolean", "If true retain non-overlapping sequences, default is false" ],
+                                  "rc_index"     => [ "boolean", "If true barcodes in mapping file are reverse compliment, default is false" ] }
               }
             }
         ]
@@ -357,9 +359,9 @@ sub request {
             } elsif ($self->rest->[0] eq 'demultiplex') {
                 $self->demultiplex();
             } elsif ($self->rest->[0] eq 'pairjoin') {
-                $self->pair_join();
+                $self->pairjoin();
             } elsif ($self->rest->[0] eq 'pairjoin_demultiplex') {
-                $self->pair_join(1);
+                $self->pairjoin_demultiplex();
             }
         # deleting from inbox
         } elsif (($self->method eq 'DELETE') && (scalar(@{$self->rest}) == 1)) {
@@ -412,6 +414,9 @@ sub validate_metadata {
 sub seq_stats {
     my ($self, $uuid) = @_;
     
+    my $post  = $self->get_post_data(['debug']);
+    my $debug = $post->{'debug'} ? 1 : 0;
+    
     my $response = {
         id        => $self->{wf_info}{user_id},
         user      => $self->{wf_info}{user_name},
@@ -429,7 +434,10 @@ sub seq_stats {
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_seqstats";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
     $self->add_node_action(undef, $node, $job, 'stats');
     
     # return data
@@ -443,8 +451,10 @@ sub sff_to_fastq {
     my ($self) = @_;
 
     # get and validate sequence file
-    my $post = $self->get_post_data(['sff_file']);
-    my $uuid = exists($post->{'sff_file'}) ? $post->{'sff_file'} : "";
+    my $post  = $self->get_post_data(['sff_file', 'debug']);
+    my $uuid  = exists($post->{'sff_file'}) ? $post->{'sff_file'} : "";
+    my $debug = $post->{'debug'} ? 1 : 0;
+    
     unless ($uuid) {
         $self->return_data( {"ERROR" => "this request type requires the sff_file parameter"}, 400 );
     }
@@ -453,7 +463,10 @@ sub sff_to_fastq {
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_sff2fastq";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
     $self->add_node_action($uuid, undef, $job, 'sff2fastq');
     
     # return data
@@ -471,35 +484,43 @@ sub demultiplex {
     my ($self) = @_;
     
     # get and validate files
-    my $post = $self->get_post_data(['seq_file', 'index_file', 'barcode_file', 'rc_index']);
-    my $seq_file   = exists($post->{'seq_file'}) ? $post->{'seq_file'} : "";
-    my $index_file = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
-    my $bar_file   = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
-    my $rc_index   = exists($post->{'rc_index'}) ? $post->{'rc_index'} : 0;
+    my $post = $self->get_post_data(['seq_file', 'index_file', 'index_file_2', 'barcode_file', 'rc_index', 'debug']);
+    my $seq_file    = exists($post->{'seq_file'}) ? $post->{'seq_file'} : "";
+    my $index_file  = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
+    my $index2_file = exists($post->{'index_file_2'}) ? $post->{'index_file_2'} : "";
+    my $bar_file    = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
+    my $rc_barcode  = $post->{'rc_index'} ? 1 : 0;
+    my $debug       = $post->{'debug'} ? 1 : 0;
+    
     unless ($seq_file && $bar_file) {
         $self->return_data( {"ERROR" => "this request type requires both the seq_file and barcode_file parameters"}, 400 );
     }
+    my ($bar_norm, $bar_names) = $self->normalize_barcode_file($bar_file, $rc_barcode, $self->token, $self->user_auth);
     
     my @tasks = ();
-    my $tempname = $self->uuidv4().".fastq";
-    
     # do illumina style demultiplex
     if ($index_file) {
-        push @tasks, $self->build_index_merge_task(0, -1, -1, $index_file, $seq_file, $tempname, $self->token, $self->user_auth);
+        push @tasks, $self->build_demultiplex_illumina_task(0, -1, -1, -1, -1, $seq_file, $bar_norm, $index_file, $index2_file, $bar_names, $self->token, $self->user_auth);
     }
-    
-    my $dm_tid = scalar(@tasks);
-    my $input = $index_file ? $tempname : $seq_file;
-    push @tasks, $self->build_demultiplex_task($dm_tid, $dm_tid-1, -1, $input, $bar_file, $rc_index, $self->token, $self->user_auth);
+    # do 454 style demultiplex
+    else {
+        push @tasks, $self->build_demultiplex_454_task(0, -1, -1, $seq_file, $bar_norm, $bar_names, $self->token, $self->user_auth);
+    }
     
     $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_demultiplex";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
     
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
     $self->add_node_action($seq_file, undef, $job, 'demultiplex');
-    $self->add_node_action($bar_file, undef, $job, 'demultiplex');
+    $self->add_node_action($bar_norm, undef, $job, 'demultiplex');
     if ($index_file) {
         $self->add_node_action($index_file, undef, $job, 'demultiplex');
+    }
+    if ($index2_file) {
+        $self->add_node_action($index2_file, undef, $job, 'demultiplex');
     }
     
     $self->return_data({
@@ -512,60 +533,90 @@ sub demultiplex {
 }
 
 # POST / AWE
-sub pair_join {
-    my ($self, $demultiplex) = @_;
+sub pairjoin {
+    my ($self) = @_;
     
     # get and validate sequence files
-    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'index_file', 'output', 'barcode_file', 'retain', 'rc_index']);
-    my $pair1_file = exists($post->{'pair_file_1'}) ? $post->{'pair_file_1'} : "";
-    my $pair2_file = exists($post->{'pair_file_2'}) ? $post->{'pair_file_2'} : "";
-    my $index_file = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
-    my $bar_file   = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
-    my $outprefix  = exists($post->{'output'}) ? $post->{'output'} : $self->uuidv4();
-    my $retain     = exists($post->{'retain'}) ? $post->{'retain'} : 0;
-    my $rc_index   = exists($post->{'rc_index'}) ? $post->{'rc_index'} : 0;
+    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'output', 'retain', 'debug']);
+    my $pair1_file  = exists($post->{'pair_file_1'}) ? $post->{'pair_file_1'} : "";
+    my $pair2_file  = exists($post->{'pair_file_2'}) ? $post->{'pair_file_2'} : "";
+    my $outprefix   = exists($post->{'output'}) ? $post->{'output'} : $self->uuidv4();
+    my $retain      = $post->{'retain'} ? 1 : 0;
+    my $debug       = $post->{'debug'} ? 1 : 0;
+    
     unless ($pair1_file && $pair2_file) {
         $self->return_data( {"ERROR" => "this request type requires both the pair_file_1 and pair_file_2 parameters"}, 400 );
     }
-    my $status = "";
-    my $action = "";
     
     # clean outprefix
     $outprefix =~ s/\.fastq$//;
     $outprefix =~ s/\.fq$//;
     
     # get tasks
-    my @tasks = $self->build_pair_join_task(0, -1, -1, -1, $pair1_file, $pair2_file, $index_file, $outprefix, $retain, $self->token, $self->user_auth);
-    
-    # do pair-join with demultiplex
-    if ($demultiplex) {
-        unless ($index_file && $bar_file) {
-            $self->return_data( {"ERROR" => "mate-pair demultiplexing requires an index_file and barcode_file"}, 400 );
-        }
-        my $dm_tid = scalar(@tasks);
-        push @tasks, $self->build_demultiplex_task($dm_tid, $dm_tid-1, -1, $outprefix.".fastq", $bar_file, $rc_index, $self->token, $self->user_auth);
-        $status = "pair join and demultiplex is being run on files: $pair1_file, $pair2_file, $index_file, $bar_file";
-        $action = "pairjoin_demultiplex";
-    } else {
-        $status = "pair join is being run on files: $pair1_file, $pair2_file";
-        $action = "pairjoin";
-    }
-    
-    $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_".$action;
+    my @tasks = $self->build_pair_join_task(0, -1, -1, $pair1_file, $pair2_file, $outprefix, $retain, undef, $self->token, $self->user_auth);
+    $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_pairjoin";
     $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
-    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth);
     
-    $self->add_node_action($pair1_file, undef, $job, $action);
-    $self->add_node_action($pair2_file, undef, $job, $action);
-    if ($demultiplex) {
-        $self->add_node_action($index_file, undef, $job, $action);
-        $self->add_node_action($bar_file, undef, $job, $action);
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
+    $self->add_node_action($pair1_file, undef, $job, "pairjoin");
+    $self->add_node_action($pair2_file, undef, $job, "pairjoin");
+    
+    $self->return_data({
+        id        => $self->{wf_info}{user_id},
+        user      => $self->{wf_info}{user_name},
+        status    => "pair-join is being run on files: $pair1_file, $pair2_file",
+        awe_id    => $Conf::awe_url.'/job/'.$job->{id},
+        timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+    });
+}
+
+# POST / AWE
+sub pairjoin_demultiplex {
+    my ($self) = @_;
+    
+    # get and validate sequence files
+    my $post = $self->get_post_data(['pair_file_1', 'pair_file_2', 'index_file', 'index_file_2', 'barcode_file', 'retain', 'rc_index', 'debug']);
+    my $pair1_file  = exists($post->{'pair_file_1'}) ? $post->{'pair_file_1'} : "";
+    my $pair2_file  = exists($post->{'pair_file_2'}) ? $post->{'pair_file_2'} : "";
+    my $index_file  = exists($post->{'index_file'}) ? $post->{'index_file'} : "";
+    my $index2_file = exists($post->{'index_file_2'}) ? $post->{'index_file_2'} : "";
+    my $bar_file    = exists($post->{'barcode_file'}) ? $post->{'barcode_file'} : "";
+    my $retain      = $post->{'retain'} ? 1 : 0;
+    my $rc_barcode  = $post->{'rc_index'} ? 1 : 0;
+    my $debug       = $post->{'debug'} ? 1 : 0;
+    
+    unless ($pair1_file && $pair2_file) {
+        $self->return_data( {"ERROR" => "this request type requires both the pair_file_1 and pair_file_2 parameters"}, 400 );
+    }
+    unless ($index_file && $bar_file) {
+        $self->return_data( {"ERROR" => "this request type requires both the index_file and barcode_file parameters"}, 400 );
+    }
+    my ($bar_norm, $bar_names) = $self->normalize_barcode_file($bar_file, $rc_barcode, $self->token, $self->user_auth);
+    
+    # get tasks
+    my @tasks = $self->build_demultiplex_pairjoin_task(0, -1, -1, -1, -1, -1, $pair1_file, $pair2_file, $bar_norm, $index_file, $index2_file, $bar_names, $retain, $self->token, $self->user_auth);
+    $self->{wf_info}{job_name}  = $self->{wf_info}{user_id}."_pairjoin_demultiplex";
+    $self->{wf_info}{task_list} = $self->json->encode(\@tasks);
+    
+    my $job = $self->submit_awe_template($self->{wf_info}, $Conf::mgrast_submission_workflow, $self->token, $self->user_auth, $debug);
+    if ($debug) {
+        $self->return_data($job);
+    }
+    $self->add_node_action($pair1_file, undef, $job, "pairjoin_demultiplex");
+    $self->add_node_action($pair2_file, undef, $job, "pairjoin_demultiplex");
+    $self->add_node_action($bar_norm, undef, $job, "pairjoin_demultiplex");
+    $self->add_node_action($index_file, undef, $job, "pairjoin_demultiplex");
+    if ($index2_file) {
+        $self->add_node_action($index2_file, undef, $job, 'pairjoin_demultiplex');
     }
     
     $self->return_data({
         id        => $self->{wf_info}{user_id},
         user      => $self->{wf_info}{user_name},
-        status    => $status,
+        status    => "demultiplex and pair-join is being run on files: $pair1_file, $pair2_file, $index_file".($index2_file ? ", $index2_file" : ""),
         awe_id    => $Conf::awe_url.'/job/'.$job->{id},
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     });
@@ -600,7 +651,7 @@ sub view_inbox {
             user      => $self->user->login,
             timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
             files     => $files,
-            url       => $self->cgi->url."/".$self->name
+            url       => $self->url."/".$self->name
         });
     }
 }
@@ -855,18 +906,14 @@ sub update_node_actions {
     }
     # check and update
     foreach my $act (@$old_actions) {
+        next unless ($act->{id});
         # do nothing with completed
         if ($act->{status} eq 'completed') {
             push @$new_actions, $act;
         } else {
-	  my $job = $self->get_awe_job($act->{id}, $self->token, $self->user_auth, 1);
-	  # if the job no longer exists, drop
-	  if ($job->{ERROR}) {
-	    next;
-	  }
-	  
-            # drop if deleted
-            if ($job->{state} eq 'deleted') {
+            my $job = $self->get_awe_job($act->{id}, $self->token, $self->user_auth, 1);
+            # if the job no longer exists, drop
+            if ((! $job) || (! ref($job)) || $job->{ERROR} || ($job->{state} eq 'deleted')) {
                 next;
             }
             # get error if suspend

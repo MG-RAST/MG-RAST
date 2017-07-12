@@ -43,7 +43,6 @@ sub new {
 			    changesequencetype => 1,
 			    publicationadjust => 1
     };
-    $self->{default_pipeline_version} = "3.0";
     $self->{attributes} = {
         reserve => { "timestamp"     => [ 'date', 'time the metagenome was first reserved' ],
                      "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
@@ -94,13 +93,13 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		            'url' => $self->cgi->url."/".$self->name,
+		            'url' => $self->url."/".$self->name,
 		            'description' => "Resource for creating and querying MG-RAST jobs.",
 		            'type' => 'object',
-		            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		            'documentation' => $self->url.'/api.html#'.$self->name,
 		            'requests' => [
 		                { 'name'        => "info",
-				          'request'     => $self->cgi->url."/".$self->name,
+				          'request'     => $self->url."/".$self->name,
 				          'description' => "Returns description of parameters and attributes.",
 				          'method'      => "GET",
 				          'type'        => "synchronous",
@@ -110,7 +109,7 @@ sub info {
 							                 'body'     => {} }
 						},
 				        { 'name'        => "reserve",
-				          'request'     => $self->cgi->url."/".$self->name."/reserve",
+				          'request'     => $self->url."/".$self->name."/reserve",
 				          'description' => "Reserve IDs for MG-RAST job.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -126,7 +125,7 @@ sub info {
           							             "file_checksum" => ["string", "md5 checksum of sequence file"] } }
 						},
 						{ 'name'        => "create",
-				          'request'     => $self->cgi->url."/".$self->name."/create",
+				          'request'     => $self->url."/".$self->name."/create",
 				          'description' => "Create an MG-RAST job with input reserved ID, sequence stats, and pipeline options.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -136,7 +135,7 @@ sub info {
 							                 'body'     => $self->{create_param} }
 						},
 						{ 'name'        => "submit",
-				          'request'     => $self->cgi->url."/".$self->name."/submit",
+				          'request'     => $self->url."/".$self->name."/submit",
 				          'description' => "Submit a MG-RAST job to AWE pipeline.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -147,7 +146,7 @@ sub info {
 							                                 "input_id" => ["string", "shock node id of input sequence file"] } }
 						},
 						{ 'name'        => "resubmit",
-				          'request'     => $self->cgi->url."/".$self->name."/resubmit",
+				          'request'     => $self->url."/".$self->name."/resubmit",
 				          'description' => "Re-submit an existing MG-RAST job to AWE pipeline.",
 				          'method'      => "PUT",
 				          'type'        => "synchronous",
@@ -158,7 +157,7 @@ sub info {
 							                                 "awe_id" => ["string", "awe job id of original job"] } }
 						},
 						{ 'name'        => "archive",
-                          'request'     => $self->cgi->url."/".$self->name."/archive",
+                          'request'     => $self->url."/".$self->name."/archive",
                           'description' => "Archive MG-RAST analysis-pipeline document and logs from AWE into Shock",
                           'method'      => "POST",
                           'type'        => "synchronous",
@@ -171,7 +170,7 @@ sub info {
 				                                             "delete" => ["boolean", "if true (and user is admin) delete original document from AWE on completion."] } }
                         },
 						{ 'name'        => "share",
-				          'request'     => $self->cgi->url."/".$self->name."/share",
+				          'request'     => $self->url."/".$self->name."/share",
 				          'description' => "Share metagenome with another user.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -184,7 +183,7 @@ sub info {
 							                                 "edit"          => ["boolean", "if true edit rights shared, else (default) view rights only"] } }
 						},
 						{ 'name'        => "public",
-				          'request'     => $self->cgi->url."/".$self->name."/public",
+				          'request'     => $self->url."/".$self->name."/public",
 				          'description' => "Change status of metagenome to public.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -194,7 +193,7 @@ sub info {
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"] } }
 						},
 					   { 'name'        => "check_mixs",
-				          'request'     => $self->cgi->url."/".$self->name."/check_mixs",
+				          'request'     => $self->url."/".$self->name."/check_mixs",
 				          'description' => "Check if a metagenome has MiXS data.",
 				          'method'      => "GET",
 				          'type'        => "synchronous",
@@ -204,7 +203,7 @@ sub info {
 							                 'body'     => { "metagenome_id" => ["string", "unique MG-RAST metagenome identifier"] } }
 						},
 						{ 'name'        => "viewable",
-				          'request'     => $self->cgi->url."/".$self->name."/viewable",
+				          'request'     => $self->url."/".$self->name."/viewable",
 				          'description' => "Change the view state of metagenome.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -215,7 +214,7 @@ sub info {
 							                                 "viewable" => ["boolean", "true: make viewable, false: make hidden, default: true"] } }
 						},
 						{ 'name'        => "rename",
-				          'request'     => $self->cgi->url."/".$self->name."/rename",
+				          'request'     => $self->url."/".$self->name."/rename",
 				          'description' => "Change the name of metagenome.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -226,7 +225,7 @@ sub info {
 							                                 "name" => ["string", "new name of metagenome"] } }
 						},
 						{ 'name'        => "delete",
-				          'request'     => $self->cgi->url."/".$self->name."/delete",
+				          'request'     => $self->url."/".$self->name."/delete",
 				          'description' => "Delete metagenome.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -237,7 +236,7 @@ sub info {
      							                             "reason" => ["string", "reason for deleting metagenome"] } }
 						},
 						{ 'name'        => "addproject",
-				          'request'     => $self->cgi->url."/".$self->name."/addproject",
+				          'request'     => $self->url."/".$self->name."/addproject",
 				          'description' => "Add exisiting MG-RAST job to existing MG-RAST project.",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -248,7 +247,7 @@ sub info {
 							                                 "project_id" => ["string", "unique MG-RAST project identifier"] } }
 						},
 						{ 'name'        => "statistics",
-				          'request'     => $self->cgi->url."/".$self->name."/statistics/{ID}",
+				          'request'     => $self->url."/".$self->name."/statistics/{ID}",
 				          'description' => "Return current job statistics",
 				          'method'      => "GET",
 				          'type'        => "synchronous",
@@ -258,7 +257,7 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "statistics",
-				          'request'     => $self->cgi->url."/".$self->name."/statistics",
+				          'request'     => $self->url."/".$self->name."/statistics",
 				          'description' => "Add to job statistics",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -269,7 +268,7 @@ sub info {
 							                                 "statistics"    => ["hash", "key value pairs for new statistics"] } }
 						},
 						{ 'name'        => "attributes",
-				          'request'     => $self->cgi->url."/".$self->name."/attributes/{ID}",
+				          'request'     => $self->url."/".$self->name."/attributes/{ID}",
 				          'description' => "Return current job attributes",
 				          'method'      => "GET",
 				          'type'        => "synchronous",
@@ -279,7 +278,7 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "attributes",
-				          'request'     => $self->cgi->url."/".$self->name."/attributes",
+				          'request'     => $self->url."/".$self->name."/attributes",
 				          'description' => "Add to job attributes",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -290,7 +289,7 @@ sub info {
      							                             "attributes"    => ["hash", "key value pairs for new attributes"] } }
 						},
 						{ 'name'        => "abundance",
-				          'request'     => $self->cgi->url."/".$self->name."/abundance/{ID}",
+				          'request'     => $self->url."/".$self->name."/abundance/{ID}",
 				          'description' => "Get abundances for different annotations",
 				          'method'      => "GET",
 				          'type'        => "asynchronous",
@@ -306,7 +305,7 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "abundance",
-				          'request'     => $self->cgi->url."/".$self->name."/abundance",
+				          'request'     => $self->url."/".$self->name."/abundance",
 				          'description' => "load abundances",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -325,7 +324,7 @@ sub info {
 							                                 "data"    => ["list", ["float", "md5 abundance summary data"]] } }
 						},
 						{ 'name'        => "solr",
-				          'request'     => $self->cgi->url."/".$self->name."/solr",
+				          'request'     => $self->url."/".$self->name."/solr",
 				          'description' => "Update job data in solr",
 				          'method'      => "POST",
 				          'type'        => "asynchronous",
@@ -340,7 +339,7 @@ sub info {
      							                             "solr_data"     => ["hash", "key value pairs for solr data"] } }
 						},
 						{ 'name'        => "kb2mg",
-				          'request'     => $self->cgi->url."/".$self->name."/kb2mg",
+				          'request'     => $self->url."/".$self->name."/kb2mg",
 				          'description' => "Return a mapping of KBase ids to MG-RAST ids",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -350,7 +349,7 @@ sub info {
 							                 'body'     => {"ids" => ['list', ['string', 'KBase ids']]} }
 						},
 						{ 'name'        => "mg2kb",
-				          'request'     => $self->cgi->url."/".$self->name."/mg2kb",
+				          'request'     => $self->url."/".$self->name."/mg2kb",
 				          'description' => "Return a mapping of MG-RAST ids to KBase ids",
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -457,7 +456,7 @@ sub job_data {
                     $self->delete_shock_node($n->{id}, $self->mgrast_token);
                 }
             } else {
-                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->url."/status/".$nodes->[0]->{id}});
             }
         }
         
@@ -536,7 +535,7 @@ sub job_data {
         }
         # parent - end html session
         else {
-            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
+            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->url."/status/".$node->{id}});
         }
     } else {
         $self->return_data( {"ERROR" => "invalid job data type: $type"}, 400 );
@@ -1086,7 +1085,7 @@ sub job_action {
                             $self->delete_shock_node($n->{id}, $self->mgrast_token);
                         }
                     } else {
-                        $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+                        $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->url."/status/".$nodes->[0]->{id}});
                     }
                 }
             }
@@ -1300,7 +1299,7 @@ sub job_action {
             }
             # parent - end html session
             else {
-                $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
+                $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->url."/status/".$node->{id}});
             }
         }
     }

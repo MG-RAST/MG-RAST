@@ -62,13 +62,13 @@ sub info {
     my ($self) = @_;
     my $sources = [ @{$self->source->{protein}}, @{$self->source->{rna}}, @{$self->source->{ontology}} ];
     my $content = { 'name' => $self->name,
-		            'url' => $self->cgi->url."/".$self->name,
+		            'url' => $self->url."/".$self->name,
 		            'description' => "All annotations of a metagenome for a specific annotation type and source",
 		            'type' => 'object',
-		            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		            'documentation' => $self->url.'/api.html#'.$self->name,
 		            'requests' => [
 		                { 'name'        => "info",
-				          'request'     => $self->cgi->url."/".$self->name,
+				          'request'     => $self->url."/".$self->name,
 				          'description' => "Returns description of parameters and attributes.",
 			              'method'      => "GET",
 				          'type'        => "synchronous",  
@@ -78,9 +78,9 @@ sub info {
 						                     'body'     => {} }
 						},
 				        { 'name'        => "sequence",
-				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
+				          'request'     => $self->url."/".$self->name."/sequence/{ID}",
 				          'description' => "tab delimited annotated sequence stream",
-				          'example'     => [ $self->cgi->url."/".$self->name."/sequence/mgm4447943.3?evalue=10&type=organism&source=SwissProt",
+				          'example'     => [ $self->url."/".$self->name."/sequence/mgm4447943.3?evalue=10&type=organism&source=SwissProt",
 				                             'all annotated read sequences from mgm4447943.3 with hits in SwissProt organisms at evalue < e-10' ],
 				          'method'      => "GET",
 				          'type'        => "stream",  
@@ -101,9 +101,9 @@ sub info {
 							                 'body' => {} }
 						},
 						{ 'name'        => "sequence",
-				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
+				          'request'     => $self->url."/".$self->name."/sequence/{ID}",
 				          'description' => "tab delimited annotated sequence stream",
-				          'example'     => [ 'curl -X POST -d \'{"source":"SwissProt","type":"organism","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read sequences from mgm4447943.3 with hits in SwissProt organisms for given md5s' ],
+				          'example'     => [ 'curl -X POST -d \'{"source":"SwissProt","type":"organism","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read sequences from mgm4447943.3 with hits in SwissProt organisms for given md5s' ],
 				          'method'      => "POST",
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab delimited annotated sequence stream"]] },
@@ -118,9 +118,9 @@ sub info {
 						                     } }
 						},
 						{ 'name'        => "similarity",
-				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
+				          'request'     => $self->url."/".$self->name."/similarity/{ID}",
 				          'description' => "tab delimited blast m8 with annotation",
-				          'example'     => [ $self->cgi->url."/".$self->name."/similarity/mgm4447943.3?identity=80&type=function&source=KO",
+				          'example'     => [ $self->url."/".$self->name."/similarity/mgm4447943.3?identity=80&type=function&source=KO",
   				                             'all annotated read blat stats from mgm4447943.3 with hits in KO functions at % identity > 80' ],
 				          'method'      => "GET",
 				          'type'        => "stream",  
@@ -140,9 +140,9 @@ sub info {
 				                             'body' => {} }
 						},
 						{ 'name'        => "similarity",
-				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
+				          'request'     => $self->url."/".$self->name."/similarity/{ID}",
 				          'description' => "tab delimited blast m8 with annotation",
-				          'example'     => [ 'curl -X POST -d \'{"source":"KO","type":"function","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
+				          'example'     => [ 'curl -X POST -d \'{"source":"KO","type":"function","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
 				          'method'      => "POST",
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
@@ -199,25 +199,10 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
-    # check if job exists in cassandra DB / also tests DB connection
-    my $version = $self->cgi->param('version') || $self->{m5nr_default};
-    my $jobid = $job->{job_id};
-    my $chdl = $self->cassandra_handle("job", $version);
-    unless ($chdl) {
+    # test cassandra access
+    my $ctest = $self->cassandra_test("job");
+    unless ($ctest) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
-    }
-    my $in_cassandra = $chdl->has_job($jobid);
-    $chdl->close();
-    
-    unless ($in_cassandra) {
-        # need to redirect annotation to postgres backend API
-        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
-        print STDERR "Redirect: $redirect_uri\n";
-        print $self->cgi->redirect(
-            -uri => $redirect_uri,
-            -status => '302 Found'
-        );
-        exit 0;
     }
     
     $self->prepare_data($job, $format);
@@ -236,8 +221,9 @@ sub prepare_data {
     my $filter  = $cgi->param('filter') || undef;
     my $flevel  = $cgi->param('filter_level') || undef;
     my $md5s    = [];
-    my $mgid    = 'mgm'.$data->{metagenome_id};
-    my $jobid   = $data->{job_id};
+    my $mgid    = 'mgm'.$data->metagenome_id;
+    my $jobid   = $data->job_id;
+    my $swap    = $self->to_swap($data);
     my $version = ($cgi->param('version') && ($cgi->param('version') =~ /^\d+$/)) ? $cgi->param('version') : $self->{m5nr_default};
     my $filetype = $cgi->param('format') || 'tab';
     my $no_cutoffs = $cgi->param('no_cutoffs') ? 1 : 0;
@@ -343,9 +329,9 @@ sub prepare_data {
     
     my $index_set = [];
     if ($md5s && (@$md5s > 0)) {
-        $index_set = $jobhdl->get_md5_records($jobid, $md5s);
+        $index_set = $jobhdl->get_md5_records($jobid, $swap, $md5s);
     } else {
-        $index_set = $jobhdl->get_md5_records($jobid, undef, $eval, $ident, $alen);
+        $index_set = $jobhdl->get_md5_records($jobid, $swap, undef, $eval, $ident, $alen);
     }
     
     # print html and line headers - no buffering to stdout

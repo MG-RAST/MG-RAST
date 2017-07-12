@@ -106,12 +106,12 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name'          => $self->name,
-                    'url'           => $self->cgi->url."/".$self->name,
+                    'url'           => $self->url."/".$self->name,
                     'description'   => "A metagenome is an analyzed set sequences from a sample of some environment",
                     'type'          => 'object',
-                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+                    'documentation' => $self->url.'/api.html#'.$self->name,
                     'requests'      => [{ 'name'        => "info",
-                                          'request'     => $self->cgi->url."/".$self->name,
+                                          'request'     => $self->url."/".$self->name,
                                           'description' => "Returns description of parameters and attributes.",
                                           'method'      => "GET",
                                           'type'        => "synchronous",
@@ -121,9 +121,9 @@ sub info {
                                                              'body'     => {} }
                                         },
                                         { 'name'        => "query",
-                                          'request'     => $self->cgi->url."/".$self->name,
+                                          'request'     => $self->url."/".$self->name,
                                           'description' => "Returns a set of data matching the query criteria.",
-                                          'example'     => [ $self->cgi->url."/".$self->name."?limit=20&order=name",
+                                          'example'     => [ $self->url."/".$self->name."?limit=20&order=name",
                           				                     'retrieve the first 20 metagenomes ordered by name' ],
                                           'method'      => "GET",
                                           'type'        => "synchronous",
@@ -160,9 +160,9 @@ sub info {
                                                             'body'     => {} }
                                         },
                                         { 'name'        => "instance",
-                                          'request'     => $self->cgi->url."/".$self->name."/{ID}",
+                                          'request'     => $self->url."/".$self->name."/{ID}",
                                           'description' => "Returns a single data object.",
-                                          'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?verbosity=metadata",
+                                          'example'     => [ $self->url."/".$self->name."/mgm4447943.3?verbosity=metadata",
                           				                     'retrieve all metadata for metagenome mgm4447943.3' ],
                                           'method'      => "GET",
                                           'type'        => "synchronous",
@@ -458,7 +458,7 @@ sub prepare_data {
 
     my $objects = [];
     foreach my $job (@$data) {
-        my $url = $self->cgi->url;
+        my $url = $self->url;
         # set object
         my $obj = {};
         $obj->{id} = "mgm".$job->{metagenome_id};
