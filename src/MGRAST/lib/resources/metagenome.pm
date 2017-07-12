@@ -24,10 +24,11 @@ sub new {
     $self->{name} = "metagenome";
     $self->{rights} = \%rights;
     $self->{cv} = {
-        verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
-        direction => {'asc' => 1, 'desc' => 1},
-        status    => {'both' => 1, 'public' => 1, 'private' => 1},
-        match     => {'any' => 1, 'all' => 1}
+		   verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
+		   direction => {'asc' => 1, 'desc' => 1},
+		   status    => {'both' => 1, 'public' => 1, 'private' => 1},
+		   match     => {'any' => 1, 'all' => 1},
+		   details   => {'function' => 1, 'taxonomy' => 1, 'ontology' => 1, 'gc_histogram' => 1, 'length_histogram' => 1, 'bp_profile' => 1, 'kmer' => 1, 'drisee' => 1, 'rarefaction' => 1, 'sequence_breakdown' => 1, 'source_hits_distribution' => 1 }
     };
     $self->{valid_types} = {
         "Amplicon"     => 1,
@@ -105,12 +106,12 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name'          => $self->name,
-                    'url'           => $self->cgi->url."/".$self->name,
+                    'url'           => $self->url."/".$self->name,
                     'description'   => "A metagenome is an analyzed set sequences from a sample of some environment",
                     'type'          => 'object',
-                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+                    'documentation' => $self->url.'/api.html#'.$self->name,
                     'requests'      => [{ 'name'        => "info",
-                                          'request'     => $self->cgi->url."/".$self->name,
+                                          'request'     => $self->url."/".$self->name,
                                           'description' => "Returns description of parameters and attributes.",
                                           'method'      => "GET",
                                           'type'        => "synchronous",
@@ -120,9 +121,9 @@ sub info {
                                                              'body'     => {} }
                                         },
                                         { 'name'        => "query",
-                                          'request'     => $self->cgi->url."/".$self->name,
+                                          'request'     => $self->url."/".$self->name,
                                           'description' => "Returns a set of data matching the query criteria.",
-                                          'example'     => [ $self->cgi->url."/".$self->name."?limit=20&order=name",
+                                          'example'     => [ $self->url."/".$self->name."?limit=20&order=name",
                           				                     'retrieve the first 20 metagenomes ordered by name' ],
                                           'method'      => "GET",
                                           'type'        => "synchronous",
@@ -159,9 +160,9 @@ sub info {
                                                             'body'     => {} }
                                         },
                                         { 'name'        => "instance",
-                                          'request'     => $self->cgi->url."/".$self->name."/{ID}",
+                                          'request'     => $self->url."/".$self->name."/{ID}",
                                           'description' => "Returns a single data object.",
-                                          'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?verbosity=metadata",
+                                          'example'     => [ $self->url."/".$self->name."/mgm4447943.3?verbosity=metadata",
                           				                     'retrieve all metadata for metagenome mgm4447943.3' ],
                                           'method'      => "GET",
                                           'type'        => "synchronous",
@@ -457,7 +458,7 @@ sub prepare_data {
 
     my $objects = [];
     foreach my $job (@$data) {
-        my $url = $self->cgi->url;
+        my $url = $self->url;
         # set object
         my $obj = {};
         $obj->{id} = "mgm".$job->{metagenome_id};
@@ -576,7 +577,38 @@ sub prepare_data {
             $obj->{mixs_compliant} = $mddb->is_job_compliant($job);
         }
         if (($verb eq 'stats') || ($verb eq 'full')) {
-            $obj->{statistics} = $self->metagenome_stats_from_shock('mgm'.$job->{metagenome_id}, $job->{sequence_type});
+	  $obj->{statistics} = $self->metagenome_stats_from_shock('mgm'.$job->{metagenome_id}, $job->{sequence_type});
+
+	  my $detail = $self->cgi->param('detail');
+	  if ($detail && $self->{cv}->{details}->{$detail}) {
+	    my $data = {};
+	    if ($detail eq 'function') {
+	      $data = $obj->{statistics}->{function};
+	      unshift @$data, ['function','abundance'];
+	    } elsif ($detail eq 'taxonomy') {
+	      $data = $obj->{statistics}->{taxonomy};
+	    } elsif ($detail eq 'ontology') {
+	      $data = $obj->{statistics}->{ontology};
+	    } elsif ($detail eq 'gc_histogram') {
+	      $data = $obj->{statistics}->{gc_histogram};
+	    } elsif ($detail eq 'length_histogram') {
+	      $data = $obj->{statistics}->{length_histogram};
+	    } elsif ($detail eq 'bp_profile') {
+	      $data = $obj->{statistics}->{qc}->{bp_profile}->{counts};
+	    } elsif ($detail eq 'kmer') {
+	      $data = $obj->{statistics}->{qc}->{kmer};
+	    } elsif ($detail eq 'drisee') {
+	      $data = $obj->{statistics}->{qc}->{drisee}->{counts};
+	    } elsif ($detail eq 'rarefaction') {
+	      $data = $obj->{statistics}->{rarefaction};
+	    } elsif ($detail eq 'sequence_breakdown') {
+	      $data = $obj->{statistics}->{sequence_breakdown};
+	    } elsif ($detail eq 'source_hits_distribution') {
+	      $data = $obj->{statistics}->{source};
+	    }
+	    push @$objects, $data;
+	    next;
+	  }
         }
         push @$objects, $obj;
     }

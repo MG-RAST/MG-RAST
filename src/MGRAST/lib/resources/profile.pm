@@ -5,6 +5,7 @@ use warnings;
 no warnings('once');
 
 use POSIX qw(strftime);
+use Data::Dumper;
 use List::MoreUtils qw(natatime);
 
 use Conf;
@@ -66,13 +67,13 @@ sub info {
     my ($self) = @_;
     my $content = {
         'name'         => $self->name,
-        'url'          => $self->cgi->url."/".$self->name,
+        'url'          => $self->url."/".$self->name,
         'description'  => "A feature profile in json format that contains abundance and similarity values along with annotations",
         'type'          => 'object',
-        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'documentation' => $self->url.'/api.html#'.$self->name,
         'requests'      => [
             { 'name'        => "info",
-			  'request'     => $self->cgi->url."/".$self->name,
+			  'request'     => $self->url."/".$self->name,
 			  'description' => "Returns description of parameters and attributes.",
               'method'      => "GET",
               'type'        => "synchronous",
@@ -83,9 +84,9 @@ sub info {
                   'body'     => {} }
 			},
             { 'name'        => "instance",
-              'request'     => $self->cgi->url."/".$self->name."/{ID}",
+              'request'     => $self->url."/".$self->name."/{ID}",
               'description' => "Submits profile creation",
-              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?source=RefSeq&format=biom",
+              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?source=RefSeq&format=biom",
                                'retrieve BIOM profile of RefSeq annotations' ],
               'method'      => "GET",
               'type'        => "asynchronous",
@@ -107,7 +108,7 @@ sub info {
                   'body'     => {} }
             },
             { 'name'        => "status",
-              'request'     => $self->cgi->url."/".$self->name."/status/{UUID}",
+              'request'     => $self->url."/".$self->name."/status/{UUID}",
               'description' => "Return profile status and/or results",
               'method'      => "GET",
               'type'        => "synchronous",
@@ -200,7 +201,8 @@ sub submit {
     my $source    = $self->cgi->param('source') || 'RefSeq';
     my $condensed = ($self->cgi->param('condensed') && ($self->cgi->param('condensed') ne 'false')) ? 'true' : 'false';
     my $format    = $self->cgi->param('format') || 'mgrast';
-    my $retry     = int($self->cgi->param('retry')) || 0;
+    my $retry     = $self->cgi->param('retry') ? int($self->cgi->param('retry')) : 0;
+    my $debug     = $self->cgi->param('debug') ? 1 : 0;
     unless (($retry =~ /^\d+$/) && ($retry > 0)) {
         $retry = 0;
     }
@@ -281,6 +283,13 @@ sub submit {
     my $expire = ($format =~ /^(mgrast|lca)$/) ? "1D" : "7D";
     my $node = $self->set_shock_node($mgid.'.json', undef, $tquery, $self->mgrast_token, undef, undef, $expire);
     
+    # debug - run synchronously
+    if ($debug) {
+        print STDERR Dumper($node);
+        $self->create_profile($id, $node, $tquery->{parameters});
+        $self->return_data($node);
+    }
+    
     # asynchronous call, fork the process
     my $pid = fork();
     # child - compute data and dump it
@@ -311,6 +320,7 @@ sub create_profile {
     
     ### create profile
     # store it in shock permanently if mgrast / lca format
+    $param->{swap} = $self->to_swap($data);
     my $attr = undef;
     if ($param->{format} =~ /^(mgrast|lca)$/) {
         $attr = {
@@ -357,7 +367,7 @@ sub status_report_from_node {
     my $report = {
         id      => $node->{id},
         status  => $status,
-        url     => $self->cgi->url."/".$self->name."/status/".$node->{id},
+        url     => $self->url."/".$self->name."/status/".$node->{id},
         size    => $node->{file}{size},
         created => $node->{file}{created_on},
         retry   => 0,

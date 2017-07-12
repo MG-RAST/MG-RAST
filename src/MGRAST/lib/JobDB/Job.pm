@@ -461,6 +461,20 @@ sub get_job_ids {
     return $data;
 }
 
+sub get_job_pipelines {
+    my ($self, $mgids, $default) = @_;
+    
+    my %data = map { $_, $default } @$mgids;
+    my $dbh  = $self->_master()->db_handle;
+    my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
+    my $query   = "select j.metagenome_id, a.value from Job j, JobAttributes a where j._id=a.job and tag='pipeline_version' and metagenome_id in (".$id_list.")";
+    my $result  = $dbh->selectall_arrayref($query);
+    if ($result && @$result) {
+        map { $data{$_->[0]} = $_->[1] } @$result;
+    }
+    return \%data;
+}
+
 sub get_public_jobs {
   my ($self, $id_only) = @_;
 

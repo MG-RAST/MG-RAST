@@ -20,7 +20,6 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "download";
-    $self->{default_pipeline_version} = "3.0";
     $self->{default_pipeline_commit}  = "https://github.com/MG-RAST/pipeline";
     $self->{default_template_version} = "https://github.com/MG-RAST/MG-RAST/tree/api/src/MGRAST/workflows";
     return $self;
@@ -31,12 +30,12 @@ sub new {
 sub info {
     my ($self)  = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "An analysis file from the processing of a metagenome from a specific stage in its analysis",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
-				              'request'     => $self->cgi->url."/".$self->name,
+				              'request'     => $self->url."/".$self->name,
 				              'description' => "Returns description of parameters and attributes.",
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -46,9 +45,9 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "instance",
-				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{ID}",
 				              'description' => "Returns a single sequence file.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?file=350.1",
+				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?file=350.1",
       				                             'download fasta file of gene-called protein sequences (from stage 350)' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -59,9 +58,9 @@ sub info {
 							                     'body'     => {} }
 							},
 							{ 'name'        => "history",
-				              'request'     => $self->cgi->url."/".$self->name."/history/{ID}",
+				              'request'     => $self->url."/".$self->name."/history/{ID}",
 				              'description' => "Summery of MG-RAST analysis-pipeline workflow and commands.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3/history",
+				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3/history",
       				                             'Workflow document for mgm4447943.3' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",
@@ -73,9 +72,9 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "setlist",
-				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{ID}",
 				              'description' => "Returns a list of sets of sequence files for the given id.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?stage=650",
+				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?stage=650",
         				                         'view all available files from stage 650' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -133,7 +132,7 @@ sub instance {
     }
     
     if ($history) {
-        $self->return_data( $self->awe_history($mgid, $job) );
+        $self->return_data( $self->awe_history($restid, $mgid, $job) );
     }
 
     # get data / parameters
@@ -143,15 +142,12 @@ sub instance {
     my $debug = $self->cgi->param('debug') ? 1 : 0;
     my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
     my ($setlist, $skip) = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
+    $setlist = $self->fix_download_filenames($setlist, $restid);
     
     # return file from shock
     if ($file) {
         my $node = undef;
         foreach my $set (@$setlist) {
-            if (! $job->{public}) {
-                my $pid = $self->obfuscate($mgid);
-                $set->{file_name} =~ s/$mgid/$pid/;
-            }
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
                 if ($link) {
                     my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
@@ -166,7 +162,7 @@ sub instance {
     # return stage(s) list
     my $data = {
         id   => $mgid,
-        url  => $self->cgi->url."/".$self->name."/".$mgid,
+        url  => $self->url."/".$self->name."/".$mgid,
         data => []
     };
     if ($stage) {
@@ -189,7 +185,7 @@ sub instance {
 }
 
 sub awe_history {
-    my ($self, $mgid, $job) = @_;
+    my ($self, $restid, $mgid, $job) = @_;
     
     my $awe_id = $self->cgi->param('awe_id') || undef;
     my $force  = $self->cgi->param('force') ? 1 : 0;
@@ -197,7 +193,7 @@ sub awe_history {
     my $debug  = $self->cgi->param('debug') ? 1 : 0;
     my $data   = {
         id   => $mgid,
-        url  => $self->cgi->url."/".$self->name."/history/".$mgid."?force=".$force,
+        url  => $self->url."/".$self->name."/history/".$mgid."?force=".$force,
         data => []
     };
     if ($awe_id) {
@@ -408,6 +404,7 @@ sub awe_history {
             }
         }
     }
+    $awe_history->{tasks} = $self->fix_download_filenames($awe_history->{tasks}, $restid);
     $data->{data} = $awe_history;
     
     # POST to shock if created

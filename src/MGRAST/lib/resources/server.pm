@@ -37,12 +37,12 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-                    'url' => $self->cgi->url."/".$self->name,
+                    'url' => $self->url."/".$self->name,
                     'description' => "The server resource returns information about a server.",
                     'type' => 'object',
-                    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+                    'documentation' => $self->url.'/api.html#'.$self->name,
                     'requests' => [ { 'name'        => "info",
-                                      'request'     => $self->cgi->url."/".$self->name,
+                                      'request'     => $self->url."/".$self->name,
                                       'description' => "Returns the server information.",
                                       'method'      => "GET" ,
                                       'type'        => "synchronous" ,  
@@ -51,9 +51,9 @@ sub info {
                                                          'required'    => {},
                                                          'body'        => {} } },
                                     { 'name'        => "instance",
-                                      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+                                      'request'     => $self->url."/".$self->name."/{ID}",
                                       'description' => "Returns a single user object.",
-                                      'example'     => [ 'curl -X GET "'.$self->cgi->url."/".$self->name.'/MG-RAST"',
+                                      'example'     => [ 'curl -X GET "'.$self->url."/".$self->name.'/MG-RAST"',
 							 "info for the MG-RAST server" ],
                                       'method'      => "GET",
                                       'type'        => "synchronous" ,  
@@ -61,6 +61,39 @@ sub info {
                                       'parameters'  => { 'options'     => {},
                                                          'required'    => { "id" => [ "string", "unique server ID" ] },
                                                          'body'        => {} } },
+				    { 'name'        => "twitter",
+                                      'request'     => $self->url."/".$self->name."/twitter/{count}",
+                                      'description' => "Returns the last {count} twitter messages.",
+                                      'example'     => [ 'curl -X GET "'.$self->url."/".$self->name.'/twitter/5"',
+							 "returns the last five twitter messages" ],
+                                      'method'      => "GET",
+                                      'type'        => "synchronous" ,  
+                                      'attributes'  => $self->attributes,
+                                      'parameters'  => { 'options'     => {"count" => [ "integer", "number of items returned" ]},
+                                                         'required'    => {},
+                                                         'body'        => {} } },
+				    { 'name'        => "usercount",
+                                      'request'     => $self->url."/".$self->name."/usercount",
+                                      'description' => "Returns the user counts.",
+                                      'example'     => [ 'curl -X GET "'.$self->url."/".$self->name.'/usercount"',
+							 "returns the user counts" ],
+                                      'method'      => "GET",
+                                      'type'        => "synchronous" ,  
+                                      'attributes'  => $self->attributes,
+                                      'parameters'  => { 'options'     => {},
+                                                         'required'    => {},
+                                                         'body'        => {} } },
+				    { 'name'        => "jobcount",
+                                      'request'     => $self->url."/".$self->name."/jobcount",
+                                      'description' => "Returns the job counts.",
+                                      'example'     => [ 'curl -X GET "'.$self->url."/".$self->name.'/jobcount"',
+							 "returns the job counts" ],
+                                      'method'      => "GET",
+                                      'type'        => "synchronous" ,  
+                                      'attributes'  => $self->attributes,
+                                      'parameters'  => { 'options'     => {},
+                                                         'required'    => {},
+                                                         'body'        => {} } }
                                      ]
                                  };
 
@@ -76,6 +109,22 @@ sub instance {
     my $count = $self->rest->[1] || 5;
     my $data = `curl -s -X GET -H "Authorization: Bearer AAAAAAAAAAAAAAAAAAAAAF%2BttwAAAAAADIFy3lxo9On1Qjx3SWZPCGIEOGU%3DeeNP5cxZXM7W70fE2A30dk2Hw4IwAuK3TSNEaK7pCJU1TY4VJ0" "https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=mg_rast&count=$count&trim_user=1&include_rts=false"`;
     $self->return_data($self->json->utf8->decode($data));
+  }
+
+  # check for usercount
+  elsif ($self->rest->[0] eq 'usercount') {
+    my ($dbmaster, $error) = WebApplicationDBHandle->new();
+    if ($error) {
+      $self->return_data({ "ERROR" => $error }, 500);
+    }
+    my $usercounts = $dbmaster->db_handle->selectall_arrayref('select count(*) as users, left(entry_date, 7) as date from User group by date');
+    $self->return_data($usercounts);
+  }
+
+  elsif ($self->rest->[0] eq 'jobcount') {
+    my $dbmaster = $self->connect_to_datasource();
+    my $jobcounts = $dbmaster->db_handle->selectall_arrayref('select count(*) as num, left(created_on, 7) as date, sum(value) as bp, min(value) as min_bp, max(value) as max_bp, floor(avg(value)) as avg_bp from Job join JobStatistics on Job._id=JobStatistics.job where JobStatistics.tag="bp_count_raw" group by date');
+    $self->return_data($jobcounts);
   }
 
   # get the current messasge (if any) from SHOCK
@@ -138,7 +187,7 @@ sub instance {
 	      "driseeavg" => $counts->{driseeavg},
 	      "driseestdv" => $counts->{driseestdv},
 	      "usercount" => $counts->{usercount},
-	      "url" => $self->cgi->url."/".$self->name."/MG-RAST"
+	      "url" => $self->url."/".$self->name."/MG-RAST"
 	     };
   
   $self->return_data($data);

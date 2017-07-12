@@ -61,13 +61,13 @@ sub info {
     my ($self) = @_;
     my $content = {
         'name' => $self->name,
-        'url' => $self->cgi->url."/".$self->name,
+        'url' => $self->url."/".$self->name,
         'description' => "A profile in biom format that contains abundance counts",
         'type' => 'object',
-        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'documentation' => $self->url.'/api.html#'.$self->name,
         'requests' => [
             { 'name'        => "info",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "Returns description of parameters and attributes.",
               'method'      => "GET" ,
               'type'        => "synchronous" ,  
@@ -78,9 +78,9 @@ sub info {
                   'body'     => {} }
             },
             { 'name'        => "organism",
-              'request'     => $self->cgi->url."/".$self->name."/organism",
+              'request'     => $self->url."/".$self->name."/organism",
               'description' => "Returns a BIOM object.",
-              'example'     => [ $self->cgi->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=family&source=RefSeq&evalue=15",
+              'example'     => [ $self->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=family&source=RefSeq&evalue=15",
                                  'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evalue < e-15' ],
               'method'      => "GET" ,
               'type'        => "asynchronous",
@@ -111,9 +111,9 @@ sub info {
                   'body'     => {} }
             },
             { 'name'        => "function",
-              'request'     => $self->cgi->url."/".$self->name."/function",
+              'request'     => $self->url."/".$self->name."/function",
               'description' => "Returns a BIOM object.",
-              'example'     => [ $self->cgi->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=level3&source=Subsystems&identity=80",
+              'example'     => [ $self->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=level3&source=Subsystems&identity=80",
                                  'retrieve abundance matrix of Subsystem annotations at level3 for listed metagenomes at % identity > 80' ],
               'method'      => "GET" ,
               'type'        => "asynchronous",
@@ -235,7 +235,7 @@ sub instance {
     if ($nodes && (@$nodes > 0)) {
         # sort results by newest to oldest
         my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
-        $self->return_data({"status" => "submitted", "id" => $sorted[0]->{id}, "url" => $self->cgi->url."/status/".$sorted[0]->{id}});
+        $self->return_data({"status" => "submitted", "id" => $sorted[0]->{id}, "url" => $self->url."/status/".$sorted[0]->{id}});
     }
     
     # test cassandra access
@@ -263,7 +263,7 @@ sub instance {
     }
     # parent - end html session
     else {
-        $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
+        $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->url."/status/".$node->{id}});
     }
 }
 
@@ -294,7 +294,7 @@ sub process_parameters {
     my $filter_level = $flvl;
     
     my $matrix_id  = join("_", map {'mgm'.$_} @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
-    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} @$data).'&group_level='.$glvl.'&source='.$source.
+    my $matrix_url = $self->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} @$data).'&group_level='.$glvl.'&source='.$source.
                      '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen;
     if ($hide_md) {
         $matrix_id .= '_'.$hide_md;
@@ -485,6 +485,7 @@ sub process_parameters {
         url         => $matrix_url,
         mg_ids      => \@mg_ids,
         job_ids     => \@job_ids,
+        swaps       => $self->to_swap_set(\@mg_ids),
         resource    => "matrix",
         type        => $type,
         group_level => $glvl,

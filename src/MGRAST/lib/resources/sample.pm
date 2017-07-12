@@ -41,12 +41,12 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "A metagenomic sample from some environment.",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
-				      'request'     => $self->cgi->url."/".$self->name,
+				      'request'     => $self->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -55,9 +55,9 @@ sub info {
 							             'required'    => {},
 							             'body'        => {} } },
 				    { 'name'        => "query",
-				      'request'     => $self->cgi->url."/".$self->name,				      
+				      'request'     => $self->url."/".$self->name,				      
 				      'description' => "Returns a set of data matching the query criteria.",
-				      'example'     => [ $self->cgi->url."/".$self->name."?limit=20&order=name",
+				      'example'     => [ $self->url."/".$self->name."?limit=20&order=name",
   				                         'retrieve the first 20 samples ordered by name' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -75,9 +75,9 @@ sub info {
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
-				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				      'request'     => $self->url."/".$self->name."/{ID}",
 				      'description' => "Returns a single data object.",
-				      'example'     => [ $self->cgi->url."/".$self->name."/mgs25823?verbosity=full",
+				      'example'     => [ $self->url."/".$self->name."/mgs25823?verbosity=full",
     				                     'retrieve all data for sample mgs25823' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -181,7 +181,7 @@ sub prepare_data {
         if ($sample->{ID}) {
             $sample->{id} = $sample->{ID};
         }
-        my $url = $self->cgi->url;
+        my $url = $self->url;
         my $obj = {};
         $obj->{id}      = "mgs".$sample->{id};
         $obj->{name}    = $sample->{name};
