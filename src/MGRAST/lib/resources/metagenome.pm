@@ -24,10 +24,11 @@ sub new {
     $self->{name} = "metagenome";
     $self->{rights} = \%rights;
     $self->{cv} = {
-        verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
-        direction => {'asc' => 1, 'desc' => 1},
-        status    => {'both' => 1, 'public' => 1, 'private' => 1},
-        match     => {'any' => 1, 'all' => 1}
+		   verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
+		   direction => {'asc' => 1, 'desc' => 1},
+		   status    => {'both' => 1, 'public' => 1, 'private' => 1},
+		   match     => {'any' => 1, 'all' => 1},
+		   details   => {'function' => 1, 'taxonomy' => 1, 'ontology' => 1, 'gc_histogram_upload' => 1, 'gc_historam_qc' => 1, 'length_histogram_upload' => 1, 'length_histogram_qc' => 1, 'bp_profile' => 1, 'kmer_15' => 1, 'kmer_6' => 1, 'drisee' => 1, 'rarefaction' => 1, 'sequence_breakdown' => 1 }
     };
     $self->{valid_types} = {
         "Amplicon"     => 1,
@@ -576,7 +577,42 @@ sub prepare_data {
             $obj->{mixs_compliant} = $mddb->is_job_compliant($job);
         }
         if (($verb eq 'stats') || ($verb eq 'full')) {
-            $obj->{statistics} = $self->metagenome_stats_from_shock('mgm'.$job->{metagenome_id}, $job->{sequence_type});
+	  $obj->{statistics} = $self->metagenome_stats_from_shock('mgm'.$job->{metagenome_id}, $job->{sequence_type});
+
+	  my $detail = $self->cgi->param('detail');
+	  if ($detail && $self->{cv}->{details}->{$detail}) {
+	    my $data = {};
+	    if ($detail eq 'function') {
+	      $data = $obj->{statistics}->{function};
+	      unshift @$data, ['function','abundance'];
+	    } elsif ($detail eq 'taxonomy') {
+	      $data = $obj->{statistics}->{taxonomy};
+	    } elsif ($detail eq 'ontology') {
+	      $data = $obj->{statistics}->{ontology};
+	    } elsif ($detail eq 'gc_histogram_upload') {
+	      $data = $obj->{statistics}->{gc_histogram}->{upload};
+	    } elsif ($detail eq 'gc_histogram_qc') {
+	      $data = $obj->{statistics}->{gc_histogram}->{post_qc};
+	    } elsif ($detail eq 'length_histogram_upload') {
+	      $data = $obj->{statistics}->{length_histogram}->{upload};
+	    } elsif ($detail eq 'length_histogram_qc') {
+	      $data = $obj->{statistics}->{length_histogram}->{post_qc};
+	    } elsif ($detail eq 'bp_profile') {
+	      $data = $obj->{statistics}->{qc}->{bp_profile}->{counts};
+	    } elsif ($detail eq 'kmer_15') {
+	      $data = $obj->{statistics}->{qc}->{kmer}->{"15_mer"};
+	    } elsif ($detail eq 'kmer_6') {
+	      $data = $obj->{statistics}->{qc}->{kmer}->{"6_mer"};
+	    } elsif ($detail eq 'drisee') {
+	      $data = $obj->{statistics}->{qc}->{drisee}->{counts};
+	    } elsif ($detail eq 'rarefaction') {
+	      $data = $obj->{statistics}->{rarefaction};
+	    } elsif ($detail eq 'sequence_breakdown') {
+	      $data = $obj->{statistics}->{sequence_breakdown};
+	    }
+	    push @$objects, $data;
+	    next;
+	  }
         }
         push @$objects, $obj;
     }
