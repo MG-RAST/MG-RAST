@@ -125,24 +125,24 @@ sub query {
     my $master = $self->connect_to_datasource();
     my $dbh    = $master->db_handle();
   
-    my $libraries_hash = {};
-    my $library_map    = {};
-    my $job_lib_map    = {};
-    my $job_library    = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job WHERE viewable=1");
+    my $library_found = {};
+    my $library_map   = {};
+    my $job_lib_map   = {};
+    my $job_library   = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job WHERE viewable=1 AND library IS NOT NULL");
     map { $library_map->{$_->[0]} = {id => $_->[1], name => $_->[2], entry_date => $_->[3]} } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='library'")};
   
     # add libraries with job: public or rights
     foreach my $jl (@$job_library) {
-        next unless ($jl->[0] && $library_map->{$jl->[0]});
+        next unless ($jl && $jl->[0] && $library_map->{$jl->[0]});
         $job_lib_map->{$jl->[0]} = 1;
-        if (($jl->[2] == 1) || exists($self->rights->{$jl->[1]}) || exists($self->rights->{'*'})) {
-            $libraries_hash->{"mgl".$library_map->{$jl->[0]}} = $library_map->{$jl->[0]};
+        if (($jl->[2] && ($jl->[2] == 1)) || exists($self->rights->{$jl->[1]}) || exists($self->rights->{'*'})) {
+            $library_found->{$jl->[0]} = $library_map->{$jl->[0]};
         }
     }
     # add libraries with no job
-    map { $libraries_hash->{"mgl".$library_map->{$_}} = $library_map->{$_} } grep { ! exists $job_lib_map->{$_} } keys %$library_map;
+    map { $library_found->{$_} = $library_map->{$_} } grep { ! exists $job_lib_map->{$_} } keys %$library_map;
     my $libraries = [];
-    @$libraries   = map { $libraries_hash->{$_} } keys(%$libraries_hash);
+    @$libraries   = values %$library_found;
     my $total     = scalar @$libraries;
 
     # check limit
