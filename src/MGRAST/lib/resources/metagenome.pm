@@ -241,6 +241,7 @@ sub instance {
             # check if the passed type is valid
             if ($self->{valid_types}->{$rest->[2]}) {
                 $job->sequence_type($rest->[2]);
+                $self->upsert_to_elasticsearch($job->metagenome_id);
             } else {
                 $self->return_data({"ERROR" => "Invalid sequence type passed (".$rest->[2].")."}, 404);
             }
