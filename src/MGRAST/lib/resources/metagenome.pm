@@ -28,7 +28,7 @@ sub new {
 		   direction => {'asc' => 1, 'desc' => 1},
 		   status    => {'both' => 1, 'public' => 1, 'private' => 1},
 		   match     => {'any' => 1, 'all' => 1},
-		   details   => {'function' => 1, 'taxonomy' => 1, 'ontology' => 1, 'gc_histogram' => 1, 'length_histogram' => 1, 'bp_profile' => 1, 'kmer' => 1, 'drisee' => 1, 'rarefaction' => 1, 'sequence_breakdown' => 1, 'source_hits_distribution' => 1 }
+		   details   => {'function' => 1, 'taxonomy' => 1, 'ontology' => 1, 'gc_histogram' => 1, 'length_histogram' => 1, 'bp_profile' => 1, 'kmer' => 1, 'drisee' => 1, 'rarefaction' => 1, 'sequence_stats' => 1, 'sequence_breakdown' => 1, 'source_hits_distribution' => 1}
     };
     $self->{valid_types} = {
         "Amplicon"     => 1,
@@ -579,7 +579,7 @@ sub prepare_data {
         }
         if (($verb eq 'stats') || ($verb eq 'full')) {
 	  $obj->{statistics} = $self->metagenome_stats_from_shock('mgm'.$job->{metagenome_id}, $job->{sequence_type});
-
+#{'function' => 1, 'taxonomy' => 1, 'ontology' => 1, 'gc_histogram' => 1, 'length_histogram' => 1, 'bp_profile' => 1, 'kmer' => 1, 'drisee' => 1, 'rarefaction' => 1, 'sequence_breakdown' => 1, 'source_hits_distribution' => 1 }
 	  my $detail = $self->cgi->param('detail');
 	  if ($detail && $self->{cv}->{details}->{$detail}) {
 	    my $data = {};
@@ -602,6 +602,8 @@ sub prepare_data {
 	      $data = $obj->{statistics}->{qc}->{drisee}->{counts};
 	    } elsif ($detail eq 'rarefaction') {
 	      $data = $obj->{statistics}->{rarefaction};
+        } elsif ($detail eq 'sequence_stats') {
+          $data = $obj->{statistics}->{sequence_stats};
 	    } elsif ($detail eq 'sequence_breakdown') {
 	      $data = $obj->{statistics}->{sequence_breakdown};
 	    } elsif ($detail eq 'source_hits_distribution') {
