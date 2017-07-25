@@ -245,7 +245,7 @@ sub awe_history {
         if ($awe_id) {
             $job_doc = $self->get_awe_full_document($awe_id, $self->mgrast_token);
             # fix for reload pipeline
-            if ($job_doc->{info}{pipeline} eq 'mgrast-reload') {
+            if ($job_doc && ($job_doc->{info}{pipeline} eq 'mgrast-reload')) {
                 $job_doc = undef;
             }
         }
