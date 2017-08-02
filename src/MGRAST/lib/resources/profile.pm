@@ -213,7 +213,7 @@ sub submit {
     } else {
         # validate type / source
         my $all_srcs = {};
-        if ($job->{sequence_type} =~ /^Amplicon/) {
+        if ($job->{sequence_type} eq "Amplicon") {
             map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
         } else {
             map { $all_srcs->{$_} = 1 } @{$self->source_by_type('protein')};
