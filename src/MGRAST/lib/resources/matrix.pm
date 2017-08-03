@@ -330,6 +330,7 @@ sub process_parameters {
     # controlled vocabulary set
     my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
     my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
+    my %rna_srcs   = map { $_->[0], 1 } @{$self->source->{rna}};
     my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
     my %org_srcs   = map { $_->[0], 1 } @{$self->{sources}{organism}};
     my @tax_hier   = map { $_->[0] } reverse @{$self->hierarchy->{organism}};
@@ -399,12 +400,14 @@ sub process_parameters {
 
     # validate metagenome type combinations
     # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
-    my $num_amp = 0;
+    my $num_rna  = 0;
+    my $num_gene = 0;
     my $type_map = $master->Job->get_sequence_types($data);
-    map { $num_amp += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
-    if ($num_amp) {
-        if ($num_amp != scalar(@$data)) {
-            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, undef, undef);
+    map { $num_rna += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
+    map { $num_gene += 1 } grep { $_ eq 'AmpliconGene' } values %$type_map;
+    if ($num_rna) {
+        if ($num_rna != scalar(@$data)) {
+            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_rna of ".scalar(@$data)." are Amplicon"}, undef, undef);
         }
         if ($type eq 'function') {
             return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, undef, undef);
@@ -414,6 +417,17 @@ sub process_parameters {
         }
         if ($filter) {
             return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, undef, undef);
+        }
+    }
+    if ($num_gene) {
+        if ($type eq 'function') {
+            return ({"ERROR" => "invalid combination: requesting functional annotations with AmpliconGene data sets"}, undef, undef);
+        }
+        if (exists $rna_srcs{$source}) {
+            return ({"ERROR" => "invalid combination: requesting RNA source annotations with AmpliconGene data sets"}, undef, undef);
+        }
+        if ($filter) {
+            return ({"ERROR" => "invalid combination: filtering by functional annotations with AmpliconGene data sets"}, undef, undef);
         }
     }
     my $id_map  = $master->Job->get_job_ids($data);
