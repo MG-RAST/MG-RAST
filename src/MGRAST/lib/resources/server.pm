@@ -129,11 +129,8 @@ sub instance {
 
   elsif ($self->rest->[0] eq 'seqtypes') {
     if ($self->user && $self->user->has_star_right('edit', 'user')) {
-      my ($dbmaster, $error) = WebApplicationDBHandle->new();
-      if ($error) {
-	$self->return_data({ "ERROR" => $error }, 500);
-      }
-      my $seqtypes = $dbmaster->db_handle->selectall_arrayref('select sequence_type, value, metagenome_id from Job, JobAttributes where Job._id=JobAttributes.job and JobAttributes.tag='sequence_type' and JobAttributes.value != Job.sequence_type');
+      my $dbmaster = $self->connect_to_datasource();
+      my $seqtypes = $dbmaster->db_handle->selectall_arrayref("select sequence_type, value, metagenome_id from Job, JobAttributes where Job._id=JobAttributes.job and JobAttributes.tag='sequence_type' and JobAttributes.value != Job.sequence_type");
       $self->return_data($seqtypes);
     }
   }
