@@ -159,7 +159,7 @@ sub post_action {
         my $attr = {
             collection => $sample,
             tag        => $dbname.'_id',
-            value      => $val,
+            value      => $accession,
             required   => 0,
             mixs       => 0
         };

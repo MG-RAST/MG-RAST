@@ -156,7 +156,7 @@ sub post_action {
         my $attr = {
             collection => $library,
             tag        => $dbname.'_id',
-            value      => $val,
+            value      => $accession,
             required   => 0,
             mixs       => 0
         };

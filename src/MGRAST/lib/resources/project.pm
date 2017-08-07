@@ -153,6 +153,7 @@ sub request {
 
 # create a new empty project
 sub create_project {
+    my ($self) = @_;
     my $master = $self->connect_to_datasource();
     unless ($self->{user}) {
         $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
@@ -181,6 +182,7 @@ sub create_project {
 
 # delete an empty project
 sub delete_project {
+    my ($self) = @_;
     my $master = $self->connect_to_datasource();
     unless ($self->{cgi}->param("id")) {
         $self->return_data( {"ERROR" => "missing parameter id"}, 400 );
