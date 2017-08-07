@@ -16,6 +16,9 @@ sub new {
     
     # Add name / attributes
     my %rights = $self->{user} ? map {$_, 1} @{$self->{user}->has_right_to(undef, 'view', 'metagenome')} : ();
+    $self->{post_actions} = {
+        'addaccession' => 1
+    };
     $self->{name} = "library";
     $self->{rights} = \%rights;
     $self->{attributes} = { "id"           => [ 'string', 'unique object identifier' ],
@@ -88,6 +91,86 @@ sub info {
 		  };
 
     $self->return_data($content);
+}
+
+# Override parent request function
+sub request {
+    my ($self) = @_;
+
+    # check for parameters
+    my @parameters = $self->cgi->param;
+    if ( (scalar(@{$self->rest}) == 0) &&
+         ((scalar(@parameters) == 0) || ((scalar(@parameters) == 1) && ($parameters[0] eq 'keywords'))) )
+    {
+        $self->info();
+    }
+    if ($self->method eq 'POST') {
+        if ((scalar(@{$self->rest}) > 1) && exists($self->{post_actions}{$self->rest->[1]})) {
+            $self->post_action();
+        } else {
+            $self->info();
+        }
+    } elsif ( ($self->method eq 'GET') && scalar(@{$self->rest}) ) {
+         $self->instance();
+    } else {
+        $self->query();
+    }
+}
+
+sub post_action {
+    my ($self) = @_;
+
+    # get rest parameters
+    my $rest = $self->rest;
+    # get database
+    my $master = $self->connect_to_datasource();
+
+    # check id format
+    my ($id) = $rest->[0] =~ /^mgs(\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+    }
+
+    # get sample
+    my $library = $master->MetaDataCollection->init( {ID => $id} );
+    unless (ref($library)) {
+        $self->return_data( {"ERROR" => "id ".$rest->[0]." does not exists"}, 404 );
+    }
+
+    # check rights
+    foreach my $mg (@{$library->metagenome_ids}) {
+        unless ($self->user && ($self->user->has_star_right('edit', 'metagenome') || $self->user->has_right(undef, 'edit', 'metagenome', $mg))) {
+            $self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+        }
+    }
+
+    # add external db accesion ID
+    if ($rest->[1] eq 'addaccession') {
+        # get paramaters
+        my $dbname    = $self->cgi->param('dbname') || "";
+        my $accession = $self->cgi->param('accession') || "";
+        unless ($dbname && $accession) {
+            $self->return_data( {"ERROR" => "Missing required options: dbname or accession"}, 404 );
+        }
+        # update DB
+        my $attr = {
+            collection => $library,
+            tag        => $dbname.'_id',
+            value      => $accession,
+            required   => 0,
+            mixs       => 0
+        };
+        my $metadbm = MGRAST::Metadata->new->_handle();
+        my $existing = $metadbm->MetaDataEntry->get_objects($attr);
+        if (scalar(@$existing)) {
+            foreach my $smd (@$existing) {
+                $smd->delete();
+            }
+        }
+        $metadbm->MetaDataEntry->create($attr);
+        # return success
+        $self->return_data( {"OK" => $dbname." accession added"}, 200 );
+    }
 }
 
 # the resource is called with an id parameter
