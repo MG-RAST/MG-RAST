@@ -122,6 +122,30 @@ sub jobs {
   return $jobs;
 }
 
+=item * B<metagenome_ids> ()
+
+Returns array of metagenome_ids that have this collection
+
+=cut
+
+sub metagenome_ids {
+  my ($self) = @_;
+
+  my $mgids = [];
+  my $dbh = $self->_master->db_handle;
+
+  if ($self->type eq 'sample') {
+    $mgids = $dbh->selectcol_arrayref("SELECT metagenome_id FROM Job where sample=".$self->_id." and viewable=1");
+  }
+  elsif ($self->type eq 'library') {
+    $mgids = $dbh->selectcol_arrayref("SELECT metagenome_id FROM Job where library=".$self->_id." and viewable=1");
+  }
+  elsif (($self->type eq 'ep') && $self->parent && ref($self->parent)) {
+    $mgids = $dbh->selectcol_arrayref("SELECT metagenome_id FROM Job where sample=".$self->parent->_id." and viewable=1");
+  }
+  return $mgids;
+}
+
 =item * B<children> ()
 
 Returns array of children collections,
