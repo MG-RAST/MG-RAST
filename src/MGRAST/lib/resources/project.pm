@@ -343,66 +343,35 @@ sub post_action {
     # submit project to EBI
     elsif ($rest->[1] eq 'submittoebi') {
         my $metadbm = MGRAST::Metadata->new->_handle();
-        # set the biome and seq_tech in the samples / libraries
+        my $force = $self->cgi->param('force') ? 1 : 0; # force overwrite values
+        
+        # set the metagenome_taxonomy if missing or overwrite
         my $mgs = $project->metagenomes();
         foreach my $mg (@$mgs) {
-            if ($self->cgi->param('biome'.$mg->{metagenome_id})) {
-                my $val = $self->cgi->param('biome'.$mg->{metagenome_id});
-                my $attr = {
-                    collection => $mg->sample,
-                    tag        => 'ncbi_taxon_id',
-                    value      => $val,
-                    required   => 0,
-                    mixs       => 0
-                };
-                my $existing = $metadbm->MetaDataEntry->get_objects($attr);
+            # see if it has name
+            my $taxattr = {
+                collection => $mg->sample,
+                tag => 'metagenome_taxonomy'
+            };
+            my $existing = $metadbm->MetaDataEntry->get_objects($taxattr);
+            if ((scalar(@$existing) == 0) || $self->cgi->param('force')) {
                 if (scalar(@$existing)) {
                     foreach my $pmd (@$existing) {
                         $pmd->delete();
                     }
                 }
-                $metadbm->MetaDataEntry->create( $attr );
-
-                $val = $self->cgi->param('biomename'.$mg->{metagenome_id});
-                $attr = {
-                    collection => $mg->sample,
-                    tag        => 'ncbi_taxon_name',
-                    value      => $val,
-                    required   => 0,
-                    mixs       => 0
-                };
-                $existing = $metadbm->MetaDataEntry->get_objects($attr);
-                if (scalar(@$existing)) {
-                    foreach my $pmd (@$existing) {
-                        $pmd->delete();
-                    }
+                if ($self->cgi->param('biomename'.$mg->{metagenome_id})) {
+                    $taxattr->{value} = $self->cgi->param('biomename'.$mg->{metagenome_id});
+                    $metadbm->MetaDataEntry->create($taxattr);
+                } else {
+                    $self->return_data( {"ERROR" => "error updating sample taxonomy entries for ebi submission"}, 500 );
                 }
-                $metadbm->MetaDataEntry->create( $attr );
-            } else {
-                $self->return_data( { "ERROR" => "error updating sample biome entries for ebi submission" }, 500 );
-            }
-
-            if ($self->cgi->param('tech'.$mg->{metagenome_id})) {
-                my $val = $self->cgi->param('tech'.$mg->{metagenome_id});
-                my $attr = {
-                    collection => $mg->library,
-                    tag        => 'ebi_tech',
-                    value      => $val,
-                    required   => 0,
-                    mixs       => 0
-                };
-                my $existing = $metadbm->MetaDataEntry->get_objects($attr);
-                if (scalar(@$existing)) {
-                    foreach my $pmd (@$existing) {
-                        $pmd->delete();
-                    }
-                }
-                $metadbm->MetaDataEntry->create( $attr );
-            } else {
-                $self->return_data( { "ERROR" => "error updating library seq_model entries for ebi submission" }, 500 );
             }
         }
         # at this point we can submit to EBI
+        #### TODO ####
+        # fill out workflow template and submit to AWE
+        ########
         $self->return_data( {"OK" => "metadata updated for EBI"}, 200 );
     }
     # add external db accesion ID
