@@ -375,8 +375,8 @@ sub post_action {
         ########
         my $response = {
             submit_id  => $uuid,
-            user       => $user_id,
-            project    => 'mgp'.$project->{id};
+            user       => 'mgu'.$self->user->_id,
+            project    => 'mgp'.$project->{id},
             timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
         };
         $self->return_data($response);
