@@ -369,10 +369,17 @@ sub post_action {
             }
         }
         # at this point we can submit to EBI
+        my $uuid = $self->uuidv4();
         #### TODO ####
         # fill out workflow template and submit to AWE
         ########
-        $self->return_data( {"OK" => "metadata updated for EBI"}, 200 );
+        my $response = {
+            submit_id  => $uuid,
+            user       => $user_id,
+            project    => 'mgp'.$project->{id};
+            timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+        };
+        $self->return_data($response);
     }
     # add external db accesion ID
     elsif ($rest->[1] eq 'addaccession') {
