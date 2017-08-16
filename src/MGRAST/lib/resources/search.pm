@@ -121,6 +121,7 @@ sub query {
   # get query fields
   my $query = {};
   foreach my $field (keys %{$self->{fields}}) {
+    next if $field eq 'public';
     if ($self->cgi->param($field)) {
       my $type = $ElasticSearch::types->{$field};
       my @param = $self->cgi->param($field);
@@ -140,21 +141,31 @@ sub query {
       $query->{$field} = { "entries" => $entries, "type" => $type };
     }
   }
-  my $in = undef;
-  if ($self->user) {
-    if (! $self->user->has_star_right('view', 'metagenome')) {
-      @$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
-      unless (scalar(@$in)) {
-	$in = undef;
-      }
-    }
-  } else {
+  my $ins = [];
+
+  if (defined $self->cgi->param('public') && (($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes")) ) {
     $query->{"job_info_public"} = { "entries" => [ 1 ], "type" => "boolean" };
+  } else {
+    if ($self->user) {
+      if (! $self->user->has_star_right('view', 'metagenome')) {
+	my $in = [];
+	@$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
+	if (scalar(@$in)) {
+	  push(@$ins, [ "id", $in ]);
+	}
+	if (! defined $self->cgi->param('public') || ($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes") ) {
+	  push(@$ins, [ "job_info_public", [ "true" ] ]);
+	}
+      } else {
+	if (defined $self->cgi->param('public') && (($self->cgi->param('public') eq "0")  || ($self->cgi->param('public') eq "false")  || ($self->cgi->param('public') eq "no")) ) {
+	  push(@$ins, [ "job_info_public", [ "false" ] ]);
+	}
+      }
+    } else {
+      $query->{"job_info_public"} = { "entries" => [ 1 ], "type" => "boolean" };
+    }
   }
-  if (defined $self->cgi->param('public') && $self->cgi->param('public') == 1) {
-    $in = undef;
-  }
-  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $in ? [ "id", $in ] : undef, defined $self->cgi->param('public') && $self->cgi->param('public') == 0 );
+  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $ins ? $ins : undef);
   
   if ($error) {
     $self->return_data({"ERROR" => "An error occurred: $error"}, 500);
