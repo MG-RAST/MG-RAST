@@ -2028,17 +2028,17 @@ sub upsert_to_elasticsearch {
 }
 
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $offset, $limit, $in, $private) = @_;
+  my ($self, $server, $query, $order, $dir, $offset, $limit, $ins) = @_;
 
   my $postJSON = { "from" => $offset,
 		   "size" => $limit,
 		   "sort" => [ { $order => { "order" => $dir } } ],
-		   "query" => {} };
+		   "query" => { "bool" => { "should" => [], "minimum_should_match" => 1 } } };
 
-  if ($in) {
-    $postJSON->{query}->{"bool"} = { "filter" => [ { "terms" => { $in->[0] => $in->[1] } } ] };
-  } else {
-    $postJSON->{query}->{"bool"} = { "filter" => [ ] };
+  if ($ins) {
+    foreach my $in (@$ins) {
+      push(@{$postJSON->{query}->{"bool"}->{"should"}}, { "terms" => { $in->[0] => $in->[1] } });
+    }
   }
   foreach my $q (keys %$query) {
     my $bools = [];
@@ -2062,12 +2062,17 @@ sub get_elastic_query {
 	}
       }
       if (scalar(@$bools)) {
-	push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "terms" => { $q => $bools } });
+	push(@{$postJSON->{query}->{"bool"}->{"should"}}, { "terms" => { $q => $bools } });
       }
       if (scalar(keys %$wilds)) {
-	push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "wildcard" => $wilds });
+	push(@{$postJSON->{query}->{"bool"}->{"should"}}, { "wildcard" => $wilds });
       }
     }
+  }
+
+  if (! scalar(@{$postJSON->{query}->{"bool"}->{"should"}})) {
+    delete $postJSON->{query}->{"bool"}->{"should"};
+    delete $postJSON->{query}->{"bool"}->{"minimum_should_match"};
   }
   
   my $content;
