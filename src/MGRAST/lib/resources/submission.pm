@@ -485,17 +485,18 @@ sub submit {
     }
     # make project
     if ((! $project_obj) && $project_name) {
-      my $p = $master->Project->get_objects({ name => $project_name });
-      if (scalar(@$p)) {
-	$self->return_data( {"ERROR" => "This project name is already taken. Please choose a different name."}, 400 );
-      } else {
-	$project_obj = $master->Project->create_project($self->user, $project_name);
-      }
+        my $p = $master->Project->get_objects({ name => $project_name });
+        if (scalar(@$p)) {
+            $self->return_data( {"ERROR" => "This project name is already taken. Please choose a different name."}, 400 );
+        } else {
+            $project_obj = $master->Project->create_project($self->user, $project_name);
+        }
     }
     # verify it worked
     unless ($project_obj) {
         $self->return_data( {"ERROR" => "Missing project information, must have one of metadata_file, project_id, or project_name"}, 400 );
     }
+    $response->{project} = 'mgp'.$project_obj->{id};
     
     # figure out pre-pipeline workflow
     my @submit = ();
@@ -695,14 +696,11 @@ sub submit {
     };
     $submit_task->{userattr}{stage_name} = "submission";
     # metadata or project
-    if ($metadata_obj || $project_obj) {
-        if ($metadata_obj && $md_json_node) {
-            $submit_task->{cmd}{args} .= ' -metadata @'.$md_json_node->{file}{name};
-            $submit_task->{inputs}{$md_json_node->{file}{name}} = {host => $Conf::shock_url, node => $md_json_node->{id}};
-        }
-        if ($project_obj) {
-            $submit_task->{cmd}{args} .= ' -project mgp'.$project_obj->{id};
-        }
+    if ($metadata_obj && $md_json_node) {
+        $submit_task->{cmd}{args} .= ' -metadata @'.$md_json_node->{file}{name};
+        $submit_task->{inputs}{$md_json_node->{file}{name}} = {host => $Conf::shock_url, node => $md_json_node->{id}};
+    } elsif ($project_obj) {
+        $submit_task->{cmd}{args} .= ' -project mgp'.$project_obj->{id};
     } else {
         $self->return_data( {"ERROR" => "Missing project information, must have one of metadata_file, project_id, or project_name"}, 400 );
     }
