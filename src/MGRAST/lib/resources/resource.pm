@@ -2033,8 +2033,7 @@ sub get_elastic_query {
   my $postJSON = { "from" => $offset,
 		   "size" => $limit,
 		   "sort" => [ { $order => { "order" => $dir } } ],
-		   "query" => { "bool" => { "should" => [], "minimum_should_match" => 1 },
-				"simple_query_string" => [] } };
+		   "query" => { "bool" => { "should" => [], "minimum_should_match" => 1, "filter" => [], "must" => [] } } };
   
   if ($ins) {
     foreach my $in (@$ins) {
@@ -2056,11 +2055,11 @@ sub get_elastic_query {
 	    $query->{$q}->{entries}->[$i] = JSON::false;
 	  }
 	}
-	$query->{$q}->{entries}->[$i] = lc $query->{$q}->{entries}->[$i];
+	$query->{$q}->{entries}->[$i] = $query->{$q}->{entries}->[$i];
 	push(@$qs, $query->{$q}->{entries}->[$i]);
       }
       if (scalar(@$qs)) {
-	push(@{$postJSON->{query}->{"simple_query_string"}}, { "fields" => [ $q ], "query" => $qs });
+	push(@{$postJSON->{query}->{"bool"}->{"must"}}, { "query_string" => { "default_field" => $q, "query" => join(' ', @$qs) } });
       }
     }
   }
@@ -2069,8 +2068,11 @@ sub get_elastic_query {
     delete $postJSON->{query}->{"bool"}->{"should"};
     delete $postJSON->{query}->{"bool"}->{"minimum_should_match"};
   }
-  if (! scalar(@{$postJSON->{query}->{"simple_query_string"}})) {
-    delete $postJSON->{query}->{"simple_query_string"};
+  if (! scalar(@{$postJSON->{query}->{"bool"}->{"filter"}})) {
+    delete $postJSON->{query}->{"bool"}->{"filter"};
+  }
+  if (! scalar(@{$postJSON->{query}->{"bool"}->{"must"}})) {
+    delete $postJSON->{query}->{"bool"}->{"must"};
   }
   
   my $content;
