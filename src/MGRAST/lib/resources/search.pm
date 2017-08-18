@@ -162,7 +162,7 @@ sub query {
 	}
       }
     } else {
-      $query->{"job_info_public"} = { "entries" => [ 1 ], "type" => "boolean" };
+      push(@$ins, [ "job_info_public", [ "true" ] ]);
     }
   }
   my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $ins ? $ins : undef);
