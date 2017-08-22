@@ -2028,20 +2028,21 @@ sub upsert_to_elasticsearch {
 }
 
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $offset, $limit, $in, $private) = @_;
+  my ($self, $server, $query, $order, $dir, $offset, $limit, $ins) = @_;
 
   my $postJSON = { "from" => $offset,
 		   "size" => $limit,
 		   "sort" => [ { $order => { "order" => $dir } } ],
-		   "query" => {} };
-
-  if ($in) {
-    $postJSON->{query}->{"bool"} = { "filter" => [ { "terms" => { $in->[0] => $in->[1] } } ] };
-  } else {
-    $postJSON->{query}->{"bool"} = { "filter" => [ ] };
+		   "query" => { "bool" => { "should" => [], "minimum_should_match" => 1, "filter" => [], "must" => [] } } };
+  
+  if ($ins) {
+    foreach my $in (@$ins) {
+      push(@{$postJSON->{query}->{"bool"}->{"should"}}, { "terms" => { $in->[0] => $in->[1] } });
+    }
   }
+  
   foreach my $q (keys %$query) {
-    my $bools = [];
+    my $qs = [];
     my $wilds = {};
     if ($q eq 'all') {
       push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "match" => { "_all" => join(' ', @{$query->{$q}->{entries}}) } });
@@ -2054,20 +2055,24 @@ sub get_elastic_query {
 	    $query->{$q}->{entries}->[$i] = JSON::false;
 	  }
 	}
-	$query->{$q}->{entries}->[$i] = lc $query->{$q}->{entries}->[$i];
-	if ($query->{$q}->{entries}->[$i] =~ /\*/) {
-	  $wilds->{$q} = $query->{$q}->{entries}->[$i];
-	} else {
-	  push(@$bools, $query->{$q}->{entries}->[$i]);
-	}
+	$query->{$q}->{entries}->[$i] = $query->{$q}->{entries}->[$i];
+	push(@$qs, $query->{$q}->{entries}->[$i]);
       }
-      if (scalar(@$bools)) {
-	push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "terms" => { $q => $bools } });
-      }
-      if (scalar(keys %$wilds)) {
-	push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "wildcard" => $wilds });
+      if (scalar(@$qs)) {
+	push(@{$postJSON->{query}->{"bool"}->{"must"}}, { "query_string" => { "default_field" => $q, "query" => join(' ', @$qs) } });
       }
     }
+  }
+
+  if (! scalar(@{$postJSON->{query}->{"bool"}->{"should"}})) {
+    delete $postJSON->{query}->{"bool"}->{"should"};
+    delete $postJSON->{query}->{"bool"}->{"minimum_should_match"};
+  }
+  if (! scalar(@{$postJSON->{query}->{"bool"}->{"filter"}})) {
+    delete $postJSON->{query}->{"bool"}->{"filter"};
+  }
+  if (! scalar(@{$postJSON->{query}->{"bool"}->{"must"}})) {
+    delete $postJSON->{query}->{"bool"}->{"must"};
   }
   
   my $content;
