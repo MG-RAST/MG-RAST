@@ -208,9 +208,9 @@ sub initialize {
   
   foreach my $key (@$stat_keys) {
     if (exists $params->{$key}) {
-      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
+      $job->stats($key.'_raw', $params->{$key});
     } elsif (exists $params->{$key.'_raw'}) {
-      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
+      $job->stats($key.'_raw', $params->{$key.'_raw'});
     }
   }
   
@@ -224,12 +224,9 @@ sub initialize {
     next if (exists($used_keys->{$key}) || exists($used_keys->{$clean_key}));
     my $value = $params->{$key};
     $value =~ s/\s+/_/g;
-    $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
+    $job->data($key, $value);
   }
   $job->set_filter_options();
-  
-  # mark as 'upload'
-  $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
   
   return $job;
 }
