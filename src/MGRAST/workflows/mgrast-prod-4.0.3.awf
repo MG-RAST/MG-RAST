@@ -96,6 +96,7 @@
             "userattr": {
                 "stage_id": "080",
                 "stage_name": "adapter.trim",
+                "data_type": "sequence",
                 "file_format": "[% file_format %]",
                 "seq_format": "bp"
             },

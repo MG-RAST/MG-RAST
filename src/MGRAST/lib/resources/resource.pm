@@ -816,7 +816,7 @@ sub get_download_set {
     my $vernum = $self->normailze_pipeline_version($version);
     my %seen   = ();
     my $skip   = {};
-    my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
+    my %subset = ('adapter.trim' => 1, 'preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
     my $stages = [];
     my $mgall  = $self->get_shock_query({'id' => 'mgm'.$mgid}, $auth, $authPrefix);
     my $mgmap  = {};
