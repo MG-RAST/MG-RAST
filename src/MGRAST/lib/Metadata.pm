@@ -837,10 +837,10 @@ sub export_metadata_for_project {
   my $data = $dbh->selectall_arrayref("SELECT MetaDataEntry.collection, parent, value, tag, type FROM ProjectCollection, MetaDataEntry, MetaDataCollection WHERE ProjectCollection.project=".$project->{_id}." AND MetaDataEntry.collection=ProjectCollection.collection AND MetaDataCollection._id=MetaDataEntry.collection");
     
   # get metagenome-library info
-  my %mginfo = map { $_->[0], [ $_->[1], $_->[2] ] } @{ $dbh->selectall_arrayref("SELECT library, metagenome_id, name, FROM Job WHERE primary_project=".$project->{_id}) };
+  my %mginfo = map { $_->[0], [ $_->[1], $_->[2] ] } @{ $dbh->selectall_arrayref("SELECT library, metagenome_id, name FROM Job WHERE primary_project=".$project->{_id}) };
 
   # iterate over the data and structure it
-  # collection 0 | parent 1 | value 2 | tag 3 | type 4
+  # collection 0 | parent 1 | value 2 | tag 3 | type 4 
   my $samples = {};
   my $eps = {};
   my $libs = {};
