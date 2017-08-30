@@ -872,7 +872,7 @@ sub export_metadata_for_project {
 	    $samples->{$libs->{$k}->{"parent"}}->{"libraries"} = [];
       }
       if (exists $mginfo{$k}) {
-          $libs->{$k}->{data}->{metagenome_id} = $mginfo{$k}[0];
+          $libs->{$k}->{data}->{metagenome_id} = "mgm".$mginfo{$k}[0];
           $libs->{$k}->{data}->{metagenome_name} = $mginfo{$k}[1];
       }
       $libs->{$k}->{type} = $libs->{$k}->{data}->{investigation_type};
