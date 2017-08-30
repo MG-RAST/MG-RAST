@@ -835,6 +835,9 @@ sub export_metadata_for_project {
   # get the library / sample / ep data from the db
   my $dbh  = $self->{_handle}->db_handle;
   my $data = $dbh->selectall_arrayref("SELECT MetaDataEntry.collection, parent, value, tag, type FROM ProjectCollection, MetaDataEntry, MetaDataCollection WHERE ProjectCollection.project=".$project->{_id}." AND MetaDataEntry.collection=ProjectCollection.collection AND MetaDataCollection._id=MetaDataEntry.collection");
+    
+  # get metagenome-library info
+  my %mginfo = map { $_->[0], [ $_->[1], $_->[2] ] } @{ $dbh->selectall_arrayref("SELECT library, metagenome_id, name, FROM Job WHERE primary_project=".$project->{_id}) };
 
   # iterate over the data and structure it
   # collection 0 | parent 1 | value 2 | tag 3 | type 4
@@ -845,18 +848,18 @@ sub export_metadata_for_project {
   foreach my $d (@$data) {
     if ($d->[4] eq 'sample') {
       if (! $samples->{$d->[0]}) {
-	$samples->{$d->[0]} = { "data" => {}, "id" => "mgs".$d->[0] };
+          $samples->{$d->[0]} = { "data" => {}, "id" => "mgs".$d->[0] };
       }
       $samples->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
     } elsif ($d->[4] eq 'ep') {
       if (! $eps->{$d->[0]}) {
-	$eps->{$d->[0]} = { "parent" => $d->[1], "data" => {}, "id" => "mge".$d->[0] };
+          $eps->{$d->[0]} = { "parent" => $d->[1], "data" => {}, "id" => "mge".$d->[0] };
       }
       $eps->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
 
     } elsif ($d->[4] eq 'library') {
       if (! $libs->{$d->[0]}) {
-	$libs->{$d->[0]} = { "parent" => $d->[1], "data" => {}, "id" => "mgl".$d->[0] };
+          $libs->{$d->[0]} = { "parent" => $d->[1], "data" => {}, "id" => "mgl".$d->[0] };
       }
       $libs->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
     }
@@ -867,6 +870,10 @@ sub export_metadata_for_project {
     if ($samples->{$libs->{$k}->{"parent"}}) {
       if (! $samples->{$libs->{$k}->{"parent"}}->{"libraries"}) {
 	    $samples->{$libs->{$k}->{"parent"}}->{"libraries"} = [];
+      }
+      if (exists $mginfo{$k}) {
+          $libs->{$k}->{data}->{metagenome_id} = $mginfo{$k}[0];
+          $libs->{$k}->{data}->{metagenome_name} = $mginfo{$k}[1];
       }
       $libs->{$k}->{type} = $libs->{$k}->{data}->{investigation_type};
       $libs->{$k}->{name} = $libs->{$k}->{data}->{metagenome_name} || "mgl".$k;
@@ -892,8 +899,8 @@ sub export_metadata_for_project {
     # iterate over the libraries and objectify them
     if ($samples->{$k}->{libraries}) {
       foreach my $lib (@{$samples->{$k}->{libraries}}) {
-	delete $lib->{parent};
-	$lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data});
+          delete $lib->{parent};
+          $lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data});
       }
     }
 
