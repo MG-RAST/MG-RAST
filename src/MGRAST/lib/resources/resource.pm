@@ -1759,6 +1759,9 @@ sub get_task_report {
       $authPrefix = "mgrast";
     }
     
+    if ($task->{taskid} == 0) {
+      return "";
+    }
     my $id = $task->{taskid}."_".$rank;
     my $rtext = $self->get_awe_report($id, $type, $auth, $authPrefix);
     my $rfile = "awe_".$type.".txt";
