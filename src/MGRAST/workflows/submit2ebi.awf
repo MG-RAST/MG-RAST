@@ -1,0 +1,46 @@
+{
+    "info": {
+        "pipeline": "mgrast-submit-ebi",
+        "name": "[% project_id %]",
+        "project": "[% project_name %]",
+        "user": "[% user %]",
+        "clientgroups": "ebi_submit",
+        "userattr": {
+            "id": "[% project_id %]",
+            "name": "[% project_name %]",
+            "status": "public",
+            "owner": "[% user %]",
+            "type": "submission",
+            "pipeline_version": "1.0",
+            "submission": "[% submission_id %]",
+            "metagenomes": [% mg_count %]
+        }
+    },
+    "tasks": [
+        {
+            "cmd": {
+                "name": "cwl-runner",
+                "args": "--no-container /usr/src/ebi-submitter/CWL/workflows/submit2ebi.workflow.cwl @[% cwl_input %]",
+                "description": "EBI Project Submission",
+                "Dockerimage": "mgrast/ebi-submit:[% docker_image_version %]"
+            },
+            "dependsOn": [],
+            "inputs": [% input_files %],
+            "outputs": [
+                {
+                    "filename": "[% project_id %].receipt.xml",
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            ],
+            "userattr": {
+                "data_type": "receipt",
+                "file_format": "xml",
+                "stage_name": "EBI Submission"
+            },
+            "taskid": "0", 
+            "totalwork": 1
+        }
+    ]
+}
