@@ -342,10 +342,10 @@ sub ebi_submit {
         submission_id => $uuid,
         mg_count      => scalar(@$cwl_files),
         cwl_input     => $Conf::cwl_input_file,
-        input_files   => $self->json->encode($inputs),
+        input_files   => $self->json->encode($awe_files),
         docker_image_version => 'latest'
     };
-    my $job = $self->submit_awe_template($info, $Conf::mgrast_ebi_submit_workflow, $self->mgrast_token);
+    my $job = $self->submit_awe_template($awe_info, $Conf::mgrast_ebi_submit_workflow, $self->mgrast_token);
     
     my $response = {
         id        => $uuid,
