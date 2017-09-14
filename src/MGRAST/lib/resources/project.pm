@@ -28,7 +28,6 @@ sub new {
     $self->{post_actions} = {
         'chown'          => 1,
         'updatemetadata' => 1,
-        'submittoebi'    => 1,
         'addaccession'   => 1
     };
     $self->{get_actions} = {
@@ -339,47 +338,6 @@ sub post_action {
         }
         # return success
         $self->return_data( {"OK" => "metadata updated"}, 200 );
-    }
-    # submit project to EBI
-    elsif ($rest->[1] eq 'submittoebi') {
-        my $metadbm = MGRAST::Metadata->new->_handle();
-        my $force = $self->cgi->param('force') ? 1 : 0; # force overwrite values
-        
-        # set the metagenome_taxonomy if missing or overwrite
-        my $mgs = $project->metagenomes();
-        foreach my $mg (@$mgs) {
-            # see if it has name
-            my $taxattr = {
-                collection => $mg->sample,
-                tag => 'metagenome_taxonomy'
-            };
-            my $existing = $metadbm->MetaDataEntry->get_objects($taxattr);
-            if ((scalar(@$existing) == 0) || $self->cgi->param('force')) {
-                if (scalar(@$existing)) {
-                    foreach my $pmd (@$existing) {
-                        $pmd->delete();
-                    }
-                }
-                if ($self->cgi->param('biomename'.$mg->{metagenome_id})) {
-                    $taxattr->{value} = $self->cgi->param('biomename'.$mg->{metagenome_id});
-                    $metadbm->MetaDataEntry->create($taxattr);
-                } else {
-                    $self->return_data( {"ERROR" => "error updating sample taxonomy entries for ebi submission"}, 500 );
-                }
-            }
-        }
-        # at this point we can submit to EBI
-        my $uuid = $self->uuidv4();
-        #### TODO ####
-        # fill out workflow template and submit to AWE
-        ########
-        my $response = {
-            submit_id  => $uuid,
-            user       => 'mgu'.$self->user->_id,
-            project    => 'mgp'.$project->{id},
-            timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-        };
-        $self->return_data($response);
     }
     # add external db accesion ID
     elsif ($rest->[1] eq 'addaccession') {
