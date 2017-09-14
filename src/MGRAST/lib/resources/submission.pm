@@ -269,8 +269,8 @@ sub ebi_submit {
             if (($mf->{stage_name} eq 'upload') && ($mf->{file_size} > 0) && $mf->{node_id} && $mf->{file_format}) {
                 push @$awe_files, {
                     filename => $mf->{file_name},
-                    host => $Conf::shock_url,
-                    node => $mf->{node_id}
+                    host     => $Conf::shock_url,
+                    node     => $mf->{node_id}
                 };
                 push @$cwl_files, {
                     mgid => $mgid,
@@ -324,28 +324,27 @@ sub ebi_submit {
         file_format => "json",
         data_type   => "cwl_input",
         submission  => $uuid,
-        metagenomes => scalar(@$mgs),
+        metagenomes => scalar(@$cwl_files)
     };
     my $cwl_node = $self->set_shock_node($Conf::cwl_input_file, $cwl_input, $cwl_attr, $self->mgrast_token);
     push @$awe_files, {
         filename => $Conf::cwl_input_file,
-        host => $Conf::shock_url,
-        node => $cwl_node->{id}
+        host     => $Conf::shock_url,
+        node     => $cwl_node->{id}
     };
     
-    # fill out workflow template
+    # fill out workflow template / submit to AWE
     my $awe_info = {
-        shock_url      => $Conf::shock_url,
-        project_id     => $proj_id,
-        project_name   => $project->{name},
-        user           => $user_id,
-        submission_id  => $uuid,
-        mg_count       => scalar(@$mgs),
-        input_files    => $self->json->encode($inputs),
+        shock_url     => $Conf::shock_url,
+        project_id    => $proj_id,
+        project_name  => $project->{name},
+        user          => $user_id,
+        submission_id => $uuid,
+        mg_count      => scalar(@$cwl_files),
+        cwl_input     => $Conf::cwl_input_file,
+        input_files   => $self->json->encode($inputs),
         docker_image_version => 'latest'
     };
-    
-    # submit to AWE
     my $job = $self->submit_awe_template($info, $Conf::mgrast_ebi_submit_workflow, $self->mgrast_token);
     
     my $response = {
