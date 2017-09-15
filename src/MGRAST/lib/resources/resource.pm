@@ -11,6 +11,7 @@ use MGRAST::Metadata;
 
 use CGI;
 use JSON;
+use XML::Simple;
 use URI::Escape;
 use MIME::Base64;
 use LWP::UserAgent;
@@ -1822,6 +1823,33 @@ sub empty_awe_task {
 ############################
 #  other server functions  #
 ############################
+
+sub parse_ebi_receipt {
+    my ($self, $text) = @_;
+    
+    my $xml = XMLin($text, ForceArray => ['SAMPLE', 'EXPERIMENT', 'ACTIONS', 'RUN']);
+    my $receipt = {
+        success => $xml->{'success'},
+        info    => join("\n", $xml->{'MESSAGES'}{'INFO'}),
+        error   => $xml->{'MESSAGES'}{'ERROR'} ? join("\n", $xml->{'MESSAGES'}{'ERROR'}) : undef,
+        submission => {
+            alias     => $xml->{'SUBMISSION'}{'alias'},
+            accession => $xml->{'SUBMISSION'}{'accession'} || undef,
+        },
+        study => {
+            alias     => $xml->{'STUDY'}{'alias'},
+            accession => $xml->{'STUDY'}{'accession'} || undef,
+        },
+        samples     => [],
+        experiments => [],
+        runs        => []
+    };
+    @{$receipt->{samples}}     = map { {alias => $_->{alias}, accession => $_->{accession} || undef } } @{$xml->{'SAMPLE'}};
+    @{$receipt->{experiments}} = map { {alias => $_->{alias}, accession => $_->{accession} || undef } } @{$xml->{'EXPERIMENT'}};
+    @{$receipt->{runs}}        = map { {alias => $_->{alias}, accession => $_->{accession} || undef } } @{$xml->{'RUN'}};
+    
+    return $receipt;
+}
 
 sub cassandra_test {
     my ($self, $db) = @_;

@@ -418,8 +418,13 @@ sub status {
     my $pnode  = $self->get_param_node($submit);
 
     if ((! $submit) || (! $pnode)) {
-        $response->{error} = "No submission exists for given ID";
-        $self->return_data($response);
+        my $ebi_submit = $self->is_ebi_submission($uuid);
+        if (! $ebi_submit) {
+            $response->{error} = "No submission exists for given ID";
+            $self->return_data($response);
+        }
+        my $ebi_response = $self->ebi_submission_status($ebi_submit, $response);
+        $self->return_data($ebi_response);
     }
     
     # add submission workflow info
@@ -900,6 +905,21 @@ sub submit {
     $self->return_data($response);
 }
 
+sub is_ebi_submission {
+    my ($self, $uuid) = @_;
+    
+    my $ebi_query = {
+        "info.pipeline" => 'mgrast-submit-ebi',
+        "info.userattr.submission" => $uuid
+    };
+    my $ebi_jobs = $self->get_awe_query($ebi_query, $self->mgrast_token);
+    if ($ebi_jobs->{data} && (scalar(@{$ebi_jobs->{data}}) > 0)) {
+        return $ebi_jobs->{data}[0];
+    } else {
+        return undef;
+    }
+}
+
 sub submission_nodes {
     my ($self, $uuid) = @_;
     
@@ -983,6 +1003,41 @@ sub parse_submit_output {
         }
     }
     return $info;
+}
+
+sub ebi_submission_status {
+    my ($self, $job, $response) = @_;
+    
+    if ($job->{error} && ref($job->{error})) {
+        $response->{status} = $job->{error}{status};
+        if ($job->{error}{apperror}) {
+            $response->{error} = $job->{error}{apperror};
+        } elsif ($job->{error}{worknotes}) {
+            $response->{error} = $job->{error}{worknotes};
+        } else {
+            $response->{error} = $job->{error}{servernotes};
+        }
+    } elsif ($job->{state} eq 'completed') {
+        $response->{status} = 'completed';
+        # get / parse receipt
+        my ($text, $err) = $self->get_shock_file($job->{tasks}[0]{outputs}[0]{node}, undef, $self->mgrast_token);
+        if ($err) {
+            $response->{error} = $err
+        } else {
+            my $receipt = $self->parse_ebi_receipt($text);
+            if ($receipt->{success} eq 'true') {
+                $response->{receipt} = $receipt;
+            } else {
+                $response->{status} = 'error';
+                $response->{error} = $receipt->{error};
+                $response->{message} = $receipt->{info};
+                $response->{receipt} = $job->{tasks}[0]{outputs}[0]{node};
+            }
+        }
+    } else {
+        $response->{status} = 'in-progress';
+    }
+    return $response;
 }
 
 1;
