@@ -13,7 +13,7 @@
             "type": "submission",
             "pipeline_version": "1.0",
             "submission": "[% submission_id %]",
-            "metagenomes": [% mg_count %]
+            "metagenomes": "[% mg_count %]"
         }
     },
     "tasks": [
