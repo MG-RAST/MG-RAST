@@ -1827,11 +1827,11 @@ sub empty_awe_task {
 sub parse_ebi_receipt {
     my ($self, $text) = @_;
     
-    my $xml = XMLin($text, ForceArray => ['SAMPLE', 'EXPERIMENT', 'ACTIONS', 'RUN']);
+    my $xml = XMLin($text, ForceArray => ['SAMPLE', 'EXPERIMENT', 'ACTIONS', 'RUN', 'INFO', 'ERROR']);
     my $receipt = {
         success => $xml->{'success'},
-        info    => join("\n", $xml->{'MESSAGES'}{'INFO'}),
-        error   => $xml->{'MESSAGES'}{'ERROR'} ? join("\n", $xml->{'MESSAGES'}{'ERROR'}) : undef,
+        info    => join("\n", @{$xml->{'MESSAGES'}{'INFO'}}),
+        error   => $xml->{'MESSAGES'}{'ERROR'} ? join("\n", @{$xml->{'MESSAGES'}{'ERROR'}}) : undef,
         submission => {
             alias     => $xml->{'SUBMISSION'}{'alias'},
             accession => $xml->{'SUBMISSION'}{'accession'} || undef,
