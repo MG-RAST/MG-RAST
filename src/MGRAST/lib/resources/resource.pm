@@ -865,11 +865,7 @@ sub get_download_set {
         my $attr = $node->{attributes};
         my $file = $node->{file};
         # only return sequence files
-        if ( $seq_only &&
-             ($attr->{data_type} ne 'sequence') && 
-             ($attr->{file_format} ne 'fasta') &&
-             ($attr->{file_format} ne 'fastq') )
-        {
+        if ($seq_only && ($attr->{data_type} !~ /^sequence|passed|removed$/)) {
             $skip->{$node->{id}} = "not sequence file";
             next;
         }

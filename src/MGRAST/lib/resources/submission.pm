@@ -192,6 +192,7 @@ sub info {
                   'body'     => {
                       "project_id" => [ "string", "unique MG-RAST project identifier" ],
                       "force"      => [ "boolean", "if true overwrite existing metagenome_taxonomy with inputted" ],
+                      "debug"      => [ "boolean", "if true return workflow document instead of submitting"],
                       "metagenome_taxonomy" => [ 'hash', "optional: key value pairs of metagenome_id => taxa_name" ]
                   }
               }
@@ -227,10 +228,11 @@ sub ebi_submit {
     my ($self) = @_;
     
     my $uuid = $self->uuidv4();
-    my $post = $self->get_post_data(['project_id', 'force', 'metagenome_taxonomy']);
+    my $post = $self->get_post_data(['project_id', 'force', 'debug', 'metagenome_taxonomy']);
     
     my $project_id = $post->{'project_id'} || undef;
     my $force      = $post->{'force'} ? 1 : 0;
+    my $debug      = $post->{'debug'} ? 1 : 0;
     my $mg_taxa    = $post->{'metagenome_taxonomy'} || {};
     
     my $master  = $self->connect_to_datasource();
@@ -263,7 +265,7 @@ sub ebi_submit {
         my $mgid = 'mgm'.$mg->metagenome_id;
         # add to input list
         my $version = $mg->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
-        my $mgfiles = $self->get_download_set($mgid, $version, $self->mgrast_token, 1);
+        my ($mgfiles, undef) = $self->get_download_set($mg->metagenome_id, $version, $self->mgrast_token, 1);
         my $has_seq = 0;
         foreach my $mf (@$mgfiles) {
             if (($mf->{stage_name} eq 'upload') && ($mf->{file_size} > 0) && $mf->{node_id} && $mf->{file_format}) {
@@ -347,8 +349,11 @@ sub ebi_submit {
         input_files   => $self->json->encode($awe_files),
         docker_image_version => 'latest'
     };
-    my $job = $self->submit_awe_template($awe_info, $Conf::mgrast_ebi_submit_workflow, $self->mgrast_token);
+    my $job = $self->submit_awe_template($awe_info, $Conf::mgrast_ebi_submit_workflow, $self->mgrast_token, 'mgrast', $debug);
     
+    if ($debug) {
+        $self->return_data($job);
+    }
     my $response = {
         id        => $uuid,
         job       => $job->{id},
