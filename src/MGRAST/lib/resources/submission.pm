@@ -412,6 +412,17 @@ sub status {
     };
     my $is_admin = $self->user->is_admin('MGRAST') ? 1 : 0;
     
+    # is it a project ID ?
+    if ($uuid =~ /^mgp\d+$/) {
+        my $ebi_submit = $self->is_ebi_submission(undef, $uuid);
+        if (! $ebi_submit) {
+            $response->{error} = "No submission exists for given ID ".$uuid;
+            $self->return_data($response);
+        }
+        my $ebi_response = $self->ebi_submission_status($ebi_submit, $response);
+        $self->return_data($ebi_response);
+    }
+    
     # get data
     my $jobs   = $self->submission_jobs($uuid, $full, $is_admin);
     my $submit = $jobs->{submit};
@@ -420,7 +431,7 @@ sub status {
     if ((! $submit) || (! $pnode)) {
         my $ebi_submit = $self->is_ebi_submission($uuid);
         if (! $ebi_submit) {
-            $response->{error} = "No submission exists for given ID";
+            $response->{error} = "No submission exists for given ID ".$uuid;
             $self->return_data($response);
         }
         my $ebi_response = $self->ebi_submission_status($ebi_submit, $response);
@@ -429,6 +440,7 @@ sub status {
     
     # add submission workflow info
     $response->{pipeline_id} = $submit->{id};
+    $response->{project}     = $self->obfuscate($submit->{info}{project});
     $response->{info}        = $submit->{info};
     $response->{state}       = $submit->{state};
     $response->{type}        = $submit->{info}{description};
@@ -667,7 +679,8 @@ sub submit {
     unless ($project_obj) {
         $self->return_data( {"ERROR" => "Missing project information, must have one of metadata_file, project_id, or project_name"}, 400 );
     }
-    $response->{project} = 'mgp'.$project_obj->{id};
+    $response->{project_id} = 'mgp'.$project_obj->{id};
+    $response->{project}    = $self->obfuscate('mgp'.$project_obj->{id});
     
     # figure out pre-pipeline workflow
     my @submit = ();
@@ -906,12 +919,17 @@ sub submit {
 }
 
 sub is_ebi_submission {
-    my ($self, $uuid) = @_;
+    my ($self, $uuid, $pid) = @_;
     
-    my $ebi_query = {
-        "info.pipeline" => 'mgrast-submit-ebi',
-        "info.userattr.submission" => $uuid
-    };
+    my $ebi_query = {"info.pipeline" => 'mgrast-submit-ebi'};
+    if ($uuid) {
+        $ebi_query->{"info.userattr.submission"} = $uuid;
+    } elsif ($pid) {
+        $ebi_query->{"name"} = $pid;
+    } else {
+        return undef;
+    }
+    
     my $ebi_jobs = $self->get_awe_query($ebi_query, $self->mgrast_token);
     if ($ebi_jobs->{data} && (scalar(@{$ebi_jobs->{data}}) > 0)) {
         return $ebi_jobs->{data}[0];
@@ -1028,8 +1046,8 @@ sub ebi_submission_status {
             if ($receipt->{success} eq 'true') {
                 $response->{receipt} = $receipt;
             } else {
-                $response->{status} = 'error';
-                $response->{error} = $receipt->{error};
+                $response->{status}  = 'error';
+                $response->{error}   = $receipt->{error};
                 $response->{message} = $receipt->{info};
                 $response->{receipt} = $job->{tasks}[0]{outputs}[0]{node};
             }
