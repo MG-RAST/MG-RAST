@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
   liburi-perl \
   liburi-encode-perl \
   libwww-perl \
+  libxml-simple-perl \
   libjson-perl \
   libdbi-perl \
   libdbd-mysql-perl \
