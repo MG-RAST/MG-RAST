@@ -1833,20 +1833,20 @@ sub parse_ebi_receipt {
         info    => join("\n", @{$xml->{'MESSAGES'}{'INFO'}}),
         error   => $xml->{'MESSAGES'}{'ERROR'} ? join("\n", @{$xml->{'MESSAGES'}{'ERROR'}}) : undef,
         submission => {
-            alias     => $xml->{'SUBMISSION'}{'alias'},
-            accession => $xml->{'SUBMISSION'}{'accession'} || undef,
+            mgrast_accession => $xml->{'SUBMISSION'}{'alias'},
+            ena_accession    => $xml->{'SUBMISSION'}{'accession'} || undef,
         },
         study => {
-            alias     => $xml->{'STUDY'}{'alias'},
-            accession => $xml->{'STUDY'}{'accession'} || undef,
+            mgrast_accession  => $xml->{'STUDY'}{'alias'},
+            ena_accession     => $xml->{'STUDY'}{'accession'} || undef,
         },
         samples     => [],
         experiments => [],
         runs        => []
     };
-    @{$receipt->{samples}}     = map { {alias => $_->{alias}, accession => $_->{accession} || undef } } @{$xml->{'SAMPLE'}};
-    @{$receipt->{experiments}} = map { {alias => $_->{alias}, accession => $_->{accession} || undef } } @{$xml->{'EXPERIMENT'}};
-    @{$receipt->{runs}}        = map { {alias => $_->{alias}, accession => $_->{accession} || undef } } @{$xml->{'RUN'}};
+    @{$receipt->{samples}}     = map { {mgrast_accession => $_->{alias}, ena_accession => $_->{accession} || undef } } @{$xml->{'SAMPLE'}};
+    @{$receipt->{experiments}} = map { {mgrast_accession => $_->{alias}, ena_accession => $_->{accession} || undef } } @{$xml->{'EXPERIMENT'}};
+    @{$receipt->{runs}}        = map { {mgrast_accession => $_->{alias}, ena_accession => $_->{accession} || undef } } @{$xml->{'RUN'}};
     
     return $receipt;
 }
