@@ -1037,6 +1037,8 @@ sub ebi_submission_status {
     } else {
         $response->{status} = 'in-progress';
     }
+    
+    $response->{project} = $job->{name};
     return $response;
 }
 
