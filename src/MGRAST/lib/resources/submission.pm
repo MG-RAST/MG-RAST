@@ -1038,7 +1038,8 @@ sub ebi_submission_status {
         $response->{status} = 'in-progress';
     }
     
-    $response->{project} = $job->{name};
+    $response->{metagenomes} = $job->{info}{userattr}{metagenomes} ? $job->{info}{userattr}{metagenomes} * 1 : undef;
+    $response->{project} = $job->{info}{name} || undef;
     return $response;
 }
 
