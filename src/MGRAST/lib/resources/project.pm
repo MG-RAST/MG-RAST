@@ -173,7 +173,14 @@ sub create_project {
     }
     my $proj = $master->Project->create_project($puser, $self->{cgi}->param('name'));
     if (ref ($proj)) {
-        $self->return_data({"OK" => "project created", "project" => "mgp".$proj->id }, 200);
+        my $response = {
+            "OK"         => "project created",
+            "project"    => "mgp".$proj->id,
+            "name"       => $proj->name,
+            "owner"      => "mgu".$puser->_id,
+            "obfuscated" => $self->obfuscate("mgp".$proj->id)
+        };
+        $self->return_data($response, 200);
     } else {
         $self->return_data( {"ERROR" => "could not create project"}, 400 );
     }
@@ -437,7 +444,13 @@ sub get_action {
         $project->public(1);
 
         # return success
-        $self->return_data( {"OK" => "project published"}, 200 );
+        my $response = {
+            "OK"         => "project published",
+            "project"    => "mgp".$project->id,
+            "name"       => $project->name,
+            "owner"      => "mgu".$self->user->_id
+        };
+        $self->return_data($response, 200);
     }
 
     # move metagenomes to a different project
