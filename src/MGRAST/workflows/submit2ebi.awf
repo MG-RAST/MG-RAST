@@ -4,6 +4,7 @@
         "name": "[% project_id %]",
         "project": "[% project_name %]",
         "user": "[% user %]",
+        "noretry": true,
         "clientgroups": "ebi_submit",
         "userattr": {
             "id": "[% project_id %]",

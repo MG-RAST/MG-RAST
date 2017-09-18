@@ -283,6 +283,7 @@ sub ebi_submit {
                     }
                 };
                 $has_seq = 1;
+                last;
             }
         }
         unless ($has_seq) {
@@ -925,7 +926,7 @@ sub is_ebi_submission {
     if ($uuid) {
         $ebi_query->{"info.userattr.submission"} = $uuid;
     } elsif ($pid) {
-        $ebi_query->{"name"} = $pid;
+        $ebi_query->{"info.name"} = $pid;
     } else {
         return undef;
     }
@@ -1058,6 +1059,7 @@ sub ebi_submission_status {
     
     $response->{metagenomes} = $job->{info}{userattr}{metagenomes} ? $job->{info}{userattr}{metagenomes} * 1 : undef;
     $response->{project} = $job->{info}{name} || undef;
+    $response->{id} = $job->{info}{userattr}{submission} || undef;
     return $response;
 }
 
