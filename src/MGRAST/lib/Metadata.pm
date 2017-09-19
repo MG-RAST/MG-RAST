@@ -834,7 +834,7 @@ sub export_metadata_for_project {
 
   # get the library / sample / ep data from the db
   my $dbh  = $self->{_handle}->db_handle;
-  my $data = $dbh->selectall_arrayref("SELECT me.collection, mc.ID, mc.parent, me.value, me.tag, mc.type FROM ProjectCollection pc, MetaDataEntry me, MetaDataCollection mc WHERE ProjectCollection.project=".$project->{_id}." AND MetaDataCollection._id=ProjectCollection.collection AND MetaDataCollection._id=MetaDataEntry.collection");
+  my $data = $dbh->selectall_arrayref("SELECT me.collection, mc.ID, mc.parent, me.value, me.tag, mc.type FROM ProjectCollection pc, MetaDataEntry me, MetaDataCollection mc WHERE pc.project=".$project->{_id}." AND mc._id=pc.collection AND mc._id=me.collection");
     
   # get metagenome-library info
   my %mginfo = map { $_->[0], [ $_->[1], $_->[2] ] } @{ $dbh->selectall_arrayref("SELECT library, metagenome_id, name FROM Job WHERE primary_project=".$project->{_id}) };
