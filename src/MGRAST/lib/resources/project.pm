@@ -366,7 +366,7 @@ sub post_action {
             }
             my $key = 'ebi_id';
             $project->data($key, $receipt->{study}{ena_accession});
-            $response->{ena_accession} = $accession;
+            $response->{ena_accession} = $receipt->{study}{ena_accession};
             $response->{samples} = [];
             $response->{libraries} = [];
             foreach my $s (@{$receipt->{samples}}) {
