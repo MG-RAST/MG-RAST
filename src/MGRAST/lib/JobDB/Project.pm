@@ -192,16 +192,18 @@ sub data {
       print STDERR Dumper $value;
       return 0;
     }
-    my $jstat = $self->_master->ProjectMD->get_objects( { project => $self,
-							  tag     => $tag
-							});
+    my $jstat = $self->_master->ProjectMD->get_objects({
+        project => $self,
+        tag     => $tag
+    });
     if (ref $jstat and scalar @$jstat) {
       $jstat->[0]->value($value);
     } else {
-      $jstat = $self->_master->ProjectMD->create( { project => $self,
-						    tag     => $tag,
-						    value   => $value
-						  });
+      $jstat = $self->_master->ProjectMD->create({
+          project => $self,
+          tag     => $tag,
+          value   => $value
+      });
     }
     return 1;
   }

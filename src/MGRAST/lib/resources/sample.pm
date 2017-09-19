@@ -156,23 +156,10 @@ sub post_action {
             $self->return_data( {"ERROR" => "Missing required options: dbname or accession"}, 404 );
         }
         # update DB
-        my $attr = {
-            collection => $sample,
-            tag        => $dbname.'_id',
-            value      => $accession,
-            required   => 0,
-            mixs       => 0
-        };
-        my $metadbm = MGRAST::Metadata->new->_handle();
-        my $existing = $metadbm->MetaDataEntry->get_objects($attr);
-        if (scalar(@$existing)) {
-            foreach my $smd (@$existing) {
-                $smd->delete();
-            }
-        }
-        $metadbm->MetaDataEntry->create($attr);
+        my $key = lc($dbname).'_id';
+        $sample->data($key, $accession);
         # return success
-        $self->return_data( {"OK" => $dbname." accession added"}, 200 );
+        $self->return_data( {"OK" => "accession added", "sample" => 'mgs'.$id, $key => $accession}, 200 );
     }
 }
 

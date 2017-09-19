@@ -126,7 +126,7 @@ sub post_action {
     my $master = $self->connect_to_datasource();
 
     # check id format
-    my ($id) = $rest->[0] =~ /^mgs(\d+)$/;
+    my ($id) = $rest->[0] =~ /^mgl(\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
@@ -153,23 +153,10 @@ sub post_action {
             $self->return_data( {"ERROR" => "Missing required options: dbname or accession"}, 404 );
         }
         # update DB
-        my $attr = {
-            collection => $library,
-            tag        => $dbname.'_id',
-            value      => $accession,
-            required   => 0,
-            mixs       => 0
-        };
-        my $metadbm = MGRAST::Metadata->new->_handle();
-        my $existing = $metadbm->MetaDataEntry->get_objects($attr);
-        if (scalar(@$existing)) {
-            foreach my $smd (@$existing) {
-                $smd->delete();
-            }
-        }
-        $metadbm->MetaDataEntry->create($attr);
+        my $key = lc($dbname).'_id';
+        $library->data($key, $accession);
         # return success
-        $self->return_data( {"OK" => $dbname." accession added"}, 200 );
+        $self->return_data( {"OK" => "accession added", "library" => 'mgl'.$id, $key => $accession}, 200 );
     }
 }
 

@@ -316,6 +316,7 @@ sub ebi_submit {
         seqFiles     => $cwl_files,
         project      => $proj_id,
         mgrastUrl    => $Conf::cgi_url,
+        mgrastToken  => $Conf::api_key,
         submitUrl    => $Conf::ebi_submission_url,
         user         => $Conf::mgrast_ebi_user,
         password     => $Conf::mgrast_ebi_pswd,
