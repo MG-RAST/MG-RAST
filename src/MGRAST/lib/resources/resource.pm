@@ -1831,7 +1831,7 @@ sub parse_ebi_receipt {
     eval {
         $xml = XMLin($text, ForceArray => ['SAMPLE', 'EXPERIMENT', 'ACTIONS', 'RUN', 'INFO', 'ERROR']);
     };
-    if ($@ || (! ref($xml)) {
+    if ($@ || (! ref($xml))) {
         return {success => 'false', error => $text, info => 'Receipt is not valid XML'};
     }
     my $receipt = {
