@@ -56,7 +56,7 @@ class Matrix(object):
         
         ## sanity check
         if len(matrix['data']) == 0:
-            self.error_exit("unable to build BIOM profile, no data returned", node)
+            self.error_exit("no data returned for the given parameters, try again with lower cutoffs (evalue, identity, length)", node)
             return
         
         ## store file in node
