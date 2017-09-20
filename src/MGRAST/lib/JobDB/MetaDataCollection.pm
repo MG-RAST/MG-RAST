@@ -35,18 +35,18 @@ sub data {
       print STDERR Dumper $value;
       return 0;
     }
-    my $jstat = $self->_master->MetaDataEntry->get_objects( { collection => $self,
-							      tag        => $tag,
-							      value      => $value
-							    });
+    my $jstat = $self->_master->MetaDataEntry->get_objects({
+        collection => $self,
+        tag        => $tag
+    });
     if (ref $jstat and scalar @$jstat) {
-      $jstat->[0]->value($value) ;
-    }
-    else {
-      $jstat = $self->_master->MetaDataEntry->create( { collection => $self,
-							tag        => $tag,
-							value      => $value
-						      });
+      $jstat->[0]->value($value);
+    } else {
+      $jstat = $self->_master->MetaDataEntry->create({
+          collection => $self,
+          tag        => $tag,
+          value      => $value
+      });
     }
     return 1;
   }

@@ -331,13 +331,7 @@ sub post_action {
         }
         # update DB
         foreach my $key (keys(%$keyval)) {
-	        my $existing = $metadbm->ProjectMD->get_objects( {project => $project, tag => $key} );
-	        if (scalar(@$existing)) {
-	            foreach my $pmd (@$existing) {
-	                $pmd->delete();
-	            }
-	        }
-	        $metadbm->ProjectMD->create( {project => $project, tag => $key, value => $keyval->{$key}} );
+            $project->data($key, $keyval->{$key});
         }
         # update elasticsearch
         foreach my $mgid (@{$project->metagenomes(1)}) {
@@ -347,25 +341,57 @@ sub post_action {
         $self->return_data( {"OK" => "metadata updated"}, 200 );
     }
     # add external db accesion ID
-    elsif ($rest->[1] eq 'addaccession') {
-        # get paramaters
+    elsif ($rest->[1] eq 'addaccession') {        
         my $dbname    = $self->cgi->param('dbname') || "";
         my $accession = $self->cgi->param('accession') || "";
-        unless ($dbname && $accession) {
-            $self->return_data( {"ERROR" => "Missing required options: dbname or accession"}, 404 );
-        }
-        # update DB
-        my $key = $dbname.'_id';
-        my $metadbm = MGRAST::Metadata->new->_handle();
-        my $existing = $metadbm->ProjectMD->get_objects({project => $project, tag => $key});
-        if (scalar(@$existing)) {
-            foreach my $pmd (@$existing) {
-                $pmd->delete();
+        my $has_file  = $self->cgi->param('receipt') || "";
+        my $proj_id   = "mgp".$project->id;
+        my $response  = {
+            "OK"         => "accession added",
+            "project"    => $proj_id
+        };
+        if ($has_file) {
+            # EBI receipt
+            my $fhdl = $self->cgi->upload('receipt');
+            unless ($fhdl) {
+                $self->return_data({"ERROR" => "Storing object failed - could not obtain filehandle"}, 507);
             }
+            my $text = do { local $/; <$fhdl> };
+            my $receipt = $self->parse_ebi_receipt($text);
+            unless ($receipt->{success} eq 'true') {
+                $self->return_data( {"ERROR" => "Receipt was not successful"}, 404 );
+            }
+            unless ($receipt->{study}{mgrast_accession} eq $proj_id) {
+                $self->return_data( {"ERROR" => "Receipt is for wrong project (".$receipt->{study}{mgrast_accession}.") not $proj_id"}, 404 );
+            }
+            my $key = 'ebi_id';
+            $project->data($key, $receipt->{study}{ena_accession});
+            $response->{ena_accession} = $receipt->{study}{ena_accession};
+            $response->{samples} = [];
+            $response->{libraries} = [];
+            foreach my $s (@{$receipt->{samples}}) {
+                my ($sid) = $s->{mgrast_accession} =~ /^mgs(\d+)$/;
+                my $sample = $master->MetaDataCollection->init( {ID => $sid} );
+                $sample->data($key, $s->{ena_accession});
+                push @{$response->{samples}}, $s;
+            }
+            foreach my $l (@{$receipt->{experiments}}) {
+                my ($lid) = $l->{mgrast_accession} =~ /^mgl(\d+)$/;
+                my $library = $master->MetaDataCollection->init( {ID => $lid} );
+                $library->data($key, $l->{ena_accession});
+                push @{$response->{libraries}}, $l;
+            }
+        } elsif ($dbname && $accession) {
+            # project only update
+            my $key = lc($dbname).'_id';
+            $project->data($key, $accession);
+            $response->{$key} = $accession;
+        } else {
+            $self->return_data( {"ERROR" => "Missing required options: dbname and accession, or reciept"}, 404 );
         }
-        $metadbm->ProjectMD->create({project => $project, tag => $key, value => $accession});
+        
         # return success
-        $self->return_data( {"OK" => $dbname." accession added"}, 200 );
+        $self->return_data($response, 200 );
     }
 }
 
