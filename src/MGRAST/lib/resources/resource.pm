@@ -1827,7 +1827,13 @@ sub empty_awe_task {
 sub parse_ebi_receipt {
     my ($self, $text) = @_;
     
-    my $xml = XMLin($text, ForceArray => ['SAMPLE', 'EXPERIMENT', 'ACTIONS', 'RUN', 'INFO', 'ERROR']);
+    my $xml = undef;
+    eval {
+        $xml = XMLin($text, ForceArray => ['SAMPLE', 'EXPERIMENT', 'ACTIONS', 'RUN', 'INFO', 'ERROR']);
+    };
+    if ($@ || (! ref($xml))) {
+        return {success => 'false', error => $text, info => 'Receipt is not valid XML'};
+    }
     my $receipt = {
         success => $xml->{'success'},
         info    => join("\n", @{$xml->{'MESSAGES'}{'INFO'}}),

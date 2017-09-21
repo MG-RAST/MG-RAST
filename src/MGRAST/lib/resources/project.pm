@@ -660,11 +660,9 @@ sub prepare_data {
       }
       
       if ($self->cgi->param('verbosity') eq 'full') {
-	my @jobs      = map { ["mgm".$_, $url.'/metagenome/mgm'.$_] } @{ $project->all_metagenome_ids };
 	my @colls     = @{ $project->collections };
 	my @samples   = map { ["mgs".$_->{ID}, $url."/sample/mgs".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
 	my @libraries = map { ["mgl".$_->{ID}, $url."/library/mgl".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
-	$obj->{metagenomes} = \@jobs;	
 	$obj->{samples}   = \@samples;
 	$obj->{libraries} = \@libraries;
       }
@@ -681,7 +679,7 @@ sub prepare_data {
 	  my $jdata = $project->metagenomes_summary();
 	  $obj->{metagenomes} = [];
 	  foreach my $row (@$jdata) {
-	    push(@{$obj->{metagenomes}}, { metagenome_id => $row->[0],
+	    push(@{$obj->{metagenomes}}, { metagenome_id => 'mgm'.$row->[0],
 					   name => $row->[1],
 					   basepairs => $row->[2],
 					   sequences => $row->[3],
@@ -703,7 +701,7 @@ sub prepare_data {
 	  my $mgmap = $project->metagenomes_id_name();
 	  $obj->{metagenomes} = [];
 	  foreach my $key (keys(%$mgmap)) {
-	     push(@{$obj->{metagenomes}}, { metagenome_id => $key,
+	     push(@{$obj->{metagenomes}}, { metagenome_id => 'mgm'.$key,
 					    name => $mgmap->{$key} });
 	  }
 	}
