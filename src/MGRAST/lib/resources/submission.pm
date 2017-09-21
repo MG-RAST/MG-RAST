@@ -905,6 +905,7 @@ sub submit {
     my $info = {
         shock_url     => $Conf::shock_url,
         job_name      => $user_id.'_submission',
+        project_id    => $response->{project_id},
         user_id       => $user_id,
         user_name     => $self->user->login,
         user_email    => $self->user->email,

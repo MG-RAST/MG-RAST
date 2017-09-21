@@ -676,10 +676,10 @@ sub view_inbox_actions {
     }
     my $data = $self->get_awe_query($params, $self->token, $self->user_auth);
     foreach my $doc (@{$data->{data}}) {
-        if ($doc->{lastfailed}) {
-	        $doc->{stdout} = $self->get_awe_report($doc->{lastfailed}, "stdout", $self->token, $self->user_auth);
-	        $doc->{stderr} = $self->get_awe_report($doc->{lastfailed}, "stderr", $self->token, $self->user_auth);
-	    }
+        if ($doc->{error} && $doc->{error}{workfailed}) {
+	        $doc->{stdout} = $self->get_awe_report($doc->{error}{workfailed}, "stdout", $self->token, $self->user_auth);
+	        $doc->{stderr} = $self->get_awe_report($doc->{error}{workfailed}, "stderr", $self->token, $self->user_auth);
+        }
     }
     $self->return_data($data);
 }
@@ -916,19 +916,15 @@ sub update_node_actions {
             if ((! $job) || (! ref($job)) || $job->{ERROR} || ($job->{state} eq 'deleted')) {
                 next;
             }
-            # get error if suspend
-            if ($job->{state} eq 'suspend') {
-                my $error = "";
-                foreach my $task (@{$job->{tasks}}) {
-                    if ($task->{state} eq 'suspend') {
-                       $error = $self->get_task_report($task, 'stderr', $self->token, $self->user_auth);
-                       if (! $error) {
-                           $error = $self->get_task_report($task, 'stdout', $self->token, $self->user_auth);
-                       }
-                       last;
-                    }
+            # get error if has
+            if ($job->{error} && ref($job->{error})) {
+                if ($job->{error}{apperror}) {
+                    $act->{error} = $job->{error}{apperror};
+                } elsif ($job->{error}{worknotes}) {
+                    $act->{error} = $job->{error}{worknotes};
+                } else {
+                    $act->{error} = $job->{error}{servernotes};
                 }
-                $act->{error} = $error;
             }
             $act->{status} = ($job->{state} eq 'init') ? 'queued' : $job->{state};
             push @$new_actions, $act;
