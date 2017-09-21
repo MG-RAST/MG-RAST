@@ -1756,11 +1756,18 @@ sub get_task_report {
       $authPrefix = "mgrast";
     }
     
-    if ($task->{taskid} == 0) {
-      return "";
+    my $wuid = undef;
+    if (! $task->{jobid}) {
+        # no jobid
+        $wuid = $task->{taskid}."_".$rank;
+    } elsif (index($task->{taskid}, $task->{jobid}) == 0) {
+        # jobid is in taskid
+        $wuid = $task->{taskid}."_".$rank;
+    } else {
+        # add them together
+        $wuid = $task->{jobid}."_".$task->{taskid}."_".$rank;
     }
-    my $id = $task->{taskid}."_".$rank;
-    my $rtext = $self->get_awe_report($id, $type, $auth, $authPrefix);
+    my $rtext = $self->get_awe_report($wuid, $type, $auth, $authPrefix);
     my $rfile = "awe_".$type.".txt";
     
     # check shock if missing
