@@ -267,7 +267,7 @@ my $m5rna_index = "m5rna.clust.index";
 sub template_keywords {
     return {
         # versions
-        'pipeline_version'   => "4.0.3",
+        'pipeline_version'   => $Conf::current_pipeline,
         'ach_sequence_ver'   => "7",
         'ach_annotation_ver' => "1",
 
