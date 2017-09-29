@@ -54,7 +54,7 @@ sub info {
                 'method'      => "GET",
                 'type'        => "synchronous",
                 'attributes'  => {
-                    'id'     => [ 'string', 'unique metagenome identifier' ]
+                    'id'     => [ 'string', 'unique metagenome identifier' ],
                     'status' => [ 'string', 'cv', ['submitted', 'darkmatter is has been submitted'],
                                                   ['processing', 'darkmatter is still computing'],
                                                   ['done', 'darkmatter is done'] ],
@@ -79,7 +79,8 @@ sub instance {
     my ($self) = @_;
 
     # check id format
-    my $rest = $self->rest;
+    my $rest   = $self->rest;
+    my $debug  = $self->cgi->param('debug') ? 1 : 0;
     my $restid = $rest->[0];
     my $tempid = $self->idresolve($restid);
     my (undef, $id) = $tempid =~ /^(mgm)?(\d+\.\d+)$/;
@@ -128,7 +129,7 @@ sub instance {
         "info.pipeline" => 'darkmatter',
         "info.name"     => 'DM:'.$job->job_id
     };
-    my $dm_jobs = $self->get_awe_query($inbox_query, $self->mgrast_token);
+    my $dm_jobs = $self->get_awe_query($dm_query, $self->mgrast_token);
     if ($dm_jobs->{data} && (scalar(@{$dm_jobs->{data}}) > 0)) {
         $self->return_data({
             id     => $restid,
@@ -185,13 +186,13 @@ sub instance {
     }
     
     # submit to AWE
-    my $job = $self->submit_awe_template($awe_info, $Conf::mgrast_darkmatter_workflow, $self->mgrast_token, 'mgrast', $debug);
+    my $awejob = $self->submit_awe_template($awe_info, $Conf::mgrast_darkmatter_workflow, $self->mgrast_token, 'mgrast', $debug);
     if ($debug) {
-        $self->return_data($job);
+        $self->return_data($awejob);
     }
     my $response = {
         id     => $restid,
-        job    => $job->{id},
+        job    => $awejob->{id},
         status => 'submitted',
         timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
     };
