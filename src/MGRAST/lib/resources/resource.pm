@@ -883,7 +883,7 @@ sub get_download_set {
 		             stage_name => $attr->{stage_name},
 		             data_type  => $attr->{data_type},
 		             file_id    => $file_id,
-		             file_size  => $file->{size} || undef,
+		             file_size  => $file->{size} || 0,
 		             file_md5   => $file->{checksum}{md5} || undef
 		};
 	    foreach my $label (('statistics', 'seq_format', 'file_format', 'cluster_percent')) {
