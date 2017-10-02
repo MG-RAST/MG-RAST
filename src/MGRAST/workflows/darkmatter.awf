@@ -5,7 +5,7 @@
         "project": "[% project_name %]",
         "user": "[% user %]",
         "noretry": true,
-        "clientgroups": "mgrast_single,mgrast_multi,mgrast_inbox",
+        "clientgroups": "mgrast_single,mgrast_multi,mgrast_inbox,ebi_submit",
         "userattr": {
             "id": "[% mg_id %]",
             "job_id": "[% job_id %]",
