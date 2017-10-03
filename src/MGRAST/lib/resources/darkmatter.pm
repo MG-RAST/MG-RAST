@@ -153,7 +153,8 @@ sub instance {
         status       => $job->public ? 'public' : 'private',
         seq_type     => $job->sequence_type,
         project_id   => $job->primary_project->{id} || undef,
-        shock_url    => $Conf::shock_url
+        shock_url    => $Conf::shock_url,
+        docker_image_version => 'latest'
     };
     # find input files - take filtering if exists otherwise use genecalling
     my ($geneset, $filterset, $awe_files);
