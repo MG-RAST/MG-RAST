@@ -131,12 +131,15 @@ sub instance {
     };
     my $dm_jobs = $self->get_awe_query($dm_query, $self->mgrast_token);
     if ($dm_jobs->{data} && (scalar(@{$dm_jobs->{data}}) > 0)) {
-        $self->return_data({
-            id     => $restid,
-            job    => $dm_jobs->{data}[0]{id},
-            status => 'processing',
-            timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-        });
+        foreach my $dj (@{$dm_jobs->{data}}) {
+            next if (($dj->{state} eq 'suspend') || ($dj->{state} eq 'deleted'));
+            $self->return_data({
+                id     => $restid,
+                job    => $dm_jobs->{data}[0]{id},
+                status => 'processing',
+                timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+            });
+        }
     }
     
     #### need to create darkmatter file
