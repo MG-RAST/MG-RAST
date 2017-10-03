@@ -28,7 +28,7 @@
                 "Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
             "dependsOn": [],
-            "inputs": [
+            "inputs": [% input_files %],
                 {
                     "filename": "[% input_seq_file %]",
                     "host": "[% shock_url %]",

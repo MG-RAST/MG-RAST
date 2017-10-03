@@ -140,7 +140,9 @@ sub instance {
     }
     
     #### need to create darkmatter file
-    my $awe_info = {
+    my @map_files = ();
+    my @sim_files = ();
+    my $awe_info  = {
         job_name     => 'DM:'.$job->job_id,
         project_name => $job->primary_project->{name} || undef,
         user         => 'mgu'.$self->user->{_id},
@@ -153,37 +155,68 @@ sub instance {
         project_id   => $job->primary_project->{id} || undef,
         shock_url    => $Conf::shock_url
     };
-    # find input file - take filtering if exists otherwise use genecalling
-    my ($geneset, $filterset);
+    # find input files - take filtering if exists otherwise use genecalling
+    my ($geneset, $filterset, $awe_files);
     foreach my $set (@$setlist) {
-        next unless ($set->{file_size} > 0);
-        if (($set->{data_type} eq 'sequence') &&($set->{stage_name} eq 'genecalling')) {
+        next unless ($set->{file_size} && ($set->{file_size} > 0));
+        if (($set->{data_type} eq 'sequence') && ($set->{stage_name} eq 'genecalling')) {
             $geneset = $set;
-        } elsif (($set->{data_type} eq 'sequence') &&($set->{stage_name} eq 'filtering')) {
+        } elsif (($set->{data_type} eq 'sequence') && ($set->{stage_name} eq 'filtering')) {
             $filterset = $set;
-        } elsif (($set->{data_type} eq 'similarity') &&($set->{stage_name} eq 'rna.sims')) {
-            $awe_info->{rna_sim_node} = $set->{node_id};
-            $awe_info->{rna_sim_file} = $set->{file_name};
-        } elsif (($set->{data_type} eq 'similarity') &&($set->{stage_name} eq 'protein.sims')) {
-            $awe_info->{prot_sim_node} = $set->{node_id};
-            $awe_info->{prot_sim_file} = $set->{file_name};
-        } elsif (($set->{data_type} eq 'cluster') &&($set->{stage_name} eq 'rna.cluster.map')) {
-            $awe_info->{rna_sim_node} = $set->{node_id};
-            $awe_info->{rna_sim_file} = $set->{file_name};
-        } elsif (($set->{data_type} eq 'cluster') &&($set->{stage_name} eq 'protein.cluster.map')) {
-            $awe_info->{prot_sim_node} = $set->{node_id};
-            $awe_info->{prot_sim_file} = $set->{file_name};
+        }
+        if (($set->{data_type} eq 'similarity') && ($set->{stage_name} eq 'rna.sims')) {
+            push @sim_files, $set;
+        }
+        if (($set->{data_type} eq 'similarity') && ($set->{stage_name} eq 'protein.sims')) {
+            push @sim_files, $set;
+        }
+        if (($set->{data_type} eq 'cluster') && ($set->{stage_name} eq 'rna.cluster.map')) {
+            push @map_files, $set;
+        }
+        if (($set->{data_type} eq 'cluster') && ($set->{stage_name} eq 'protein.cluster.map')) {
+            push @map_files, $set;
         }
     }
+    # process sequence input
     if ($filterset && ref($filterset)) {
-        $awe_info->{input_seq_node} = $filterset->{node_id};
-        $awe_info->{input_seq_file} = $filterset->{file_name};
+        $awe_files = [{
+            filename => $filterset->{file_name},
+            host     => $Conf::shock_url,
+            node     => $filterset->{node_id}
+        }];
+        $awe_info->{cmd_opts} = '-i @'.$filterset->{file_name};
     } elsif ($geneset && ref($geneset)) {
-        $awe_info->{input_seq_node} = $geneset->{node_id};
-        $awe_info->{input_seq_file} = $geneset->{file_name};
+        $awe_files = [{
+            filename => $geneset->{file_name},
+            host     => $Conf::shock_url,
+            node     => $geneset->{node_id}
+        }];
+        $awe_info->{cmd_opts} = '-i @'.$geneset->{file_name};
     } else {
         $self->return_data( {"ERROR" => "dataset $restid missing required genecalling file"}, 404 );
     }
+    # process sim / map inputs
+    if (scalar(@sim_files) == 0) {
+        $self->return_data( {"ERROR" => "dataset $restid missing required similarity file"}, 404 );
+    }
+    foreach my $s (@sim_files) {
+        push @$awe_files, {
+            filename => $s->{file_name},
+            host     => $Conf::shock_url,
+            node     => $s->{node_id}
+        };
+        $awe_info->{cmd_opts} .= ' -s @'.$s->{file_name};
+    }
+    foreach my $m (@map_files) {
+        push @$awe_files, {
+            filename => $m->{file_name},
+            host     => $Conf::shock_url,
+            node     => $m->{node_id}
+        };
+        $awe_info->{cmd_opts} .= ' -m @'.$m->{file_name};
+    }
+    $awe_info->{cmd_opts}   .= ' -o '.$job->job_id.'.750.darkmatter.faa';
+    $awe_info->{input_files} = $self->json->encode($awe_files);
     
     # submit to AWE
     my $awejob = $self->submit_awe_template($awe_info, $Conf::mgrast_darkmatter_workflow, $self->mgrast_token, 'mgrast', $debug);
