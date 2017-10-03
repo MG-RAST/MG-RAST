@@ -23,38 +23,12 @@
         {
             "cmd": {
                 "name": "extract_darkmatter.py",
-                "args": "-i @[% input_seq_file %] -s @[% rna_sim_file %] -s @[% prot_sim_file %] -m @[% rna_map_file %] -m @[% prot_map_file %] -o [% job_id %].750.darkmatter.faa",
+                "args": "[% cmd_opts %]",
                 "description": "Dark Matter Extraction",
                 "Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
             "dependsOn": [],
             "inputs": [% input_files %],
-                {
-                    "filename": "[% input_seq_file %]",
-                    "host": "[% shock_url %]",
-                    "node": "[% input_seq_node %]"
-                },
-                {
-                    "filename": "[% rna_sim_file %]",
-                    "host": "[% shock_url %]",
-                    "node": "[% rna_sim_node %]"
-                },
-                {
-                    "filename": "[% prot_sim_file %]",
-                    "host": "[% shock_url %]",
-                    "node": "[% prot_sim_node %]"
-                },
-                {
-                    "filename": "[% rna_map_file %]",
-                    "host": "[% shock_url %]",
-                    "node": "[% rna_map_node %]"
-                },
-                {
-                    "filename": "[% prot_map_file %]",
-                    "host": "[% shock_url %]",
-                    "node": "[% prot_map_node %]"
-                }
-            ],
             "outputs": [
                 {
                     "filename": "[% job_id %].750.darkmatter.faa",
