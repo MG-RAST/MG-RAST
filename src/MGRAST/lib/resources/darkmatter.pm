@@ -184,14 +184,14 @@ sub instance {
             host     => $Conf::shock_url,
             node     => $filterset->{node_id}
         }];
-        $awe_info->{cmd_opts} = '-i @'.$filterset->{file_name};
+        $awe_info->{input_opts} = '-i @'.$filterset->{file_name};
     } elsif ($geneset && ref($geneset)) {
         $awe_files = [{
             filename => $geneset->{file_name},
             host     => $Conf::shock_url,
             node     => $geneset->{node_id}
         }];
-        $awe_info->{cmd_opts} = '-i @'.$geneset->{file_name};
+        $awe_info->{input_opts} = '-i @'.$geneset->{file_name};
     } else {
         $self->return_data( {"ERROR" => "dataset $restid missing required genecalling file"}, 404 );
     }
@@ -205,7 +205,7 @@ sub instance {
             host     => $Conf::shock_url,
             node     => $s->{node_id}
         };
-        $awe_info->{cmd_opts} .= ' -s @'.$s->{file_name};
+        $awe_info->{input_opts} .= ' -s @'.$s->{file_name};
     }
     foreach my $m (@map_files) {
         push @$awe_files, {
@@ -213,9 +213,8 @@ sub instance {
             host     => $Conf::shock_url,
             node     => $m->{node_id}
         };
-        $awe_info->{cmd_opts} .= ' -m @'.$m->{file_name};
+        $awe_info->{input_opts} .= ' -m @'.$m->{file_name};
     }
-    $awe_info->{cmd_opts}   .= ' -o '.$job->job_id.'.750.darkmatter.faa';
     $awe_info->{input_files} = $self->json->encode($awe_files);
     
     # submit to AWE

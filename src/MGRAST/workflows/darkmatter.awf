@@ -23,7 +23,7 @@
         {
             "cmd": {
                 "name": "extract_darkmatter.py",
-                "args": "[% cmd_opts %]",
+                "args": "[% input_opts %] -o [% job_id %].750.darkmatter.faa",
                 "description": "Dark Matter Extraction",
                 "Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
