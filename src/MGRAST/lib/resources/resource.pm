@@ -3217,7 +3217,7 @@ sub compute_breakdown {
     my $clust_seq   = exists($stats->{clustered_sequence_count_processed_aa}) ? $stats->{clustered_sequence_count_processed_aa} : (exists($stats->{clustered_sequence_count_processed}) ? $stats->{clustered_sequence_count_processed} : 0);
     
     my $is_rna  = ($seq_type eq 'Amplicon') ? 1 : 0;
-    my $is_gene = ($seq_type eq 'AmpliconGene') ? 1 : 0;
+    my $is_gene = ($seq_type eq 'Metabarcode') ? 1 : 0;
     my $qc_fail_seqs  = $raw_seqs - $qc_seqs;
     my $ann_aa_reads  = $aa_sims ? ($aa_sims - $clusts) + $clust_seq : 0;
     my $unkn_aa_reads = $aa_reads - $ann_aa_reads;

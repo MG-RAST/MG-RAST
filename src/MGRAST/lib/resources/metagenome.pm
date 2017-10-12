@@ -32,7 +32,7 @@ sub new {
     };
     $self->{valid_types} = {
         "Amplicon"     => 1,
-        "AmpliconGene" => 1,
+        "Metabarcode" => 1,
         "MT"           => 1,
         "WGS"          => 1,
         "Unknown"      => 1

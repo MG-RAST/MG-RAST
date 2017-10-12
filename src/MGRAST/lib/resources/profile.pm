@@ -215,7 +215,7 @@ sub submit {
         my $all_srcs = {};
         if ($job->{sequence_type} eq "Amplicon") {
             map { $all_srcs->{$_} = 1 } @{$self->source_by_type('rna')};
-        } elsif ($job->{sequence_type} eq "AmpliconGene") {
+        } elsif ($job->{sequence_type} eq "Metabarcode") {
             map { $all_srcs->{$_} = 1 } @{$self->source_by_type('protein')};
         } else {
             map { $all_srcs->{$_} = 1 } @{$self->source_by_type('protein')};
