@@ -872,6 +872,58 @@
         },
         {
             "cmd": {
+                "name": "extract_darkmatter.py",
+                "args": "-i @[% job_id %].375.filtering.faa -s @[% job_id %].450.rna.sims -s @[% job_id %].650.superblat.sims -m @[% job_id %].440.cluster.rna[% rna_pid %].mapping -m @[% job_id %].550.cluster.aa[% aa_pid %].mapping -o [% job_id %].750.darkmatter.faa",
+                "description": "dark matter extraction",
+                "Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["6", "7", "9", "10", "11"],
+            "inputs": {
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-"
+                },
+                "[% job_id %].450.rna.sims": {
+                    "host": "[% shock_url %]",
+                    "origin": "7",
+                    "node": "-"
+                },
+                "[% job_id %].375.filtering.faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "9",
+                    "node": "-"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-"
+                },
+                "[% job_id %].650.superblat.sims": {
+                    "host": "[% shock_url %]",
+                    "origin": "11",
+                    "node": "-"
+                }
+            },
+            "outputs": {
+                "[% job_id %].750.darkmatter.faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "userattr": {
+                "stage_id": "750",
+                "stage_name": "darkmatter",
+                "data_type": "sequence",
+                "file_format": "fasta",
+                "seq_format": "aa"
+            },
+            "taskid": "18",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
                 "name": "mgrast_load_cass.pl",
                 "args": "-job=[% job_id %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -md5=@[% job_id %].700.annotation.md5.abundance -lca=@[% job_id %].700.annotation.lca.abundance",
                 "description": "abundance cassandra load",
@@ -895,13 +947,13 @@
                     "node": "-"
                 }
             },
-            "taskid": "18",
+            "taskid": "19",
             "totalwork": 1
         },
         {
             "cmd": {
                 "name": "mgrast_stats.pl",
-                "args": "-job=[% job_id %] -nr_ver=[% ach_sequence_ver %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -upload=@[% job_id %].075.upload.stats -qc=@[% job_id %].075.qc.stats -adtrim=@[% job_id %].080.adapter.trim.passed.[% file_format %] -preproc=@[% job_id %].100.preprocess.passed.fna -derep=@[% job_id %].150.dereplication.removed.fna -post_qc=@[% job_id %].299.screen.passed.fna -source=@[% job_id %].700.annotation.source.stats -search=@[% job_id %].425.search.rna.fna -rna_clust=@[% job_id %].440.cluster.rna[% rna_pid %].fna -rna_map=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -genecall=@[% job_id %].350.genecalling.coding.faa -aa_clust=@[% job_id %].550.cluster.aa[% aa_pid %].faa -aa_map=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -ontol=[% job_id %].650.aa.expand.ontology -filter=[% job_id %].700.annotation.sims.filter.seq -md5_abund=@[% job_id %].700.annotation.md5.abundance -m5nr_db=m5nr_v1.annotation.bdb -taxa_hier=m5nr_v1.taxonomy.map.json -ont_hier=m5nr_v1.ontology.map.json",
+                "args": "-job=[% job_id %] -nr_ver=[% ach_sequence_ver %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -upload=@[% job_id %].075.upload.stats -qc=@[% job_id %].075.qc.stats -adtrim=@[% job_id %].080.adapter.trim.passed.[% file_format %] -preproc=@[% job_id %].100.preprocess.passed.fna -derep=@[% job_id %].150.dereplication.removed.fna -post_qc=@[% job_id %].299.screen.passed.fna -source=@[% job_id %].700.annotation.source.stats -search=@[% job_id %].425.search.rna.fna -rna_clust=@[% job_id %].440.cluster.rna[% rna_pid %].fna -rna_map=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -genecall=@[% job_id %].350.genecalling.coding.faa -aa_clust=@[% job_id %].550.cluster.aa[% aa_pid %].faa -aa_map=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -ontol=[% job_id %].650.aa.expand.ontology -filter=[% job_id %].700.annotation.sims.filter.seq -md5_abund=@[% job_id %].700.annotation.md5.abundance -dark=@[% job_id %].750.darkmatter.faa -m5nr_db=m5nr_v1.annotation.bdb -taxa_hier=m5nr_v1.taxonomy.map.json -ont_hier=m5nr_v1.ontology.map.json",
                 "description": "done stage",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
                 "environ": {
@@ -910,7 +962,7 @@
                     }
                 }
             },
-            "dependsOn": ["0", "1", "2", "3", "4", "5", "6", "8", "10", "12", "14", "15", "17", "18"],
+            "dependsOn": ["0", "1", "2", "3", "4", "5", "6", "8", "10", "12", "14", "15", "17", "18", "19"],
             "inputs": {
                 "[% job_id %].075.qc.stats": {
                     "host": "[% shock_url %]",
@@ -1009,6 +1061,12 @@
                     "host": "[% shock_url %]",
                     "origin": "17",
                     "node": "-"
+                },
+                "[% job_id %].750.darkmatter.faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "18",
+                    "node": "-",
+                    "attrfile": "[% job_id %].750.darkmatter.faa.json"
                 }
             },
             "outputs": {
@@ -1072,7 +1130,14 @@
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].mapping.json"
-                }
+                },
+                "[% job_id %].750.darkmatter.faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "18",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].750.darkmatter.faa.json"
+                },
             },
             "predata": {
                 "m5nr_v1.annotation.bdb":{
@@ -1089,7 +1154,7 @@
                 "stage_id": "999",
                 "stage_name": "done"
             },
-            "taskid": "19",
+            "taskid": "20",
             "totalwork": 1
         },
         {
@@ -1104,12 +1169,12 @@
                     }
                 }
             },
-            "dependsOn": ["19"],
+            "dependsOn": ["20"],
             "userattr": {
                 "stage_id": "999",
                 "stage_name": "done"
             },
-            "taskid": "20",
+            "taskid": "21",
             "totalwork": 1
         }
     ]

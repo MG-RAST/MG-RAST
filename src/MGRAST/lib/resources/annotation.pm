@@ -363,12 +363,15 @@ sub prepare_data {
 	    my @recs = ();
 	    foreach my $line (split(/\n/, $rec)) {
 	        my @tabs = split(/\t/, $line);
-	        if ($tabs[0]) {
+	        if ((scalar(@tabs) < 12) && $tabs[0] && $tabs[1]) {
 	            $tabs[0] = $mgid."|".$tabs[0]."|".$source;
 	            push @recs, \@tabs;
 	        }
         }
         my @umd5s = uniq map { $_->[1] } @recs;
+        if (scalar(@umd5s) == 0) {
+            next;
+        }
         # get m5nr data for md5 set
         # def get_records_by_md5(self, md5s, source=None, index=False, iterator=False):
         my $info = $m5nrhdl->get_records_by_md5(\@umd5s, $source);
