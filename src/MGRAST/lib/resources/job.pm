@@ -78,10 +78,10 @@ sub new {
     map { $self->{create_param}{$_} = ['float', 'sequence statistic'] } grep { $_ !~ /drisee/ } @input_stats;
     map { $self->{create_param}{$_} = ['string', 'pipeline option'] } @{$self->pipeline_opts};
     $self->{create_param}{sequence_type} = [
-        "cv", [["WGS", "whole genome shotgun sequenceing"],
-               ["Amplicon", "amplicon rRNA sequenceing"],
-               ["AmpliconGene", "amplicon gene sequenceing"],
-               ["MT", "metatranscriptome sequenceing"]]
+        "cv", [["WGS", "whole genome shotgun sequencing"],
+               ["Amplicon", "amplicon rRNA sequencing"],
+               ["Metabarcode", "metabarcode sequencing"],
+               ["MT", "metatranscriptome sequencing"]]
     ];
     @{$self->{taxa}} = grep { $_->[0] !~ /strain/ } @{$self->hierarchy->{organism}};
     

@@ -404,7 +404,7 @@ sub process_parameters {
     my $num_gene = 0;
     my $type_map = $master->Job->get_sequence_types($data);
     map { $num_rna += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
-    map { $num_gene += 1 } grep { $_ eq 'AmpliconGene' } values %$type_map;
+    map { $num_gene += 1 } grep { $_ eq 'Metabarcode' } values %$type_map;
     if ($num_rna) {
         if ($num_rna != scalar(@$data)) {
             return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_rna of ".scalar(@$data)." are Amplicon"}, undef, undef);
@@ -421,13 +421,13 @@ sub process_parameters {
     }
     if ($num_gene) {
         if ($type eq 'function') {
-            return ({"ERROR" => "invalid combination: requesting functional annotations with AmpliconGene data sets"}, undef, undef);
+            return ({"ERROR" => "invalid combination: requesting functional annotations with Metabarcode data sets"}, undef, undef);
         }
         if (exists $rna_srcs{$source}) {
-            return ({"ERROR" => "invalid combination: requesting RNA source annotations with AmpliconGene data sets"}, undef, undef);
+            return ({"ERROR" => "invalid combination: requesting RNA source annotations with Metabarcode data sets"}, undef, undef);
         }
         if ($filter) {
-            return ({"ERROR" => "invalid combination: filtering by functional annotations with AmpliconGene data sets"}, undef, undef);
+            return ({"ERROR" => "invalid combination: filtering by functional annotations with Metabarcode data sets"}, undef, undef);
         }
     }
     my $id_map  = $master->Job->get_job_ids($data);
