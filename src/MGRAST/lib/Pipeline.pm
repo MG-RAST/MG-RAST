@@ -289,6 +289,7 @@ sub template_keywords {
         'overlap'       => '10',
 
         # shock data download urls m5nr v1
+        'scg_md5_url' => "http://shock.metagenomics.anl.gov/node/524aec48-6c6f-4ad1-8f45-cfd39d1b9060?download",
         'm5nr1_download_url' => "http://shock.metagenomics.anl.gov/node/4406405c-526c-4a63-be22-04b7c2d18434?download",
         'm5nr2_download_url' => "http://shock.metagenomics.anl.gov/node/65d644a8-55a5-439f-a8b5-af1440472d8d?download",
         'm5rna_download_url' => "http://shock.metagenomics.anl.gov/node/1284813a-91d1-42b1-bc72-e74f19e1a0d1?download",
