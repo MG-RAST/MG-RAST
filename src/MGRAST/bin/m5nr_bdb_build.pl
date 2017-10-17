@@ -5,22 +5,32 @@ use warnings;
 
 use Text::CSV;
 use JSON;
+use File::Slurp;
 use BerkeleyDB;
 use Getopt::Long;
 use Data::Dumper;
 
 my $file  = "";
+my $scgs  = "";
 my $input = "";
 my $build = 0;
 my $usage = qq($0
   --file   path to db file
+  --scgs   path to scg file
   --input  file with list of test md5s or input data
   --build  build db file
+
+input file is CSV format ordered by md5, lists are comma seperated in brackets:
+md5, source, is_protein, single organism, lca list, accession list, function list, organism list
+
+scg file is JSON format:
+{ md5 => scg_id }
 );
 
 if ( (@ARGV > 0) && ($ARGV[0] =~ /-h/) ) { print STDERR $usage; exit 1; }
 if ( ! GetOptions(
 	'file:s'  => \$file,
+    'scgs:s'  => \$scgs,
 	'input:s' => \$input,
 	'build!'  => \$build
    ) ) {
@@ -36,6 +46,12 @@ my $json = JSON->new;
 $json = $json->utf8();
 $json->max_size(0);
 $json->allow_nonref;
+
+# get scg hash
+my $scgs = {};
+eval {
+    $scgs = $json->decode(read_file($scgs));
+};
 
 # create db hash
 my %dbh;
@@ -71,6 +87,7 @@ if ($build) {
         my $ann = {
             source     => $row->[1],
             is_protein => ($row->[2] eq 'true') ? 1 : 0,
+            is_scg     => exists($scgs->{$md5}) ? 1 : 0,
             single     => $row->[3],
             lca        => str_to_array($row->[4]),
             accession  => str_to_array($row->[5]),
