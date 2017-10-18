@@ -1145,7 +1145,7 @@
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].750.darkmatter.faa.json"
-                },
+                }
             },
             "predata": {
                 "m5nr_v1.annotation.bdb":{
