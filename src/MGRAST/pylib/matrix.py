@@ -51,7 +51,7 @@ class Matrix(object):
             matrix['data']  = data
             matrix['shape'] = [ len(matrix['rows']), len(matrix['columns']) ]
         except Exception as ex:
-            self.error_exit("unable to build BIOM profile", node, ex)
+            self.error_exit("unable to build BIOM matrix", node, ex)
             return
         
         ## sanity check

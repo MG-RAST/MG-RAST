@@ -120,7 +120,7 @@ class M5nrHandle(object):
         query = "SELECT * FROM ont_%s"%level
         if source:
             query += " WHERE source = ?"
-            prep = self.session.prepare(query+" WHERE source = ?")
+            prep = self.session.prepare(query)
             for r in self.session.execute(prep, [source]):
                 found[r['name']] = r[level]
         else:

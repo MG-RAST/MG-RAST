@@ -75,7 +75,7 @@ sub new {
             'metadata' => [ 'object', 'valid metadata object for project and its samples and libraries' ]
         },
         "validate_get" => {
-            'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],
+            'is_valid' => [ 'boolean', 'the inputted value is valid for the given category and label' ],
             'message'  => [ 'string', 'if not valid, reason why' ]
         }
     };
