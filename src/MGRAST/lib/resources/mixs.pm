@@ -119,7 +119,7 @@ sub info {
                 'parameters'  => {
                     'options'  => {},
                     'required' => {},
-                    'body'     => { "profile" => ["file", "profile in json format file"] }
+                    'body'     => { "upload" => ["file", "profile in json format file"] }
                 }
 			},
             {
@@ -137,7 +137,7 @@ sub info {
                 'parameters'  => {
                     'options'  => {},
                     'required' => {},
-                    'body'     => { "profile" => ["file", "profile in json format file"] }
+                    'body'     => { "upload" => ["file", "profile in json format file"] }
                 }
 			},
             {
@@ -155,7 +155,7 @@ sub info {
                 'parameters'  => {
                     'options'  => {},
                     'required' => { "id" => [ "string", "unique MiXS Profile identifier" ] },
-                    'body'     => { "profile" => ["file", "profile in json format file"] }
+                    'body'     => { "upload" => ["file", "profile in json format file"] }
                 }
 			},
             {
@@ -166,7 +166,7 @@ sub info {
                 'type'        => "synchronous",
                 'attributes'  => $self->{instance},
                 'parameters'  => {
-                    'options'  => {},
+                    'options'  => { "version" => [ "string", "version of schema to retrieve, default is most current" ] },
                     'required' => {},
                     'body'     => {}
                 }
@@ -181,7 +181,8 @@ sub info {
                 'parameters'  => {
                     'options'  => {},
                     'required' => {},
-                    'body'     => { "schema" => ["file", "schema in json format file"] }
+                    'body'     => { "upload"  => ["file", "schema in json format file"],
+                                    "version" => [ "string", "version of schema to upload"] }
                 }
 			}
         ]
@@ -199,11 +200,16 @@ sub request {
         $self->instance($self->rest->[1]);
     } elsif (($self->method eq 'GET') && ($self->rest->[0] eq 'profile') && (scalar(@{$self->rest}) == 1)) {
         $self->query();
-    } elsif (($self->method eq 'POST') && ($self->rest->[0] eq 'profile') && (scalar(@{$self->rest}) > 1) && ($self->rest->[1] =~ /^(validate|upload)$/)) {
-        $self->process_file($self->rest->[1]);
-    } elsif ($self->rest->[0] eq 'schema') {
-        #$self->schema();
-        $self->info();
+    } elsif ($self->method eq 'POST') {
+        if (($self->rest->[0] eq 'profile') && (scalar(@{$self->rest}) > 1)) {
+            $self->process_file($self->rest->[1]);
+        } elsif ($self->rest->[0] eq 'schema') {
+            $self->process_file($self->rest->[0]);
+        } else {
+            $self->info();
+        }
+    } elsif (($self->method eq 'GET') && ($self->rest->[0] eq 'schema')) {
+        $self->schema();
     } else {
         $self->info();
     }
@@ -216,7 +222,7 @@ sub instance {
     # get profile from shock
     my ($text, $err) = $self->get_shock_file($uuid, undef, $self->mgrast_token);
     if ($err) {
-        $self->return_data( {"ERROR" => "MiXS Profile $uuid does not exist"}, 500 );
+        $self->return_data({"ERROR" => "MiXS Profile $uuid does not exist"}, 500);
     }
     
     $self->json->utf8();
@@ -255,43 +261,43 @@ sub query {
 # POST function for uploaded file
 # validate mixs profile
 # upload new profile
-# update existing profile 
+# upload new schema
 sub process_file {
     my ($self, $type) = @_;
     
-    my $fname   = "";
-    my $profile = undef;
+    my $filename = "";
+    my $filejson = undef;
     
     # get uploaded file
-    if ($self->cgi->param('profile')) {
-        $fname = $self->cgi->param('profile');
-        if ($fname =~ /\.\./) {
+    if ($self->cgi->param('upload')) {
+        $filename = $self->cgi->param('upload');
+        if ($filename =~ /\.\./) {
             $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
         }
-        if ($fname !~ /^[\w\d_\.\-]+$/) {
+        if ($filename !~ /^[\w\d_\.\-]+$/) {
             $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, -, . and number characters"}, 400);
         }
-        my $fhdl = $self->cgi->upload('profile');
+        my $fhdl = $self->cgi->upload('upload');
         unless ($fhdl) {
             $self->return_data({"ERROR" => "Storing object failed - could not obtain filehandle"}, 507);
         }
         $self->json->utf8();
         eval {
             my $text = read_file($fhdl);
-            $profile = $self->json->decode($text);
+            $filejson = $self->json->decode($text);
         };
-        if ($@ || (! $profile)) {
-            $self->return_data({"ERROR" => "Unable to read uploaded file $fname, possible bad format"}, 422);
+        if ($@ || (! $filejson)) {
+            $self->return_data({"ERROR" => "Unable to read uploaded file $filename, possible bad format"}, 422);
         }
     }
     # bad POST
     else {
-        $self->return_data({"ERROR" => "Invalid parameters, missing required profile file"}, 404);
+        $self->return_data({"ERROR" => "Invalid parameters, missing required upload file"}, 404);
     }
     
     # validate profile
     # TODO
-    # my ($is_valid, $version, $error) = $self->validate_mixs_profile($profile);
+    # my ($is_valid, $version, $error) = $self->validate_mixs_profile($filejson);
     my ($is_valid, $version, $error) = (1, "1.0", undef);
     
     my $response = {
@@ -308,12 +314,11 @@ sub process_file {
         unless ($self->user->is_admin('MGRAST')) {
             $self->return_data({"ERROR" => "Insufficient permissions to upload profile"}, 401);
         }
-        
         # check if already exists
         my $nodes = $self->get_shock_query({type => "mixs", data_type => "profile"}, $self->mgrast_token);
         if ($nodes && (@$nodes > 0)) {
             foreach my $n (@$nodes) {
-                if (($profile->{name} eq $n->{attributes}{name}) && ($profile->{contact}{organization} eq $n->{attributes}{organization})) {
+                if (($filejson->{name} eq $n->{attributes}{name}) && ($filejson->{contact}{organization} eq $n->{attributes}{organization})) {
                     $response->{id} = undef;
                     $response->{is_valid} = 0;
                     $response->{message}  = 'a profile with the given name and organization already exists';
@@ -321,20 +326,78 @@ sub process_file {
                 }
             }
         }
-        
         my $attr = {
             'type'           => 'mixs',
             'data_type'      => 'profile',
-            'name'           => $profile->{name},
-            'organization'   => $profile->{contact}{organization},
+            'name'           => $filejson->{name},
+            'organization'   => $filejson->{contact}{organization},
             'schema_version' => $version
         };
-        
-        my $node = $self->set_shock_node($fname, $profile, $attr, $self->mgrast_token);
+        my $node = $self->set_shock_node($fname, $filejson, $attr, $self->mgrast_token);
         $response->{id} = $node->{id};
-        $self->return_data($response); 
+        $self->return_data($response);
+    } elsif ($type eq 'schema') {
+        # admin only
+        unless ($self->user->is_admin('MGRAST')) {
+            $self->return_data({"ERROR" => "Insufficient permissions to upload profile"}, 401);
+        }
+        # check parameters
+        my $version = $self->cgi->param('version') || undef;
+        unless ($version) {
+            $self->return_data({"ERROR" => "Invalid parameters, missing required schema version"}, 404);
+        }
+        # check if already exists
+        my $nodes = $self->get_shock_query({type => "mixs", data_type => "schema"}, $self->mgrast_token);
+        if ($nodes && (@$nodes > 0)) {
+            foreach my $n (@$nodes) {
+                if (($version eq $n->{attributes}{version}) {
+                    $self->return_data({"ERROR" => "MiXS Schema version '$version' already exists"}, 400);
+                }
+            }
+        }
+        my $attr = {
+            'type'      => 'mixs',
+            'data_type' => 'schema',
+            'version'   => $version
+        };
+        my $node = $self->set_shock_node($fname, $filejson, $attr, $self->mgrast_token);
+        $self->return_data({'id' => $node->{id}, 'version' => $version});
     } else {
         $self->info();
+    }
+}
+
+sub schema {
+    my ($self) = @_;
+    
+    # get schema
+    my $version = $self->cgi->param('version') || undef;
+    my $nodeid  = undef;
+    my $nodes   = $self->get_shock_query({type => "mixs", data_type => "schema"}, $self->mgrast_token);
+    if ($nodes && (@$nodes > 0)) {
+        if ($version) {
+            foreach my $n (@$nodes) {
+                if ($n->{attributes}{version} eq $version) {
+                    $nodeid = $n->{id};
+                    last;
+                }
+            }
+        } else {
+            # lastest by creation date
+            $nodeid = $nodes->[0]{id};
+        }
+    }
+    if ($nodeid) {
+        # get schema from shock
+        my ($text, $err) = $self->get_shock_file($nodeid, undef, $self->mgrast_token);
+        if ($err) {
+            $self->return_data({"ERROR" => "MiXS Schema version '$version' does not exist"}, 500);
+        }
+        $self->json->utf8();
+        my $schema = $self->json->decode($text);
+        $self->return_data($schema);
+    } else {
+        $self->return_data({"ERROR" => "MiXS Schema version '$version' does not exist"}, 500);
     }
 }
 
