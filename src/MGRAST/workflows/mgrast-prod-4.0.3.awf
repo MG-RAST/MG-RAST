@@ -533,7 +533,7 @@
         {
             "cmd": {
                 "name": "mgrast_annotate_sims.pl",
-                "args": "-input=@[% job_id %].650.superblat.sims -out_prefix=[% job_id %].650 -aa -ach_ver=[% ach_annotation_ver %] -ann_file=m5nr_v1.bdb",
+                "args": "-input=@[% job_id %].650.superblat.sims -out_prefix=[% job_id %].650 -aa -ach_ver=[% ach_annotation_ver %] -ann_file=m5nr_v1.bdb -scgs=scg_md5.json",
                 "description": "aa sims annotation",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             }, 
@@ -572,8 +572,11 @@
                 }
             },
             "predata": {
-                "m5nr_v1.bdb":{
+                "m5nr_v1.bdb": {
                     "url": "[% m5nr_annotation_url %]"
+                },
+                "scg_md5.json": {
+                    "url": "[% scg_md5_url %]"
                 }
             },
             "userattr": {
@@ -621,7 +624,7 @@
                 }
             },
             "predata": {
-                "m5nr_v1.bdb":{
+                "m5nr_v1.bdb": {
                     "url": "[% m5nr_annotation_url %]"
                 }
             },
@@ -765,7 +768,7 @@
         {
             "cmd": {
                 "name": "mgrast_annotate_summary.pl",
-                "args": "-in_expand=@[% job_id %].650.aa.expand.lca -in_expand=@[% job_id %].450.rna.expand.lca -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.lca.abundance -type=lca",
+                "args": "-in_expand=@[% job_id %].650.aa.expand.lca -in_expand=@[% job_id %].450.rna.expand.lca -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.lca.abundance -type=lca -scgs=scg_md5.json",
                 "description": "lca abundance",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             },
@@ -803,6 +806,11 @@
                     "node": "-",
                     "delete": true,
                     "attrfile": "userattr.json"
+                }
+            },
+            "predata": {
+                "scg_md5.json": {
+                    "url": "[% scg_md5_url %]"
                 }
             },
             "userattr": {
@@ -1137,7 +1145,7 @@
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].750.darkmatter.faa.json"
-                },
+                }
             },
             "predata": {
                 "m5nr_v1.annotation.bdb":{
