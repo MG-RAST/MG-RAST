@@ -123,9 +123,9 @@ sub info {
                 }
 			},
             {
-                'name'        => "import",
-                'request'     => $self->url."/".$self->name."/profile/import",
-                'description' => "Import a new MiXS Profile to MG-RAST",
+                'name'        => "upload",
+                'request'     => $self->url."/".$self->name."/profile/upload",
+                'description' => "Upload a new MiXS Profile to MG-RAST",
                 'method'      => "POST",
                 'type'        => "synchronous",
                 'attributes'  => {
@@ -147,7 +147,7 @@ sub info {
                 'method'      => "POST",
                 'type'        => "synchronous",
                 'attributes'  => {
-                    'id'       => [ 'string', 'unique identifier for uploaded profile' ],
+                    'id'       => [ 'string', 'unique identifier for updated profile' ],
                     'is_valid' => [ 'boolean', 'the inputted profile is valid with the current schema' ],
                     'version'  => [ 'string', 'version of schema profile was validated against' ],
                     'message'  => [ 'string', 'if not valid, reason why' ]
@@ -199,10 +199,11 @@ sub request {
         $self->instance($self->rest->[1]);
     } elsif (($self->method eq 'GET') && ($self->rest->[0] eq 'profile') && (scalar(@{$self->rest}) == 1)) {
         $self->query();
-    } elsif (($self->method eq 'POST') && ($self->rest->[0] eq 'profile') && (scalar(@{$self->rest}) > 1) && ($self->rest->[1] =~ /^(validate|import|update)$/)) {
+    } elsif (($self->method eq 'POST') && ($self->rest->[0] eq 'profile') && (scalar(@{$self->rest}) > 1) && ($self->rest->[1] =~ /^(validate|upload)$/)) {
         $self->process_file($self->rest->[1]);
     } elsif ($self->rest->[0] eq 'schema') {
-        $self->schema();
+        #$self->schema();
+        $self->info();
     } else {
         $self->info();
     }
@@ -243,24 +244,20 @@ sub query {
                 "name"         => $n->{attributes}{name},
                 "organization" => $n->{attributes}{organization},
                 "updated"      => $n->{created_on}
-            }
+            };
         }
     }
     
-    $response->{total} = scalar(@{$response->{data});
+    $response->{total} = scalar(@{$response->{data}});
     $self->return_data($response);
 }
 
 # POST function for uploaded file
 # validate mixs profile
-# import new profile
+# upload new profile
 # update existing profile 
 sub process_file {
     my ($self, $type) = @_;
-    
-    if ($type eq 'update') {
-        $self->return_data({"ERROR" => "Not yet implamented"}, 501);
-    }
     
     my $fname   = "";
     my $profile = undef;
@@ -305,7 +302,12 @@ sub process_file {
     # run different actions
     if ($type eq 'validate') {
         $self->return_data($response);
-    } elsif ($type eq 'import') {
+    } elsif ($type eq 'upload') {
+        # admin only
+        unless ($self->user->is_admin('MGRAST')) {
+            $self->return_data({"ERROR" => "Insufficient permissions to upload profile"}, 401);
+        }
+        
         # check if already exists
         my $nodes = $self->get_shock_query({type => "mixs", data_type => "profile"}, $self->mgrast_token);
         if ($nodes && (@$nodes > 0)) {
