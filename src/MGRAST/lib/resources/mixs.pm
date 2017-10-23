@@ -277,7 +277,8 @@ sub process_file {
         }
         $self->json->utf8();
         eval {
-            $profile = $self->json->decode( read_file($fhdl) );
+            my $text = read_file($fhdl);
+            $profile = $self->json->decode($text);
         };
         if ($@ || (! $profile)) {
             $self->return_data({"ERROR" => "Unable to read uploaded file $fname, possible bad format"}, 422);
