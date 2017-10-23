@@ -295,16 +295,19 @@ sub process_file {
         $self->return_data({"ERROR" => "Invalid parameters, missing required upload file"}, 404);
     }
     
-    # validate profile
-    # TODO
-    # my ($is_valid, $version, $error) = $self->validate_mixs_profile($filejson);
-    my ($is_valid, $version, $error) = (1, "1.0", undef);
-    
-    my $response = {
-        'is_valid' => $is_valid,
-        'version'  => $version,
-        'message'  => $error
-    };
+    my $response = {};
+    unless ($type eq 'schema') {
+        # validate profile
+        # TODO
+        # my ($is_valid, $version, $error) = $self->validate_mixs_profile($filejson);
+        my ($is_valid, $version, $error) = (1, "1.0", undef);
+        
+        $response = {
+            'is_valid' => $is_valid,
+            'version'  => $version,
+            'message'  => $error
+        };
+    }
     
     # run different actions
     if ($type eq 'validate') {
