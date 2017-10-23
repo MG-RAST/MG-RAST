@@ -333,7 +333,7 @@ sub process_file {
             'organization'   => $filejson->{contact}{organization},
             'schema_version' => $version
         };
-        my $node = $self->set_shock_node($fname, $filejson, $attr, $self->mgrast_token);
+        my $node = $self->set_shock_node($filename, $filejson, $attr, $self->mgrast_token);
         $response->{id} = $node->{id};
         $self->return_data($response);
     } elsif ($type eq 'schema') {
