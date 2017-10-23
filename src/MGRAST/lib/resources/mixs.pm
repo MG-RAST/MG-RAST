@@ -350,7 +350,7 @@ sub process_file {
         my $nodes = $self->get_shock_query({type => "mixs", data_type => "schema"}, $self->mgrast_token);
         if ($nodes && (@$nodes > 0)) {
             foreach my $n (@$nodes) {
-                if (($version eq $n->{attributes}{version}) {
+                if ($version eq $n->{attributes}{version}) {
                     $self->return_data({"ERROR" => "MiXS Schema version '$version' already exists"}, 400);
                 }
             }
@@ -360,7 +360,7 @@ sub process_file {
             'data_type' => 'schema',
             'version'   => $version
         };
-        my $node = $self->set_shock_node($fname, $filejson, $attr, $self->mgrast_token);
+        my $node = $self->set_shock_node($filename, $filejson, $attr, $self->mgrast_token);
         $self->return_data({'id' => $node->{id}, 'version' => $version});
     } else {
         $self->info();
