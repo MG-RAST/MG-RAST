@@ -331,7 +331,11 @@ sub post_action {
         }
         # update DB
         foreach my $key (keys(%$keyval)) {
+	  if ($key eq 'project_name') {
+	    $project->name($keyval->{$key});
+	  } else {
             $project->data($key, $keyval->{$key});
+	  }
         }
         # update elasticsearch
         foreach my $mgid (@{$project->metagenomes(1)}) {
