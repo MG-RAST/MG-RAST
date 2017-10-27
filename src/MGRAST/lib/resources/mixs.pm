@@ -4,7 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
-use JSON::Schema;
+use JSON::Validator;
 use Data::Dumper;
 use File::Slurp;
 use POSIX qw(strftime);
@@ -378,17 +378,9 @@ sub schema {
     my ($self) = @_;
     
     my $version = $self->cgi->param('version') || undef;
-    my ($sstr, undef) = $self->get_schema_str($version);
-    unless ($sstr) {
-         $self->return_data({"ERROR" => "MiXS Schema version '$version' does not exist"}, 500);
-    }
-    my $schema = undef;
-    eval {
-        $self->json->utf8();
-        $schema = $self->json->decode($sstr);
-    };
+    my ($schema, undef) = $self->get_schema($version);
     unless ($schema) {
-         $self->return_data({"ERROR" => "MiXS Schema version '$version' is not valid JSON"}, 500);
+         $self->return_data({"ERROR" => "MiXS Schema version '$version' does not exist"}, 500);
     }
     $self->return_data($schema);
 }
@@ -396,23 +388,23 @@ sub schema {
 sub validate_mixs_profile {
     my ($self, $filejson, $version) = @_;
     
-    my ($sstr, $version) = $self->get_schema_str($version);
-    unless ($sstr) {
+    my ($schema, $version) = $self->get_schema($version);
+    unless ($schema) {
          $self->return_data({"ERROR" => "MiXS Schema is missing"}, 500);
     }
     
-    my $validator = JSON::Schema->new($schema);
-    my $result    = $validator->validate($json);
+    my $validator = JSON::Validator->new;
+    $validator->schema($schema);
+    my @errors = $validator->validate($filejson);
     
-    if ($result) {
-        return (1, $version, undef);
+    if (@errors) {
+        return (0, $version, join("\n", @errors));
     } else {
-        my $error = join("\n", $result->errors);
-        return (0, $version, undef);
+        return (1, $version, undef);
     }
 }
 
-sub get_schema_str {
+sub get_schema {
     my ($self, $version) = @_;
     
     my $nodeid = undef;
@@ -433,10 +425,12 @@ sub get_schema_str {
     }
     if ($nodeid) {
         # get schema from shock
-        my ($schema, $err) = $self->get_shock_file($nodeid, undef, $self->mgrast_token);
+        my ($text, $err) = $self->get_shock_file($nodeid, undef, $self->mgrast_token);
         if ($err) {
             return (undef, undef);
         }
+        $self->json->utf8();
+        $schema = $self->json->decode($text);
         return ($schema, $version);
     } else {
         return (undef, undef);

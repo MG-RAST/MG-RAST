@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y \
   libwww-perl \
   libxml-simple-perl \
   libjson-perl \
-  libjson-schema-perl \
   libdbi-perl \
   libdbd-mysql-perl \
   libdigest-md5-perl \
@@ -53,7 +52,8 @@ RUN apt-get install -y python-dev python-pip && \
   pika
 
 ENV PERL_MM_USE_DEFAULT 1
-RUN cpan Inline::Python
+RUN cpan Inline::Python && \
+  cpan JSON::Validator
 
 RUN mkdir -p /MG-RAST /var/log/httpd/api.metagenomics
 COPY . /MG-RAST
