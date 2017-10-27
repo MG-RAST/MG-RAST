@@ -1092,49 +1092,49 @@
                 },
                 "[% job_id %].299.screen.passed.fna": {
                     "host": "[% shock_url %]",
-                    "origin": "3",
+                    "origin": "4",
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].299.screen.passed.fna.json"
                 },
                 "[% job_id %].425.search.rna.fna": {
                     "host": "[% shock_url %]",
-                    "origin": "4",
+                    "origin": "5",
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].425.search.rna.fna.json"
                 },
                 "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
                     "host": "[% shock_url %]",
-                    "origin": "5",
+                    "origin": "6",
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].fna.json"
                 },
                 "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
                     "host": "[% shock_url %]",
-                    "origin": "5",
+                    "origin": "6",
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].mapping.json"
                 },
                 "[% job_id %].350.genecalling.coding.faa": {
                     "host": "[% shock_url %]",
-                    "origin": "7",
+                    "origin": "8",
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].350.genecalling.coding.faa.json"
                 },
                 "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
                     "host": "[% shock_url %]",
-                    "origin": "9",
+                    "origin": "10",
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].faa.json"
                 },
                 "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
                     "host": "[% shock_url %]",
-                    "origin": "9",
+                    "origin": "10",
                     "node": "-",
                     "type": "update",
                     "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].mapping.json"
