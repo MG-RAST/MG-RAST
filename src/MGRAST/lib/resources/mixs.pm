@@ -431,7 +431,7 @@ sub get_schema {
             return (undef, undef);
         }
         $self->json->utf8();
-        $schema = $self->json->decode($text);
+        my $schema = $self->json->decode($text);
         return ($schema, $version);
     } else {
         return (undef, undef);
