@@ -4,6 +4,7 @@ use strict;
 use warnings;
 no warnings('once');
 
+use JSON::Schema;
 use Data::Dumper;
 use File::Slurp;
 use POSIX qw(strftime);
@@ -119,7 +120,8 @@ sub info {
                 'parameters'  => {
                     'options'  => {},
                     'required' => {},
-                    'body'     => { "upload" => ["file", "profile in json format file"] }
+                    'body'     => { "upload"  => ["file", "profile in json format file"],
+                                    "version" => [ "string", "version of schema to validate against"] }
                 }
 			},
             {
@@ -137,7 +139,8 @@ sub info {
                 'parameters'  => {
                     'options'  => {},
                     'required' => {},
-                    'body'     => { "upload" => ["file", "profile in json format file"] }
+                    'body'     => { "upload"  => ["file", "profile in json format file"],
+                                    "version" => [ "string", "version of schema to validate against"] }
                 }
 			},
             {
@@ -267,6 +270,7 @@ sub process_file {
     
     my $filename = "";
     my $filejson = undef;
+    my $version  = $self->cgi->param('version') || undef;
     
     # get uploaded file
     if ($self->cgi->param('upload')) {
@@ -297,14 +301,11 @@ sub process_file {
     
     my $response = {};
     unless ($type eq 'schema') {
-        # validate profile
-        # TODO
-        # my ($is_valid, $version, $error) = $self->validate_mixs_profile($filejson);
-        my ($is_valid, $version, $error) = (1, "1.0", undef);
-        
+        # validate profile against latest schema
+        my ($is_valid, $found_version, $error) = $self->validate_mixs_profile($filejson, $version);
         $response = {
             'is_valid' => $is_valid,
-            'version'  => $version,
+            'version'  => $found_version,
             'message'  => $error
         };
     }
@@ -325,16 +326,20 @@ sub process_file {
                     $response->{id} = undef;
                     $response->{is_valid} = 0;
                     $response->{message}  = 'a profile with the given name and organization already exists';
-                    $self->return_data($response);
                 }
             }
         }
+        # return if not valid
+        unless ($response->{is_valid}) {
+            $self->return_data($response);
+        }
+        # create shock node
         my $attr = {
             'type'           => 'mixs',
             'data_type'      => 'profile',
             'name'           => $filejson->{name},
             'organization'   => $filejson->{contact}{organization},
-            'schema_version' => $version
+            'schema_version' => $response->{version}
         };
         my $node = $self->set_shock_node($filename, $filejson, $attr, $self->mgrast_token);
         $response->{id} = $node->{id};
@@ -345,7 +350,6 @@ sub process_file {
             $self->return_data({"ERROR" => "Insufficient permissions to upload profile"}, 401);
         }
         # check parameters
-        my $version = $self->cgi->param('version') || undef;
         unless ($version) {
             $self->return_data({"ERROR" => "Invalid parameters, missing required schema version"}, 404);
         }
@@ -373,10 +377,46 @@ sub process_file {
 sub schema {
     my ($self) = @_;
     
-    # get schema
     my $version = $self->cgi->param('version') || undef;
-    my $nodeid  = undef;
-    my $nodes   = $self->get_shock_query({type => "mixs", data_type => "schema"}, $self->mgrast_token);
+    my ($sstr, undef) = $self->get_schema_str($version);
+    unless ($sstr) {
+         $self->return_data({"ERROR" => "MiXS Schema version '$version' does not exist"}, 500);
+    }
+    my $schema = undef;
+    eval {
+        $self->json->utf8();
+        $schema = $self->json->decode($sstr);
+    };
+    unless ($schema) {
+         $self->return_data({"ERROR" => "MiXS Schema version '$version' is not valid JSON"}, 500);
+    }
+    $self->return_data($schema);
+}
+
+sub validate_mixs_profile {
+    my ($self, $filejson, $version) = @_;
+    
+    my ($sstr, $version) = $self->get_schema_str($version);
+    unless ($sstr) {
+         $self->return_data({"ERROR" => "MiXS Schema is missing"}, 500);
+    }
+    
+    my $validator = JSON::Schema->new($schema);
+    my $result    = $validator->validate($json);
+    
+    if ($result) {
+        return (1, $version, undef);
+    } else {
+        my $error = join("\n", $result->errors);
+        return (0, $version, undef);
+    }
+}
+
+sub get_schema_str {
+    my ($self, $version) = @_;
+    
+    my $nodeid = undef;
+    my $nodes  = $self->get_shock_query({type => "mixs", data_type => "schema"}, $self->mgrast_token);
     if ($nodes && (@$nodes > 0)) {
         if ($version) {
             foreach my $n (@$nodes) {
@@ -388,19 +428,18 @@ sub schema {
         } else {
             # lastest by creation date
             $nodeid = $nodes->[0]{id};
+            $version = $nodes->[0]{attributes}{version};
         }
     }
     if ($nodeid) {
         # get schema from shock
-        my ($text, $err) = $self->get_shock_file($nodeid, undef, $self->mgrast_token);
+        my ($schema, $err) = $self->get_shock_file($nodeid, undef, $self->mgrast_token);
         if ($err) {
-            $self->return_data({"ERROR" => "MiXS Schema version '$version' does not exist"}, 500);
+            return (undef, undef);
         }
-        $self->json->utf8();
-        my $schema = $self->json->decode($text);
-        $self->return_data($schema);
+        return ($schema, $version);
     } else {
-        $self->return_data({"ERROR" => "MiXS Schema version '$version' does not exist"}, 500);
+        return (undef, undef);
     }
 }
 
