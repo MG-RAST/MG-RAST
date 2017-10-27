@@ -388,7 +388,8 @@ sub schema {
 sub validate_mixs_profile {
     my ($self, $filejson, $version) = @_;
     
-    my ($schema, $version) = $self->get_schema($version);
+    my $schema = undef;
+    ($schema, $version) = $self->get_schema($version);
     unless ($schema) {
          $self->return_data({"ERROR" => "MiXS Schema is missing"}, 500);
     }
