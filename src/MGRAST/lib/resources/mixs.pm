@@ -204,7 +204,7 @@ sub request {
     } elsif (($self->method eq 'GET') && ($self->rest->[0] eq 'profile') && (scalar(@{$self->rest}) == 1)) {
         $self->query();
     } elsif ($self->method eq 'POST') {
-        if (($self->rest->[0] eq 'profile') && (scalar(@{$self->rest}) > 1)) {
+        if (scalar(@{$self->rest}) > 1) {
             $self->process_file($self->rest->[1]);
         } elsif ($self->rest->[0] eq 'schema') {
             $self->process_file($self->rest->[0]);
