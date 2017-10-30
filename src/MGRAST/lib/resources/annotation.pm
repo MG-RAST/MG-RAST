@@ -363,7 +363,7 @@ sub prepare_data {
 	    my @recs = ();
 	    foreach my $line (split(/\n/, $rec)) {
 	        my @tabs = split(/\t/, $line);
-	        if ((scalar(@tabs) < 12) && $tabs[0] && $tabs[1]) {
+	        if ((scalar(@tabs) >= 12) && $tabs[0] && $tabs[1]) {
 	            $tabs[0] = $mgid."|".$tabs[0]."|".$source;
 	            push @recs, \@tabs;
 	        }
