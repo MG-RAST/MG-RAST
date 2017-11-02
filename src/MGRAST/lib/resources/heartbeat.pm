@@ -122,7 +122,7 @@ sub instance {
       my $test_source = "RefSeq";
       my $test_data = [];
       eval {
-          my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$self->{m5nr_version}, $self->{services}->{$id});
+          my $chdl = $self->cassandra_handle("m5nr", $self->{m5nr_version});
           $test_data = $chdl->get_records_by_id([$test_md5_id], $test_source);
           $chdl->close();
       };
