@@ -193,6 +193,7 @@ sub info {
                       "project_id" => [ "string", "unique MG-RAST project identifier" ],
                       "force"      => [ "boolean", "if true overwrite existing metagenome_taxonomy with inputted" ],
                       "debug"      => [ "boolean", "if true return workflow document instead of submitting"],
+                      "project_taxonomy" => [ 'string', "optional: taxa_name to apply to all metagenomes of project" ],
                       "metagenome_taxonomy" => [ 'hash', "optional: key value pairs of metagenome_id => taxa_name" ]
                   }
               }
@@ -233,6 +234,7 @@ sub ebi_submit {
     my $project_id = $post->{'project_id'} || undef;
     my $force      = $post->{'force'} ? 1 : 0;
     my $debug      = $post->{'debug'} ? 1 : 0;
+    my $proj_taxa  = $post->{'project_taxonomy'} || "";
     my $mg_taxa    = $post->{'metagenome_taxonomy'} || {};
     
     my $master  = $self->connect_to_datasource();
@@ -296,7 +298,11 @@ sub ebi_submit {
         };
         my $existing = $metadbm->MetaDataEntry->get_objects($taxattr);
         if ((scalar(@$existing) == 0) || $force) {
-            unless ($mg_taxa->{$mgid}) {
+            if ($mg_taxa->{$mgid}) {
+                $taxattr->{value} = $mg_taxa->{$mgid};
+            } elsif ($proj_taxa) {
+                $taxattr->{value} = $proj_taxa;
+            } else {
                 $self->return_data( {"ERROR" => "metagenome $mgid is missing required metagenome_taxonomy metadata"}, 500 );
             }
             if (scalar(@$existing)) {
@@ -304,7 +310,6 @@ sub ebi_submit {
                     $pmd->delete();
                 }
             }
-            $taxattr->{value} = $mg_taxa->{$mgid};
             $metadbm->MetaDataEntry->create($taxattr);
         }
     }
