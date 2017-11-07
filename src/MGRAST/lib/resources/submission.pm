@@ -320,9 +320,9 @@ sub ebi_submit {
     my $cwl_input = {
         seqFiles     => $cwl_files,
         project      => $proj_id,
-        mgrastUrl    => $Conf::cgi_url,
+        mgrastUrl    => $debug ? $Conf::dev_url : $Conf::cgi_url,
         mgrastToken  => $Conf::api_key,
-        submitUrl    => $Conf::ebi_submission_url,
+        submitUrl    => $debug ? $Conf::ebi_test_url : $Conf::ebi_submission_url,
         user         => $Conf::mgrast_ebi_user,
         password     => $Conf::mgrast_ebi_pswd,
         submitOption => "ADD",
