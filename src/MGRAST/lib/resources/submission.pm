@@ -230,12 +230,12 @@ sub ebi_submit {
     my ($self) = @_;
     
     my $uuid = $self->uuidv4();
-    my $post = $self->get_post_data(['project_id', 'force', 'debug', 'project_taxonomy', 'metagenome_taxonomy']);
+    my $post = $self->get_post_data(['project_id', 'force', 'debug', 'workflow', 'project_taxonomy', 'metagenome_taxonomy']);
     
     my $project_id = $post->{'project_id'} || undef;
     my $force      = $post->{'force'} ? 1 : 0;
     my $debug      = $post->{'debug'} ? 1 : 0;
-    my $workflow   = $post->{'$workflow'} ? 1 : 0;
+    my $workflow   = $post->{'workflow'} ? 1 : 0;
     my $proj_taxa  = $post->{'project_taxonomy'} || "";
     my $mg_taxa    = $post->{'metagenome_taxonomy'} || {};
     
