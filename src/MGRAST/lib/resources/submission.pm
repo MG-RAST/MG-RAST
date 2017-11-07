@@ -356,11 +356,12 @@ sub ebi_submit {
         input_files   => $self->json->encode($awe_files),
         docker_image_version => 'latest'
     };
-    my $job = $self->submit_awe_template($awe_info, $Conf::mgrast_ebi_submit_workflow, $self->mgrast_token, 'mgrast', $debug);
-    
+    my $ebi_workflow = $Conf::mgrast_ebi_submit_workflow;
     if ($debug) {
-        $self->return_data($job);
+        $ebi_workflow = $Conf::mgrast_ebi_debug_workflow;
     }
+    my $job = $self->submit_awe_template($awe_info, $ebi_workflow, $self->mgrast_token, 'mgrast', $debug);
+    
     my $response = {
         id        => $uuid,
         job       => $job->{id},
