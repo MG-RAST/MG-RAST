@@ -12,7 +12,7 @@
             "status": "public",
             "owner": "[% user %]",
             "type": "submission",
-            "pipeline_version": "1.0",
+            "pipeline_version": "debug",
             "submission": "[% submission_id %]",
             "metagenomes": "[% mg_count %]"
         }
@@ -33,11 +33,45 @@
                     "host": "[% shock_url %]",
                     "node": "-",
                     "attrfile": "userattr.json"
+                },
+                {
+                    "filename": "[% project_id %].receipt.json",
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                },
+                {
+                    "filename": "submission.xml",
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                },
+                {
+                    "filename": "study.xml",
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                },
+                {
+                    "filename": "sample.xml",
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                },
+                {
+                    "filename": "experiment.xml",
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                },
+                {
+                    "filename": "run.xml",
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
                 }
             ],
             "userattr": {
-                "data_type": "receipt",
-                "file_format": "xml",
                 "stage_name": "EBI Submission"
             },
             "taskid": "0",

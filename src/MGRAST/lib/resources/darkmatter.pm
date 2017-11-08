@@ -148,7 +148,7 @@ sub instance {
     my $awe_info  = {
         job_name     => 'DM:'.$job->job_id,
         project_name => $job->primary_project->{name} || undef,
-        user         => 'mgu'.$self->user->{_id},
+        user         => $self->user ? 'mgu'.$self->user->{_id} : undef,
         mg_id        => 'mgm'.$job->metagenome_id,
         job_id       => $job->job_id,
         mg_name      => $job->name,
