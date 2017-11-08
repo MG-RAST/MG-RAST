@@ -40,7 +40,26 @@
                 "file_format": "xml",
                 "stage_name": "EBI Submission"
             },
-            "taskid": "0", 
+            "taskid": "0",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "validate_receipt.pl",
+                "args": "--input @[% project_id %].receipt.xml",
+                "description": "Validate Submission Receipt",
+                "Dockerimage": "mgrast/ebi-submit:[% docker_image_version %]"
+            },
+            "dependsOn": ["0"],
+            "inputs": [
+                {
+                    "filename": "[% project_id %].receipt.xml",
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-"
+                }
+            ],
+            "taskid": "1",
             "totalwork": 1
         }
     ]
