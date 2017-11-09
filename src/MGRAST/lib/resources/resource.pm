@@ -1843,8 +1843,8 @@ sub parse_ebi_receipt {
     }
     my $receipt = {
         success => $xml->{'success'},
-        info    => join("\n", @{$xml->{'MESSAGES'}{'INFO'}}),
-        error   => $xml->{'MESSAGES'}{'ERROR'} ? join("\n", @{$xml->{'MESSAGES'}{'ERROR'}}) : undef,
+        info    => $xml->{'MESSAGES'}{'INFO'},
+        error   => $xml->{'MESSAGES'}{'ERROR'} || undef,
         submission => {
             mgrast_accession => $xml->{'SUBMISSION'}{'alias'},
             ena_accession    => $xml->{'SUBMISSION'}{'accession'} || undef,
