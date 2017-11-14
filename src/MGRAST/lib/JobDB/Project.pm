@@ -527,6 +527,42 @@ sub metagenomes_summary {
   return \@data;
 }
 
+sub metagenome_ratings {
+  my ($self) = @_;
+
+  my $project_jobs = $self->_master->ProjectJob->get_objects( {project => $self} );
+  my $user = $self->_master->{_user};
+
+  my $data = {};
+  
+  if (@$project_jobs > 0) {
+    my $jdbh = $self->_master->db_handle();
+    my $user_jobs = {};
+    my $ujr = defined($user) ? $user->has_right_to(undef, 'view', 'metagenome') : [];
+    %$user_jobs = map { $_ => 1 } @$ujr;
+    my %psamples = map { $_->job->{sample} => $_->job->{metagenome_id} } grep { $user_jobs->{$_->job->{metagenome_id}} || $user_jobs->{'*'} || $_->job->{public} } @$project_jobs;
+
+    if (scalar(keys(%psamples))) {
+      my $res = $jdbh->selectall_arrayref('SELECT parent, _id FROM MetaDataCollection WHERE parent IN ("'.join('", "', keys %psamples).'")');
+      my $ep_samp = {};
+      my $eps = [];
+      foreach my $r (@$res) {
+	push(@$eps, $r->[1]);
+	$ep_samp->{$r->[1]} = $r->[0];
+      }
+
+      $res = $jdbh->selectall_arrayref('SELECT collection, tag, value FROM MetaDataEntry WHERE tag LIKE "profile_rating_%" AND collection IN ("'.join('", "', @$eps).'")');
+      foreach my $row (@$res) {
+	if (! $data->{$psamples{$ep_samp->{$row->[0]}}}) {
+	  $data->{$psamples{$ep_samp->{$row->[0]}}} = [];
+	}
+	push(@{$data->{$psamples{$ep_samp->{$row->[0]}}}}, [ $row->[1], $row->[2] ]);
+      }
+    }
+   } 
+    return $data;
+}
+
 ##########################
 # output methods
 #########################
