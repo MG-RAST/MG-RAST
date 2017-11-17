@@ -639,38 +639,6 @@ Returns a list of errors is mixs compliance.
 
 =cut
 
-my $mixs = $self->mixs();
-my $data = $self->get_job_metadata($job);
-my $lib  = $data->{library}{data}{investigation_type} || undef;
-my $ep   = $data->{sample}{data}{env_package} || undef;
-
-unless ($lib && $ep && exists($mixs->{library}{$lib}) && exists($mixs->{ep}{$ep})) {
-  return 0;
-}
-
-foreach my $cat (keys %$mixs) {
-  if ($cat eq 'library') {
-    foreach my $tag (keys %{$mixs->{library}{$lib}}) {
-    if (! exists($data->{$cat}{data}{$tag})) {
-      return 0;
-    }
-    }
-  } elsif ($cat eq 'ep') {
-    foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
-	    if (! exists($data->{$cat}{data}{$tag})) {
-	      return 0;
-	    }
-    }
-  } else {
-    foreach my $tag (keys %{$mixs->{$cat}}) {
-    if (! exists($data->{$cat}{data}{$tag})) {
-      return 0;
-    }
-    }
-  }
-}
-return 1;
-
 sub verify_job_metadata {
   my ($self, $job) = @_;
 
