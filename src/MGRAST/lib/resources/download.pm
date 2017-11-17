@@ -123,6 +123,11 @@ sub instance {
         $self->return_data( {"ERROR" => "id ".$rest->[0]." does not exist"}, 404 );
     }
     $job = $job->[0];
+    
+    my $jdata = $job->data();
+    if (exists($jdata->{deleted}) && $jdata->{deleted}) {
+        $self->return_data( {"ERROR" => "id ".$rest->[0]." is deleted: ".$jdata->{deleted}}, 404 );
+    }
     unless ($job->viewable) {
         $self->return_data( {"ERROR" => "id ".$rest->[0]." is still processing and unavailable"}, 404 );
     }

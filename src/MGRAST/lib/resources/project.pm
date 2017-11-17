@@ -681,6 +681,8 @@ sub prepare_data {
 	
 	if ($self->cgi->param('verbosity') eq 'summary' || ($self->cgi->param('verbosity') eq 'full')) {
 	  my $jdata = $project->metagenomes_summary();
+	  my $ratingdata = $project->metagenome_ratings();
+	  $obj->{ratings} = $ratingdata;
 	  $obj->{metagenomes} = [];
 	  foreach my $row (@$jdata) {
 	    push(@{$obj->{metagenomes}}, { metagenome_id => 'mgm'.$row->[0],
