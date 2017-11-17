@@ -246,7 +246,7 @@ sub mixs {
       if ($template->{$cat}{$tag}{required} && $template->{$cat}{$tag}{mixs}) {
 	    if ($ct eq 'library') {
 	      $mixs->{$ct}{$cat}{$tag} = 1;
-        } elsif $ct eq 'ep') {
+        } elsif ($ct eq 'ep') {
           $mixs->{$ct}{$cat}{$tag} = 1;
 	    } else  {
 	      $mixs->{$ct}{$tag} = 1;
