@@ -244,11 +244,13 @@ sub mixs {
     foreach my $tag (keys %{$template->{$cat}}) {
       next if ($tag eq 'category_type');
       if ($template->{$cat}{$tag}{required} && $template->{$cat}{$tag}{mixs}) {
-	if ($ct eq 'library') {
-	  $mixs->{$ct}{$cat}{$tag} = 1;
-	} else {
-	  $mixs->{$ct}{$tag} = 1;
-	}
+	    if ($ct eq 'library') {
+	      $mixs->{$ct}{$cat}{$tag} = 1;
+        } elsif $ct eq 'ep') {
+          $mixs->{$ct}{$cat}{$tag} = 1;
+	    } else  {
+	      $mixs->{$ct}{$tag} = 1;
+	    }
       }
     }
   }
@@ -598,26 +600,31 @@ sub is_job_compliant {
 
   my $mixs = $self->mixs();
   my $data = $self->get_job_metadata($job);
-  unless (exists $data->{library}{data}{investigation_type}) {
+  my $lib  = $data->{library}{data}{investigation_type} || undef;
+  my $ep   = $data->{sample}{data}{env_package} || undef;
+  
+  unless ($lib && $ep && exists($mixs->{library}{$lib}) && exists($mixs->{ep}{$ep})) {
     return 0;
   }
-  my $lib = $data->{library}{data}{investigation_type};
-  unless (exists $mixs->{library}{$lib}) {
-    return 0;
-  }
+  
   foreach my $cat (keys %$mixs) {
     if ($cat eq 'library') {
       foreach my $tag (keys %{$mixs->{library}{$lib}}) {
-	if (! exists($data->{$cat}{data}{$tag})) {
-	  return 0;
-	}
+	    if (! exists($data->{$cat}{data}{$tag})) {
+	      return 0;
+	    }
       }
-    }
-    else {
+    } elsif ($cat eq 'ep') {
+      foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
+  	    if (! exists($data->{$cat}{data}{$tag})) {
+  	      return 0;
+  	    }
+      }
+    } else {
       foreach my $tag (keys %{$mixs->{$cat}}) {
-	if (! exists($data->{$cat}{data}{$tag})) {
-	  return 0;
-	}
+	    if (! exists($data->{$cat}{data}{$tag})) {
+	      return 0;
+	    }
       }
     }
   }
@@ -632,32 +639,78 @@ Returns a list of errors is mixs compliance.
 
 =cut
 
+my $mixs = $self->mixs();
+my $data = $self->get_job_metadata($job);
+my $lib  = $data->{library}{data}{investigation_type} || undef;
+my $ep   = $data->{sample}{data}{env_package} || undef;
+
+unless ($lib && $ep && exists($mixs->{library}{$lib}) && exists($mixs->{ep}{$ep})) {
+  return 0;
+}
+
+foreach my $cat (keys %$mixs) {
+  if ($cat eq 'library') {
+    foreach my $tag (keys %{$mixs->{library}{$lib}}) {
+    if (! exists($data->{$cat}{data}{$tag})) {
+      return 0;
+    }
+    }
+  } elsif ($cat eq 'ep') {
+    foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
+	    if (! exists($data->{$cat}{data}{$tag})) {
+	      return 0;
+	    }
+    }
+  } else {
+    foreach my $tag (keys %{$mixs->{$cat}}) {
+    if (! exists($data->{$cat}{data}{$tag})) {
+      return 0;
+    }
+    }
+  }
+}
+return 1;
+
 sub verify_job_metadata {
   my ($self, $job) = @_;
 
   my $mixs = $self->mixs();
   my $data = $self->get_job_metadata($job);
+  my $lib  = $data->{library}{data}{investigation_type} || undef;
+  my $ep   = $data->{sample}{data}{env_package} || undef;
+  
   my $errors = [];
-  unless (exists $data->{library}{data}{investigation_type}) {
-    push(@$errors, "mandatory term 'investigation type' missing");
+  unless ($lib) {
+    push(@$errors, "mandatory term 'investigation_type' missing");
   }
-  my $lib = $data->{library}{data}{investigation_type};
   unless ($lib && exists($mixs->{library}{$lib})) {
     push(@$errors, "library missing");
   }
+  unless ($ep) {
+    push(@$errors, "mandatory term 'env_package' missing");
+  }
+  unless ($ep && exists($mixs->{ep}{$ep})) {
+    push(@$errors, "enviromental package missing");
+  }
+  
   foreach my $cat (keys %$mixs) {
     if ($cat eq 'library') {
       foreach my $tag (keys %{$mixs->{library}{$lib}}) {
-	if (! exists($data->{$cat}{data}{$tag})) {
-	  push(@$errors, "mandatory term '$tag' from category '$cat' missing");
-	}
+	    if (! exists($data->{$cat}{data}{$tag})) {
+	      push(@$errors, "mandatory term '$tag' from category '$cat $lib' missing");
+	    }
       }
-    }
-    else {
+    } elsif ($cat eq 'ep') {
+      foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
+	    if (! exists($data->{$cat}{data}{$tag})) {
+	      push(@$errors, "mandatory term '$tag' from category '$cat $ep' missing");
+	    }
+      }
+    } else {
       foreach my $tag (keys %{$mixs->{$cat}}) {
-	if (! exists($data->{$cat}{data}{$tag})) {
-	  push(@$errors, "mandatory term '$tag' from category '$cat' missing");
-	}
+	    if (! exists($data->{$cat}{data}{$tag})) {
+	      push(@$errors, "mandatory term '$tag' from category '$cat' missing");
+	    }
       }
     }
   }
