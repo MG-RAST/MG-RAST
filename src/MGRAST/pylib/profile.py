@@ -147,10 +147,10 @@ class Profile(object):
             'rows'                : [],
             'data'                : [],
             'columns'             : [
-                {'id' : "abundance"},
-                {'id' : "e-value"},
-                {'id' : "percent identity"},
-                {'id' : "alignment length"}
+                {'id': "abundance", 'metadata': None},
+                {'id': "e-value", 'metadata': None},
+                {'id': "percent identity", 'metadata': None},
+                {'id': "alignment length", 'metadata': None}
             ]
         }
     
