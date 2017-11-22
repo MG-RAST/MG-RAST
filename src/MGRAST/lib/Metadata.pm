@@ -664,21 +664,22 @@ sub verify_job_metadata {
   foreach my $cat (keys %$mixs) {
     if ($cat eq 'library') {
       foreach my $tag (keys %{$mixs->{library}{$lib}}) {
-	    if (! exists($data->{$cat}{data}{$tag})) {
-	      push(@$errors, "mandatory term '$tag' from category '$cat $lib' missing");
-	    }
+	if (! exists($data->{$cat}{data}{$tag})) {
+	  push(@$errors, "mandatory term '$tag' from category '$cat $lib' missing");
+	}
       }
     } elsif ($cat eq 'ep') {
+      $cat = 'env_package';
       foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
-	    if (! exists($data->{$cat}{data}{$tag})) {
-	      push(@$errors, "mandatory term '$tag' from category '$cat $ep' missing");
-	    }
+	if (! exists($data->{$cat}{data}{$tag})) {
+	  push(@$errors, "mandatory term '$tag' from package '$ep' missing");
+	}
       }
     } else {
       foreach my $tag (keys %{$mixs->{$cat}}) {
-	    if (! exists($data->{$cat}{data}{$tag})) {
-	      push(@$errors, "mandatory term '$tag' from category '$cat' missing");
-	    }
+	if (! exists($data->{$cat}{data}{$tag})) {
+	  push(@$errors, "mandatory term '$tag' from category '$cat' missing");
+	}
       }
     }
   }
