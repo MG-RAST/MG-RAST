@@ -614,11 +614,13 @@ sub is_job_compliant {
 	      return 0;
 	    }
       }
-    } elsif (($cat eq 'ep') && exists($mixs->{ep}{$ep})) {
-      foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
-  	    if (! exists($data->{$cat}{data}{$tag})) {
-  	      return 0;
-  	    }
+    } elsif ($cat eq 'ep') {
+      if (exists $mixs->{ep}{$ep}) {
+        foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
+          if (! exists($data->{$cat}{data}{$tag})) {
+            return 0;
+          }
+        }
       }
     } else {
       foreach my $tag (keys %{$mixs->{$cat}}) {
@@ -665,10 +667,12 @@ sub verify_job_metadata {
           push(@$errors, "mandatory term '$tag' from category '$cat $lib' missing");
         }
       }
-    } elsif (($cat eq 'ep') && exists($mixs->{ep}{$ep})) {
-      foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
-        if (! exists($data->{$cat}{data}{$tag})) {
-          push(@$errors, "mandatory term '$tag' from category '$cat $ep' missing");
+    } elsif ($cat eq 'ep') {
+      if (exists $mixs->{ep}{$ep}) {
+        foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
+          if (! exists($data->{$cat}{data}{$tag})) {
+            push(@$errors, "mandatory term '$tag' from category '$cat $ep' missing");
+          }
         }
       }
     } else {
