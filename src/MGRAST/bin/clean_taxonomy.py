@@ -4,14 +4,13 @@ import os
 import sys
 import copy
 import json
-from optparse import OptionParser
+import argparse
 from collections import defaultdict
 
 """
 Requires 'id' and 'parentNodes' fields.
 """
 
-ROOT_ID = None
 RANK_PREFIX = 'super,sub,infra,parv,cohort,forma,tribe,varietas'
 
 def toRemove(data):
@@ -21,13 +20,13 @@ def toRemove(data):
             remove.append(copy.deepcopy(n))
     return remove
 
-def cleanDesc(nodes):
+def cleanDesc(nodes, root_id):
     i = 1
     remove = toRemove(nodes)
     while len(remove) > 0:
         print "round %d, remove %d"%(i, len(remove))
         for r in remove:
-            if ROOT_ID and (r['id'] == ROOT_ID):
+            if root_id and (r['id'] == root_id):
                 continue
             # this node has no children
             # update parents children list
@@ -39,7 +38,7 @@ def cleanDesc(nodes):
                 del nodes[r['id']]
         remove = toRemove(nodes)
         i += 1
-    print "round %d, remove %d"%(i, len(remove))
+    print "root %s: round %d, remove %d"%(root_id, i, len(remove))
     return nodes
 
 def checkRank(node, prefixes):
@@ -50,18 +49,26 @@ def checkRank(node, prefixes):
             return pre
     return None
 
-def cleanRank(nodes, prefixes):
+def cleanRank(nodes, root_id, prefixes):
     removed = defaultdict(int)
     nodeIds = nodes.keys()
     for nid in nodeIds:
         if nid not in nodes:
             continue
-        if ROOT_ID and (nid == ROOT_ID):
+        if root_id and (nid == root_id):
             continue
         n = nodes[nid]
         key = checkRank(n, prefixes)
         if not key:
             continue
+        # special case of strain / species
+        if (len(n['childNodes']) == 0) and (len(n['parentNodes']) == 1) and ('rank' in nodes[n['parentNodes'][0]]):
+            if nodes[n['parentNodes'][0]]['rank'] == 'species':
+                nodes[nid]['rank'] = 'strain'
+                continue
+            if nodes[n['parentNodes'][0]]['rank'] == 'genus':
+                nodes[nid]['rank'] = 'species'
+                continue
         # update child lists of parents
         for p in n['parentNodes']:
             if p in nodes:
@@ -78,7 +85,7 @@ def cleanRank(nodes, prefixes):
         del nodes[nid]
         removed[key] += 1
     for r in removed.keys():
-        print "removed prefix: %s, %d nodes"%(r, removed[r])
+        print "root %s: removed prefix: %s, %d nodes"%(root_id, r, removed[r])
     return nodes
 
 def getDescendents(nodes, tid):
@@ -91,7 +98,7 @@ def getDescendents(nodes, tid):
                 decendents.extend(getDescendents(nodes, child))
     return decendents
 
-def pruneTree(nodes, prune):
+def pruneTree(nodes, root_id, prune):
     pruneParents = set()
     for p in prune:
         i = 0
@@ -105,7 +112,7 @@ def pruneTree(nodes, prune):
             if d in nodes:
                 i += 1
                 del nodes[d]
-        print "pruned %s, %d decendents removed"%(p, i)
+        print "root %s: pruned %s, %d decendents removed"%(root_id, p, i)
     for pp in pruneParents:
         if pp not in nodes:
             continue
@@ -115,61 +122,90 @@ def pruneTree(nodes, prune):
     return nodes
 
 def main(args):
-    global ROOT_ID
-    parser = OptionParser(usage="usage: %prog [options] -i <input file> -o <output file>")
-    parser.add_option("-i", "--input", dest="input", default=None, help="input .json file")
-    parser.add_option("-o", "--output", dest="output", default=None, help="output: .json file")
-    parser.add_option("-n", "--nest", dest="nest", action="store_true", default=False, help="nodes dict is nested within 'nodes' field, default is not")
-    parser.add_option("-d", "--desc", dest="desc", action="store_true", default=False, help="remove all nodes with no descrption, walk tree from leaf nodes up")
-    parser.add_option("-r", "--rank", dest="rank", action="store_true", default=False, help="remove all nodes with rank prefix or no rank, connect childern to grandparents")
-    parser.add_option("-p", "--prune", dest="prune", default=None, help="comma seperated list of ids, those ids and all their descendents will be removed from output")
-    parser.add_option("", "--root", dest="root", default=None, help="root id of ontology, required if not using 'nest' option")
-    parser.add_option("", "--prefix", dest="prefix", default=RANK_PREFIX, help="comma seperated list of rank prefixes, default is: "+RANK_PREFIX)
-    parser.add_option("", "--no_id", dest="no_id", action="store_true", default=False, help="remove 'id' from struct to reduce size, only for --full")
-    parser.add_option("", "--no_parents", dest="no_parents", action="store_true", default=False, help="remove 'parentNodes' from struct to reduce size")
-    (opts, args) = parser.parse_args()
-    if not (opts.input and os.path.isfile(opts.input)):
+    parser = argparse.ArgumentParser(usage="usage: %prog [options] -i <input file> -o <output file>")
+    parser.add_argument("-i", "--input", dest="input", default=[], help="one or more input .json file", action='append')
+    parser.add_argument("-o", "--output", dest="output", default=None, help="output: .json file")
+    parser.add_argument("-d", "--desc", dest="desc", action="store_true", default=False, help="remove all nodes with no descrption, walk tree from leaf nodes up")
+    parser.add_argument("-r", "--rank", dest="rank", action="store_true", default=False, help="remove all nodes with rank prefix or no rank, connect childern to grandparents")
+    parser.add_argument("-p", "--prune", dest="prune", default=None, help="comma seperated list of ids, those ids and all their descendents will be removed from output")
+    parser.add_argument("--root", dest="root", default=None, help="id of root node to be created if mutiple inputs used")
+    parser.add_argument("--prefix", dest="prefix", default=RANK_PREFIX, help="comma seperated list of rank prefixes, default is: "+RANK_PREFIX)
+    parser.add_argument("--no_id", dest="no_id", action="store_true", default=False, help="remove 'id' from struct to reduce size, only for --full")
+    parser.add_argument("--no_parents", dest="no_parents", action="store_true", default=False, help="remove 'parentNodes' from struct to reduce size")
+    args = parser.parse_args()
+    
+    if len(args.input) == 0:
         parser.error("missing input")
-    if not opts.output:
+    if (len(args.input) > 1) and (not args.root):
+        parser.error("missing root id")
+    if not args.output:
         parser.error("missing output")
-    if opts.root:
-        ROOT_ID = opts.root
     
-    ontol = json.load(open(opts.input, 'r'))
-    if opts.nest:
-        nodes = ontol['nodes']
-        ROOT_ID = ontol['rootNode']
-    else:
-        nodes = ontol
+    nodes = []
+    for i in args.input:
+        try:
+            data = json.load(open(i, 'r'))
+            root = data['rootNode']
+            nodes.append(data)
+        except:
+            parser.error("input %s is invalid format"%(i))
     
-    # rank cleanup
-    if opts.rank:
-        prefixes = opts.prefix.split(",")
-        nodes = cleanRank(nodes, prefixes)
+    # remove messy branches
+    # 'unclassified'
+    # 'environmental samples'
+    prune = []
+    for node in nodes:
+        for v in node['nodes'].itervalues():
+            if v['label'].startswith('unclassified') or v['label'].startswith('environmental'):
+                prune.append(v['id'])
     
-    # description cleanup
-    if opts.desc:
-        nodes = cleanDesc(nodes)
+    # add inputted
+    if args.prune:
+        prune.extend(args.prune.split(','))
     
     # prune branches
-    if opts.prune:
-        prune = opts.prune.split(',')
-        nodes = pruneTree(nodes, prune)
+    for i, n in enumerate(nodes):
+        nodes[i]['nodes'] = pruneTree(n['nodes'], n['rootNode'], prune)
+    
+    # rank cleanup
+    if args.rank:
+        prefixes = args.prefix.split(",")
+        for i, n in enumerate(nodes):
+            nodes[i]['nodes'] = cleanRank(n['nodes'], n['rootNode'], prefixes)
+    
+    # description cleanup
+    if args.desc:
+        for i, n in enumerate(nodes):
+            nodes[i]['nodes'] = cleanDesc(n['nodes'], n['rootNode'])
     
     # trim if needed
-    if opts.no_id:
-        for v in nodes.itervalues():
-            del v['id']
-    if opts.no_parents:
-        for v in nodes.itervalues():
-            del v['parentNodes']
+    if args.no_id:
+        for n in nodes:
+            for v in n['nodes'].itervalues():
+                del v['id']
+    if args.no_parents:
+        for n in nodes:
+            for v in n['nodes'].itervalues():
+                del v['parentNodes']
+    
+    # merge
+    data = {}
+    if len(nodes) > 1:
+        data[args.root] = {
+            'id': args.root,
+            'label': 'root',
+            'parentNodes': [],
+            'childNodes': []
+        }
+        for n in nodes:
+            data.update(n['nodes'])
+            data[args.root]['childNodes'].append(n['rootNode'])
+            data[n['rootNode']]['parentNodes'] = [args.root]
+    else:
+        data = n['nodes']
     
     # output
-    if opts.nest:
-        ontol['nodes'] = nodes
-    else:
-        ontol = nodes
-    json.dump(ontol, open(opts.output, 'w'), separators=(',',':'))
+    json.dump(data, open(args.output, 'w'), separators=(',',':'))
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
