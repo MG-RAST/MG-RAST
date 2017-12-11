@@ -97,7 +97,7 @@ sub info {
 					     'example'     => [ $self->url."/".$self->name."/ontology?source=Subsystems&min_level=level3",
        				                        'retrieve subsystems hierarchy for the top 3 levels' ],
 					     'method'      => "GET",
-					     'type'        => "synchronous",  
+					     'type'        => "synchronous",
 					     'attributes'  => $self->{attributes}{ontology},
 					     'parameters'  => { 'options'  => {
 					                            'source' => ['cv', $self->source->{ontology}],
@@ -117,7 +117,7 @@ sub info {
 					     'example'     => [ $self->url."/".$self->name."/taxonomy?filter=Bacteroidetes&filter_level=phylum&min_level=genus",
         				                    'retrieve all class level taxa that belong to Bacteroidetes' ],
 					     'method'      => "GET",
-					     'type'        => "synchronous",  
+					     'type'        => "synchronous",
 					     'attributes'  => $self->{attributes}{taxonomy},
 					     'parameters'  => { 'options'  => {
 					                            'filter_level' => ['cv', [ @{$self->hierarchy->{organism}}[1..7] ]],
@@ -136,7 +136,7 @@ sub info {
          				                    'retrieve all data sources for M5NR' ],
 					     'description' => "Return all sources in M5NR",
 					     'method'      => "GET",
-					     'type'        => "synchronous",  
+					     'type'        => "synchronous",
 					     'attributes'  => $self->{attributes}{sources},
 					     'parameters'  => { 'options'  => {
 					                            'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
@@ -150,7 +150,7 @@ sub info {
    					     'example'     => [ $self->url."/".$self->name."/accession/YP_003268079.1",
           				                    "retrieve M5NR data for accession ID 'YP_003268079.1'" ],
    					     'method'      => "GET",
-   					     'type'        => "synchronous",  
+   					     'type'        => "synchronous",
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => {
    					                            'limit'  => ['integer','maximum number of items requested'],
@@ -167,7 +167,7 @@ sub info {
       				     'example'     => [ $self->url."/".$self->name."/alias/IPR001478",
              				                "retrieve M5NR data for db_xref ID 'IPR001478'" ],
       					 'method'      => "GET",
-      					 'type'        => "synchronous",  
+      					 'type'        => "synchronous",
       				     'attributes'  => $self->{attributes}{annotation},
       				     'parameters'  => { 'options'  => {
       				                            'source' => ['string','source name to restrict search by'],
@@ -186,7 +186,7 @@ sub info {
    					     'example'     => [ $self->url."/".$self->name."/md5/000821a2e2f63df1a3873e4b280002a8?source=InterPro",
            				                    "retrieve InterPro M5NR data for md5sum '000821a2e2f63df1a3873e4b280002a8'" ],
    					     'method'      => "GET",
-   					     'type'        => "synchronous",  
+   					     'type'        => "synchronous",
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => {
    					                            'source' => ['string','source name to restrict search by'],
@@ -210,12 +210,13 @@ sub info {
    					     'type'        => "synchronous",
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => {
-   					                            'source' => ['string','source name to restrict search by'],
-   					                            'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+   					                            'source'  => ['string','source name to restrict search by'],
+                                                'id_only' => ['boolean', "if true return map of { 'function_id' : 'function_text' } only"],
+   					                            'exact'   => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
    					                            'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
-   					                            'limit'  => ['integer','maximum number of items requested'],
-                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
+   					                            'limit'   => ['integer','maximum number of items requested'],
+                                                'offset'  => ['integer','zero based index of the first data object to be returned'],
+                                                'order'   => ['string','name of the attribute the returned data is ordered by'],
                                                 'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
     					                    },
    							                'required' => { "text" => ["string", "text string of partial function name"] },
@@ -227,7 +228,7 @@ sub info {
    					     'example'     => [ $self->url."/".$self->name."/organism/akkermansia?source=KEGG",
               				                "retrieve KEGG M5NR data for organism names containing string 'akkermansia'" ],
    					     'method'      => "GET",
-   					     'type'        => "synchronous",  
+   					     'type'        => "synchronous",
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => {
    					                            'source' => ['string','source name to restrict search by'],
@@ -248,7 +249,7 @@ sub info {
    					     'example'     => [ $self->url."/".$self->name."/sequence/MAGENHQWQGSIL?source=TrEMBL",
             				                "retrieve TrEMBL M5NR data for md5sum of sequence 'MAGENHQWQGSIL'" ],
    					     'method'      => "GET",
-   					     'type'        => "synchronous",  
+   					     'type'        => "synchronous",
    					     'attributes'  => $self->{attributes}{annotation},
    					     'parameters'  => { 'options'  => {
    					                            'source' => ['string','source name to restrict search by'],
@@ -266,7 +267,7 @@ sub info {
       				     'example'     => [ 'curl -X POST -d \'{"order":"function","data":["YP_003268079.1","COG1764"]}\' "'.$self->url."/".$self->name.'/accession"',
                				                "retrieve M5NR data for accession IDs 'YP_003268079.1' and 'COG1764' ordered by function" ],
       				      'method'      => "POST",
-      				      'type'        => "synchronous",  
+      				      'type'        => "synchronous",
       				      'attributes'  => $self->{attributes}{annotation},
       				      'parameters'  => { 'body'     => {
       					                         'data'   => ['list',["string","unique identifier from source DB"]],
@@ -284,7 +285,7 @@ sub info {
          		         'example'     => [ 'curl -X POST -d \'{"order":"function","data":["IPR001478","TIGR02124"]}\' "'.$self->url."/".$self->name.'/alias"',
                   				            "retrieve M5NR data for aliases containing string 'IPR001478' and 'TIGR02124'" ],
          			     'method'      => "POST",
-         			     'type'        => "synchronous",  
+         			     'type'        => "synchronous",
          			     'attributes'  => $self->{attributes}{annotation},
          			     'parameters'  => { 'body'     => {
          				                        'data'   => ['list',["string","text string of partial alias ID"]],
@@ -304,7 +305,7 @@ sub info {
       					     'example'     => [ 'curl -X POST -d \'{"source":"InterPro","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->url."/".$self->name.'/md5"',
                 				                "retrieve InterPro M5NR data for md5s '000821a2e2f63df1a3873e4b280002a8' and '15bf1950bd9867099e72ea6516e3d602'" ],
       					     'method'      => "POST",
-      					     'type'        => "synchronous",  
+      					     'type'        => "synchronous",
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => {
       					                            'data'   => ['list',["string","unique identifier in form of md5 checksum"]],
@@ -326,17 +327,31 @@ sub info {
       					     'example'     => [ 'curl -X POST -d \'{"source":"GenBank","limit":50,"data":["sulfatase","phosphatase"]}\' "'.$self->url."/".$self->name.'/function"',
                   				                "retrieve top 50 GenBank M5NR data for function names containing string 'sulfatase' or 'phosphatase'" ],
       					     'method'      => "POST",
-      					     'type'        => "synchronous",  
+      					     'type'        => "synchronous",
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => {
-      					                            'data'   => ['list',["string","text string of partial function name"]],
-      					                            'md5s'   => ['list',["string","md5 to constrain search by"]],
-      					                            'source' => ['string','source name to restrict search by'],
-      					                            'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
+      					                            'data'    => ['list',["string","text string of partial function name"]],
+      					                            'md5s'    => ['list',["string","md5 to constrain search by"]],
+      					                            'source'  => ['string','source name to restrict search by'],
+                                                    'id_only' => ['boolean', "if true return map of { 'function_id' : 'function_text' } only"],
+      					                            'exact'   => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
       					                            'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
-      					                            'limit'  => ['integer','maximum number of items requested'],
-                                                    'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                    'order'  => ['string','name of the attribute the returned data is ordered by'],
+      					                            'limit'   => ['integer','maximum number of items requested'],
+                                                    'offset'  => ['integer','zero based index of the first data object to be returned'],
+                                                    'order'   => ['string','name of the attribute the returned data is ordered by'],
+                                                    'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
+       					                        },
+      							                'required' => {},
+      							                'options'  => {} }
+      				       },
+   				           { 'name'        => "function_id",
+      					     'request'     => $self->url."/".$self->name."/function_id",
+      					     'description' => "Return annotations for given function IDs",
+      					     'method'      => "POST",
+      					     'type'        => "synchronous",
+      					     'attributes'  => $self->{attributes}{annotation},
+      					     'parameters'  => { 'body'     => {
+      					                            'data'    => ['list',["integer","function index ID"]],
                                                     'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
        					                        },
       							                'required' => {},
@@ -348,7 +363,7 @@ sub info {
       					     'example'     => [ 'curl -X POST -d \'{"source":"KEGG","order":"accession","data":["akkermansia","yersinia"]}\' "'.$self->url."/".$self->name.'/organism"',
                    				                "retrieve KEGG M5NR data (ordered by accession ID) for organism names containing string 'akkermansia' or 'yersinia'" ],
       					     'method'      => "POST",
-      					     'type'        => "synchronous",  
+      					     'type'        => "synchronous",
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => {
       					                            'data'   => ['list',["string","text string of partial organism name"]],
@@ -371,7 +386,7 @@ sub info {
       					     'example'     => [ 'curl -X POST -d \'{"source":"KEGG","order":"source","data":["MAGENHQWQGSIL","MAGENHQWQGSIL"]}\' "'.$self->url."/".$self->name.'/sequence"',
                  				                "retrieve M5NR data ordered by source for sequences 'MAGENHQWQGSIL' and 'MAGENHQWQGSIL'" ],
       					     'method'      => "POST",
-      					     'type'        => "synchronous",  
+      					     'type'        => "synchronous",
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => {
       					                            'data'   => ['list',["string","text string of protein sequence"]],
@@ -538,11 +553,12 @@ sub query {
     my $limit    = $self->cgi->param('limit')     ? $self->cgi->param('limit')  : 10;
     my $offset   = $self->cgi->param('offset')    ? $self->cgi->param('offset') : 0;
     my $order    = $self->cgi->param('order')     ? $self->cgi->param('order')  : undef;
+    my $id_only  = $self->cgi->param('id_only')   ? 1 : 0;
     my $exact    = $self->cgi->param('exact')     ? 1 : 0;
     my $inverse  = $self->cgi->param('inverse')   ? 1 : 0;
     my $sequence = $self->cgi->param('sequence')  ? 1 : 0;
     my $format   = $self->cgi->param('format')    ? $self->cgi->param('format') : 'fasta';
-    my $version  = $self->cgi->param('version') || $self->{m5nr_default};
+    my $version  = $self->cgi->param('version')  || $self->{m5nr_default};
     
     # build data / url
     my $post = ($self->method eq 'POST') ? 1 : 0;
@@ -561,6 +577,7 @@ sub query {
                 if (exists $json_data->{limit})     { $limit    = $json_data->{limit}; }
                 if (exists $json_data->{offset})    { $offset   = $json_data->{offset}; }
                 if (exists $json_data->{order})     { $order    = $json_data->{order}; }
+                if (exists $json_data->{id_only})   { $id_only  = $json_data->{id_only} ? 1 : 0; }
                 if (exists $json_data->{exact})     { $exact    = $json_data->{exact} ? 1 : 0; }
                 if (exists $json_data->{inverse})   { $inverse  = $json_data->{inverse} ? 1 : 0; }
                 if (exists $json_data->{sequence})  { $sequence = $json_data->{sequence} ? 1 : 0; }
@@ -635,7 +652,19 @@ sub query {
         }
         ($result, $total) = $self->query_annotation($version, $tlevel, $data, $source, $offset, $limit, $order, $exact, $inverse, $md5s);
     } elsif ($type eq 'function') {
-        ($result, $total) = $self->query_annotation($version, 'function', $data, $source, $offset, $limit, $order, $exact, $inverse, $md5s);
+        if ($id_only) {
+            ($result, $total) = $self->query_function($version, $data, $offset, $limit, $order, $exact, $inverse);
+        } else {
+            ($result, $total) = $self->query_annotation($version, 'function', $data, $source, $offset, $limit, $order, $exact, $inverse, $md5s);
+        }
+    } elsif ($type eq 'function_id') {
+        my $chdl = $self->cassandra_handle("m5nr", $version);
+        unless ($chdl) {
+            return ({"ERROR" => "unable to connect to M5NR database"}, 500);
+        }
+        $result = $chdl->get_functions_by_id($data);
+        $chdl->close();
+        $self->return_data({'data' => $result, 'version' => $version});
     } else {
         $self->return_data({"ERROR" => "invalid resource type was entered ($type)"}, 404);
     }
@@ -650,6 +679,26 @@ sub check_version {
     unless (exists $self->{m5nr_version}{$version}) {
         $self->return_data({"ERROR" => "invalid version was entered ($version). Please use one of: ".join(", ", keys %{$self->{m5nr_version}})}, 404);
     }
+}
+
+sub query_function {
+    my ($self, $version, $data, $offset, $limit, $order, $exact, $inverse) = @_;
+    
+    @$data = map { uri_escape( uri_unescape($_) ) } @$data;
+    if ($exact) {
+        @$data = map { '"'.$_.'"' } @$data;
+    } else {
+        @$data = map { '"*'.$_.'*"' } @$data;
+    }
+    my $sort   = $order ? $order.'_sort+asc' : '';
+    my $method = (@$data > 1) ? 'POST' : 'GET';
+    my $query  = 'object%3Afunction+AND+';
+    if ($inverse) {
+        $query .= join('+AND+', map { '-function%3A'.$_ } @$data);
+    } else {
+        $query .= '('.join('+OR+', map { 'function%3A'.$_ } @$data).')';
+    }
+    return $self->get_solr_query($method, $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $query, $sort, $offset, $limit, ['function_id','function']);
 }
 
 sub query_annotation {

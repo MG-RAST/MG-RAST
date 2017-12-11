@@ -80,6 +80,18 @@ class M5nrHandle(object):
                 r['is_protein'] = 1 if r['is_protein'] else 0
                 found.append(r)
             return found
+    def get_functions_by_id(self, ids, iterator=False):
+        found = []
+        id_str = ",".join(map(str, ids))
+        query = "SELECT * FROM functions WHERE id IN (%s)"%(id_str)
+        rmqLogger(self.channel, 'select', query)
+        rows = self.session.execute(query)
+        if iterator:
+            return rows
+        else:
+            for r in rows:
+                found.append( {'function_id': r['id'], 'function': r['name']} )
+            return found
     ### retrieve full hierarchies
     def get_taxa_hierarchy(self):
         found = {}
