@@ -21,7 +21,7 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "m5nr";
-    $self->{m5nr_default} = '10';
+    $self->{m5nr_default} = '1';
     $self->{request} = { ontology => 1, taxonomy => 1, sources => 1, accession => 1, 
                          md5 => 1, function => 1, organism => 1, sequence => 1 };
 	$self->{attributes} = { taxonomy => { data => [ 'list', ['object', [{'organism' => [ 'string', 'organism name' ],
