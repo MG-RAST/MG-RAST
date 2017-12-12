@@ -11,7 +11,7 @@ from collections import defaultdict
 Requires 'id' and 'parentNodes' fields.
 """
 
-RANK_PREFIX = 'super,sub,infra,parv,cohort,forma,tribe,varietas'
+VALID_RANK = 'domain,phylum,class,order,family,genus,species,strain'
 
 def toRemove(data):
     remove = []
@@ -41,15 +41,14 @@ def cleanDesc(nodes, root_id):
     print "root %s: round %d, remove %d"%(root_id, i, len(remove))
     return nodes
 
-def checkRank(node, prefixes):
+def checkRank(node, valid):
     if 'rank' not in node:
         return "missing"
-    for pre in prefixes:
-        if node['rank'].startswith(pre):
-            return pre
+    if node['rank'] not in valid:
+        return node['rank']
     return None
 
-def cleanRank(nodes, root_id, prefixes):
+def cleanRank(nodes, root_id, valid):
     removed = defaultdict(int)
     nodeIds = nodes.keys()
     for nid in nodeIds:
@@ -58,10 +57,7 @@ def cleanRank(nodes, root_id, prefixes):
         if root_id and (nid == root_id):
             continue
         n = nodes[nid]
-        key = checkRank(n, prefixes)
-        if not key:
-            continue
-        # special case of strain / species
+        # special case fix strain / species
         if (len(n['childNodes']) == 0) and (len(n['parentNodes']) == 1) and ('rank' in nodes[n['parentNodes'][0]]):
             if nodes[n['parentNodes'][0]]['rank'] == 'species':
                 nodes[nid]['rank'] = 'strain'
@@ -69,6 +65,9 @@ def cleanRank(nodes, root_id, prefixes):
             if nodes[n['parentNodes'][0]]['rank'] == 'genus':
                 nodes[nid]['rank'] = 'species'
                 continue
+        key = checkRank(n, valid)
+        if not key:
+            continue
         # update child lists of parents
         for p in n['parentNodes']:
             if p in nodes:
@@ -122,15 +121,15 @@ def pruneTree(nodes, root_id, prune):
     return nodes
 
 def main(args):
-    parser = argparse.ArgumentParser(usage="usage: %prog [options] -i <input file> -o <output file>")
+    parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", dest="input", default=[], help="one or more input .json file", action='append')
     parser.add_argument("-o", "--output", dest="output", default=None, help="output: .json file")
     parser.add_argument("-d", "--desc", dest="desc", action="store_true", default=False, help="remove all nodes with no descrption, walk tree from leaf nodes up")
-    parser.add_argument("-r", "--rank", dest="rank", action="store_true", default=False, help="remove all nodes with rank prefix or no rank, connect childern to grandparents")
+    parser.add_argument("-r", "--rank", dest="rank", action="store_true", default=False, help="remove all nodes without valid rank, connect childern to grandparents")
     parser.add_argument("-p", "--prune", dest="prune", default=None, help="comma seperated list of ids, those ids and all their descendents will be removed from output")
     parser.add_argument("--root", dest="root", default=None, help="id of root node to be created if mutiple inputs used")
-    parser.add_argument("--prefix", dest="prefix", default=RANK_PREFIX, help="comma seperated list of rank prefixes, default is: "+RANK_PREFIX)
-    parser.add_argument("--no_id", dest="no_id", action="store_true", default=False, help="remove 'id' from struct to reduce size, only for --full")
+    parser.add_argument("--valid", dest="valid", default=VALID_RANK, help="comma seperated list of valid rank terms, default is: "+VALID_RANK)
+    parser.add_argument("--no_id", dest="no_id", action="store_true", default=False, help="remove 'id' from struct to reduce size")
     parser.add_argument("--no_parents", dest="no_parents", action="store_true", default=False, help="remove 'parentNodes' from struct to reduce size")
     args = parser.parse_args()
     
@@ -169,9 +168,9 @@ def main(args):
     
     # rank cleanup
     if args.rank:
-        prefixes = args.prefix.split(",")
+        valid = args.valid.split(",")
         for i, n in enumerate(nodes):
-            nodes[i]['nodes'] = cleanRank(n['nodes'], n['rootNode'], prefixes)
+            nodes[i]['nodes'] = cleanRank(n['nodes'], n['rootNode'], valid)
     
     # description cleanup
     if args.desc:
