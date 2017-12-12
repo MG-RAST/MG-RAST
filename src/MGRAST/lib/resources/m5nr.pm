@@ -333,7 +333,7 @@ sub info {
       					                            'data'    => ['list',["string","text string of partial function name"]],
       					                            'md5s'    => ['list',["string","md5 to constrain search by"]],
       					                            'source'  => ['string','source name to restrict search by'],
-                                                    'id_only' => ['boolean', "if true return map of { 'function_id' : 'function_text' } only"],
+                                                    'id_only' => ['boolean', "if true return only [{ 'function_id' : <ID>, 'function' : <TEXT> }]"],
       					                            'exact'   => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
       					                            'inverse' => ['boolean', "if true return only those annotations that do not match input text, default is false"],
       					                            'limit'   => ['integer','maximum number of items requested'],
@@ -351,8 +351,9 @@ sub info {
       					     'type'        => "synchronous",
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => {
-      					                            'data'    => ['list',["integer","function index ID"]],
-                                                    'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
+      					                            'data'     => ['list',["integer","function index ID"]],
+                                                    'compress' => ['boolean', 'if true return map of { <ID> : <TEXT> } only']
+                                                    'version'  => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
        					                        },
       							                'required' => {},
       							                'options'  => {} }
@@ -554,6 +555,7 @@ sub query {
     my $offset   = $self->cgi->param('offset')    ? $self->cgi->param('offset') : 0;
     my $order    = $self->cgi->param('order')     ? $self->cgi->param('order')  : undef;
     my $id_only  = $self->cgi->param('id_only')   ? 1 : 0;
+    my $compress = $self->cgi->param('compress')  ? 1 : 0;
     my $exact    = $self->cgi->param('exact')     ? 1 : 0;
     my $inverse  = $self->cgi->param('inverse')   ? 1 : 0;
     my $sequence = $self->cgi->param('sequence')  ? 1 : 0;
@@ -578,6 +580,7 @@ sub query {
                 if (exists $json_data->{offset})    { $offset   = $json_data->{offset}; }
                 if (exists $json_data->{order})     { $order    = $json_data->{order}; }
                 if (exists $json_data->{id_only})   { $id_only  = $json_data->{id_only} ? 1 : 0; }
+                if (exists $json_data->{compress})  { $compress = $json_data->{compress} ? 1 : 0; }
                 if (exists $json_data->{exact})     { $exact    = $json_data->{exact} ? 1 : 0; }
                 if (exists $json_data->{inverse})   { $inverse  = $json_data->{inverse} ? 1 : 0; }
                 if (exists $json_data->{sequence})  { $sequence = $json_data->{sequence} ? 1 : 0; }
@@ -662,7 +665,7 @@ sub query {
         unless ($chdl) {
             return ({"ERROR" => "unable to connect to M5NR database"}, 500);
         }
-        $result = $chdl->get_functions_by_id($data);
+        $result = $chdl->get_functions_by_id($data, $compress);
         $chdl->close();
         $self->return_data({'data' => $result, 'version' => $version});
     } else {
