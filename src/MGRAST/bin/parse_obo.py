@@ -135,7 +135,7 @@ def outputTab(data, ofile):
         print out_str
 
 def main(args):
-    global terms, addRank
+    global terms
     parser = OptionParser(usage="usage: %prog [options] -i <input file> -o <output file>")
     parser.add_option("-i", "--input", dest="input", default=None, help="input .obo file")
     parser.add_option("-o", "--output", dest="output", default=None, help="output: .json file or stdout, default is stdout")
@@ -159,8 +159,6 @@ def main(args):
         parser.error("missing relations")
     if (not opts.term_id) and (opts.get != 'top'):
         opts.get = 'all'
-    if opts.rank:
-        addRank = True
     
     oboFile = open(opts.input, 'r')
     relations = opts.relations.split(',')
