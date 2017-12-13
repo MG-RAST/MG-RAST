@@ -51,13 +51,13 @@ if ($@ || (! ref($response))) {
 }
 
 # delete job
-system("curl -X DELETE -H 'Authorization: $auth_token' '$awe_url/job/$aweid?full=1'");
+system("curl -X DELETE -H 'Authorization: $auth_token' '$awe_url/job/$aweid?full=1'; echo");
 
 # delete nodes
 foreach my $task (@{$job_doc->{tasks}}) {
     foreach my $out (@{$task->{outputs}}) {
         if ($out->{node} && ($out->{node} ne '-')) {
-            system("curl -X DELETE -H 'Authorization: $auth_token' '$shock_url/node/".$out->{node}."'");
+            system("curl -X DELETE -H 'Authorization: $auth_token' '$shock_url/node/".$out->{node}."'; echo");
         }
     }
 }
