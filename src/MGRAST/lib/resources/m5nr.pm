@@ -352,7 +352,7 @@ sub info {
       					     'attributes'  => $self->{attributes}{annotation},
       					     'parameters'  => { 'body'     => {
       					                            'data'     => ['list',["integer","function index ID"]],
-                                                    'compress' => ['boolean', 'if true return map of { <ID> : <TEXT> } only']
+                                                    'compress' => ['boolean', 'if true return map of { <ID> : <TEXT> } only'],
                                                     'version'  => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
        					                        },
       							                'required' => {},
