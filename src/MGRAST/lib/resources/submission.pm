@@ -192,6 +192,7 @@ sub info {
                   'body'     => {
                       "project_id" => [ "string", "unique MG-RAST project identifier" ],
                       "force"      => [ "boolean", "if true overwrite existing metagenome_taxonomy with inputted" ],
+                      "upload"     => [ "boolean", "if true only upload files, do not submit XML forms" ],
                       "debug"      => [ "boolean", "if true run debug workflow instead of normal"],
                       "workflow"   => [ "boolean", "if true return workflow document instead of submitting"],
                       "project_taxonomy" => [ 'string', "optional: taxa_name to apply to all metagenomes of project" ],
@@ -230,10 +231,11 @@ sub ebi_submit {
     my ($self) = @_;
     
     my $uuid = $self->uuidv4();
-    my $post = $self->get_post_data(['project_id', 'force', 'debug', 'workflow', 'project_taxonomy', 'metagenome_taxonomy']);
+    my $post = $self->get_post_data(['project_id', 'force', 'upload', 'debug', 'workflow', 'project_taxonomy', 'metagenome_taxonomy']);
     
     my $project_id = $post->{'project_id'} || undef;
     my $force      = $post->{'force'} ? 1 : 0;
+    my $upload     = $post->{'upload'} ? 1 : 0;
     my $debug      = $post->{'debug'} ? 1 : 0;
     my $workflow   = $post->{'workflow'} ? 1 : 0;
     my $proj_taxa  = $post->{'project_taxonomy'} || "";
@@ -294,25 +296,27 @@ sub ebi_submit {
             $self->return_data( {"ERROR" => "metagenome $mgid is missing required input sequence file"}, 500 );
         }
         # see if it has name
-        my $taxattr = {
-            collection => $mg->sample,
-            tag => 'metagenome_taxonomy'
-        };
-        my $existing = $metadbm->MetaDataEntry->get_objects($taxattr);
-        if ((scalar(@$existing) == 0) || $force) {
-            if ($mg_taxa->{$mgid}) {
-                $taxattr->{value} = $mg_taxa->{$mgid};
-            } elsif ($proj_taxa) {
-                $taxattr->{value} = $proj_taxa;
-            } else {
-                $self->return_data( {"ERROR" => "metagenome $mgid is missing required metagenome_taxonomy metadata"}, 500 );
-            }
-            if (scalar(@$existing)) {
-                foreach my $pmd (@$existing) {
-                    $pmd->delete();
+        unless ($upload) {
+            my $taxattr = {
+                collection => $mg->sample,
+                tag => 'metagenome_taxonomy'
+            };
+            my $existing = $metadbm->MetaDataEntry->get_objects($taxattr);
+            if ((scalar(@$existing) == 0) || $force) {
+                if ($mg_taxa->{$mgid}) {
+                    $taxattr->{value} = $mg_taxa->{$mgid};
+                } elsif ($proj_taxa) {
+                    $taxattr->{value} = $proj_taxa;
+                } else {
+                    $self->return_data( {"ERROR" => "metagenome $mgid is missing required metagenome_taxonomy metadata"}, 500 );
                 }
+                if (scalar(@$existing)) {
+                    foreach my $pmd (@$existing) {
+                        $pmd->delete();
+                    }
+                }
+                $metadbm->MetaDataEntry->create($taxattr);
             }
-            $metadbm->MetaDataEntry->create($taxattr);
         }
     }
     
@@ -362,6 +366,9 @@ sub ebi_submit {
     my $ebi_workflow = $Conf::mgrast_ebi_submit_workflow;
     if ($debug) {
         $ebi_workflow = $Conf::mgrast_ebi_debug_workflow;
+    }
+    if ($upload) {
+        $ebi_workflow = $Conf::mgrast_ebi_upload_workflow;
     }
     
     my $job = $self->submit_awe_template($awe_info, $ebi_workflow, $self->mgrast_token, 'mgrast', $workflow);
