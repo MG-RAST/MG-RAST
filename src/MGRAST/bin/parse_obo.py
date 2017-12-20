@@ -10,7 +10,6 @@ from collections import defaultdict
 # declare a blank dictionary, keys are the term_ids
 terms = {}
 quote = re.compile(r'\"(.+?)\"')
-term  = re.compile(r'^[A-Z]+:\d+$')
 rank  = re.compile(r'^has_rank NCBITaxon:(.+)$')
 # to check for circular recursion
 ascSeen  = set()
@@ -115,7 +114,7 @@ def getParents(tid, full=False):
 def getTop(full=False):
     top = {} if full else []
     for t, info in terms.iteritems():
-        if (len(info['parentNodes']) == 0) and (len(info['childNodes']) > 0) and term.match(t):
+        if (len(info['parentNodes']) == 0) and (len(info['childNodes']) > 0):
             if full:
                 top[t] = terms[t]
             else:
@@ -136,7 +135,7 @@ def outputTab(data, ofile):
         print out_str
 
 def main(args):
-    global terms, addRank
+    global terms
     parser = OptionParser(usage="usage: %prog [options] -i <input file> -o <output file>")
     parser.add_option("-i", "--input", dest="input", default=None, help="input .obo file")
     parser.add_option("-o", "--output", dest="output", default=None, help="output: .json file or stdout, default is stdout")
@@ -150,7 +149,9 @@ def main(args):
     parser.add_option("", "--rank", dest="rank", action="store_true", default=False, help="return output with 'rank' field, only for --full")
     parser.add_option("", "--common", dest="common", action="store_true", default=False, help="use only common name synonyms (--full / NCBI taxonomy)")
     parser.add_option("", "--no_id", dest="no_id", action="store_true", default=False, help="remove 'id' from struct to reduce size, only for --full")
+    parser.add_option("", "--strip_prefix", dest="strip_prefix", action="store_true", default=False, help="remove prefix from 'id' to reduce size")
     parser.add_option("", "--no_parents", dest="no_parents", action="store_true", default=False, help="remove 'parentNodes' from struct to reduce size, only for --full")
+    parser.add_option("", "--no_description", dest="no_description", action="store_true", default=False, help="remove 'description' from struct to reduce size, only for --full")
     (opts, args) = parser.parse_args()
     if not (opts.input and os.path.isfile(opts.input)):
         parser.error("missing input")
@@ -158,8 +159,6 @@ def main(args):
         parser.error("missing relations")
     if (not opts.term_id) and (opts.get != 'top'):
         opts.get = 'all'
-    if opts.rank:
-        addRank = True
     
     oboFile = open(opts.input, 'r')
     relations = opts.relations.split(',')
@@ -174,6 +173,8 @@ def main(args):
         term = parseTagValue(getTerm(oboFile), opts.common)
         if (len(term) != 0) and ('name' in term) and (len(term['name']) > 0):
             termID = term['id'][0]
+            if opts.strip_prefix:
+                termID = termID.split(":")[1]
             termName = term['name'][0]
             if 'def' in term:
                 termDesc = term['def'][0]
@@ -187,7 +188,11 @@ def main(args):
             termParents = []
             for rel in relations:
                 if rel in term:
-                    termParents.extend([p.split()[0] for p in term[rel]])
+                    for p in term[rel]:
+                        if opts.strip_prefix:
+                            termParents.append(p.split()[0].split(":")[1])
+                        else:
+                            termParents.append(p.split()[0])
         
             # each ID will have two arrays of parents and children
             if termID not in terms:
@@ -201,6 +206,8 @@ def main(args):
                 rval = rank.match(term['property_value'][0])
                 if rval:
                     terms[termID]['rank'] = rval.group(1)
+                    if terms[termID]['rank'] == 'superkingdom':
+                        terms[termID]['rank'] = 'domain'
             
             # append parents of the current term
             terms[termID]['parentNodes'] = termParents
@@ -241,6 +248,9 @@ def main(args):
         if opts.no_parents:
             for v in data.itervalues():
                 del v['parentNodes']
+        if opts.no_description:
+            for v in data.itervalues():
+                del v['description']
     
     # have global info
     if opts.full and opts.metadata:
@@ -249,7 +259,12 @@ def main(args):
             mdata['nodes'] = data
             outputJson(mdata, opts.output)
         except:
-            outputJson(data, opts.output)
+            # default action
+            mdata = {
+                'nodes': data,
+                'rootNode': opts.term_id
+            }
+            outputJson(mdata, opts.output)
     # tabbed list output
     elif opts.tab and (not opts.full):
         outputTab(data, opts.output)

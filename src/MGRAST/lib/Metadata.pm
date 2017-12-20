@@ -610,14 +610,14 @@ sub is_job_compliant {
   foreach my $cat (keys %$mixs) {
     if ($cat eq 'library') {
       foreach my $tag (keys %{$mixs->{library}{$lib}}) {
-	    if (! exists($data->{$cat}{data}{$tag})) {
+	    if (! exists($data->{library}{data}{$tag})) {
 	      return 0;
 	    }
       }
     } elsif ($cat eq 'ep') {
       if (exists $mixs->{ep}{$ep}) {
         foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
-          if (! exists($data->{$cat}{data}{$tag})) {
+          if (! exists($data->{env_package}{data}{$tag})) {
             return 0;
           }
         }
@@ -663,15 +663,15 @@ sub verify_job_metadata {
   foreach my $cat (keys %$mixs) {
     if ($cat eq 'library') {
       foreach my $tag (keys %{$mixs->{library}{$lib}}) {
-        if (! exists($data->{$cat}{data}{$tag})) {
-          push(@$errors, "mandatory term '$tag' from category '$cat $lib' missing");
+        if (! exists($data->{library}{data}{$tag})) {
+          push(@$errors, "mandatory term '$tag' from category 'library $lib' missing");
         }
       }
     } elsif ($cat eq 'ep') {
       if (exists $mixs->{ep}{$ep}) {
         foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
-          if (! exists($data->{$cat}{data}{$tag})) {
-            push(@$errors, "mandatory term '$tag' from category '$cat $ep' missing");
+          if (! exists($data->{env_package}{data}{$tag})) {
+            push(@$errors, "mandatory term '$tag' from category 'env_package $ep' missing");
           }
         }
       }
