@@ -103,11 +103,12 @@ sub info {
                       'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
                       'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
                       'filter_source' => [ 'cv', $self->{sources}{ontology} ],
-                      'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                       'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
                       'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
                       'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
-                  'required' => {},
+				'required' => {
+					       'id' => [ 'string', 'one or more metagenome or project unique identifier' ]
+					      },
                   'body'     => {} }
             },
             { 'name'        => "function",
@@ -119,25 +120,26 @@ sub info {
               'type'        => "asynchronous",
               'attributes'  => $self->{attributes},
               'parameters'  => {
-                  'options'  => {
-                      'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                      'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                      'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                      'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
-                                                ['evalue', 'average e-value exponent of hits in annotation'],
-                                                ['identity', 'average percent identity of hits in annotation'],
-                                                ['length', 'average alignment length of hits in annotation']] ],
-                      'source' => [ 'cv', $self->{sources}{ontology} ],
-                      'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
-                      'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
-                      'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-                      'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
-                      'filter_source' => [ 'cv', $self->{sources}{organism} ],
-                      'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
-                      'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
-                      'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
-                      'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
-                  'required' => {},
+				'options'  => {
+					       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+					       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+					       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+					       'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+									 ['evalue', 'average e-value exponent of hits in annotation'],
+									 ['identity', 'average percent identity of hits in annotation'],
+									 ['length', 'average alignment length of hits in annotation']] ],
+					       'source' => [ 'cv', $self->{sources}{ontology} ],
+					       'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
+					       'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
+					       'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
+					       'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
+					       'filter_source' => [ 'cv', $self->{sources}{organism} ],
+					       'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+					       'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
+					       'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
+				'required' => {
+					       'id' => [ 'string', 'one or more metagenome or project unique identifier' ]
+					      },
                   'body'     => {} }
             }
         ]
