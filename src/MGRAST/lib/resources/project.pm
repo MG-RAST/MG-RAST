@@ -345,7 +345,7 @@ sub post_action {
         $self->return_data( {"OK" => "metadata updated"}, 200 );
     }
     # add external db accesion ID
-    elsif ($rest->[1] eq 'addaccession') {        
+    elsif ($rest->[1] eq 'addaccession') {
         my $dbname    = $self->cgi->param('dbname') || "";
         my $accession = $self->cgi->param('accession') || "";
         my $has_file  = $self->cgi->param('receipt') || "";
@@ -373,6 +373,7 @@ sub post_action {
             $response->{ena_accession} = $receipt->{study}{ena_accession};
             $response->{samples} = [];
             $response->{libraries} = [];
+            $response->{metagenomes} = [];
             foreach my $s (@{$receipt->{samples}}) {
                 my ($sid) = $s->{mgrast_accession} =~ /^mgs(\d+)$/;
                 my $sample = $master->MetaDataCollection->init( {ID => $sid} );
@@ -385,6 +386,15 @@ sub post_action {
                 $library->data($key, $l->{ena_accession});
                 push @{$response->{libraries}}, $l;
             }
+            foreach my $m (@{$receipt->{runs}}) {
+                my ($mid) = $m->{mgrast_accession} =~ /^mgm(.+)$/;
+                my $job = $master->Job->get_objects({ metagenome_id => $mid });
+                if (scalar(@$job)) {
+                    $job = $job->[0];
+                    $job->data($key, $m->{ena_accession}));
+                    push @{$response->{metagenomes}}, $m;
+                }
+            }
         } elsif ($dbname && $accession) {
             # project only update
             my $key = lc($dbname).'_id';
@@ -395,7 +405,7 @@ sub post_action {
         }
         
         # return success
-        $self->return_data($response, 200 );
+        $self->return_data($response);
     }
 }
 
