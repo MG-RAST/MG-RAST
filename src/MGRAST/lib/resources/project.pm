@@ -391,7 +391,7 @@ sub post_action {
                 my $job = $master->Job->get_objects({ metagenome_id => $mid });
                 if (scalar(@$job)) {
                     $job = $job->[0];
-                    $job->data($key, $m->{ena_accession}));
+                    $job->data($key, $m->{ena_accession});
                     push @{$response->{metagenomes}}, $m;
                 }
             }
