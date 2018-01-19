@@ -172,8 +172,9 @@ class Matrix(object):
         # loop through jobs
         for cindex, job in enumerate(param['job_ids']):
             col_name = RESULT_MAP[param['result_type']]
+            swap_job = False
             if to_swap and param['swaps'][cindex]:
-                param['identity'], param['length'] = param['length'], param['identity']
+                swap_job = True
                 if col_name == 'len_avg':
                     col_name = 'ident_avg'
                 elif col_name == 'ident_avg':
@@ -181,7 +182,7 @@ class Matrix(object):
             total = 0
             count = 0
             prev  = time.time()
-            recs  = self.jobs.get_job_records(job, ['md5', col_name], param['evalue'], param['identity'], param['length'])
+            recs  = self.jobs.get_job_records(job, ['md5', col_name], swap_job, param['evalue'], param['identity'], param['length'])
             # loop through md5 values
             for r in recs:
                 md5_val[r[0]] = r[1]
