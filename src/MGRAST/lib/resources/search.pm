@@ -185,7 +185,10 @@ sub prepare_data {
   my ($self, $data, $limit, $after) = @_;
   
   my $d = $data->{hits}->{hits} || [];
-  my $next_after = $d->[-1]{sort}[0];
+  my $next_after = undef;
+  if ((scalar(@$d) > 0) && exists($d->[-1]{sort}) && (scalar(@{$d->[-1]{sort}}) > 0)) {
+      $next_after = $d->[-1]{sort}[0];
+  }
   
   my @params = $self->cgi->param;
   my $add_params = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'after'} @params);
@@ -194,10 +197,13 @@ sub prepare_data {
       "total_count" => $data->{hits}->{total} || 0,
       "limit"       => $limit,
       "url"         => $self->url."/".$self->name."?$add_params".($after ? "&after=$after" : ""),
-      "next"        => $self->url."/".$self->name."?$add_params&after=$next_after",
       "version"     => 1,
       "data"        => []
   };
+  if ($next_after) {
+      $obj->{next} = $self->url."/".$self->name."?$add_params&after=$next_after";
+  }
+  
   if ($after) {
       $obj->{after} = $after;
   }
