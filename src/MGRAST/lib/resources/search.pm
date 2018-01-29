@@ -106,8 +106,14 @@ sub query {
   my $after  = $self->cgi->param('after') || undef;
   my $order  = $self->cgi->param('order') || "metagenome_id";
   my $dir    = $self->cgi->param('direction') || 'asc';
-    
-  # check CV
+  
+  # validate paramaters
+  unless (($dir eq 'asc') || ($dir eq 'desc')) {
+      $self->return_data({"ERROR" => "Direction must be 'asc' or 'desc' only."}, 404);
+  }
+  unless (exists $self->{fields}{$order}) {
+      $self->return_data({"ERROR" => "Invalid order field, must be one of the returned fields."}, 404);
+  }
   if (($limit > 1000) || ($limit < 1)) {
     $self->return_data({"ERROR" => "Limit must be less than 1,000 and greater than 0 ($limit) for query."}, 404);
   }
