@@ -2136,7 +2136,7 @@ sub get_elastic_query {
     return undef, $@;
   } elsif (exists $content->{error}) {
       if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
-          $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}, $content->{status} );
+          $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}}, $content->{status} );
       } else {
           $self->return_data( {"ERROR" => "Invalid Elastic Search return response"}, 500 );
       }
