@@ -180,7 +180,7 @@ sub prepare_data {
   my ($self, $data, $limit, $after) = @_;
   
   my $d = $data->{hits}->{hits} || [];
-  my $next_after = $d->[-1]{sort};
+  my $next_after = $d->[-1]{sort}[0];
   
   my @params = $self->cgi->param;
   my $add_params = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'after'} @params);
