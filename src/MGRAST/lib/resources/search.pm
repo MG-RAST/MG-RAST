@@ -102,6 +102,7 @@ sub query {
   $self->json->utf8();
 
   # get paramaters
+  my $public = $self->cgi->param('public') || undef;
   my $limit  = $self->cgi->param('limit') || 10;
   my $after  = $self->cgi->param('after') || undef;
   my $order  = $self->cgi->param('order') || "metagenome_id";
@@ -149,27 +150,25 @@ sub query {
   }
   my $ins = [];
 
-  if (defined $self->cgi->param('public') && (($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes")) ) {
+  if ($public && (($public eq "1") || ($public eq "true") || ($public eq "yes")) ) {
     $query->{"job_info_public"} = { "entries" => [ 1 ], "type" => "boolean" };
-  } else {
-    if ($self->user) {
-      if (! $self->user->has_star_right('view', 'metagenome')) {
-	my $in = [];
-	@$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
-	if (scalar(@$in)) {
-	  push(@$ins, [ "id", $in ]);
-	}
-	if (! defined $self->cgi->param('public') || ($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes") ) {
-	  push(@$ins, [ "job_info_public", [ "true" ] ]);
-	}
-      } else {
-	if (defined $self->cgi->param('public') && (($self->cgi->param('public') eq "0")  || ($self->cgi->param('public') eq "false")  || ($self->cgi->param('public') eq "no")) ) {
-	  push(@$ins, [ "job_info_public", [ "false" ] ]);
-	}
-      }
+  } elsif ($self->user) {
+    if (! $self->user->has_star_right('view', 'metagenome')) {
+	  my $in = [];
+	  @$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
+	  if (scalar(@$in)) {
+	    push(@$ins, [ "id", $in ]);
+	  }
+	  if (! defined $self->cgi->param('public') || ($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes") ) {
+	    push(@$ins, [ "job_info_public", [ "true" ] ]);
+	  }
     } else {
-      push(@$ins, [ "job_info_public", [ "true" ] ]);
+	  if (defined $self->cgi->param('public') && (($self->cgi->param('public') eq "0")  || ($self->cgi->param('public') eq "false")  || ($self->cgi->param('public') eq "no")) ) {
+	    push(@$ins, [ "job_info_public", [ "false" ] ]);
+	  }
     }
+  } else {
+    push(@$ins, [ "job_info_public", [ "true" ] ]);
   }
   my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}{$order}, $dir, $after, $limit, $ins ? $ins : undef);
   
