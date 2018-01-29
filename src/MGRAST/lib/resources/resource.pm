@@ -2068,12 +2068,24 @@ sub upsert_to_elasticsearch {
 }
 
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $offset, $limit, $ins) = @_;
+  my ($self, $server, $query, $order, $dir, $after, $limit, $ins) = @_;
 
-  my $postJSON = { "from" => $offset,
-		   "size" => $limit,
-		   "sort" => [ { $order => { "order" => $dir } } ],
-		   "query" => { "bool" => { "should" => [], "minimum_should_match" => 1, "filter" => [], "must" => [] } } };
+  my $postJSON = {
+    "size" => $limit,
+    "sort" => [ { $order => $dir } ],
+    "query" => {
+      "bool" => {
+        "should" => [],
+        "minimum_should_match" => 1,
+        "filter" => [],
+        "must" => []
+      }
+    }
+  };
+  
+  if ($after) {
+      $postJSON->{"search_after"} = [ $after ];
+  }
   
   if ($ins) {
     foreach my $in (@$ins) {

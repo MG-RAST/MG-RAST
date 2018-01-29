@@ -103,7 +103,7 @@ sub query {
 
   # get paramaters
   my $limit  = $self->cgi->param('limit') || 10;
-  my $offset = $self->cgi->param('offset') || 0;
+  my $after  = $self->cgi->param('after') || undef;
   my $order  = $self->cgi->param('order') || "metagenome_id";
   my $dir    = $self->cgi->param('direction') || 'asc';
     
@@ -114,7 +114,7 @@ sub query {
   
   # explicitly setting the default CGI parameters for returned url strings
   $self->cgi->param('limit', $limit);
-  $self->cgi->param('offset', $offset);
+  $self->cgi->param('after', $after);
   $self->cgi->param('order', $order);
   $self->cgi->param('direction', $dir);
 
@@ -165,40 +165,50 @@ sub query {
       push(@$ins, [ "job_info_public", [ "true" ] ]);
     }
   }
-  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $ins ? $ins : undef);
+  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}{$order}, $dir, $after, $limit, $ins ? $ins : undef);
   
   if ($error) {
     $self->return_data({"ERROR" => "An error occurred: $error"}, 500);
   } else {
-    $self->return_data($self->prepare_data($data, $limit), 200);
+    $self->return_data($self->prepare_data($data, $limit, $after), 200);
   }
   
   exit 0;
 }
 
 sub prepare_data {
-  my ($self, $data, $limit) = @_;
-
-  my $d = $data->{hits}->{hits} || [];
-  my $total = $data->{hits}->{total} || 0;
+  my ($self, $data, $limit, $after) = @_;
   
-  my $obj = $self->check_pagination($d, $total, $limit);
-  $obj->{version} = 1;
-  $obj->{data} = [];
-
+  my $d = $data->{hits}->{hits} || [];
+  my $next_after = $d->[-1]{sort};
+  my $add_params = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'after'} @params);
+  
+  my $obj = {
+      "total_count" => $data->{hits}->{total} || 0,
+      "limit"       => $limit,
+      "url"         => $self->url."/".$self->name.$path."?$add_params".($after ? "&after=$after" : ""),
+      "next"        => $self->url."/".$self->name.$path."?$add_params&after=$next_after",
+      "version"     => 1,
+      "data"        => []
+  };
+  if ($after) {
+      $obj->{after} = $after;
+  }
+  
   my %rev = ();
   foreach my $key (keys(%{$self->{fields}})) {
     my $val = $self->{fields}->{$key};
     $val =~ s/\.keyword$//;
     $rev{$val} = $key;
   }
+  
   foreach my $set (@$d) {
     my $entry = {};
     foreach my $k (keys(%{$set->{_source}})) {
       if (defined $rev{$k}) {
-	$entry->{$rev{$k}} = $set->{_source}->{$k};
+	    $entry->{$rev{$k}} = $set->{_source}->{$k};
       } else {
-	$entry->{$k} = $set->{_source}->{$k};
+	    $entry->{$k} = $set->{_source}->{$k};
       }
     }
     push(@{$obj->{data}}, $entry);
