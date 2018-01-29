@@ -200,7 +200,7 @@ sub prepare_data {
       "version"     => 1,
       "data"        => []
   };
-  if ($next_after) {
+  if ($next_after && ($limit == scalar(@$d))) {
       $obj->{next} = $self->url."/".$self->name."?$add_params&after=$next_after";
   }
   
