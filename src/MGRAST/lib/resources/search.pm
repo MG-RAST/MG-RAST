@@ -181,13 +181,15 @@ sub prepare_data {
   
   my $d = $data->{hits}->{hits} || [];
   my $next_after = $d->[-1]{sort};
+  
+  my @params = $self->cgi->param;
   my $add_params = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'after'} @params);
   
   my $obj = {
       "total_count" => $data->{hits}->{total} || 0,
       "limit"       => $limit,
-      "url"         => $self->url."/".$self->name.$path."?$add_params".($after ? "&after=$after" : ""),
-      "next"        => $self->url."/".$self->name.$path."?$add_params&after=$next_after",
+      "url"         => $self->url."/".$self->name."?$add_params".($after ? "&after=$after" : ""),
+      "next"        => $self->url."/".$self->name."?$add_params&after=$next_after",
       "version"     => 1,
       "data"        => []
   };
