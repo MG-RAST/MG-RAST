@@ -60,7 +60,7 @@ sub info {
 							{ 'name'        => "history",
 				              'request'     => $self->url."/".$self->name."/history/{ID}",
 				              'description' => "Summary of MG-RAST analysis-pipeline workflow and commands.",
-				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3/history",
+				              'example'     => [ $self->url."/".$self->name."/history/mgm4447943.3",
       				                             'Workflow document for mgm4447943.3' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",

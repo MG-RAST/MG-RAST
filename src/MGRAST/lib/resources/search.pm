@@ -52,17 +52,14 @@ sub info {
 				      'method'      => "GET",
 				      'type'        => "synchronous",
 				      'attributes'  => $self->attributes,
-				      'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
-				    },
-				    { 'name'        => "upsert",
-				      'request'     => $self->url."/".$self->name."/{ID}",
-				      'description' => "Elastic Upsert",
-				      'method'      => "GET",
-				      'type'        => "synchronous",
-				      'attributes'  => { "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
-                                         "status"        => [ 'string', 'status of action' ] },
-				      'parameters'  => {'options' => {}, 'required' => {"id" => ["string","unique object identifier"]}, 'body' => {}}
-				    },
+				      'parameters'  => {'options' => {
+								      'limit'   => ['integer', 'maximum number of datasets returned'],
+								      'offset'   => ['integer', 'number of datasets to skip'],
+								      'direction'   => ['cv', [['asc', 'sort data ascending'],
+											       ['desc', 'sort data descending']],
+								      'order' => ['string', 'fieldname to sort by']
+								     }, 'required' => {}, 'body' => {}}
+				    }
             ]
     };
     $self->return_data($content);

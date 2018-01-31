@@ -135,6 +135,17 @@ sub instance {
     }
   }
 
+  elsif ($self->rest->[0] eq 'activity') {
+    if ($self->user && $self->user->has_star_right('edit', 'user')) {
+      my $dbmaster = $self->connect_to_datasource();
+      my $completed = $dbmaster->db_handle->selectall_arrayref("select JobAttributes.timestamp, JobStatistics.value, Job.name, Project.name, Job.metagenome_id, Project.id from JobAttributes, JobStatistics, Job, Project where JobAttributes.tag='completedtime' and JobStatistics.tag='bp_count_raw' and JobAttributes.job=JobStatistics.job and JobAttributes.job=Job._id and Project._id=Job.primary_project and JobAttributes.timestamp > '".$self->cgi->param('startdate')."' order by JobAttributes.timestamp desc");
+      my $ebi = $dbmaster->db_handle->selectall_arrayref("select JobAttributes.timestamp, JobStatistics.value, Job.name, Project.name, Job.metagenome_id, Project.id from JobAttributes, JobStatistics, Job, Project where JobAttributes.tag='ebi_id' and JobStatistics.tag='bp_count_raw' and JobAttributes.job=JobStatistics.job and JobAttributes.job=Job._id and Project._id=Job.primary_project and JobAttributes.timestamp > '".$self->cgi->param('startdate')."' order by JobAttributes.timestamp desc");
+      my $published = $dbmaster->db_handle->selectall_arrayref("select JobAttributes.timestamp, JobStatistics.value, Job.name, Project.name, Job.metagenome_id, Project.id from JobAttributes, JobStatistics, Job, Project where JobAttributes.tag='publication_date' and JobStatistics.tag='bp_count_raw' and JobAttributes.job=JobStatistics.job and JobAttributes.job=Job._id and Project._id=Job.primary_project and JobAttributes.timestamp > '".$self->cgi->param('startdate')."' order by JobAttributes.timestamp desc");
+      my $submitted = $dbmaster->db_handle->selectall_arrayref("select JobAttributes.timestamp, JobStatistics.value, Job.name, Project.name, Job.metagenome_id, Project.id from JobAttributes, JobStatistics, Job, Project where JobAttributes.tag='submission' and JobStatistics.tag='bp_count_raw' and JobAttributes.job=JobStatistics.job and JobAttributes.job=Job._id and Project._id=Job.primary_project and JobAttributes.timestamp > '".$self->cgi->param('startdate')."' order by JobAttributes.timestamp desc");
+      $self->return_data([$completed,$ebi,$published,$submitted]);
+    }    
+  }
+  
   # get the current messasge (if any) from SHOCK
   my $dis_msg;
   my $inf_msg;
