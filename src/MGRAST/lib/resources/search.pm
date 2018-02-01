@@ -32,34 +32,53 @@ sub info {
     my $content = {
             'name' => $self->name,
 		    'url' => $self->url."/".$self->name,
-		    'description' => "Elastic search for Metagenomes.",
+		    'description' => "Elastic search for Metagenomes",
 		    'type' => 'object',
 		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [
-                    { 'name'        => "info",
-				      'request'     => $self->url."/".$self->name,
-				      'description' => "Returns description of parameters and attributes.",
-				      'method'      => "GET",
-				      'type'        => "synchronous",
-				      'attributes'  => "self",
-				      'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
-					},
-				    { 'name'        => "query",
-				      'request'     => $self->url."/".$self->name,
-				      'description' => "Elastic search",
-				      'example'     => [ $self->url."/".$self->name."?material=saline water",
-                                         'return the first ten datasets that have saline water as the sample material' ],
-				      'method'      => "GET",
-				      'type'        => "synchronous",
-				      'attributes'  => $self->attributes,
-				      'parameters'  => {'options' => {
-								      'limit'   => ['integer', 'maximum number of datasets returned'],
-								      'offset'   => ['integer', 'number of datasets to skip'],
-								      'direction'   => ['cv', [['asc', 'sort data ascending'],
-											       ['desc', 'sort data descending']],
-								      'order' => ['string', 'fieldname to sort by']
-								     }, 'required' => {}, 'body' => {}}
-				    }
+                { 'name'        => "info",
+                  'request'     => $self->url."/".$self->name,
+                  'description' => "Returns description of parameters and attributes.",
+                  'method'      => "GET",
+                  'type'        => "synchronous",
+                  'attributes'  => "self",
+                  'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
+                },
+                { 'name'        => "upsert",
+                  'request'     => $self->url."/".$self->name."/{ID}",
+                  'description' => "Elastic Upsert",
+                  'method'      => "GET",
+                  'type'        => "synchronous",
+                  'attributes'  => {
+                      "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
+                      "status"        => [ 'string', 'status of action' ]
+                  },
+                  'parameters'  => {
+                      'options'  => {},
+                      'required' => { "id" => ["string","unique object identifier"] },
+                      'body'     => {}
+                  }
+                },
+                { 'name'        => "query",
+                  'request'     => $self->url."/".$self->name,
+                  'description' => "Elastic search",
+                  'example'     => [ $self->url."/".$self->name."?material=saline water",
+                                     'return the first ten datasets that have saline water as the sample material' ],
+                  'method'      => "GET",
+                  'type'        => "synchronous",
+                  'attributes'  => $self->attributes,
+                  'parameters'  => {
+                    'options' => {
+                      'limit'     => ['integer', 'maximum number of datasets returned'],
+                      'after'     => ['string', 'sort field value to return results after'],
+                      'order'     => ['string', 'fieldname to sort by'],
+                      'direction' => ['cv', [ ['asc', 'sort data ascending'],
+                                              ['desc', 'sort data descending'] ]]
+                    },
+                    'required' => {},
+                    'body' => {}
+                  }
+				}
             ]
     };
     $self->return_data($content);
@@ -99,19 +118,26 @@ sub query {
   $self->json->utf8();
 
   # get paramaters
+  my $public = $self->cgi->param('public') || undef;
   my $limit  = $self->cgi->param('limit') || 10;
-  my $offset = $self->cgi->param('offset') || 0;
+  my $after  = $self->cgi->param('after') || undef;
   my $order  = $self->cgi->param('order') || "metagenome_id";
   my $dir    = $self->cgi->param('direction') || 'asc';
-    
-  # check CV
+  
+  # validate paramaters
+  unless (($dir eq 'asc') || ($dir eq 'desc')) {
+      $self->return_data({"ERROR" => "Direction must be 'asc' or 'desc' only."}, 404);
+  }
+  unless (exists $self->{fields}{$order}) {
+      $self->return_data({"ERROR" => "Invalid order field, must be one of the returned fields."}, 404);
+  }
   if (($limit > 1000) || ($limit < 1)) {
     $self->return_data({"ERROR" => "Limit must be less than 1,000 and greater than 0 ($limit) for query."}, 404);
   }
   
   # explicitly setting the default CGI parameters for returned url strings
   $self->cgi->param('limit', $limit);
-  $self->cgi->param('offset', $offset);
+  $self->cgi->param('after', $after);
   $self->cgi->param('order', $order);
   $self->cgi->param('direction', $dir);
 
@@ -140,62 +166,78 @@ sub query {
   }
   my $ins = [];
 
-  if (defined $self->cgi->param('public') && (($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes")) ) {
+  if ($public && (($public eq "1") || ($public eq "true") || ($public eq "yes")) ) {
     $query->{"job_info_public"} = { "entries" => [ 1 ], "type" => "boolean" };
-  } else {
-    if ($self->user) {
-      if (! $self->user->has_star_right('view', 'metagenome')) {
-	my $in = [];
-	@$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
-	if (scalar(@$in)) {
-	  push(@$ins, [ "id", $in ]);
-	}
-	if (! defined $self->cgi->param('public') || ($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes") ) {
-	  push(@$ins, [ "job_info_public", [ "true" ] ]);
-	}
-      } else {
-	if (defined $self->cgi->param('public') && (($self->cgi->param('public') eq "0")  || ($self->cgi->param('public') eq "false")  || ($self->cgi->param('public') eq "no")) ) {
-	  push(@$ins, [ "job_info_public", [ "false" ] ]);
-	}
-      }
+  } elsif ($self->user) {
+    if (! $self->user->has_star_right('view', 'metagenome')) {
+	  my $in = [];
+	  @$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
+	  if (scalar(@$in)) {
+	    push(@$ins, [ "id", $in ]);
+	  }
+	  if (! defined $self->cgi->param('public') || ($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes") ) {
+	    push(@$ins, [ "job_info_public", [ "true" ] ]);
+	  }
     } else {
-      push(@$ins, [ "job_info_public", [ "true" ] ]);
+	  if (defined $self->cgi->param('public') && (($self->cgi->param('public') eq "0")  || ($self->cgi->param('public') eq "false")  || ($self->cgi->param('public') eq "no")) ) {
+	    push(@$ins, [ "job_info_public", [ "false" ] ]);
+	  }
     }
+  } else {
+    push(@$ins, [ "job_info_public", [ "true" ] ]);
   }
-  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}->{$order}, $dir, $offset, $limit, $ins ? $ins : undef);
+  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}{$order}, $dir, $after, $limit, $ins ? $ins : undef);
   
   if ($error) {
     $self->return_data({"ERROR" => "An error occurred: $error"}, 500);
   } else {
-    $self->return_data($self->prepare_data($data, $limit), 200);
+    $self->return_data($self->prepare_data($data, $limit, $after), 200);
   }
   
   exit 0;
 }
 
 sub prepare_data {
-  my ($self, $data, $limit) = @_;
-
-  my $d = $data->{hits}->{hits} || [];
-  my $total = $data->{hits}->{total} || 0;
+  my ($self, $data, $limit, $after) = @_;
   
-  my $obj = $self->check_pagination($d, $total, $limit);
-  $obj->{version} = 1;
-  $obj->{data} = [];
-
+  my $d = $data->{hits}->{hits} || [];
+  my $next_after = undef;
+  if ((scalar(@$d) > 0) && exists($d->[-1]{sort}) && (scalar(@{$d->[-1]{sort}}) > 0)) {
+      $next_after = $d->[-1]{sort}[0];
+  }
+  
+  my @params = $self->cgi->param;
+  my $add_params = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'after'} @params);
+  
+  my $obj = {
+      "total_count" => $data->{hits}->{total} || 0,
+      "limit"       => $limit,
+      "url"         => $self->url."/".$self->name."?$add_params".($after ? "&after=$after" : ""),
+      "version"     => 1,
+      "data"        => []
+  };
+  if ($next_after && ($limit == scalar(@$d))) {
+      $obj->{next} = $self->url."/".$self->name."?$add_params&after=$next_after";
+  }
+  
+  if ($after) {
+      $obj->{after} = $after;
+  }
+  
   my %rev = ();
   foreach my $key (keys(%{$self->{fields}})) {
     my $val = $self->{fields}->{$key};
     $val =~ s/\.keyword$//;
     $rev{$val} = $key;
   }
+  
   foreach my $set (@$d) {
     my $entry = {};
     foreach my $k (keys(%{$set->{_source}})) {
       if (defined $rev{$k}) {
-	$entry->{$rev{$k}} = $set->{_source}->{$k};
+	    $entry->{$rev{$k}} = $set->{_source}->{$k};
       } else {
-	$entry->{$k} = $set->{_source}->{$k};
+	    $entry->{$k} = $set->{_source}->{$k};
       }
     }
     push(@{$obj->{data}}, $entry);
