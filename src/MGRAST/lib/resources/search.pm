@@ -36,30 +36,34 @@ sub info {
 		    'type' => 'object',
 		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [
-                    { 'name'        => "info",
-				      'request'     => $self->url."/".$self->name,
-				      'description' => "Returns description of parameters and attributes.",
-				      'method'      => "GET",
-				      'type'        => "synchronous",
-				      'attributes'  => "self",
-				      'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
-					},
-				    { 'name'        => "query",
-				      'request'     => $self->url."/".$self->name,
-				      'description' => "Elastic search",
-				      'example'     => [ $self->url."/".$self->name."?material=saline water",
-                                         'return the first ten datasets that have saline water as the sample material' ],
-				      'method'      => "GET",
-				      'type'        => "synchronous",
-				      'attributes'  => $self->attributes,
-				      'parameters'  => {'options' => {
-								      'limit'   => ['integer', 'maximum number of datasets returned'],
-								      'offset'   => ['integer', 'number of datasets to skip'],
-								      'direction'   => ['cv', [['asc', 'sort data ascending'],
-											       ['desc', 'sort data descending']],
-								      'order' => ['string', 'fieldname to sort by']
-								     }, 'required' => {}, 'body' => {}}
-				    }
+                { 'name'        => "info",
+                  'request'     => $self->url."/".$self->name,
+                  'description' => "Returns description of parameters and attributes.",
+                  'method'      => "GET",
+                  'type'        => "synchronous",
+                  'attributes'  => "self",
+                  'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
+                },
+                { 'name'        => "query",
+                  'request'     => $self->url."/".$self->name,
+                  'description' => "Elastic search",
+                  'example'     => [ $self->url."/".$self->name."?material=saline water",
+                                     'return the first ten datasets that have saline water as the sample material' ],
+                  'method'      => "GET",
+                  'type'        => "synchronous",
+                  'attributes'  => $self->attributes,
+                  'parameters'  => {
+                    'options' => {
+                      'limit'     => ['integer', 'maximum number of datasets returned'],
+                      'after'     => ['string', 'sort field value to return results after'],
+                      'order'     => ['string', 'fieldname to sort by'],
+                      'direction' => ['cv', [ ['asc', 'sort data ascending'],
+                                              ['desc', 'sort data descending'] ]
+                    },
+                    'required' => {},
+                    'body' => {}
+                  }
+				}
             ]
     };
     $self->return_data($content);
