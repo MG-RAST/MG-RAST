@@ -100,8 +100,8 @@ sub info {
               'type'        => "synchronous",  
               'attributes'  => "self",
               'parameters'  => { 'options'  => {},
-            					 'required' => {},
-            				     'body'     => {} }
+				 'required' => {},
+				 'body'     => {} }
             },
             { 'name'        => "template",
               'request'     => $self->url."/".$self->name."/template",
@@ -129,26 +129,10 @@ sub info {
                                      'version' => ['string', 'version of CV ontology to use']
                                 }}
             },
-            { 'name'        => "cv",
-              'request'     => $self->url."/".$self->name."/cv",
-              'description' => "Update metadata CV select list, requires admin auth token",
-              'method'      => "POST",
-              'type'        => "synchronous",
-              'attributes'  => { "status"    => ['string', 'status of update'],
-                                 "timestamp" => ['date', 'time of completion'] },
-              'parameters'  => { 'options'  => {},
-                                 'required' => {},
-                                 'body'     => {
-                                     'data'   => ['list', ['string', 'select item to add']],
-                                     'label'  => ['string', 'metadata label'],
-                                     'action' => ['cv', [['add', 'add POSTed values to current list'],
-                           								 ['replace', 'replace current list with POSTed values']]],
-                                }}
-            },
             { 'name'        => "ontology",
               'request'     => $self->url."/".$self->name."/ontology",
               'description' => "Returns static ontology used in metadata for the given name and version.",
-              'example'     => [ $self->url."/".$self->name."/ontology?name=biome&version=2013-04-27",
+              'example'     => [ $self->url."/".$self->name."/ontology?name=biome&version=2017-04-15",
                                  'metadata ontology lookup' ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -175,20 +159,6 @@ sub info {
                                      'version' => ['string', 'version of ontology to add']
                                 }}
             },
-            { 'name'        => "ontology",
-              'request'     => $self->url."/".$self->name."/ontology",
-              'description' => "Remove metadata CV ontology with given version, requires admin auth token",
-              'method'      => "DELETE",
-              'type'        => "synchronous",
-              'attributes'  => { "status"    => ['string', 'status of update'],
-                                 "timestamp" => ['date', 'time of completion'] },
-              'parameters'  => { 'options'  => {},
-                                 'required' => {},
-                                 'body'     => {
-                                     'name'    => ['string', 'ontology name'],
-                                     'version' => ['string', 'version of ontology to add']
-                                 }}
-            },
             { 'name'        => "version",
               'request'     => $self->url."/".$self->name."/version",
               'description' => "Returns all versions available for given ontology.",
@@ -200,21 +170,6 @@ sub info {
               'parameters'  => { 'options'  => { 'label' => ['string', 'ontology metadata label'] },
                                  'required' => {},
                                  'body'     => {} }
-            },
-            { 'name'        => "version",
-              'request'     => $self->url."/".$self->name."/version",
-              'description' => "Change latest_version for given ontology, requires admin auth token.",
-              'example'     => [ $self->url."/".$self->name."/version",
-                                 'metadata version lookup' ],
-              'method'      => "POST",
-              'type'        => "synchronous",
-              'attributes'  => $self->attributes->{version},
-              'parameters'  => { 'options'  => {},
-                                 'required' => {},
-                                 'body'     => {
-                                     'label'   => ['string', 'ontology metadata label'],
-                                     'version' => ['string', 'version of ontology to add']
-                                 } }
             },
             { 'name'        => "view",
               'request'     => $self->url."/".$self->name."/view/{label}",
@@ -300,17 +255,18 @@ sub info {
               'parameters'  => { 'required' => {},
                                  'body'     => {},
                                  'options'  => {
-                                     'group'    => ['cv', [['mixs', 'label is part of MIxS (minimal) metadata'],
-                          								   ['mims', 'label is part of MIMS (metagenome) metadata'],
-                          								   ['migs', 'label is part of MIGS (genome) metadata']]],
-                                   	 'category' => ['cv', [['project', 'label belongs to project metadata'],
-                                                           ['sample', 'label belongs to sample metadata'],
-                                                           ['library', 'label belongs to library metadata'],
-                                                           ['env_package', 'label belongs to env_package metadata']]],
-                                   	 'label'    => ['string', 'metadata label'],
-                                   	 'value'    => ['string', 'metadata value'],
-                                   	 'version'  => ['string', 'version of CV ontology to use']
-                                }}
+						'group'  => ['cv', [['mixs', 'label is part of MIxS (minimal) metadata'],
+								    ['mims', 'label is part of MIMS (metagenome) metadata'],
+								    ['migs', 'label is part of MIGS (genome) metadata']]],
+						'category' => ['cv', [['project', 'label belongs to project metadata'],
+								      ['sample', 'label belongs to sample metadata'],
+								      ['library', 'label belongs to library metadata'],
+								      ['env_package', 'label belongs to env_package metadata']]],
+						'label'    => ['string', 'metadata label'],
+						'value'    => ['string', 'metadata value'],
+						'version'  => ['string', 'version of CV ontology to use']
+					       }
+			       }
             } ]
     };
     $self->return_data($content);

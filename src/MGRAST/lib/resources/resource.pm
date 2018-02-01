@@ -2068,12 +2068,24 @@ sub upsert_to_elasticsearch {
 }
 
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $offset, $limit, $ins) = @_;
+  my ($self, $server, $query, $order, $dir, $after, $limit, $ins) = @_;
 
-  my $postJSON = { "from" => $offset,
-		   "size" => $limit,
-		   "sort" => [ { $order => { "order" => $dir } } ],
-		   "query" => { "bool" => { "should" => [], "minimum_should_match" => 1, "filter" => [], "must" => [] } } };
+  my $postJSON = {
+    "size" => $limit,
+    "sort" => [ { $order => $dir } ],
+    "query" => {
+      "bool" => {
+        "should" => [],
+        "minimum_should_match" => 1,
+        "filter" => [],
+        "must" => []
+      }
+    }
+  };
+  
+  if ($after) {
+      $postJSON->{"search_after"} = [ $after ];
+  }
   
   if ($ins) {
     foreach my $in (@$ins) {
@@ -2122,6 +2134,12 @@ sub get_elastic_query {
   };
   if ($@ || (! ref($content))) {
     return undef, $@;
+  } elsif (exists $content->{error}) {
+      if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
+          $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}}, $content->{status} );
+      } else {
+          $self->return_data( {"ERROR" => "Invalid Elastic Search return response"}, 500 );
+      }
   } else {
     return $content;
   }

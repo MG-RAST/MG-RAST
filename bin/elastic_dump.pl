@@ -43,7 +43,7 @@ my $pMap = $ElasticSearch::prefixes;
 
 my $dbh = DBI->connect("DBI:mysql:database=JobDB".($host ? ";host=$host": ""), $username, $password, { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) || die "Database connect error: $@";
 
-my $jobs = $dbh->selectall_hashref("SELECT _id, primary_project, sample, library, metagenome_id, job_id, public, name, sequence_type, created_on FROM Job".($mgid ? " WHERE metagenome_id='$mgid'" : ""), "_id");
+my $jobs = $dbh->selectall_hashref("SELECT _id, primary_project, sample, library, metagenome_id, job_id, public, name, sequence_type, created_on FROM Job WHERE viewable=1".($mgid ? " AND metagenome_id='$mgid'" : ""), "_id");
 if ($mgid) {
     $jid = (keys %$jobs)[0];
     $pid = $jobs->{$jid}{'primary_project'};
