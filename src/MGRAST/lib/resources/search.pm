@@ -73,7 +73,7 @@ sub info {
                       'after'     => ['string', 'sort field value to return results after'],
                       'order'     => ['string', 'fieldname to sort by'],
                       'direction' => ['cv', [ ['asc', 'sort data ascending'],
-                                              ['desc', 'sort data descending'] ]
+                                              ['desc', 'sort data descending'] ]]
                     },
                     'required' => {},
                     'body' => {}
