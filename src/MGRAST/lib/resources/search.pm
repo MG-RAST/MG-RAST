@@ -32,7 +32,7 @@ sub info {
     my $content = {
             'name' => $self->name,
 		    'url' => $self->url."/".$self->name,
-		    'description' => "Elastic search for Metagenomes.",
+		    'description' => "Elastic search for Metagenomes",
 		    'type' => 'object',
 		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [
@@ -43,6 +43,21 @@ sub info {
                   'type'        => "synchronous",
                   'attributes'  => "self",
                   'parameters'  => {'options' => {}, 'required' => {}, 'body' => {}}
+                },
+                { 'name'        => "upsert",
+                  'request'     => $self->url."/".$self->name."/{ID}",
+                  'description' => "Elastic Upsert",
+                  'method'      => "GET",
+                  'type'        => "synchronous",
+                  'attributes'  => {
+                      "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
+                      "status"        => [ 'string', 'status of action' ]
+                  },
+                  'parameters'  => {
+                      'options'  => {},
+                      'required' => { "id" => ["string","unique object identifier"] },
+                      'body'     => {}
+                  }
                 },
                 { 'name'        => "query",
                   'request'     => $self->url."/".$self->name,
