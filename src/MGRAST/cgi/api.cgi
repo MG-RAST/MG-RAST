@@ -168,7 +168,7 @@ if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authoriza
       require Auth;
       Auth->import();
       my $message;
-      ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization'));
+      ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization'), $is_ssl);
       unless($user) {
         unless ($message eq "valid kbase user") {
           print $cgi->header( -type => 'application/json',

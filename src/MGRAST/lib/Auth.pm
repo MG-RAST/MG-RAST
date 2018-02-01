@@ -7,7 +7,7 @@ $CGI::LIST_CONTEXT_WARN = 0;
 $CGI::Application::LIST_CONTEXT_WARN = 0;
 
 sub authenticate {
-  my ($key) = @_;
+  my ($key, $is_ssl) = @_;
 
   # check if we can connect to the user database
   use WebApplicationDBHandle;
@@ -24,7 +24,7 @@ sub authenticate {
   if ($key =~ /^mggo4711/) {
       $key =~ s/^mggo4711//;
       
-      unless ($ENV{'SCRIPT_URI'} =~ /^https/) {
+      if (! $is_ssl) {
           return (undef, "insecure protocol");
       }
 
