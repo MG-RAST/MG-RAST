@@ -73,7 +73,7 @@ sub new {
         "PI_lastname"      => [ 'string', 'principal investigator\'s last name' ],
         "sequence_type"    => [ 'string', 'sequencing type' ],
         "seq_method"       => [ 'string', 'sequencing method' ],
-        "collection_date"  => [ 'string', 'date sample collected' ]
+        "collection_date"  => [ 'date', 'date sample collected' ]
     };
     # return object for query
     $self->{query}  = {

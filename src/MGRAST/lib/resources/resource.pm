@@ -68,26 +68,9 @@ sub new {
 	    -32603 => "Internal error"
 	};
 	
-	# get mgrast token
-    #my $mgrast_token = undef;
-    #if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
-    #    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
-    #    my $rep = Auth::globus_token($key);
-    #    $mgrast_token = $rep ? $rep->{access_token} : undef;
-    #}
     #### changed because globus has hard time handeling multiple tokens
     my $user_auth = "mgrast";
     my $mgrast_token = $Conf::mgrast_oauth_token || undef;
-    my $token = undef;
-    if ($params->{cgi}->http('HTTP_AUTH') || $params->{cgi}->http('HTTP_Authorization')) {
-        $token = $params->{cgi}->http('HTTP_AUTH') || $params->{cgi}->http('HTTP_Authorization');
-        if ($params->{cgi}->http('HTTP_Authorization')) {
-            $token =~ s/^mgrast (.+)$/$1/;
-        }
-        if ($token =~ /globusonline/) {
-            $user_auth = "OAuth";
-        }
-    }
 	
     # create object
     my $self = {
@@ -102,7 +85,7 @@ sub new {
         submethod     => $params->{submethod},
         resource      => $params->{resource},
         user          => $params->{user},
-        token         => $token,
+        token         => $params->{token},
         mgrast_token  => $mgrast_token,
         user_auth     => $user_auth,
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
