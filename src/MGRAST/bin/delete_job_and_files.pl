@@ -39,8 +39,8 @@ $json->allow_nonref;
 my $response = undef;
 my $job_doc  = undef;
 eval {
-    my $get = $self->agent->get($awe_url.'/job/'.$aweid, 'Authorization', $auth_token);
-    $response = $self->json->decode( $get->content );
+    my $get = $agent->get($awe_url.'/job/'.$aweid, 'Authorization', $auth_token);
+    $response = $json->decode( $get->content );
 };
 if ($@ || (! ref($response))) {
     print STDERR "ERROR: unable to connect to AWE server\n";
