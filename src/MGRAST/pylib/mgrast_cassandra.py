@@ -46,23 +46,6 @@ class M5nrHandle(object):
     def close(self):
         cass_connection.destroy()
     ### retrieve M5NR records
-    def get_records_by_id(self, ids, source=None, index=False, iterator=False):
-        found = []
-        table = "index_annotation" if index else "id_annotation"
-        id_str = ",".join(map(str, ids))
-        if source:
-            query = "SELECT * FROM %s WHERE id IN (%s) AND source='%s'"%(table, id_str, source)
-        else:
-            query = "SELECT * FROM %s WHERE id IN (%s)"%(table, id_str)
-        rmqLogger(self.channel, 'select', query)
-        rows = self.session.execute(query)
-        if iterator:
-            return rows
-        else:
-            for r in rows:
-                r['is_protein'] = 1 if r['is_protein'] else 0
-                found.append(r)
-            return found
     def get_records_by_md5(self, md5s, source=None, index=False, iterator=False):
         found = []
         table = "midx_annotation" if index else "md5_annotation"

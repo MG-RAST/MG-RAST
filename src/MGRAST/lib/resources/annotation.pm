@@ -10,7 +10,6 @@ use HTML::Strip;
 use URI::Escape;
 
 use Conf;
-use MGRAST::Abundance;
 use parent qw(resources::resource);
 
 # Override parent constructor

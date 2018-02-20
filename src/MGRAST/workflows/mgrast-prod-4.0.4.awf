@@ -1,0 +1,1173 @@
+{
+    "info": {
+        "pipeline": "mgrast-prod-4.0.3",
+        "name": "[% job_id %]",
+        "project": "[% project_name %]",
+        "user": "[% user %]",
+        "xref": "[% xref %]",
+        "clientgroups": "[% clientgroups %]",
+        "priority": [% priority %],
+        "userattr": {
+            "id": "[% mg_id %]",
+            "job_id": "[% job_id %]",
+            "name": "[% mg_name %]",
+            "created": "[% job_date %]",
+            "status": "private",
+            "owner": "[% user %]",
+            "sequence_type": "[% seq_type %]",
+            "bp_count": "[% bp_count %]",
+            "project_id": "[% project_id %]",
+            "project_name": "[% project_name %]",
+            "type": "metagenome",
+            "pipeline_version": "4.0.3",
+            "submission": "[% submission_id %]"
+        }
+    },
+    "tasks": [
+        {
+            "cmd": {
+                "name": "mgrast_qc.pl",
+                "args": "-input @[% inputfile %] -format [% file_format %] -out_prefix [% job_id %].075 -assembled [% assembled %] -filter_options [% filter_options %] -proc 8",
+                "description": "qc_stats",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": [],
+            "inputs": {
+               "[% inputfile %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% shock_node %]"
+                }
+            }, 
+            "outputs": {
+                "[% job_id %].075.assembly.coverage": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].075.assembly.coverage.json"
+                },
+                "[% job_id %].075.qc.stats": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].075.qc.stats.json"
+                },
+                "[% job_id %].075.upload.stats": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].075.upload.stats.json"
+                }
+            },
+            "userattr": {
+                "stage_id": "075",
+                "stage_name": "qc"
+            },
+            "taskid": "0", 
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "autoskewer.py",
+                "args": "-i @[% inputfile %] -o [% job_id %].080.adapter.trim.passed.[% file_format %] -l [% job_id %].080.adapter.trim.log",
+                "description": "adapter trim",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": [], 
+            "inputs": {
+               "[% inputfile %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% shock_node %]",
+                    "shockindex": "record"
+                }
+            },
+            "outputs": {
+                "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                },
+                "[% job_id %].080.adapter.trim.log": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "userattr.json"
+                }
+            },
+            "userattr": {
+                "stage_id": "080",
+                "stage_name": "adapter.trim",
+                "data_type": "sequence",
+                "file_format": "[% file_format %]",
+                "seq_format": "bp"
+            },
+            "taskid": "1", 
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_preprocess.pl",
+                "args": "-input @[% job_id %].080.adapter.trim.passed.[% file_format %] -format [% file_format %] -out_prefix [% job_id %].100.preprocess -filter_options [% filter_options %]",
+                "description": "preprocess",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]", 	 	
+                "environ" : {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    }
+                }
+            },
+            "dependsOn": ["1"],
+            "inputs": {
+               "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "1"
+                }
+            },
+            "outputs": {
+                "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].100.preprocess.passed.fna.json"[% preprocess_pass %]
+                },
+                "[% job_id %].100.preprocess.removed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].100.preprocess.removed.fna.json"[% preprocess_fail %]
+                }
+            },
+            "userattr": {
+                "stage_id": "100",
+                "stage_name": "preprocess",
+                "file_format": "fasta",
+                "seq_format": "bp"
+            },
+            "taskid": "2", 
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_dereplicate.pl",
+                "args": "-input=@[% job_id %].100.preprocess.passed.fna -out_prefix=[% job_id %].150.dereplication -prefix_length=[% prefix_length %] -dereplicate=[% dereplicate %] -memory=10",
+                "description": "dereplication",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["2"],
+            "inputs": {
+               "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "2"
+                }
+            },
+            "outputs": {
+                "[% job_id %].150.dereplication.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].150.dereplication.passed.fna.json"[% dereplicate_pass %]
+                },
+                "[% job_id %].150.dereplication.removed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].150.dereplication.removed.fna.json"[% dereplicate_fail %]
+                }
+            },
+            "userattr": {
+                "stage_id": "150",
+                "stage_name": "dereplication",
+                "file_format": "fasta",
+                "seq_format": "bp"
+            },
+            "taskid": "3",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_bowtie_screen.pl",
+                "args": "-input=@[% job_id %].150.dereplication.passed.fna -output=[% job_id %].299.screen.passed.fna -index=[% screen_indexes %] -bowtie=[% bowtie %] -proc=8",
+                "description": "screen",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            }, 
+            "dependsOn": ["3"], 
+            "inputs": {
+               "[% job_id %].150.dereplication.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "3"
+                }
+            },
+            "outputs": {
+                "[% job_id %].299.screen.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"[% bowtie_pass %]
+                }
+            },
+            "predata": {[% index_download_urls %]
+            },
+            "userattr": {
+                "stage_id": "299",
+                "stage_name": "screen",
+                "data_type": "sequence",
+                "file_format": "fasta",
+                "seq_format": "bp"
+            },
+            "taskid": "4", 
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_sortme_rna.pl",
+                "args": "-input=@[% job_id %].100.preprocess.passed.fna -output=[% job_id %].425.search.rna.fna -rna_nr=[% m5rna_clust %] -index=[% m5rna_index %] -proc=8 -mem=4096 -eval=0.1 -ident=75",
+                "description": "rna detection",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            }, 
+            "dependsOn": ["2"],
+            "inputs": {
+               "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "2"
+                }
+            },
+            "outputs": {
+                "[% job_id %].425.search.rna.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "partinfo": {
+                 "input": "[% job_id %].100.preprocess.passed.fna",
+                 "output": "[% job_id %].425.search.rna.fna"
+            },
+            "predata": {
+                "[% m5rna_clust %]":{
+                    "url": "[% m5rna_clust_download_url %]"
+                },
+                "[% m5rna_index_burst %]":{
+                    "url": "[% m5rna_index_burst_download_url %]"
+                },
+                "[% m5rna_index_kmer %]":{
+                    "url": "[% m5rna_index_kmer_download_url %]"
+                },
+                "[% m5rna_index_pos %]":{
+                    "url": "[% m5rna_index_pos_download_url %]"
+                },
+                "[% m5rna_index_stat %]":{
+                    "url": "[% m5rna_index_stat_download_url %]"
+                }
+            },
+            "userattr": {
+                "stage_id": "425",
+                "stage_name": "rna.filter",
+                "data_type": "sequence",
+                "file_format": "fasta",
+                "seq_format": "bp"
+            },
+            "taskid": "5",
+            "totalwork": 1,
+            "maxworksize": 800
+        },          
+        {
+            "cmd": {
+                "name": "mgrast_cluster.pl",
+                "args": "-input=@[% job_id %].425.search.rna.fna -out_prefix=[% job_id %].440.cluster -rna -pid=[% rna_pid %] -memory=20", 
+                "description": "rna clustering",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            }, 
+            "dependsOn": ["5"],
+            "inputs": {
+                "[% job_id %].425.search.rna.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "5",
+                    "node": "-"
+                }
+            },
+            "outputs": {
+                "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].fna.json"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].mapping.json"
+                }
+            },
+            "partinfo": {
+                 "input": "[% job_id %].425.search.rna.fna",
+                 "output": "[% job_id %].440.cluster.rna[% rna_pid %].fna"
+            },
+            "userattr": {
+                "stage_id": "440",
+                "stage_name": "rna.cluster",
+                "seq_format": "bp",
+                "cluster_percent": "[% rna_pid %]"
+            },
+            "taskid": "6",
+            "totalwork": 1,
+            "maxworksize": 1000
+        },
+        {
+            "cmd": {
+                "name": "mgrast_blat_rna.pl",
+                "args": "-input=@[% job_id %].440.cluster.rna97.fna -rna_nr=m5rna -output=[% job_id %].450.rna.sims -assembled=[% assembled %]",
+                "description": "rna sims blat",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            }, 
+            "dependsOn": ["6"],
+            "inputs": {
+                "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-"
+                }
+            },
+            "outputs": {
+                "[% job_id %].450.rna.sims": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "predata": {
+                "m5rna":{
+                    "url": "[% m5rna_download_url %]"
+                }
+            },
+            "partinfo": {
+                 "input": "[% job_id %].440.cluster.rna[% rna_pid %].fna",
+                 "output": "[% job_id %].450.rna.sims"
+            },
+            "userattr": {
+                "stage_id": "450",
+                "stage_name": "rna.sims",
+                "m5rna_sims_version": "[% ach_sequence_ver %]",
+                "data_type": "similarity",
+                "file_format": "blast m8",
+                "sim_type": "rna"
+            },
+            "taskid": "7",
+            "maxworksize": 50
+        },
+        {
+            "cmd": {
+                "name": "mgrast_genecalling.pl",
+                "args": "-input=@[% job_id %].299.screen.passed.fna -out_prefix=[% job_id %].350.genecalling.coding -type=[% fgs_type %] -size=100 -proc=8",
+                "description": "genecalling",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["4"],
+            "inputs": {
+               "[% job_id %].299.screen.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "4"
+                }
+            },
+            "outputs": {
+                "[% job_id %].350.genecalling.coding.faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "shockindex": "record",
+                    "attrfile": "userattr.json"
+                },
+                "[% job_id %].350.genecalling.coding.fna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "userattr.json"
+                }
+            },
+            "partinfo": {
+                 "input": "[% job_id %].299.screen.passed.fna",
+                 "output": "[% job_id %].350.genecalling.coding.faa"
+            },
+            "userattr": {
+                "stage_id": "350",
+                "stage_name": "genecalling",
+                "data_type": "sequence",
+                "file_format": "fasta",
+                "seq_format": "aa",
+                "fgs_type": "[% fgs_type %]"
+            },
+            "taskid": "8",
+            "totalwork": 1,
+            "maxworksize": 800
+        },
+        {
+            "cmd": {
+                "name": "mgrast_filter_feature.pl",
+                "args": "-in_clust=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_sim=@[% job_id %].450.rna.sims -in_seq=@[% job_id %].350.genecalling.coding.faa -output=[% job_id %].375.filtering.faa -overlap=[% overlap %]",
+                "description": "aa filtering",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["6", "7", "8"],
+            "inputs": {
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "6"
+                },
+                "[% job_id %].450.rna.sims": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "7"
+                },
+                "[% job_id %].350.genecalling.coding.faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "8"
+                }
+            },
+            "outputs": {
+                "[% job_id %].375.filtering.faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "type": "subset",
+                    "formoptions": {
+                        "parent_name": "[% job_id %].350.genecalling.coding.faa",
+                        "parent_index": "record"
+                    },
+                    "attrfile": "[% job_id %].375.filtering.faa.json"
+                }
+            },
+            "userattr": {
+                "stage_id": "375",
+                "stage_name": "filtering",
+                "data_type": "sequence",
+                "file_format": "fasta",
+                "seq_format": "aa",
+                "overlap": "[% overlap %]"
+            },
+            "taskid": "9",
+            "totalwork": 1
+        },
+        {   
+            "cmd": {
+                "name": "mgrast_cluster.pl",
+                "args": "-input=@[% job_id %].375.filtering.faa -out_prefix=[% job_id %].550.cluster -aa -pid=[% aa_pid %] -memory=20",
+                "description": "aa clustering",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["9"],
+            "inputs": {
+                "[% job_id %].375.filtering.faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "origin": "9"
+                }
+            },
+            "outputs": {
+                "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].faa.json"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].mapping.json"
+                }
+            },
+            "partinfo": {
+                 "input": "[% job_id %].375.filtering.faa",
+                 "output": "[% job_id %].550.cluster.aa[% aa_pid %].faa"
+            },
+            "userattr": {
+                "stage_id": "550",
+                "stage_name": "protein.cluster",
+                "seq_format": "aa",
+                "cluster_percent": "[% aa_pid %]"
+            },
+            "taskid": "10",
+            "totalwork": 1,
+            "maxworksize": 1000
+        },
+        {
+            "cmd": {
+                "name": "mgrast_diamond_prot.py",
+                "args": "--input=@[% job_id %].550.cluster.aa[% aa_pid %].faa --output=[% job_id %].650.diamond.sims",
+                "description": "aa sims diamond",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            }, 
+            "dependsOn": ["10"],  
+            "inputs": {
+                "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-"
+                }
+            }, 
+            "outputs": {
+                "[% job_id %].650.diamond.sims": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "predata": {
+                "m5nr.dmnd":{
+                    "url": "[% m5nr_diamond_url %]"
+                }
+            },
+            "partinfo": {
+                 "input": "[% job_id %].550.cluster.aa[% aa_pid %].faa",
+                 "output": "[% job_id %].650.diamond.sims"
+            },
+            "userattr": {
+                "stage_id": "650",
+                "stage_name": "protein.sims",
+                "m5nr_sims_version": "[% ach_sequence_ver %]",
+                "data_type": "similarity",
+                "file_format": "blast m8",
+                "sim_type": "protein"
+            },
+            "taskid": "11",
+            "maxworksize": 50
+        },
+        {
+            "cmd": {
+                "name": "mgrast_annotate_sims.pl",
+                "args": "-input=@[% job_id %].650.diamond.sims -out_prefix=[% job_id %].650 -aa -ach_ver=[% ach_annotation_ver %] -ann_file=m5nr_v1.bdb -scgs=scg_md5.json",
+                "description": "aa sims annotation",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            }, 
+            "dependsOn": ["11"],  
+            "inputs": {
+                "[% job_id %].650.diamond.sims": {
+                    "host": "[% shock_url %]",
+                    "origin": "11",
+                    "node": "-"
+                }
+            }, 
+            "outputs": {
+                "[% job_id %].650.aa.sims.filter": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].650.aa.sims.filter.json"
+                },
+                "[% job_id %].650.aa.expand.protein": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].650.aa.expand.protein.json"
+                },
+                "[% job_id %].650.aa.expand.lca": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].650.aa.expand.lca.json"
+                }
+            },
+            "predata": {
+                "m5nr_v1.bdb": {
+                    "url": "[% m5nr_annotation_url %]"
+                },
+                "scg_md5.json": {
+                    "url": "[% scg_md5_url %]"
+                }
+            },
+            "userattr": {
+                "stage_id": "650",
+                "stage_name": "protein.sims",
+                "m5nr_sims_version": "[% ach_sequence_ver %]",
+                "m5nr_annotation_version": "[% ach_annotation_ver %]"
+            },
+            "taskid": "12",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_annotate_sims.pl",
+                "args": "-input=@[% job_id %].450.rna.sims -out_prefix=[% job_id %].450 -rna -ach_ver=[% ach_annotation_ver %] -ann_file=m5nr_v1.bdb",
+                "description": "rna sims annotation",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            }, 
+            "dependsOn": ["7"],
+            "inputs": {
+                "[% job_id %].450.rna.sims": {
+                    "host": "[% shock_url %]",
+                    "origin": "7",
+                    "node": "-"
+                }
+            }, 
+            "outputs": {
+                "[% job_id %].450.rna.sims.filter": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].450.rna.sims.filter.json"
+                },
+                "[% job_id %].450.rna.expand.rna": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].450.rna.expand.rna.json"
+                },
+                "[% job_id %].450.rna.expand.lca": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].450.rna.expand.lca.json"
+                }
+            },
+            "predata": {
+                "m5nr_v1.bdb": {
+                    "url": "[% m5nr_annotation_url %]"
+                }
+            },
+            "userattr": {
+                "stage_id": "450",
+                "stage_name": "rna.sims",
+                "m5rna_sims_version": "[% ach_sequence_ver %]",
+                "m5rna_annotation_version": "[% ach_annotation_ver %]"
+            },
+            "taskid": "13",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_index_sim_seq.pl",
+                "args": "-in_seqs=@[% job_id %].350.genecalling.coding.fna -in_seqs=@[% job_id %].425.search.rna.fna -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_sims=@[% job_id %].650.aa.sims.filter -in_sims=@[% job_id %].450.rna.sims.filter -output=[% job_id %].700.annotation.sims.filter.seq -memory=10",
+                "description": "index sim seq",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ": {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    }
+                }
+            }, 
+            "dependsOn": ["5", "6", "8", "10", "12", "13"],
+            "inputs": {
+                "[% job_id %].425.search.rna.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "5",
+                    "node": "-"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-"
+                },
+                "[% job_id %].350.genecalling.coding.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "8",
+                    "node": "-"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-"
+                },
+                "[% job_id %].650.aa.sims.filter": {
+                    "host": "[% shock_url %]",
+                    "origin": "12",
+                    "node": "-",
+                    "attrfile": "[% job_id %].650.aa.sims.filter.json"
+                },
+                "[% job_id %].450.rna.sims.filter": {
+                    "host": "[% shock_url %]",
+                    "origin": "13",
+                    "node": "-",
+                    "attrfile": "[% job_id %].450.rna.sims.filter.json"
+                }
+            },
+            "outputs": {
+                "[% job_id %].700.annotation.sims.filter.seq": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].700.annotation.sims.filter.seq.json"
+                },
+                "[% job_id %].700.annotation.sims.filter.seq.index": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "[% job_id %].700.annotation.sims.filter.seq.index.json"
+                }
+            },
+            "userattr": {
+                "stage_id": "700",
+                "stage_name": "filter.sims",
+                "m5nr_annotation_version": "[% ach_annotation_ver %]",
+                "m5rna_annotation_version": "[% ach_annotation_ver %]"
+            },
+            "taskid": "14",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_annotate_summary.pl",
+                "args": "-in_expand=@[% job_id %].650.aa.sims.filter -in_expand=@[% job_id %].450.rna.sims.filter -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -in_index=@[% job_id %].700.annotation.sims.filter.seq.index -output=[% job_id %].700.annotation.md5.abundance -type=md5",
+                "description": "md5 abundance",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["0", "6", "10", "12", "13", "14"],
+            "inputs": {
+                "[% job_id %].075.assembly.coverage": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-"
+                },
+                "[% job_id %].650.aa.sims.filter": {
+                    "host": "[% shock_url %]",
+                    "origin": "12",
+                    "node": "-"
+                },
+                "[% job_id %].450.rna.sims.filter": {
+                    "host": "[% shock_url %]",
+                    "origin": "13",
+                    "node": "-"
+                },
+                "[% job_id %].700.annotation.sims.filter.seq.index": {
+                    "host": "[% shock_url %]",
+                    "origin": "14",
+                    "node": "-"
+                }
+            },
+            "outputs": {
+                "[% job_id %].700.annotation.md5.abundance": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "userattr.json"
+                }
+            },
+            "userattr": {
+                "stage_id": "700",
+                "stage_name": "annotation.summary",
+                "m5nr_annotation_version": "[% ach_annotation_ver %]",
+                "m5rna_annotation_version": "[% ach_annotation_ver %]",
+                "file_format": "abundance table",
+                "data_type": "md5"
+            },
+            "taskid": "15",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_annotate_summary.pl",
+                "args": "-in_expand=@[% job_id %].650.aa.expand.lca -in_expand=@[% job_id %].450.rna.expand.lca -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.lca.abundance -type=lca -scgs=scg_md5.json",
+                "description": "lca abundance",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["0", "6", "10", "12", "13"],
+            "inputs": {
+                "[% job_id %].075.assembly.coverage": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-"
+                },
+                "[% job_id %].650.aa.expand.lca": {
+                    "host": "[% shock_url %]",
+                    "origin": "12",
+                    "node": "-"
+                },
+                "[% job_id %].450.rna.expand.lca": {
+                    "host": "[% shock_url %]",
+                    "origin": "13",
+                    "node": "-"
+                }
+            },
+            "outputs": {
+                "[% job_id %].700.annotation.lca.abundance": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "userattr.json"
+                }
+            },
+            "predata": {
+                "scg_md5.json": {
+                    "url": "[% scg_md5_url %]"
+                }
+            },
+            "userattr": {
+                "stage_id": "700",
+                "stage_name": "annotation.summary",
+                "m5nr_annotation_version": "[% ach_annotation_ver %]",
+                "m5rna_annotation_version": "[% ach_annotation_ver %]",
+                "file_format": "abundance table",
+                "data_type": "lca"
+            },
+            "taskid": "16",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_annotate_summary.pl",
+                "args": "-in_expand=@[% job_id %].650.aa.expand.protein -in_expand=@[% job_id %].450.rna.expand.rna -in_maps=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -in_maps=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -in_assemb=@[% job_id %].075.assembly.coverage -output=[% job_id %].700.annotation.source.stats -type=source",
+                "description": "source abundance",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["0", "6", "10", "12", "13"],
+            "inputs": {
+                "[% job_id %].075.assembly.coverage": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-"
+                },
+                "[% job_id %].650.aa.expand.protein": {
+                    "host": "[% shock_url %]",
+                    "origin": "12",
+                    "node": "-"
+                },
+                "[% job_id %].450.rna.expand.rna": {
+                    "host": "[% shock_url %]",
+                    "origin": "13",
+                    "node": "-"
+                }
+            },
+            "outputs": {
+                "[% job_id %].700.annotation.source.stats": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "delete": true,
+                    "attrfile": "userattr.json"
+                }
+            },
+            "userattr": {
+                "stage_id": "700",
+                "stage_name": "annotation.summary",
+                "m5nr_annotation_version": "[% ach_annotation_ver %]",
+                "m5rna_annotation_version": "[% ach_annotation_ver %]",
+                "file_format": "json",
+                "data_type": "source"
+            },
+            "taskid": "17",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "extract_darkmatter.py",
+                "args": "-i @[% job_id %].375.filtering.faa -s @[% job_id %].450.rna.sims -s @[% job_id %].650.diamond.sims -m @[% job_id %].440.cluster.rna[% rna_pid %].mapping -m @[% job_id %].550.cluster.aa[% aa_pid %].mapping -o [% job_id %].750.darkmatter.faa",
+                "description": "dark matter extraction",
+                "Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["6", "7", "9", "10", "11"],
+            "inputs": {
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-"
+                },
+                "[% job_id %].450.rna.sims": {
+                    "host": "[% shock_url %]",
+                    "origin": "7",
+                    "node": "-"
+                },
+                "[% job_id %].375.filtering.faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "9",
+                    "node": "-"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-"
+                },
+                "[% job_id %].650.diamond.sims": {
+                    "host": "[% shock_url %]",
+                    "origin": "11",
+                    "node": "-"
+                }
+            },
+            "outputs": {
+                "[% job_id %].750.darkmatter.faa": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "userattr": {
+                "stage_id": "750",
+                "stage_name": "darkmatter",
+                "data_type": "sequence",
+                "file_format": "fasta",
+                "seq_format": "aa"
+            },
+            "taskid": "18",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_load_cass.pl",
+                "args": "-job=[% job_id %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -md5=@[% job_id %].700.annotation.md5.abundance -lca=@[% job_id %].700.annotation.lca.abundance",
+                "description": "abundance cassandra load",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ": {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    }
+                }
+            },
+            "dependsOn": ["15", "16"],
+            "inputs": {
+                "[% job_id %].700.annotation.md5.abundance": {
+                    "host": "[% shock_url %]",
+                    "origin": "15",
+                    "node": "-"
+                },
+                "[% job_id %].700.annotation.lca.abundance": {
+                    "host": "[% shock_url %]",
+                    "origin": "16",
+                    "node": "-"
+                }
+            },
+            "taskid": "19",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_stats.pl",
+                "args": "-job=[% job_id %] -nr_ver=[% ach_sequence_ver %] -ann_ver=[% ach_annotation_ver %] -api_url=[% mgrast_api %] -upload=@[% job_id %].075.upload.stats -qc=@[% job_id %].075.qc.stats -adtrim=@[% job_id %].080.adapter.trim.passed.[% file_format %] -preproc=@[% job_id %].100.preprocess.passed.fna -derep=@[% job_id %].150.dereplication.removed.fna -post_qc=@[% job_id %].299.screen.passed.fna -source=@[% job_id %].700.annotation.source.stats -search=@[% job_id %].425.search.rna.fna -rna_clust=@[% job_id %].440.cluster.rna[% rna_pid %].fna -rna_map=@[% job_id %].440.cluster.rna[% rna_pid %].mapping -genecall=@[% job_id %].350.genecalling.coding.faa -aa_clust=@[% job_id %].550.cluster.aa[% aa_pid %].faa -aa_map=@[% job_id %].550.cluster.aa[% aa_pid %].mapping -filter=[% job_id %].700.annotation.sims.filter.seq -md5_abund=@[% job_id %].700.annotation.md5.abundance -dark=@[% job_id %].750.darkmatter.faa -m5nr_db=m5nr_v1.annotation.bdb -taxa_hier=m5nr_v1.taxonomy.map.json -ont_hier=m5nr_v1.ontology.map.json",
+                "description": "done stage",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ": {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    }
+                }
+            },
+            "dependsOn": ["0", "1", "2", "3", "4", "5", "6", "8", "10", "12", "14", "15", "17", "18", "19"],
+            "inputs": {
+                "[% job_id %].075.qc.stats": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-",
+                    "attrfile": "[% job_id %].075.qc.stats.json"
+                },
+                "[% job_id %].075.upload.stats": {
+                    "host": "[% shock_url %]",
+                    "origin": "0",
+                    "node": "-",
+                    "attrfile": "[% job_id %].075.upload.stats.json"
+                },
+                "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
+                    "host": "[% shock_url %]",
+                    "origin": "1",
+                    "node": "-",
+                    "attrfile": "[% job_id %].080.adapter.trim.passed.[% file_format %].json"
+                },
+                "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "2",
+                    "node": "-",
+                    "nofile": true,
+                    "attrfile": "[% job_id %].100.preprocess.passed.fna.json"
+                },
+                "[% job_id %].150.dereplication.removed.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "3",
+                    "node": "-",
+                    "nofile": true,
+                    "attrfile": "[% job_id %].150.dereplication.removed.fna.json"
+                },
+                "[% job_id %].299.screen.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "4",
+                    "node": "-",
+                    "attrfile": "[% job_id %].299.screen.passed.fna.json"
+                },
+                "[% job_id %].425.search.rna.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "5",
+                    "node": "-",
+                    "attrfile": "[% job_id %].425.search.rna.fna.json"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-",
+                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].fna.json"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-",
+                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].mapping.json"
+                },
+                "[% job_id %].350.genecalling.coding.faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "8",
+                    "node": "-",
+                    "attrfile": "[% job_id %].350.genecalling.coding.faa.json"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-",
+                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].faa.json"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-",
+                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].mapping.json"
+                },
+                "[% job_id %].700.annotation.sims.filter.seq": {
+                    "host": "[% shock_url %]",
+                    "origin": "14",
+                    "node": "-",
+                    "nofile": true,
+                    "attrfile": "[% job_id %].700.annotation.sims.filter.seq.json"
+                },
+                "[% job_id %].700.annotation.md5.abundance": {
+                    "host": "[% shock_url %]",
+                    "origin": "15",
+                    "node": "-"
+                },
+                "[% job_id %].700.annotation.source.stats": {
+                    "host": "[% shock_url %]",
+                    "origin": "17",
+                    "node": "-"
+                },
+                "[% job_id %].750.darkmatter.faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "18",
+                    "node": "-",
+                    "attrfile": "[% job_id %].750.darkmatter.faa.json"
+                }
+            },
+            "outputs": {
+                "[% job_id %].statistics.json" : {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "[% job_id %].statistics.json.attr"
+                },
+                "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
+                    "host": "[% shock_url %]",
+                    "origin": "1",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].080.adapter.trim.passed.[% file_format %].json"
+                },
+                "[% job_id %].299.screen.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "4",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].299.screen.passed.fna.json"
+                },
+                "[% job_id %].425.search.rna.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "5",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].425.search.rna.fna.json"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].fna.json"
+                },
+                "[% job_id %].440.cluster.rna[% rna_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "6",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].440.cluster.rna[% rna_pid %].mapping.json"
+                },
+                "[% job_id %].350.genecalling.coding.faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "8",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].350.genecalling.coding.faa.json"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].faa.json"
+                },
+                "[% job_id %].550.cluster.aa[% aa_pid %].mapping": {
+                    "host": "[% shock_url %]",
+                    "origin": "10",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].550.cluster.aa[% aa_pid %].mapping.json"
+                },
+                "[% job_id %].750.darkmatter.faa": {
+                    "host": "[% shock_url %]",
+                    "origin": "18",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "[% job_id %].750.darkmatter.faa.json"
+                }
+            },
+            "predata": {
+                "m5nr_v1.annotation.bdb":{
+                    "url": "[% m5nr_full_db_url %]"
+                },
+                "m5nr_v1.taxonomy.map.json":{
+                    "url": "[% m5nr_taxonomy_url %]"
+                },
+                "m5nr_v1.ontology.map.json":{
+                    "url": "[% m5nr_ontology_url %]"
+                }
+            },
+            "userattr": {
+                "stage_id": "999",
+                "stage_name": "done"
+            },
+            "taskid": "20",
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "mgrast_notify.pl",
+                "args": "-user=[% user %] -mgid=[% mg_id %] -api_url=[% mgrast_api %]",
+                "description": "notify job completion",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ": {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    }
+                }
+            },
+            "dependsOn": ["20"],
+            "userattr": {
+                "stage_id": "999",
+                "stage_name": "done"
+            },
+            "taskid": "21",
+            "totalwork": 1
+        }
+    ]
+}

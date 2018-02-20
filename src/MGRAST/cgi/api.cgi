@@ -20,7 +20,8 @@ my %private_resources = (
     'status'    => 1,
     'server'    => 1,
     'test'      => 1,
-    'user'      => 1
+    'user'      => 1,
+    'notebook'  => 1
 );
 
 # get request method
@@ -163,12 +164,15 @@ else {
 
 # check for authentication
 my $user;
+my $user_auth;
+my $token;
 if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization')) {
   eval {
       require Auth;
       Auth->import();
       my $message;
-      ($user, $message) = Auth::authenticate($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization'), $is_ssl);
+      my $auth = $cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization');
+      ($user, $message) = Auth::authenticate($auth, $is_ssl);
       unless($user) {
         unless ($message eq "valid kbase user") {
           print $cgi->header( -type => 'application/json',
@@ -179,6 +183,7 @@ if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authoriza
           exit 0;
         }
       }
+      ($user_auth, $token) = split / /, $auth;
   };
   if ($@) {
     print $cgi->header( -type => 'application/json',
@@ -228,6 +233,8 @@ if ($resource) {
       my $params= { 'rest_parameters' => \@rest_parameters,
 		    'method'          => $request_method,
 		    'user'            => $user,
+		    'token'           => $token,
+		    'user_auth'       => $user_auth,
 		    'json_rpc'        => $json_rpc,
 		    'json_rpc_id'     => $json_rpc_id,
 		    'submethod'       => $submethod,

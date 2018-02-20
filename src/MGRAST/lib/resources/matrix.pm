@@ -7,7 +7,6 @@ use POSIX qw(strftime);
 
 use Conf;
 use MGRAST::Metadata;
-use MGRAST::Abundance;
 use Data::Dumper;
 use URI::Escape;
 use List::Util qw(max min sum first);

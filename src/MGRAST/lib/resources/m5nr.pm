@@ -384,7 +384,7 @@ sub info {
       				       { 'name'        => "sequence",
       					     'request'     => $self->url."/".$self->name."/sequence",
       					     'description' => "Return annotations for md5s (M5NR ID) of given sequences",
-      					     'example'     => [ 'curl -X POST -d \'{"source":"KEGG","order":"source","data":["MAGENHQWQGSIL","MAGENHQWQGSIL"]}\' "'.$self->url."/".$self->name.'/sequence"',
+      					     'example'     => [ 'curl -X POST -d \'{"source":"GenBank","order":"source","data":["MAGENHQWQGSIL","MAGENHQWQGSIL"]}\' "'.$self->url."/".$self->name.'/sequence"',
                  				                "retrieve M5NR data ordered by source for sequences 'MAGENHQWQGSIL' and 'MAGENHQWQGSIL'" ],
       					     'method'      => "POST",
       					     'type'        => "synchronous",
