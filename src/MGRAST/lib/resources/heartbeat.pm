@@ -118,12 +118,12 @@ sub instance {
   } elsif ($id eq 'cassandra') {
       # need to test a query as handle can still be made but cluster in bad state
       # test md5 is 74428bf03d3c75c944ea0b2eb632701f / E. coli alcohol dehydrogenase / m5nr version 1
-      my $test_md5_id = 10795366;
+      my $test_md5    = '74428bf03d3c75c944ea0b2eb632701f';
       my $test_source = "RefSeq";
       my $test_data = [];
       eval {
           my $chdl = $self->cassandra_handle("m5nr", $self->{m5nr_version});
-          $test_data = $chdl->get_records_by_id([$test_md5_id], $test_source);
+          $test_data = $chdl->get_records_by_md5([$test_md5], $test_source);
           $chdl->close();
       };
       if ((! $@) && (@$test_data > 0)) {
