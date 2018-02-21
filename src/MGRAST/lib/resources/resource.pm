@@ -2654,7 +2654,6 @@ sub build_pair_join_task {
 
     # build pair join task
     my @outfiles = map { $outprefix.'.'.$_.'.fastq' } ('join', 'un1', 'un2');
-    my $seqfile  = $outfiles[0];
     $pj_task->{cmd}{args} = '-m 8 -p 10 @'.$pair1.' @'.$pair2.' -o '.$outprefix.'.%.fastq';
     $pj_task->{userattr}{stage_name} = "pair_join";
     if ($userattr && ref($userattr)) {
@@ -2669,22 +2668,31 @@ sub build_pair_join_task {
     my @tasks = ($pj_task);
     my $depend = $taskid;
     
+    # move or merge
+    my $seqfile = $outprefix.'.fastq';
+    $taskid += 1;
+    my $last_task = $self->empty_awe_task(1);
+    
     # merge if retain
     if ($retain) {
-        $seqfile = $outprefix.'.fastq';
-        $taskid += 1;
-        my $merge_task = $self->empty_awe_task(1);
-        $merge_task->{cmd}{description} = "merge unjoined";
-        $merge_task->{cmd}{name} = "sed";
-        $merge_task->{cmd}{args} = "-n w'$seqfile' ".join(' ', map { '@'.$_ } @outfiles);
-        $merge_task->{dependsOn} = ["$depend"];
-        $merge_task->{taskid} = "$taskid";
+        $last_task->{cmd}{description} = "merge unjoined";
+        $last_task->{cmd}{name} = "sed";
+        $last_task->{cmd}{args} = "-n w'$seqfile' ".join(' ', map { '@'.$_ } @outfiles);
         foreach my $outf (@outfiles) {
-            $merge_task->{inputs}{$outf} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
+            $last_task->{inputs}{$outf} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
         }
-        $merge_task->{outputs}{$seqfile} = {host => $Conf::shock_url, node => "-", attrfile => "input_attr.json"};
-        push @tasks, $merge_task;
     }
+    # rename file
+    else {
+        $last_task->{cmd}{description} = "rename joined";
+        $last_task->{cmd}{name} = "mv";
+        $last_task->{cmd}{args} = '@'.$outfiles[0].' '.$seqfile;
+        $last_task->{inputs}{$outfiles[0]} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
+    }
+    $last_task->{outputs}{$seqfile} = {host => $Conf::shock_url, node => "-", attrfile => "input_attr.json"};
+    $last_task->{dependsOn} = ["$depend"];
+    $last_task->{taskid} = "$taskid";
+    push @tasks, $last_task;
     
     # build seq stats task - not sff file
     $taskid += 1;

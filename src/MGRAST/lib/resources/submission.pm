@@ -485,7 +485,14 @@ sub status {
         $self->return_data($response);
     }
     $response->{parameters} = $info->{parameters};
-    $response->{inputs}     = [ sort { $a->{filename} cmp $b->{filename} } @{$info->{input}{files}} ];
+    my $inputs = undef;
+    eval {
+        $inputs = [ sort { $a->{filename} cmp $b->{filename} } @{$info->{input}{files}} ];
+    };
+    if (! $inputs) {
+        $inputs = $info->{input}{files};
+    }
+    $response->{inputs} = $inputs;
     
     # get submission results - either stdout from workunit if running or from shock if done
     my $report = $self->get_task_report($submit->{tasks}[-1], 'stdout', $self->token, $self->user_auth);
