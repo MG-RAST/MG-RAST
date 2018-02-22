@@ -2659,9 +2659,8 @@ sub build_pair_join_task {
     if ($userattr && ref($userattr)) {
         @{$pj_task->{userattr}}{keys %$userattr} = values %$userattr;
     }
-    $pj_task->{outputs}{$outfiles[0]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+    $pj_task->{outputs}{$outfiles[0]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
     if ($retain) {
-        $pj_task->{outputs}{$outfiles[0]}{delete} = JSON::true;
         $pj_task->{outputs}{$outfiles[1]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
         $pj_task->{outputs}{$outfiles[2]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
     }
@@ -2682,7 +2681,7 @@ sub build_pair_join_task {
             $last_task->{inputs}{$outf} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
         }
     }
-    # rename file
+    # else rename file
     else {
         $last_task->{cmd}{description} = "rename joined";
         $last_task->{cmd}{name} = "mv";
