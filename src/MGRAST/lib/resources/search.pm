@@ -171,9 +171,9 @@ sub query {
   } elsif ($self->user) {
     if (! $self->user->has_star_right('view', 'metagenome')) {
 	  my $in = [];
-	  @$in = map { "mgm".$_ } @{$self->user->has_right_to(undef, 'view', 'metagenome')};
+	  @$in = map { "mgp".$_ } @{$self->user->has_right_to(undef, 'view', 'project')};
 	  if (scalar(@$in)) {
-	    push(@$ins, [ "id", $in ]);
+	    push(@$ins, [ "project_project_id", $in ]);
 	  }
 	  if (! defined $self->cgi->param('public') || ($self->cgi->param('public') eq "1")  || ($self->cgi->param('public') eq "true")  || ($self->cgi->param('public') eq "yes") ) {
 	    push(@$ins, [ "job_info_public", [ "true" ] ]);
