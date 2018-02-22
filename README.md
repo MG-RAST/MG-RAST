@@ -36,8 +36,8 @@ Systems-Software
 6. Apache
 7. NGINX
 
-For the bioinformatics software and databases used in MG-RAST please see our
-[manual](ftp://ftp.metagenomics.anl.gov/manual.pdf)
+For the bioinformatics software and databases used in MG-RAST please see our manual:
+ftp://ftp.metagenomics.anl.gov/manual.pdf
 
 
 ### INSTRUCTIONS 
