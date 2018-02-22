@@ -2,7 +2,7 @@ MG-RAST source code
 ===================
 
 This is the repository for the MG-RAST metagenome analysis system.
-Take a look at [MG-RAST](http://metagenomics.anl.gov).
+Take a look at [MG-RAST](http://www.mg-rast.org).
 
 ### WARNING
 Don't try this at home.
@@ -12,7 +12,7 @@ MG-RAST is made available under a BSD type LICENSE, see the LICENSE
 file for details.
 
 ### Please note: The MG-RAST team is dedicated to supporting the
-server at http://metagenomics.anl.gov, we are not resourced to help
+server at http://www.mg-rast.org, we are not resourced to help
 with local installations. So as much as we'd like to we can't help
 with local installations of this software.
 
@@ -36,8 +36,8 @@ Systems-Software
 6. Apache
 7. NGINX
 
-For the bioinformatics software and databases used in MG-RAST please see 
-[the tools and data entry in our blog](http://blog.metagenomics.anl.gov/tools-and-data-used-in-mg-rast/)
+For the bioinformatics software and databases used in MG-RAST please see our
+[manual](ftp://ftp.metagenomics.anl.gov/manual.pdf)
 
 
 ### INSTRUCTIONS 
