@@ -651,8 +651,8 @@ sub submit {
         $project_name = $mdata->{data}{project_name}{value};
         $metadata_obj = $mdata;
         $md_json_node = $json_node;
-        # use extracted barcodes if mutiplex file
-        if ($bar_id && ($bar_count > 1) && $multiplex_file && (! $barcode_file)) {
+        # use extracted barcodes if not supplied
+        if ($bar_id && ($bar_count > 1) && (! $barcode_file)) {
             $barcode_file = $bar_id;
         }
     }
@@ -660,8 +660,8 @@ sub submit {
     # check combinations
     if (($pair_file_1 && (! $pair_file_2)) || ($pair_file_2 && (! $pair_file_1))) {
         $self->return_data( {"ERROR" => "Must include pair_file_1 and pair_file_2 together to merge pairs"}, 400 );
-    } elsif (($multiplex_file && (! $barcode_file)) || ($barcode_file && (! $multiplex_file))) {
-        $self->return_data( {"ERROR" => "Must include multiplex_file and barcode_file together to demultiplex"}, 400 );
+    } elsif ( ($multiplex_file && (! $barcode_file)) || ( $barcode_file && ((! $multiplex_file) || ((! $pair_file_1) || (! $pair_file_2))) ) ) {
+        $self->return_data( {"ERROR" => "Must include multiplex_file or pair_file and barcode_file together to demultiplex"}, 400 );
     } elsif (! ($pair_file_1 || $multiplex_file || (@$seq_files > 0))) {
         $self->return_data( {"ERROR" => "No sequence files provided"}, 400 );
     }
