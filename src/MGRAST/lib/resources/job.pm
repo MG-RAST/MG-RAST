@@ -708,6 +708,11 @@ sub job_action {
 
             $self->return_data($data);
         } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
+            # first check if already exists
+            my ($has_id, $has_state) = $self->awe_has_job($job->{job_id}, $self->mgrast_token);
+            if ($has_id) {
+                $self->return_data( {"ERROR" => "This metagenome already exists in AWE: name=".$job->{job_id}.", id=$has_id, state=$has_state"}, 422 );
+            }
             my $cmd;
             if ($action eq 'resubmit') {
                 $cmd = $Conf::resubmit_to_awe." --use_docker --job_id ".$job->{job_id}." --shock_url ".$Conf::shock_url." --awe_url ".$Conf::awe_url;
@@ -721,15 +726,21 @@ sub job_action {
                     $cmd .= " --submit_id ".$jdata->{submission};
                 }
             }
+            my $aid = "";
             my @log = `$cmd 2>&1`;
             chomp @log;
             my @err = grep { $_ =~ /^ERROR/ } @log;
             if (@err) {
-                $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
+                # AWE sometimes returns an error but still submits the job
+                ($has_id, $has_state) = $self->awe_has_job($job->{job_id}, $self->mgrast_token);
+                if ($has_id) {
+                    $aid = $has_id;
+                } else {
+                    $self->return_data( {"ERROR" => join("\n", @log)}, 400 );
+                }
             }
             my @aweid = grep { $_ =~ /^awe job/ } @log;
-            my $aid   = "";
-            if (@aweid) {
+            if (@aweid && (! $aid)) {
                 (undef, $aid) = split(/\t/, $aweid[0]);
             }
             if ($aid) {
@@ -1063,8 +1074,11 @@ sub job_action {
             my $sdata   = $post->{solr_data} || {};
             my $ver     = $post->{ann_ver} || $self->{m5nr_default};
             my $unique  = $self->url_id . md5_hex($self->json->encode($post));
-            my $retry   = int($post->{retry}) || 0;
-            unless (($retry =~ /^\d+$/) && ($retry > 0)) {
+            my $retry   = $post->{retry} || 0;
+            
+            if (($retry =~ /^\d+$/) && ($retry > 0)) {
+                $retry = int($retry);
+            } else {
                 $retry = 0;
             }
             
