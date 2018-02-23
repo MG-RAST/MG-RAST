@@ -2250,7 +2250,7 @@ sub node_to_inbox {
         $info->{submission} = $node->{attributes}{submission};
     }
     # add expiration if missing -- NOT for submission nodes !
-    if (exists(node->{attributes}{data_type}) && ($node->{attributes}{data_type} ne "submission") && ($node->{expiration} eq "0001-01-01T00:00:00Z")) {
+    if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} ne "submission") && ($node->{expiration} eq "0001-01-01T00:00:00Z")) {
         $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "5D");
     }
     return $info;
