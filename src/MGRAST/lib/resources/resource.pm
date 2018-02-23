@@ -1588,6 +1588,28 @@ sub awe_job_action {
     }
 }
 
+# get status and awe_id if metagenome job in awe
+sub awe_has_job {
+    my ($self, $name, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+        $authPrefix = "mgrast";
+    }
+    
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->get($Conf::awe_url.'/job?query&info.name='.$name, @args);
+        $response = $self->json->decode( $get->content );
+    };
+    
+    if ($response && exists($response->{data}) && (scalar(@{$response->{data}}) > 0)) {
+        return ($response->{data}[0]{id}, $response->{data}[0]{state});
+    } else {
+        return (undef, undef);
+    }
+}
+
 # get job document
 sub get_awe_job {
     my ($self, $id, $auth, $authPrefix, $pass_back_errors) = @_;
@@ -2228,7 +2250,7 @@ sub node_to_inbox {
         $info->{submission} = $node->{attributes}{submission};
     }
     # add expiration if missing -- NOT for submission nodes !
-    if (($node->{attributes}{data_type} ne "submission") && ($node->{expiration} eq "0001-01-01T00:00:00Z")) {
+    if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} ne "submission") && ($node->{expiration} eq "0001-01-01T00:00:00Z")) {
         $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "5D");
     }
     return $info;
