@@ -660,8 +660,10 @@ sub submit {
     # check combinations
     if (($pair_file_1 && (! $pair_file_2)) || ($pair_file_2 && (! $pair_file_1))) {
         $self->return_data( {"ERROR" => "Must include pair_file_1 and pair_file_2 together to merge pairs"}, 400 );
-    } elsif ( ($multiplex_file && (! $barcode_file)) || ( $barcode_file && ((! $multiplex_file) || ((! $pair_file_1) || (! $pair_file_2))) ) ) {
-        $self->return_data( {"ERROR" => "Must include multiplex_file or pair_file and barcode_file together to demultiplex"}, 400 );
+    } elsif ($multiplex_file && (! $barcode_file)) {
+        $self->return_data( {"ERROR" => "Must include barcode_file with multiplex_file"}, 400 );
+    } elsif ($barcode_file && (! ($multiplex_file || $pair_file_1))) {
+        $self->return_data( {"ERROR" => "Must include multiplex_file or pair_file with barcode_file"}, 400 );
     } elsif (! ($pair_file_1 || $multiplex_file || (@$seq_files > 0))) {
         $self->return_data( {"ERROR" => "No sequence files provided"}, 400 );
     }

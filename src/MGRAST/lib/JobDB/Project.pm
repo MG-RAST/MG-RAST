@@ -540,7 +540,7 @@ sub metagenome_ratings {
     my $user_jobs = {};
     my $ujr = defined($user) ? $user->has_right_to(undef, 'view', 'metagenome') : [];
     %$user_jobs = map { $_ => 1 } @$ujr;
-    my %psamples = map { $_->job->{sample} => $_->job->{metagenome_id} } grep { $user_jobs->{$_->job->{metagenome_id}} || $user_jobs->{'*'} || $_->job->{public} } @$project_jobs;
+    my %psamples = map { $_->job->{sample} => $_->job->{metagenome_id} } grep { $_->job->{sample} && ($user_jobs->{$_->job->{metagenome_id}} || $user_jobs->{'*'} || $_->job->{public}) } @$project_jobs;
 
     if (scalar(keys(%psamples))) {
       my $res = $jdbh->selectall_arrayref('SELECT parent, _id FROM MetaDataCollection WHERE parent IN ("'.join('", "', keys %psamples).'")');
