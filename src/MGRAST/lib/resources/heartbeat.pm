@@ -19,7 +19,7 @@ sub new {
   $self->{m5nr_version} = 1;
   $self->{services} = {
       'FTP' => 'ftp://'.$Conf::ftp_download,
-      'website' => $Conf::cgi_url,
+      'website' => $Conf::web_site,
       'SHOCK' => $Conf::shock_url,
       'SHOCKDB' => 'mongo',
       'AWE' => $Conf::awe_url,
