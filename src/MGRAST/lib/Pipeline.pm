@@ -278,7 +278,7 @@ sub template_keywords {
 
         # urls
         'shock_url'  => $Conf::shock_url,
-        'mgrast_api' => $Conf::cgi_url,
+        'mgrast_api' => $Conf::internal_url,
         'api_key'    => $Conf::api_key,
 
         # default options
@@ -289,14 +289,14 @@ sub template_keywords {
         'overlap'       => '10',
 
         # shock data download urls m5nr v1
-        'scg_md5_url' => "http://shock.metagenomics.anl.gov/node/524aec48-6c6f-4ad1-8f45-cfd39d1b9060?download",
-        'm5nr1_download_url' => "http://shock.metagenomics.anl.gov/node/4406405c-526c-4a63-be22-04b7c2d18434?download",
-        'm5nr2_download_url' => "http://shock.metagenomics.anl.gov/node/65d644a8-55a5-439f-a8b5-af1440472d8d?download",
-        'm5rna_download_url' => "http://shock.metagenomics.anl.gov/node/1284813a-91d1-42b1-bc72-e74f19e1a0d1?download",
-        'm5nr_annotation_url' => "http://shock.metagenomics.anl.gov/node/e5dc6081-e289-4445-9617-b53fdc4023a8?download",
-        'm5nr_full_db_url'    => "http://shock.metagenomics.anl.gov/node/0e275af5-98a3-4857-a47c-0c8c78b5f481?download",
-        'm5nr_taxonomy_url'   => "http://shock.metagenomics.anl.gov/node/edd8ef09-d746-4736-a6a0-6a83208df7a1?download",
-        'm5nr_ontology_url'   => "http://shock.metagenomics.anl.gov/node/2a7e0d4d-a581-40ab-a989-53eca51e24a9?download",
+        'scg_md5_url'         => $Conf::shock_url."/node/524aec48-6c6f-4ad1-8f45-cfd39d1b9060?download",
+        'm5nr1_download_url'  => $Conf::shock_url."/node/4406405c-526c-4a63-be22-04b7c2d18434?download",
+        'm5nr2_download_url'  => $Conf::shock_url."/node/65d644a8-55a5-439f-a8b5-af1440472d8d?download",
+        'm5rna_download_url'  => $Conf::shock_url."/node/1284813a-91d1-42b1-bc72-e74f19e1a0d1?download",
+        'm5nr_annotation_url' => $Conf::shock_url."/node/e5dc6081-e289-4445-9617-b53fdc4023a8?download",
+        'm5nr_full_db_url'    => $Conf::shock_url."/node/0e275af5-98a3-4857-a47c-0c8c78b5f481?download",
+        'm5nr_taxonomy_url'   => $Conf::shock_url."/node/edd8ef09-d746-4736-a6a0-6a83208df7a1?download",
+        'm5nr_ontology_url'   => $Conf::shock_url."/node/2a7e0d4d-a581-40ab-a989-53eca51e24a9?download",
         
         # rna search predata
         'm5rna_clust'       => "m5rna.clust.fasta",
@@ -305,21 +305,21 @@ sub template_keywords {
         'm5rna_index_kmer'  => $m5rna_index.".kmer_0.dat",
         'm5rna_index_pos'   => $m5rna_index.".pos_0.dat",
         'm5rna_index_stat'  => $m5rna_index.".stats",
-        'm5rna_clust_download_url'       => "http://shock.metagenomics.anl.gov/node/c4c76c22-297b-4404-af5c-8cd98e580f2a?download",
-        'm5rna_index_burst_download_url' => "http://shock.metagenomics.anl.gov/node/1a6768c2-b03a-4bd9-83aa-176266bbc742?download",
-        'm5rna_index_kmer_download_url'  => "http://shock.metagenomics.anl.gov/node/61cd91d8-c124-4a53-9b65-8cd87f88aa32?download",
-        'm5rna_index_pos_download_url'   => "http://shock.metagenomics.anl.gov/node/5190f16f-1bbc-44ba-a226-47add7889b0a?download",
-        'm5rna_index_stat_download_url'  => "http://shock.metagenomics.anl.gov/node/266a5154-7a06-4813-b948-0524155c71ec?download",
+        'm5rna_clust_download_url'       => $Conf::shock_url."/node/c4c76c22-297b-4404-af5c-8cd98e580f2a?download",
+        'm5rna_index_burst_download_url' => $Conf::shock_url."/node/1a6768c2-b03a-4bd9-83aa-176266bbc742?download",
+        'm5rna_index_kmer_download_url'  => $Conf::shock_url."/node/61cd91d8-c124-4a53-9b65-8cd87f88aa32?download",
+        'm5rna_index_pos_download_url'   => $Conf::shock_url."/node/5190f16f-1bbc-44ba-a226-47add7889b0a?download",
+        'm5rna_index_stat_download_url'  => $Conf::shock_url."/node/266a5154-7a06-4813-b948-0524155c71ec?download",
 
         # shock data download urls m5nr v10
-        'm5nr1_v10_download_url' => 'http://shock.metagenomics.anl.gov/node/a4ba44e1-ea2c-4807-adaf-1bf1346ece34?download',
-        'm5nr2_v10_download_url' => 'http://shock.metagenomics.anl.gov/node/17a63932-21d3-4fab-ae02-42a9b998e68a?download',
-        'm5nr3_v10_download_url' => 'http://shock.metagenomics.anl.gov/node/5a95a53e-e6a7-490d-b327-60de298c9056?download',
-        'm5nr4_v10_download_url' => 'http://shock.metagenomics.anl.gov/node/f9961f5c-f089-49d4-bc33-628b3ac28312?download',
-        'm5nr5_v10_download_url' => 'http://shock.metagenomics.anl.gov/node/33b7cab0-7d9d-43e6-b0ae-8f35ea63d152?download',
-        'm5rna_v10_download_url' => 'http://shock.metagenomics.anl.gov/node/2c16497c-762d-4b93-af3c-8aff6f7ccabc?download',
-        'm5rna_v10_clust_download_url' => 'http://shock.metagenomics.anl.gov/node/715c7ebe-b6bd-472a-a36e-590c0c737d43?download',
-        'm5nr_v10_annotation_url' => 'http://shock.metagenomics.anl.gov/node/7be4ac73-9037-458a-99df-393ef2c34dfe?download'
+        'm5nr1_v10_download_url' => $Conf::shock_url.'/node/a4ba44e1-ea2c-4807-adaf-1bf1346ece34?download',
+        'm5nr2_v10_download_url' => $Conf::shock_url.'/node/17a63932-21d3-4fab-ae02-42a9b998e68a?download',
+        'm5nr3_v10_download_url' => $Conf::shock_url.'/node/5a95a53e-e6a7-490d-b327-60de298c9056?download',
+        'm5nr4_v10_download_url' => $Conf::shock_url.'/node/f9961f5c-f089-49d4-bc33-628b3ac28312?download',
+        'm5nr5_v10_download_url' => $Conf::shock_url.'/node/33b7cab0-7d9d-43e6-b0ae-8f35ea63d152?download',
+        'm5rna_v10_download_url' => $Conf::shock_url.'/node/2c16497c-762d-4b93-af3c-8aff6f7ccabc?download',
+        'm5rna_v10_clust_download_url' => $Conf::shock_url.'/node/715c7ebe-b6bd-472a-a36e-590c0c737d43?download',
+        'm5nr_v10_annotation_url' => $Conf::shock_url.'/node/7be4ac73-9037-458a-99df-393ef2c34dfe?download'
     };
 }
 
