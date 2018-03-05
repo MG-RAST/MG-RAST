@@ -581,6 +581,7 @@ sub instance {
         }
         # prepare data
         my $data = $mddb->export_metadata_for_project($project);
+        $self->json->utf8();
         $self->return_data($data);
     }
     # metagenome export
@@ -603,6 +604,7 @@ sub instance {
         my $data = $mddb->get_job_metadata($job, 1, 0);
         my $mixs = $mddb->get_job_mixs($job);
         $data->{mixs} = $mixs;
+        $self->json->utf8();
         $self->return_data($data);
     }
     # bad id

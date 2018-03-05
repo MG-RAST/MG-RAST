@@ -113,7 +113,7 @@ sub info {
 						{ 'name'        => "blast",
 				          'request'     => $self->url."/".$self->name."/blast/{ID}",
 				          'description' => "Produce NCBI-BLAST sequence alinments for given md5sum and its hits.",
-				          'example'     => [ $self->url."/".$self->name."/blast/mgm4447943.3?md5=15bf1950bd9867099e72ea6516e3d602",
+				          'example'     => [ $self->url."/".$self->name."/blast/mgm4447943.3?md5=0001c08aa276d154b7696f9758839786",
              				                 "retrieve sequence alignment for reads from mgm4447943.3 against m5nr feature" ],
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
