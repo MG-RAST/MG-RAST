@@ -11,7 +11,7 @@ from openpyxl import Workbook
 __doc__ = """Script to export metadata from MG-RAST api to xlsx file"""
 
 valid_url  = HttpUrl()
-MGRAST_URL = 'http://api.metagenomics.anl.gov/'
+MGRAST_URL = 'https://api.mg-rast.org/'
 MGRASTID   = 'mgrast_id'
 ID_NAME = ['metagenome_name', 'metagenome_id', 'mgrast_id', 'sample_name', 'project_name']
 ORDER   = ['project', 'sample', 'library', 'ep']

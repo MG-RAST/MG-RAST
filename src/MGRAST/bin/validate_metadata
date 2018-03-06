@@ -14,7 +14,7 @@ from openpyxl.reader.excel import load_workbook
 
 __doc__ = """Script to validate metadata from filled out MG-RAST v3 xlsx template"""
 
-MGRAST_URL = 'http://api.metagenomics.anl.gov/'
+MGRAST_URL = 'https://api.mg-rast.org/'
 MGRASTID = 'mgrast_id'
 GEO_DIR  = {'N':1, 'S':-1, 'E':1, 'W':-1}
 ID_COL   = 0
