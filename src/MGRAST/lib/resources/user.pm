@@ -468,7 +468,7 @@ sub instance {
   }
   
   my $user = undef;
-  if (@rest > 0) {
+  if (scalar(@$rest) > 0) {
       # get user object
       $user = [];
       if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
@@ -492,7 +492,7 @@ sub instance {
   # POST Actions
   if ($self->{method} eq 'POST') {
     # check if this is user notify
-    if ((@$rest > 1) && ($rest->[1] eq 'notify') && $user) {
+    if ((scalar(@$rest) > 1) && ($rest->[1] eq 'notify') && $user) {
         unless (defined($self->{cgi}->param('subject')) && defined($self->{cgi}->param('body'))) {
             $self->return_data( {"ERROR" => "missing email subject and/or body"}, 404 );
         }
