@@ -253,7 +253,7 @@ sub info {
 				          'type'        => "synchronous",
 				          'attributes'  => $self->{attributes}{data},
 				          'parameters'  => { 'options'  => {},
-							                 'required' => { "id" => ["string","unique MG-RAST metagenome identifier"] },
+							                 'required' => { "id" => ["string", "unique MG-RAST metagenome identifier"] },
 							                 'body'     => {} }
 						},
 						{ 'name'        => "statistics",

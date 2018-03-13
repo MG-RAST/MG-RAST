@@ -46,97 +46,118 @@ sub new {
 # this method must return a description of the resource
 sub info {
   my ($self) = @_;
-  my $content = { 'name' => $self->name,
+  my $content = {
+          'name' => $self->name,
 		  'url' => $self->url."/".$self->name,
 		  'description' => "The user resource returns information about a user.",
 		  'type' => 'object',
 		  'documentation' => $self->url.'/api.html#'.$self->name,
-		  'requests' => [ { 'name'        => "info",
+		  'requests' => [
+                  { 'name'        => "info",
 				    'request'     => $self->url."/".$self->name,
 				    'description' => "Returns description of parameters and attributes.",
 				    'method'      => "GET" ,
-				    'type'        => "synchronous" ,  
+				    'type'        => "synchronous",
 				    'attributes'  => "self",
-				    'parameters'  => { 'options'     => {},
-						       'required'    => {},
-						       'body'        => {} } },
+				    'parameters'  => { 'options'  => {},
+						               'required' => {},
+						               'body'     => {} }
+                  },
 				  { 'name'        => "instance",
 				    'request'     => $self->url."/".$self->name."/{ID}",
 				    'description' => "Returns a single user object.",
 				    'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
-						       "info for user 'johndoe'" ],
+						               "info for user 'johndoe'" ],
 				    'method'      => "GET",
-				    'type'        => "synchronous" ,  
+				    'type'        => "synchronous",
 				    'attributes'  => $self->attributes,
-				    'parameters'  => { 'options'     => $self->attributes,
-						       'required'    => { "id" => [ "string", "unique user login or ID" ] },
-						       'body'        => {} } },
+				    'parameters'  => { 'options'  => $self->attributes,
+						               'required' => { "id" => [ "string", "unique user login or ID" ] },
+						               'body'     => {} }
+                  },
 				  { 'name'        => "delete",
 				    'request'     => $self->url."/".$self->name."/{ID}",
 				    'description' => "Delete a user object.",
 				    'example'     => [ 'curl -X DELETE -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
-						       "error or success message" ],
+						               "error or success message" ],
 				    'method'      => "DELETE",
-				    'type'        => "synchronous" ,  
-                                      'attributes'  => {},
-                                      'parameters'  => { 'options'     => {},
-                                                         'required'    => { "id" => [ "string", "unique user login or ID" ] },
-                                                         'body'        => {} } },
-				    { 'name'        => "update",
-                                      'request'     => $self->url."/".$self->name."/{ID}",
-                                      'description' => "Returns a single user object.",
-                                      'example'     => [ 'curl -X PUT -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe?firstname=Jim"',
-							 "set firstname of user 'johndoe' to 'Jim'" ],
-                                      'method'      => "PUT",
-                                      'type'        => "synchronous" ,  
-                                      'attributes'  => $self->attributes,
-                                      'parameters'  => { 'options'     => {},
-                                                         'required'    => { "id" => [ "string", "unique user login or ID" ] },
-                                                         'body'        => {} } },
+				    'type'        => "synchronous",
+                    'attributes'  => {},
+                    'parameters'  => { 'options'  => {},
+                                       'required' => { "id" => [ "string", "unique user login or ID" ] },
+                                       'body'     => {} }
+                  },
+				  { 'name'        => "update",
+                    'request'     => $self->url."/".$self->name."/{ID}",
+                    'description' => "Returns a single user object.",
+                    'example'     => [ 'curl -X PUT -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe?firstname=Jim"',
+							           "set firstname of user 'johndoe' to 'Jim'" ],
+                    'method'      => "PUT",
+                    'type'        => "synchronous",
+                    'attributes'  => $self->attributes,
+                    'parameters'  => { 'options'  => {},
+                                       'required' => { "id" => [ "string", "unique user login or ID" ] },
+                                       'body'     => {} }
+                    },
+  				    { 'name'        => "notify",
+                      'request'     => $self->url."/".$self->name."/{ID}/notify",
+                      'description' => "Sends an email to a user",
+                      'example'     => [ 'curl -X POST -F "subject=hi" -F "body=hello world" -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
+  							             "send given email body to user 'johndoe' from mg-rast" ],
+                      'method'      => "PUT",
+                      'type'        => "synchronous",
+                      'attributes'  => $self->attributes,
+                      'parameters'  => { 'options'  => {},
+                                         'required' => { "id" => [ "string", "unique user login or ID" ] },
+                                         'body'     => { "subject" => ["string", "email subject line"],
+                                                         "body"    => ["string", "email body text"] } }
+                      },
 				    { 'name'        => "query",
-                                      'request'     => $self->url."/".$self->name,
-                                      'description' => "Returns a matching list of user objects.",
-                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'?lastname=Doe&firstname=John"',
-							 "info for users with firstname 'John' and lastname 'Doe'" ],
-                                      'method'      => "GET",
-                                      'type'        => "synchronous" ,  
-                                      'attributes'  => { "next"    => ["uri","link to the previous set or null if this is the first set"],
-							 "prev"    => ["uri","link to the next set or null if this is the last set"],
-							 "order"   => ["string","name of the attribute the returned data is ordered by"],
-							 "data"    => ["list", ["object", [$self->{attributes}, "user object"] ]],
-							 "limit"   => ["integer","maximum number of data items returned, default is 10"],
-							 "offset"  => ["integer","zero based index of the first returned data item"],
-							 "version" => ['integer', 'version of the object'],
-							 "url"     => ['uri', 'resource location of this object instance'],
-							 "total_count" => ["integer","total number of available data items"] },
-                                      'parameters'  => { 'options' =>
-							 { "id"         => [ 'string', 'search term for user id' ],
-							   "login"      => [ 'string', 'search term for user login'],
-							   "email"      => [ 'string', 'search term for user e-mail' ],
-							   "firstname"  => [ 'string', 'search term for first name of user' ],
-							   "lastname"   => [ 'string', 'search term for last name of user' ],
-							   "entry_date" => [ 'date', 'search term for date of user creation' ],
-							   "active"     => [ 'boolean', 'search term for user is active' ],
-							   "comment"    => [ 'string', 'search term for any comment about the user account' ],
-							   'limit'     => ["integer", "maximum number of items requested"],
-							   'offset'    => ["integer", "zero based index of the first data object to be returned"],
-							   'order'     => ["string", "metagenome object field to sort by (default is id)"],
-							   'direction' => ['cv', [['asc','sort by ascending order'],
-										  ['desc','sort by descending order']]],
-							   'match' => ['cv', [['all','return metagenomes that match all search parameters'],
-									      ['any','return metagenomes that match any search parameters']]],
-							   'status' => ['cv', [['both','returns all data (public and private) user has access to view'],
-									       ['public','returns all public data'],
-									       ['private','returns private data user has access to view']]],
-							   'verbosity' => ['cv', [['minimal','returns only minimal information'],
-										  ['preferences','returns minimal with preferences'],
-										  ['scopes','returns minimal with scopes'],
-										  ['rights','returns minimal with rights'],
-										  ['full','returns minimal with preferences, scopes and rights']] ] },
-                                                         'required'    => {},
-                                                         'body'        => {} } },
-                                     ]
-                                 };
+                      'request'     => $self->url."/".$self->name,
+                      'description' => "Returns a matching list of user objects.",
+                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'?lastname=Doe&firstname=John"',
+							             "info for users with firstname 'John' and lastname 'Doe'" ],
+                      'method'      => "GET",
+                      'type'        => "synchronous",
+                      'attributes'  => { "next"    => ["uri","link to the previous set or null if this is the first set"],
+                                         "prev"    => ["uri","link to the next set or null if this is the last set"],
+                                         "order"   => ["string","name of the attribute the returned data is ordered by"],
+                                         "data"    => ["list", ["object", [$self->{attributes}, "user object"] ]],
+                                         "limit"   => ["integer","maximum number of data items returned, default is 10"],
+                                         "offset"  => ["integer","zero based index of the first returned data item"],
+                                         "version" => ['integer', 'version of the object'],
+                                         "url"     => ['uri', 'resource location of this object instance'],
+                                         "total_count" => ["integer","total number of available data items"] },
+                      'parameters'  => { 'options' =>
+                                         { "id"         => [ 'string', 'search term for user id' ],
+                                           "login"      => [ 'string', 'search term for user login'],
+                                           "email"      => [ 'string', 'search term for user e-mail' ],
+                                           "firstname"  => [ 'string', 'search term for first name of user' ],
+                                           "lastname"   => [ 'string', 'search term for last name of user' ],
+                                           "entry_date" => [ 'date', 'search term for date of user creation' ],
+                                           "active"     => [ 'boolean', 'search term for user is active' ],
+                                           "comment"    => [ 'string', 'search term for any comment about the user account' ],
+                                           'limit'      => ["integer", "maximum number of items requested"],
+                                           'offset'     => ["integer", "zero based index of the first data object to be returned"],
+                                           'order'      => ["string", "metagenome object field to sort by (default is id)"],
+                                           'direction'  => ['cv', [['asc','sort by ascending order'],
+										                           ['desc','sort by descending order']]],
+                                           'match'      => ['cv', [['all','return metagenomes that match all search parameters'],
+									                               ['any','return metagenomes that match any search parameters']]],
+							               'status'     => ['cv', [['both','returns all data (public and private) user has access to view'],
+									                               ['public','returns all public data'],
+									                               ['private','returns private data user has access to view']]],
+							               'verbosity'  => ['cv', [['minimal','returns only minimal information'],
+										                           ['preferences','returns minimal with preferences'],
+										                           ['scopes','returns minimal with scopes'],
+										                           ['rights','returns minimal with rights'],
+										                           ['full','returns minimal with preferences, scopes and rights']] ]
+                                         },
+                                         'required' => {},
+                                         'body'     => {} }
+                    }
+            ]
+    };
 
     $self->return_data($content);
 }
@@ -489,8 +510,28 @@ sub instance {
     $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
   }
   
-  # check if this is a user update
   if ($self->{method} eq 'PUT') {
+    # check if this is user notify
+    if ((@$rest > 1) && ($rest->[1] eq 'notify')) {
+        unless (defined($self->{cgi}->param('subject')) && defined($self->{cgi}->param('body'))) {
+            $self->return_data( {"ERROR" => "missing email subject and/or body"}, 404 );
+        }
+        my $owner_name = ($user->firstname || "")." ".($user->lastname || "");
+        my $receiver = "\"$owner_name\" <".$user->email.">";
+        my $success = MGRAST::Mailer::send_email(
+                          smtp_host => $Conf::smtp_host,
+                          from => "mg-rast\@mcs.anl.gov",
+                          to => $receiver,
+                          subject => $self->{cgi}->param('subject'),
+                          body => $self->{cgi}->param('body')
+                      );
+        if ($success) {
+            $self->return_data( {"OK" => "email sent to $owner_name (".$user->login.")"}, 200 );
+        } else {
+            $self->return_data( {"ERROR" => "unable to send email to $owner_name (".$user->login.")"}, 500 );
+        }
+    }
+    # check if this is a user update
     if (defined $self->{cgi}->param('dwp') && $self->user->has_star_right('edit', 'user')) {
       &set_password($user, $self->cgi->param('dwp'));
     }
