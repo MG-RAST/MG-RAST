@@ -7,7 +7,7 @@ from operator import itemgetter
 from optparse import OptionParser
 from prettytable import PrettyTable
 
-AWE_URL = 'http://awe.metagenomics.anl.gov'
+AWE_URL = 'https://awe.mg-rast.org'
 MGP = { 'mgrast-prod': [
     'qc_stats',
     'preprocess',
