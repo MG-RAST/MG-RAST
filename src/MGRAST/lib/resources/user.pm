@@ -104,7 +104,7 @@ sub info {
                       'description' => "Sends an email to a user",
                       'example'     => [ 'curl -X POST -F "subject=hi" -F "body=hello world" -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
   							             "send given email body to user 'johndoe' from mg-rast" ],
-                      'method'      => "PUT",
+                      'method'      => "POST",
                       'type'        => "synchronous",
                       'attributes'  => $self->attributes,
                       'parameters'  => { 'options'  => {},
@@ -467,8 +467,51 @@ sub instance {
     }
   }
   
-  # check if this is a user creation
+  my $user = undef;
+  if (scalar(@$rest) > 0) {
+      # get user object
+      $user = [];
+      if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
+          $user = $master->User->get_objects( {"_id" => $1} );
+      } else { # user login
+          $user = $master->User->get_objects( { "login" => $rest->[0] } );
+          if (! scalar(@$user) && $rest->[0] =~ /\@/) {
+              $user = $master->User->get_objects( { "email" => $rest->[0] } );
+          }
+      }
+      unless (scalar(@$user)) {
+          $self->return_data( {"ERROR" => "user '".$rest->[0]."' does not exist"}, 404 );
+      }
+      $user = $user->[0];
+      # check rights
+      unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
+        $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
+      }
+  }
+  
+  # POST Actions
   if ($self->{method} eq 'POST') {
+    # check if this is user notify
+    if ((scalar(@$rest) > 1) && ($rest->[1] eq 'notify') && $user) {
+        unless (defined($self->{cgi}->param('subject')) && defined($self->{cgi}->param('body'))) {
+            $self->return_data( {"ERROR" => "missing email subject and/or body"}, 404 );
+        }
+        my $owner_name = ($user->firstname || "")." ".($user->lastname || "");
+        my $receiver = "\"$owner_name\" <".$user->email.">";
+        my $success = MGRAST::Mailer::send_email(
+                          smtp_host => $Conf::smtp_host,
+                          from => "mg-rast\@mcs.anl.gov",
+                          to => $receiver,
+                          subject => $self->{cgi}->param('subject'),
+                          body => $self->{cgi}->param('body')
+                      );
+        if ($success) {
+            $self->return_data( {"OK" => "email sent to $owner_name (".$user->login.")"}, 200 );
+        } else {
+            $self->return_data( {"ERROR" => "unable to send email to $owner_name (".$user->login.")"}, 500 );
+        }
+    }
+    # check if this is a user creation
     # users may only be created with a valid recaptcha
     my $ua = $self->{agent};
     $ua->env_proxy();
@@ -490,48 +533,8 @@ sub instance {
     $self->return_data($self->prepare_data($new_user));
   }
   
-  # get data
-  my $user = [];
-  if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
-    $user = $master->User->get_objects( {"_id" => $1} );
-  } else { # user login
-    $user = $master->User->get_objects( { "login" => $rest->[0] } );
-    if (! scalar(@$user) && $rest->[0] =~ /\@/) {
-      $user = $master->User->get_objects( { "email" => $rest->[0] } );
-    }
-  }
-  unless (scalar(@$user)) {
-    $self->return_data( {"ERROR" => "user '".$rest->[0]."' does not exist"}, 404 );
-  }
-  $user = $user->[0];
-  
-  # check rights
-  unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
-    $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
-  }
-  
-  if ($self->{method} eq 'PUT') {
-    # check if this is user notify
-    if ((@$rest > 1) && ($rest->[1] eq 'notify')) {
-        unless (defined($self->{cgi}->param('subject')) && defined($self->{cgi}->param('body'))) {
-            $self->return_data( {"ERROR" => "missing email subject and/or body"}, 404 );
-        }
-        my $owner_name = ($user->firstname || "")." ".($user->lastname || "");
-        my $receiver = "\"$owner_name\" <".$user->email.">";
-        my $success = MGRAST::Mailer::send_email(
-                          smtp_host => $Conf::smtp_host,
-                          from => "mg-rast\@mcs.anl.gov",
-                          to => $receiver,
-                          subject => $self->{cgi}->param('subject'),
-                          body => $self->{cgi}->param('body')
-                      );
-        if ($success) {
-            $self->return_data( {"OK" => "email sent to $owner_name (".$user->login.")"}, 200 );
-        } else {
-            $self->return_data( {"ERROR" => "unable to send email to $owner_name (".$user->login.")"}, 500 );
-        }
-    }
-    # check if this is a user update
+  # check if this is a user update
+  if (($self->{method} eq 'PUT') && $user) {
     if (defined $self->{cgi}->param('dwp') && $self->user->has_star_right('edit', 'user')) {
       &set_password($user, $self->cgi->param('dwp'));
     }
@@ -595,7 +598,7 @@ sub instance {
   }
 
   # check if this is a user deletion
-  if ($self->{method} eq 'DELETE') {
+  if (($self->{method} eq 'DELETE') && $user) {
     eval {
       $user->delete();
     };
@@ -607,11 +610,13 @@ sub instance {
   }
   
   # check if this is an action request
-  my $requests = { 'setpassword' => 1,
+  my $requests = {
+           'setpassword' => 1,
 		   'webkey' => 1,
 		   'accept' => 1,
-		   'deny' => 1 };
-  if (scalar(@$rest) > 1 && $requests->{$rest->[1]}) {
+		   'deny' => 1
+  };
+  if ((scalar(@$rest) > 1) && $requests->{$rest->[1]} && $user) {
     # accept account request
     if ($rest->[1] eq 'accept') {
       unless ($self->user->has_star_right('edit', 'user')) {
