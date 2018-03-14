@@ -493,8 +493,9 @@ sub instance {
   # POST Actions
   if ($self->{method} eq 'POST') {
     if ((scalar(@$rest) > 1) && ($rest->[1] eq 'notify') && $user) {
+        my $postdata = $self->get_post_data(["subject", "body"]);
         # check if this is user notify
-        unless (defined($self->{cgi}->param('subject')) && defined($self->{cgi}->param('body'))) {
+        unless (defined($postdata->{'subject'}) && defined($postdata->{'body'})) {
             $self->return_data( {"ERROR" => "missing email subject and/or body"}, 404 );
         }
         my $owner_name = ($user->firstname || "")." ".($user->lastname || "");
@@ -503,8 +504,8 @@ sub instance {
                           smtp_host => $Conf::smtp_host,
                           from => "mg-rast\@mcs.anl.gov",
                           to => $receiver,
-                          subject => $self->{cgi}->param('subject'),
-                          body => $self->{cgi}->param('body')
+                          subject => $postdata->{'subject'},
+                          body => $postdata->{'body'}
                       );
         if ($success) {
             $self->return_data( {"OK" => "email sent to $owner_name (".$user->login.")"}, 200 );
