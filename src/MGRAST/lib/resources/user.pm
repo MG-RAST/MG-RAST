@@ -468,7 +468,8 @@ sub instance {
   }
   
   my $user = undef;
-  if (scalar(@$rest) > 0) {
+  # get user if not doing user creation
+  if ($rest->[0] ne 'recaptcha') {
       # get user object
       $user = [];
       if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
@@ -491,8 +492,8 @@ sub instance {
   
   # POST Actions
   if ($self->{method} eq 'POST') {
-    # check if this is user notify
     if ((scalar(@$rest) > 1) && ($rest->[1] eq 'notify') && $user) {
+        # check if this is user notify
         unless (defined($self->{cgi}->param('subject')) && defined($self->{cgi}->param('body'))) {
             $self->return_data( {"ERROR" => "missing email subject and/or body"}, 404 );
         }
@@ -510,27 +511,31 @@ sub instance {
         } else {
             $self->return_data( {"ERROR" => "unable to send email to $owner_name (".$user->login.")"}, 500 );
         }
-    }
-    # check if this is a user creation
-    # users may only be created with a valid recaptcha
-    my $ua = $self->{agent};
-    $ua->env_proxy();
-    my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', { secret => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
-									       remoteip   => $ENV{'REMOTE_ADDR'},
-									       response   => $self->{cgi}->param('response') }
-			);
-    if ( $resp->is_success ) {
-      my $answer = $self->json->decode($resp->content);
-      if ( ! $answer->{success} ) {
-	$self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
-      }
-    } else {
-      $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
-    }
+    } elsif ($rest->[0] eq 'recaptcha') {
+        # check if this is a user creation
+        # users may only be created with a valid recaptcha
+        my $ua = $self->{agent};
+        $ua->env_proxy();
+        my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', {
+                              secret   => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+                              remoteip => $ENV{'REMOTE_ADDR'},
+                              response => $self->{cgi}->param('response')
+		});
+        if ( $resp->is_success ) {
+            my $answer = $self->json->decode($resp->content);
+            if ( ! $answer->{success} ) {
+	            $self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
+            }
+        } else {
+            $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
+        }
     
-    # if we get here, recaptcha is successful
-    my $new_user = &create_user($self);
-    $self->return_data($self->prepare_data($new_user));
+        # if we get here, recaptcha is successful
+        my $new_user = &create_user($self);
+        $self->return_data($self->prepare_data($new_user));
+    } else {
+        $self->return_data( {"ERROR" => "invalid POST action"}, 400 );
+    }
   }
   
   # check if this is a user update
