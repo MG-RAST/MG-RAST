@@ -38,6 +38,10 @@ CGS = [
     'mgrast_multi'
 ]
 
+def max_pipeline():
+    lens = map(lambda x: len(x), MGP.values())
+    return max(lens)
+
 def get_awe(url, token):
     header = {'Accept': 'application/json', 'Authorization': 'mgrast '+token}
     req = urllib2.Request(url, headers=header)
@@ -103,8 +107,9 @@ def main(args):
     
     if args.commands == "info":
         ptp = PrettyTable()
+        ptp.add_column('task #', range(max_pipeline()))
         for k, v in MGP.iteritems():
-            ptp.add_column("pipeline: "+k, map(lambda x: "%d: %s"%(v.index(x), x), v))
+            ptp.add_column("pipeline: "+k, v)
         ptp.align = "l"
         print ptp
         ptc = PrettyTable()
@@ -145,16 +150,16 @@ def main(args):
     
     if args.commands == "pipeline":
         clients = get_awe(AWE_URL+'/client', args.token)
-        pt = PrettyTable(["stage"]+CGS)
+        pt = PrettyTable(["task #", "stage name"]+CGS)
         for i, s in enumerate(stages):
             num = 0
-            row = ["%d: %s"%(i,s)]+[0 for _ in range(len(CGS))]
+            row = [i, s]+[0 for _ in range(len(CGS))]
             for c in clients:
                 if (c['group'] in CGS) and ('data' in c['current_work']):
                     for d in c['current_work']['data']:
                         parts = d.split('_')
                         if int(parts[1]) == i:
-                            row[CGS.index(c['group'])+1] += 1
+                            row[CGS.index(c['group'])+2] += 1
             pt.add_row(row)
         pt.align = "l"
         print pt
@@ -162,15 +167,15 @@ def main(args):
     if args.commands == "suspend":
         jobs = get_awe(AWE_URL+'/job?suspend&limit=0', args.token)
         if args.stage == None:
-            pt = PrettyTable(["stage", "suspended"])
+            pt = PrettyTable(["task #", "stage name", "suspended"])
             for i, s in enumerate(stages):
                 num = 0
-                row = ["%d: %s"%(i,s), 0]
+                row = [i, s, 0]
                 for j in jobs:
                     if j['error'] and j['error']['taskfailed']:
                         parts = j['error']['taskfailed'].split('_')
                         if int(parts[1]) == i:
-                            row[1] += 1
+                            row[2] += 1
                 pt.add_row(row)
             pt.align = "l"
             print pt
