@@ -183,8 +183,8 @@ sub info {
 				       { 'name'        => "md5",
    					     'request'     => $self->url."/".$self->name."/md5/{id}",
    					     'description' => "Return annotation(s) or sequence of given md5sum (M5NR ID)",
-   					     'example'     => [ $self->url."/".$self->name."/md5/000821a2e2f63df1a3873e4b280002a8?source=InterPro",
-           				                    "retrieve InterPro M5NR data for md5sum '000821a2e2f63df1a3873e4b280002a8'" ],
+   					     'example'     => [ $self->url."/".$self->name."/md5/000821a2e2f63df1a3873e4b280002a8?source=KEGG",
+           				                    "retrieve KEGG M5NR data for md5sum '000821a2e2f63df1a3873e4b280002a8'" ],
    					     'method'      => "GET",
    					     'type'        => "synchronous",
    					     'attributes'  => $self->{attributes}{annotation},
@@ -302,8 +302,8 @@ sub info {
    				           { 'name'        => "md5",
       					     'request'     => $self->url."/".$self->name."/md5",
       					     'description' => "Return annotations or sequences of given md5sums (M5NR ID)",
-      					     'example'     => [ 'curl -X POST -d \'{"source":"InterPro","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->url."/".$self->name.'/md5"',
-                				                "retrieve InterPro M5NR data for md5s '000821a2e2f63df1a3873e4b280002a8' and '15bf1950bd9867099e72ea6516e3d602'" ],
+      					     'example'     => [ 'curl -X POST -d \'{"source":"RefSeq","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->url."/".$self->name.'/md5"',
+                				                "retrieve RefSeq M5NR data for md5s '000821a2e2f63df1a3873e4b280002a8' and '15bf1950bd9867099e72ea6516e3d602'" ],
       					     'method'      => "POST",
       					     'type'        => "synchronous",
       					     'attributes'  => $self->{attributes}{annotation},
@@ -600,8 +600,11 @@ sub query {
         } else {
             $self->return_data( {"ERROR" => "POST request missing data"}, 400 );
         }
-        if ($@ || (@$data == 0)) {
+        if ($@) {
             $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
+        }
+        if ((ref($data) ne 'ARRAY') || (scalar(@$data) == 0)) {
+            $self->return_data( {"ERROR" => "'data' field is empty or not an array"}, 400 );
         }
         $path = '/'.$type;
     } else {
