@@ -171,7 +171,24 @@ if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authoriza
       require Auth;
       Auth->import();
       my $message;
+      # get bearer / token
       my $auth = $cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authorization') || $cgi->param('authorization');
+      my @parts = split(/ /, $auth);
+      if (scalar(@parts) == 2) {
+        $user_auth = $parts[0];
+        $token = $parts[1];
+      } elsif (scalar(@parts) == 1) {
+        $user_auth = 'mgrast';
+        $token = $parts[0];
+      } else {
+        print $cgi->header( -type => 'application/json',
+                          -status => 401,
+                          -charset => 'UTF-8',
+	                        -Access_Control_Allow_Origin => '*' );
+        print $json->encode( {"ERROR" => "authentication failed - invalid auth format"} );
+        exit 0;
+      }
+      # authenticate / get user
       ($user, $message) = Auth::authenticate($auth, $is_ssl);
       unless($user) {
         unless ($message eq "valid kbase user") {
@@ -179,11 +196,10 @@ if ($cgi->http('HTTP_AUTH') || $cgi->param('auth') || $cgi->http('HTTP_Authoriza
                             -status => 401,
                             -charset => 'UTF-8',
   	                        -Access_Control_Allow_Origin => '*' );
-          print $json->encode( {"ERROR"=> "authentication failed - $message"} );
+          print $json->encode( {"ERROR" => "authentication failed - $message"} );
           exit 0;
         }
       }
-      ($user_auth, $token) = split / /, $auth;
   };
   if ($@) {
     print $cgi->header( -type => 'application/json',
