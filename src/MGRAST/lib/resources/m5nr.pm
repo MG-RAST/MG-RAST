@@ -600,8 +600,11 @@ sub query {
         } else {
             $self->return_data( {"ERROR" => "POST request missing data"}, 400 );
         }
-        if ($@ || (@$data == 0)) {
+        if ($@) {
             $self->return_data( {"ERROR" => "unable to obtain POSTed data: ".$@}, 500 );
+        }
+        if ((ref($data) ne 'ARRAY') || (scalar(@$data) == 0)) {
+            $self->return_data( {"ERROR" => "'data' field is empty or not an array"}, 400 );
         }
         $path = '/'.$type;
     } else {
