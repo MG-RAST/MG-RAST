@@ -8,30 +8,44 @@ from operator import itemgetter
 from prettytable import PrettyTable
 
 AWE_URL = 'https://awe.mg-rast.org'
-MGP = { 'mgrast-prod': [
-    'qc_stats',
-    'adapter trim',
-    'preprocess',
-    'dereplication',
-    'screen',
-    'rna detection',
-    'rna clustering',
-    'rna sims blat',
-    'genecalling',
-    'aa filtering',
-    'aa clustering',
-    'aa sims blat',
-    'aa sims annotation',
-    'rna sims annotation',
-    'index sim seq',
-    'md5 abundance',
-    'lca abundance',
-    'source abundance',
-    'dark matter extraction',
-    'abundance cassandra load',
-    'done stage',
-    'notify job completion'
-] }
+MGP = {
+    'mgrast-prod-4.0.3': [
+        'qc_stats',
+        'adapter trim',
+        'preprocess',
+        'dereplication',
+        'screen',
+        'rna detection',
+        'rna clustering',
+        'rna sims blat',
+        'genecalling',
+        'aa filtering',
+        'aa clustering',
+        'aa sims blat',
+        'aa sims annotation',
+        'rna sims annotation',
+        'index sim seq',
+        'md5 abundance',
+        'lca abundance',
+        'source abundance',
+        'dark matter extraction',
+        'abundance cassandra load',
+        'done stage',
+        'notify job completion'
+    ],
+    'inbox_action': [
+        'step 1',
+        'step 2',
+        'step 3'
+    ],
+    'submission': [
+        'step 1'
+    ],
+    'mgrast-submit-ebi': [
+        'step 1',
+        'step 2'
+    ]
+}
 CGS = [
     'mgrast_dbload',
     'mgrast_single',
@@ -80,17 +94,17 @@ def main(args):
     client_parser.add_argument("-a", "--awe_url", dest="awe_url", default=AWE_URL, help="AWE API url")
     client_parser.add_argument("-t", "--token", dest="token", default=None, help="User token")
     client_parser.add_argument("-c", "--clientgroup", dest="clientgroup", default=None, help="clientgroup to view")
-    client_parser.add_argument("-p", "--pipeline", dest="pipeline", default='mgrast-prod', help="pipeline to view")
+    client_parser.add_argument("-p", "--pipeline", dest="pipeline", default='mgrast-prod-4.0.3', help="pipeline to view")
     
     pipeline_parser = subparsers.add_parser("pipeline")
     pipeline_parser.add_argument("-a", "--awe_url", dest="awe_url", default=AWE_URL, help="AWE API url")
     pipeline_parser.add_argument("-t", "--token", dest="token", default=None, help="User token")
-    pipeline_parser.add_argument("-p", "--pipeline", dest="pipeline", default='mgrast-prod', help="pipeline to view")
+    pipeline_parser.add_argument("-p", "--pipeline", dest="pipeline", default='mgrast-prod-4.0.3', help="pipeline to view")
     
     suspend_parser = subparsers.add_parser("suspend")
     suspend_parser.add_argument("-a", "--awe_url", dest="awe_url", default=AWE_URL, help="AWE API url")
     suspend_parser.add_argument("-t", "--token", dest="token", default=None, help="User token")
-    suspend_parser.add_argument("-p", "--pipeline", dest="pipeline", default='mgrast-prod', help="pipeline to view")
+    suspend_parser.add_argument("-p", "--pipeline", dest="pipeline", default='mgrast-prod-4.0.3', help="pipeline to view")
     suspend_parser.add_argument("-s", "--stage", dest="stage", type=int, default=None, help="index of stage to view")
     
     try:
@@ -165,7 +179,7 @@ def main(args):
         print pt
     
     if args.commands == "suspend":
-        jobs = get_awe(AWE_URL+'/job?suspend&limit=0', args.token)
+        jobs = get_awe("%s/job?query&state=suspend&info.pipeline=%s&limit=0"%(AWE_URL, args.pipeline), args.token)
         if args.stage == None:
             pt = PrettyTable(["task #", "stage name", "suspended"])
             for i, s in enumerate(stages):
@@ -180,12 +194,12 @@ def main(args):
             pt.align = "l"
             print pt
         else:
-            pt = PrettyTable(["id", "job name", "error"])
+            pt = PrettyTable(["id", "job name", "mg ID", "error"])
             for j in jobs:
                 if j['error'] and j['error']['taskfailed']:
                     parts = j['error']['taskfailed'].split('_')
                     if int(parts[1]) == args.stage:
-                        pt.add_row([j['id'], j['info']['name'], job_error(j['error'])])
+                        pt.add_row([j['id'], j['info']['name'], j['info']['userattr']['id'], job_error(j['error'])])
             pt.align = "l"
             print pt
     

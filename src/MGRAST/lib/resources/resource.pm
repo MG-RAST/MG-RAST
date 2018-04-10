@@ -2251,7 +2251,7 @@ sub node_to_inbox {
     }
     # add expiration if missing -- NOT for submission nodes !
     if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} ne "submission") && ($node->{expiration} eq "0001-01-01T00:00:00Z")) {
-        $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "5D");
+        $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "10D");
     }
     return $info;
 }
@@ -2376,7 +2376,7 @@ sub normalize_barcode_file {
         # create new barcode file with same metadata as old
         my $ctext = join("\n", map { $_->[0]."\t".$_->[1] } @cdata)."\n";
         my $bar_node = $self->get_shock_node($uuid, $auth, $authPrefix);
-        my $new_node = $self->set_shock_node($bar_node->{file}{name}, $ctext, $bar_node->{attributes}, $auth, 1, $authPrefix, "5D");
+        my $new_node = $self->set_shock_node($bar_node->{file}{name}, $ctext, $bar_node->{attributes}, $auth, 1, $authPrefix, "10D");
         $self->delete_shock_node($uuid, $auth, $authPrefix);
         $uuid = $new_node->{id};
     }
@@ -2455,7 +2455,7 @@ sub metadata_validation {
             if ($submit_id) {
                 $json_attr->{submission} = $submit_id;
             }
-            $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix, "5D");
+            $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix, "10D");
             $self->edit_shock_acl($json_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
         # update origional metadata node
@@ -2507,7 +2507,7 @@ sub metadata_validation {
             if ($submit_id) {
                 $bar_attr->{submission} = $submit_id;
             }
-            my $bar_node = $self->set_shock_node($bar_name, $bar_data, $bar_attr, $auth, 1, $authPrefix, "5D");
+            my $bar_node = $self->set_shock_node($bar_name, $bar_data, $bar_attr, $auth, 1, $authPrefix, "10D");
             $bar_id = $bar_node->{id};
             $self->edit_shock_acl($bar_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
@@ -3352,7 +3352,7 @@ sub to_swap {
     my ($self, $job) = @_;
     my $pv = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
     my $nv = $self->normailze_pipeline_version($pv);
-    if (($nv < 400) || ($nv > 402)) {
+    if (($nv < 400) || ($nv > 403)) {
         return undef;
     } else {
         return 1;
@@ -3366,7 +3366,7 @@ sub to_swap_set {
     my $sw_set = [];
     foreach my $m (@$mgids) {
         my $nv = $self->normailze_pipeline_version($pv_set->{$m});
-        if (($nv < 400) || ($nv > 402)) {
+        if (($nv < 400) || ($nv > 403)) {
             push @$sw_set, undef;
         } else {
             push @$sw_set, 1;

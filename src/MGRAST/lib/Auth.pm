@@ -39,7 +39,7 @@ sub authenticate {
       if (ref $us and crypt($p, $us->password) eq $us->password) {
         my $pref = $master->Preferences->get_objects( { name => 'WebServiceKeyTdate', user => $us } );
 	unless (scalar(@$pref)) {
-	  my $t = time + (60 * 60 * 24 * 7);
+	  my $t = time + (60 * 60 * 24 * 14);
 	  my $wkey = "";
 	  my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 	  while (length($wkey) < 25) {

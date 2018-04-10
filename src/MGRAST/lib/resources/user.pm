@@ -194,7 +194,7 @@ sub instance {
       my $userToken  = $master->Preferences->get_objects({ user => $self->user, name => "WebServicesKey" });
       my $expiration = $master->Preferences->get_objects({ user => $self->user, name => "WebServiceKeyTdate" });
       if (! scalar(@$userToken) || $expiration->[0]->{value} < time) {
-	my $t = time + (60 * 60 * 24 * 7);
+	my $t = time + (60 * 60 * 24 * 14);
 	my $wkey = "";
 	my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 	while (length($wkey) < 25) {
@@ -285,7 +285,7 @@ sub instance {
       my $impUser = $master->User->get_objects({ login => $rest->[1] });
       if (scalar(@$impUser)) {
 	$impUser = $impUser->[0];
-	my $timeout = 60 * 60 * 24 * 7;
+	my $timeout = 60 * 60 * 24 * 14;
 	my $userToken = $master->Preferences->get_objects({ user => $impUser, name => "WebServicesKey" });
 	if (scalar(@$userToken)) {
 	  $userToken = $userToken->[0]->{value};
@@ -656,7 +656,7 @@ sub instance {
 	$self->return_data( {"ERROR" => "webkey request requires action parameter"}, 400 );
       }
 
-      my $timeout = 60 * 60 * 24 * 7; # one week  
+      my $timeout = 60 * 60 * 24 * 14; # 2 week  
       my $webkey = { "key" => 0,
 		     "date" => 0,
 		     "valid" => 0 };
