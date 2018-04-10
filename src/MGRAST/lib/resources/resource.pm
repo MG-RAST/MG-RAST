@@ -3352,7 +3352,7 @@ sub to_swap {
     my ($self, $job) = @_;
     my $pv = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
     my $nv = $self->normailze_pipeline_version($pv);
-    if (($nv < 400) || ($nv > 402)) {
+    if (($nv < 400) || ($nv > 403)) {
         return undef;
     } else {
         return 1;
@@ -3366,7 +3366,7 @@ sub to_swap_set {
     my $sw_set = [];
     foreach my $m (@$mgids) {
         my $nv = $self->normailze_pipeline_version($pv_set->{$m});
-        if (($nv < 400) || ($nv > 402)) {
+        if (($nv < 400) || ($nv > 403)) {
             push @$sw_set, undef;
         } else {
             push @$sw_set, 1;
