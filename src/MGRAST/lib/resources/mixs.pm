@@ -83,7 +83,8 @@ sub info {
             {
                 'name'        => "instance",
                 'request'     => $self->url."/".$self->name."/profile/{ID}",
-                'description' => "Retrieve MiXS Profile object for given ID",
+	        'description' => "Retrieve MiXS Profile object for given ID",
+	        'example'     => $self->url."/".$self->name."/profile/ab44ac2f-6781-4fb6-9149-8e62705e5319",
                 'method'      => "GET",
                 'type'        => "synchronous",
                 'attributes'  => $self->{instance},
