@@ -204,12 +204,12 @@ sub instance {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
     
-    $self->prepare_data($job, $format);
+    $self->prepare_data($job, $format, $tempid);
 }
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $data, $format) = @_;
+    my ($self, $data, $format, $tempid) = @_;
 
     my $cgi     = $self->cgi;
     my $type    = $cgi->param('type') ? $cgi->param('type') : 'organism';
@@ -338,7 +338,7 @@ sub prepare_data {
     $| = 1;
     my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
     if ($cgi->param('browser')) {
-      print $cgi->header(-type => 'application/octet-stream', -status => 200, -Access_Control_Allow_Origin => '*');
+      print $cgi->header(-type => 'text/csv', -status => 200, -Access_Control_Allow_Origin => '*', -Content_Disposition => 'attachment; filename='.$tempid.'.csv');
     } else {
       print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
     }
