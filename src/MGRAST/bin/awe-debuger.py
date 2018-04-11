@@ -76,7 +76,9 @@ def job_error(e):
     if e['apperror']:
         parts = e['apperror'].split('\n')
         trim = filter(lambda x: x.find('ERR') != -1, parts)
-        return "\n".join(trim)
+        msg = "\n".join(trim)
+        if "".join(msg.split()) != "":
+            return msg
     if e['worknotes']:
         return e['worknotes']
     if e['servernotes']:
