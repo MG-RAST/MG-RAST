@@ -54,7 +54,6 @@ sub new {
                                             version => [ 'integer', 'version of M5NR' ],
                                             url  => [ 'uri', 'resource location of this object instance' ],
                                             data => [ 'list', ['object', [{'accession'   => [ 'string', 'unique identifier given by source' ],
-                                                                           'alias'       => [ 'list', ['string', 'db_xref aliases'] ],
                                                                            'md5'         => [ 'string', 'md5 checksum - M5NR ID' ],
                                                                            'function'    => [ 'string', 'function annotation' ],
                                                                            'organism'    => [ 'string', 'organism annotation' ],
@@ -161,25 +160,6 @@ sub info {
    							                'required' => { "id" => ["string", "unique identifier from source DB"] },
    							                'body'     => {} }
    				       },
-   				       { 'name'        => "alias",
-      					 'request'     => $self->url."/".$self->name."/alias/{text}",
-      					 'description' => "Return annotations for alias IDs containing the given text",
-      				     'example'     => [ $self->url."/".$self->name."/alias/GI:485708283",
-             				                "retrieve M5NR data for db_xref ID 'GI:485708283'" ],
-      					 'method'      => "GET",
-      					 'type'        => "synchronous",
-      				     'attributes'  => $self->{attributes}{annotation},
-      				     'parameters'  => { 'options'  => {
-      				                            'source' => ['string','source name to restrict search by'],
-    					                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
-    					                        'limit'  => ['integer','maximum number of items requested'],
-                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
-       					                    },
-      							            'required' => { 'text' => ['string', 'text string of partial alias'] },
-      							            'body'     => {} }
-      				   },
 				       { 'name'        => "md5",
    					     'request'     => $self->url."/".$self->name."/md5/{id}",
    					     'description' => "Return annotation(s) or sequence of given md5sum (M5NR ID)",
@@ -278,27 +258,7 @@ sub info {
        					                     },
       							             'required' => {},
       							             'options'  => {} }
-      				   },
-      				   { 'name'        => "alias",
-         				 'request'     => $self->url."/".$self->name."/alias",
-         				 'description' => "Return annotations for aliases containing the given texts",
-         		         'example'     => [ 'curl -X POST -d \'{"order":"function","data":["GI:485708283","fig|511145.6.peg.216"]}\' "'.$self->url."/".$self->name.'/alias"',
-                  				            "retrieve M5NR data for aliases containing string 'GI:485708283' and 'fig|511145.6.peg.216'" ],
-         			     'method'      => "POST",
-         			     'type'        => "synchronous",
-         			     'attributes'  => $self->{attributes}{annotation},
-         			     'parameters'  => { 'body'     => {
-         				                        'data'   => ['list',["string","text string of partial alias ID"]],
-         				                        'source' => ['string','source name to restrict search by'],
-         				                        'exact'  => ['boolean', "if true return only those annotations that exactly match input text, default is false"],
-         					                    'limit'  => ['integer','maximum number of items requested'],
-                                                'offset' => ['integer','zero based index of the first data object to be returned'],
-                                                'order'  => ['string','name of the attribute the returned data is ordered by'],
-                                                'version' => ['integer', 'M5NR version, default '.$self->{m5nr_default}]
-          					                },
-         							        'required' => {},
-         							        'options'  => {} }
-         				   },
+      				       },
    				           { 'name'        => "md5",
       					     'request'     => $self->url."/".$self->name."/md5",
       					     'description' => "Return annotations or sequences of given md5sums (M5NR ID)",
@@ -647,8 +607,6 @@ sub query {
         ($result, $total) = $self->query_annotation($version, 'md5', \@clean, $source, $offset, $limit, $order, 1);
     } elsif ($type eq 'accession') {
         ($result, $total) = $self->query_annotation($version, 'accession', $data, undef, $offset, $limit, $order, 1);
-    } elsif ($type eq 'alias') {
-        ($result, $total) = $self->query_annotation($version, 'alias', $data, $source, $offset, $limit, $order, $exact);
     } elsif ($type eq 'organism') {
         unless ( any {$_->[0] eq $tlevel} @{$self->hierarchy->{organism}} ) {
             $self->return_data({"ERROR" => "invalid tax_level for m5nr/organism: ".$tlevel." - valid types are [".join(", ", map {$_->[0]} @{$self->hierarchy->{organism}})."]"}, 404);
@@ -717,7 +675,7 @@ sub query_annotation {
         @$data = map { '"*'.$_.'*"' } @$data;
     }
     my $sort   = $order ? $order.'_sort+asc' : '';
-    my $fields = ['source', 'function', 'organism', 'ncbi_tax_id', 'type', 'md5', 'accession', 'alias'];
+    my $fields = ['source', 'function', 'organism', 'ncbi_tax_id', 'type', 'md5', 'accession'];
     my $method = ((@$data > 1) || ($md5s && (@$md5s > 0))) ? 'POST' : 'GET';
     my $query  = 'object%3Aannotation+AND+';
     if ($inverse) {
