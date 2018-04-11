@@ -3359,6 +3359,7 @@ sub to_swap {
     }
 }
 
+# mgids with NO mgm prefix
 sub to_swap_set {
     my ($self, $mgids) = @_;
     my $master = $self->connect_to_datasource();
