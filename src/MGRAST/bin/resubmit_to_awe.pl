@@ -21,7 +21,7 @@ my $job_id    = "";
 my $awe_id    = "";
 my $awe_url   = "";
 my $shock_url = "";
-my $template  = "";
+my $version   = "";
 my $priority  = 0;
 my $help      = 0;
 my $use_docker   = 0;
@@ -32,7 +32,7 @@ my $options = GetOptions (
         "awe_id=s"    => \$awe_id,
         "awe_url=s"   => \$awe_url,
         "shock_url=s" => \$shock_url,
-        "template=s"  => \$template,
+        "version=s"   => \$version,
         "priority=i"  => \$priority,
         "use_docker!"    => \$use_docker, # enables docker specific workflow entries, dockerimage and environ
     	"clientgroups=s" => \$clientgroups,
@@ -131,8 +131,8 @@ my $cmd_str = $Conf::submit_to_awe." --job_id $job_id --input_node $input_node";
 if ($priority > 0) {
     $cmd_str .= " --priority $priority";
 }
-if ($template ne "") {
-    $cmd_str .= " --template $template";
+if ($version ne "") {
+    $cmd_str .= " --version $version";
 }
 if ($clientgroups ne "") {
 	$cmd_str .= " --clientgroups $clientgroups";
@@ -168,7 +168,7 @@ foreach my $n (@nids) {
 }
 
 sub get_usage {
-    return "USAGE: resubmit_to_awe.pl -job_id=<job identifier> [-awe_id=<awe job id> -awe_url=<awe url> -shock_url=<shock url> -template=<template file> -clientgroups=<group list> -use_docker]\n";
+    return "USAGE: resubmit_to_awe.pl -job_id=<job identifier> [-awe_id=<awe job id> -awe_url=<awe url> -shock_url=<shock url> -version=<template version> -clientgroups=<group list> -use_docker]\n";
 }
 
 # enable hash-resolving in the JSON->encode function

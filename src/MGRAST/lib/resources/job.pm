@@ -710,7 +710,7 @@ sub job_action {
         } elsif (($action eq 'submit') || ($action eq 'resubmit')) {
             # first check if already exists
             my ($has_id, $has_state) = $self->awe_has_job($job->{job_id}, $self->mgrast_token);
-            if ($has_id) {
+            if ($has_id && ($has_state ne 'deleted')) {
                 $self->return_data( {"ERROR" => "This metagenome already exists in AWE: name=".$job->{job_id}.", id=$has_id, state=$has_state"}, 422 );
             }
             my $cmd;
