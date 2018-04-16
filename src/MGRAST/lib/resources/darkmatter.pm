@@ -111,11 +111,10 @@ sub instance {
     # see if darkmatter file already exists
     foreach my $set (@$setlist) {
         if (($set->{stage_name} eq 'darkmatter') && ($set->{data_type} eq 'sequence') && ($set->{file_size} > 0)) {
-            my $preauth = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
             $self->return_data({
                 id     => $restid,
                 status => 'done',
-                url    => $preauth->{url},
+                url    => $set->{url},
                 name   => $set->{file_name},
                 size   => $set->{file_size},
                 md5    => $set->{file_md5},
