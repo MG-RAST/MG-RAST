@@ -183,7 +183,7 @@
         {
             "cmd": {
                 "name": "mgrast_bowtie_screen.pl",
-                "args": "-input=@[% job_id %].150.dereplication.passed.fna -output=[% job_id %].299.screen.passed.fna -index=[% screen_indexes %] -bowtie=[% bowtie %] -proc=8",
+                "args": "-input=@[% job_id %].150.dereplication.passed.fna -output=[% job_id %].299.screen.passed.fna -index=[% screen_indexes %] -bowtie=[% bowtie %] -proc=8 -no-shock",
                 "description": "screen",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             }, 
@@ -202,6 +202,10 @@
                     "attrfile": "userattr.json"[% bowtie_pass %]
                 }
             },
+            "partinfo": {
+                 "input": "[% job_id %].150.dereplication.passed.fna",
+                 "output": "[% job_id %].299.screen.passed.fna"
+            },
             "predata": {[% index_download_urls %]
             },
             "userattr": {
@@ -212,7 +216,8 @@
                 "seq_format": "bp"
             },
             "taskid": "4", 
-            "totalwork": 1
+            "totalwork": 1,
+            "maxworksize": 200
         },
         {
             "cmd": {
