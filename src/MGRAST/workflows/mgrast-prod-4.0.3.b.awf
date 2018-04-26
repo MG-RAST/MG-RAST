@@ -204,7 +204,7 @@
                 "[% job_id %].299.screen.passed.fna": {
                     "host": "[% shock_url %]",
                     "node": "-",
-                    "attrfile": "userattr.json"[% bowtie_pass %]
+                    "attrfile": "userattr.json"
                 }
             },
             "partinfo": {
