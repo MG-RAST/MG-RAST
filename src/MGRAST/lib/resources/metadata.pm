@@ -766,7 +766,7 @@ sub process_file {
             $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
 	    }
         if (ref $post->{metagenome} ne "ARRAY") {
-            $post->{metagenome} = [ $post->{metagenome} ];
+            $post->{metagenome} = [ split(/,/, $post->{metagenome}) ];
         }
         if (($type eq 'update') && (! $post->{project})) {
             $self->return_data({"ERROR" => "Invalid parameters, update requires project ID"}, 404);
