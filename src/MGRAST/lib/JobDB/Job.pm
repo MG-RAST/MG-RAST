@@ -1563,7 +1563,7 @@ sub user_delete {
   } else {
     foreach my $j (@$ajobs) {
       eval {
-        $agent->delete($Conf::awe_url.'/job/'.$j->{id}, @auth);
+        $agent->delete($Conf::awe_url.'/job/'.$j->{id}.'?full=1', @auth);
       };
       if ($@) {                                                                                                                              
         return (0, "Unable to delete metagenome '$mgid' from AWE: ".$@);

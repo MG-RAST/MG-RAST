@@ -255,9 +255,9 @@ class Matrix(object):
     def get_filter_list(self, mtype, ftext, flevel, fsource, fleaf):
         if ftext and (not fleaf):
             if mtype == 'organism':
-                return self.m5nr.get_organism_by_taxa(flevel, ftext)
-            elif mtype == 'ontology':
                 return self.m5nr.get_ontology_by_level(fsource, flevel, ftext)
+            elif mtype == 'ontology':
+                return self.m5nr.get_organism_by_taxa(flevel, ftext)
         return None
     
     # get subset of md5s based on filter list / source

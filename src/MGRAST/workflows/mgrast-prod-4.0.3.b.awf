@@ -183,9 +183,14 @@
         {
             "cmd": {
                 "name": "mgrast_bowtie_screen.pl",
-                "args": "-input=@[% job_id %].150.dereplication.passed.fna -output=[% job_id %].299.screen.passed.fna -index=[% screen_indexes %] -bowtie=[% bowtie %] -proc=8",
+                "args": "-input=@[% job_id %].150.dereplication.passed.fna -output=[% job_id %].299.screen.passed.fna -index=[% screen_indexes %] -bowtie=[% bowtie %] -proc=8 -no-shock",
                 "description": "screen",
-                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]",
+                "environ" : {
+                    "private": {
+                        "MGRAST_WEBKEY": "[% api_key %]"
+                    }
+                }
             }, 
             "dependsOn": ["3"], 
             "inputs": {
@@ -199,8 +204,12 @@
                 "[% job_id %].299.screen.passed.fna": {
                     "host": "[% shock_url %]",
                     "node": "-",
-                    "attrfile": "userattr.json"[% bowtie_pass %]
+                    "attrfile": "userattr.json"
                 }
+            },
+            "partinfo": {
+                 "input": "[% job_id %].150.dereplication.passed.fna",
+                 "output": "[% job_id %].299.screen.passed.fna"
             },
             "predata": {[% index_download_urls %]
             },
@@ -212,7 +221,8 @@
                 "seq_format": "bp"
             },
             "taskid": "4", 
-            "totalwork": 1
+            "totalwork": 1,
+            "maxworksize": 200
         },
         {
             "cmd": {
@@ -254,7 +264,7 @@
             },
             "taskid": "5",
             "totalwork": 1,
-            "maxworksize": 800
+            "maxworksize": 200
         },          
         {
             "cmd": {
@@ -295,7 +305,7 @@
             },
             "taskid": "6",
             "totalwork": 1,
-            "maxworksize": 1000
+            "maxworksize": 500
         },
         {
             "cmd": {
@@ -382,7 +392,7 @@
             },
             "taskid": "8",
             "totalwork": 1,
-            "maxworksize": 800
+            "maxworksize": 200
         },
         {
             "cmd": {
@@ -471,7 +481,7 @@
             },
             "taskid": "10",
             "totalwork": 1,
-            "maxworksize": 1000
+            "maxworksize": 500
         },
         {
             "cmd": {
