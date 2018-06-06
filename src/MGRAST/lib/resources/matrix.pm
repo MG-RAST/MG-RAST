@@ -295,6 +295,15 @@ sub process_parameters {
     my $group_level = $glvl;
     my $filter_level = $flvl;
     
+    # controlled vocabulary set
+    my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
+    my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
+    my %rna_srcs   = map { $_->[0], 1 } @{$self->source->{rna}};
+    my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
+    my %org_srcs   = map { $_->[0], 1 } @{$self->{sources}{organism}};
+    my @tax_hier   = map { $_->[0] } reverse @{$self->hierarchy->{organism}};
+    my @ont_hier   = map { $_->[0] } reverse @{$self->hierarchy->{ontology}};
+    
     # id mapping / validation
     my @job_ids = ();
     my @mg_ids  = ();
@@ -347,7 +356,7 @@ sub process_parameters {
         }
     }
     unless ($source) {
-        $source = ($type eq 'organism') ? $default_prot_source : $default_ont_source);
+        $source = ($type eq 'organism') ? $default_prot_source : $default_ont_source;
     }
     
     my $matrix_id  = join("_", map {'mgm'.$_} @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
@@ -383,15 +392,6 @@ sub process_parameters {
     if (defined($alen) && ($alen < 1)) {
         return ({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, undef, undef);
     }
-    
-    # controlled vocabulary set
-    my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
-    my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
-    my %rna_srcs   = map { $_->[0], 1 } @{$self->source->{rna}};
-    my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
-    my %org_srcs   = map { $_->[0], 1 } @{$self->{sources}{organism}};
-    my @tax_hier   = map { $_->[0] } reverse @{$self->hierarchy->{organism}};
-    my @ont_hier   = map { $_->[0] } reverse @{$self->hierarchy->{ontology}};
     
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
