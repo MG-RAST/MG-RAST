@@ -103,8 +103,7 @@ sub info {
                       'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
                       'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                       'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
-                      'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
-                      'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
+                      'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ] },
 				'required' => {
 					       'id' => [ 'string', 'one or more metagenome or project unique identifier' ]
 					      },
@@ -134,8 +133,7 @@ sub info {
 					       'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
 					       'filter_source' => [ 'cv', $self->{sources}{organism} ],
 					       'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
-					       'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
-					       'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
+					       'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ] },
 				'required' => {
 					       'id' => [ 'string', 'one or more metagenome or project unique identifier' ]
 					      },
@@ -271,11 +269,14 @@ sub instance {
 # validate / reformat the data into the request paramaters
 sub process_parameters {
     my ($self, $master, $data, $type) = @_;
+    my $default_prot_source = 'RefSeq';
+    my $default_rna_source = 'RDP';
+    my $default_ont_source = 'Subsystems';
     
     # get optional params
     my $cgi = $self->cgi;
     my $grep   = $cgi->param('grep') || undef;
-    my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'RefSeq' : 'Subsystems');
+    my $source = $cgi->param('source');
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
     my $htype  = $cgi->param('hit_type') ? $cgi->param('hit_type') : 'all';
     my $glvl   = $cgi->param('group_level') ? $cgi->param('group_level') : (($type eq 'organism') ? 'strain' : 'function');
@@ -283,7 +284,7 @@ sub process_parameters {
     my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
     my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     my $flvl   = $cgi->param('filter_level') ? $cgi->param('filter_level') : (($type eq 'organism') ? 'function' : 'strain');
-    my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'RefSeq');
+    my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? $default_ont_source : $default_prot_source);
     my $filter = $cgi->param('filter') ? $cgi->param('filter') : "";
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $hide_hy = $cgi->param('hide_hierarchy') ? 1 : 0;
@@ -293,6 +294,61 @@ sub process_parameters {
     my $leaf_filter = 0;
     my $group_level = $glvl;
     my $filter_level = $flvl;
+    
+    # id mapping / validation
+    my @job_ids = ();
+    my @mg_ids  = ();
+    my $id_map  = $master->Job->get_job_ids($data);
+    foreach my $mid (@$data) {
+        if (exists $id_map->{$mid}) {
+            push @job_ids, $id_map->{$mid};
+            push @mg_ids, 'mgm'.$mid;
+        } else {
+            return ({"ERROR" => "invalid id: mgm".$mid}, undef, undef);
+        }
+    }
+    
+    # validate metagenome type combinations
+    # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
+    my $num_rna  = 0;
+    my $num_gene = 0;
+    my $type_map = $master->Job->get_sequence_types($data);
+    map { $num_rna += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
+    map { $num_gene += 1 } grep { $_ eq 'Metabarcode' } values %$type_map;
+    if ($num_rna) {
+        unless ($source) {
+            $source = $default_rna_source;
+        }
+        if ($num_rna != scalar(@$data)) {
+            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_rna of ".scalar(@$data)." are Amplicon"}, undef, undef);
+        }
+        if ($type eq 'function') {
+            return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, undef, undef);
+        }
+        if (exists $prot_srcs{$source}) {
+            return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, undef, undef);
+        }
+        if ($filter) {
+            return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, undef, undef);
+        }
+    }
+    if ($num_gene) {
+        unless ($source) {
+            $source = $default_prot_source;
+        }
+        if ($type eq 'function') {
+            return ({"ERROR" => "invalid combination: requesting functional annotations with Metabarcode data sets"}, undef, undef);
+        }
+        if (exists $rna_srcs{$source}) {
+            return ({"ERROR" => "invalid combination: requesting RNA source annotations with Metabarcode data sets"}, undef, undef);
+        }
+        if ($filter) {
+            return ({"ERROR" => "invalid combination: filtering by functional annotations with Metabarcode data sets"}, undef, undef);
+        }
+    }
+    unless ($source) {
+        $source = ($type eq 'organism') ? $default_prot_source : $default_ont_source);
+    }
     
     my $matrix_id  = join("_", map {'mgm'.$_} @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
     my $matrix_url = $self->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} @$data).'&group_level='.$glvl.'&source='.$source.
@@ -398,42 +454,6 @@ sub process_parameters {
     } else {
         return ({"ERROR" => "invalid resource type was entered ($type)."}, undef, undef);
     }
-
-    # validate metagenome type combinations
-    # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
-    my $num_rna  = 0;
-    my $num_gene = 0;
-    my $type_map = $master->Job->get_sequence_types($data);
-    map { $num_rna += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
-    map { $num_gene += 1 } grep { $_ eq 'Metabarcode' } values %$type_map;
-    if ($num_rna) {
-        if ($num_rna != scalar(@$data)) {
-            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_rna of ".scalar(@$data)." are Amplicon"}, undef, undef);
-        }
-        if ($type eq 'function') {
-            return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, undef, undef);
-        }
-        if (exists $prot_srcs{$source}) {
-            return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, undef, undef);
-        }
-        if ($filter) {
-            return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, undef, undef);
-        }
-    }
-    if ($num_gene) {
-        if ($type eq 'function') {
-            return ({"ERROR" => "invalid combination: requesting functional annotations with Metabarcode data sets"}, undef, undef);
-        }
-        if (exists $rna_srcs{$source}) {
-            return ({"ERROR" => "invalid combination: requesting RNA source annotations with Metabarcode data sets"}, undef, undef);
-        }
-        if ($filter) {
-            return ({"ERROR" => "invalid combination: filtering by functional annotations with Metabarcode data sets"}, undef, undef);
-        }
-    }
-    my $id_map  = $master->Job->get_job_ids($data);
-    my @job_ids = map { $id_map->{$_} } @$data;
-    my @mg_ids  = map { 'mgm'.$_ } @$data;
     
     # reset type
     if (exists($func_srcs{$source}) && ($type eq "function")) {
