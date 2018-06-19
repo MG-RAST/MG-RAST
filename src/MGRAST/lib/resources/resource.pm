@@ -2095,7 +2095,7 @@ sub upsert_to_elasticsearch_annotation {
             my $total = sum map {$_->[1]} @{$mg_stats->{'taxonomy'}{$level}};
             foreach my $t (@{$mg_stats->{'taxonomy'}{$level}}) {
                 my $rel = int((($t->[1] / $total) * 100) + 0.5);
-                foreach my $n ($t_nums) {
+                foreach my $n (@$t_nums) {
                     if ($rel >= $n) {
                         unless (exists $results->{'taxonomy'}{'t_'.$n}) {
                             $results->{'taxonomy'}{'t_'.$n} = $t->[0];
@@ -2114,17 +2114,26 @@ sub upsert_to_elasticsearch_annotation {
     if ((($type eq 'function') || ($type eq 'both')) && exists($mg_stats->{'function'})) {
         $results->{'function'} = {
             'id'  => $mgid,
-            'all' => join(' ', map {$_->[0]} @{$mg_stats->{'function'}})
+            'all' => ''
         };
         my $total = sum map {$_->[1]} @{$mg_stats->{'function'}};
         foreach my $f (@{$mg_stats->{'function'}}) {
+            my @parts = split(/\s+/, $f->[0]);
+            foreach my $p (@parts) {
+                unless ($results->{'function'}{'all'} =~ /$p/) {
+                    $results->{'function'}{'all'} .= " ".$p;
+                }
+            }
             my $rel = int((($f->[1] / $total) * 100) + 0.5);
-            foreach my $n ($f_nums) {
+            foreach my $n (@$f_nums) {
                 if ($rel >= $n) {
                     unless (exists $results->{'function'}{'f_'.$n}) {
-                        $results->{'function'}{'f_'.$n} = $f->[0];
-                    } else {
-                        $results->{'function'}{'f_'.$n} .= " ".$f->[0];
+                        $results->{'function'}{'f_'.$n} = "";
+                    }
+                    foreach my $p (@parts) {
+                        unless ($results->{'function'}{'f_'.$n} =~ /$p/) {
+                            $results->{'function'}{'f_'.$n} .= " ".$p;
+                        }
                     }
                 }
             }

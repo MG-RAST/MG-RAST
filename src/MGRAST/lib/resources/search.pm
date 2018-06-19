@@ -119,14 +119,14 @@ sub instance {
     my $result = {};
     
     if (($type eq 'metadata') || ($type eq 'all')) {
-        $result->{'metadata'} = $self->upsert_to_elasticsearch_metadata($id, $debug);
+        $result->{'metadata'} = $self->upsert_to_elasticsearch_metadata($mgid, $debug);
     }
     if (($type eq 'taxonomy') || ($type eq 'function')) {
-        my $temp = $self->upsert_to_elasticsearch_annotation($id, $type, $debug);
+        my $temp = $self->upsert_to_elasticsearch_annotation($mgid, $type, $debug);
         $result->{$type} = $temp->{$type} || "failed";
     }
     if (($type eq 'annotation') || ($type eq 'all')) {
-        my $temp = $self->upsert_to_elasticsearch_annotation($id, 'both', $debug);
+        my $temp = $self->upsert_to_elasticsearch_annotation($mgid, 'both', $debug);
         $result->{'taxonomy'} = $temp->{'taxonomy'} || "failed";
         $result->{'function'} = $temp->{'function'} || "failed";
     }
