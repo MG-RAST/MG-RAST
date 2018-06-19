@@ -2120,7 +2120,7 @@ sub upsert_to_elasticsearch_annotation {
         foreach my $f (@{$mg_stats->{'function'}}) {
             my @parts = split(/\s+/, $f->[0]);
             foreach my $p (@parts) {
-                unless ($results->{'function'}{'all'} =~ /$p/) {
+                unless ($results->{'function'}{'all'} =~ /\Q$p\E/) {
                     $results->{'function'}{'all'} .= " ".$p;
                 }
             }
@@ -2131,7 +2131,7 @@ sub upsert_to_elasticsearch_annotation {
                         $results->{'function'}{'f_'.$n} = "";
                     }
                     foreach my $p (@parts) {
-                        unless ($results->{'function'}{'f_'.$n} =~ /$p/) {
+                        unless ($results->{'function'}{'f_'.$n} =~ /\Q$p\E/) {
                             $results->{'function'}{'f_'.$n} .= " ".$p;
                         }
                     }
