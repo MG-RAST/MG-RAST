@@ -234,7 +234,8 @@ sub source {
 				           ["TrEMBL", "protein database, type organism, function, feature"],
 			               ["SwissProt", "protein database, type organism, function, feature"],
 					       ["PATRIC", "protein database, type organism, function, feature"],
-					       ["KEGG", "protein database, type organism, function, feature"] ],
+					       ["KEGG", "protein database, type organism, function, feature"],
+                           ["eggNOG", "protein database, type organism, function, feature"] ],
              rna      => [ ["RDP", "RNA database, type organism, function, feature"],
 			               ["Greengenes", "RNA database, type organism, function, feature"],
 		                   ["LSU", "RNA database, type organism, function, feature"],
@@ -1961,10 +1962,10 @@ sub delete_from_elasticsearch {
     return 1;
 }
 
-sub upsert_to_elasticsearch {
+sub upsert_to_elasticsearch_metadata {
     # input is metagenome ID - for JobDB queries
     # assume rights checking has already been done
-    # returns boolean, success or failure
+    # returns 'failed' or 'updated'
     my ($self, $mgid, $debug) = @_;
     
     # get job
@@ -1972,7 +1973,7 @@ sub upsert_to_elasticsearch {
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        return 0;
+        return "failed";
     }
     $job = $job->[0];
     
@@ -2067,9 +2068,84 @@ sub upsert_to_elasticsearch {
         $response = $self->json->decode($put->content);
     };
     if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
-        return 0;
+        return "failed";
     }
-    return 1;
+    return "updated";
+}
+
+sub upsert_to_elasticsearch_annotation {
+    # input is metagenome ID - for shock metagenome statistics lookup
+    # assume rights checking has already been done
+    # returns 'failed' or 'updated'
+    my ($self, $mgid, $type, $debug) = @_;
+    
+    # ranges
+    my $t_nums = $ElasticSearch::taxa_num;
+    my $f_nums = $ElasticSearch::func_num;
+    
+    my $results  = {};
+    my $mg_stats = $self->metagenome_stats_from_shock($mgid);
+    
+    if ((($type eq 'taxonomy') || ($type eq 'both')) && exists($mg_stats->{'taxonomy'})) {
+        $results->{'taxonomy'} = {
+            'id'  => $mgid,
+            'all' => join(' ', map { join(' ', map {$_->[0]} @{$mg_stats->{'taxonomy'}{$_}}) } keys %{$mg_stats->{'taxonomy'}})
+        };
+        foreach my $level (keys %{$mg_stats->{'taxonomy'}}) {
+            my $total = sum map {$_->[1]} @{$mg_stats->{'taxonomy'}{$level}};
+            foreach my $t (@{$mg_stats->{'taxonomy'}{$level}}) {
+                my $rel = int((($t->[1] / $total) * 100) + 0.5);
+                foreach my $n ($t_nums) {
+                    if ($rel >= $n) {
+                        unless (exists $results->{'taxonomy'}{'t_'.$n}) {
+                            $results->{'taxonomy'}{'t_'.$n} = $t->[0];
+                        } else {
+                            $results->{'taxonomy'}{'t_'.$n} .= " ".$t->[0];
+                        }
+                    }
+                }
+            }
+        }
+        # clean
+        foreach my $k (keys %{$results->{'taxonomy'}}) {
+            $results->{'taxonomy'}{$k} = $self->jsonTypecast('text', $results->{'taxonomy'}{$k});
+        }
+    }
+    if ((($type eq 'function') || ($type eq 'both')) && exists($mg_stats->{'function'})) {
+        $results->{'function'} = {
+            'id'  => $mgid,
+            'all' => join(' ', map {$_->[0]} @{$mg_stats->{'function'}})
+        };
+        my $total = sum map {$_->[1]} @{$mg_stats->{'function'}};
+        foreach my $f (@{$mg_stats->{'function'}}) {
+            my $rel = int((($f->[1] / $total) * 100) + 0.5);
+            foreach my $n ($f_nums) {
+                if ($rel >= $n) {
+                    unless (exists $results->{'function'}{'f_'.$n}) {
+                        $results->{'function'}{'f_'.$n} = $f->[0];
+                    } else {
+                        $results->{'function'}{'f_'.$n} .= " ".$f->[0];
+                    }
+                }
+            }
+        }
+        # clean
+        foreach my $k (keys %{$results->{'function'}}) {
+            $results->{'function'}{$k} = $self->jsonTypecast('text', $results->{'function'}{$k});
+        }
+    }
+    if ($debug) {
+        return $results;
+    }
+    
+    # PUT docuemnt(s)
+    #$self->json->utf8();
+    #my $success = {};
+    
+    #if (exists $results->{'taxonomy'}) {    
+    #}
+    
+    return $results;
 }
 
 sub get_elastic_query {

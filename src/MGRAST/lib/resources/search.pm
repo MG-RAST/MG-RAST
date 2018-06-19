@@ -54,9 +54,20 @@ sub info {
                       "status"        => [ 'string', 'status of action' ]
                   },
                   'parameters'  => {
-                      'options'  => {},
-                      'required' => { "id" => ["string","unique object identifier"] },
-                      'body'     => {}
+                      'options'  => {
+                          "debug" => ['boolean', "if true return ES docuemnt to upsert without POSTing it"],
+                          "type"  => ['cv', [
+                              ["metadata", "update/insert metadata only, default"],
+                              ["taxonomy", "update/insert taxonomy annotations (requires metadata upserted)"],
+                              ["function", "update/insert function annotations (requires metadata upserted)"],
+                              ["annotation", "update/insert all annotations (requires metadata upserted)"],
+                              ["all", "update/insert metadata and all annotations"],
+                          ]]
+                      },
+                      'required' => {
+                          "id" => ["string","unique object identifier"]
+                      },
+                      'body' => {}
                   }
                 },
                 { 'name'        => "query",
@@ -103,12 +114,27 @@ sub instance {
     }
     
     # create and upsert
-    my $debug = $self->cgi->param('debug');
-    my $success = $self->upsert_to_elasticsearch($id, $debug);
-    if ($debug) {
-        $self->return_data($success);
+    my $debug  = $self->cgi->param('debug');
+    my $type   = $self->cgi->param('type') || "metadata";
+    my $result = {};
+    
+    if (($type eq 'metadata') || ($type eq 'all')) {
+        $result->{'metadata'} = $self->upsert_to_elasticsearch_metadata($id, $debug);
     }
-    $self->return_data({ metagenome_id => $mgid, status => $success ? "updated" : "failed" });
+    if (($type eq 'taxonomy') || ($type eq 'function')) {
+        my $temp = $self->upsert_to_elasticsearch_annotation($id, $type, $debug);
+        $result->{$type} = $temp->{$type} || "failed";
+    }
+    if (($type eq 'annotation') || ($type eq 'all')) {
+        my $temp = $self->upsert_to_elasticsearch_annotation($id, 'both', $debug);
+        $result->{'taxonomy'} = $temp->{'taxonomy'} || "failed";
+        $result->{'function'} = $temp->{'function'} || "failed";
+    }
+    
+    if ($debug) {
+        $self->return_data($result);
+    }
+    $self->return_data({ metagenome_id => $mgid, status => $result });
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
