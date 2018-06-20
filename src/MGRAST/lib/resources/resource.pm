@@ -2358,7 +2358,7 @@ sub node_to_inbox {
         'checksum'  => $node->{file}{checksum}{md5},
         'timestamp' => $node->{created_on}
     };
-    # get file_info / compute if missing
+    # get file_info / compute if missing or bad state
     unless (exists($node->{attributes}{stats_info}) && ($node->{attributes}{stats_info}{file_type} ne 'none')) {
         ($node, undef) = $self->get_file_info(undef, $node, $auth, $authPrefix);
     }
