@@ -183,11 +183,11 @@ sub submit {
     my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
+        $self->return_data( {"ERROR" => "id $tempid does not exist"}, 404 );
     }
     $job = $job->[0];
     unless ($job->viewable) {
-        $self->return_data( {"ERROR" => "id $id is still processing and unavailable"}, 404 );
+        $self->return_data( {"ERROR" => "id $tempid is still processing and unavailable"}, 404 );
     }
     # check rights
     unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {

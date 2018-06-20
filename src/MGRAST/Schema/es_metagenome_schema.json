@@ -1,6 +1,6 @@
 {
     "mappings": {
-        "metagenome_metadata": {
+        "metagenome": {
             "dynamic_templates": [
                 {
                     "double_t": {
@@ -370,9 +370,9 @@
                 }
             }
         },
-        "metagenome_taxonomy": {
+        "taxonomy": {
             "_parent": {
-                "type": "metagenome_metadata"
+                "type": "metagenome"
             },
             "properties": {
                 "id": {
@@ -424,9 +424,9 @@
                 }
             }
         },
-        "metagenome_function": {
+        "function": {
             "_parent": {
-                "type": "metagenome_metadata"
+                "type": "metagenome"
             },
             "properties": {
                 "id": {

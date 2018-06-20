@@ -34,7 +34,7 @@ $json->allow_nonref;
 
 my $schema_str = read_file($input);
 my $schema_obj = $json->decode($schema_str);
-my $md_properties = $schema_obj->{mappings}{metagenome_metadata}{properties};
+my $properties = $schema_obj->{mappings}{metagenome}{properties};
 
 my @prefix = ("job_info_", "job_stat_", "project_", "sample_", "env_package_", "library_", "pipeline_parameters_");
 
@@ -89,10 +89,10 @@ print OUTF "our \$fields = {\n";
 print OUTF "\tall => 'all',\n";
 print OUTF "\tmetagenome_id => 'id',\n";
 foreach my $pf (@prefix) {
-    foreach my $prop (keys %$md_properties) {
+    foreach my $prop (keys %$properties) {
         if ($prop =~ /^$pf(.*)/) {
             my $name = $1;
-            if (exists($md_properties->{$prop}{fields}) && exists($md_properties->{$prop}{fields}{keyword})) {
+            if (exists($properties->{$prop}{fields}) && exists($properties->{$prop}{fields}{keyword})) {
                 print OUTF "\t$name => '$prop.keyword',\n";
             } else {
                 print OUTF "\t$name => '$prop',\n";
@@ -106,7 +106,7 @@ print OUTF "};\n\n";
 print OUTF "our \$prefixes = {\n";
 foreach my $pf (@prefix) {
     print OUTF "\t'$pf' => [\n";
-    foreach my $prop (keys %$md_properties) {
+    foreach my $prop (keys %$properties) {
         if ($prop =~ /^$pf(.*)/) {
             my $name = $1;
             print OUTF "\t\t'$name',\n";
@@ -120,17 +120,17 @@ print OUTF "};\n\n";
 print OUTF "our \$types = {\n";
 print OUTF "\tmetagenome_id => 'keyword',\n";
 foreach my $pf (@prefix) {
-    foreach my $prop (keys %$md_properties) {
-        if ($prop =~ /^$pf(.*)/ && exists($md_properties->{$prop}{type})) {
+    foreach my $prop (keys %$properties) {
+        if ($prop =~ /^$pf(.*)/ && exists($properties->{$prop}{type})) {
             my $name = $1;
-            print OUTF "\t$name => '".$md_properties->{$prop}{type}."',\n";
+            print OUTF "\t$name => '".$properties->{$prop}{type}."',\n";
         }
     }
 }
 print OUTF "};\n\n";
 
 # taxonomy range numbers
-my $taxa_properties = $schema_obj->{mappings}{metagenome_taxonomy}{properties};
+my $taxa_properties = $schema_obj->{mappings}{taxonomy}{properties};
 my @nums = ();
 foreach my $prop (keys %$taxa_properties) {
     my @parts = split(/_/, $prop);
@@ -146,7 +146,7 @@ foreach my $n (@nums) {
 print OUTF "];\n\n";
 
 # function range numbers
-my $func_properties = $schema_obj->{mappings}{metagenome_function}{properties};
+my $func_properties = $schema_obj->{mappings}{function}{properties};
 @nums = ();
 foreach my $prop (keys %$func_properties) {
     my @parts = split(/_/, $prop);

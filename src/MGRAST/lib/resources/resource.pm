@@ -1966,7 +1966,7 @@ sub upsert_to_elasticsearch_metadata {
     # input is metagenome ID - for JobDB queries
     # assume rights checking has already been done
     # returns 'failed' or 'updated'
-    my ($self, $mgid, $debug) = @_;
+    my ($self, $mgid, $index, $debug) = @_;
     
     # get job
     my $master = $self->connect_to_datasource();
@@ -2055,7 +2055,7 @@ sub upsert_to_elasticsearch_metadata {
     # PUT docuemnt
     $self->json->utf8();
     my $entry = $self->json->encode($esdata);
-    my $esurl = $Conf::es_host."/metagenome_index/metagenome/".$esdata->{id};
+    my $esurl = $Conf::es_host."/$index/metagenome/".$esdata->{id};
     my $response = undef;
     eval {
         my @args = (
@@ -2077,7 +2077,7 @@ sub upsert_to_elasticsearch_annotation {
     # input is metagenome ID - for shock metagenome statistics lookup
     # assume rights checking has already been done
     # returns 'failed' or 'updated'
-    my ($self, $mgid, $type, $debug) = @_;
+    my ($self, $mgid, $type, $index, $debug) = @_;
     
     # ranges
     my $t_nums = $ElasticSearch::taxa_num;
@@ -2086,21 +2086,37 @@ sub upsert_to_elasticsearch_annotation {
     my $results  = {};
     my $mg_stats = $self->metagenome_stats_from_shock($mgid);
     
-    if ((($type eq 'taxonomy') || ($type eq 'both')) && exists($mg_stats->{'taxonomy'})) {
+    if (($type eq 'taxonomy') || ($type eq 'both')) {
+        $results->{'taxonomy'} = undef;
+    }
+    if (($type eq 'function') || ($type eq 'both')) {
+        $results->{'function'} = undef;
+    }
+    
+    if (exists($results->{'taxonomy'}) && exists($mg_stats->{'taxonomy'})) {
         $results->{'taxonomy'} = {
             'id'  => $mgid,
-            'all' => join(' ', map { join(' ', map {$_->[0]} @{$mg_stats->{'taxonomy'}{$_}}) } keys %{$mg_stats->{'taxonomy'}})
+            'all' => ''
         };
         foreach my $level (keys %{$mg_stats->{'taxonomy'}}) {
             my $total = sum map {$_->[1]} @{$mg_stats->{'taxonomy'}{$level}};
             foreach my $t (@{$mg_stats->{'taxonomy'}{$level}}) {
+                my @parts = split(/\s+/, $t->[0]);
+                foreach my $p (@parts) {
+                    unless ($results->{'taxonomy'}{'all'} =~ /\Q$p\E/) {
+                        $results->{'taxonomy'}{'all'} .= " ".$p;
+                    }
+                }
                 my $rel = int((($t->[1] / $total) * 100) + 0.5);
                 foreach my $n (@$t_nums) {
                     if ($rel >= $n) {
                         unless (exists $results->{'taxonomy'}{'t_'.$n}) {
-                            $results->{'taxonomy'}{'t_'.$n} = $t->[0];
-                        } else {
-                            $results->{'taxonomy'}{'t_'.$n} .= " ".$t->[0];
+                            $results->{'taxonomy'}{'t_'.$n} = "";
+                        }
+                        foreach my $p (@parts) {
+                            unless ($results->{'taxonomy'}{'t_'.$n} =~ /\Q$p\E/) {
+                                $results->{'taxonomy'}{'t_'.$n} .= " ".$p;
+                            }
                         }
                     }
                 }
@@ -2111,7 +2127,7 @@ sub upsert_to_elasticsearch_annotation {
             $results->{'taxonomy'}{$k} = $self->jsonTypecast('text', $results->{'taxonomy'}{$k});
         }
     }
-    if ((($type eq 'function') || ($type eq 'both')) && exists($mg_stats->{'function'})) {
+    if (exists($results->{'function'}) && exists($mg_stats->{'function'})) {
         $results->{'function'} = {
             'id'  => $mgid,
             'all' => ''
@@ -2147,14 +2163,35 @@ sub upsert_to_elasticsearch_annotation {
         return $results;
     }
     
+    $self->json->utf8();
+    my $success = {};
+    
     # PUT docuemnt(s)
-    #$self->json->utf8();
-    #my $success = {};
+    foreach my $key (keys %$results) {
+        if ($results->{$key}) {
+            my $entry = $self->json->encode($results->{$key});
+            my $esurl = $Conf::es_host."/$index/$key/$mgid?parent=$mgid";
+            my $response = undef;
+            eval {
+                my @args = (
+                    'Content_Type', 'application/json',
+                    'Content', $entry
+                );
+                my $req = POST($esurl, @args);
+                $req->method('PUT');
+                my $put = $self->agent->request($req);
+                $response = $self->json->decode($put->content);
+            };
+            if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
+                $success->{$key} = "failed";
+            }
+            $success->{$key} = "updated";
+        } else {
+            $success->{$key} = "failed";
+        }
+    }
     
-    #if (exists $results->{'taxonomy'}) {    
-    #}
-    
-    return $results;
+    return $success;
 }
 
 sub get_elastic_query {
