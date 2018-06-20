@@ -2359,7 +2359,7 @@ sub node_to_inbox {
         'timestamp' => $node->{created_on}
     };
     # get file_info / compute if missing
-    unless (exists $node->{attributes}{stats_info}) {
+    unless (exists($node->{attributes}{stats_info}) && ($node->{attributes}{stats_info}{file_type} ne 'none')) {
         ($node, undef) = $self->get_file_info(undef, $node, $auth, $authPrefix);
     }
     $info->{stats_info} = $node->{attributes}{stats_info};
