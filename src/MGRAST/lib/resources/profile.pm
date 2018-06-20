@@ -110,6 +110,8 @@ sub info {
             { 'name'        => "status",
               'request'     => $self->url."/".$self->name."/status/{UUID}",
               'description' => "Return profile status and/or results",
+	      'example'     => [ $self->url."/".$self->name."/status/cffe40ec-8bad-43ba-9dfa-57c3fe71ba88",
+				 "Return profile status and/or results" ],
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => $self->{status},
@@ -183,11 +185,11 @@ sub submit {
     my $master = $self->connect_to_datasource();
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
+        $self->return_data( {"ERROR" => "id $tempid does not exist"}, 404 );
     }
     $job = $job->[0];
     unless ($job->viewable) {
-        $self->return_data( {"ERROR" => "id $id is still processing and unavailable"}, 404 );
+        $self->return_data( {"ERROR" => "id $tempid is still processing and unavailable"}, 404 );
     }
     # check rights
     unless ($job->{public} || exists($self->rights->{$id}) || ($self->user && $self->user->has_star_right('view', 'metagenome'))) {

@@ -54,9 +54,21 @@ sub info {
                       "status"        => [ 'string', 'status of action' ]
                   },
                   'parameters'  => {
-                      'options'  => {},
-                      'required' => { "id" => ["string","unique object identifier"] },
-                      'body'     => {}
+                      'options'  => {
+                          "debug" => ['boolean', "if true return ES docuemnt to upsert without POSTing it"],
+                          "index" => ['string', "index name, default: metagenome_index"],
+                          "type"  => ['cv', [
+                              ["metadata", "update/insert metadata only, default"],
+                              ["taxonomy", "update/insert taxonomy annotations (requires metadata upserted)"],
+                              ["function", "update/insert function annotations (requires metadata upserted)"],
+                              ["annotation", "update/insert all annotations (requires metadata upserted)"],
+                              ["all", "update/insert metadata and all annotations"],
+                          ]]
+                      },
+                      'required' => {
+                          "id" => ["string","unique object identifier"]
+                      },
+                      'body' => {}
                   }
                 },
                 { 'name'        => "query",
@@ -69,6 +81,8 @@ sub info {
                   'attributes'  => $self->attributes,
                   'parameters'  => {
                     'options' => {
+                      'index'     => ['string', "index name, default: metagenome_index"],
+                      'public'    => ['boolean', "if true include public data in query"],
                       'limit'     => ['integer', 'maximum number of datasets returned'],
                       'after'     => ['string', 'sort field value to return results after'],
                       'order'     => ['string', 'fieldname to sort by'],
@@ -103,12 +117,28 @@ sub instance {
     }
     
     # create and upsert
-    my $debug = $self->cgi->param('debug');
-    my $success = $self->upsert_to_elasticsearch($id, $debug);
-    if ($debug) {
-        $self->return_data($success);
+    my $debug  = $self->cgi->param('debug');
+    my $index  = $self->cgi->param('index') || "metagenome_index";
+    my $type   = $self->cgi->param('type') || "metadata";
+    my $result = {};
+    
+    if (($type eq 'metadata') || ($type eq 'all')) {
+        $result->{'metadata'} = $self->upsert_to_elasticsearch_metadata($mgid, $index, $debug);
     }
-    $self->return_data({ metagenome_id => $mgid, status => $success ? "updated" : "failed" });
+    if (($type eq 'taxonomy') || ($type eq 'function')) {
+        my $temp = $self->upsert_to_elasticsearch_annotation($mgid, $type, $index, $debug);
+        $result->{$type} = $temp->{$type} || "failed";
+    }
+    if (($type eq 'annotation') || ($type eq 'all')) {
+        my $temp = $self->upsert_to_elasticsearch_annotation($mgid, 'both', $index, $debug);
+        $result->{'taxonomy'} = $temp->{'taxonomy'} || "failed";
+        $result->{'function'} = $temp->{'function'} || "failed";
+    }
+    
+    if ($debug) {
+        $self->return_data($result);
+    }
+    $self->return_data({ metagenome_id => $mgid, status => $result });
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
@@ -118,6 +148,7 @@ sub query {
   $self->json->utf8();
 
   # get paramaters
+  my $index  = $self->cgi->param('index') || "metagenome_index";
   my $public = $self->cgi->param('public') || undef;
   my $limit  = $self->cgi->param('limit') || 10;
   my $after  = $self->cgi->param('after') || undef;
@@ -186,7 +217,7 @@ sub query {
   } else {
     push(@$ins, [ "job_info_public", [ "true" ] ]);
   }
-  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/metagenome_index/metagenome", $query, $self->{fields}{$order}, $dir, $after, $limit, $ins ? $ins : undef);
+  my ($data, $error) = $self->get_elastic_query($Conf::es_host."/$index/metagenome", $query, $self->{fields}{$order}, $dir, $after, $limit, $ins ? $ins : undef);
   
   if ($error) {
     $self->return_data({"ERROR" => "An error occurred: $error"}, 500);

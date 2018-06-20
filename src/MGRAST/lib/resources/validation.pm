@@ -17,7 +17,7 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "validation";
-    $self->{md_node} = $Conf::mgrast_md_node_id || "";
+    $self->{md_node} = $Conf::mgrast_md_node_id || "1ddadf57-b2a7-4c33-bfe3-0641dc1ed02a";
     $self->{md_template} = $Conf::mgrast_md_template_node_id || "";
     $self->{attributes} = { "template" => { "valid" => [ 'boolean', "boolean indicating whether the examined template is valid or not" ],
 					    "error" => [ 'array', [ "string", "array of invalid entries" ] ] },
