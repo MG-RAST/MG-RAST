@@ -34,7 +34,7 @@ $json->allow_nonref;
 
 my $schema_str = read_file($input);
 my $schema_obj = $json->decode($schema_str);
-my $properties = $schema_obj->{mappings}{metagenome_metadata}{properties};
+my $properties = $schema_obj->{mappings}{metagenome}{properties};
 
 my @prefix = ("job_info_", "job_stat_", "project_", "sample_", "env_package_", "library_", "pipeline_parameters_");
 
@@ -127,5 +127,39 @@ foreach my $pf (@prefix) {
         }
     }
 }
-print OUTF "};\n\n1;\n";
+print OUTF "};\n\n";
+
+# taxonomy range numbers
+my $taxa_properties = $schema_obj->{mappings}{taxonomy}{properties};
+my @nums = ();
+foreach my $prop (keys %$taxa_properties) {
+    my @parts = split(/_/, $prop);
+    if (scalar(@parts) == 2) {
+        push @nums, int($parts[1]);
+    }
+}
+@nums = sort { $a <=> $b } @nums;
+print OUTF "our \$taxa_num = [\n";
+foreach my $n (@nums) {
+    print OUTF "\t$n,\n";
+}
+print OUTF "];\n\n";
+
+# function range numbers
+my $func_properties = $schema_obj->{mappings}{function}{properties};
+@nums = ();
+foreach my $prop (keys %$func_properties) {
+    my @parts = split(/_/, $prop);
+    if (scalar(@parts) == 2) {
+        push @nums, int($parts[1]);
+    }
+}
+@nums = sort { $a <=> $b } @nums;
+print OUTF "our \$func_num = [\n";
+foreach my $n (@nums) {
+    print OUTF "\t$n,\n";
+}
+print OUTF "];\n\n";
+
+print OUTF "1;\n";
 

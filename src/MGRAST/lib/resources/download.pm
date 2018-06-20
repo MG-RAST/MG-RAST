@@ -120,16 +120,16 @@ sub instance {
     my $mgid = 'mgm'.$id;
     my $job  = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        $self->return_data( {"ERROR" => "id ".$rest->[0]." does not exist"}, 404 );
+        $self->return_data( {"ERROR" => "id $restid does not exist"}, 404 );
     }
     $job = $job->[0];
     
     my $jdata = $job->data();
     if (exists($jdata->{deleted}) && $jdata->{deleted}) {
-        $self->return_data( {"ERROR" => "id ".$rest->[0]." is deleted: ".$jdata->{deleted}}, 404 );
+        $self->return_data( {"ERROR" => "id $restid is deleted: ".$jdata->{deleted}}, 404 );
     }
     unless ($job->viewable) {
-        $self->return_data( {"ERROR" => "id ".$rest->[0]." is still processing and unavailable"}, 404 );
+        $self->return_data( {"ERROR" => "id $restid is still processing and unavailable"}, 404 );
     }
     # check rights
     unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
