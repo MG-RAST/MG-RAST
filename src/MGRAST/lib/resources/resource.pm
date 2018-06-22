@@ -2358,7 +2358,7 @@ sub node_to_inbox {
         'checksum'  => $node->{file}{checksum}{md5},
         'timestamp' => $node->{created_on}
     };
-    # get file_info / compute if missing
+    # get file_info / compute if missing or bad state
     unless (exists($node->{attributes}{stats_info}) && ($node->{attributes}{stats_info}{file_type} ne 'none')) {
         ($node, undef) = $self->get_file_info(undef, $node, $auth, $authPrefix);
     }
@@ -2661,7 +2661,7 @@ sub build_seq_stat_task {
     if ($depend < 0) {
         # get / verify nodes
         my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq_type = $self->seq_type_from_node($seq_node, $auth, $authPrefix);
@@ -2712,7 +2712,7 @@ sub build_sff_fastq_task {
     if ($depend < 0) {
         # get / verify nodes
         my $sff_node = $self->node_from_inbox_id($sff, $auth, $authPrefix);
-        unless (exists $sff_node->{attributes}{stats_info}) {
+        unless (exists($sff_node->{attributes}{stats_info}) && ($sff_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($sff_node, undef) = $self->get_file_info(undef, $sff_node, $auth, $authPrefix);
         }
         unless ($sff_node->{attributes}{stats_info}{file_type} eq 'sff') {
@@ -2749,7 +2749,7 @@ sub build_pair_join_task {
     # p1 node exist - no dependencies
     if ($depend_p1 < 0) {
         my $p1_node = $self->node_from_inbox_id($pair1, $auth, $authPrefix);
-        unless (exists $p1_node->{attributes}{stats_info}) {
+        unless (exists($p1_node->{attributes}{stats_info}) && ($p1_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($p1_node, undef) = $self->get_file_info(undef, $p1_node, $auth, $authPrefix);
         }
         unless ($self->seq_type_from_node($p1_node, $auth, $authPrefix) eq 'fastq') {
@@ -2765,7 +2765,7 @@ sub build_pair_join_task {
     # p2 node exist - no dependencies
     if ($depend_p2 < 0) {
         my $p2_node = $self->node_from_inbox_id($pair2, $auth, $authPrefix);
-        unless (exists $p2_node->{attributes}{stats_info}) {
+        unless (exists($p2_node->{attributes}{stats_info}) && ($p2_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($p2_node, undef) = $self->get_file_info(undef, $p2_node, $auth, $authPrefix);
         }
         unless ($self->seq_type_from_node($p2_node, $auth, $authPrefix) eq 'fastq') {
@@ -2843,7 +2843,7 @@ sub build_demultiplex_454_task {
     # seq node exist - no dependencies
     if ($depend_seq < 0) {
         my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq = $seq_node->{file}{name};
@@ -2859,7 +2859,7 @@ sub build_demultiplex_454_task {
     my $basename = fileparse($seq, qr/\.[^.]*/);
     if ($depend_bc < 0) {
         my $bc_node = $self->node_from_inbox_id($barcode, $auth, $authPrefix);
-        unless (exists $bc_node->{attributes}{stats_info}) {
+        unless (exists($bc_node->{attributes}{stats_info}) && ($bc_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
         }
         $barcode = $bc_node->{file}{name};
@@ -2904,7 +2904,7 @@ sub build_demultiplex_illumina_task {
     # seq 1 node exist - no dependencies
     if ($depend_seq < 0) {
         my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq = $seq_node->{file}{name};
@@ -2917,7 +2917,7 @@ sub build_demultiplex_illumina_task {
     # bc node exist - no dependencies
     if ($depend_bc < 0) {
         my $bc_node = $self->node_from_inbox_id($barcode, $auth, $authPrefix);
-        unless (exists $bc_node->{attributes}{stats_info}) {
+        unless (exists($bc_node->{attributes}{stats_info}) && ($bc_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
         }
         $barcode = $bc_node->{file}{name};
@@ -2928,7 +2928,7 @@ sub build_demultiplex_illumina_task {
     # index 1 node exist - no dependencies
     if ($depend_idx1 < 0) {
         my $idx_node = $self->node_from_inbox_id($index1, $auth, $authPrefix);
-        unless (exists $idx_node->{attributes}{stats_info}) {
+        unless (exists($idx_node->{attributes}{stats_info}) && ($idx_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
         }
         $index1 = $idx_node->{file}{name};
@@ -2941,7 +2941,7 @@ sub build_demultiplex_illumina_task {
     if ($double_bc) {
         if ($depend_idx2 < 0) {
             my $idx_node = $self->node_from_inbox_id($index2, $auth, $authPrefix);
-            unless (exists $idx_node->{attributes}{stats_info}) {
+            unless (exists($idx_node->{attributes}{stats_info}) && ($idx_node->{attributes}{stats_info}{file_type} ne 'none')) {
                 ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
             }
             $index2 = $idx_node->{file}{name};
@@ -2992,7 +2992,7 @@ sub build_demultiplex_pairjoin_task {
     # seq 1 node exist - no dependencies
     if ($depend_seq1 < 0) {
         my $seq_node = $self->node_from_inbox_id($seq1, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq1 = $seq_node->{file}{name};
@@ -3004,7 +3004,7 @@ sub build_demultiplex_pairjoin_task {
     }
     if ($depend_seq2 < 0) {
         my $seq_node = $self->node_from_inbox_id($seq2, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq2 = $seq_node->{file}{name};
@@ -3017,7 +3017,7 @@ sub build_demultiplex_pairjoin_task {
     # bc node exist - no dependencies
     if ($depend_bc < 0) {
         my $bc_node = $self->node_from_inbox_id($barcode, $auth, $authPrefix);
-        unless (exists $bc_node->{attributes}{stats_info}) {
+        unless (exists($bc_node->{attributes}{stats_info}) && ($bc_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
         }
         $barcode = $bc_node->{file}{name};
@@ -3028,7 +3028,7 @@ sub build_demultiplex_pairjoin_task {
     # index 1 node exist - no dependencies
     if ($depend_idx1 < 0) {
         my $idx_node = $self->node_from_inbox_id($index1, $auth, $authPrefix);
-        unless (exists $idx_node->{attributes}{stats_info}) {
+        unless (exists($idx_node->{attributes}{stats_info}) && ($idx_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
         }
         $index1 = $idx_node->{file}{name};
@@ -3041,7 +3041,7 @@ sub build_demultiplex_pairjoin_task {
     if ($double_bc) {
         if ($depend_idx2 < 0) {
             my $idx_node = $self->node_from_inbox_id($index2, $auth, $authPrefix);
-            unless (exists $idx_node->{attributes}{stats_info}) {
+            unless (exists($idx_node->{attributes}{stats_info}) && ($idx_node->{attributes}{stats_info}{file_type} ne 'none')) {
                 ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
             }
             $index2 = $idx_node->{file}{name};
@@ -3093,7 +3093,7 @@ sub node_from_inbox_id {
 
 sub seq_type_from_node {
     my ($self, $node, $auth, $authPrefix) = @_;
-    unless (exists $node->{attributes}{stats_info}) {
+    unless (exists($node->{attributes}{stats_info}) && ($node->{attributes}{stats_info}{file_type} ne 'none')) {
         my $err_msg;
         ($node, $err_msg) = $self->get_file_info(undef, $node, $auth, $authPrefix);
         if ($err_msg) {
@@ -3118,7 +3118,7 @@ sub is_sff_file {
         return 0;
     }
     # get type
-    unless (exists $node->{attributes}{stats_info}) {
+    unless (exists($node->{attributes}{stats_info}) && ($node->{attributes}{stats_info}{file_type} ne 'none')) {
         my $err_msg;
         ($node, $err_msg) = $self->get_file_info(undef, $node, $auth, $authPrefix);
         if ($err_msg) {
