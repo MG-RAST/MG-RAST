@@ -1,7 +1,7 @@
 ###################################
 # this is an auto-generated package
 # created by: /MG-RAST/bin/elastic_schema_parse.pl
-# created on: 2018-06-18T16:05:26
+# created on: 2018-06-20T19:35:57
 ###################################
 package ElasticSearch;
 
