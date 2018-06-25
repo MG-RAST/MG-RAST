@@ -177,10 +177,10 @@ sub query {
     my $debug  = $self->cgi->param('debug') ? 1 : 0;
 
     # validate paramaters
-    unless ( $dir eq 'desc' ) {
+    unless ( ($dir eq 'desc') || ($dir eq 'asc') ) {
         $self->return_data( { "ERROR" => "Direction must be 'asc' or 'desc' only." }, 404 );
     }
-    unless ( ($order eq '_score') || exists($self->{fields}{$order}) ) {
+    unless ( exists($self->{fields}{$order} ) {
         $self->return_data( { "ERROR" => "Invalid order field, must be one of the returned fields." }, 404 );
     }
     if ( ( $limit > 1000 ) || ( $limit < 1 ) ) {
