@@ -912,7 +912,7 @@ sub job_action {
             $job->public(1);
             $job->set_publication_date();
             # update elasticsearch
-            $self->upsert_to_elasticsearch($job->metagenome_id);
+            $self->upsert_to_elasticsearch_metadata($job->metagenome_id);
             $data = { public => $job->public ? 1 : 0 };
         } elsif ($action eq 'viewable') {
             my $state = 1;
@@ -929,14 +929,14 @@ sub job_action {
             };
             if ($post->{name}) {
                 $job->name($post->{name});
-                $self->upsert_to_elasticsearch($job->metagenome_id);
+                $self->upsert_to_elasticsearch_metadata($job->metagenome_id);
                 $data->{status} = 1;
             } else {
                 $data->{status} = 0;
             }
 	  } elsif ($action eq 'changesequencetype') {
           $job->sequence_type($post->{sequence_type});
-          $self->upsert_to_elasticsearch($job->metagenome_id);
+          $self->upsert_to_elasticsearch_metadata($job->metagenome_id);
           $data = {
               metagenome_id => 'mgm'.$job->metagenome_id,
 		      job_id        => $job->job_id,

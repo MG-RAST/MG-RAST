@@ -1968,6 +1968,10 @@ sub upsert_to_elasticsearch_metadata {
     # returns 'failed' or 'updated'
     my ($self, $mgid, $index, $debug) = @_;
     
+    if (! $index) {
+        $index = "metagenome_index";
+    }
+    
     # get job
     my $master = $self->connect_to_datasource();
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
