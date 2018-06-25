@@ -86,7 +86,7 @@ print OUTF "};\n\n";
 
 # field map
 print OUTF "our \$fields = {\n";
-print OUTF "\tall => 'all',\n";
+print OUTF "\tall => 'all_metadata',\n";
 print OUTF "\tmetagenome_id => 'id',\n";
 foreach my $pf (@prefix) {
     foreach my $prop (keys %$properties) {
@@ -118,6 +118,7 @@ print OUTF "};\n\n";
 
 # type map
 print OUTF "our \$types = {\n";
+print OUTF "\tall => 'text',\n";
 print OUTF "\tmetagenome_id => 'keyword',\n";
 foreach my $pf (@prefix) {
     foreach my $prop (keys %$properties) {

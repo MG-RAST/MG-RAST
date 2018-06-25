@@ -212,21 +212,15 @@ sub query {
                 }
             }
             # use 'term' for keywords, 'match' for others
-            my $query_type;
-            if ( $field eq "all" ) {
-                $field = "all_metadata";
-                $query_type = "match";
-            } else {
-                my $key = $self->{fields}->{$field};
-                if ($key =~ /\.keyword$/) {
-                    $query_type = "term";
-                    $key =~ s/\.keyword$//;
-                } elsif ($type eq 'keyword') {
-                    $query_type = "term";
-                }
-                $field = $key;
+            my $query_type = "match";
+            my $key = $self->{fields}{$field};
+            if ($key =~ /\.keyword$/) {
+                $query_type = "term";
+                $key =~ s/\.keyword$//;
+            } elsif ($type eq 'keyword') {
+                $query_type = "term";
             }
-            $query->{$field} = { "entries" => $entries, "type" => $type, "query" => $query_type };
+            $query->{$key} = { "entries" => $entries, "type" => $type, "query" => $query_type };
         }
     }
     my $ins = [];
