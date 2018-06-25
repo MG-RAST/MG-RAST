@@ -339,7 +339,7 @@ sub post_action {
         }
         # update elasticsearch
         foreach my $mgid (@{$project->metagenomes(1)}) {
-            $self->upsert_to_elasticsearch($mgid);
+            $self->upsert_to_elasticsearch_metadata($mgid);
         }
         # return success
         $self->return_data( {"OK" => "metadata updated"}, 200 );
@@ -477,7 +477,7 @@ sub get_action {
             $job->public(1);
             $job->set_publication_date();
             # update elasticsearch
-            $self->upsert_to_elasticsearch($job->metagenome_id);
+            $self->upsert_to_elasticsearch_metadata($job->metagenome_id);
         }
 
         # make project public
@@ -534,7 +534,7 @@ sub get_action {
                 $project2->add_job($ajob->[0]);
             }
             # update elasticsearch
-            $self->upsert_to_elasticsearch($m);
+            $self->upsert_to_elasticsearch_metadata($m);
         }
         $self->return_data( {"OK" => "metagenomes moved"}, 200 );
     }

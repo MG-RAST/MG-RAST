@@ -826,7 +826,7 @@ sub process_file {
         }
         # update elasticsearch
         foreach my $mgid (@$added) {
-            $self->upsert_to_elasticsearch($mgid);
+            $self->upsert_to_elasticsearch_metadata($mgid);
         }
         $data = {project => 'mgp'.$pnum, added => $added, errors => $err_msg};
     }
