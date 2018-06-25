@@ -406,15 +406,21 @@ sub sequence_compute {
     unless ($md5fasta) {
         return ({"ERROR" => "unable to retrieve sequence for $md5"}, 500);
     }
+    
+    # make input seq file
+    my ($ifh, $ifile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
+    print $ifh $infasta;
+    close($ifh);
+    
     # make md5 seq file
-    my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
-    print $tfh $md5fasta;
-    close($tfh);
+    my ($mfh, $mfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
+    print $mfh $md5fasta;
+    close($mfh);
     
     # run blast
     my $cmd  = $rna ? "blastn" : "blastx";
     my $opts = "-evalue 0.".("0" x ($eval-1))."1 -dbsize ".$self->{dbsize}." -outfmt 0";
-    my $data = `echo "$infasta" | $cmd $opts -query - -subject $tfile 2> /dev/null`;
+    my $data = `$cmd $opts -query $ifile -subject $mfile 2> /dev/null`;
     
     return ({alignment => $data, md5 => $md5, reads => $reads}, undef);
 }
