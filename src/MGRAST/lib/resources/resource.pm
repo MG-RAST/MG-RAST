@@ -2223,21 +2223,17 @@ sub get_elastic_query {
             if ($in->[2] eq "boolean") {
                 @{$in->[1]} = map { ($_ && ($_ ne 'false')) ? JSON::true : JSON::false } @{$in->[1]};
             }
-            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "term" => {$in->[0] => $in->[1]} });
+            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$in->[0] => $in->[1]} });
         }
     }
 
     # must for query terms (scored)
     foreach my $q (keys %$query) {
-        my $qs = [];
-        my $wilds = {};
-        if ($q eq 'all') {
-            push(@{$postJSON->{"query"}{"bool"}{"must"}}, { $query->{$q}{"query"} => {"all_metadata" => $query->{$q}{"entries"}} });
-        } else {
+        foreach my $e (@{$query->{$q}{"entries"}}) {
             if ($query->{$q}{"type"} eq 'boolean') {
-                @{$query->{$q}{"entries"}} = map { ($_ && ($_ ne 'false')) ? JSON::true : JSON::false } @{$query->{$q}{"entries"}};
+                $e = ($e && ($e ne 'false')) ? JSON::true : JSON::false;
             }
-            push(@{$postJSON->{"query"}{"bool"}{"must"}}, { $query->{$q}{"query"} => {$q => $query->{$q}{"entries"}} });
+            push(@{$postJSON->{"query"}{"bool"}{"must"}}, { $query->{$q}{"query"} => {$q => $e} });
         }
     }
 

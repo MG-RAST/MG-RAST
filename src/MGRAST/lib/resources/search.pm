@@ -208,9 +208,11 @@ sub query {
                 }
             }
             # use 'term' for keywords, 'match' for others
-            my $query_type = "match";
-            
-            unless ( $field eq "all" ) {
+            my $query_type;
+            if ( $field eq "all" ) {
+                $field = "all_metadata";
+                $query_type = "match";
+            } else {
                 my $key = $self->{fields}->{$field};
                 if ($key =~ /\.keyword$/) {
                     $query_type = "term";
