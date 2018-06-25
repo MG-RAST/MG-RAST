@@ -2199,11 +2199,11 @@ sub upsert_to_elasticsearch_annotation {
 }
 
 sub get_elastic_query {
-    my ($self, $server, $query, $order, $dir, $after, $limit, $ins, $debug) = @_;
+    my ($self, $server, $query, $order, $rel, $dir, $after, $limit, $ins, $debug) = @_;
 
     my $postJSON = {
         "size" => $limit,
-        "sort" => [ { $order => $dir } ],
+        "sort" => [],
         "query" => {
             "bool" => {
                 "must" => [],
@@ -2211,6 +2211,11 @@ sub get_elastic_query {
             }
         }
     };
+    
+    if ($rel) {
+        push @{$postJSON->{"sort"}}, { "_score" => {"order": "desc"} };
+    }
+    push @{$postJSON->{"sort"}}, { $order => {"order": $dir} };
       
     # for scrolling
     if ($after) {

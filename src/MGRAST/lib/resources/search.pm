@@ -91,6 +91,7 @@ sub info {
                         'limit'     => [ 'integer', 'maximum number of datasets returned' ],
                         'after'     => [ 'string', 'sort field value to return results after' ],
                         'order'     => [ 'string', 'fieldname to sort by' ],
+                        'relevance' => [ 'boolean', "if true order by _score first than order value" ],
                         'direction' => [
                             'cv',
                             [
@@ -172,10 +173,11 @@ sub query {
     my $after  = $self->cgi->param('after')     || undef;
     my $order  = $self->cgi->param('order')     || "metagenome_id";
     my $dir    = $self->cgi->param('direction') || 'asc';
+    my $rel    = $self->cgi->param('relevance') ? 1 : 0;
     my $debug  = $self->cgi->param('debug') ? 1 : 0;
 
     # validate paramaters
-    unless ( ( $dir eq 'asc' ) || ( $dir eq 'desc' ) ) {
+    unless ( $dir eq 'desc' ) {
         $self->return_data( { "ERROR" => "Direction must be 'asc' or 'desc' only." }, 404 );
     }
     unless ( ($order eq '_score') || exists($self->{fields}{$order}) ) {
@@ -186,10 +188,12 @@ sub query {
     }
 
     # explicitly setting the default CGI parameters for returned url strings
+    $self->cgi->param( 'index',     $index );
     $self->cgi->param( 'limit',     $limit );
     $self->cgi->param( 'after',     $after );
     $self->cgi->param( 'order',     $order );
     $self->cgi->param( 'direction', $dir );
+    $self->cgi->param( 'relevance', $rel );
 
     # get query fields
     my $query = {};
@@ -251,8 +255,7 @@ sub query {
         push( @$ins, [ "job_info_public", ["true"], "boolean" ] );
     }
     
-    my $order_field = ($order eq '_score') ? '_score' : $self->{fields}{$order};
-    my ($data, $error) = $self->get_elastic_query($Conf::es_host."/$index/metagenome", $query, $order_field, $dir, $after, $limit, $ins, $debug);
+    my ($data, $error) = $self->get_elastic_query($Conf::es_host."/$index/metagenome", $query, $self->{fields}{$order}, $rel, $dir, $after, $limit, $ins, $debug);
     
     if ($debug) {
         $self->return_data( $data, 200 );
