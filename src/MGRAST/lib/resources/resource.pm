@@ -2199,81 +2199,75 @@ sub upsert_to_elasticsearch_annotation {
 }
 
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $after, $limit, $ins) = @_;
+    my ($self, $server, $query, $order, $dir, $after, $limit, $ins, $debug) = @_;
 
-  my $postJSON = {
-    "size" => $limit,
-    "sort" => [ { $order => $dir } ],
-    "query" => {
-      "bool" => {
-        "should" => [],
-        "minimum_should_match" => 1,
-        "filter" => [],
-        "must" => []
-      }
+    my $postJSON = {
+        "size" => $limit,
+        "sort" => [ { $order => $dir } ],
+        "query" => {
+            "bool" => {
+                "must" => [],
+                "filter" => []
+            }
+        }
+    };
+      
+    # for scrolling
+    if ($after) {
+        $postJSON->{"search_after"} = [ $after ];
     }
-  };
-  
-  if ($after) {
-      $postJSON->{"search_after"} = [ $after ];
-  }
-  
-  if ($ins) {
-    foreach my $in (@$ins) {
-      push(@{$postJSON->{query}->{"bool"}->{"should"}}, { "terms" => { $in->[0] => $in->[1] } });
+    
+    # filter for project ids and public status (not scored)
+    if ($ins) {
+        foreach my $in (@$ins) {
+            if ($in->[2] eq "boolean") {
+                @{$in->[1]} = map { ($_ && ($_ ne 'false')) ? JSON::true : JSON::false } @{$in->[1]};
+            }
+            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "term" => {$in->[0] => $in->[1]} });
+        }
     }
-  }
-  
-  foreach my $q (keys %$query) {
-    my $qs = [];
-    my $wilds = {};
-    if ($q eq 'all') {
-      push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "match" => { "_all" => join(' ', @{$query->{$q}->{entries}}) } });
+
+    # must for query terms (scored)
+    foreach my $q (keys %$query) {
+        my $qs = [];
+        my $wilds = {};
+        if ($q eq 'all') {
+            push(@{$postJSON->{"query"}{"bool"}{"must"}}, { $query->{$q}{"query"} => {"all_metadata" => $query->{$q}{"entries"}} });
+        } else {
+            if ($query->{$q}{"type"} eq 'boolean') {
+                @{$query->{$q}{"entries"}} = map { ($_ && ($_ ne 'false')) ? JSON::true : JSON::false } @{$query->{$q}{"entries"}};
+            }
+            push(@{$postJSON->{"query"}{"bool"}{"must"}}, { $query->{$q}{"query"} => {$q => $query->{$q}{"entries"}} });
+        }
+    }
+
+    if (! scalar(@{$postJSON->{"query"}{"bool"}{"filter"}})) {
+        delete $postJSON->{"query"}{"bool"}{"filter"};
+    }
+    if (! scalar(@{$postJSON->{"query"}{"bool"}{"must"}})) {
+        delete $postJSON->{"query"}{"bool"}{"must"};
+    }
+    
+    if ($debug) {
+        return $postJSON;
+    }
+    
+    my $content;
+    eval {
+        my $res  = $self->agent->post($server.'/_search', Content => $self->json->encode($postJSON));
+        $content = $self->json->decode($res->content);
+    };
+    if ($@ || (! ref($content))) {
+        return undef, $@;
+    } elsif (exists $content->{error}) {
+        if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
+            $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}}, $content->{status} );
+        } else {
+            $self->return_data( {"ERROR" => "Invalid Elastic Search return response"}, 500 );
+        }
     } else {
-      for (my $i=0; $i<scalar(@{$query->{$q}->{entries}}); $i++) {
-	if ($query->{$q}->{type} eq 'boolean') {
-	  if ($query->{$q}->{entries}->[$i]) {
-	    $query->{$q}->{entries}->[$i] = JSON::true;
-	  } else {
-	    $query->{$q}->{entries}->[$i] = JSON::false;
-	  }
-	}
-	$query->{$q}->{entries}->[$i] = $query->{$q}->{entries}->[$i];
-	push(@$qs, $query->{$q}->{entries}->[$i]);
-      }
-      if (scalar(@$qs)) {
-	push(@{$postJSON->{query}->{"bool"}->{"must"}}, { "query_string" => { "default_field" => $q, "query" => join(' ', @$qs) } });
-      }
+        return $content;
     }
-  }
-
-  if (! scalar(@{$postJSON->{query}->{"bool"}->{"should"}})) {
-    delete $postJSON->{query}->{"bool"}->{"should"};
-    delete $postJSON->{query}->{"bool"}->{"minimum_should_match"};
-  }
-  if (! scalar(@{$postJSON->{query}->{"bool"}->{"filter"}})) {
-    delete $postJSON->{query}->{"bool"}->{"filter"};
-  }
-  if (! scalar(@{$postJSON->{query}->{"bool"}->{"must"}})) {
-    delete $postJSON->{query}->{"bool"}->{"must"};
-  }
-  
-  my $content;
-  eval {
-      my $res  = $self->agent->post($server.'/_search', Content => $self->json->encode($postJSON));
-      $content = $self->json->decode($res->content);
-  };
-  if ($@ || (! ref($content))) {
-    return undef, $@;
-  } elsif (exists $content->{error}) {
-      if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
-          $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}}, $content->{status} );
-      } else {
-          $self->return_data( {"ERROR" => "Invalid Elastic Search return response"}, 500 );
-      }
-  } else {
-    return $content;
-  }
 }
 
 sub get_solr_query {
