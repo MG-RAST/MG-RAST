@@ -140,13 +140,13 @@ sub instance {
     }
     
     my $status = "updated";
-    foreach my $k (keys %$results) {
-        if ($results->{$k} eq 'failed') {
+    foreach my $k (keys %$result) {
+        if ($result->{$k} eq 'failed') {
             $status = "failed";
         }
     }
     
-    $self->return_data({ metagenome_id => $mgid, status => $status, results => $results });
+    $self->return_data({ metagenome_id => $mgid, status => $status, result => $result });
 }
 
 # the resource is called without an id parameter, but with at least one query parameter
