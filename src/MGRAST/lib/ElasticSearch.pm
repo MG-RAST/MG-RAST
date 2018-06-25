@@ -1,7 +1,7 @@
 ###################################
 # this is an auto-generated package
 # created by: /MG-RAST/bin/elastic_schema_parse.pl
-# created on: 2018-06-20T19:35:57
+# created on: 2018-06-25T21:02:30
 ###################################
 package ElasticSearch;
 
@@ -40,7 +40,7 @@ our $ids = {
 };
 
 our $fields = {
-	all => 'all',
+	all => 'all_metadata',
 	metagenome_id => 'id',
 	job_id => 'job_info_job_id',
 	created_on => 'job_info_created_on',
@@ -228,6 +228,7 @@ our $prefixes = {
 };
 
 our $types = {
+	all => 'text',
 	metagenome_id => 'keyword',
 	job_id => 'integer',
 	created_on => 'date',
