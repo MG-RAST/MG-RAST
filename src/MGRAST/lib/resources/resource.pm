@@ -2213,9 +2213,9 @@ sub get_elastic_query {
     };
     
     if ($rel) {
-        push @{$postJSON->{"sort"}}, { "_score" => {"order": "desc"} };
+        push @{$postJSON->{"sort"}}, { "_score" => {"order" => "desc"} };
     }
-    push @{$postJSON->{"sort"}}, { $order => {"order": $dir} };
+    push @{$postJSON->{"sort"}}, { $order => {"order" => $dir} };
       
     # for scrolling
     if ($after) {
