@@ -1,7 +1,7 @@
 ###################################
 # this is an auto-generated package
 # created by: /MG-RAST/bin/elastic_schema_parse.pl
-# created on: 2018-06-25T21:02:30
+# created on: 2018-06-27T16:39:50
 ###################################
 package ElasticSearch;
 
@@ -41,6 +41,10 @@ our $ids = {
 
 our $fields = {
 	all => 'all_metadata',
+	project => 'all_project',
+	sample => 'all_sample',
+	library => 'all_library',
+	env_package => 'all_env_package',
 	metagenome_id => 'id',
 	job_id => 'job_info_job_id',
 	created_on => 'job_info_created_on',
@@ -229,6 +233,10 @@ our $prefixes = {
 
 our $types = {
 	all => 'text',
+	project => 'text',
+	sample => 'text',
+	library => 'text',
+	env_package => 'text',
 	metagenome_id => 'keyword',
 	job_id => 'integer',
 	created_on => 'date',
@@ -316,29 +324,19 @@ our $types = {
 };
 
 our $taxa_num = [
+	1,
 	5,
 	10,
 	15,
 	20,
 	25,
-	30,
-	35,
-	40,
-	45,
-	50,
 ];
 
 our $func_num = [
+	1,
+	3,
 	5,
 	10,
-	15,
-	20,
-	25,
-	30,
-	35,
-	40,
-	45,
-	50,
 ];
 
 1;
