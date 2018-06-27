@@ -2019,21 +2019,21 @@ sub upsert_to_elasticsearch_metadata {
         $esdata->{ $fMap->{$md} } = "";
         if (exists($m_data->{$md}) && $m_data->{$md}{id} && $m_data->{$md}{name} && $m_data->{$md}{data}) {
             # _id / _name
-            $esdata->{ $fMap->{$md.'_id'} } = $self->jsonTypecast($tMap->{$md.'_id'}, $m_data->{$md}{id});
+            $esdata->{ $fMap->{$md.'_id'} }   = $self->jsonTypecast($tMap->{$md.'_id'}, $m_data->{$md}{id});
             $esdata->{ $fMap->{$md.'_name'} } = $self->jsonTypecast($tMap->{$md.'_name'}, $m_data->{$md}{name});
-            unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{id}." ".$m_data->{$md}{name});
-            unique_concat($esdata->{$fMap->{$md}}, $m_data->{$md}{id}." ".$m_data->{$md}{name});
+            $esdata->{$fMap->{'all'}} = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{id}." ".$m_data->{$md}{name});
+            $esdata->{$fMap->{$md}}   = unique_concat($esdata->{$fMap->{$md}}, $m_data->{$md}{id}." ".$m_data->{$md}{name});
             # _type
             if (exists($fMap->{$md.'_type'}) && $m_data->{$md}{type}) {
                 $esdata->{ $fMap->{$md.'_type'} } = $self->jsonTypecast($tMap->{$md.'_type'}, $m_data->{$md}{type});
-                unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{type});
-                unique_concat($esdata->{$fMap->{$md}}, $m_data->{$md}{type});
+                $esdata->{$fMap->{'all'}} = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{type});
+                $esdata->{$fMap->{$md}}   = unique_concat($esdata->{$fMap->{$md}}, $m_data->{$md}{type});
             }
             foreach my $k (keys %{$m_data->{$md}{data}}) {
                 if ($k && defined($m_data->{$md}{data}{$k})) {
                     # all go into catchall
-                    unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{$k});
-                    unique_concat($esdata->{$fMap->{$md}}, $m_data->{$md}{$k});
+                    $esdata->{$fMap->{'all'}} = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{$k});
+                    $esdata->{$fMap->{$md}}   = unique_concat($esdata->{$fMap->{$md}}, $m_data->{$md}{$k});
                     # special case for ebi_id
                     if ($k eq 'ebi_id') {
                         my $kx = $md.'_'.$k;
@@ -2127,7 +2127,7 @@ sub upsert_to_elasticsearch_annotation {
                 if (split(/\s+/, $t->[0]) > 1) {
                     next;
                 }
-                unique_concat($results->{'taxonomy'}{'all'}, $t->[0]);
+                $results->{'taxonomy'}{'all'} = unique_concat($results->{'taxonomy'}{'all'}, $t->[0]);
                 my $rel = int((($t->[1] / $total) * 100) + 0.5);
                 foreach my $n (@$t_nums) {
                     if ($rel >= $n) {
@@ -2151,14 +2151,14 @@ sub upsert_to_elasticsearch_annotation {
         };
         my $total = sum map {$_->[1]} @{$mg_stats->{'function'}};
         foreach my $f (@{$mg_stats->{'function'}}) {
-            unique_concat($results->{'function'}{'all'}, $f->[0]);
+            $results->{'function'}{'all'} = unique_concat($results->{'function'}{'all'}, $f->[0]);
             my $rel = int((($f->[1] / $total) * 100) + 0.5);
             foreach my $n (@$f_nums) {
                 if ($rel >= $n) {
                     unless (exists $results->{'function'}{'f_'.$n}) {
                         $results->{'function'}{'f_'.$n} = "";
                     }
-                    unique_concat($results->{'function'}{'f_'.$n}, $f->[0]);
+                    $results->{'function'}{'f_'.$n} = unique_concat($results->{'function'}{'f_'.$n}, $f->[0]);
                 }
             }
         }
