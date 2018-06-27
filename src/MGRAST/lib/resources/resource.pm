@@ -2204,7 +2204,7 @@ sub upsert_to_elasticsearch_annotation {
 
 sub unique_concat {
     my ($str1, $str2) = @_;
-    unless ($str1 && $str2) {
+    unless ($str1 || $str2) {
         return "";
     }
     unless ($str1) {
