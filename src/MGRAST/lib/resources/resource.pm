@@ -2014,24 +2014,39 @@ sub upsert_to_elasticsearch_metadata {
         }
     }
     # job metadata
+    $esdata->{ $fMap->{'all'} } = [];
     foreach my $md (('project', 'sample', 'library', 'env_package')) {
+        $esdata->{ $fMap->{$md} } = [];
         if (exists($m_data->{$md}) && $m_data->{$md}{id} && $m_data->{$md}{name} && $m_data->{$md}{data}) {
+            # _id / _name
             $esdata->{ $fMap->{$md.'_id'} } = $self->jsonTypecast($tMap->{$md.'_id'}, $m_data->{$md}{id});
             $esdata->{ $fMap->{$md.'_name'} } = $self->jsonTypecast($tMap->{$md.'_name'}, $m_data->{$md}{name});
+            push @{$esdata->{$fMap->{'all'}}}, ($esdata->{$fMap->{$md.'_id'}}, $esdata->{$fMap->{$md.'_name'}});
+            push @{$esdata->{$fMap->{$md}}}, ($esdata->{$fMap->{$md.'_id'}}, $esdata->{$fMap->{$md.'_name'}});
+            # _type
             if (exists($fMap->{$md.'_type'}) && $m_data->{$md}{type}) {
                 $esdata->{ $fMap->{$md.'_type'} } = $self->jsonTypecast($tMap->{$md.'_type'}, $m_data->{$md}{type});
+                push @{$esdata->{$fMap->{'all'}}}, $esdata->{$fMap->{$md.'_type'}};
+                push @{$esdata->{$fMap->{$md}}}, $esdata->{$fMap->{$md.'_type'}};
             }
             foreach my $k (keys %{$m_data->{$md}{data}}) {
-                # special case for ebi_id
-                if (($k eq 'ebi_id') && defined($m_data->{$md}{data}{$k})) {
-                    my $kx = $md.'_'.$k;
-                    $esdata->{ $fMap->{$kx} } = $self->jsonTypecast($tMap->{$kx}, $m_data->{$md}{data}{$k});
-                } elsif ($k && (exists $fMap->{$k}) && defined($m_data->{$md}{data}{$k})) {
-                    $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k});
+                if ($k && defined($m_data->{$md}{data}{$k})) {
+                    # all go into catchall
+                    push @{$esdata->{$fMap->{'all'}}}, $self->jsonTypecast('text', $m_data->{$md}{data}{$k});
+                    push @{$esdata->{$fMap->{$md}}}, $self->jsonTypecast('text', $m_data->{$md}{data}{$k});
+                    # special case for ebi_id
+                    if ($k eq 'ebi_id') {
+                        my $kx = $md.'_'.$k;
+                        $esdata->{ $fMap->{$kx} } = $self->jsonTypecast($tMap->{$kx}, $m_data->{$md}{data}{$k});
+                    } elsif (exists $fMap->{$k}) {
+                        $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k});
+                    }
                 }
             }
         }
+        $esdata->{ $fMap->{$md} } = join(' ', @{$esdata->{$fMap->{$md}}});
     }
+    $esdata->{ $fMap->{'all'} } = join(' ', @{$esdata->{$fMap->{'all'}}});
     $esdata->{id} = "mgm".$id;
     $esdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
     
@@ -2103,13 +2118,18 @@ sub upsert_to_elasticsearch_annotation {
             'all' => ''
         };
         foreach my $level (keys %{$mg_stats->{'taxonomy'}}) {
+            if ($level eq 'species') {
+                next;
+            }
+            my $prefix = lc(substr($level, 0, 1));
             my $total = sum map {$_->[1]} @{$mg_stats->{'taxonomy'}{$level}};
             foreach my $t (@{$mg_stats->{'taxonomy'}{$level}}) {
-                my @parts = split(/\s+/, $t->[0]);
-                foreach my $p (@parts) {
-                    unless ($results->{'taxonomy'}{'all'} =~ /\Q$p\E/) {
-                        $results->{'taxonomy'}{'all'} .= " ".$p;
-                    }
+                my $tname = $t->[0];
+                if (split(/\s+/, $tname) > 1) {
+                    next;
+                }
+                unless ($results->{'taxonomy'}{'all'} =~ /\Q$tname\E/) {
+                    $results->{'taxonomy'}{'all'} .= " ".$tname;
                 }
                 my $rel = int((($t->[1] / $total) * 100) + 0.5);
                 foreach my $n (@$t_nums) {
@@ -2117,11 +2137,7 @@ sub upsert_to_elasticsearch_annotation {
                         unless (exists $results->{'taxonomy'}{'t_'.$n}) {
                             $results->{'taxonomy'}{'t_'.$n} = "";
                         }
-                        foreach my $p (@parts) {
-                            unless ($results->{'taxonomy'}{'t_'.$n} =~ /\Q$p\E/) {
-                                $results->{'taxonomy'}{'t_'.$n} .= " ".$p;
-                            }
-                        }
+                        $results->{'taxonomy'}{'t_'.$n} .= " ".$prefix.'_'.$tname;
                     }
                 }
             }
@@ -2199,8 +2215,9 @@ sub upsert_to_elasticsearch_annotation {
 }
 
 sub get_elastic_query {
-    my ($self, $server, $query, $order, $rel, $dir, $after, $limit, $ins, $debug) = @_;
+    my ($self, $server, $query, $order, $no_scr, $dir, $match, $after, $limit, $ins, $debug) = @_;
 
+    my $opr = ($match eq 'any') ? 'or' : 'and';
     my $postJSON = {
         "size" => $limit,
         "sort" => [],
@@ -2212,7 +2229,7 @@ sub get_elastic_query {
         }
     };
     
-    if ($rel) {
+    unless ($no_scr) {
         push @{$postJSON->{"sort"}}, { "_score" => {"order" => "desc"} };
     }
     push @{$postJSON->{"sort"}}, { $order => {"order" => $dir} };
@@ -2225,21 +2242,17 @@ sub get_elastic_query {
     # filter for project ids and public status (not scored)
     if ($ins) {
         foreach my $in (@$ins) {
-            if ($in->[2] eq "boolean") {
-                @{$in->[1]} = map { ($_ && ($_ ne 'false')) ? JSON::true : JSON::false } @{$in->[1]};
-            }
             push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$in->[0] => $in->[1]} });
         }
     }
 
     # must for query terms (scored)
     foreach my $q (keys %$query) {
-        foreach my $e (@{$query->{$q}{"entries"}}) {
-            if ($query->{$q}{"type"} eq 'boolean') {
-                $e = ($e && ($e ne 'false')) ? JSON::true : JSON::false;
-            }
-            push(@{$postJSON->{"query"}{"bool"}{"must"}}, { $query->{$q}{"query"} => {$q => $e} });
+        my $qstr = $query->{$q}{"query"};
+        if ($query->{$q}{"type"} eq 'boolean') {
+            $qstr = ($qstr && ($qstr ne 'false')) ? JSON::true : JSON::false;
         }
+        push(@{$postJSON->{"query"}{"bool"}{"must"}}, { "query_string" => { "default_field" => $q, "default_operator" => $opr, "query" => $qstr } });
     }
 
     if (! scalar(@{$postJSON->{"query"}{"bool"}{"filter"}})) {

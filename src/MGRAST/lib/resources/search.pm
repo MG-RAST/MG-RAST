@@ -8,6 +8,7 @@ use Conf;
 use ElasticSearch;
 use parent qw(resources::resource);
 
+use JSON;
 use URI::Escape qw(uri_escape uri_unescape);
 
 # Override parent constructor
@@ -91,14 +92,19 @@ sub info {
                         'limit'     => [ 'integer', 'maximum number of datasets returned' ],
                         'after'     => [ 'string', 'sort field value to return results after' ],
                         'order'     => [ 'string', 'fieldname to sort by' ],
-                        'relevance' => [ 'boolean', "if true order by _score first than order value" ],
+                        'no_score'  => [ 'boolean', "if true do not use _score for first level ordering" ],
                         'direction' => [
                             'cv',
                             [
                                 [ 'asc',  'sort data ascending' ],
                                 [ 'desc', 'sort data descending' ]
-                            ]
-                        ]
+                            ]],
+                        'match' => [
+                            'cv',
+                            [
+                                ['all', 'return that match all (AND) search parameters'],
+                                ['any', 'return that match any (OR) search parameters']
+                            ]]
                     },
                     'required' => {},
                     'body'     => {}
@@ -173,10 +179,14 @@ sub query {
     my $after  = $self->cgi->param('after')     || undef;
     my $order  = $self->cgi->param('order')     || "metagenome_id";
     my $dir    = $self->cgi->param('direction') || 'asc';
-    my $rel    = $self->cgi->param('relevance') ? 1 : 0;
-    my $debug  = $self->cgi->param('debug') ? 1 : 0;
+    my $match  = $self->cgi->param('match')     || 'all';
+    my $no_scr = $self->cgi->param('no_score')  || undef;
+    my $debug  = $self->cgi->param('debug')     || undef;
 
     # validate paramaters
+    unless ( ($match eq 'all') || ($match eq 'any') ) {
+        $self->return_data( { "ERROR" => "Match must be 'all' or 'any' only." }, 404 );
+    }
     unless ( ($dir eq 'desc') || ($dir eq 'asc') ) {
         $self->return_data( { "ERROR" => "Direction must be 'asc' or 'desc' only." }, 404 );
     }
@@ -193,34 +203,20 @@ sub query {
     $self->cgi->param( 'after',     $after );
     $self->cgi->param( 'order',     $order );
     $self->cgi->param( 'direction', $dir );
-    $self->cgi->param( 'relevance', $rel );
+    $self->cgi->param( 'match',     $match );
 
     # get query fields
-    my $query = {};
+    my $queries = {};
     foreach my $field ( keys %{ $self->{fields} } ) {
         next if $field eq 'public';
         if ( $self->cgi->param($field) ) {
-            my $type    = $ElasticSearch::types->{$field};
-            my @param   = $self->cgi->param($field);
-            my $entries = [];
-            foreach my $p (@param) {
-                if ( $p =~ /\s/ ) {
-                    push( @$entries, split( /\s+/, $p ) );
-                }
-                else {
-                    push( @$entries, $p );
-                }
-            }
-            # use 'term' for keywords, 'match' for others
-            my $query_type = "match";
-            my $key = $self->{fields}{$field};
-            if ($key =~ /\.keyword$/) {
-                $query_type = "term";
-                $key =~ s/\.keyword$//;
-            } elsif ($type eq 'keyword') {
-                $query_type = "term";
-            }
-            $query->{$key} = { "entries" => $entries, "type" => $type, "query" => $query_type };
+            my $type  = $ElasticSearch::types->{$field};
+            my @param = $self->cgi->param($field);
+            my $key   = $self->{fields}{$field};
+            $key =~ s/\.keyword$//;
+            my $query = join(' ', @param);
+            $query =~ s/"/\\"/;
+            $queries->{$key} = { "query" => $query, "type" => $type};
         }
     }
     my $ins = [];
@@ -230,26 +226,26 @@ sub query {
         # admin user, get all or filter non-public
         if ( $self->user->has_star_right('view', 'metagenome') ) {
             if ( ! $get_public ) {
-                push( @$ins, [ "job_info_public", ["false"], "boolean" ] );
+                push( @$ins, [ "job_info_public", [ JSON::false ] ] );
             }
         }
         # reuglar user, filter by id and public
         else {
             my @pids = map { "mgp".$_ } @{ $self->user->has_right_to(undef, 'view', 'project') };
             if ( scalar(@pids) ) {
-                push( @$ins, [ "project_project_id", \@pids, "keyword" ] );
+                push( @$ins, [ "project_project_id", [ @pids ] ] );
             }
             if ( $get_public ) {
-                push( @$ins, [ "job_info_public", ["true"], "boolean" ] );
+                push( @$ins, [ "job_info_public", [ JSON::true ] ] );
             }
         }
     }
     # no user, filter by only public
     else {
-        push( @$ins, [ "job_info_public", ["true"], "boolean" ] );
+        push( @$ins, [ "job_info_public", [ JSON::true ] ] );
     }
     
-    my ($data, $error) = $self->get_elastic_query($Conf::es_host."/$index/metagenome", $query, $self->{fields}{$order}, $rel, $dir, $after, $limit, $ins, $debug);
+    my ($data, $error) = $self->get_elastic_query($Conf::es_host."/$index/metagenome", $queries, $self->{fields}{$order}, $no_scr, $dir, $match, $after, $limit, $ins, $debug);
     
     if ($debug) {
         $self->return_data( $data, 200 );

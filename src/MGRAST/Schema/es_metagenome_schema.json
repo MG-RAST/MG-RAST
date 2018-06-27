@@ -5,6 +5,18 @@
                 "all_metadata": {
                     "type": "text"
                 },
+                "all_project": {
+                    "type": "text"
+                },
+                "all_sample": {
+                    "type": "text"
+                },
+                "all_library": {
+                    "type": "text"
+                },
+                "all_env_package": {
+                    "type": "text"
+                },
                 "env_package_env_package_id": {
                     "type": "keyword"
                 },
@@ -14,8 +26,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "env_package_env_package_type": {
                     "fields": {
@@ -23,15 +34,16 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "id": {
-                    "type": "keyword"
+                    "type": "keyword",
+                    "copy_to": "all_metadata"
                 },
                 "job_info_created_on": {
                     "format": "strict_date_optional_time||epoch_millis",
-                    "type": "date"
+                    "type": "date",
+                    "copy_to": "all_metadata"
                 },
                 "job_info_job_id": {
                     "type": "integer"
@@ -74,16 +86,13 @@
                     "type": "integer"
                 },
                 "library_gold_id": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "library_investigation_type": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "library_library_ebi_id": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "library_library_id": {
                     "type": "keyword"
@@ -94,23 +103,19 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "library_mrna_percent": {
                     "type": "float"
                 },
                 "library_pubmed_id": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "library_seq_meth": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "library_target_gene": {
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "pipeline_parameters_aa_pid": {
                     "type": "integer"
@@ -175,8 +180,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "project_PI_lastname": {
                     "fields": {
@@ -184,8 +188,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "project_PI_organization": {
                     "fields": {
@@ -193,8 +196,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "project_PI_organization_country": {
                     "type": "keyword",
@@ -206,12 +208,10 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "project_greengenes_id": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "project_lastname": {
                     "fields": {
@@ -219,12 +219,10 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "project_ncbi_id": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "project_organization": {
                     "fields": {
@@ -232,16 +230,13 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "project_organization_country": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "project_project_ebi_id": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "project_project_funding": {
                     "fields": {
@@ -249,12 +244,10 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "project_project_id": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "project_project_name": {
                     "fields": {
@@ -262,8 +255,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_altitude": {
                     "type": "float"
@@ -274,8 +266,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_biome_id": {
                     "type": "keyword"
@@ -284,12 +275,10 @@
                     "type": "date"
                 },
                 "sample_continent": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "sample_country": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "sample_depth": {
                     "type": "float"
@@ -303,15 +292,13 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_envo_id": {
                     "type": "keyword"
                 },
                 "sample_envo_label": {
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_feature": {
                     "fields": {
@@ -319,8 +306,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_feature_id": {
                     "type": "keyword"
@@ -334,8 +320,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_longitude": {
                     "type": "float"
@@ -346,8 +331,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_material_id": {
                     "type": "keyword"
@@ -358,8 +342,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_metagenome_taxonomy_id": {
                     "type": "keyword"
@@ -368,12 +351,10 @@
                     "type": "integer"
                 },
                 "sample_ncbi_taxonomy_scientific_name": {
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_sample_ebi_id": {
-                    "type": "keyword",
-                    "copy_to": "all_metadata"
+                    "type": "keyword"
                 },
                 "sample_sample_id": {
                     "type": "keyword"
@@ -384,8 +365,7 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text",
-                    "copy_to": "all_metadata"
+                    "type": "text"
                 },
                 "sample_temperature": {
                     "type": "float"
@@ -401,6 +381,10 @@
                     "type": "keyword"
                 },
                 "all": {
+                    "store": false,
+                    "type": "text"
+                },
+                "t_1": {
                     "store": false,
                     "type": "text"
                 },
@@ -423,26 +407,6 @@
                 "t_25": {
                     "store": false,
                     "type": "text"
-                },
-                "t_30": {
-                    "store": false,
-                    "type": "text"
-                },
-                "t_35": {
-                    "store": false,
-                    "type": "text"
-                },
-                "t_40": {
-                    "store": false,
-                    "type": "text"
-                },
-                "t_45": {
-                    "store": false,
-                    "type": "text"
-                },
-                "t_50": {
-                    "store": false,
-                    "type": "text"
                 }
             }
         },
@@ -458,43 +422,19 @@
                     "store": false,
                     "type": "text"
                 },
+                "f_1": {
+                    "store": false,
+                    "type": "text"
+                },
+                "f_3": {
+                    "store": false,
+                    "type": "text"
+                },
                 "f_5": {
                     "store": false,
                     "type": "text"
                 },
                 "f_10": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_15": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_20": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_25": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_30": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_35": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_40": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_45": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_50": {
                     "store": false,
                     "type": "text"
                 }
