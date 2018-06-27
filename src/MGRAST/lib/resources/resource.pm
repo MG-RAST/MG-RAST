@@ -2032,8 +2032,8 @@ sub upsert_to_elasticsearch_metadata {
             foreach my $k (keys %{$m_data->{$md}{data}}) {
                 if ($k && defined($m_data->{$md}{data}{$k})) {
                     # all go into catchall
-                    $esdata->{$fMap->{'all'}} = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{$k});
-                    $esdata->{$fMap->{$md}}   = unique_concat($esdata->{$fMap->{$md}}, $m_data->{$md}{$k});
+                    $esdata->{$fMap->{'all'}} = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{data}{$k});
+                    $esdata->{$fMap->{$md}}   = unique_concat($esdata->{$fMap->{$md}}, $m_data->{$md}{data}{$k});
                     # special case for ebi_id
                     if ($k eq 'ebi_id') {
                         my $kx = $md.'_'.$k;
