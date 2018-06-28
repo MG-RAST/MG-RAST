@@ -10,6 +10,7 @@ use parent qw(resources::resource);
 
 use JSON;
 use URI::Escape qw(uri_escape uri_unescape);
+use List::MoreUtils qw(any uniq);
 
 # Override parent constructor
 sub new {
@@ -104,7 +105,12 @@ sub info {
                             [
                                 ['all', 'return that match all (AND) search parameters'],
                                 ['any', 'return that match any (OR) search parameters']
-                            ]]
+                            ]],
+                        'function'   => [ 'string', "function name to filter results by" ],
+                        'func_per'   => [ 'integer', "percent abundance cutoff for function name" ],
+                        'taxonomy'   => [ 'string', "taxonomy name to filter results by" ],
+                        'taxa_per'   => [ 'integer', "percent abundance cutoff for taxonomy name" ],
+                        'taxa_level' => [ 'string', "taxonomic level the name belongs to, required with percent cutoff" ]
                     },
                     'required' => {},
                     'body'     => {}
@@ -200,13 +206,12 @@ sub query {
     # explicitly setting the default CGI parameters for returned url strings
     $self->cgi->param( 'index',     $index );
     $self->cgi->param( 'limit',     $limit );
-    $self->cgi->param( 'after',     $after );
     $self->cgi->param( 'order',     $order );
     $self->cgi->param( 'direction', $dir );
     $self->cgi->param( 'match',     $match );
 
     # get query fields
-    my $queries = {};
+    my $queries = [];
     foreach my $field ( keys %{ $self->{fields} } ) {
         next if $field eq 'public';
         if ( $self->cgi->param($field) ) {
@@ -216,37 +221,71 @@ sub query {
             $key =~ s/\.keyword$//;
             my $query = join(' ', @param);
             $query =~ s/"/\\"/;
-            $queries->{$key} = { "query" => $query, "type" => $type};
+            push @$queries, {"field" => $key, "query" => $query, "type" => $type};
         }
     }
-    my $ins = [];
-    my $get_public = ($public && (($public eq "1") || ($public eq "true") || ($public eq "yes"))) ? 1 : 0;
     
+    # get taxa / func queries
+    my $function   = $self->cgi->param('function')   || undef;
+    my $func_per   = $self->cgi->param('func_per')   || undef;
+    my $taxonomy   = $self->cgi->param('taxonomy')   || undef;
+    my $taxa_per   = $self->cgi->param('taxa_per')   || undef;
+    my $taxa_level = $self->cgi->param('taxa_level') || undef;
+ 
+    if ( $function ) {
+        $function =~ s/"/\\"/;
+        if ( $func_per ) {
+            if ( any {$_ == $func_per} @{$ElasticSearch::func_num} ) {
+                push @$queries, {"field" => "f_".$func_per, "query" => $function, "type" => "child", "name" => "function"};
+            } else {
+                $self->return_data( { "ERROR" => "func_per must be one of: ",join(", ", @{$ElasticSearch::func_num}) }, 404 );
+            }
+        } else {
+            push @$queries, {"field" => "all", "query" => $function, "type" => "child", "name" => "function"};
+        }
+    }
+    if ( $taxonomy ) {
+        if ( $taxa_per && $taxa_level ) {
+            my $taxa_query = lc(substr($taxa_level, 0, 1))."_".$taxonomy;
+            if ( any {$_ == $taxa_per} @{$ElasticSearch::taxa_num} ) {
+                push @$queries, {"field" => "t_".$taxa_per, "query" => $taxa_query, "type" => "child", "name" => "taxonomy"};
+            } else {
+                $self->return_data( { "ERROR" => "taxa_per must be one of: ",join(", ", @{$ElasticSearch::taxa_num}) }, 404 );
+            }
+        } else {
+            push @$queries, {"field" => "all", "query" => $taxonomy, "type" => "child", "name" => "taxonomy"};
+        }
+    }
+        
+    # get filters
+    my $filters = [];
+    my $get_public = ($public && (($public eq "1") || ($public eq "true") || ($public eq "yes"))) ? 1 : 0;
     if ( $self->user ) {
         # admin user, get all or filter non-public
         if ( $self->user->has_star_right('view', 'metagenome') ) {
             if ( ! $get_public ) {
-                push( @$ins, [ "job_info_public", [ JSON::false ] ] );
+                push( @$filters, [ "job_info_public", [ JSON::false ] ] );
             }
         }
         # reuglar user, filter by id and public
         else {
             my @pids = map { "mgp".$_ } @{ $self->user->has_right_to(undef, 'view', 'project') };
             if ( scalar(@pids) ) {
-                push( @$ins, [ "project_project_id", [ @pids ] ] );
+                push( @$filters, [ "project_project_id", [ @pids ] ] );
             }
             if ( $get_public ) {
-                push( @$ins, [ "job_info_public", [ JSON::true ] ] );
+                push( @$filters, [ "job_info_public", [ JSON::true ] ] );
             }
         }
     }
     # no user, filter by only public
     else {
-        push( @$ins, [ "job_info_public", [ JSON::true ] ] );
+        push( @$filters, [ "job_info_public", [ JSON::true ] ] );
     }
     
-    my ($data, $error) = $self->get_elastic_query($Conf::es_host."/$index/metagenome", $queries, $self->{fields}{$order}, $no_scr, $dir, $match, $after, $limit, $ins, $debug);
-    
+    my $es_url = $Conf::es_host."/".$index."/metagenome";
+    my ($data, $error) = $self->get_elastic_query($es_url, $queries, $self->{fields}{$order}, $no_scr, $dir, $match, $after, $limit, $filters, $debug);
+
     if ($debug) {
         $self->return_data( $data, 200 );
     }

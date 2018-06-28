@@ -2223,7 +2223,7 @@ sub unique_concat {
 }
 
 sub get_elastic_query {
-    my ($self, $server, $query, $order, $no_scr, $dir, $match, $after, $limit, $ins, $debug) = @_;
+    my ($self, $server, $queries, $order, $no_scr, $dir, $match, $after, $limit, $ins, $debug) = @_;
 
     my $opr = ($match eq 'any') ? 'or' : 'and';
     my $postJSON = {
@@ -2255,12 +2255,27 @@ sub get_elastic_query {
     }
 
     # must for query terms (scored)
-    foreach my $q (keys %$query) {
-        my $qstr = $query->{$q}{"query"};
-        if ($query->{$q}{"type"} eq 'boolean') {
+    foreach my $q (@$queries) {
+        my $qstr = $q->{"query"};
+        if ($q->{"type"} eq 'boolean') {
             $qstr = ($qstr && ($qstr ne 'false')) ? JSON::true : JSON::false;
         }
-        push(@{$postJSON->{"query"}{"bool"}{"must"}}, { "query_string" => { "default_field" => $q, "default_operator" => $opr, "query" => $qstr } });
+        my $query_doc = {
+            "query_string" => {
+                "default_field" => $q->{"field"},
+                "default_operator" => $opr,
+                "query" => $qstr
+            }
+        };
+        if (($q->{"type"} eq 'child') && $q->{"name"}) {
+            $query_doc = {
+                "has_child": {
+                    "type" => $q->{"name"},
+                    "query" => $query_doc
+                }
+            };
+        }
+        push(@{$postJSON->{"query"}{"bool"}{"must"}}, $query_doc);
     }
 
     if (! scalar(@{$postJSON->{"query"}{"bool"}{"filter"}})) {
