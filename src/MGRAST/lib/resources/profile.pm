@@ -110,6 +110,8 @@ sub info {
             { 'name'        => "status",
               'request'     => $self->url."/".$self->name."/status/{UUID}",
               'description' => "Return profile status and/or results",
+	      'example'     => [ $self->url."/".$self->name."/status/cffe40ec-8bad-43ba-9dfa-57c3fe71ba88",
+				 "Return profile status and/or results" ],
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => $self->{status},
@@ -377,7 +379,7 @@ sub status_report_from_node {
     };
     $report->{progress} = {
         started => $node->{created_on},
-        updated => $node->{last_modified},
+        updated => ($node->{last_modified} eq "0001-01-01T00:00:00Z") ? $node->{created_on} || $node->{last_modified},
         queried => $node->{attributes}{progress}{queried} || $node->{attributes}{md5_queried} || $node->{attributes}{lca_queried} || 0,
         found   => $node->{attributes}{progress}{found} || $node->{attributes}{md5_found} || $node->{attributes}{lca_found} || 0
     };
