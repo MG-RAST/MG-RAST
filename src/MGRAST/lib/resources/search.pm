@@ -343,7 +343,7 @@ sub prepare_data {
         my $entry = {};
         foreach my $k ( keys( %{ $set->{_source} } ) ) {
             # skip merged fields
-            if ($k =~ /^all_/) {
+            if ($k =~ /^all/) {
                 next;
             }
             if ( defined $rev{$k} ) {

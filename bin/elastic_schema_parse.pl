@@ -87,10 +87,10 @@ print OUTF "};\n\n";
 # field map
 print OUTF "our \$fields = {\n";
 print OUTF "\tall => 'all_metadata',\n";
-print OUTF "\tproject => 'all_project',\n";
-print OUTF "\tsample => 'all_sample',\n";
-print OUTF "\tlibrary => 'all_library',\n";
-print OUTF "\tenv_package => 'all_env_package',\n";
+print OUTF "\tall_project => 'all_project',\n";
+print OUTF "\tall_sample => 'all_sample',\n";
+print OUTF "\tall_library => 'all_library',\n";
+print OUTF "\tall_env_package => 'all_env_package',\n";
 print OUTF "\tmetagenome_id => 'id',\n";
 foreach my $pf (@prefix) {
     foreach my $prop (keys %$properties) {
@@ -123,10 +123,10 @@ print OUTF "};\n\n";
 # type map
 print OUTF "our \$types = {\n";
 print OUTF "\tall => 'text',\n";
-print OUTF "\tproject => 'text',\n";
-print OUTF "\tsample => 'text',\n";
-print OUTF "\tlibrary => 'text',\n";
-print OUTF "\tenv_package => 'text',\n";
+print OUTF "\tall_project => 'text',\n";
+print OUTF "\tall_sample => 'text',\n";
+print OUTF "\tall_library => 'text',\n";
+print OUTF "\tall_env_package => 'text',\n";
 print OUTF "\tmetagenome_id => 'keyword',\n";
 foreach my $pf (@prefix) {
     foreach my $prop (keys %$properties) {
