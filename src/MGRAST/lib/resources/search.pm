@@ -238,7 +238,7 @@ sub query {
             if ( any {$_ == $func_per} @{$ElasticSearch::func_num} ) {
                 push @$queries, {"field" => "f_".$func_per, "query" => $function, "type" => "child", "name" => "function"};
             } else {
-                $self->return_data( { "ERROR" => "func_per must be one of: ",join(", ", @{$ElasticSearch::func_num}) }, 404 );
+                $self->return_data( { "ERROR" => "func_per must be one of: ".join(", ", @{$ElasticSearch::func_num}) }, 404 );
             }
         } else {
             push @$queries, {"field" => "all", "query" => $function, "type" => "child", "name" => "function"};
@@ -250,10 +250,12 @@ sub query {
             if ( any {$_ == $taxa_per} @{$ElasticSearch::taxa_num} ) {
                 push @$queries, {"field" => "t_".$taxa_per, "query" => $taxa_query, "type" => "child", "name" => "taxonomy"};
             } else {
-                $self->return_data( { "ERROR" => "taxa_per must be one of: ",join(", ", @{$ElasticSearch::taxa_num}) }, 404 );
+                $self->return_data( { "ERROR" => "taxa_per must be one of: ".join(", ", @{$ElasticSearch::taxa_num}) }, 404 );
             }
-        } else {
+        } elsif ( (! $taxa_per) && (! $taxa_level) ) {
             push @$queries, {"field" => "all", "query" => $taxonomy, "type" => "child", "name" => "taxonomy"};
+        } else {
+            $self->return_data( { "ERROR" => "both taxa_per and taxa_level must be used together" }, 404 );
         }
     }
         
