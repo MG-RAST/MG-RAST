@@ -2269,7 +2269,7 @@ sub get_elastic_query {
         };
         if (($q->{"type"} eq 'child') && $q->{"name"}) {
             $query_doc = {
-                "has_child": {
+                "has_child" => {
                     "type" => $q->{"name"},
                     "query" => $query_doc
                 }
