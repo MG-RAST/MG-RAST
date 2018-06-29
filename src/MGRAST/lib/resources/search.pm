@@ -342,6 +342,10 @@ sub prepare_data {
     foreach my $set (@$d) {
         my $entry = {};
         foreach my $k ( keys( %{ $set->{_source} } ) ) {
+            # skip merged fields
+            if ($k =~ /^all_/) {
+                next;
+            }
             if ( defined $rev{$k} ) {
                 $entry->{ $rev{$k} } = $set->{_source}->{$k};
             }
