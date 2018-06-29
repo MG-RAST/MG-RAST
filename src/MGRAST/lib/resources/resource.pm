@@ -2286,7 +2286,10 @@ sub get_elastic_query {
     }
     
     if ($debug) {
-        return $postJSON;
+        return {
+            "query" => $postJSON,
+            "url"   => $server.'/_search'
+        };
     }
     
     my $content;
