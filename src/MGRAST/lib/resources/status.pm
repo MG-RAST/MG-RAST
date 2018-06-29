@@ -88,7 +88,7 @@ sub instance {
         status => "processing",
         url => $self->url."/".$self->name."/".$uuid,
         started => $node->{created_on},
-        updated => ($node->{last_modified} eq "0001-01-01T00:00:00Z") ? $node->{created_on} || $node->{last_modified}
+        updated => ($node->{last_modified} eq "0001-01-01T00:00:00Z") ? $node->{created_on} : $node->{last_modified}
     };
     if (exists $node->{attributes}{progress}) {
         $obj->{progress} = $node->{attributes}{progress};
