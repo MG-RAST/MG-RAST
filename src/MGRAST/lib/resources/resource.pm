@@ -2426,6 +2426,20 @@ sub get_file_info {
         return undef;
     }
     
+    # wait on file lock, 10 min timeout
+    my $start = time;
+    while (exists($node->{file}{locked}) && $node->{file}{locked}) {
+        if ($node->{file}{locked}{error}) {
+            return (undef, $node->{file}{locked}{error});
+        }
+        my $curr = time;
+        if (($curr - $start) > 600) {
+            last;
+        }
+        sleep 10;
+        $node = $self->node_from_inbox_id($uuid, $auth, $authPrefix);
+    }
+    
     my ($file_type, $err_msg, $file_format, $file_suffix);
     my @file_parts = split(/\./, $node->{file}{name});
     if (scalar(@file_parts) == 1) {
