@@ -228,7 +228,7 @@ sub query {
             }
             # temp backwards compatability hack
             if (($field eq "all") && ($index eq "metagenome_index")) {
-                $key = "";
+                $key = undef;
             }
             push @$queries, {"field" => $key, "query" => $query, "type" => $type};
         }
