@@ -221,7 +221,6 @@ sub query {
             $key =~ s/\.keyword$//;
             # clean query
             my $query = join(' ', @param);
-            $query =~ s/"/\\"/;
             if ($query =~ /:/) {
                 my @parts = split(/:/, $query);
                 $query = join(" ", @parts[1..$#parts])
@@ -242,7 +241,6 @@ sub query {
     my $taxa_level = $self->cgi->param('taxa_level') || undef;
  
     if ( $function ) {
-        $function =~ s/"/\\"/;
         if ($function =~ /:/) {
             my @parts = split(/:/, $function);
             $function = join(" ", @parts[1..$#parts])
