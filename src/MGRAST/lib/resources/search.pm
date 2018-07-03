@@ -219,8 +219,17 @@ sub query {
             my @param = $self->cgi->param($field);
             my $key   = $self->{fields}{$field};
             $key =~ s/\.keyword$//;
+            # clean query
             my $query = join(' ', @param);
             $query =~ s/"/\\"/;
+            if ($query =~ /:/) {
+                my @parts = split(/:/, $query);
+                $query = join(" ", @parts[1..$#parts])
+            }
+            # temp backwards compatability hack
+            if (($field eq "all") && ($index eq "metagenome_index")) {
+                $key = "";
+            }
             push @$queries, {"field" => $key, "query" => $query, "type" => $type};
         }
     }
@@ -234,6 +243,10 @@ sub query {
  
     if ( $function ) {
         $function =~ s/"/\\"/;
+        if ($function =~ /:/) {
+            my @parts = split(/:/, $function);
+            $function = join(" ", @parts[1..$#parts])
+        }
         if ( $func_per ) {
             if ( any {$_ == $func_per} @{$ElasticSearch::func_num} ) {
                 push @$queries, {"field" => "f_".$func_per, "query" => $function, "type" => "child", "name" => "function"};
@@ -245,6 +258,10 @@ sub query {
         }
     }
     if ( $taxonomy ) {
+        if ($taxonomy =~ /:/) {
+            my @parts = split(/:/, $taxonomy);
+            $taxonomy = join(" ", @parts[1..$#parts])
+        }
         if ( $taxa_per && $taxa_level ) {
             my $taxa_query = lc(substr($taxa_level, 0, 1))."_".$taxonomy;
             if ( any {$_ == $taxa_per} @{$ElasticSearch::taxa_num} ) {
