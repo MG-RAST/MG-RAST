@@ -221,7 +221,7 @@ sub query {
             $key =~ s/\.keyword$//;
             # clean query whitespace
             my $query = "";
-            my @parts = split(/\s+/, join(' ', @param))
+            my @parts = split(/\s+/, join(' ', @param));
             foreach my $p (@parts) {
                 # uppercase operators
                 if (($p eq 'or') || ($p eq 'and')) {
@@ -233,7 +233,7 @@ sub query {
             # remove specified fields, only using set default
             if ($query =~ /:/) {
                 @parts = split(/:/, $query);
-                $query = join(" ", @parts[1..$#parts])
+                $query = join(" ", @parts[1..$#parts]);
             }
             # temp backwards compatability hack
             if (($field eq "all") && ($index eq "metagenome_index")) {
