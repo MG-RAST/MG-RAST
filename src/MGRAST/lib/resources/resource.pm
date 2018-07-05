@@ -3319,7 +3319,6 @@ sub jsonTypecast {
         $val =~ s/^\s+//;
         $val =~ s/\s+$//;
         $val =~ s/\s+/ /g;
-        $val = lc($val);
     } elsif (($type eq 'integer') || ($type eq 'long')) {
         if ($val =~ /^[+-]?\d+$/) {
             $val = int($val);
