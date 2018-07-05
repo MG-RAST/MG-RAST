@@ -220,19 +220,12 @@ sub query {
             my $key   = $self->{fields}{$field};
             $key =~ s/\.keyword$//;
             # clean query whitespace
-            my $query = "";
-            my @parts = split(/\s+/, join(' ', @param));
-            foreach my $p (@parts) {
-                # uppercase operators
-                if (($p eq 'or') || ($p eq 'and')) {
-                    $p = uc($p);
-                }
-                $query .= " ".$p;
-            }
+            my $query = join(' ', @param);
             $query =~ s/^\s+|\s+$//g;
+            $query =~ s/\s+/ /g;
             # remove specified fields, only using set default
             if ($query =~ /:/) {
-                @parts = split(/:/, $query);
+                my @parts = split(/:/, $query);
                 $query = join(" ", @parts[1..$#parts]);
             }
             # temp backwards compatability hack
