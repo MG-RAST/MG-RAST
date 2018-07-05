@@ -219,10 +219,20 @@ sub query {
             my @param = $self->cgi->param($field);
             my $key   = $self->{fields}{$field};
             $key =~ s/\.keyword$//;
-            # clean query
-            my $query = join(' ', @param);
+            # clean query whitespace
+            my $query = "";
+            my @parts = split(/\s+/, join(' ', @param))
+            foreach my $p (@parts) {
+                # uppercase operators
+                if (($p eq 'or') || ($p eq 'and')) {
+                    $p = uc($p);
+                }
+                $query .= " ".$p;
+            }
+            $query =~ s/^\s+|\s+$//g;
+            # remove specified fields, only using set default
             if ($query =~ /:/) {
-                my @parts = split(/:/, $query);
+                @parts = split(/:/, $query);
                 $query = join(" ", @parts[1..$#parts])
             }
             # temp backwards compatability hack
