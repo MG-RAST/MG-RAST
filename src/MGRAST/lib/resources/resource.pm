@@ -2268,7 +2268,7 @@ sub get_elastic_query {
             }
         };
         if ($q->{"field"}) {
-            $query_doc->{"default_field"} = $q->{"field"};
+            $query_doc->{"query_string"}{"default_field"} = $q->{"field"};
         }
         if (($q->{"type"} eq 'child') && $q->{"name"}) {
             $query_doc = {
