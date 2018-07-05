@@ -223,8 +223,8 @@ sub query {
             my $query = join(' ', @param);
             $query =~ s/^\s+|\s+$//g;
             $query =~ s/\s+/ /g;
-            # remove specified fields, only using set default
-            if ($query =~ /:/) {
+            # remove specified fields (non-escaped ':'), only using set default
+            if (($query =~ /:/) && ($query !~ /\\:/)) {
                 my @parts = split(/:/, $query);
                 $query = join(" ", @parts[1..$#parts]);
             }
