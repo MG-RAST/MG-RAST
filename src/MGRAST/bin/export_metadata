@@ -97,8 +97,8 @@ def sorted_keys(data):
     return fullKeySort
 
 def color_row(sheet, vals, row, color):
-    for i in range(sheet.get_highest_column()):
-        cell = sheet.cell(row=row, column=i)
+    for i in range(sheet.max_column):
+        cell = sheet.cell(row=row, column=i+1)
         if cell.value and (cell.value in vals):
             cell.style.font.color.index = color
     return sheet
