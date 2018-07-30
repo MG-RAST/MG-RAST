@@ -182,7 +182,7 @@ sub query {
     # whitelist parameters
     my @all_params = $self->cgi->param;
     foreach my $p (@all_params) {
-        if ( $p =~ /\_/ ) {
+        if ( $p =~ /^\_/ ) {
             next;
         }
         unless (exists($self->{query_opts}{$p}) || exists($self->{fields}{$p})) {
