@@ -377,7 +377,7 @@ sub sequence_compute {
     my $info = $chdl->get_md5_record($job->{job_id}, $md5);
     $chdl->close();
     unless ($info && (@$info > 0)) {
-        return ({"ERROR" => "unable to retrieve md5 index"}, 500);
+        return ({"ERROR" => "metagenome mgm$id has no hits against the sequence with md5sum $md5"}, 500);
     }
     
     # get sequences from record
