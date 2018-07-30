@@ -23,7 +23,7 @@ sub new {
     $self->{name}       = "search";
     $self->{attributes} = {};
     $self->{fields}     = $ElasticSearch::fields;
-
+    $self->{query_opts} = {'debug' => 1, 'index' => 1, 'public' => 1, 'limit' => 1, 'after' => 1, 'order' => 1, 'no_score' => 1, 'direction' => 1, 'match' => 1, 'function' => 1, 'func_per' => 1, 'taxonomy' => 1, 'taxa_per' => 1, 'taxa_level' => 1};
     return $self;
 }
 
@@ -110,7 +110,8 @@ sub info {
                         'func_per'   => [ 'integer', "percent abundance cutoff for function name" ],
                         'taxonomy'   => [ 'string', "taxonomy name to filter results by" ],
                         'taxa_per'   => [ 'integer', "percent abundance cutoff for taxonomy name" ],
-                        'taxa_level' => [ 'string', "taxonomic level the name belongs to, required with percent cutoff" ]
+                        'taxa_level' => [ 'string', "taxonomic level the name belongs to, required with percent cutoff" ],
+                        map {$_ => ['string', 'metadata to filter results by']} grep {! exists($self->{query_opts}{$_})} keys %{$self->{fields}}
                     },
                     'required' => {},
                     'body'     => {}
@@ -177,6 +178,17 @@ sub query {
     my ($self) = @_;
 
     $self->json->utf8();
+    
+    # whitelist parameters
+    my @all_params = $self->cgi->param;
+    foreach my $p (@all_params) {
+        if ( $p =~ /\_/ ) {
+            next;
+        }
+        unless (exists($self->{query_opts}{$p}) || exists($self->{fields}{$p})) {
+            $self->return_data( { "ERROR" => "Invalid parameter: $p" }, 404 );
+        }
+    }
 
     # get paramaters
     my $index  = $self->cgi->param('index')     || "metagenome_index";
