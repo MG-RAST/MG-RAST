@@ -339,7 +339,7 @@ sub prepare_data {
         && exists( $d->[-1]{sort} )
         && ( scalar( @{ $d->[-1]{sort} } ) > 0 ) )
     {
-        $next_after = join(",", $d->[-1]{sort});
+        $next_after = join(",", @{$d->[-1]{sort}});
     }
 
     my @params     = $self->cgi->param;
