@@ -2245,7 +2245,7 @@ sub get_elastic_query {
       
     # for scrolling
     if ($after) {
-        $postJSON->{"search_after"} = [ $after ];
+        $postJSON->{"search_after"} = [ split(/,/, $after) ];
     }
     
     # filter for project ids and public status (not scored)
