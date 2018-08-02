@@ -23,7 +23,32 @@ sub new {
     $self->{name}       = "search";
     $self->{attributes} = {};
     $self->{fields}     = $ElasticSearch::fields;
-    $self->{query_opts} = {'debug' => 1, 'index' => 1, 'public' => 1, 'limit' => 1, 'after' => 1, 'order' => 1, 'no_score' => 1, 'direction' => 1, 'match' => 1, 'function' => 1, 'func_per' => 1, 'taxonomy' => 1, 'taxa_per' => 1, 'taxa_level' => 1};
+    $self->{query_opts} = {
+        'debug'     => [ 'boolean', "if true return ES search query" ],
+        'index'     => [ 'string', "index name, default: metagenome_index" ],
+        'public'    => [ 'boolean', "if true include public data in query" ],
+        'limit'     => [ 'integer', 'maximum number of datasets returned' ],
+        'after'     => [ 'string', 'sort field value to return results after' ],
+        'order'     => [ 'string', 'fieldname to sort by' ],
+        'no_score'  => [ 'boolean', "if true do not use _score for first level ordering" ],
+        'direction' => [
+            'cv',
+            [
+                [ 'asc',  'sort data ascending' ],
+                [ 'desc', 'sort data descending' ]
+            ]],
+        'match' => [
+            'cv',
+            [
+                ['all', 'return that match all (AND) search parameters'],
+                ['any', 'return that match any (OR) search parameters']
+            ]],
+        'function'   => [ 'string', "function name to filter results by" ],
+        'func_per'   => [ 'integer', "percent abundance cutoff for function name" ],
+        'taxonomy'   => [ 'string', "taxonomy name to filter results by" ],
+        'taxa_per'   => [ 'integer', "percent abundance cutoff for taxonomy name" ],
+        'taxa_level' => [ 'string', "taxonomic level the name belongs to, required with percent cutoff" ]
+    };
     return $self;
 }
 
@@ -84,33 +109,10 @@ sub info {
                 'example'     => [ $self->url."/".$self->name."?material=saline water", 'return the first ten datasets that have saline water as the sample material' ],
                 'method'     => "GET",
                 'type'       => "synchronous",
-                'attributes' => $self->attributes,
+                'attributes' => $self->{attributes},
                 'parameters' => {
                     'options' => {
-                        "debug"     => [ 'boolean', "if true return ES search query" ],
-                        'index'     => [ 'string', "index name, default: metagenome_index" ],
-                        'public'    => [ 'boolean', "if true include public data in query" ],
-                        'limit'     => [ 'integer', 'maximum number of datasets returned' ],
-                        'after'     => [ 'string', 'sort field value to return results after' ],
-                        'order'     => [ 'string', 'fieldname to sort by' ],
-                        'no_score'  => [ 'boolean', "if true do not use _score for first level ordering" ],
-                        'direction' => [
-                            'cv',
-                            [
-                                [ 'asc',  'sort data ascending' ],
-                                [ 'desc', 'sort data descending' ]
-                            ]],
-                        'match' => [
-                            'cv',
-                            [
-                                ['all', 'return that match all (AND) search parameters'],
-                                ['any', 'return that match any (OR) search parameters']
-                            ]],
-                        'function'   => [ 'string', "function name to filter results by" ],
-                        'func_per'   => [ 'integer', "percent abundance cutoff for function name" ],
-                        'taxonomy'   => [ 'string', "taxonomy name to filter results by" ],
-                        'taxa_per'   => [ 'integer', "percent abundance cutoff for taxonomy name" ],
-                        'taxa_level' => [ 'string', "taxonomic level the name belongs to, required with percent cutoff" ],
+                        map {$_ => $self->{query_opts}{$_}} keys %{$self->{query_opts}},
                         map {$_ => ['string', 'metadata to filter results by']} grep {! exists($self->{query_opts}{$_})} keys %{$self->{fields}}
                     },
                     'required' => {},
@@ -337,7 +339,7 @@ sub prepare_data {
         && exists( $d->[-1]{sort} )
         && ( scalar( @{ $d->[-1]{sort} } ) > 0 ) )
     {
-        $next_after = $d->[-1]{sort}[0];
+        $next_after = join(",", @{$d->[-1]{sort}});
     }
 
     my @params     = $self->cgi->param;
@@ -355,7 +357,7 @@ sub prepare_data {
         "version" => 1,
         "data"    => []
     };
-    if ( $next_after && ( $limit == scalar(@$d) ) ) {
+    if ( defined($next_after) && ( $limit == scalar(@$d) ) ) {
         $obj->{next} =
           $self->url . "/" . $self->name . "?$add_params&after=$next_after";
     }
