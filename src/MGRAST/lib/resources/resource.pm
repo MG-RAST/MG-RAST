@@ -2097,34 +2097,46 @@ sub upsert_to_elasticsearch_annotation {
     # input is metagenome ID - for shock metagenome statistics lookup
     # assume rights checking has already been done
     # returns 'failed' or 'updated'
-    my ($self, $mgid, $type, $index, $debug) = @_;
+    my ($self, $mgid, $type, $index, $func, $taxa, $debug) = @_;
     
     # ranges
     my $t_nums = $ElasticSearch::taxa_num;
     my $f_nums = $ElasticSearch::func_num;
     
     my $results  = {};
-    my $mg_stats = $self->metagenome_stats_from_shock($mgid);
+    my $mg_stats = undef;
     
     if (($type eq 'taxonomy') || ($type eq 'both')) {
+        if ((! $taxa) && (! $mg_stats)) {
+            $mg_stats = $self->metagenome_stats_from_shock($mgid);
+        }
+        if (! $taxa) {
+            $taxa = $mg_stats->{'taxonomy'};
+        }
         $results->{'taxonomy'} = undef;
     }
     if (($type eq 'function') || ($type eq 'both')) {
+        if ((! $func) && (! $mg_stats)) {
+            $mg_stats = $self->metagenome_stats_from_shock($mgid);
+        }
+        if (! $func) {
+            $func = $mg_stats->{'function'};
+        }
         $results->{'function'} = undef;
     }
     
-    if (exists($results->{'taxonomy'}) && exists($mg_stats->{'taxonomy'})) {
+    if (exists($results->{'taxonomy'}) && $taxa) {
         $results->{'taxonomy'} = {
             'id'  => $mgid,
             'all' => ''
         };
-        foreach my $level (keys %{$mg_stats->{'taxonomy'}}) {
+        foreach my $level (keys %$taxa) {
             if ($level eq 'species') {
                 next;
             }
             my $prefix = lc(substr($level, 0, 1));
-            my $total = sum map {$_->[1]} @{$mg_stats->{'taxonomy'}{$level}};
-            foreach my $t (@{$mg_stats->{'taxonomy'}{$level}}) {
+            my $total = sum map {$_->[1]} @{$taxa->{$level}};
+            foreach my $t (@{$taxa->{$level}}) {
                 if (split(/\s+/, $t->[0]) > 1) {
                     next;
                 }
@@ -2145,13 +2157,13 @@ sub upsert_to_elasticsearch_annotation {
             $results->{'taxonomy'}{$k} = $self->jsonTypecast('text', $results->{'taxonomy'}{$k});
         }
     }
-    if (exists($results->{'function'}) && exists($mg_stats->{'function'})) {
+    if (exists($results->{'function'}) && $func) {
         $results->{'function'} = {
             'id'  => $mgid,
             'all' => ''
         };
-        my $total = sum map {$_->[1]} @{$mg_stats->{'function'}};
-        foreach my $f (@{$mg_stats->{'function'}}) {
+        my $total = sum map {$_->[1]} @$func;
+        foreach my $f (@$func) {
             $results->{'function'}{'all'} = unique_concat($results->{'function'}{'all'}, $f->[0]);
             my $rel = int((($f->[1] / $total) * 100) + 0.5);
             foreach my $n (@$f_nums) {
