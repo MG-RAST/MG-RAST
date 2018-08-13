@@ -488,11 +488,12 @@
         {
             "cmd": {
                 "name": "mgrast_diamond_prot.py",
+                
                 "args": "--input=@[% job_id %].550.cluster.aa[% aa_pid %].faa --output=[% job_id %].650.diamond.sims",
                 "description": "aa sims diamond",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
             }, 
-            "dependsOn": ["10"],  
+            "dependsOn": ["10"],
             "inputs": {
                 "[% job_id %].550.cluster.aa[% aa_pid %].faa": {
                     "host": "[% shock_url %]",
@@ -525,7 +526,7 @@
                 "sim_type": "protein"
             },
             "taskid": "11",
-            "maxworksize": 50
+            "maxworksize": 100
         },
         {
             "cmd": {
