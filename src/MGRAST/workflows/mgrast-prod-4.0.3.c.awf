@@ -62,13 +62,77 @@
                 "stage_id": "075",
                 "stage_name": "qc"
             },
-            "taskid": "0",
+            "taskid": "0", 
+            "totalwork": 1
+        },
+        {
+            "cmd": {
+                "name": "autoskewer.py",
+                "args": "-i @[% inputfile %] -o [% job_id %].080.adapter.trim.passed.[% file_format %]",
+                "description": "adapter trim",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": [], 
+            "inputs": {
+               "[% inputfile %]": {
+                    "host": "[% shock_url %]",
+                    "node": "[% shock_node %]",
+                    "shockindex": "record"
+                }
+            },
+            "outputs": {
+                "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            },
+            "partinfo": {
+                 "input": "[% inputfile %]",
+                 "output": "[% job_id %].080.adapter.trim.passed.[% file_format %]"
+            },
+            "userattr": {
+                "stage_id": "080",
+                "stage_name": "adapter.trim",
+                "data_type": "sequence",
+                "file_format": "[% file_format %]",
+                "seq_format": "bp"
+            },
+            "taskid": "1",
+            "maxworksize": 200
+        },
+        {
+            "cmd": {
+                "name": "mgrast_seq_length_stats.pl",
+                "args": "-input=@[% job_id %].080.adapter.trim.passed.[% file_format %] -input_json=input_attr.json -output_json=output_attr.json -type=[% file_format %] -stats_only",
+                "description": "adapter trim stats",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["1"], 
+            "inputs": {
+                "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
+                    "host": "[% shock_url %]",
+                    "origin": "1",
+                    "node": "-",
+                    "attrfile": "input_attr.json"
+                }
+            },
+            "outputs": {
+                "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
+                    "host": "[% shock_url %]",
+                    "origin": "1",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "output_attr.json"
+                }
+            },
+            "taskid": "1",
             "totalwork": 1
         },
         {
             "cmd": {
                 "name": "mgrast_preprocess.pl",
-                "args": "-input @[% inputfile %] -format [% file_format %] -out_prefix [% job_id %].100.preprocess -filter_options [% filter_options %]",
+                "args": "-input @[% job_id %].080.adapter.trim.passed.[% file_format %] -format [% file_format %] -out_prefix [% job_id %].100.preprocess -filter_options [% filter_options %]",
                 "description": "preprocess",
                 "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]", 	 	
                 "environ" : {
@@ -77,11 +141,12 @@
                     }
                 }
             },
-            "dependsOn": [],
+            "dependsOn": ["1"],
             "inputs": {
-                "[% inputfile %]": {
+               "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
                     "host": "[% shock_url %]",
-                    "node": "[% shock_node %]"
+                    "node": "-",
+                    "origin": "1"
                 }
             },
             "outputs": {
@@ -96,6 +161,10 @@
                     "attrfile": "[% job_id %].100.preprocess.removed.fna.json"[% preprocess_fail %]
                 }
             },
+            "partinfo": {
+                 "input": "[% job_id %].080.adapter.trim.passed.[% file_format %]",
+                 "output": "[% job_id %].100.preprocess.passed.fna"
+            },
             "userattr": {
                 "stage_id": "100",
                 "stage_name": "preprocess",
@@ -103,6 +172,37 @@
                 "seq_format": "bp"
             },
             "taskid": "2",
+            "maxworksize": 200
+        },
+        {
+            "cmd": {
+                "name": "mgrast_seq_length_stats.pl",
+                "args": "-input=@[% job_id %].100.preprocess.passed.fna -input_json=input_attr.json -output_json=output_attr.json -type=fasta -stats_only",
+                "description": "preprocess stats",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["2"], 
+            "inputs": {
+                "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "2",
+                    "node": "-",
+                    "attrfile": "input_attr.json"
+                }
+            },
+            "outputs": {
+                "[% job_id %].100.preprocess.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "2",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "output_attr.json"
+                }
+            },
+            "userattr": {
+                "data_type": "passed",
+            },
+            "taskid": "2", 
             "totalwork": 1
         },
         {
@@ -132,6 +232,10 @@
                     "attrfile": "[% job_id %].150.dereplication.removed.fna.json"[% dereplicate_fail %]
                 }
             },
+            "partinfo": {
+                 "input": "[% job_id %].100.preprocess.passed.fna",
+                 "output": "[% job_id %].150.dereplication.removed.fna"
+            },
             "userattr": {
                 "stage_id": "150",
                 "stage_name": "dereplication",
@@ -139,6 +243,37 @@
                 "seq_format": "bp"
             },
             "taskid": "3",
+            "maxworksize": 500
+        },
+        {
+            "cmd": {
+                "name": "mgrast_seq_length_stats.pl",
+                "args": "-input=@[% job_id %].150.dereplication.passed.fna -input_json=input_attr.json -output_json=output_attr.json -type=fasta -stats_only",
+                "description": "preprocess stats",
+                "[% docker_switch %]Dockerimage": "mgrast/pipeline:[% docker_image_version %]"
+            },
+            "dependsOn": ["3"], 
+            "inputs": {
+                "[% job_id %].150.dereplication.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "3",
+                    "node": "-",
+                    "attrfile": "input_attr.json"
+                }
+            },
+            "outputs": {
+                "[% job_id %].150.dereplication.passed.fna": {
+                    "host": "[% shock_url %]",
+                    "origin": "3",
+                    "node": "-",
+                    "type": "update",
+                    "attrfile": "output_attr.json"
+                }
+            },
+            "userattr": {
+                "data_type": "passed",
+            },
+            "taskid": "2", 
             "totalwork": 1
         },
         {
@@ -178,7 +313,7 @@
                 "seq_format": "bp"
             },
             "taskid": "4", 
-            "totalwork": 1
+            "maxworksize": 200
         },
         {
             "cmd": {
