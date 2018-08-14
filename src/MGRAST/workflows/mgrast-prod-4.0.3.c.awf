@@ -200,7 +200,7 @@
                 }
             },
             "userattr": {
-                "data_type": "passed",
+                "data_type": "passed"
             },
             "taskid": "2stat",
             "totalwork": 1
@@ -271,7 +271,7 @@
                 }
             },
             "userattr": {
-                "data_type": "passed",
+                "data_type": "passed"
             },
             "taskid": "3stat", 
             "totalwork": 1
