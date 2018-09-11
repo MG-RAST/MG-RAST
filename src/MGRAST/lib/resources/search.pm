@@ -114,7 +114,7 @@ sub info {
                 'type'       => "synchronous",
                 'attributes' => $self->{attributes},
                 'parameters' => {
-                    'options'  => { %{$self->{field_opts}}, %{$self->{query_opts} },
+                    'options'  => { %{$self->{field_opts}}, %{$self->{query_opts}} },
                     'required' => {},
                     'body'     => {}
                 }
