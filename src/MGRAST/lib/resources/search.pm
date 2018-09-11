@@ -23,6 +23,7 @@ sub new {
     $self->{name}       = "search";
     $self->{attributes} = {};
     $self->{fields}     = $ElasticSearch::fields;
+    $self->{field_opts} = { map {$_, ['string', 'metadata to filter results by']} keys %{$self->{fields}} };
     $self->{query_opts} = {
         'debug'     => [ 'boolean', "if true return ES search query" ],
         'index'     => [ 'string', "index name, default: metagenome_index" ],
@@ -113,10 +114,7 @@ sub info {
                 'type'       => "synchronous",
                 'attributes' => $self->{attributes},
                 'parameters' => {
-                    'options' => {
-                        map {$_ => $self->{query_opts}{$_}} keys %{$self->{query_opts}},
-                        map {$_ => ['string', 'metadata to filter results by']} grep {! exists($self->{query_opts}{$_})} keys %{$self->{fields}}
-                    },
+                    'options'  => { %{$self->{field_opts}}, %{$self->{query_opts} },
                     'required' => {},
                     'body'     => {}
                 }
