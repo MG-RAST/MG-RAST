@@ -77,14 +77,16 @@ sub info {
                 'name'        => "upsert",
                 'request'     => $self->url."/".$self->name."/{ID}",
                 'description' => "Elastic Upsert",
-                'method'      => "GET",
+                'method'      => "POST",
                 'type'        => "synchronous",
                 'attributes'  => {
                     "metagenome_id" => [ "string", "unique MG-RAST metagenome identifier" ],
                     "status"        => [ 'string', 'status of action' ]
                 },
                 'parameters' => {
-                    'options' => {
+                    'options'  => {},
+                    'required' => { "id" => [ "string", "unique object identifier" ] },
+                    'body'     => {
                         "debug" => [ 'boolean', "if true return ES docuemnt to upsert without POSTing it" ],
                         "index" => [ 'string', "index name, default: metagenome_index" ],
                         "type"  => [
@@ -96,10 +98,10 @@ sub info {
                                 [ "annotation", "update/insert all annotations (requires metadata upserted)" ],
                                 [ "all", "update/insert metadata and all annotations" ],
                             ]
-                        ]
-                    },
-                    'required' => { "id" => [ "string", "unique object identifier" ] },
-                    'body'     => {}
+                        ],
+                        "function" => [ 'list', ['object', 'tuple of function name (string) and abundance (int)'] ],
+                        "taxonomy" => [ 'object', 'mapping of taxa level name (string) to list of tuples: taxa name (string) and abundace (int)' ]
+                    }
                 }
             },
             {
@@ -143,20 +145,24 @@ sub instance {
     }
 
     # create and upsert
-    my $debug  = $self->cgi->param('debug') ? 1 : 0;
-    my $index  = $self->cgi->param('index') || "metagenome_index";
-    my $type   = $self->cgi->param('type') || "metadata";
+    my $post  = $self->get_post_data();
+    my $debug = $post->{'debug'} ? 1 : 0;
+    my $index = $post->{'index'} || "metagenome_index";
+    my $type  = $post->{'type'}  || "metadata";
+    my $func  = $post->{'function'} || undef;
+    my $taxa  = $post->{'taxonomy'} || undef;
+    
     my $result = {};
 
     if ( ( $type eq 'metadata' ) || ( $type eq 'all' ) ) {
         $result->{'metadata'} = $self->upsert_to_elasticsearch_metadata( $mgid, $index, $debug );
     }
     if ( ( $type eq 'taxonomy' ) || ( $type eq 'function' ) ) {
-        my $temp = $self->upsert_to_elasticsearch_annotation( $mgid, $type, $index, $debug );
+        my $temp = $self->upsert_to_elasticsearch_annotation( $mgid, $type, $index, $func, $taxa, $debug );
         $result->{$type} = $temp->{$type} || "failed";
     }
     if ( ( $type eq 'annotation' ) || ( $type eq 'all' ) ) {
-        my $temp = $self->upsert_to_elasticsearch_annotation( $mgid, 'both', $index, $debug );
+        my $temp = $self->upsert_to_elasticsearch_annotation( $mgid, 'both', $index, $func, $taxa, $debug );
         $result->{'taxonomy'} = $temp->{'taxonomy'} || "failed";
         $result->{'function'} = $temp->{'function'} || "failed";
     }
