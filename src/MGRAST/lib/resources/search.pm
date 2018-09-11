@@ -191,7 +191,7 @@ sub query {
         if ( $p =~ /^\_/ ) {
             next;
         }
-        unless (exists($self->{query_opts}{$p}) || exists($self->{fields}{$p})) {
+        unless (exists($self->{query_opts}{$p}) || exists($self->{fields}{$p}) || ($p eq 'auth')) {
             $self->return_data( { "ERROR" => "Invalid parameter: $p" }, 404 );
         }
     }
