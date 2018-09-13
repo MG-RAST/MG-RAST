@@ -160,7 +160,7 @@ sub info {
                                                             'body'     => {} }
                                         },
                                         { 'name'        => "instance",
-                                          'request'     => $self->url."/".$self->name."/{ID}",
+                                          'request'     => $self->url."/".$self->name."/{id}",
                                           'description' => "Returns a single data object.",
                                           'example'     => [ $self->url."/".$self->name."/mgm4447943.3?verbosity=metadata",
                           				                     'retrieve all metadata for metagenome mgm4447943.3' ],
@@ -170,6 +170,7 @@ sub info {
                                           'parameters'  => { 'options' => {
                                                                  'nocache'   => ["boolean", "if true do not use cache"],
                                                                  'verbosity' => ['cv', [['minimal','returns only minimal information'],
+                                                                                        ['mixs','returns all GSC MIxS metadata'],
                                                                                         ['metadata','returns minimal with metadata'],
                                                                                         ['stats','returns minimal with statistics'],
                                                                                         ['full','returns all metadata and statistics']]]

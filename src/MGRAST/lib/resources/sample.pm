@@ -78,7 +78,7 @@ sub info {
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
-				      'request'     => $self->url."/".$self->name."/{ID}",
+				      'request'     => $self->url."/".$self->name."/{id}",
 				      'description' => "Returns a single data object.",
 				      'example'     => [ $self->url."/".$self->name."/mgs25823?verbosity=full",
     				                     'retrieve all data for sample mgs25823' ],

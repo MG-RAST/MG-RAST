@@ -57,7 +57,7 @@ sub info {
 							 'required'    => { "id" => [ "string", "SHOCK template id" ] },
 							 'body'        => {} } },
 				    { 'name'        => "data",
-				      'request'     => $self->url."/".$self->name."/data/{ID}",
+				      'request'     => $self->url."/".$self->name."/data/{id}",
 				      'description' => "Returns a single data object.",
 				      'example'     => [ $self->url."/".$self->name."/data/".$self->{md_node}."?template=".$self->{md_template},
   				                         'validate a JSON data structure against the MG-RAST metagenome metadata template' ],

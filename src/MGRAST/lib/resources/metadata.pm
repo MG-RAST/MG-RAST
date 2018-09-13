@@ -184,7 +184,7 @@ sub info {
                                  'body'     => {} }
             },
             { 'name'        => "export",
-              'request'     => $self->url."/".$self->name."/export/{ID}",
+              'request'     => $self->url."/".$self->name."/export/{id}",
               'description' => "Returns full nested metadata for a project in same format as template, or metadata for a single metagenome.",
               'example'     => [ $self->url."/".$self->name."/export/mgp128",
                                  'all metadata for project mgp128' ],
