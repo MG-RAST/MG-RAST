@@ -64,7 +64,7 @@ sub info {
 						               'body'     => {} }
                   },
 				  { 'name'        => "instance",
-				    'request'     => $self->url."/".$self->name."/{ID}",
+				    'request'     => $self->url."/".$self->name."/{id}",
 				    'description' => "Returns a single user object.",
 				    'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
 						               "info for user 'johndoe'" ],
@@ -76,7 +76,7 @@ sub info {
 						               'body'     => {} }
                   },
 				  { 'name'        => "delete",
-				    'request'     => $self->url."/".$self->name."/{ID}",
+				    'request'     => $self->url."/".$self->name."/{id}",
 				    'description' => "Delete a user object.",
 				    'example'     => [ 'curl -X DELETE -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
 						               "error or success message" ],
@@ -88,7 +88,7 @@ sub info {
                                        'body'     => {} }
                   },
 				  { 'name'        => "update",
-                    'request'     => $self->url."/".$self->name."/{ID}",
+                    'request'     => $self->url."/".$self->name."/{id}",
                     'description' => "Returns a single user object.",
                     'example'     => [ 'curl -X PUT -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe?firstname=Jim"',
 							           "set firstname of user 'johndoe' to 'Jim'" ],
@@ -100,7 +100,7 @@ sub info {
                                        'body'     => {} }
                     },
   				    { 'name'        => "notify",
-                      'request'     => $self->url."/".$self->name."/{ID}/notify",
+                      'request'     => $self->url."/".$self->name."/{id}/notify",
                       'description' => "Sends an email to a user",
                       'example'     => [ 'curl -X POST -F "subject=hi" -F "body=hello world" -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
   							             "send given email body to user 'johndoe' from mg-rast" ],

@@ -46,7 +46,7 @@ sub info {
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "template",
-				      'request'     => $self->url."/".$self->name."/template/{ID}",				      
+				      'request'     => $self->url."/".$self->name."/template/{id}",				      
 				      'description' => "Checks if the referenced JSON structure is a valid template",
 				      'example'     => [ $self->url."/".$self->name."/template/".$self->{md_template},
 				                         'validate the communities metagenomics template' ],
