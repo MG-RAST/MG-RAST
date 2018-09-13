@@ -117,7 +117,7 @@ sub info {
 						                     } }
 						},
 						{ 'name'        => "similarity",
-				          'request'     => $self->url."/".$self->name."/similarity/id",
+				          'request'     => $self->url."/".$self->name."/similarity/{id}",
 				          'description' => "tab delimited blast m8 with annotation",
 				          'example'     => [ $self->url."/".$self->name."/similarity/mgm4447943.3?identity=80&type=function&source=KO",
   				                             'all annotated read blat stats from mgm4447943.3 with hits in KO functions at % identity > 80' ],
