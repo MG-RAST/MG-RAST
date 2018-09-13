@@ -86,7 +86,7 @@ sub info {
               'attributes'  => $self->{attributes},
               'parameters'  => {
                   'options'  => {
-                      'id'       => [ 'string', 'one or more metagenome or project unique identifier'
+                      'id'       => [ 'string', 'one or more metagenome or project unique identifier',
                       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
@@ -118,7 +118,7 @@ sub info {
               'attributes'  => $self->{attributes},
               'parameters'  => {
 				'options'  => {
-                           'id'       => [ 'string', 'one or more metagenome or project unique identifier'
+                           'id'       => [ 'string', 'one or more metagenome or project unique identifier',
 					       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
 					       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
 					       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
