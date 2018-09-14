@@ -149,7 +149,7 @@ sub info {
             { 'name'        => "unpack",
               'request'     => $self->url."/".$self->name."/unpack/{uuid}",
               'description' => "unpacks an archive upload into mutlple inbox files. supports: .zip, .tar, .tar.gz, .tar.bz2",
-              'example'     => [ 'curl -X GET -H "auth: auth_key" -F "format=tar" "'.$self->url."/".$self->name.'/upload/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
+              'example'     => [ 'curl -X POST -H "auth: auth_key" -F "format=tar" "'.$self->url."/".$self->name.'/upload/cfb3d9e1-c9ba-4260-95bf-e410c57b1e49"',
                                  "unpack tar file with given id in user inbox, auth is required" ],
               'method'      => "POST",
               'type'        => "synchronous",
