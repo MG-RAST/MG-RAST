@@ -47,7 +47,7 @@ sub info {
 			},
             {
                 'name'        => "instance",
-                'request'     => $self->url."/".$self->name."/{ID}",
+                'request'     => $self->url."/".$self->name."/{id}",
                 'description' => "Returns a darkmatter sequence file.",
                 'example'     => [ $self->url."/".$self->name."/mgm4447943.3?",
       				               'download fasta file of gene-called protein sequences with no similarities' ],

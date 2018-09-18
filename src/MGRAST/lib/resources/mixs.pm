@@ -82,7 +82,7 @@ sub info {
 			},
             {
                 'name'        => "instance",
-                'request'     => $self->url."/".$self->name."/profile/{ID}",
+                'request'     => $self->url."/".$self->name."/profile/{id}",
 	        'description' => "Retrieve MiXS Profile object for given ID",
 	     'example'     => [ $self->url."/".$self->name."/profile/ab44ac2f-6781-4fb6-9149-8e62705e5319",
 				"Retrieve MiXS Profile object for given ID" ],
@@ -147,7 +147,7 @@ sub info {
 			},
             {
                 'name'        => "update",
-                'request'     => $self->url."/".$self->name."/profile/{ID}",
+                'request'     => $self->url."/".$self->name."/profile/{id}",
                 'description' => "Update an existing MiXS Profile in MG-RAST",
                 'method'      => "POST",
                 'type'        => "synchronous",

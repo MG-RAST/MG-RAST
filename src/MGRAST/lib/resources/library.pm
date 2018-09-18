@@ -75,7 +75,7 @@ sub info {
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
-				      'request'     => $self->url."/".$self->name."/{ID}",
+				      'request'     => $self->url."/".$self->name."/{id}",
 				      'description' => "Returns a single data object.",
 				      'example'     => [ $self->url."/".$self->name."/mgl52924?verbosity=full",
   				                         'retrieve all data for library mgl52924' ],

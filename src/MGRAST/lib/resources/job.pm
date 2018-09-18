@@ -247,7 +247,7 @@ sub info {
 							                                 "project_id" => ["string", "unique MG-RAST project identifier"] } }
 						},
 						{ 'name'        => "statistics",
-				          'request'     => $self->url."/".$self->name."/statistics/{ID}",
+				          'request'     => $self->url."/".$self->name."/statistics/{id}",
 				          'description' => "Return current job statistics",
 				          'method'      => "GET",
 				          'type'        => "synchronous",
@@ -268,7 +268,7 @@ sub info {
 							                                 "statistics"    => ["hash", "key value pairs for new statistics"] } }
 						},
 						{ 'name'        => "attributes",
-				          'request'     => $self->url."/".$self->name."/attributes/{ID}",
+				          'request'     => $self->url."/".$self->name."/attributes/{id}",
 				          'description' => "Return current job attributes",
 				          'method'      => "GET",
 				          'type'        => "synchronous",
@@ -289,7 +289,7 @@ sub info {
      							                             "attributes"    => ["hash", "key value pairs for new attributes"] } }
 						},
 						{ 'name'        => "abundance",
-				          'request'     => $self->url."/".$self->name."/abundance/{ID}",
+				          'request'     => $self->url."/".$self->name."/abundance/{id}",
 				          'description' => "Get abundances for different annotations",
 				          'method'      => "GET",
 				          'type'        => "asynchronous",

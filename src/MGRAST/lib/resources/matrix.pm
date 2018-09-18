@@ -86,6 +86,7 @@ sub info {
               'attributes'  => $self->{attributes},
               'parameters'  => {
                   'options'  => {
+                      'id'       => [ 'string', 'one or more metagenome or project unique identifier' ],
                       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
@@ -104,9 +105,7 @@ sub info {
                       'filter_source' => [ 'cv', $self->{sources}{ontology} ],
                       'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
                       'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ] },
-				'required' => {
-					       'id' => [ 'string', 'one or more metagenome or project unique identifier' ]
-					      },
+				  'required' => {},
                   'body'     => {} }
             },
             { 'name'        => "function",
@@ -119,6 +118,7 @@ sub info {
               'attributes'  => $self->{attributes},
               'parameters'  => {
 				'options'  => {
+                           'id'       => [ 'string', 'one or more metagenome or project unique identifier' ],
 					       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
 					       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
 					       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
@@ -134,9 +134,7 @@ sub info {
 					       'filter_source' => [ 'cv', $self->{sources}{organism} ],
 					       'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
 					       'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ] },
-				'required' => {
-					       'id' => [ 'string', 'one or more metagenome or project unique identifier' ]
-					      },
+				  'required' => {},
                   'body'     => {} }
             }
         ]

@@ -45,7 +45,7 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "instance",
-				              'request'     => $self->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{id}",
 				              'description' => "Returns a single sequence file.",
 				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?file=350.1",
       				                             'download fasta file of gene-called protein sequences (from stage 350)' ],
@@ -58,7 +58,7 @@ sub info {
 							                     'body'     => {} }
 							},
 							{ 'name'        => "history",
-				              'request'     => $self->url."/".$self->name."/history/{ID}",
+				              'request'     => $self->url."/".$self->name."/history/{id}",
 				              'description' => "Summary of MG-RAST analysis-pipeline workflow and commands.",
 				              'example'     => [ $self->url."/".$self->name."/history/mgm4447943.3",
       				                             'Workflow document for mgm4447943.3' ],
@@ -72,7 +72,7 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "setlist",
-				              'request'     => $self->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{id}",
 				              'description' => "Returns a list of sets of sequence files for the given id.",
 				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?stage=650",
         				                         'view all available files from stage 650' ],

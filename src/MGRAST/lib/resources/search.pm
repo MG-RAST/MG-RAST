@@ -76,7 +76,7 @@ sub info {
             },
             {
                 'name'        => "upsert",
-                'request'     => $self->url."/".$self->name."/{ID}",
+                'request'     => $self->url."/".$self->name."/{id}",
                 'description' => "Elastic Upsert",
                 'method'      => "POST",
                 'type'        => "synchronous",
