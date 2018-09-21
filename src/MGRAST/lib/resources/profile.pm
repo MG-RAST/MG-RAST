@@ -110,7 +110,7 @@ sub info {
             { 'name'        => "status",
               'request'     => $self->url."/".$self->name."/status/{uuid}",
               'description' => "Return profile status and/or results",
-	          'example'     => [ $self->url."/".$self->name."/status/cffe40ec-8bad-43ba-9dfa-57c3fe71ba88",
+	          'example'     => [ $self->url."/".$self->name."/status/4dac8fcf-aa46-4177-b30f-db3933462ed3",
 				                 "Return profile status and/or results" ],
               'method'      => "GET",
               'type'        => "synchronous",

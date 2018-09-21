@@ -110,7 +110,7 @@ sub info {
 				                             'options' => {},
 							                 'body' => {
 							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
-							                     "format"  => ['cv', [["tabbed", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
+							                     "format"  => ['cv', [["tab", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
 							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
 							                     "source"  => ['cv', $sources ],
 							                     "type"    => ['cv', $self->{types} ]
