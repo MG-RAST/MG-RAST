@@ -141,7 +141,7 @@ sub info {
 						{ 'name'        => "similarity",
 				          'request'     => $self->url."/".$self->name."/similarity/{id}",
 				          'description' => "tab delimited blast m8 with annotation",
-				          'example'     => [ 'curl -X POST -d \'{"source":"RefSeq","type":"organism","md5s":["000a8d74068603c9e8674bff9970f367","0001c08aa276d154b7696f9758839786"]}\' "'.$self->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
+				          'example'     => [ 'curl -X POST -d \'{"source":"RefSeq","type":"organism","md5s":["000a8d74068603c9e8674bff9970f367","0001c08aa276d154b7696f9758839786"]}\' "'.$self->url."/".$self->name.'/similarity/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
 				          'method'      => "POST",
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
