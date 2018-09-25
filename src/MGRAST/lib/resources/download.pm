@@ -472,7 +472,7 @@ sub clean_setlist {
     
     my $clean = [];
     foreach my $set (@$setlist) {
-        my $stage_id = int($set->{stage_id};
+        my $stage_id = int($set->{stage_id});
         if ($stage_id > 200) {
             push @$clean, $set;
         }
@@ -490,14 +490,14 @@ sub clean_tasks {
     }
     
     foreach my $task (@$tasks) {
-        my $stage_id = int($task->{stage_id};
+        my $stage_id = int($task->{stage_id});
         if ($stage_id < 200) {
             foreach my $io ((@{$task->{inputs}}, @{$task->{outputs}})) {
                 if (exists $io->{node_id}) {
-                    delete $io->{node_id});
+                    delete $io->{node_id};
                 }
                 if (exists $io->{url}) {
-                    delete $io->{url});
+                    delete $io->{url};
                 }
             }
         }
