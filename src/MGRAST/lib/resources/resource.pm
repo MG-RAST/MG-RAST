@@ -674,11 +674,30 @@ sub return_data {
 # print a string to download
 sub download_text {
     my ($self, $text, $name) = @_;
-    print "Content-Type:application/x-download\n";
+    print "Content-Type: application/x-download\n";
     print "Access-Control-Allow-Origin: *\n";
-    print "Content-Length: ".(length($text))."\n";
-    print "Content-Disposition:attachment;filename=$name\n\n";
+    print "Content-Length: ".length($text)."\n";
+    print "Content-Disposition: attachment;filename=$name\n\n";
     print $text;
+    exit 0;
+}
+
+# print a local file to download
+sub download_local {
+    my ($self, $filepath, $name) = @_;
+    if (open(FH, "<$filepath")) {
+      my $content = do { local $/; <FH> };
+      close FH;
+      print "Content-Type: application/octet-stream\n";
+      print "Access-Control-Allow-Origin: *\n";
+      print "Content-Length: ".length($content)."\n";
+      print "Content-Disposition: attachment;filename=$name\n\n";
+      print $content;
+    } else {
+      print "Content-Type: text/plain\n";
+      print "Access-Control-Allow-Origin: *\n";
+      print "ERROR (500): Unable to retrieve file $name\n";
+    }
     exit 0;
 }
 
@@ -692,12 +711,12 @@ sub return_shock_file {
 
     my $response = undef;
     # print headers
-    print "Content-Type:application/x-download\n";
+    print "Content-Type: application/x-download\n";
     print "Access-Control-Allow-Origin: *\n";
     if ($size) {
         print "Content-Length: ".$size."\n";
     }
-    print "Content-Disposition:attachment;filename=".$name."\n\n";
+    print "Content-Disposition: attachment;filename=".$name."\n\n";
     eval {
         my $url = $Conf::shock_url.'/node/'.$id.'?download_raw';
         my @args = (
