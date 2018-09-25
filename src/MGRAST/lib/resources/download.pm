@@ -152,12 +152,12 @@ sub instance {
     
     # return file from shock
     if ($file) {
-        if (! exists($set->{node_id})) {
-            $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
-        }
         my $node = undef;
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
+                if (! exists($set->{node_id})) {
+                    $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
+                }
                 if ($link) {
                     my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
                     $self->return_data($data);
