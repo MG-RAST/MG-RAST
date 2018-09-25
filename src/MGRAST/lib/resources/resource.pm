@@ -696,7 +696,6 @@ sub download_local {
     } else {
       print "Content-Type: text/plain\n";
       print "Access-Control-Allow-Origin: *\n";
-      print "Status: 500\n\n";
       print "ERROR (500): Unable to retrieve file $name\n";
     }
     exit 0;

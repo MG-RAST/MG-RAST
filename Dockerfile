@@ -43,7 +43,7 @@ RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-c
 # python dependencies
 RUN apt-get install -y python-dev python-pip && \
   pip install \
-  openpyxl==1.8.6 \
+  openpyxl \
   gspread \
   xlrd \
   lepl \

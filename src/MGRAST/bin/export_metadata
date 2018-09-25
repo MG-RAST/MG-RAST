@@ -7,6 +7,7 @@ from optparse import OptionParser
 from collections import defaultdict
 from lepl.apps.rfc3696 import HttpUrl
 from openpyxl import Workbook
+from openpyxl.styles import Font
 
 __doc__ = """Script to export metadata from MG-RAST api to xlsx file"""
 
@@ -100,7 +101,7 @@ def color_row(sheet, vals, row, color):
     for i in range(sheet.max_column):
         cell = sheet.cell(row=row, column=i+1)
         if cell.value and (cell.value in vals):
-            cell.style.font.color.index = color
+            cell.font = Font(color=color)
     return sheet
 
 # return list of item from dict ordered by key_list
@@ -120,7 +121,7 @@ def data2sheet(sheet, data, is_template):
     rKeys = filter(lambda x: (merge[x]['required'] == '1') or (merge[x]['required'] is True), merge.keys())
     sheet.append( keys )
     sheet.append( row_by_keys(merge, keys, 'definition') )
-    sheet = color_row(sheet, rKeys, 0, 'FFFF0000')
+    sheet = color_row(sheet, rKeys, 1, 'FFFF0000')
     if not is_template:
         for d in data:
             sheet.append( row_by_keys(d, keys, 'value') )

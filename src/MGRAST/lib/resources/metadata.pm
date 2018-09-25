@@ -584,6 +584,9 @@ sub instance {
         my $data = $mddb->export_metadata_for_project($project);
         if ($format eq 'xlsx') {
             my ($efile, $error) = $mddb->metadata_to_excel($data);
+            if ($error) {
+                $self->return_data( {"ERROR" => "unable to export metadata: $error"}, 500 );
+            }
             $self->download_local($efile, 'mgp'.$pid.'.xlsx');
         }
         $self->json->utf8();
