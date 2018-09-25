@@ -191,7 +191,7 @@ sub info {
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => $self->attributes->{export},
-              'parameters'  => { 'options'  => {},
+              'parameters'  => { 'options'  => { 'format' => ['cv', [['json', 'json format'], ['xlsx', 'excel file']] ] },
                                  'required' => { "id" => ["string", "unique object identifier"] },
                                  'body'     => {} }
             },
@@ -561,8 +561,9 @@ sub instance {
     
     # get database
     my $master = $self->connect_to_datasource();
-    my $mddb = MGRAST::Metadata->new();
-    my $id = $self->idresolve($tempid);
+    my $mddb   = MGRAST::Metadata->new();
+    my $id     = $self->idresolve($tempid);
+    my $format = $self->cgi->param('format') || 'json';
     
     # project export
     if ($id =~ /^mgp(\d+)$/) {
@@ -581,6 +582,10 @@ sub instance {
         }
         # prepare data
         my $data = $mddb->export_metadata_for_project($project);
+        if ($format eq 'xlsx') {
+            my ($efile, $error) = $self->metadata_to_excel($data);
+            $self->download_local($efile, 'mgp'.$pid.'.xlsx');
+        }
         $self->json->utf8();
         $self->return_data($data);
     }
