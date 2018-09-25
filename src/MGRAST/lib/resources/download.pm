@@ -152,6 +152,9 @@ sub instance {
     
     # return file from shock
     if ($file) {
+        if (! exists($set->{node_id})) {
+            $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
+        }
         my $node = undef;
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
@@ -470,15 +473,19 @@ sub clean_setlist {
         return $setlist;
     }
     
-    my $clean = [];
     foreach my $set (@$setlist) {
         my $stage_id = int($set->{stage_id});
-        if ($stage_id > 200) {
-            push @$clean, $set;
+        if ($stage_id < 200) {
+            if (exists $set->{node_id}) {
+                delete $set->{node_id};
+            }
+            if (exists $set->{url}) {
+                delete $set->{url};
+            }
         }
     }
     
-    return $clean;
+    return $setlist;
 }
 
 sub clean_tasks {
