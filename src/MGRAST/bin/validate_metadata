@@ -286,7 +286,7 @@ def google_to_mdraw(url, dupe, inc, login, password):
 
 def xlsx_to_mdraw(xxfile, dupe, inc):
     xxbook = load_workbook(filename = xxfile)
-    tables = dict([(x, sheet_to_table(xxbook.get_sheet_by_name(x), 'xlsx')) for x in xxbook.get_sheet_names()])
+    tables = dict([(x, sheet_to_table(xxbook[x], 'xlsx')) for x in xxbook.sheetnames()])
     if inc:
       return tables_to_mdraw_inc(tables, dupe)
     else:
