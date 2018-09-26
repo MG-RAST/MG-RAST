@@ -109,7 +109,7 @@ def row_by_keys(data, keys, item):
     row = []
     for k in keys:
         if (k in data) and (item in data[k]):
-            row.append( data[k][item].strip() )
+            row.append( str(data[k][item]).strip() )
         else:
             row.append('')
     return row
