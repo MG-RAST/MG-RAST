@@ -571,7 +571,7 @@ sub instance {
         # get data
         my $project = $master->Project->init( {id => $pid} );
         unless (ref($project)) {
-            $self->return_data( {"ERROR" => "project id $id does not exists"}, 404 );
+            $self->return_data( {"ERROR" => "project id $tempid does not exists"}, 404 );
         }
         # check rights
         unless ( $project->{public} ||
@@ -587,7 +587,7 @@ sub instance {
             if ($error) {
                 $self->return_data( {"ERROR" => "unable to export metadata: $error"}, 500 );
             }
-            $self->download_local($efile, 'mgp'.$pid.'.xlsx');
+            $self->download_local($efile, $tempid.'_metadata.xlsx');
         }
         $self->json->utf8();
         $self->return_data($data);
@@ -598,7 +598,7 @@ sub instance {
         # get data
         my $job = $master->Job->get_objects( {metagenome_id => $mgid} );
         unless ($job && @$job) {
-            $self->return_data( {"ERROR" => "metagenome id $id does not exist"}, 404 );
+            $self->return_data( {"ERROR" => "metagenome id $tempid does not exist"}, 404 );
         }
         $job = $job->[0];
         # check rights
