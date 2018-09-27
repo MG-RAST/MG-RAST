@@ -79,7 +79,7 @@ sub populate_template {
         $vars->{preprocess_pass} = qq(,
                         "type": "copy",
                         "formoptions": {
-                            "parent_node": "$input_id",
+                            "parent_name": "${job_id}.080.adapter.trim.passed.).$vars->{file_format}.qq(",
                             "copy_indexes": "1"
                         });
         $vars->{preprocess_fail} = "";
@@ -87,7 +87,7 @@ sub populate_template {
         $vars->{preprocess_pass} = qq(,
                         "type": "subset",
                         "formoptions": {
-                            "parent_node": "$input_id",
+                            "parent_name": "${job_id}.080.adapter.trim.passed.).$vars->{file_format}.qq(",
                             "parent_index": "record"
                         });
         $vars->{preprocess_fail} = $vars->{preprocess_pass};

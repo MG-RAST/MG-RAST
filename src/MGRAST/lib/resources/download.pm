@@ -45,7 +45,7 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "instance",
-				              'request'     => $self->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{id}",
 				              'description' => "Returns a single sequence file.",
 				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?file=350.1",
       				                             'download fasta file of gene-called protein sequences (from stage 350)' ],
@@ -58,7 +58,7 @@ sub info {
 							                     'body'     => {} }
 							},
 							{ 'name'        => "history",
-				              'request'     => $self->url."/".$self->name."/history/{ID}",
+				              'request'     => $self->url."/".$self->name."/history/{id}",
 				              'description' => "Summary of MG-RAST analysis-pipeline workflow and commands.",
 				              'example'     => [ $self->url."/".$self->name."/history/mgm4447943.3",
       				                             'Workflow document for mgm4447943.3' ],
@@ -72,7 +72,7 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "setlist",
-				              'request'     => $self->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{id}",
 				              'description' => "Returns a list of sets of sequence files for the given id.",
 				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?stage=650",
         				                         'view all available files from stage 650' ],
@@ -148,12 +148,16 @@ sub instance {
     my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
     my ($setlist, $skip) = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
     $setlist = $self->fix_download_filenames($setlist, $restid);
+    $setlist = $self->clean_setlist($setlist, $job);
     
     # return file from shock
     if ($file) {
         my $node = undef;
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
+                if (! exists($set->{node_id})) {
+                    $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
+                }
                 if ($link) {
                     my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
                     $self->return_data($data);
@@ -410,6 +414,7 @@ sub awe_history {
         }
     }
     $awe_history->{tasks} = $self->fix_download_filenames($awe_history->{tasks}, $restid);
+    $awe_history->{tasks} = $self->clean_tasks($awe_history->{tasks}, $setlist, $job);
     $data->{data} = $awe_history;
     
     # POST to shock if created
@@ -458,6 +463,80 @@ sub awe_history {
     }
     
     return $data;
+}
+
+sub clean_setlist {
+    my ($self, $setlist, $job) = @_;
+    
+    my $has_human = $self->has_human($setlist, $job);
+    if (! $has_human) {
+        return $setlist;
+    }
+    
+    foreach my $set (@$setlist) {
+        my $stage_id = int($set->{stage_id});
+        if ($stage_id < 200) {
+            if (exists $set->{node_id}) {
+                delete $set->{node_id};
+            }
+            if (exists $set->{url}) {
+                delete $set->{url};
+            }
+        }
+    }
+    
+    return $setlist;
+}
+
+sub clean_tasks {
+    my ($self, $tasks, $setlist, $job) = @_;
+    
+    my $has_human = $self->has_human($setlist, $job);
+    if (! $has_human) {
+        return $tasks;
+    }
+    
+    foreach my $task (@$tasks) {
+        my $stage_id = int($task->{stage_id});
+        if ($stage_id < 200) {
+            foreach my $io ((@{$task->{inputs}}, @{$task->{outputs}})) {
+                if (exists $io->{node_id}) {
+                    delete $io->{node_id};
+                }
+                if (exists $io->{url}) {
+                    delete $io->{url};
+                }
+            }
+        }
+    }
+    
+    return $tasks;
+}
+
+sub has_human {
+    my ($self, $setlist, $job) = @_;
+    
+    if (($job->sequence_type ne 'WGS') && ($job->sequence_type ne 'MT')) {
+        return 0;
+    }
+    
+    my $jdata = $job->data;
+    if (exists($jdata->{screen_indexes}) && ($jdata->{screen_indexes} =~ /h_sapiens/)) {
+        my $dpass = 0;
+        my $spass = 0;
+        foreach my $set (@$setlist) {
+            if (($set->{stage_name} eq "dereplication.passed") && exists($set->{statistics})) {
+                $dpass = $set->{statistics}{sequence_count} || 0;
+            }
+            if (($set->{stage_name} eq "screen.passed") && exists($set->{statistics})) {
+                $spass = $set->{statistics}{sequence_count} || 0;
+            }
+        }
+        if ($dpass && $spass && ($spass < $dpass)) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 # this produces a generic AWE workflow for a job at a given version

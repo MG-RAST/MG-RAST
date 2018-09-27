@@ -184,14 +184,14 @@ sub info {
                                  'body'     => {} }
             },
             { 'name'        => "export",
-              'request'     => $self->url."/".$self->name."/export/{ID}",
+              'request'     => $self->url."/".$self->name."/export/{id}",
               'description' => "Returns full nested metadata for a project in same format as template, or metadata for a single metagenome.",
               'example'     => [ $self->url."/".$self->name."/export/mgp128",
                                  'all metadata for project mgp128' ],
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => $self->attributes->{export},
-              'parameters'  => { 'options'  => {},
+              'parameters'  => { 'options'  => { 'format' => ['cv', [['json', 'json format'], ['xlsx', 'excel file']] ] },
                                  'required' => { "id" => ["string", "unique object identifier"] },
                                  'body'     => {} }
             },
@@ -561,8 +561,9 @@ sub instance {
     
     # get database
     my $master = $self->connect_to_datasource();
-    my $mddb = MGRAST::Metadata->new();
-    my $id = $self->idresolve($tempid);
+    my $mddb   = MGRAST::Metadata->new();
+    my $id     = $self->idresolve($tempid);
+    my $format = $self->cgi->param('format') || 'json';
     
     # project export
     if ($id =~ /^mgp(\d+)$/) {
@@ -570,7 +571,7 @@ sub instance {
         # get data
         my $project = $master->Project->init( {id => $pid} );
         unless (ref($project)) {
-            $self->return_data( {"ERROR" => "project id $id does not exists"}, 404 );
+            $self->return_data( {"ERROR" => "project id $tempid does not exists"}, 404 );
         }
         # check rights
         unless ( $project->{public} ||
@@ -581,6 +582,13 @@ sub instance {
         }
         # prepare data
         my $data = $mddb->export_metadata_for_project($project);
+        if ($format eq 'xlsx') {
+            my ($efile, $error) = $mddb->metadata_to_excel($data);
+            if ($error) {
+                $self->return_data( {"ERROR" => "unable to export metadata: $error"}, 500 );
+            }
+            $self->download_local($efile, $tempid.'_metadata.xlsx');
+        }
         $self->json->utf8();
         $self->return_data($data);
     }
@@ -590,7 +598,7 @@ sub instance {
         # get data
         my $job = $master->Job->get_objects( {metagenome_id => $mgid} );
         unless ($job && @$job) {
-            $self->return_data( {"ERROR" => "metagenome id $id does not exist"}, 404 );
+            $self->return_data( {"ERROR" => "metagenome id $tempid does not exist"}, 404 );
         }
         $job = $job->[0];
         # check rights

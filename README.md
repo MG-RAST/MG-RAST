@@ -49,7 +49,7 @@ type make
 export TAG=`date +"%Y%m%d.%H%M"`
 git clone -b api https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
-docker build --force-rm --no-cache --rm -t mgrast/api:${TAG} .
+docker build -t mgrast/api:${TAG} .
 skycore push mgrast/api:${TAG}
 ```
 

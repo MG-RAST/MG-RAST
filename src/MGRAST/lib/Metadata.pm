@@ -8,6 +8,7 @@ use URI::Escape;
 use Storable qw(dclone);
 use Data::Dumper;
 use File::Temp qw/ tempfile tempdir /;
+use File::Slurp;
 use JSON;
 
 use DBMaster;
@@ -1222,6 +1223,32 @@ Updates Curator, based on curator ID, with inputed attributes.
 sub update_curator {
   my ($self, $curator, $attributes) = @_;
   $self->{_handle}->Curator->init({ID => $curator})->set_attributes($attributes);
+}
+
+sub metadata_to_excel {
+  my ($self, $metadata) = @_;
+    
+  my $json = new JSON;
+  $json = $json->utf8();
+  my $text = $json->encode($metadata);
+  
+  my ($data_hdl, $data_name) = tempfile("metadata_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.json');
+  close $data_hdl;
+  write_file($data_name, $text);
+  
+  my ($out_hdl, $out_name) = tempfile("metadata_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.xlsx');
+  close $out_hdl;
+  
+  my $cmd = $Conf::export_metadata." -j $data_name -o $out_name 2>&1";
+  my $err = `$cmd`;
+  chomp $err;
+  unlink $data_name;
+  
+  if ($err) {
+      return ("", $err);
+  } else {
+      return ($out_name, "");
+  }
 }
 
 sub validate_metadata {

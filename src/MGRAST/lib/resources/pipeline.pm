@@ -47,7 +47,7 @@ sub info {
                                                          'body'     => {} }
                                     },
                                     { 'name'        => "instance",
-                                      'request'     => $self->url."/".$self->name."/{ID}",
+                                      'request'     => $self->url."/".$self->name."/{id}",
                                       'description' => "Returns a single job document.",
                                       'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/{job ID}"',
                     			                         "job in pipeline" ],
@@ -71,7 +71,7 @@ sub info {
                                                          'body'     => {} }
                                     },
                                     { 'name'        => "change",
-                                      'request'     => $self->url."/".$self->name."/{ID}",
+                                      'request'     => $self->url."/".$self->name."/{id}",
                                       'description' => "Change the status of a job in the pipeline: these are admin functions",
                                       'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/{job ID}?action=resume"',
                     			                         "resume a suspended job in pipeline" ],

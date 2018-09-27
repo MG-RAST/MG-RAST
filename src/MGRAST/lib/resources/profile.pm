@@ -84,7 +84,7 @@ sub info {
                   'body'     => {} }
 			},
             { 'name'        => "instance",
-              'request'     => $self->url."/".$self->name."/{ID}",
+              'request'     => $self->url."/".$self->name."/{id}",
               'description' => "Submits profile creation",
               'example'     => [ $self->url."/".$self->name."/mgm4447943.3?source=RefSeq&format=biom",
                                'retrieve BIOM profile of RefSeq annotations' ],
@@ -108,10 +108,10 @@ sub info {
                   'body'     => {} }
             },
             { 'name'        => "status",
-              'request'     => $self->url."/".$self->name."/status/{UUID}",
+              'request'     => $self->url."/".$self->name."/status/{uuid}",
               'description' => "Return profile status and/or results",
-	      'example'     => [ $self->url."/".$self->name."/status/cffe40ec-8bad-43ba-9dfa-57c3fe71ba88",
-				 "Return profile status and/or results" ],
+	          'example'     => [ $self->url."/".$self->name."/status/4dac8fcf-aa46-4177-b30f-db3933462ed3",
+				                 "Return profile status and/or results" ],
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => $self->{status},
@@ -120,7 +120,7 @@ sub info {
                       'verbosity' => ['cv', [['full','returns all data (default)'],
                                              ['minimal','returns only minimal information']]]
 				  },
-                  'required' => { "id" => ["string", "RFC 4122 UUID for process"] },
+                  'required' => { "uuid" => ["string", "RFC 4122 UUID for process"] },
                   'body'     => {} }
             }
         ]

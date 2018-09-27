@@ -1,25 +1,22 @@
 {
     "mappings": {
         "metagenome": {
-            "dynamic_templates": [
-                {
-                    "double_t": {
-                        "mapping": {
-                            "type": "double"
-                        },
-                        "match": "*_d"
-                    }
-                },
-                {
-                    "long_t": {
-                        "mapping": {
-                            "type": "long"
-                        },
-                        "match": "*_l"
-                    }
-                }
-            ],
             "properties": {
+                "all_metadata": {
+                    "type": "text"
+                },
+                "all_project": {
+                    "type": "text"
+                },
+                "all_sample": {
+                    "type": "text"
+                },
+                "all_library": {
+                    "type": "text"
+                },
+                "all_env_package": {
+                    "type": "text"
+                },
                 "env_package_env_package_id": {
                     "type": "keyword"
                 },
@@ -40,11 +37,13 @@
                     "type": "text"
                 },
                 "id": {
-                    "type": "keyword"
+                    "type": "keyword",
+                    "copy_to": "all_metadata"
                 },
                 "job_info_created_on": {
                     "format": "strict_date_optional_time||epoch_millis",
-                    "type": "date"
+                    "type": "date",
+                    "copy_to": "all_metadata"
                 },
                 "job_info_job_id": {
                     "type": "integer"
@@ -58,13 +57,20 @@
                             "type": "keyword"
                         }
                     },
-                    "type": "text"
+                    "type": "text",
+                    "copy_to": "all_metadata"
                 },
                 "job_info_public": {
                     "type": "boolean"
                 },
                 "job_info_sequence_type": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text",
+                    "copy_to": "all_metadata"
                 },
                 "job_stat_alpha_diversity_shannon": {
                     "type": "float"
@@ -88,7 +94,12 @@
                     "type": "keyword"
                 },
                 "library_investigation_type": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "library_library_ebi_id": {
                     "type": "keyword"
@@ -111,7 +122,12 @@
                     "type": "keyword"
                 },
                 "library_seq_meth": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "library_target_gene": {
                     "type": "text"
@@ -129,10 +145,20 @@
                     "type": "boolean"
                 },
                 "pipeline_parameters_fgs_type": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "pipeline_parameters_file_type": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "pipeline_parameters_filter_ambig": {
                     "type": "boolean"
@@ -165,13 +191,23 @@
                     "type": "integer"
                 },
                 "pipeline_parameters_priority": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "pipeline_parameters_rna_pid": {
                     "type": "integer"
                 },
                 "pipeline_parameters_screen_indexes": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "project_PI_firstname": {
                     "fields": {
@@ -198,7 +234,13 @@
                     "type": "text"
                 },
                 "project_PI_organization_country": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text",
+                    "copy_to": "all_metadata"
                 },
                 "project_firstname": {
                     "fields": {
@@ -208,9 +250,6 @@
                     },
                     "type": "text"
                 },
-                "project_greengenes_id": {
-                    "type": "keyword"
-                },
                 "project_lastname": {
                     "fields": {
                         "keyword": {
@@ -218,6 +257,9 @@
                         }
                     },
                     "type": "text"
+                },
+                "project_greengenes_id": {
+                    "type": "keyword"
                 },
                 "project_ncbi_id": {
                     "type": "keyword"
@@ -231,7 +273,12 @@
                     "type": "text"
                 },
                 "project_organization_country": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "project_project_ebi_id": {
                     "type": "keyword"
@@ -273,10 +320,20 @@
                     "type": "date"
                 },
                 "sample_continent": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "sample_country": {
-                    "type": "keyword"
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
                 },
                 "sample_depth": {
                     "type": "float"
@@ -382,6 +439,10 @@
                     "store": false,
                     "type": "text"
                 },
+                "t_1": {
+                    "store": false,
+                    "type": "text"
+                },
                 "t_5": {
                     "store": false,
                     "type": "text"
@@ -401,26 +462,6 @@
                 "t_25": {
                     "store": false,
                     "type": "text"
-                },
-                "t_30": {
-                    "store": false,
-                    "type": "text"
-                },
-                "t_35": {
-                    "store": false,
-                    "type": "text"
-                },
-                "t_40": {
-                    "store": false,
-                    "type": "text"
-                },
-                "t_45": {
-                    "store": false,
-                    "type": "text"
-                },
-                "t_50": {
-                    "store": false,
-                    "type": "text"
                 }
             }
         },
@@ -436,43 +477,19 @@
                     "store": false,
                     "type": "text"
                 },
+                "f_1": {
+                    "store": false,
+                    "type": "text"
+                },
+                "f_3": {
+                    "store": false,
+                    "type": "text"
+                },
                 "f_5": {
                     "store": false,
                     "type": "text"
                 },
                 "f_10": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_15": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_20": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_25": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_30": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_35": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_40": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_45": {
-                    "store": false,
-                    "type": "text"
-                },
-                "f_50": {
                     "store": false,
                     "type": "text"
                 }

@@ -674,11 +674,30 @@ sub return_data {
 # print a string to download
 sub download_text {
     my ($self, $text, $name) = @_;
-    print "Content-Type:application/x-download\n";
+    print "Content-Type: application/x-download\n";
     print "Access-Control-Allow-Origin: *\n";
-    print "Content-Length: ".(length($text))."\n";
-    print "Content-Disposition:attachment;filename=$name\n\n";
+    print "Content-Length: ".length($text)."\n";
+    print "Content-Disposition: attachment;filename=$name\n\n";
     print $text;
+    exit 0;
+}
+
+# print a local file to download
+sub download_local {
+    my ($self, $filepath, $name) = @_;
+    if (open(FH, "<$filepath")) {
+      my $content = do { local $/; <FH> };
+      close FH;
+      print "Content-Type: application/octet-stream\n";
+      print "Access-Control-Allow-Origin: *\n";
+      print "Content-Length: ".length($content)."\n";
+      print "Content-Disposition: attachment;filename=$name\n\n";
+      print $content;
+    } else {
+      print "Content-Type: text/plain\n";
+      print "Access-Control-Allow-Origin: *\n";
+      print "ERROR (500): Unable to retrieve file $name\n";
+    }
     exit 0;
 }
 
@@ -692,12 +711,12 @@ sub return_shock_file {
 
     my $response = undef;
     # print headers
-    print "Content-Type:application/x-download\n";
+    print "Content-Type: application/x-download\n";
     print "Access-Control-Allow-Origin: *\n";
     if ($size) {
         print "Content-Length: ".$size."\n";
     }
-    print "Content-Disposition:attachment;filename=".$name."\n\n";
+    print "Content-Disposition: attachment;filename=".$name."\n\n";
     eval {
         my $url = $Conf::shock_url.'/node/'.$id.'?download_raw';
         my @args = (
@@ -2014,24 +2033,40 @@ sub upsert_to_elasticsearch_metadata {
         }
     }
     # job metadata
+    $esdata->{ $fMap->{'all'} } = "";
     foreach my $md (('project', 'sample', 'library', 'env_package')) {
+        my $allmd = 'all_'.$md;
+        $esdata->{ $fMap->{$allmd} } = "";
         if (exists($m_data->{$md}) && $m_data->{$md}{id} && $m_data->{$md}{name} && $m_data->{$md}{data}) {
-            $esdata->{ $fMap->{$md.'_id'} } = $self->jsonTypecast($tMap->{$md.'_id'}, $m_data->{$md}{id});
+            # _id / _name
+            $esdata->{ $fMap->{$md.'_id'} }   = $self->jsonTypecast($tMap->{$md.'_id'}, $m_data->{$md}{id});
             $esdata->{ $fMap->{$md.'_name'} } = $self->jsonTypecast($tMap->{$md.'_name'}, $m_data->{$md}{name});
+            $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{id}." ".$m_data->{$md}{name});
+            $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{id}." ".$m_data->{$md}{name});
+            # _type
             if (exists($fMap->{$md.'_type'}) && $m_data->{$md}{type}) {
                 $esdata->{ $fMap->{$md.'_type'} } = $self->jsonTypecast($tMap->{$md.'_type'}, $m_data->{$md}{type});
+                $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{type});
+                $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{type});
             }
             foreach my $k (keys %{$m_data->{$md}{data}}) {
-                # special case for ebi_id
-                if (($k eq 'ebi_id') && defined($m_data->{$md}{data}{$k})) {
-                    my $kx = $md.'_'.$k;
-                    $esdata->{ $fMap->{$kx} } = $self->jsonTypecast($tMap->{$kx}, $m_data->{$md}{data}{$k});
-                } elsif ($k && (exists $fMap->{$k}) && defined($m_data->{$md}{data}{$k})) {
-                    $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k});
+                if ($k && defined($m_data->{$md}{data}{$k})) {
+                    # all go into catchall
+                    $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{data}{$k});
+                    $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{data}{$k});
+                    # special case for ebi_id
+                    if ($k eq 'ebi_id') {
+                        my $kx = $md.'_'.$k;
+                        $esdata->{ $fMap->{$kx} } = $self->jsonTypecast($tMap->{$kx}, $m_data->{$md}{data}{$k});
+                    } elsif (exists $fMap->{$k}) {
+                        $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k});
+                    }
                 }
             }
         }
+        $esdata->{$fMap->{$allmd}} = $self->jsonTypecast('text', $esdata->{$fMap->{$allmd}});
     }
+    $esdata->{$fMap->{'all'}} = $self->jsonTypecast('text', $esdata->{$fMap->{'all'}});
     $esdata->{id} = "mgm".$id;
     $esdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
     
@@ -2081,47 +2116,57 @@ sub upsert_to_elasticsearch_annotation {
     # input is metagenome ID - for shock metagenome statistics lookup
     # assume rights checking has already been done
     # returns 'failed' or 'updated'
-    my ($self, $mgid, $type, $index, $debug) = @_;
+    my ($self, $mgid, $type, $index, $func, $taxa, $debug) = @_;
     
     # ranges
     my $t_nums = $ElasticSearch::taxa_num;
     my $f_nums = $ElasticSearch::func_num;
     
     my $results  = {};
-    my $mg_stats = $self->metagenome_stats_from_shock($mgid);
+    my $mg_stats = undef;
     
     if (($type eq 'taxonomy') || ($type eq 'both')) {
+        if ((! $taxa) && (! $mg_stats)) {
+            $mg_stats = $self->metagenome_stats_from_shock($mgid);
+        }
+        if (! $taxa) {
+            $taxa = $mg_stats->{'taxonomy'};
+        }
         $results->{'taxonomy'} = undef;
     }
     if (($type eq 'function') || ($type eq 'both')) {
+        if ((! $func) && (! $mg_stats)) {
+            $mg_stats = $self->metagenome_stats_from_shock($mgid);
+        }
+        if (! $func) {
+            $func = $mg_stats->{'function'};
+        }
         $results->{'function'} = undef;
     }
     
-    if (exists($results->{'taxonomy'}) && exists($mg_stats->{'taxonomy'})) {
+    if (exists($results->{'taxonomy'}) && $taxa) {
         $results->{'taxonomy'} = {
             'id'  => $mgid,
             'all' => ''
         };
-        foreach my $level (keys %{$mg_stats->{'taxonomy'}}) {
-            my $total = sum map {$_->[1]} @{$mg_stats->{'taxonomy'}{$level}};
-            foreach my $t (@{$mg_stats->{'taxonomy'}{$level}}) {
-                my @parts = split(/\s+/, $t->[0]);
-                foreach my $p (@parts) {
-                    unless ($results->{'taxonomy'}{'all'} =~ /\Q$p\E/) {
-                        $results->{'taxonomy'}{'all'} .= " ".$p;
-                    }
+        foreach my $level (keys %$taxa) {
+            if ($level eq 'species') {
+                next;
+            }
+            my $prefix = lc(substr($level, 0, 1));
+            my $total = sum map {$_->[1]} @{$taxa->{$level}};
+            foreach my $t (@{$taxa->{$level}}) {
+                if (split(/\s+/, $t->[0]) > 1) {
+                    next;
                 }
+                $results->{'taxonomy'}{'all'} = unique_concat($results->{'taxonomy'}{'all'}, $t->[0]);
                 my $rel = int((($t->[1] / $total) * 100) + 0.5);
                 foreach my $n (@$t_nums) {
                     if ($rel >= $n) {
                         unless (exists $results->{'taxonomy'}{'t_'.$n}) {
                             $results->{'taxonomy'}{'t_'.$n} = "";
                         }
-                        foreach my $p (@parts) {
-                            unless ($results->{'taxonomy'}{'t_'.$n} =~ /\Q$p\E/) {
-                                $results->{'taxonomy'}{'t_'.$n} .= " ".$p;
-                            }
-                        }
+                        $results->{'taxonomy'}{'t_'.$n} .= " ".$prefix.'_'.$t->[0];
                     }
                 }
             }
@@ -2131,30 +2176,21 @@ sub upsert_to_elasticsearch_annotation {
             $results->{'taxonomy'}{$k} = $self->jsonTypecast('text', $results->{'taxonomy'}{$k});
         }
     }
-    if (exists($results->{'function'}) && exists($mg_stats->{'function'})) {
+    if (exists($results->{'function'}) && $func) {
         $results->{'function'} = {
             'id'  => $mgid,
             'all' => ''
         };
-        my $total = sum map {$_->[1]} @{$mg_stats->{'function'}};
-        foreach my $f (@{$mg_stats->{'function'}}) {
-            my @parts = split(/\s+/, $f->[0]);
-            foreach my $p (@parts) {
-                unless ($results->{'function'}{'all'} =~ /\Q$p\E/) {
-                    $results->{'function'}{'all'} .= " ".$p;
-                }
-            }
+        my $total = sum map {$_->[1]} @$func;
+        foreach my $f (@$func) {
+            $results->{'function'}{'all'} = unique_concat($results->{'function'}{'all'}, $f->[0]);
             my $rel = int((($f->[1] / $total) * 100) + 0.5);
             foreach my $n (@$f_nums) {
                 if ($rel >= $n) {
                     unless (exists $results->{'function'}{'f_'.$n}) {
                         $results->{'function'}{'f_'.$n} = "";
                     }
-                    foreach my $p (@parts) {
-                        unless ($results->{'function'}{'f_'.$n} =~ /\Q$p\E/) {
-                            $results->{'function'}{'f_'.$n} .= " ".$p;
-                        }
-                    }
+                    $results->{'function'}{'f_'.$n} = unique_concat($results->{'function'}{'f_'.$n}, $f->[0]);
                 }
             }
         }
@@ -2198,82 +2234,114 @@ sub upsert_to_elasticsearch_annotation {
     return $success;
 }
 
+sub unique_concat {
+    my ($str1, $str2) = @_;
+    unless ($str1 || $str2) {
+        return "";
+    }
+    unless ($str1) {
+        return $str2;
+    }
+    unless ($str2) {
+        return $str1
+    }
+    my @parts = split(/\s+/, $str2);
+    foreach my $p (@parts) {
+        unless ($str1 =~ /\Q$p\E/) {
+            $str1 .= " ".$p;
+        }
+    }
+    return $str1;
+}
+
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $after, $limit, $ins) = @_;
+    my ($self, $server, $queries, $order, $no_scr, $dir, $match, $after, $limit, $ins, $debug) = @_;
 
-  my $postJSON = {
-    "size" => $limit,
-    "sort" => [ { $order => $dir } ],
-    "query" => {
-      "bool" => {
-        "should" => [],
-        "minimum_should_match" => 1,
-        "filter" => [],
-        "must" => []
-      }
+    my $opr = ($match eq 'any') ? 'or' : 'and';
+    my $postJSON = {
+        "size" => $limit,
+        "sort" => [],
+        "query" => {
+            "bool" => {
+                "must" => [],
+                "filter" => []
+            }
+        }
+    };
+    
+    unless ($no_scr) {
+        push @{$postJSON->{"sort"}}, { "_score" => {"order" => "desc"} };
     }
-  };
-  
-  if ($after) {
-      $postJSON->{"search_after"} = [ $after ];
-  }
-  
-  if ($ins) {
-    foreach my $in (@$ins) {
-      push(@{$postJSON->{query}->{"bool"}->{"should"}}, { "terms" => { $in->[0] => $in->[1] } });
+    push @{$postJSON->{"sort"}}, { $order => {"order" => $dir} };
+      
+    # for scrolling
+    if ($after) {
+        $postJSON->{"search_after"} = [ split(/,/, $after) ];
     }
-  }
-  
-  foreach my $q (keys %$query) {
-    my $qs = [];
-    my $wilds = {};
-    if ($q eq 'all') {
-      push(@{$postJSON->{query}->{"bool"}->{"filter"}}, { "match" => { "_all" => join(' ', @{$query->{$q}->{entries}}) } });
+    
+    # filter for project ids and public status (not scored)
+    if ($ins) {
+        foreach my $in (@$ins) {
+            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$in->[0] => $in->[1]} });
+        }
+    }
+
+    # must for query terms (scored)
+    foreach my $q (@$queries) {
+        my $qstr = $q->{"query"};
+        if ($q->{"type"} eq 'boolean') {
+            $qstr = ($qstr && ($qstr ne 'false')) ? JSON::true : JSON::false;
+        }
+        my $query_doc = {
+            "query_string" => {
+                "default_operator" => $opr,
+                "query" => $qstr
+            }
+        };
+        if ($q->{"field"}) {
+            $query_doc->{"query_string"}{"default_field"} = $q->{"field"};
+        }
+        if (($q->{"type"} eq 'child') && $q->{"name"}) {
+            $query_doc = {
+                "has_child" => {
+                    "type" => $q->{"name"},
+                    "query" => $query_doc
+                }
+            };
+        }
+        push(@{$postJSON->{"query"}{"bool"}{"must"}}, $query_doc);
+    }
+
+    if (! scalar(@{$postJSON->{"query"}{"bool"}{"filter"}})) {
+        delete $postJSON->{"query"}{"bool"}{"filter"};
+    }
+    if (! scalar(@{$postJSON->{"query"}{"bool"}{"must"}})) {
+        delete $postJSON->{"query"}{"bool"}{"must"};
+    }
+    
+    if ($debug) {
+        return {
+            "query" => $postJSON,
+            "url"   => $server.'/_search'
+        };
+    }
+    
+    my $content;
+    eval {
+        my $res  = $self->agent->post($server.'/_search', Content => $self->json->encode($postJSON));
+        $content = $self->json->decode($res->content);
+    };
+    if ($@ || (! ref($content))) {
+        return undef, $@;
+    } elsif (exists $content->{error}) {
+        if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
+            $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}}, $content->{status} );
+        } else {
+            $self->return_data( {"ERROR" => "Invalid Elastic Search return response"}, 500 );
+        }
     } else {
-      for (my $i=0; $i<scalar(@{$query->{$q}->{entries}}); $i++) {
-	if ($query->{$q}->{type} eq 'boolean') {
-	  if ($query->{$q}->{entries}->[$i]) {
-	    $query->{$q}->{entries}->[$i] = JSON::true;
-	  } else {
-	    $query->{$q}->{entries}->[$i] = JSON::false;
-	  }
-	}
-	$query->{$q}->{entries}->[$i] = $query->{$q}->{entries}->[$i];
-	push(@$qs, $query->{$q}->{entries}->[$i]);
-      }
-      if (scalar(@$qs)) {
-	push(@{$postJSON->{query}->{"bool"}->{"must"}}, { "query_string" => { "default_field" => $q, "query" => join(' ', @$qs) } });
-      }
+        return $content;
     }
-  }
-
-  if (! scalar(@{$postJSON->{query}->{"bool"}->{"should"}})) {
-    delete $postJSON->{query}->{"bool"}->{"should"};
-    delete $postJSON->{query}->{"bool"}->{"minimum_should_match"};
-  }
-  if (! scalar(@{$postJSON->{query}->{"bool"}->{"filter"}})) {
-    delete $postJSON->{query}->{"bool"}->{"filter"};
-  }
-  if (! scalar(@{$postJSON->{query}->{"bool"}->{"must"}})) {
-    delete $postJSON->{query}->{"bool"}->{"must"};
-  }
-  
-  my $content;
-  eval {
-      my $res  = $self->agent->post($server.'/_search', Content => $self->json->encode($postJSON));
-      $content = $self->json->decode($res->content);
-  };
-  if ($@ || (! ref($content))) {
-    return undef, $@;
-  } elsif (exists $content->{error}) {
-      if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
-          $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}}, $content->{status} );
-      } else {
-          $self->return_data( {"ERROR" => "Invalid Elastic Search return response"}, 500 );
-      }
-  } else {
-    return $content;
-  }
 }
 
 sub get_solr_query {
@@ -3282,7 +3350,6 @@ sub jsonTypecast {
         $val =~ s/^\s+//;
         $val =~ s/\s+$//;
         $val =~ s/\s+/ /g;
-        $val = lc($val);
     } elsif (($type eq 'integer') || ($type eq 'long')) {
         if ($val =~ /^[+-]?\d+$/) {
             $val = int($val);
