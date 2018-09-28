@@ -693,10 +693,10 @@ sub submit {
             unless ($project_name) {
                 $project_name = $project_obj->{name};
             }
-        }
-        # make sure not public
-        if ($project_obj->public) {
-            $self->return_data( {"ERROR" => "This project is public. New metagenomes may not be added."}, 400 );
+            # make sure not public
+            if ($project_obj->public) {
+                $self->return_data( {"ERROR" => "This project is public. New metagenomes may not be added."}, 400 );
+            }
         }
     }
     # make project
