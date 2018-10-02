@@ -301,8 +301,8 @@ sub query {
     if ( $self->user ) {
         # admin user, get all or filter non-public
         if ( $self->user->has_star_right('view', 'metagenome') ) {
-            if ( ! $get_public ) {
-                push( @$filters, [ "job_info_public", [ JSON::false ] ] );
+            if ( $get_public ) {
+                push( @$filters, [ "job_info_public", [ JSON::true ] ] );
             }
         }
         # reuglar user, filter by id and public
