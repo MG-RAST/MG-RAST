@@ -84,6 +84,7 @@
                 "[% job_id %].080.adapter.trim.passed.[% file_format %]": {
                     "host": "[% shock_url %]",
                     "node": "-",
+                    "shockindex": "record",
                     "attrfile": "userattr.json"
                 }
             },
