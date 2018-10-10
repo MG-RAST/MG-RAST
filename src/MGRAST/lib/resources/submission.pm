@@ -424,6 +424,13 @@ sub list {
 sub status {
     my ($self, $uuid) = @_;
     
+    my $response = {
+        id         => $uuid,
+        user       => $self->user ? 'mgu'.$self->user->_id : 'public',
+        error      => undef,
+        timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+    };
+    
     # public for ebi submissions only
     if (! $self->user) {
         my $ebi_submit = undef;
@@ -442,12 +449,6 @@ sub status {
     }
     
     my $full = $self->cgi->param('full') ? 1 : 0;
-    my $response = {
-        id         => $uuid,
-        user       => 'mgu'.$self->user->_id,
-        error      => undef,
-        timestamp  => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
-    };
     my $is_admin = $self->user->is_admin('MGRAST') ? 1 : 0;
     
     # is it a project ID ?
@@ -1117,7 +1118,7 @@ sub ebi_submission_status {
     }
     
     # if one errored return that
-    my $job_pos = -1;
+    $job_pos = -1;
     foreach my $job (@$jobs) {
         $job_pos += 1;
         if ($job->{error} && ref($job->{error})) {
