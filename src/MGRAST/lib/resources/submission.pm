@@ -206,14 +206,15 @@ sub info {
 # Override parent request function
 sub request {
     my ($self) = @_;
+    if (($self->method eq 'GET') && ($self->rest->[0] ne 'list')) {
+        $self->status($self->rest->[0]);
+    }
     # must have auth
     if ($self->user) {
         if (scalar(@{$self->rest}) == 0) {
             $self->info();
         } elsif ($self->rest->[0] eq 'list') {
             $self->list();
-        } elsif ($self->method eq 'GET') {
-            $self->status($self->rest->[0]);
         } elsif ($self->method eq 'DELETE') {
             $self->delete($self->rest->[0]);
         } elsif (($self->method eq 'POST') && ($self->rest->[0] eq 'submit')) {
@@ -422,6 +423,23 @@ sub list {
 
 sub status {
     my ($self, $uuid) = @_;
+    
+    # public for ebi submissions only
+    if (! $self->user) {
+        my $ebi_submit = undef;
+        # is it a project ID ?
+        if ($uuid =~ /^mgp\d+$/) {
+            $ebi_submit = $self->is_ebi_submission(undef, $uuid);
+        } else {
+            $ebi_submit = $self->is_ebi_submission($uuid);
+        }
+        if ($ebi_submit) {
+            my $ebi_response = $self->ebi_submission_status($ebi_submit, $response);
+            $self->return_data($ebi_response);
+        }
+    } else {
+        $self->info();
+    }
     
     my $full = $self->cgi->param('full') ? 1 : 0;
     my $response = {
