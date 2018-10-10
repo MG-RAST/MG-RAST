@@ -206,14 +206,15 @@ sub info {
 # Override parent request function
 sub request {
     my ($self) = @_;
+    if (scalar(@{$self->rest}) == 0) {
+        $self->info();
+    }
     if (($self->method eq 'GET') && ($self->rest->[0] ne 'list')) {
         $self->status($self->rest->[0]);
     }
     # must have auth
     if ($self->user) {
-        if (scalar(@{$self->rest}) == 0) {
-            $self->info();
-        } elsif ($self->rest->[0] eq 'list') {
+        if ($self->rest->[0] eq 'list') {
             $self->list();
         } elsif ($self->method eq 'DELETE') {
             $self->delete($self->rest->[0]);
@@ -444,7 +445,6 @@ sub status {
             my $ebi_response = $self->ebi_submission_status($ebi_submit, $response);
             $self->return_data($ebi_response);
         }
-    } else {
         $self->info();
     }
     
@@ -1092,7 +1092,6 @@ sub ebi_submission_status {
         if ($job->{state} eq 'completed') {
             $has_complete = 1;
             ($text, $err) = $self->get_shock_file($job->{tasks}[0]{outputs}[0]{node}, undef, $self->mgrast_token);
-            
             if ($err) {
                 next;
             }
@@ -1106,9 +1105,8 @@ sub ebi_submission_status {
             }
         }
     }
-    if ($has_complete && (! $info)) {
+    if ($has_complete && (! %$info)) {
         # completed job but no sucess, return reciept error
-        
         $info->{status} = 'error';
         if ($receipt) {
             $info->{error}   = $receipt->{error};
