@@ -1092,6 +1092,7 @@ sub ebi_submission_status {
         if ($job->{state} eq 'completed') {
             $has_complete = 1;
             ($text, $err) = $self->get_shock_file($job->{tasks}[0]{outputs}[0]{node}, undef, $self->mgrast_token);
+            
             if ($err) {
                 next;
             }
@@ -1107,6 +1108,7 @@ sub ebi_submission_status {
     }
     if ($has_complete && (! $info)) {
         # completed job but no sucess, return reciept error
+        
         $info->{status} = 'error';
         if ($receipt) {
             $info->{error}   = $receipt->{error};
@@ -1118,20 +1120,22 @@ sub ebi_submission_status {
     }
     
     # if one errored return that
-    $job_pos = -1;
-    foreach my $job (@$jobs) {
-        $job_pos += 1;
-        if ($job->{error} && ref($job->{error})) {
-            $has_error = 1;
-            $info->{status} = $job->{error}{status};
-            if ($job->{error}{apperror}) {
-                $info->{error} = $job->{error}{apperror};
-            } elsif ($job->{error}{worknotes}) {
-                $info->{error} = $job->{error}{worknotes};
-            } else {
-                $info->{error} = $job->{error}{servernotes};
+    if (! $has_complete) {
+        $job_pos = -1;
+        foreach my $job (@$jobs) {
+            $job_pos += 1;
+            if ($job->{error} && ref($job->{error})) {
+                $has_error = 1;
+                $info->{status} = $job->{error}{status};
+                if ($job->{error}{apperror}) {
+                    $info->{error} = $job->{error}{apperror};
+                } elsif ($job->{error}{worknotes}) {
+                    $info->{error} = $job->{error}{worknotes};
+                } else {
+                    $info->{error} = $job->{error}{servernotes};
+                }
+                last;
             }
-            last;
         }
     }
     
@@ -1142,7 +1146,9 @@ sub ebi_submission_status {
     }
     
     # update response
-    @{$response}{keys %$info} = values %$info;
+    foreach my $key (keys %$info) {
+        $response->{$key} = $info->{$key};
+    }
     $response->{metagenomes} = $jobs->[$job_pos]{info}{userattr}{metagenomes} ? $jobs->[$job_pos]{info}{userattr}{metagenomes} * 1 : undef;
     $response->{project} = $jobs->[$job_pos]{info}{name} || undef;
     $response->{id} = $jobs->[$job_pos]{info}{userattr}{submission} || undef;
