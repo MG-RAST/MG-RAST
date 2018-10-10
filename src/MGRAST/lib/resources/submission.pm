@@ -966,7 +966,7 @@ sub is_ebi_submission {
     
     my $ebi_jobs = $self->get_awe_query($ebi_query, $self->mgrast_token);
     if ($ebi_jobs->{data} && (scalar(@{$ebi_jobs->{data}}) > 0)) {
-        return $ebi_jobs->{data}[0];
+        return $ebi_jobs->{data};
     } else {
         return undef;
     }
@@ -1058,41 +1058,75 @@ sub parse_submit_output {
 }
 
 sub ebi_submission_status {
-    my ($self, $job, $response) = @_;
-    
-    if ($job->{error} && ref($job->{error})) {
-        $response->{status} = $job->{error}{status};
-        if ($job->{error}{apperror}) {
-            $response->{error} = $job->{error}{apperror};
-        } elsif ($job->{error}{worknotes}) {
-            $response->{error} = $job->{error}{worknotes};
-        } else {
-            $response->{error} = $job->{error}{servernotes};
-        }
-    } elsif ($job->{state} eq 'completed') {
-        $response->{status} = 'completed';
-        # get / parse receipt
-        my ($text, $err) = $self->get_shock_file($job->{tasks}[0]{outputs}[0]{node}, undef, $self->mgrast_token);
-        if ($err) {
-            $response->{error} = $err
-        } else {
-            my $receipt = $self->parse_ebi_receipt($text);
+    my ($self, $jobs, $response) = @_;
+
+    my $info = {};
+    my $receipt = {};
+    my $job_pos = -1;
+    my $has_complete = 0;
+    my $has_error = 0;
+    my ($text, $err);
+
+    # if one completed return that
+    foreach my $job (@$jobs) {
+        $job_pos += 1;
+        if ($job->{state} eq 'completed') {
+            $has_complete = 1;
+            ($text, $err) = $self->get_shock_file($job->{tasks}[0]{outputs}[0]{node}, undef, $self->mgrast_token);
+            if ($err) {
+                next;
+            }
+            $receipt = $self->parse_ebi_receipt($text);
             if ($receipt->{success} eq 'true') {
-                $response->{receipt} = $receipt;
+                $info->{status} = 'completed';
+                $info->{receipt} = $receipt;
+                last;
             } else {
-                $response->{status}  = 'error';
-                $response->{error}   = $receipt->{error};
-                $response->{message} = $receipt->{info};
-                $response->{receipt} = $job->{tasks}[0]{outputs}[0]{node};
+                next;
             }
         }
-    } else {
-        $response->{status} = 'in-progress';
+    }
+    if ($has_complete && (! $info)) {
+        # completed job but no sucess, return reciept error
+        $info->{status} = 'error';
+        if ($receipt) {
+            $info->{error}   = $receipt->{error};
+            $info->{message} = $receipt->{info};
+            $info->{receipt} = $jobs->[$job_pos]{tasks}[0]{outputs}[0]{node};
+        } else {
+            $info->{error} = $err;
+        }
     }
     
-    $response->{metagenomes} = $job->{info}{userattr}{metagenomes} ? $job->{info}{userattr}{metagenomes} * 1 : undef;
-    $response->{project} = $job->{info}{name} || undef;
-    $response->{id} = $job->{info}{userattr}{submission} || undef;
+    # if one errored return that
+    my $job_pos = -1;
+    foreach my $job (@$jobs) {
+        $job_pos += 1;
+        if ($job->{error} && ref($job->{error})) {
+            $has_error = 1;
+            $info->{status} = $job->{error}{status};
+            if ($job->{error}{apperror}) {
+                $info->{error} = $job->{error}{apperror};
+            } elsif ($job->{error}{worknotes}) {
+                $info->{error} = $job->{error}{worknotes};
+            } else {
+                $info->{error} = $job->{error}{servernotes};
+            }
+            last;
+        }
+    }
+    
+    # default in-progress
+    if (! $has_error) {
+        $job_pos = 0;
+        $info->{status} = 'in-progress';
+    }
+    
+    # update response
+    @{$response}{keys %$info} = values %$info;
+    $response->{metagenomes} = $jobs->[$job_pos]{info}{userattr}{metagenomes} ? $jobs->[$job_pos]{info}{userattr}{metagenomes} * 1 : undef;
+    $response->{project} = $jobs->[$job_pos]{info}{name} || undef;
+    $response->{id} = $jobs->[$job_pos]{info}{userattr}{submission} || undef;
     return $response;
 }
 
