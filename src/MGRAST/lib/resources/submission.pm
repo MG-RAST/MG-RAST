@@ -1117,7 +1117,7 @@ sub ebi_submission_status {
     }
     
     # default in-progress
-    if (! $has_error) {
+    if ((! $has_error) && (! $has_complete)) {
         $job_pos = 0;
         $info->{status} = 'in-progress';
     }
