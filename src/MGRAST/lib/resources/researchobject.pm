@@ -207,7 +207,7 @@ sub manifest {
             "folder" => "/snapshot/DBs",
             "filename" => "getpredata.sh"
         }
-    }
+    };
     
     # set tools / sub-workflows
     my $packed = $self->get_url_content($workflowurl);
