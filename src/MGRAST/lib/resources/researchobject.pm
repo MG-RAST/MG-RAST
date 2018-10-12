@@ -178,6 +178,16 @@ sub manifest {
     if (! $assembeled) {
         $workflow .= "-".$informat
     }
+    my $inputjob = $workflow.".job.yaml";
+    my $inputjoburl = $self->{cwl_url}."/Workflow/".$inputjob;
+    push @{$manifest->{aggregates}}, {
+        "uri" => $inputjoburl,
+        "mediatype" => "text/yaml; charset=\"UTF-8\"",
+        "bundledAs" => {
+            "folder" => "/snapshot/",
+            "filename" => $inputjob
+        }
+    };
     $workflow .= ".workflow.cwl";
     my $workflowurl = $self->{cwl_url}."/PackedWorkflow/".$workflow;
     push @{$manifest->{aggregates}}, {
