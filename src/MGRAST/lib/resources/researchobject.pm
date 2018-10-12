@@ -175,12 +175,15 @@ sub manifest {
         }
     };
     
-    # set tools
+    # set tools / sub-workflows
     my $packed = $self->get_url_content($workflowurl);
     foreach my $obj (@{$packed->{'$graph'}}) {
         my $dir = "";
         my $name = $obj->{'id'};
         $name =~ tr/#//d;
+        if ($name eq 'main') {
+            next;
+        }
         if ($obj->{'class'} eq 'CommandLineTool') {
             $dir = "Tools";
         } elsif ($obj->{'class'} eq 'Workflow') {
