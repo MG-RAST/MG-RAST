@@ -205,7 +205,7 @@ sub get_url_content {
     
     my $content = "";
     eval {
-        my $get = $self->agent->get();
+        my $get = $self->agent->get($url);
         $content = $self->json->decode( $get->content );
     };
     return $content;
