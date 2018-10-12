@@ -60,8 +60,8 @@ sub info {
                 'parameters' => { 'options' => {}, 'required' => {}, 'body' => {} }
             },
             {
-                'name'        => "instance",
-                'request'     => $self->url."/".$self->name."/{id}",
+                'name'        => "manifest",
+                'request'     => $self->url."/".$self->name."/manifest/{id}",
                 'description' => "Returns a single manifest object.",
                 'method'      => "GET",
                 'type'        => "synchronous",
@@ -72,43 +72,56 @@ sub info {
                     'body'     => {}
                 }
             }
-        }
+        ]
     };
     
     $self->return_data($content);
 }
 
-# the resource is called with an id parameter
-sub instance {
+# Override parent request function
+sub request {
     my ($self) = @_;
+    # determine sub-module to use
+    if (scalar(@{$self->rest}) == 0) {
+        $self->info();
+    } elsif ($self->rest->[0] eq 'manifest') {
+        $self->manifest($self->rest->[1]);
+    } else {
+        $self->info();
+    }
+}
+
+
+# the resource is called with an id parameter
+sub manifest {
+    my ($self, $in_id) = @_;
     
     $self->json->utf8();
     
     # get database
     my $master = $self->connect_to_datasource();
-    my $rest = $self->rest;
     
     # check id format
-    my $tempid = $self->idresolve($rest->[0]);
+    my $tempid = $self->idresolve($in_id);
     my (undef, $id) = $tempid =~ /^(mgm)?(\d+\.\d+)$/;
-    if ((! $id) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+    if (! $id) {
+        $self->return_data( {"ERROR" => "invalid id format: ".$in_id}, 400 );
     }
 
     # get data
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        $self->return_data( {"ERROR" => "id $id does not exist"}, 404 );
+        $self->return_data( {"ERROR" => "id $in_id does not exist"}, 404 );
     }
     $job = $job->[0];
     
     unless ($job->viewable) {
-        $self->return_data( {"ERROR" => "id $restid is still processing and unavailable"}, 404 );
+        $self->return_data( {"ERROR" => "id $in_id is still processing and unavailable"}, 404 );
     }
     
     # create manifest
     my $manifest = {
-        "id" => $rest->[0],
+        "id" => $in_id,
         "manifest" => "manifest.json",
         "createdOn" => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
         "createdBy" => {
