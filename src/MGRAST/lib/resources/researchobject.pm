@@ -118,18 +118,30 @@ sub manifest {
     unless ($job->viewable) {
         $self->return_data( {"ERROR" => "id $in_id is still processing and unavailable"}, 404 );
     }
+    # check rights
+    unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
+        $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
+    }
     
     # create manifest
     my $manifest = {
-        "id" => $in_id,
+        '@context' => [
+            { '@base' => "/metadata/" },
+            "https://w3id.org/bundle/context"
+        ],
+        "id" => '/',
         "manifest" => "manifest.json",
         "createdOn" => strftime("%Y-%m-%dT%H:%M:%S", gmtime),
         "createdBy" => {
             "uri" => $self->url,
             "name" => "MG-RAST"
         },
+        "retrievedFrom" => $self->url."/".$self->name."/manifest/".$in_id,
         "aggregates" => []
     };
+    if ($self->user) {
+        $manifest->{"retrievedBy"} = 'mgu'.$self->user->_id;
+    }
     
     # set files
     my $jdata   = $job->data;
@@ -142,9 +154,10 @@ sub manifest {
         if (exists $set->{url}) {
             push @{$manifest->{aggregates}}, {
                 "uri" => $set->{url},
+                "mediatype" => "text/plain; charset=\"UTF-8\"",
                 "bundledAs" => {
-                    "folder" => "data",
-                    "file" => $set->{file_name}
+                    "folder" => "/data/",
+                    "filename" => $set->{file_name}
                 }
             };
         }
@@ -169,9 +182,10 @@ sub manifest {
     my $workflowurl = $self->{cwl_url}."/PackedWorkflow/".$workflow;
     push @{$manifest->{aggregates}}, {
         "uri" => $workflowurl,
+        "mediatype" => "application/json",
         "bundledAs" => {
-            "folder" => "workflow",
-            "file" => $workflow
+            "folder" => "/workflow/",
+            "filename" => $workflow
         }
     };
     
@@ -192,9 +206,11 @@ sub manifest {
         if ($dir) {
             push @{$manifest->{aggregates}}, {
                 "uri" => $self->{cwl_url}."/".$dir."/".$name,
+                "mediatype" => "text/x+yaml; charset=\"UTF-8\"",
+                "conformsTo" => "https://w3id.org/cwl/",
                 "bundledAs" => {
-                    "folder" => "snapshot",
-                    "file" => $name
+                    "folder" => "/snapshot/",
+                    "filename" => $name
                 }
             };
         }
