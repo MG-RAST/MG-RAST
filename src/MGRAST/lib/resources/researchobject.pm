@@ -135,10 +135,10 @@ sub manifest {
     my $jdata   = $job->data;
     my $version = $jdata->{pipeline_version} || $self->{default_pipeline_version};
     my ($setlist, $skip) = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
-    $setlist = $self->fix_download_filenames($setlist, $restid);
+    $setlist = $self->fix_download_filenames($setlist, $in_id);
     $setlist = $self->clean_setlist($setlist, $job);
     
-    foreach my $set (@$stelist) {
+    foreach my $set (@$setlist) {
         if (exists $set->{url}) {
             push @{$manifest->{aggregates}}, {
                 "uri" => $set->{url},
@@ -188,7 +188,7 @@ sub manifest {
         }
         if ($dir) {
             push @{$manifest->{aggregates}}, {
-                "uri" => $self->{cwl_url}."/".$dir."/".$name;
+                "uri" => $self->{cwl_url}."/".$dir."/".$name,
                 "bundledAs" => {
                     "folder" => "snapshot",
                     "file" => $name
