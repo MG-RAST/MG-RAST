@@ -179,7 +179,7 @@ sub manifest {
         $workflow .= "-".$informat
     }
     my $inputjob = $workflow.".job.yaml";
-    my $inputjoburl = $self->{cwl_url}."/Workflow/".$inputjob;
+    my $inputjoburl = $self->{cwl_url}."/Workflows/".$inputjob;
     push @{$manifest->{aggregates}}, {
         "uri" => $inputjoburl,
         "mediatype" => "text/yaml; charset=\"UTF-8\"",
