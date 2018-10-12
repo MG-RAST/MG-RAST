@@ -199,6 +199,16 @@ sub manifest {
         }
     };
     
+    # predata download script
+    push @{$manifest->{aggregates}}, {
+        "uri" => $self->{cwl_url}."/Inputs/DBs/getpredata.sh",
+        "mediatype" => "application/x-sh",
+        "bundledAs" => {
+            "folder" => "/snapshot/DBs",
+            "filename" => "getpredata.sh"
+        }
+    }
+    
     # set tools / sub-workflows
     my $packed = $self->get_url_content($workflowurl);
     foreach my $obj (@{$packed->{'$graph'}}) {
