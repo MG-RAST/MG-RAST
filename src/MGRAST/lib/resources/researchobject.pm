@@ -25,7 +25,7 @@ sub new {
         "createdBy" => [ 'object', [ {
             'uri' => [ 'uri', 'location of this object creator' ],
             'name' => [ 'string', 'name of this object creator' ]
-        ]]},
+        }]],
         "aggregates" => [ 'list', [ 'object', [{
             'uri' => [ 'uri', 'location of file in manifest' ],
             'bundledAs' => [ 'object', [ {
