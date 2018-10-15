@@ -297,21 +297,15 @@ sub query {
         
     # get filters
     my $filters = [];
-    my $get_public = ($public && (($public eq "1") || ($public eq "true") || ($public eq "yes"))) ? 1 : 0;
+    my $no_pub = ($public && (($public eq "1") || ($public eq "true") || ($public eq "yes"))) ? 0 : 1;
     if ( $self->user ) {
-        # admin user, get all or filter non-public
-        if ( $self->user->has_star_right('view', 'metagenome') ) {
-            if ( $get_public ) {
-                push( @$filters, [ "job_info_public", [ JSON::true ] ] );
-            }
-        }
-        # reuglar user, filter by id and public
-        else {
+        # not admin user, filter by id
+        unless ( $self->user->has_star_right('view', 'metagenome') ) {
             my @pids = map { "mgp".$_ } @{ $self->user->has_right_to(undef, 'view', 'project') };
             if ( scalar(@pids) ) {
                 push( @$filters, [ "project_project_id", [ @pids ] ] );
             }
-            if ( $get_public ) {
+            unless ( $no_pub ) {
                 push( @$filters, [ "job_info_public", [ JSON::true ] ] );
             }
         }
@@ -319,10 +313,11 @@ sub query {
     # no user, filter by only public
     else {
         push( @$filters, [ "job_info_public", [ JSON::true ] ] );
+        $no_pub = 0;
     }
     
     my $es_url = $Conf::es_host."/".$index."/metagenome";
-    my ($data, $error) = $self->get_elastic_query($es_url, $queries, $self->{fields}{$order}, $no_scr, $dir, $match, $after, $limit, $filters, $debug);
+    my ($data, $error) = $self->get_elastic_query($es_url, $queries, $self->{fields}{$order}, $no_scr, $dir, $match, $after, $limit, $filters, $no_pub, $debug);
 
     if ($debug) {
         $self->return_data( $data, 200 );

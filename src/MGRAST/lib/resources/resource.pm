@@ -2304,7 +2304,7 @@ sub unique_concat {
 }
 
 sub get_elastic_query {
-    my ($self, $server, $queries, $order, $no_scr, $dir, $match, $after, $limit, $ins, $debug) = @_;
+    my ($self, $server, $queries, $order, $no_scr, $dir, $match, $after, $limit, $filters, $no_pub, $debug) = @_;
 
     my $opr = ($match eq 'any') ? 'or' : 'and';
     my $postJSON = {
@@ -2329,11 +2329,16 @@ sub get_elastic_query {
     }
     
     # filter for project ids and public status (not scored)
-    if ($ins) {
-        foreach my $in (@$ins) {
-            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$in->[0] => $in->[1]} });
+    if ($filters) {
+        foreach my $f (@$filters) {
+            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$f->[0] => $f->[1]} });
         }
     }
+    
+    # do not return public data
+    $postJSON->{"query"}{"bool"}{"must_not"} = {[{
+        "term" => { "job_info_public" => JSON::true }
+    }]};
 
     # must for query terms (scored)
     foreach my $q (@$queries) {
