@@ -2336,9 +2336,9 @@ sub get_elastic_query {
     }
     
     # do not return public data
-    $postJSON->{"query"}{"bool"}{"must_not"} = {[{
+    $postJSON->{"query"}{"bool"}{"must_not"} = [{
         "term" => { "job_info_public" => JSON::true }
-    }]};
+    }];
 
     # must for query terms (scored)
     foreach my $q (@$queries) {
