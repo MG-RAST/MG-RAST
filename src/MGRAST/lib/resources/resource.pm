@@ -1021,6 +1021,55 @@ sub fix_download_filename {
     return $fname
 }
 
+sub clean_setlist {
+    my ($self, $setlist, $job) = @_;
+    
+    my $has_human = $self->has_human($setlist, $job);
+    if (! $has_human) {
+        return $setlist;
+    }
+    
+    foreach my $set (@$setlist) {
+        my $stage_id = int($set->{stage_id});
+        if ($stage_id < 200) {
+            if (exists $set->{node_id}) {
+                delete $set->{node_id};
+            }
+            if (exists $set->{url}) {
+                delete $set->{url};
+            }
+        }
+    }
+    
+    return $setlist;
+}
+
+sub has_human {
+    my ($self, $setlist, $job) = @_;
+    
+    if (($job->sequence_type ne 'WGS') && ($job->sequence_type ne 'MT')) {
+        return 0;
+    }
+    
+    my $jdata = $job->data;
+    if (exists($jdata->{screen_indexes}) && ($jdata->{screen_indexes} =~ /h_sapiens/)) {
+        my $dpass = 0;
+        my $spass = 0;
+        foreach my $set (@$setlist) {
+            if (($set->{stage_name} eq "dereplication.passed") && exists($set->{statistics})) {
+                $dpass = $set->{statistics}{sequence_count} || 0;
+            }
+            if (($set->{stage_name} eq "screen.passed") && exists($set->{statistics})) {
+                $spass = $set->{statistics}{sequence_count} || 0;
+            }
+        }
+        if ($dpass && $spass && ($spass < $dpass)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 # add or delete an ACL based on username
 sub edit_shock_acl {
     my ($self, $id, $auth, $user, $action, $acl, $authPrefix) = @_;
@@ -2255,7 +2304,7 @@ sub unique_concat {
 }
 
 sub get_elastic_query {
-    my ($self, $server, $queries, $order, $no_scr, $dir, $match, $after, $limit, $ins, $debug) = @_;
+    my ($self, $server, $queries, $order, $no_scr, $dir, $match, $after, $limit, $filters, $no_pub, $debug) = @_;
 
     my $opr = ($match eq 'any') ? 'or' : 'and';
     my $postJSON = {
@@ -2280,10 +2329,17 @@ sub get_elastic_query {
     }
     
     # filter for project ids and public status (not scored)
-    if ($ins) {
-        foreach my $in (@$ins) {
-            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$in->[0] => $in->[1]} });
+    if ($filters) {
+        foreach my $f (@$filters) {
+            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$f->[0] => $f->[1]} });
         }
+    }
+    
+    # do not return public data
+    if ($no_pub) {
+        $postJSON->{"query"}{"bool"}{"must_not"} = [{
+            "term" => { "job_info_public" => JSON::true }
+        }];
     }
 
     # must for query terms (scored)
