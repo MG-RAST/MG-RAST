@@ -143,7 +143,7 @@ sub instance {
     }
 
     # create and upsert
-    my $post  = $self->get_post_data();
+    my $post  = $self->get_post_data(['debug', 'index'. 'type', 'function', 'taxonomy']);
     my $debug = $post->{'debug'} ? 1 : 0;
     my $index = $post->{'index'} || "metagenome_index";
     my $type  = $post->{'type'}  || "metadata";
