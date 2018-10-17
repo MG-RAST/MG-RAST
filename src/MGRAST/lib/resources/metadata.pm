@@ -760,6 +760,7 @@ sub process_file {
 
     # run different actions
     if ($type eq 'validate') {
+        $self->json->utf8();
         if ($is_valid) {
             delete $md_obj->{is_valid};
             $data = {is_valid => 1, message => undef, metadata => $md_obj};
