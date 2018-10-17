@@ -765,7 +765,11 @@ sub process_file {
             delete $md_obj->{is_valid};
             $data = {is_valid => 1, message => undef, metadata => $md_obj};
         } else {
-            $data = {is_valid => 0, message => $log, errors => $md_obj->{data}};
+            if (@{$md_obj->{data}} > 0) {
+                $data = {is_valid => 0, message => "", errors => $md_obj->{data}};
+            } else {
+                $data = {is_valid => 0, message => $log, errors => []};
+            }
         }
     } elsif (($type eq 'import') || ($type eq 'update')) {
         unless ($is_valid) {
