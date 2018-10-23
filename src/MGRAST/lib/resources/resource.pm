@@ -2008,6 +2008,18 @@ sub cassandra_matrix {
     return Inline::Python::Object->new('__main__', 'Matrix', $hosts, $version);
 }
 
+sub cassandra_m5nr {
+    my ($self, $version) = @_;
+    
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($version && $hosts && (@$hosts > 0)) {
+        return undef;
+    }
+    my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from m5nr import M5nrUpload|;
+    py_eval($import);
+    return Inline::Python::Object->new('__main__', 'M5nrUpload', $hosts, $version);
+}
+
 sub delete_from_elasticsearch {
     # returns boolean, success or failure
     my ($self, $mgid) = @_;
