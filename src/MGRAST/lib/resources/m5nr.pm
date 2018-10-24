@@ -8,7 +8,7 @@ use List::Util qw(first);
 use List::MoreUtils qw(any uniq);
 use URI::Escape;
 use Digest::MD5;
-use POSIX qw(strftime)
+use POSIX qw(strftime);
 
 use Conf;
 use parent qw(resources::resource);
