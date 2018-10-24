@@ -749,7 +749,7 @@ sub cassandra {
         return $self->return_data({"ERROR", "missing or invalid version number"}, 404);
     }
     
-    my $m5nrcass = $self->cassandra_m5nr($version)
+    my $m5nrcass = $self->cassandra_m5nr($version);
     unless ($m5nrcass) {
         $self->return_data({"ERROR" => "unable to connect to M5NR database"}, 500);
     }
