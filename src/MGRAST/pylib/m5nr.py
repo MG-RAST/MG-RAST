@@ -44,7 +44,7 @@ class M5nrUpload(object):
         return ""
     
     def createNewM5nr(self):
-        rows = self.session.execute("SELECT %s FROM system_schema.keyspaces", (self.keyspace,))
+        rows = self.session.execute("SELECT keyspace_name FROM system_schema.keyspaces")
         if self.keyspace in [row[0] for row in rows]:
             return "unable to complete: a keyspace already exists for the given M5NR version number"
         
