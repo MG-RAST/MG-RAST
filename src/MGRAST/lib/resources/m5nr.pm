@@ -420,7 +420,7 @@ sub request {
     } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && ($self->method eq 'GET')) {
         $self->query($self->rest->[0], $self->rest->[1]);
     } elsif ((scalar(@{$self->rest}) > 1) && ($self->rest->[0] eq 'cassandra') && ($self->method eq 'POST')) {
-        self->cassandra($self->rest->[1]);
+        $self->cassandra($self->rest->[1]);
     } elsif ((scalar(@{$self->rest}) == 1) && ($self->method eq 'POST')) {
         $self->query($self->rest->[0]);
     } else {
