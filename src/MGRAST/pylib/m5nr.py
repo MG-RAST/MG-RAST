@@ -44,7 +44,7 @@ class M5nrUpload(object):
             batch.add(insert, tuple(row))
         try:
             self.session.execute(batch)
-        except:
+        except Exception as ex:
             return "unable to insert data: an exception of type {0} occured. Arguments:\n{1!r}".format(type(ex).__name__, ex.args)
         return ""
     
@@ -61,7 +61,7 @@ class M5nrUpload(object):
                 """ %(self.keyspace)
             )
             self.session.set_keyspace(self.keyspace)
-        except:
+        except Exception as ex:
             return "unable to create keyspace: an exception of type {0} occured. Arguments:\n{1!r}".format(type(ex).__name__, ex.args)
         
         try:    
