@@ -8,8 +8,8 @@ class M5nrUpload(object):
         self.session = cass_connection.create(hosts).connect()
         self.session.default_timeout = 300
         self.inserts = {
-            "annotation.midx"  : "INSERT INTO midx_annotation (md5, source, is_protein, single, accession, function, organism) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            "annotation.md5"   : "INSERT INTO md5_annotation (md5, source, is_protein, single, lca, accession, function, organism) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "annotation.midx"  : "INSERT INTO midx_annotation (md5, source, is_protein, single, accession, function, organism) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "annotation.md5"   : "INSERT INTO md5_annotation (md5, source, is_protein, single, lca, accession, function, organism) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             "functions"        : "INSERT INTO functions (id, name) VALUES (?, ?)",
             "ontology.all"     : "INSERT INTO ontologies (source, name, level1, level2, level3, level4) VALUES (?, ?, ?, ?, ?, ?)",
             "ontology.level1"  : "INSERT INTO ont_level1 (source, level1, name) VALUES (?, ?, ?)",
@@ -31,6 +31,11 @@ class M5nrUpload(object):
     
     def batchInsert(self, table, data):
         self.session.set_keyspace(self.keyspace)
+        
+        # fix booleans
+        if (table == "annotation.midx") or ($table == "annotation.md5"):
+            for i in range(len(data)):
+                data[i][2] = True if data[i][2] == 1 else False
         
         cmd = self.inserts[table]
         insert = self.session.prepare(cmd)

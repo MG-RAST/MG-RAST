@@ -760,7 +760,12 @@ sub cassandra {
     } elsif ($action eq 'insert') {
         my $table = $post->{'table'} || undef;
         my $data  = $post->{'data'} || [];
-        
+        # fix boolean
+        if (($table eq "annotation.midx") || ($table eq "annotation.md5")) {
+            for ($i = 0; $i < scalar(@$data); $i++) {
+                $data->[$i][2] = $data->[$i][2] ? 1 : 0;
+            }
+        }
         if ($table && (scalar(@$data) > 0)) {
             $error = $m5nrcass->batchInsert($table, $data);
         } else {
