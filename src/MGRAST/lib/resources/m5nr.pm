@@ -762,7 +762,7 @@ sub cassandra {
         my $data  = $post->{'data'} || [];
         # fix boolean
         if (($table eq "annotation.midx") || ($table eq "annotation.md5")) {
-            for ($i = 0; $i < scalar(@$data); $i++) {
+            for (my $i = 0; $i < scalar(@$data); $i++) {
                 $data->[$i][2] = $data->[$i][2] ? 1 : 0;
             }
         }
