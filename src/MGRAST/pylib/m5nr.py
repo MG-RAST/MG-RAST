@@ -8,8 +8,8 @@ class M5nrUpload(object):
         self.session = cass_connection.create(hosts).connect()
         self.session.default_timeout = 300
         self.inserts = {
-            "annotation.midx"  : "INSERT INTO midx_annotation (md5, source, is_protein, single, accesion, function, organism) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            "annotation.md5"   : "INSERT INTO md5_annotation (md5, source, is_protein, single, accesion, function, organism) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "annotation.midx"  : "INSERT INTO midx_annotation (md5, source, is_protein, single, accession, function, organism) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "annotation.md5"   : "INSERT INTO md5_annotation (md5, source, is_protein, single, accession, function, organism) VALUES (?, ?, ?, ?, ?, ?, ?)",
             "functions"        : "INSERT INTO functions (id, name) VALUES (?, ?)",
             "ontology.all"     : "INSERT INTO ontologies (source, name, level1, level2, level3, level4) VALUES (?, ?, ?, ?, ?, ?)",
             "ontology.level1"  : "INSERT INTO ont_level1 (source, level1, name) VALUES (?, ?, ?)",

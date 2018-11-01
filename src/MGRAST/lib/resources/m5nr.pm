@@ -762,7 +762,7 @@ sub cassandra {
         my $data  = $post->{'data'} || [];
         
         if ($table && (scalar(@$data) > 0)) {
-            $error = $self->batchInsert($table, $data);
+            $error = $m5nrcass->batchInsert($table, $data);
         } else {
             $m5nrcass->close();
             return $self->return_data({"ERROR", "missing required table and/or data"}, 404);
