@@ -33,7 +33,7 @@ class M5nrUpload(object):
         self.session.set_keyspace(self.keyspace)
         
         # fix booleans
-        if (table == "annotation.midx") or ($table == "annotation.md5"):
+        if (table == "annotation.midx") or (table == "annotation.md5"):
             for i in range(len(data)):
                 data[i][2] = True if data[i][2] == 1 else False
         
