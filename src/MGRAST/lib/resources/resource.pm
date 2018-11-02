@@ -567,6 +567,15 @@ sub get_post_data {
         };
         @data{ keys %$pdata } = values %$pdata;
     }
+    # get broken post data
+    if (scalar(keys %data) == 0) {
+        my $all_data = join(" ", $self->cgi->Vars);
+        my $pdata = {};
+        eval {
+            $pdata = $self->json->decode($all_data);
+        };
+        @data{ keys %$pdata } = values %$pdata;
+    }
     return \%data;
 }
 
