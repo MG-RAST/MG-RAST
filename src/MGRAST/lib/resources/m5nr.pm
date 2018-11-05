@@ -8,6 +8,7 @@ use List::Util qw(first);
 use List::MoreUtils qw(any uniq);
 use URI::Escape;
 use Digest::MD5;
+use POSIX qw(strftime);
 
 use Conf;
 use parent qw(resources::resource);
@@ -361,7 +362,47 @@ sub info {
          					                    },
       							                'required' => {},
       							                'options'  => {} }
-      				       }
+      				       },
+                           {
+                               'name'        => 'create',
+                               'request'     => $self->url."/".$self->name."/cassandra/create",
+                               'description' => "Create cassandra keyspace for new M5NR version, requires admin auth token",
+                               'method'      => "POST",
+                               'type'        => "synchronous",
+                               'attributes'  => {
+                                   'status' => ['string', 'status of action'],
+                                   'error'  => ['string', 'error message if any'],
+                                   'time'   => ['date', 'time action was completed']
+                               },
+                               'parameters' => {
+                                   'body' => {
+                                       'version' => ['integer', 'M5NR version']
+                                   },
+                                   'required' => {},
+                                   'options'  => {}
+                               }
+                           },
+                           {
+                               'name'        => 'insert',
+                               'request'     => $self->url."/".$self->name."/cassandra/insert",
+                               'description' => "Insert data into given cassandra table for new M5NR version, requires admin auth token",
+                               'method'      => "POST",
+                               'type'        => "synchronous",
+                               'attributes'  => {
+                                   'status' => ['string', 'status of action'],
+                                   'error'  => ['string', 'error message if any'],
+                                   'time'   => ['date', 'time action was completed']
+                               },
+                               'parameters' => {
+                                   'body' => {
+                                       'version' => ['integer', 'M5NR version'],
+                                       'table'   => ['string', 'table to insert into'],
+                                       'data'    => ['list', ['list', ['object', 'variable types for column insert']]]
+                                   },
+                                   'required' => {},
+                                   'options'  => {}
+                               }
+                           }
    				       ]
 		};
   $self->return_data($content);
@@ -378,6 +419,8 @@ sub request {
         $self->static($self->rest->[0]);
     } elsif ((scalar(@{$self->rest}) > 1) && $self->rest->[1] && ($self->method eq 'GET')) {
         $self->query($self->rest->[0], $self->rest->[1]);
+    } elsif ((scalar(@{$self->rest}) > 1) && ($self->rest->[0] eq 'cassandra') && ($self->method eq 'POST')) {
+        $self->cassandra($self->rest->[1]);
     } elsif ((scalar(@{$self->rest}) == 1) && ($self->method eq 'POST')) {
         $self->query($self->rest->[0]);
     } else {
@@ -692,6 +735,62 @@ sub query_annotation {
         $query .= '+AND+('.join('+OR+', map { 'md5%3A'.$_ } @$md5s).')';
     }
     return $self->get_solr_query($method, $Conf::m5nr_solr, $Conf::m5nr_collect.'_'.$version, $query, $sort, $offset, $limit, $fields);
+}
+
+sub cassandra {
+    my ($self, $action) = @_;
+    
+    unless ($self->user && $self->user->is_admin('MGRAST')) {
+        $self->info();
+    }
+    my $post = $self->get_post_data();
+    my $version = $post->{'version'} || undef;
+    unless ($version && ($version =~ /^\d+$/)) {
+        return $self->return_data({"ERROR", "missing or invalid version number"}, 404);
+    }
+    
+    my $m5nrcass = $self->cassandra_m5nr($version);
+    unless ($m5nrcass) {
+        $self->return_data({"ERROR" => "unable to connect to M5NR database"}, 500);
+    }
+    my $error = "";
+       
+    if ($action eq 'create') {
+        $error = $m5nrcass->createNewM5nr();
+    } elsif ($action eq 'insert') {
+        my $table = $post->{'table'} || undef;
+        my $data  = $post->{'data'} || [];
+        # fix boolean
+        if (($table eq "annotation.midx") || ($table eq "annotation.md5")) {
+            for (my $i = 0; $i < scalar(@$data); $i++) {
+                $data->[$i][2] = $data->[$i][2] ? 1 : 0;
+            }
+        }
+        if ($table && (scalar(@$data) > 0)) {
+            $error = $m5nrcass->batchInsert($table, $data);
+        } else {
+            $m5nrcass->close();
+            return $self->return_data({"ERROR", "missing required table and/or data"}, 404);
+        }
+    } else {
+        $m5nrcass->close();
+        return $self->return_data({"ERROR", "invalid request"}, 404);
+    }
+    $m5nrcass->close();
+    
+    if ($error) {
+        return $self->return_data({
+            'status' => 'failed',
+            'error'  => $error,
+            'time'   => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+        });
+    } else {
+        return $self->return_data({
+            'status' => 'success',
+            'error'  => '',
+            'time'   => strftime("%Y-%m-%dT%H:%M:%S", gmtime)
+        });
+    }
 }
 
 1;

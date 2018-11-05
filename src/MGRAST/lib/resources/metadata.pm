@@ -387,7 +387,7 @@ sub static {
 sub delete_ont {
     my ($self) = @_;
     
-    unless ($self->user->is_admin('MGRAST')) {
+    unless ($self->user && $self->user->is_admin('MGRAST')) {
         $self->info();
     }
     my $post = $self->get_post_data(["name", "version"]);
@@ -411,7 +411,7 @@ sub delete_ont {
 sub update {
     my ($self, $type) = @_;
     
-    unless ($self->user->is_admin('MGRAST')) {
+    unless ($self->user && $self->user->is_admin('MGRAST')) {
         $self->info();
     }
     my $data = { status => "", timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime) };
