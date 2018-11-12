@@ -246,10 +246,6 @@ sub query {
                 my @parts = split(/:/, $query);
                 $query = join(" ", @parts[1..$#parts]);
             }
-            # temp backwards compatability hack
-            if (($field eq "all") && ($index eq "metagenome_index")) {
-                $key = undef;
-            }
             push @$queries, {"field" => $key, "query" => $query, "type" => $type};
         }
     }

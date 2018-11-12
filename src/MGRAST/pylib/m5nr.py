@@ -39,13 +39,19 @@ class M5nrUpload(object):
         
         cmd = self.inserts[table]
         insert = self.session.prepare(cmd)
-        batch  = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
-        for row in data:
-            batch.add(insert, tuple(row))
-        try:
-            self.session.execute(batch)
-        except Exception as ex:
-            return "unable to insert data: an exception of type {0} occured. Arguments:\n{1!r}".format(type(ex).__name__, ex.args)
+        if len(data) == 1:
+            try:
+                self.session.execute(insert, data[0])
+            except Exception as ex:
+                return "unable to insert data: an exception of type {0} occured. Arguments:\n{1!r}".format(type(ex).__name__, ex.args)
+        else:
+            batch = cql.BatchStatement(consistency_level=cql.ConsistencyLevel.QUORUM)
+            for row in data:
+                batch.add(insert, tuple(row))
+            try:
+                self.session.execute(batch)
+            except Exception as ex:
+                return "unable to insert data: an exception of type {0} occured. Arguments:\n{1!r}".format(type(ex).__name__, ex.args)
         return ""
     
     def createNewM5nr(self):
