@@ -15,7 +15,7 @@ use WebConfig;
 
 use MGRAST::Metadata;
 use MGRAST::Analysis;
- 
+
 1;
 
 =pod
@@ -72,7 +72,7 @@ sub init {
   return 1;
 }
 
-=pod 
+=pod
 
 =item * B<output> ()
 
@@ -98,7 +98,7 @@ sub output {
 
   if ($id) {
     $html .= $application->component('project_ajax')->output();
-    
+
     my $jobdbm  = $application->data_handle('MGRAST');
     my $metadbm = MGRAST::Metadata->new->_handle();
     my $project = $jobdbm->Project->init({ id => $self->{project_id} });
@@ -106,29 +106,29 @@ sub output {
       $application->add_message('warning', "No project for ID:" . ($self->{project_id} || 'missing ID')  );
       return "";
     }
-    
+
     unless ($project->public || ($user and $user->has_right(undef, 'view', 'project', $project->id)) ) {
       $application->add_message('warning', "This is not a public project. You are lacking the rights to view this project.");
       my $should_have_right = "";
       if ($user) {
 	my $ua = $ENV{HTTP_USER_AGENT};
 	$ua =~ s/\s/\%20/g;
-	$should_have_right = "<br><p style='width: 800px;'>If you think this project should be public or you should be able to view it, please send us a message using this <a href='mailto:mg-rast\@mcs.anl.gov?subject=Access%20Privileges&amp;body=%0D%0A%0D%0A%0D%0A%0D%0A_____%0D%0A%0D%0Aproject%20id:%20".$self->{project_id}."%0D%0Auser:%20".$user->login."%0D%0Apage:%20".$cgi->param('page')."%0D%0Abrowser:%20".$ua."%0D%0A%0D%0A'>link</a></p>";
+	$should_have_right = "<br><p style='width: 800px;'>If you think this project should be public or you should be able to view it, please send us a message using this <a href='mailto:help\@mg-rast.org?subject=Access%20Privileges&amp;body=%0D%0A%0D%0A%0D%0A%0D%0A_____%0D%0A%0D%0Aproject%20id:%20".$self->{project_id}."%0D%0Auser:%20".$user->login."%0D%0Apage:%20".$cgi->param('page')."%0D%0Abrowser:%20".$ua."%0D%0A%0D%0A'>link</a></p>";
       }
 
       return "<p>You are either not logged in or you have no right to view this project.</p>".$should_have_right;
     }
-    
+
     my $all_meta  = $metadbm->ProjectMD->get_objects( { project => $project } );
     my $meta_hash = {};
     %$meta_hash   = map { $_->{tag} => $_->{value} } @$all_meta;
     $self->{meta_info} = $meta_hash;
-    $self->{project}   = $project;    
+    $self->{project}   = $project;
     $self->{is_editor} = 0;
     if ($user && ($user->has_right(undef, 'edit', 'project', $project->id) || $user->has_star_right('edit', 'project'))) {
       $self->{is_editor} = 1;
     }
-    
+
     my $proj_link = $Conf::cgi_url."linkin.cgi?project=".$self->{project_id};
     $html .= "<h1 style='display: inline;'>".$project->name.(($user and $user->has_right(undef, 'edit', 'user', '*')) ? " <span style='color: blue;'>(ID ".$project->id.")</span>": "")."</h1>";
     $html .= "<p><table>";
@@ -137,7 +137,7 @@ sub output {
 
     if ($self->{is_editor}) {
       my $editable_jobs = 0;
-      my %mg_rights = map { $_, 1 } @{ $user->has_right_to(undef, 'edit', 'metagenome') };      
+      my %mg_rights = map { $_, 1 } @{ $user->has_right_to(undef, 'edit', 'metagenome') };
       foreach my $mgid ( @{$project->metagenomes(1)} ) {
 	if (exists($mg_rights{'*'}) || exists($mg_rights{$mgid})) {
 	  $editable_jobs += 1;
@@ -168,7 +168,7 @@ sub output {
       } else {
 	# if (exists $meta_hash->{ebi_submission}) {
 	#   if ($meta_hash->{ebi_submission} eq 'submitted') {
-	#     $html .= qq~<li><a>project </a></li>~;	  
+	#     $html .= qq~<li><a>project </a></li>~;
 	#   } else {
 	#     $html .= qq~<li><a>EBI submission in progress</a></li>~;
 	#   }
@@ -350,13 +350,13 @@ sub create_project {
   } else {
     $application->add_message('warning', "You must specify a project name. Creation aborted.");
   }
-  
+
   return 1;
 }
 
 sub add_job_to_project {
   my ($self) = @_;
-  
+
   my $dbm     = $self->application->dbmaster;
   my $jobdbm  = $self->application->data_handle('MGRAST');
   my @mg_ids  = split(/,/, $self->application->cgi->param('metagenomes'));
@@ -435,7 +435,7 @@ sub general_info {
     }
     $tech .= "<br>$tech_org<br>".($meta_info->{organization_address} || "").", ".($meta_info->{organization_country} || "");
   }
-  
+
   my $predefined = { email => 1 ,
 		     organizatioon => 1 ,
 		     organization_address => 1 ,
@@ -460,12 +460,12 @@ sub general_info {
 		   };
   my $md = '';
   foreach my $tag (keys %$meta_info){
-    next if ($predefined->{$tag}) ;    
+    next if ($predefined->{$tag}) ;
     my $display_name = $tag ;
     my $value = $meta_info->{$tag} ;
     $md .= "<tr><th>$display_name</th><td>$value</td></tr>";
   }
-  
+
   $content .= qq~
 <h3>Description</h3>$description
 <h3>Funding Source</h3>$funding
@@ -476,7 +476,7 @@ sub general_info {
   if ($md) {
     $content .= "<h3>Additional Data</h3><table>$md</table>";
   }
-  
+
   return $content;
 }
 
@@ -497,14 +497,14 @@ sub job_list {
   if (@complete > 0) {
     my @c_mgids  = map { $_->[0] } @complete;
     my $metadata = $self->data('mddb')->get_metadata_for_tables(\@c_mgids, 1, 1);
-    my $header   = [ { name => 'MG-RAST ID', filter => 1, visible => ($project->public ? 1 : 0) }, 	 
+    my $header   = [ { name => 'MG-RAST ID', filter => 1, visible => ($project->public ? 1 : 0) },
 		     { name => 'Metagenome Name', filter => 1, sortable => 1 },
 		     { name => 'bp Count', sortable => 1, filter => 1, operators => ['less','more'] },
 		     { name => 'Sequence Count', sortable => 1, filter => 1, operators => ['less','more'] },
 		     { name => 'Biome', filter => 1, sortable => 1, operator => 'combobox' },
 		     { name => 'Feature', filter => 1, sortable => 1, operator => 'combobox' },
 		     { name => 'Material', filter => 1, sortable => 1, operator => 'combobox' },
-		     { name => 'Location', filter => 1, sortable => 1 }, 	 
+		     { name => 'Location', filter => 1, sortable => 1 },
 		     { name => 'Country', filter => 1, sortable => 1 },
 		     { name => 'Coordinates', filter => 1, sortable => 1 },
 		     { name => 'Sequence Type', filter => 1, sortable => 1, operator => 'combobox' },
@@ -522,9 +522,9 @@ sub job_list {
       $row->[0] = "<a target=_blank href='?page=MetagenomeOverview&metagenome=$mid'>$mid</a>";
       $row->[1] = "<a target=_blank href='?page=MetagenomeOverview&metagenome=$mid'>".$row->[1]."</a>";
     }
-   
+
     my $ptable = $self->application->component('jobs_table');
-    $ptable->columns($header); 
+    $ptable->columns($header);
     $ptable->width(800);
     $ptable->show_export_button({title => "Export Jobs Table", strip_html => 1});
 
@@ -532,7 +532,7 @@ sub job_list {
       $ptable->show_top_browse(1);
       $ptable->show_bottom_browse(1);
       $ptable->items_per_page(50);
-      $ptable->show_select_items_per_page(1); 
+      $ptable->show_select_items_per_page(1);
     }
     $ptable->data(\@complete);
 
@@ -545,7 +545,7 @@ sub job_list {
   } else {
     $content .= "<p>There are ".scalar(@$pdata)." metagenomes in this project, all of them are still in progress:<br>".join(", ", @inprogess)."</p>";
   }
-  
+
   return $content;
 }
 
@@ -597,11 +597,11 @@ sub download_md {
   my $file  = $cgi->param('filename');
   my $ftype = $cgi->param('filetype') || 'text';
   my $ctype = ($ftype eq 'xlsx') ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/plain';
-  
+
   if (open(FH, "<".$Conf::temp."/".$file)) {
     my $content = do { local $/; <FH> };
     close FH;
-    print "Content-Type:$ctype\n";  
+    print "Content-Type:$ctype\n";
     print "Content-Length: " . length($content) . "\n";
     print "Content-Disposition:attachment;filename=".$file."\n\n";
     print $content;
@@ -642,13 +642,13 @@ for (var i = 0; i < sel_elem.options.length; i++) {
 }
 window.top.location="?page=MetagenomeProject&action=add_job_to_project&project=$pid&metagenomes="+mg_list.join(",");' /></div>~;
   $html .= "<div id='mgs_added_div'></div>";
-  
+
   return $html;
 }
 
 sub add_md_info {
   my ($self, $pid) = @_;
-  
+
   my $html = "<h3>Add / Reload MetaData</h3>";
   $html .= $self->start_form('upload_form', {project => $pid, action => 'upload_md'});
   $html .= "Map metagenome to metadata by: <select name='map_type'><option value='name'>Metagenome Name</option><option value='id'>Metagenome ID</option></select>";
@@ -698,10 +698,10 @@ sub additional_info {
     $name =~ s/_/ /g;
     open(FH, $tdir."/".$table) or return "<p>Could not open file: $@ $!</p>";
     $content .= "<h3>$name</h3>";
-    
+
     my $columns = [];
     my $data = [];
-    
+
     while(<FH>) {
       chomp;
       if (scalar(@$columns)) {
@@ -792,7 +792,7 @@ sub upload_md {
     if (@$skip_jobs > 0) {
       $application->add_message('warning', "you do not have the permissions to add metadata to the following jobs:<br>".join(", ", sort map {$_->metagenome_id} @$skip_jobs));
     }
-    
+
     my (undef, $md_jobs, $err_msgs) = $meta->add_valid_metadata($user, $mdata, $edit_jobs, $project, $map_by_id, 1);
     if ((@$md_jobs == @$edit_jobs) && (@$skip_jobs == 0)) {
       $application->add_message('info', "successfully added / updated metadata to all jobs in this project");
@@ -925,13 +925,13 @@ sub edit_info {
   my $meta_info = $self->{meta_info};
   my $project   = $self->{project};
   my $content   = "<h3>Edit Project Data</h3>";
-  
+
   $content .= $self->start_form('additional_info_form', { update => 1, project => $project->{id} });
   $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>name</span><br><input type='text' name='project_name' style='width:250px;' value='".encode_entities($project->{name})."'><br><br>";
   $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>description</span><br><textarea name='project_description' style='width:250px;'>".encode_entities($meta_info->{project_description} || $meta_info->{study_abstract} || "")."</textarea><br><br>";
   $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>funding source</span><br><input type='text' value='".encode_entities($meta_info->{project_funding} || "")."' name='project_funding'><br><br>";
   $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>administrative contact</span><br><table><tr><th>eMail</th><td><input type='text' value='".encode_entities($meta_info->{PI_email} || "")."' name='pi_email'></td></tr><tr><th>firstname</th><td><input type='text' value='".encode_entities($meta_info->{PI_firstname} || "")."' name='pi_firstname'></td></tr><tr><th>lastname</th><td><input type='text' value='".encode_entities($meta_info->{PI_lastname} || "")."' name='pi_lastname'></td></tr><tr><th>organization</th><td><input type='text' value='".encode_entities($meta_info->{PI_organization} || "")."' name='pi_organization'></td></tr><tr><th>organization url</th><td><input type='text' value='".encode_entities($meta_info->{PI_organization_url} || "")."' name='pi_organization_url'></td></tr><tr><th>organization address</th><td><input type='text' value='".encode_entities($meta_info->{PI_organization_address} || "")."' name='pi_organization_address'></td></tr><tr><th>organization country</th><td><input type='text' value='".encode_entities($meta_info->{PI_organization_country} || "")."' name='pi_organization_country'></td></tr></table><br>";
-  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>technical contact</span><br><table><tr><th>eMail</th><td><input type='text' value='".encode_entities($meta_info->{email} || "")."' name='email'></td></tr><tr><th>firstname</th><td><input type='text' value='".encode_entities($meta_info->{firstname} || "")."' name='firstname'></td></tr><tr><th>lastname</th><td><input type='text' value='".encode_entities($meta_info->{lastname} || "")."' name='lastname'></td></tr><tr><th>organization</th><td><input type='text' value='".encode_entities($meta_info->{organization} || "")."' name='organization'></td></tr><tr><th>organization url</th><td><input type='text' value='".encode_entities($meta_info->{organization_url} || "")."' name='organization_url'></td></tr><tr><th>organization address</th><td><input type='text' value='".encode_entities($meta_info->{organization_address} || "")."' name='organization_address'></td></tr><tr><th>organization country</th><td><input type='text' value='".encode_entities($meta_info->{organization_country} || "")."' name='organization_country'></td></tr><tr><td colspan=2><input type='submit' value='update'></td><tr></table>";    
+  $content .= "<span style='font-size: 14px; font-family: Arial; color: #273E53; font-weight: bold; font-style: italic;'>technical contact</span><br><table><tr><th>eMail</th><td><input type='text' value='".encode_entities($meta_info->{email} || "")."' name='email'></td></tr><tr><th>firstname</th><td><input type='text' value='".encode_entities($meta_info->{firstname} || "")."' name='firstname'></td></tr><tr><th>lastname</th><td><input type='text' value='".encode_entities($meta_info->{lastname} || "")."' name='lastname'></td></tr><tr><th>organization</th><td><input type='text' value='".encode_entities($meta_info->{organization} || "")."' name='organization'></td></tr><tr><th>organization url</th><td><input type='text' value='".encode_entities($meta_info->{organization_url} || "")."' name='organization_url'></td></tr><tr><th>organization address</th><td><input type='text' value='".encode_entities($meta_info->{organization_address} || "")."' name='organization_address'></td></tr><tr><th>organization country</th><td><input type='text' value='".encode_entities($meta_info->{organization_country} || "")."' name='organization_country'></td></tr><tr><td colspan=2><input type='submit' value='update'></td><tr></table>";
   $content .= $self->end_form;
 
   return $content;
@@ -941,7 +941,7 @@ sub delete_info {
   my ($self) = @_;
 
   my $project = $self->{project};
-  my $jobdbm  = $self->application->data_handle('MGRAST');  
+  my $jobdbm  = $self->application->data_handle('MGRAST');
   my $jobnum1 = $jobdbm->ProjectJob->get_objects({project => $project});
   my $jobnum2 = $jobdbm->Job->get_objects({primary_project => $project});
   my $content = "<h3>Delete</h3>";
@@ -977,7 +977,7 @@ sub share_info {
 						     action  => 'share_project' });
   $content .= "<p><input type='submit' value=' Create a Reviewer Access Token '></p>";
   $content .= $self->end_form();
-  
+
   # show people who can see this project at the moment
   $content .= "<p id='section_bar'><strong>This project is currently available to:</strong></p>";
   my $rights_view = $self->application->dbmaster->Rights->get_objects( { name => 'view',
@@ -1004,9 +1004,9 @@ sub share_info {
 	$editable = " (\/w edit rights)";
       }
       $content .= "<tr><td>".$r->scope->name_readable."$editable</td>";
-      
+
       if($r->delegated) {
-	$content .= "<td>".$self->start_form('revoke_project', { project => $project->id, 
+	$content .= "<td>".$self->start_form('revoke_project', { project => $project->id,
 								 action => 'revoke_project',
 								 scope => $r->scope->_id,
 							       });
@@ -1021,7 +1021,7 @@ sub share_info {
       $found_one = 1;
     }
   }
-  
+
   unless($found_one) {
     $content .= "<tr><td>This project is not shared with anyone at the moment.</td></tr>";
   }
@@ -1066,7 +1066,7 @@ sub share_info {
     my $mgs = $project->metagenomes_id_name;
     if (scalar(@$prights)) {
       $content .= "<p id='section_bar' style='font-variant: normal;'><img src='./Html/rast-info.png'/>The lists below show which metagenomes that are part of your project will be available to users that have access to this project and which metagenomes will not be available.<br><br><b>Note:</b>The metagenomes that appear in the 'shared' list, will be available to the users shown in the section 'This project is currently available to'. They will NOT be publicly available.</p>";
-      
+
       my $data = [];
       my $preselection = [];
       my $shared_mgs = {};
@@ -1096,7 +1096,7 @@ sub share_info {
 
 sub change_shared_metagenomes {
   my ($self) = @_;
-  
+
   my $application = $self->application;
   my $cgi = $application->cgi;
   my $jobdbm = $application->data_handle('MGRAST');
@@ -1131,7 +1131,7 @@ sub change_shared_metagenomes {
       }
     }
   }
-  
+
   $application->add_message('info', "The changes to the shared metagenomes for this project have been applied.");
 }
 
@@ -1147,7 +1147,7 @@ sub cancel_token {
     $application->add_message('warning', "invalid token, aborting");
     return 0;
   }
-  
+
   my $scope = $master->Scope->get_objects( { name => "token:".$token } );
   unless (scalar(@$scope)) {
     $application->add_message('warning', "token not found, aborting");
@@ -1201,7 +1201,7 @@ sub make_public_info {
   my $project = $jobdbm->Project->init({ id => $cgi->param('project') });
   my $project_jobs = $jobdbm->ProjectJob->get_objects( { project => $project } );
   my $master = $application->dbmaster;
-  
+
   my $mddb = $self->data('mddb');
   my $publicizable = [];
   my $missing_mixs = [];
@@ -1225,7 +1225,7 @@ sub make_public_info {
     $html .= "<p style='font-variant: normal;'>MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank >Minimum Information about any (X) Sequence</a> (MIxS) developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC). Metagenomes that are missing MIxS metadata cannot be made public. The below list shows which metagenomes associated with this project are missing MIxS metadata. Use the above 'Upload MetaData' button to upload a valid metadata spreadsheet. You can obtain a metadata spreadsheet by either downloading the current metadata for this project (using the 'Export Metadata' button), or by filling out a <a href='ftp://".$Conf::ftp_download."/data/misc/metadata/".$Conf::mgrast_metadata_template."'>metadata spreadsheet template</a>.</p>";
     $html .= "<blockquote>".join("<br>", map { $_->{name}." (".$_->{metagenome_id} .")"} @$missing_mixs)."</blockquote>";
   }
-  
+
   if (@$missing_rights > 0) {
     $html .= "<p style='font-variant: normal;'>When making metagenomes public you must have edit rights. The below metagenomes are unable to be made public due to missing rights.</p>";
     $html .= "<blockquote>".join("<br>", map { $_->{name}." (".$_->{metagenome_id} .")"} @$missing_rights)."</blockquote>";
@@ -1273,7 +1273,7 @@ sub make_project_public {
   my $project_id = $cgi->param('project');
   my @metagenomes = $cgi->param('public_metagenomes');
   my $mgrast = $application->data_handle('MGRAST');
-  
+
   # check rights
   if ($user->has_right(undef, 'edit', 'project', $project_id)) {
     my $project = $mgrast->Project->init( { id => $project_id });
@@ -1291,7 +1291,7 @@ sub make_project_public {
 	} else {
 	  $job->public(1);
 	  $job->set_publication_date();
-	  $application->add_message('info', "metagenome ".$job->name." ($mg) successfully made public");	  
+	  $application->add_message('info', "metagenome ".$job->name." ($mg) successfully made public");
 	}
       } else {
 	$application->add_message('warning', "You do not have the right to make the metagenome $mg public.");
@@ -1312,7 +1312,7 @@ Action method to grant the right to view and edit a project to the selected scop
 
 sub share_project {
   my ($self) = @_;
-  
+
   # get some info
   my $application = $self->application;
   my $cgi = $application->cgi;
@@ -1321,7 +1321,7 @@ sub share_project {
   my $project_name = $project->name;
   my $project_id = $project->id;
   my $dbm = $application->dbmaster;
-  
+
   if ($cgi->param('reviewer')) {
     # create a reviewer token
     my $description = "Reviewer_".$project_id;
@@ -1330,14 +1330,14 @@ sub share_project {
     foreach (1..50) {
       $token.=$chars[rand @chars];
     }
-      
+
     # create scope for token
     my $token_scope = $dbm->Scope->create( { name => "token:".$token, description => $description } );
     unless (ref($token_scope)) {
       $self->application->add_message('warning', "failed to create token");
       return 0;
     }
-      
+
     # add right to scope
     my $right = $dbm->Rights->create( { granted => 1,
 					name => 'view',
@@ -1360,12 +1360,12 @@ sub share_project {
       $self->application->add_message('warning', 'Please enter a valid email address.');
       return 0;
     }
-    
+
     # check if have a user with that email
-    my $master = $self->application->dbmaster;  
+    my $master = $self->application->dbmaster;
     my $user = $master->User->init({ email => $email });
     if (ref $user) {
-      
+
       # send email
       my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobGranted.tmpl',
 				      die_on_bad_params => 0);
@@ -1375,12 +1375,12 @@ sub share_project {
       $ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
       $ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=MetagenomeProject&project=$project_id");
       $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
-      
+
       $user->send_email( $WebConfig::ADMIN_EMAIL,
 			 $WebConfig::APPLICATION_NAME.' - new data available',
 			 $ubody->output
 		       );
-      
+
       # grant rights if necessary
       my $rights = [ 'view' ];
       if ($cgi->param('editable')) {
@@ -1397,7 +1397,7 @@ sub share_project {
 						 data_id => $project_id,
 						 scope => $user->get_user_scope,
 						 delegated => 1, } );
-	  
+
 	  unless (ref $right) {
 	    $self->app->add_message('warning', 'Failed to create the right in the user database, aborting.');
 	    return 0;
@@ -1412,12 +1412,12 @@ sub share_project {
 	  $dbm->UserHasScope->create( { user => $user, scope => $pscope, granted => 1 } );
 	}
       }
-      
+
       $self->app->add_message('info', "Granted the right to view this project to ".$user->firstname." ".$user->lastname.".");
       return 1;
-      
+
     } else {
-      
+
       # create a claim token
       my $description = "token_scope|from_user:".$application->session->user->{_id}."|init_date:".time."|email:".$email;
       my @chars=('a'..'z','A'..'Z','0'..'9','_');
@@ -1425,14 +1425,14 @@ sub share_project {
       foreach (1..50) {
 	$token.=$chars[rand @chars];
       }
-      
+
       # create scope for token
       my $token_scope = $master->Scope->create( { name => "token:".$token, description => $description } );
       unless (ref($token_scope)) {
 	$self->application->add_message('warning', "failed to create token");
 	return 0;
       }
-      
+
       # add rights to scope
       my $rights = [ 'view' ];
       if ($cgi->param('editable')) {
@@ -1454,10 +1454,10 @@ sub share_project {
 	  }
 	  return 0;
 	}
-	
+
 	push(@$rsave, $right);
       }
-      
+
       # send token mail
       my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobToken.tmpl',
 				      die_on_bad_params => 0);
@@ -1466,14 +1466,14 @@ sub share_project {
       $ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
       $ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token&type=project");
       $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
-      
-      my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
+
+      my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host,
                                                       from => $WebConfig::ADMIN_EMAIL,
                                                       to => $email,
                                                       subject => $WebConfig::APPLICATION_NAME.' - new data available',
                                                       body => $ubody->output);
-                                                      
-                                                      
+
+
       #my $mailer = Mail::Mailer->new();
       #if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
 	#		  To      => $email,
@@ -1491,11 +1491,11 @@ sub share_project {
 	$application->add_message('warning', "Could not send invitation mail, aborting.");
 	return 0;
       }
-      
+
       return 1;
     }
   }
-  
+
   return;
 }
 
@@ -1537,7 +1537,7 @@ sub revoke_project {
       $r->delete;
     }
   }
-  
+
   my $pscope = $master->Scope->init( { application => undef,
 				       name => 'MGRAST_project_'.$project_id } );
   if (ref($pscope)) {
@@ -1562,7 +1562,7 @@ sub selectable_metagenomes {
 
   my $metagenomes = [];
   my $user  = $self->application->session->user;
-  my $rast  = $self->application->data_handle('MGRAST'); 
+  my $rast  = $self->application->data_handle('MGRAST');
   my $mgdb  = MGRAST::Analysis->new( $rast->db_handle );
   my $avail = $mgdb->get_all_job_ids();
   my $avail_hash = {};
@@ -1654,7 +1654,7 @@ sub selectable_metagenomes {
     push(@$all_mgs, $metagenomespub);
     push(@$groups, 'public');
   }
-  
+
   my $seq_types_ary = [];
   @$seq_types_ary = sort keys(%$seq_types);
 

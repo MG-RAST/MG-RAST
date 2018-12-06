@@ -43,18 +43,18 @@ our $NODB   = undef;
 #
 our $APPLICATION_NAME = 'MG-RAST';
 our $APPLICATION_URL  = "$Conf::cgi_url/";
-our $ADMIN_EMAIL = 'mg-rast@mcs.anl.gov';
+our $ADMIN_EMAIL = 'help@mg-rast.org';
 
 #
 # Login dependencies are used to grant login rights
-# to web applications a backend depends on. 
+# to web applications a backend depends on.
 # rf. to User->grant_login_right
 #
 our $LOGIN_DEPENDENCIES = { 'MGRAST'     => [] };
 
 
 #
-# Method to import local configurations 
+# Method to import local configurations
 # from config/WebApplication/BackendName.cfg
 #
 sub import_local_config {
