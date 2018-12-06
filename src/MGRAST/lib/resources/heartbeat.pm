@@ -19,7 +19,7 @@ sub new {
   $self->{m5nr_version} = 1;
   $self->{services} = {
       'FTP' => 'ftp://'.$Conf::ftp_download,
-      'website' => $Conf::cgi_url,
+      'website' => $Conf::web_site,
       'SHOCK' => $Conf::shock_url,
       'SHOCKDB' => 'mongo',
       'AWE' => $Conf::awe_url,
@@ -52,12 +52,12 @@ sub new {
 sub info {
   my ($self) = @_;
   my $content = { 'name' => $self->name,
-		  'url' => $self->cgi->url."/".$self->name,
+		  'url' => $self->url."/".$self->name,
 		  'description' => "Status of services",
 		  'type' => 'object',
-		  'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		  'documentation' => $self->url.'/api.html#'.$self->name,
 		  'requests' => [ { 'name'        => "info",
-				    'request'     => $self->cgi->url."/".$self->name,
+				    'request'     => $self->url."/".$self->name,
 				    'description' => "Returns description of parameters and attributes.",
 				    'method'      => "GET" ,
 				    'type'        => "synchronous" ,  
@@ -67,9 +67,9 @@ sub info {
 						       'body'     => {} }
 				  },
 				  { 'name'        => "instance",
-				    'request'     => $self->cgi->url."/".$self->name."/{SERVICE}",
+				    'request'     => $self->url."/".$self->name."/{SERVICE}",
 				    'description' => "Returns the status of a service.",
-				    'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->cgi->url."/".$self->name.'/M5NR"',
+				    'example'     => [ 'curl -X GET -H "auth: auth_key" "'.$self->url."/".$self->name.'/M5NR"',
 						       "status of the M5NR service" ],
 				    'method'      => "GET" ,
 				    'type'        => "synchronous" ,  
@@ -118,12 +118,12 @@ sub instance {
   } elsif ($id eq 'cassandra') {
       # need to test a query as handle can still be made but cluster in bad state
       # test md5 is 74428bf03d3c75c944ea0b2eb632701f / E. coli alcohol dehydrogenase / m5nr version 1
-      my $test_md5_id = 10795366;
+      my $test_md5    = '74428bf03d3c75c944ea0b2eb632701f';
       my $test_source = "RefSeq";
       my $test_data = [];
       eval {
-          my $chdl = $self->cassandra_m5nr_handle("m5nr_v".$self->{m5nr_version}, $self->{services}->{$id});
-          $test_data = $chdl->get_records_by_id([$test_md5_id], $test_source);
+          my $chdl = $self->cassandra_handle("m5nr", $self->{m5nr_version});
+          $test_data = $chdl->get_records_by_md5([$test_md5], $test_source);
           $chdl->close();
       };
       if ((! $@) && (@$test_data > 0)) {
@@ -142,7 +142,7 @@ sub instance {
   my $obj = {};
   $obj->{service} = $id;
   $obj->{status} = $status;
-  $obj->{url} = $self->cgi->url."/".$self->name."/".$id;
+  $obj->{url} = $self->url."/".$self->name."/".$id;
   
   # check the status service
   $self->return_data($obj, undef, 1);

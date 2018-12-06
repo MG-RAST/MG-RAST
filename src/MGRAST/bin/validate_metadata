@@ -14,7 +14,7 @@ from openpyxl.reader.excel import load_workbook
 
 __doc__ = """Script to validate metadata from filled out MG-RAST v3 xlsx template"""
 
-MGRAST_URL = 'http://api.metagenomics.anl.gov/'
+MGRAST_URL = 'https://api.mg-rast.org/'
 MGRASTID = 'mgrast_id'
 GEO_DIR  = {'N':1, 'S':-1, 'E':1, 'W':-1}
 ID_COL   = 0
@@ -25,6 +25,7 @@ ENVO_VER = None
 LOG_FILE = None
 JSON_FILE = None
 INVALID   = []
+ENVO_FIELD = ['biome', 'feature', 'material']
 MISC_PARAM = {
     'aliases': ['misc_param'],
     'definition' : 'any other measurement performed or parameter collected, that is not listed here',
@@ -114,6 +115,8 @@ def get_envo_version(pdata):
     else:
         ENVO_VER = pdata["envo_release"]
         for name in CV_PARAM["ontology"].iterkeys():
+            if name not in ENVO_FIELD:
+                continue
             if ENVO_VER not in CV_PARAM["versions"][name]:
                 errorMsg("envo_release '%s' for %s is not valid, use one of: %s"%(ENVO_VER, name, ", ".join(CV_PARAM["versions"][name])))
             elif ENVO_VER != CV_PARAM["latest_version"][name]:
@@ -283,7 +286,7 @@ def google_to_mdraw(url, dupe, inc, login, password):
 
 def xlsx_to_mdraw(xxfile, dupe, inc):
     xxbook = load_workbook(filename = xxfile)
-    tables = dict([(x, sheet_to_table(xxbook.get_sheet_by_name(x), 'xlsx')) for x in xxbook.get_sheet_names()])
+    tables = dict([(x, sheet_to_table(xxbook[x], 'xlsx')) for x in xxbook.sheetnames()])
     if inc:
       return tables_to_mdraw_inc(tables, dupe)
     else:

@@ -16,6 +16,9 @@ sub new {
     
     # Add name / attributes
     my %rights = $self->{user} ? map {$_, 1} @{$self->{user}->has_right_to(undef, 'view', 'metagenome')} : ();
+    $self->{post_actions} = {
+        'addaccession' => 1
+    };
     $self->{name} = "library";
     $self->{rights} = \%rights;
     $self->{attributes} = { "id"           => [ 'string', 'unique object identifier' ],
@@ -37,12 +40,12 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "A library of metagenomic samples from some environment",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
-				      'request'     => $self->cgi->url."/".$self->name,
+				      'request'     => $self->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -51,9 +54,9 @@ sub info {
 							             'required'    => {},
 							             'body'        => {} } },
 				    { 'name'        => "query",
-				      'request'     => $self->cgi->url."/".$self->name,				      
+				      'request'     => $self->url."/".$self->name,				      
 				      'description' => "Returns a set of data matching the query criteria.",
-				      'example'     => [ $self->cgi->url."/".$self->name."?limit=20&order=name",
+				      'example'     => [ $self->url."/".$self->name."?limit=20&order=name",
 				                         'retrieve the first 20 libraries ordered by name' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -72,9 +75,9 @@ sub info {
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
-				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				      'request'     => $self->url."/".$self->name."/{id}",
 				      'description' => "Returns a single data object.",
-				      'example'     => [ $self->cgi->url."/".$self->name."/mgl52924?verbosity=full",
+				      'example'     => [ $self->url."/".$self->name."/mgl52924?verbosity=full",
   				                         'retrieve all data for library mgl52924' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -88,6 +91,73 @@ sub info {
 		  };
 
     $self->return_data($content);
+}
+
+# Override parent request function
+sub request {
+    my ($self) = @_;
+
+    # check for parameters
+    my @parameters = $self->cgi->param;
+    if ( (scalar(@{$self->rest}) == 0) &&
+         ((scalar(@parameters) == 0) || ((scalar(@parameters) == 1) && ($parameters[0] eq 'keywords'))) )
+    {
+        $self->info();
+    }
+    if ($self->method eq 'POST') {
+        if ((scalar(@{$self->rest}) > 1) && exists($self->{post_actions}{$self->rest->[1]})) {
+            $self->post_action();
+        } else {
+            $self->info();
+        }
+    } elsif ( ($self->method eq 'GET') && scalar(@{$self->rest}) ) {
+         $self->instance();
+    } else {
+        $self->query();
+    }
+}
+
+sub post_action {
+    my ($self) = @_;
+
+    # get rest parameters
+    my $rest = $self->rest;
+    # get database
+    my $master = $self->connect_to_datasource();
+
+    # check id format
+    my ($id) = $rest->[0] =~ /^mgl(\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+    }
+
+    # get sample
+    my $library = $master->MetaDataCollection->init( {ID => $id} );
+    unless (ref($library)) {
+        $self->return_data( {"ERROR" => "id ".$rest->[0]." does not exists"}, 404 );
+    }
+
+    # check rights
+    foreach my $mg (@{$library->metagenome_ids}) {
+        unless ($self->user && ($self->user->has_star_right('edit', 'metagenome') || $self->user->has_right(undef, 'edit', 'metagenome', $mg))) {
+            $self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+        }
+    }
+
+    # add external db accesion ID
+    if ($rest->[1] eq 'addaccession') {
+        # get paramaters
+        my $dbname    = $self->cgi->param('dbname') || "";
+        my $accession = $self->cgi->param('accession') || "";
+        unless ($dbname && $accession) {
+            $self->return_data( {"ERROR" => "Missing required options: dbname or accession"}, 404 );
+        }
+        # update DB
+        my $key = lc($dbname).'_id';
+        $library->data($key, $accession);
+        # return success
+        $self->return_data( {"OK" => "accession added", "library" => 'mgl'.$id, $key => $accession}, 200 );
+    }
 }
 
 # the resource is called with an id parameter
@@ -125,24 +195,24 @@ sub query {
     my $master = $self->connect_to_datasource();
     my $dbh    = $master->db_handle();
   
-    my $libraries_hash = {};
-    my $library_map    = {};
-    my $job_lib_map    = {};
-    my $job_library    = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job WHERE viewable=1");
+    my $library_found = {};
+    my $library_map   = {};
+    my $job_lib_map   = {};
+    my $job_library   = $dbh->selectall_arrayref("SELECT library, metagenome_id, public FROM Job WHERE viewable=1 AND library IS NOT NULL");
     map { $library_map->{$_->[0]} = {id => $_->[1], name => $_->[2], entry_date => $_->[3]} } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='library'")};
   
     # add libraries with job: public or rights
     foreach my $jl (@$job_library) {
-        next unless ($jl->[0] && $library_map->{$jl->[0]});
+        next unless ($jl && $jl->[0] && $library_map->{$jl->[0]});
         $job_lib_map->{$jl->[0]} = 1;
-        if (($jl->[2] == 1) || exists($self->rights->{$jl->[1]}) || exists($self->rights->{'*'})) {
-            $libraries_hash->{"mgl".$library_map->{$jl->[0]}} = $library_map->{$jl->[0]};
+        if (($jl->[2] && ($jl->[2] == 1)) || exists($self->rights->{$jl->[1]}) || exists($self->rights->{'*'})) {
+            $library_found->{$jl->[0]} = $library_map->{$jl->[0]};
         }
     }
     # add libraries with no job
-    map { $libraries_hash->{"mgl".$library_map->{$_}} = $library_map->{$_} } grep { ! exists $job_lib_map->{$_} } keys %$library_map;
+    map { $library_found->{$_} = $library_map->{$_} } grep { ! exists $job_lib_map->{$_} } keys %$library_map;
     my $libraries = [];
-    @$libraries   = map { $libraries_hash->{$_} } keys(%$libraries_hash);
+    @$libraries   = values %$library_found;
     my $total     = scalar @$libraries;
 
     # check limit
@@ -178,7 +248,7 @@ sub prepare_data {
       if ($library->{ID}) {
           $library->{id} = $library->{ID};
       }
-      my $url = $self->cgi->url;
+      my $url = $self->url;
       my $obj = {};
       $obj->{id}      = "mgl".$library->{id};
       $obj->{name}    = $library->{name};
@@ -201,7 +271,7 @@ sub prepare_data {
 	          $obj->{metagenome}    = $ljob ? ["mgm".$ljob->{metagenome_id}, $url.'/metagenome/mgm'.$ljob->{metagenome_id}] : undef;
 	          $obj->{sequence_sets} = [];
 	          if ($ljob) {
-	              my ($seq_sets, $skip) = $self->get_download_set($ljob->{metagenome_id}, $self->mgrast_token, 1);
+	              my ($seq_sets, $skip) = $self->get_download_set($ljob->{metagenome_id}, undef, $self->mgrast_token, 1);
 	              $obj->{sequence_sets} = $seq_sets;
 	          }
           }

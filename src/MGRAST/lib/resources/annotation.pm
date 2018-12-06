@@ -10,7 +10,6 @@ use HTML::Strip;
 use URI::Escape;
 
 use Conf;
-use MGRAST::Abundance;
 use parent qw(resources::resource);
 
 # Override parent constructor
@@ -62,13 +61,13 @@ sub info {
     my ($self) = @_;
     my $sources = [ @{$self->source->{protein}}, @{$self->source->{rna}}, @{$self->source->{ontology}} ];
     my $content = { 'name' => $self->name,
-		            'url' => $self->cgi->url."/".$self->name,
+		            'url' => $self->url."/".$self->name,
 		            'description' => "All annotations of a metagenome for a specific annotation type and source",
 		            'type' => 'object',
-		            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		            'documentation' => $self->url.'/api.html#'.$self->name,
 		            'requests' => [
 		                { 'name'        => "info",
-				          'request'     => $self->cgi->url."/".$self->name,
+				          'request'     => $self->url."/".$self->name,
 				          'description' => "Returns description of parameters and attributes.",
 			              'method'      => "GET",
 				          'type'        => "synchronous",  
@@ -78,9 +77,9 @@ sub info {
 						                     'body'     => {} }
 						},
 				        { 'name'        => "sequence",
-				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
+				          'request'     => $self->url."/".$self->name."/sequence/{id}",
 				          'description' => "tab delimited annotated sequence stream",
-				          'example'     => [ $self->cgi->url."/".$self->name."/sequence/mgm4447943.3?evalue=10&type=organism&source=SwissProt",
+				          'example'     => [ $self->url."/".$self->name."/sequence/mgm4447943.3?evalue=10&type=organism&source=SwissProt",
 				                             'all annotated read sequences from mgm4447943.3 with hits in SwissProt organisms at evalue < e-10' ],
 				          'method'      => "GET",
 				          'type'        => "stream",  
@@ -101,9 +100,9 @@ sub info {
 							                 'body' => {} }
 						},
 						{ 'name'        => "sequence",
-				          'request'     => $self->cgi->url."/".$self->name."/sequence/{ID}",
+				          'request'     => $self->url."/".$self->name."/sequence/{id}",
 				          'description' => "tab delimited annotated sequence stream",
-				          'example'     => [ 'curl -X POST -d \'{"source":"SwissProt","type":"organism","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read sequences from mgm4447943.3 with hits in SwissProt organisms for given md5s' ],
+				          'example'     => [ 'curl -X POST -d \'{"source":"RefSeq","type":"organism","md5s":["000a8d74068603c9e8674bff9970f367","0001c08aa276d154b7696f9758839786"]}\' "'.$self->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read sequences from mgm4447943.3 with hits in SwissProt organisms for given md5s' ],
 				          'method'      => "POST",
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{sequence}, "tab delimited annotated sequence stream"]] },
@@ -111,16 +110,16 @@ sub info {
 				                             'options' => {},
 							                 'body' => {
 							                     "md5s"    => ['list', ["string","md5 to get hits for"]],
-							                     "format"  => ['cv', [["tabbed", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
+							                     "format"  => ['cv', [["tab", "tab-delimited text file"], ["fasta", "fasta format text file"]] ],
 							                     "version" => ['integer', 'M5NR version, default is '.$self->{m5nr_default}],
 							                     "source"  => ['cv', $sources ],
 							                     "type"    => ['cv', $self->{types} ]
 						                     } }
 						},
 						{ 'name'        => "similarity",
-				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
+				          'request'     => $self->url."/".$self->name."/similarity/{id}",
 				          'description' => "tab delimited blast m8 with annotation",
-				          'example'     => [ $self->cgi->url."/".$self->name."/similarity/mgm4447943.3?identity=80&type=function&source=KO",
+				          'example'     => [ $self->url."/".$self->name."/similarity/mgm4447943.3?identity=80&type=function&source=KO",
   				                             'all annotated read blat stats from mgm4447943.3 with hits in KO functions at % identity > 80' ],
 				          'method'      => "GET",
 				          'type'        => "stream",  
@@ -140,9 +139,9 @@ sub info {
 				                             'body' => {} }
 						},
 						{ 'name'        => "similarity",
-				          'request'     => $self->cgi->url."/".$self->name."/similarity/{ID}",
+				          'request'     => $self->url."/".$self->name."/similarity/{id}",
 				          'description' => "tab delimited blast m8 with annotation",
-				          'example'     => [ 'curl -X POST -d \'{"source":"KO","type":"function","data":["000821a2e2f63df1a3873e4b280002a8","15bf1950bd9867099e72ea6516e3d602"]}\' "'.$self->cgi->url."/".$self->name.'/sequence/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
+				          'example'     => [ 'curl -X POST -d \'{"source":"RefSeq","type":"organism","md5s":["000a8d74068603c9e8674bff9970f367","0001c08aa276d154b7696f9758839786"]}\' "'.$self->url."/".$self->name.'/similarity/mgm4447943.3"', 'annotated read blast stats from mgm4447943.3 with hits in KO functions for given md5s' ],
 				          'method'      => "POST",
 				          'type'        => "stream",  
 				          'attributes'  => { "streaming text" => ['object', [$self->{attributes}{similarity}, "tab delimited blast m8 with annotation"]] },
@@ -176,13 +175,13 @@ sub request {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self, $format, $mgid) = @_;
+    my ($self, $format, $tempid) = @_;
     
     # check id format
-    my $rest = $self->rest;
+    my $mgid = $self->idresolve($tempid);
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
-    if ((! $id) && scalar(@$rest)) {
-        $self->return_data( {"ERROR" => "invalid id format: ".$mgid}, 400 );
+    unless ($id) {
+        $self->return_data( {"ERROR" => "invalid id format: ".$tempid}, 400 );
     }
 
     # get data
@@ -199,33 +198,18 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions to view this data"}, 401 );
     }
     
-    # check if job exists in cassandra DB / also tests DB connection
-    my $version = $self->cgi->param('version') || $self->{m5nr_default};
-    my $jobid = $job->{job_id};
-    my $chdl = $self->cassandra_handle("job", $version);
-    unless ($chdl) {
+    # test cassandra access
+    my $ctest = $self->cassandra_test("job");
+    unless ($ctest) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
     }
-    my $in_cassandra = $chdl->has_job($jobid);
-    $chdl->close();
     
-    unless ($in_cassandra) {
-        # need to redirect annotation to postgres backend API
-        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
-        print STDERR "Redirect: $redirect_uri\n";
-        print $self->cgi->redirect(
-            -uri => $redirect_uri,
-            -status => '302 Found'
-        );
-        exit 0;
-    }
-    
-    $self->prepare_data($job, $format);
+    $self->prepare_data($job, $format, $tempid);
 }
 
 # reformat the data into the requested output format
 sub prepare_data {
-    my ($self, $data, $format) = @_;
+    my ($self, $data, $format, $tempid) = @_;
 
     my $cgi     = $self->cgi;
     my $type    = $cgi->param('type') ? $cgi->param('type') : 'organism';
@@ -236,8 +220,9 @@ sub prepare_data {
     my $filter  = $cgi->param('filter') || undef;
     my $flevel  = $cgi->param('filter_level') || undef;
     my $md5s    = [];
-    my $mgid    = 'mgm'.$data->{metagenome_id};
-    my $jobid   = $data->{job_id};
+    my $mgid    = 'mgm'.$data->metagenome_id;
+    my $jobid   = $data->job_id;
+    my $swap    = $self->to_swap($data);
     my $version = ($cgi->param('version') && ($cgi->param('version') =~ /^\d+$/)) ? $cgi->param('version') : $self->{m5nr_default};
     my $filetype = $cgi->param('format') || 'tab';
     my $no_cutoffs = $cgi->param('no_cutoffs') ? 1 : 0;
@@ -343,9 +328,9 @@ sub prepare_data {
     
     my $index_set = [];
     if ($md5s && (@$md5s > 0)) {
-        $index_set = $jobhdl->get_md5_records($jobid, $md5s);
+        $index_set = $jobhdl->get_md5_records($jobid, $swap, $md5s);
     } else {
-        $index_set = $jobhdl->get_md5_records($jobid, undef, $eval, $ident, $alen);
+        $index_set = $jobhdl->get_md5_records($jobid, $swap, undef, $eval, $ident, $alen);
     }
     
     # print html and line headers - no buffering to stdout
@@ -353,14 +338,14 @@ sub prepare_data {
     $| = 1;
     my @head = map { $self->{attributes}{$format}{$_}[1] } sort keys %{$self->{attributes}{$format}};
     if ($cgi->param('browser')) {
-      print $cgi->header(-type => 'application/octet-stream', -status => 200, -Access_Control_Allow_Origin => '*');
+      print $cgi->header(-type => 'text/csv', -status => 200, -Access_Control_Allow_Origin => '*', -Content_Disposition => 'attachment; filename='.$tempid.'.csv');
     } else {
       print $cgi->header(-type => 'text/plain', -status => 200, -Access_Control_Allow_Origin => '*');
     }
     unless (($format eq 'sequence') && ($filetype eq 'fasta')) {
         print join("\t", @head)."\n";
     }
-        
+    
     # loop through indexes and print data
     my $count = 0;
     foreach my $idx (@$index_set) {
@@ -377,12 +362,15 @@ sub prepare_data {
 	    my @recs = ();
 	    foreach my $line (split(/\n/, $rec)) {
 	        my @tabs = split(/\t/, $line);
-	        if ($tabs[0]) {
+	        if ((scalar(@tabs) >= 12) && $tabs[0] && $tabs[1]) {
 	            $tabs[0] = $mgid."|".$tabs[0]."|".$source;
 	            push @recs, \@tabs;
 	        }
         }
         my @umd5s = uniq map { $_->[1] } @recs;
+        if (scalar(@umd5s) == 0) {
+            next;
+        }
         # get m5nr data for md5 set
         # def get_records_by_md5(self, md5s, source=None, index=False, iterator=False):
         my $info = $m5nrhdl->get_records_by_md5(\@umd5s, $source);
@@ -402,7 +390,8 @@ sub prepare_data {
 sub print_recs {
     my ($self, $recs, $info, $format, $type, $filetype, $filter_list, $filter) = @_;
     
-    my $count = 0;    
+    my $count = 0;
+    my $md5_ann = {};
     # process annotations per md5
     foreach my $set (@$info) {
         # get annotation set based on options / build string
@@ -446,24 +435,26 @@ sub print_recs {
             }
         }
         if (@ann == 0) { next; }
-        my $ann_str = join(";", @ann);
-        
-        # process records
-        foreach my $rec (@$recs) {
-		    my $out = "";
-		    if (($format eq 'sequence') && (@$rec == 13)) {
-		        if ($filetype eq 'fasta') {
-		            $out = ">".$rec->[0]."|".$rec->[1]." ".$ann_str."\n".$rec->[12];
-	            } elsif ($filetype eq 'tab') {
-		            $out = join("\t", map {$_ || ''} ($rec->[0], $rec->[1], $rec->[12], $ann_str));
-	            }
-		    } elsif ($format eq 'similarity') {
-		        $out = join("\t", map {$_ || ''} (@$rec[0..11], $ann_str));
-		    }
-		    print $out."\n";
-		    $count += 1;
-	    }
+        $md5_ann->{$set->{md5}} = join(";", @ann);
     }
+    
+    # process records
+    foreach my $rec (@$recs) {
+	    my $out = "";
+	    my $md5 = $rec->[1];
+	    unless ($md5_ann->{$md5}) { next; }
+	    if (($format eq 'sequence') && (@$rec == 13)) {
+	        if ($filetype eq 'fasta') {
+	            $out = ">".$rec->[0]."|".$md5." ".$md5_ann->{$md5}."\n".$rec->[12];
+	        } elsif ($filetype eq 'tab') {
+	            $out = join("\t", map {$_ || ''} ($rec->[0], $md5, $rec->[12], $md5_ann->{$md5}));
+	        }
+	    } elsif ($format eq 'similarity') {
+	        $out = join("\t", map {$_ || ''} (@$rec[0..11], $md5_ann->{$md5}));
+	    }
+	    print $out."\n";
+	    $count += 1;
+	}
     return $count;
 }
 

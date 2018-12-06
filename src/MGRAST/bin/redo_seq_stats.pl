@@ -13,7 +13,7 @@ use HTTP::Request;
 
 my $dir   = ".";
 my $node  = "";
-my $shock = "http://shock.metagenomics.anl.gov";
+my $shock = "https://shock.mg-rast.org";
 my $token = "";
 my $usage = qq($0
   --node  Node ID of file to run stats on

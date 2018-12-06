@@ -7,7 +7,6 @@ use POSIX qw(strftime);
 
 use Conf;
 use MGRAST::Metadata;
-use MGRAST::Abundance;
 use Data::Dumper;
 use URI::Escape;
 use List::Util qw(max min sum first);
@@ -61,13 +60,13 @@ sub info {
     my ($self) = @_;
     my $content = {
         'name' => $self->name,
-        'url' => $self->cgi->url."/".$self->name,
+        'url' => $self->url."/".$self->name,
         'description' => "A profile in biom format that contains abundance counts",
         'type' => 'object',
-        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'documentation' => $self->url.'/api.html#'.$self->name,
         'requests' => [
             { 'name'        => "info",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "Returns description of parameters and attributes.",
               'method'      => "GET" ,
               'type'        => "synchronous" ,  
@@ -78,15 +77,16 @@ sub info {
                   'body'     => {} }
             },
             { 'name'        => "organism",
-              'request'     => $self->cgi->url."/".$self->name."/organism",
-              'description' => "Returns a BIOM object.",
-              'example'     => [ $self->cgi->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=family&source=RefSeq&evalue=15",
+              'request'     => $self->url."/".$self->name."/organism",
+              'description' => "Returns a BIOM v1.0 object as described here: http://biom-format.org/documentation/format_versions/biom-1.0.html",
+              'example'     => [ $self->url."/".$self->name."/organism?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=family&source=RefSeq&evalue=15",
                                  'retrieve abundance matrix of RefSeq organism annotations at family taxa for listed metagenomes at evalue < e-15' ],
               'method'      => "GET" ,
               'type'        => "asynchronous",
               'attributes'  => $self->{attributes},
               'parameters'  => {
                   'options'  => {
+                      'id'       => [ 'string', 'one or more metagenome or project unique identifier' ],
                       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
                       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
                       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
@@ -103,41 +103,38 @@ sub info {
                       'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this function' ],
                       'filter_level' => [ 'cv', $self->hierarchy->{ontology} ],
                       'filter_source' => [ 'cv', $self->{sources}{ontology} ],
-                      'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
                       'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
-                      'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
-                      'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
-                  'required' => {},
+                      'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ] },
+				  'required' => {},
                   'body'     => {} }
             },
             { 'name'        => "function",
-              'request'     => $self->cgi->url."/".$self->name."/function",
-              'description' => "Returns a BIOM object.",
-              'example'     => [ $self->cgi->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=level3&source=Subsystems&identity=80",
+              'request'     => $self->url."/".$self->name."/function",
+              'description' => "Returns a BIOM v1.0 object as described here: http://biom-format.org/documentation/format_versions/biom-1.0.html.",
+              'example'     => [ $self->url."/".$self->name."/function?id=mgm4447943.3&id=mgm4447192.3&id=mgm4447102.3&group_level=level3&source=Subsystems&identity=80",
                                  'retrieve abundance matrix of Subsystem annotations at level3 for listed metagenomes at % identity > 80' ],
               'method'      => "GET" ,
               'type'        => "asynchronous",
               'attributes'  => $self->{attributes},
               'parameters'  => {
-                  'options'  => {
-                      'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
-                      'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
-                      'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
-                      'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
-                                                ['evalue', 'average e-value exponent of hits in annotation'],
-                                                ['identity', 'average percent identity of hits in annotation'],
-                                                ['length', 'average alignment length of hits in annotation']] ],
-                      'source' => [ 'cv', $self->{sources}{ontology} ],
-                      'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
-                      'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
-                      'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
-                      'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
-                      'filter_source' => [ 'cv', $self->{sources}{organism} ],
-                      'id' => [ 'string', 'one or more metagenome or project unique identifier' ],
-                      'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
-                      'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ],
-                      'asynchronous' => [ 'boolean', "if true return process id to query status resource for results, default is false" ] },
-                  'required' => {},
+				'options'  => {
+                           'id'       => [ 'string', 'one or more metagenome or project unique identifier' ],
+					       'evalue'   => ['int', 'negative exponent value for maximum e-value cutoff: default is '.$self->{cutoffs}{evalue}],
+					       'identity' => ['int', 'percent value for minimum % identity cutoff: default is '.$self->{cutoffs}{identity}],
+					       'length'   => ['int', 'value for minimum alignment length cutoff: default is '.$self->{cutoffs}{length}],
+					       'result_type' => [ 'cv', [['abundance', 'number of reads with hits in annotation'],
+									 ['evalue', 'average e-value exponent of hits in annotation'],
+									 ['identity', 'average percent identity of hits in annotation'],
+									 ['length', 'average alignment length of hits in annotation']] ],
+					       'source' => [ 'cv', $self->{sources}{ontology} ],
+					       'group_level' => [ 'cv', $self->hierarchy->{ontology} ],
+					       'grep' => [ 'string', 'filter the return results to only include annotations that contain this text' ],
+					       'filter' => [ 'string', 'filter the return results to only include abundances based on genes with this organism' ],
+					       'filter_level' => [ 'cv', $self->hierarchy->{organism} ],
+					       'filter_source' => [ 'cv', $self->{sources}{organism} ],
+					       'hide_metadata' => [ 'boolean', "if true do not return metagenome metadata in 'columns' object, default is false" ],
+					       'version' => [ 'int', 'M5NR version, default '.$self->{m5nr_default} ] },
+				  'required' => {},
                   'body'     => {} }
             }
         ]
@@ -184,7 +181,8 @@ sub instance {
     my %p_rights = map {$_, 1} (@$p_private, @$p_public);
 
     # get unique list of mgids based on user rights and inputed ids
-    foreach my $id (@ids) {
+    foreach my $tempid (@ids) {
+        my $id = $self->idresolve($tempid);
         next if (exists $seen->{$id});
         if ($id =~ /^mgm(\d+\.\d+)$/) {
             if ($m_star || exists($m_rights{$1})) {
@@ -203,7 +201,7 @@ sub instance {
                 $self->return_data( {"ERROR" => "insufficient permissions in matrix call for id: ".$id}, 401 );
             }
         } else {
-            $self->return_data( {"ERROR" => "unknown id in matrix call: ".$id}, 404 );
+            $self->return_data( {"ERROR" => "unknown id in matrix call: ".$tempid}, 404 );
         }
         $seen->{$id} = 1;
     }
@@ -218,6 +216,9 @@ sub instance {
     my @mgids = sort keys %mgids;
     # validate / parse request options
     my ($params, $metadata, $hierarchy) = $self->process_parameters($master, \@mgids, $type);
+    if (exists $params->{'ERROR'}) {
+        $self->return_data( {"ERROR" => $params->{'ERROR'}}, 400 );
+    }
     
     # check if temp profile compute node is in shock
     my $attr = {
@@ -231,32 +232,13 @@ sub instance {
     if ($nodes && (@$nodes > 0)) {
         # sort results by newest to oldest
         my @sorted = sort { $b->{file}{created_on} cmp $a->{file}{created_on} } @$nodes;
-        $self->return_data({"status" => "submitted", "id" => $sorted[0]->{id}, "url" => $self->cgi->url."/status/".$sorted[0]->{id}});
+        $self->return_data({"status" => "submitted", "id" => $sorted[0]->{id}, "url" => $self->url."/status/".$sorted[0]->{id}});
     }
     
-    # check if all jobs exist in cassandra DB / also tests DB connection
-    my $in_cassandra = 1;
-    my $chdl = $self->cassandra_handle("job", $params->{version});
-    unless ($chdl) {
+    # test cassandra access
+    my $ctest = $self->cassandra_test("job");
+    unless ($ctest) {
         $self->return_data( {"ERROR" => "unable to connect to metagenomics analysis database"}, 500 );
-    }
-    foreach my $jid (@{$params->{job_ids}}) {
-        if (! $chdl->has_job($jid)) {
-            $in_cassandra = 0;
-        }
-    }
-    $chdl->close();
-    
-    # not all in cassandra
-    unless ($in_cassandra) {
-        # need to redirect profile to postgres backend API
-        my $redirect_uri = $Conf::old_api.$self->cgi->url(-absolute=>1, -path_info=>1, -query=>1);
-        print STDERR "Redirect: $redirect_uri\n";
-        print $self->cgi->redirect(
-            -uri => $redirect_uri,
-            -status => '302 Found'
-        );
-        exit 0;
     }
     
     # need to create new temp node
@@ -278,18 +260,21 @@ sub instance {
     }
     # parent - end html session
     else {
-        $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
+        $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->url."/status/".$node->{id}});
     }
 }
 
 # validate / reformat the data into the request paramaters
 sub process_parameters {
     my ($self, $master, $data, $type) = @_;
+    my $default_prot_source = 'RefSeq';
+    my $default_rna_source = 'RDP';
+    my $default_ont_source = 'Subsystems';
     
     # get optional params
     my $cgi = $self->cgi;
     my $grep   = $cgi->param('grep') || undef;
-    my $source = $cgi->param('source') ? $cgi->param('source') : (($type eq 'organism') ? 'RefSeq' : 'Subsystems');
+    my $source = $cgi->param('source');
     my $rtype  = $cgi->param('result_type') ? $cgi->param('result_type') : 'abundance';
     my $htype  = $cgi->param('hit_type') ? $cgi->param('hit_type') : 'all';
     my $glvl   = $cgi->param('group_level') ? $cgi->param('group_level') : (($type eq 'organism') ? 'strain' : 'function');
@@ -297,7 +282,7 @@ sub process_parameters {
     my $ident  = defined($cgi->param('identity')) ? $cgi->param('identity') : $self->{cutoffs}{identity};
     my $alen   = defined($cgi->param('length')) ? $cgi->param('length') : $self->{cutoffs}{length};
     my $flvl   = $cgi->param('filter_level') ? $cgi->param('filter_level') : (($type eq 'organism') ? 'function' : 'strain');
-    my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? 'Subsystems' : 'RefSeq');
+    my $fsrc   = $cgi->param('filter_source') ? $cgi->param('filter_source') : (($type eq 'organism') ? $default_ont_source : $default_prot_source);
     my $filter = $cgi->param('filter') ? $cgi->param('filter') : "";
     my $hide_md = $cgi->param('hide_metadata') ? 1 : 0;
     my $hide_hy = $cgi->param('hide_hierarchy') ? 1 : 0;
@@ -308,8 +293,72 @@ sub process_parameters {
     my $group_level = $glvl;
     my $filter_level = $flvl;
     
+    # controlled vocabulary set
+    my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
+    my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
+    my %rna_srcs   = map { $_->[0], 1 } @{$self->source->{rna}};
+    my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
+    my %org_srcs   = map { $_->[0], 1 } @{$self->{sources}{organism}};
+    my @tax_hier   = map { $_->[0] } reverse @{$self->hierarchy->{organism}};
+    my @ont_hier   = map { $_->[0] } reverse @{$self->hierarchy->{ontology}};
+    
+    # id mapping / validation
+    my @job_ids = ();
+    my @mg_ids  = ();
+    my $id_map  = $master->Job->get_job_ids($data);
+    foreach my $mid (@$data) {
+        if (exists $id_map->{$mid}) {
+            push @job_ids, $id_map->{$mid};
+            push @mg_ids, 'mgm'.$mid;
+        } else {
+            return ({"ERROR" => "invalid id: mgm".$mid}, undef, undef);
+        }
+    }
+    
+    # validate metagenome type combinations
+    # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
+    my $num_rna  = 0;
+    my $num_gene = 0;
+    my $type_map = $master->Job->get_sequence_types($data);
+    map { $num_rna += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
+    map { $num_gene += 1 } grep { $_ eq 'Metabarcode' } values %$type_map;
+    if ($num_rna) {
+        unless ($source) {
+            $source = $default_rna_source;
+        }
+        if ($num_rna != scalar(@$data)) {
+            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_rna of ".scalar(@$data)." are Amplicon"}, undef, undef);
+        }
+        if ($type eq 'function') {
+            return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, undef, undef);
+        }
+        if (exists $prot_srcs{$source}) {
+            return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, undef, undef);
+        }
+        if ($filter) {
+            return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, undef, undef);
+        }
+    }
+    if ($num_gene) {
+        unless ($source) {
+            $source = $default_prot_source;
+        }
+        if ($type eq 'function') {
+            return ({"ERROR" => "invalid combination: requesting functional annotations with Metabarcode data sets"}, undef, undef);
+        }
+        if (exists $rna_srcs{$source}) {
+            return ({"ERROR" => "invalid combination: requesting RNA source annotations with Metabarcode data sets"}, undef, undef);
+        }
+        if ($filter) {
+            return ({"ERROR" => "invalid combination: filtering by functional annotations with Metabarcode data sets"}, undef, undef);
+        }
+    }
+    unless ($source) {
+        $source = ($type eq 'organism') ? $default_prot_source : $default_ont_source;
+    }
+    
     my $matrix_id  = join("_", map {'mgm'.$_} @$data).'_'.join("_", ($type, $glvl, $source, $htype, $rtype, $eval, $ident, $alen));
-    my $matrix_url = $self->cgi->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} @$data).'&group_level='.$glvl.'&source='.$source.
+    my $matrix_url = $self->url.'/matrix/'.$type.'?id='.join('&id=', map {'mgm'.$_} @$data).'&group_level='.$glvl.'&source='.$source.
                      '&hit_type='.$htype.'&result_type='.$rtype.'&evalue='.$eval.'&identity='.$ident.'&length='.$alen;
     if ($hide_md) {
         $matrix_id .= '_'.$hide_md;
@@ -333,26 +382,18 @@ sub process_parameters {
     $ident = (defined($ident) && ($ident =~ /^\d+$/)) ? int($ident) : undef;
     $alen  = (defined($alen)  && ($alen  =~ /^\d+$/)) ? int($alen)  : undef;
     if (defined($eval) && ($eval < 1)) {
-        return ({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, 404);
+        return ({"ERROR" => "invalid evalue for matrix call, must be integer greater than 1"}, undef, undef);
     }
     if (defined($ident) && (($ident < 0) || ($ident > 100))) {
-        return ({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, 404);
+        return ({"ERROR" => "invalid identity for matrix call, must be integer between 0 and 100"}, undef, undef);
     }
     if (defined($alen) && ($alen < 1)) {
-        return ({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, 404);
+        return ({"ERROR" => "invalid length for matrix call, must be integer greater than 1"}, undef, undef);
     }
-    
-    # controlled vocabulary set
-    my $result_map = {abundance => 'abundance', evalue => 'exp_avg', length => 'len_avg', identity => 'ident_avg'};
-    my %prot_srcs  = map { $_->[0], 1 } @{$self->source->{protein}};
-    my %func_srcs  = map { $_->[0], 1 } @{$self->{sources}{ontology}};
-    my %org_srcs   = map { $_->[0], 1 } @{$self->{sources}{organism}};
-    my @tax_hier   = map { $_->[0] } reverse @{$self->hierarchy->{organism}};
-    my @ont_hier   = map { $_->[0] } reverse @{$self->hierarchy->{ontology}};
     
     # validate controlled vocabulary params
     unless (exists $result_map->{$rtype}) {
-        return ({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, 404);
+        return ({"ERROR" => "invalid result_type for matrix call: ".$rtype." - valid types are [".join(", ", keys %$result_map)."]"}, undef, undef);
     }
     if ($type eq 'organism') {
         if ( any {$_ eq $glvl} @tax_hier ) {
@@ -360,7 +401,7 @@ sub process_parameters {
                 $leaf_node = 1;
             }
         } else {
-            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @tax_hier)."]"}, 404);
+            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @tax_hier)."]"}, undef, undef);
         }
         if ( any {$_ eq $flvl} @ont_hier ) {
             if ($flvl eq 'function') {
@@ -370,13 +411,13 @@ sub process_parameters {
                 $leaf_filter = 1;
             }
         } else {
-            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @ont_hier)."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @ont_hier)."]"}, undef, undef);
         }
         unless (exists $org_srcs{$source}) {
-            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %org_srcs)."]"}, undef, undef);
         }
         unless (exists $func_srcs{$fsrc}) {
-            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %func_srcs)."]"}, undef, undef);
         }
     } elsif ($type eq 'function') {
         $htype = 'all';
@@ -393,47 +434,24 @@ sub process_parameters {
                 $leaf_node = 1;
             }
         } else {
-            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @ont_hier)."]"}, 404);
+            return ({"ERROR" => "invalid group_level for matrix call of type ".$type.": ".$group_level." - valid types are [".join(", ", @ont_hier)."]"}, undef, undef);
         }
         if ( any {$_ eq $flvl} @tax_hier ) {
             if ($flvl eq 'strain') {
                 $leaf_filter = 1;
             }
         } else {
-            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @tax_hier)."]"}, 404);
+            return ({"ERROR" => "invalid filter_level for matrix call of type ".$type.": ".$filter_level." - valid types are [".join(", ", @tax_hier)."]"}, undef, undef);
         }
         unless (exists($func_srcs{$source}) || exists($prot_srcs{$source})) {
-            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid source for matrix call of type ".$type.": ".$source." - valid types are [".join(", ", keys %func_srcs)."]"}, undef, undef);
         }
         unless (exists $org_srcs{$fsrc}) {
-            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %org_srcs)."]"}, 404);
+            return ({"ERROR" => "invalid filter_source for matrix call of type ".$type.": ".$fsrc." - valid types are [".join(", ", keys %org_srcs)."]"}, undef, undef);
         }
     } else {
-        return ({"ERROR" => "invalid resource type was entered ($type)."}, 404);
+        return ({"ERROR" => "invalid resource type was entered ($type)."}, undef, undef);
     }
-
-    # validate metagenome type combinations
-    # invalid - amplicon with: non-amplicon function, protein datasource, filtering 
-    my $num_amp = 0;
-    my $type_map = $master->Job->get_sequence_types($data);
-    map { $num_amp += 1 } grep { $_ eq 'Amplicon' } values %$type_map;
-    if ($num_amp) {
-        if ($num_amp != scalar(@$data)) {
-            return ({"ERROR" => "invalid combination: mixing Amplicon with Metagenome and/or Metatranscriptome. $num_amp of ".scalar(@$data)." are Amplicon"}, 400);
-        }
-        if ($type eq 'function') {
-            return ({"ERROR" => "invalid combination: requesting functional annotations with Amplicon data sets"}, 400);
-        }
-        if (exists $prot_srcs{$source}) {
-            return ({"ERROR" => "invalid combination: requesting protein source annotations with Amplicon data sets"}, 400);
-        }
-        if ($filter) {
-            return ({"ERROR" => "invalid combination: filtering by functional annotations with Amplicon data sets"}, 400);
-        }
-    }
-    my $id_map  = $master->Job->get_job_ids($data);
-    my @job_ids = map { $id_map->{$_} } @$data;
-    my @mg_ids  = map { 'mgm'.$_ } @$data;
     
     # reset type
     if (exists($func_srcs{$source}) && ($type eq "function")) {
@@ -500,6 +518,7 @@ sub process_parameters {
         url         => $matrix_url,
         mg_ids      => \@mg_ids,
         job_ids     => \@job_ids,
+        swaps       => $self->to_swap_set($data), # data is mg_ids w/o prefix
         resource    => "matrix",
         type        => $type,
         group_level => $glvl,

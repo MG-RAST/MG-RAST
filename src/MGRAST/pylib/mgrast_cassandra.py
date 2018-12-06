@@ -10,10 +10,13 @@ import cassandra.query as cql
 M5NR_VERSION = 1
 
 def rmqLogger(channel, stype, statement, bulk=0):
+    if not channel:
+        return
+    truncate = (statement[:98] + '..') if len(statement) > 100 else statement
     body = {
         'timestamp': datetime.datetime.now().isoformat(),
         'type':      stype,
-        'statement': statement,
+        'statement': truncate,
         'bulk':      bulk
     }
     if 'HOSTNAME' in os.environ:
@@ -35,27 +38,14 @@ class M5nrHandle(object):
         self.session = cass_connection.create(hosts).connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = cql.dict_factory
-        self.channel = cass_connection.rmqConnection().channel()
+        self.channel = None
+        try:
+            self.channel = cass_connection.rmqConnection().channel()
+        except:
+            pass
     def close(self):
         cass_connection.destroy()
     ### retrieve M5NR records
-    def get_records_by_id(self, ids, source=None, index=False, iterator=False):
-        found = []
-        table = "index_annotation" if index else "id_annotation"
-        id_str = ",".join(map(str, ids))
-        if source:
-            query = "SELECT * FROM %s WHERE id IN (%s) AND source='%s'"%(table, id_str, source)
-        else:
-            query = "SELECT * FROM %s WHERE id IN (%s)"%(table, id_str)
-        rmqLogger(self.channel, 'select', query)
-        rows = self.session.execute(query)
-        if iterator:
-            return rows
-        else:
-            for r in rows:
-                r['is_protein'] = 1 if r['is_protein'] else 0
-                found.append(r)
-            return found
     def get_records_by_md5(self, md5s, source=None, index=False, iterator=False):
         found = []
         table = "midx_annotation" if index else "md5_annotation"
@@ -72,6 +62,23 @@ class M5nrHandle(object):
             for r in rows:
                 r['is_protein'] = 1 if r['is_protein'] else 0
                 found.append(r)
+            return found
+    def get_functions_by_id(self, ids, compress, iterator=False):
+        id_str = ",".join(map(str, ids))
+        query = "SELECT * FROM functions WHERE id IN (%s)"%(id_str)
+        rmqLogger(self.channel, 'select', query)
+        rows = self.session.execute(query)
+        if iterator:
+            return rows
+        else:
+            if compress == 1:
+                found = {}
+                for r in rows:
+                    found[ r['id'] ] = r['name']
+            else:
+                found = []
+                for r in rows:
+                    found.append( {'function_id': r['id'], 'function': r['name']} )
             return found
     ### retrieve full hierarchies
     def get_taxa_hierarchy(self):
@@ -113,7 +120,7 @@ class M5nrHandle(object):
         query = "SELECT * FROM ont_%s"%level
         if source:
             query += " WHERE source = ?"
-            prep = self.session.prepare(query+" WHERE source = ?")
+            prep = self.session.prepare(query)
             for r in self.session.execute(prep, [source]):
                 found[r['name']] = r[level]
         else:
@@ -141,8 +148,9 @@ class M5nrHandle(object):
         # if match is given, return subset that contains match, else all
         found = set()
         level = level.lower()
-        prep = self.session.prepare("SELECT * FROM ont_%s WHERE source = ?"%level)
+        query = "SELECT * FROM ont_%s WHERE source = ?"%level
         rmqLogger(self.channel, 'select', query)
+        prep = self.session.prepare(query)
         rows = self.session.execute(prep, [source])
         for r in rows:
             if match and (match.lower() in r[level].lower()):
@@ -158,13 +166,40 @@ class JobHandle(object):
         self.session = cass_connection.create(hosts).connect(keyspace)
         self.session.default_timeout = 300
         self.session.row_factory = cql.tuple_factory
-        self.channel = cass_connection.rmqConnection().channel()
+        self.channel = None
+        try:
+            self.channel = cass_connection.rmqConnection().channel()
+        except:
+            pass
     def close(self):
         cass_connection.destroy()
     ## get iterator for md5 records of a job
-    def get_job_records(self, job, fields, evalue=None, identity=None, alength=None):
+    def get_job_records(self, job, fields, swap=None, evalue=None, identity=None, alength=None):
         job = int(job)
+        if swap:
+            identity, alength = alength, identity
         query = "SELECT "+",".join(fields)+" FROM job_md5s WHERE version = ? AND job = ?"
+        where = [self.version, job]
+        if evalue:
+            query += " AND exp_avg <= ?"
+            where.append(int(evalue) * -1)
+        if identity:
+            query += " AND ident_avg >= ?"
+            where.append(int(identity))
+        if alength:
+            query += " AND len_avg >= ?"
+            where.append(int(alength))
+        if evalue or identity or alength:
+            query += " ALLOW FILTERING"
+        rmqLogger(self.channel, 'select', query)
+        prep = self.session.prepare(query)
+        return self.session.execute(prep, where)
+    ## get iterator for lca records of a job
+    def get_lca_records(self, job, fields, swap=None, evalue=None, identity=None, alength=None):
+        job = int(job)
+        if swap:
+            identity, alength = alength, identity
+        query = "SELECT "+",".join(fields)+" FROM job_lcas WHERE version = ? AND job = ?"
         where = [self.version, job]
         if evalue:
             query += " AND exp_avg <= ?"
@@ -192,8 +227,10 @@ class JobHandle(object):
         else:
             return None
     ## get indexes for given md5 list or cutoff values
-    def get_md5_records(self, job, md5s=None, evalue=None, identity=None, alength=None):
+    def get_md5_records(self, job, swap=None, md5s=None, evalue=None, identity=None, alength=None):
         job = int(job)
+        if swap:
+            identity, alength = alength, identity
         found = []
         query = "SELECT seek, length FROM job_md5s WHERE version = %d AND job = %d"%(self.version, job)
         if md5s and (len(md5s) > 0):

@@ -6,8 +6,12 @@ no warnings('once');
 
 use Auth;
 use Conf;
+use ElasticSearch;
+use MGRAST::Metadata;
+
 use CGI;
 use JSON;
+use XML::Simple;
 use URI::Escape;
 use MIME::Base64;
 use LWP::UserAgent;
@@ -41,6 +45,7 @@ sub new {
         $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000};
     };
     my $url_id = get_url_id($params->{cgi}, $params->{resource}, $params->{rest_parameters}, $params->{json_rpc}, $params->{user});
+    my $self_url = get_self_url($params->{cgi}, $params->{is_ssl});
     my $agent = LWP::UserAgent->new;
     $agent->timeout(600);
     my $json = JSON->new();
@@ -63,26 +68,9 @@ sub new {
 	    -32603 => "Internal error"
 	};
 	
-	# get mgrast token
-    #my $mgrast_token = undef;
-    #if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
-    #    my $key = encode_base64($Conf::mgrast_oauth_name.':'.$Conf::mgrast_oauth_pswd);
-    #    my $rep = Auth::globus_token($key);
-    #    $mgrast_token = $rep ? $rep->{access_token} : undef;
-    #}
     #### changed because globus has hard time handeling multiple tokens
     my $user_auth = "mgrast";
     my $mgrast_token = $Conf::mgrast_oauth_token || undef;
-    my $token = undef;
-    if ($params->{cgi}->http('HTTP_AUTH') || $params->{cgi}->http('HTTP_Authorization')) {
-        $token = $params->{cgi}->http('HTTP_AUTH') || $params->{cgi}->http('HTTP_Authorization');
-        if ($params->{cgi}->http('HTTP_Authorization')) {
-            $token =~ s/^mgrast (.+)$/$1/;
-        }
-        if ($token =~ /globusonline/) {
-            $user_auth = "OAuth";
-        }
-    }
 	
     # create object
     my $self = {
@@ -91,12 +79,13 @@ sub new {
         memd          => $memd,
         json          => $json,
         cgi           => $params->{cgi},
+        url           => $self_url,
         rest          => $params->{rest_parameters} || [],
         method        => $params->{method},
         submethod     => $params->{submethod},
         resource      => $params->{resource},
         user          => $params->{user},
-        token         => $token,
+        token         => $params->{token},
         mgrast_token  => $mgrast_token,
         user_auth     => $user_auth,
         json_rpc      => $params->{json_rpc} ? $params->{json_rpc} : 0,
@@ -108,7 +97,8 @@ sub new {
         rights        => {},
         attributes    => {},
         m5nr_version  => {'1' => '20100309', '7' => '20120401', '9' => '20130801', '10' => '20131215'},
-        m5nr_default  => 1
+        m5nr_default  => 1,
+        default_pipeline_version => "3.0"
     };
     bless $self, $class;
     return $self;
@@ -138,6 +128,15 @@ sub get_url_id {
     return md5_hex($rurl);
 }
 
+sub get_self_url {
+    my ($cgi, $is_ssl) = @_;
+    my $cgi_url = $cgi->url;
+    if ($is_ssl) {
+        $cgi_url =~ s/^http/https/;
+    }
+    return $cgi_url;
+}
+
 # get functions for class variables
 sub agent {
     my ($self) = @_;
@@ -154,6 +153,10 @@ sub json {
 sub cgi {
     my ($self) = @_;
     return $self->{cgi};
+}
+sub url {
+    my ($self) = @_;
+    return $self->{url};
 }
 sub rest {
     my ($self) = @_;
@@ -231,7 +234,8 @@ sub source {
 				           ["TrEMBL", "protein database, type organism, function, feature"],
 			               ["SwissProt", "protein database, type organism, function, feature"],
 					       ["PATRIC", "protein database, type organism, function, feature"],
-					       ["KEGG", "protein database, type organism, function, feature"] ],
+					       ["KEGG", "protein database, type organism, function, feature"],
+                           ["eggNOG", "protein database, type organism, function, feature"] ],
              rna      => [ ["RDP", "RNA database, type organism, function, feature"],
 			               ["Greengenes", "RNA database, type organism, function, feature"],
 		                   ["LSU", "RNA database, type organism, function, feature"],
@@ -524,9 +528,9 @@ sub check_pagination {
     # don't build urls for POST
     if ($self->method eq 'GET') {
         my $add_params  = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'offset'} @params);
-        $object->{url}  = $self->cgi->url."/".$self->name.$path."?$add_params&offset=$offset";
-        $object->{prev} = ($offset > 0) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$prev_offset" : undef;
-        $object->{next} = (($offset < $total_count) && ($total_count > $limit)) ? $self->cgi->url."/".$self->name.$path."?$add_params&offset=$next_offset" : undef;
+        $object->{url}  = $self->url."/".$self->name.$path."?$add_params&offset=$offset";
+        $object->{prev} = ($offset > 0) ? $self->url."/".$self->name.$path."?$add_params&offset=$prev_offset" : undef;
+        $object->{next} = (($offset < $total_count) && ($total_count > $limit)) ? $self->url."/".$self->name.$path."?$add_params&offset=$next_offset" : undef;
     }
     if ($order) {
       $object->{order} = $order;
@@ -560,6 +564,15 @@ sub get_post_data {
         my $pdata = {};
         eval {
             $pdata = $self->json->decode($post_data);
+        };
+        @data{ keys %$pdata } = values %$pdata;
+    }
+    # get broken post data
+    if (scalar(keys %data) == 0) {
+        my $all_data = join(" ", $self->cgi->Vars);
+        my $pdata = {};
+        eval {
+            $pdata = $self->json->decode($all_data);
         };
         @data{ keys %$pdata } = values %$pdata;
     }
@@ -670,11 +683,30 @@ sub return_data {
 # print a string to download
 sub download_text {
     my ($self, $text, $name) = @_;
-    print "Content-Type:application/x-download\n";
+    print "Content-Type: application/x-download\n";
     print "Access-Control-Allow-Origin: *\n";
-    print "Content-Length: ".(length($text))."\n";
-    print "Content-Disposition:attachment;filename=$name\n\n";
+    print "Content-Length: ".length($text)."\n";
+    print "Content-Disposition: attachment;filename=$name\n\n";
     print $text;
+    exit 0;
+}
+
+# print a local file to download
+sub download_local {
+    my ($self, $filepath, $name) = @_;
+    if (open(FH, "<$filepath")) {
+      my $content = do { local $/; <FH> };
+      close FH;
+      print "Content-Type: application/octet-stream\n";
+      print "Access-Control-Allow-Origin: *\n";
+      print "Content-Length: ".length($content)."\n";
+      print "Content-Disposition: attachment;filename=$name\n\n";
+      print $content;
+    } else {
+      print "Content-Type: text/plain\n";
+      print "Access-Control-Allow-Origin: *\n";
+      print "ERROR (500): Unable to retrieve file $name\n";
+    }
     exit 0;
 }
 
@@ -688,12 +720,12 @@ sub return_shock_file {
 
     my $response = undef;
     # print headers
-    print "Content-Type:application/x-download\n";
+    print "Content-Type: application/x-download\n";
     print "Access-Control-Allow-Origin: *\n";
     if ($size) {
         print "Content-Length: ".$size."\n";
     }
-    print "Content-Disposition:attachment;filename=".$name."\n\n";
+    print "Content-Disposition: attachment;filename=".$name."\n\n";
     eval {
         my $url = $Conf::shock_url.'/node/'.$id.'?download_raw';
         my @args = (
@@ -794,10 +826,10 @@ sub get_download_set {
       $authPrefix = "mgrast";
     }
 
-    my $vernum = int( (split(/\./, $version))[0] );
+    my $vernum = $self->normailze_pipeline_version($version);
     my %seen   = ();
     my $skip   = {};
-    my %subset = ('preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
+    my %subset = ('adapter.trim' => 1, 'preprocess' => 1, 'dereplication' => 1, 'screen' => 1);
     my $stages = [];
     my $mgall  = $self->get_shock_query({'id' => 'mgm'.$mgid}, $auth, $authPrefix);
     my $mgmap  = {};
@@ -846,11 +878,7 @@ sub get_download_set {
         my $attr = $node->{attributes};
         my $file = $node->{file};
         # only return sequence files
-        if ( $seq_only &&
-             ($attr->{data_type} ne 'sequence') && 
-             ($attr->{file_format} ne 'fasta') &&
-             ($attr->{file_format} ne 'fastq') )
-        {
+        if ($seq_only && ($attr->{data_type} !~ /^sequence|passed|removed$/)) {
             $skip->{$node->{id}} = "not sequence file";
             next;
         }
@@ -861,13 +889,13 @@ sub get_download_set {
         }
         my $file_id = $attr->{stage_id}.'.'.$seen{$attr->{stage_id}};
         my $data = { id  => "mgm".$mgid,
-		             url => $self->cgi->url.'/download/mgm'.$mgid.'?file='.$file_id,
+		             url => $self->url.'/download/mgm'.$mgid.'?file='.$file_id,
 		             node_id    => $node->{id},
 		             stage_id   => $attr->{stage_id},
 		             stage_name => $attr->{stage_name},
 		             data_type  => $attr->{data_type},
 		             file_id    => $file_id,
-		             file_size  => $file->{size} || undef,
+		             file_size  => $file->{size} || 0,
 		             file_md5   => $file->{checksum}{md5} || undef
 		};
 	    foreach my $label (('statistics', 'seq_format', 'file_format', 'cluster_percent')) {
@@ -926,13 +954,13 @@ sub get_download_set {
         } elsif ($data->{stage_name} eq 'filter.sims') {
             $suffix = '.annotation.sims.filter.seq';
         } elsif ($data->{data_type} eq 'md5') {
-            if ($vernum < 4) {
+            if ($vernum < 400) {
                 $suffix = '.annotation.md5.summary';
             } else {
                 $suffix = '.annotation.md5.abundance';
             }
         } elsif ($data->{data_type} eq 'lca') {
-            if ($vernum < 4) {
+            if ($vernum < 400) {
                 $suffix = '.annotation.lca.summary';
             } else {
                 $suffix = '.annotation.lca.abundance';
@@ -946,7 +974,7 @@ sub get_download_set {
         if ($data->{data_type} eq 'statistics') {
             # no stage_id in stats file name
             $data->{file_name} = $attr->{job_id}.'.statistics.json';
-        } elsif (($data->{stage_name} eq 'filter.sims') && ($version eq '3.0')) {
+        } elsif (($data->{stage_name} eq 'filter.sims') && ($vernum == 300)) {
             # old pipeline naming scheme
             $data->{file_name} = $attr->{job_id}.'.900.loadDB.sims.filter.seq';
         }
@@ -967,6 +995,88 @@ sub get_download_set {
     }
     
     return ($stages, $skip);
+}
+
+sub fix_download_filenames {
+    my ($self, $data, $id) = @_;
+    foreach my $d (@$data) {
+        if (exists $d->{file_name}) {
+            $d->{file_name} = $self->fix_download_filename($d->{file_name}, $id);
+        }
+        if (exists $d->{inputs}) {
+            foreach my $i (@{$d->{inputs}}) {
+                if (exists $i->{file_name}) {
+                    $i->{file_name} = $self->fix_download_filename($i->{file_name}, $id);
+                }
+            }
+        }
+        if (exists $d->{outputs}) {
+            foreach my $o (@{$d->{outputs}}) {
+                if (exists $o->{file_name}) {
+                    $o->{file_name} = $self->fix_download_filename($o->{file_name}, $id);
+                }
+            }
+        }
+    }
+    return $data;
+}
+
+sub fix_download_filename {
+    my ($self, $fname, $id) = @_;
+    # has jobid prefix
+    if ($fname =~ /^(\d+)\.(.*)/) {
+        $fname = $id.".".$2;
+    }
+    return $fname
+}
+
+sub clean_setlist {
+    my ($self, $setlist, $job) = @_;
+    
+    my $has_human = $self->has_human($setlist, $job);
+    if (! $has_human) {
+        return $setlist;
+    }
+    
+    foreach my $set (@$setlist) {
+        my $stage_id = int($set->{stage_id});
+        if ($stage_id < 200) {
+            if (exists $set->{node_id}) {
+                delete $set->{node_id};
+            }
+            if (exists $set->{url}) {
+                delete $set->{url};
+            }
+        }
+    }
+    
+    return $setlist;
+}
+
+sub has_human {
+    my ($self, $setlist, $job) = @_;
+    
+    if (($job->sequence_type ne 'WGS') && ($job->sequence_type ne 'MT')) {
+        return 0;
+    }
+    
+    my $jdata = $job->data;
+    if (exists($jdata->{screen_indexes}) && ($jdata->{screen_indexes} =~ /h_sapiens/)) {
+        my $dpass = 0;
+        my $spass = 0;
+        foreach my $set (@$setlist) {
+            if (($set->{stage_name} eq "dereplication.passed") && exists($set->{statistics})) {
+                $dpass = $set->{statistics}{sequence_count} || 0;
+            }
+            if (($set->{stage_name} eq "screen.passed") && exists($set->{statistics})) {
+                $spass = $set->{statistics}{sequence_count} || 0;
+            }
+        }
+        if ($dpass && $spass && ($spass < $dpass)) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 # add or delete an ACL based on username
@@ -1039,6 +1149,8 @@ sub set_shock_node {
     }
     my $response = undef;
     my $content = {};
+    $self->json->utf8();
+    
     if ($file) {
         my $file_str = $not_json ? $file : $self->json->encode($file);
         $content->{upload} = [undef, $name, Content => $file_str];
@@ -1554,6 +1666,28 @@ sub awe_job_action {
     }
 }
 
+# get status and awe_id if metagenome job in awe
+sub awe_has_job {
+    my ($self, $name, $auth, $authPrefix) = @_;
+    
+    if (! $authPrefix) {
+        $authPrefix = "mgrast";
+    }
+    
+    my $response = undef;
+    eval {
+        my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
+        my $get = $self->agent->get($Conf::awe_url.'/job?query&info.name='.$name, @args);
+        $response = $self->json->decode( $get->content );
+    };
+    
+    if ($response && exists($response->{data}) && (scalar(@{$response->{data}}) > 0)) {
+        return ($response->{data}[0]{id}, $response->{data}[0]{state});
+    } else {
+        return (undef, undef);
+    }
+}
+
 # get job document
 sub get_awe_job {
     my ($self, $id, $auth, $authPrefix, $pass_back_errors) = @_;
@@ -1705,8 +1839,18 @@ sub get_task_report {
       $authPrefix = "mgrast";
     }
     
-    my $id = $task->{taskid}."_".$rank;
-    my $rtext = $self->get_awe_report($id, $type, $auth, $authPrefix);
+    my $wuid = undef;
+    if (! $task->{jobid}) {
+        # no jobid
+        $wuid = $task->{taskid}."_".$rank;
+    } elsif (index($task->{taskid}, $task->{jobid}) == 0) {
+        # jobid is in taskid
+        $wuid = $task->{taskid}."_".$rank;
+    } else {
+        # add them together
+        $wuid = $task->{jobid}."_".$task->{taskid}."_".$rank;
+    }
+    my $rtext = $self->get_awe_report($wuid, $type, $auth, $authPrefix);
     my $rfile = "awe_".$type.".txt";
     
     # check shock if missing
@@ -1769,6 +1913,39 @@ sub empty_awe_task {
 ############################
 #  other server functions  #
 ############################
+
+sub parse_ebi_receipt {
+    my ($self, $text) = @_;
+    
+    my $xml = undef;
+    eval {
+        $xml = XMLin($text, ForceArray => ['SAMPLE', 'EXPERIMENT', 'ACTIONS', 'RUN', 'INFO', 'ERROR']);
+    };
+    if ($@ || (! ref($xml))) {
+        return {success => 'false', error => $text, info => 'Receipt is not valid XML'};
+    }
+    my $receipt = {
+        success => $xml->{'success'},
+        info    => $xml->{'MESSAGES'}{'INFO'},
+        error   => $xml->{'MESSAGES'}{'ERROR'} || undef,
+        submission => {
+            mgrast_accession => $xml->{'SUBMISSION'}{'alias'},
+            ena_accession    => $xml->{'SUBMISSION'}{'accession'} || undef,
+        },
+        study => {
+            mgrast_accession  => $xml->{'STUDY'}{'alias'},
+            ena_accession     => $xml->{'STUDY'}{'accession'} || undef,
+        },
+        samples     => [],
+        experiments => [],
+        runs        => []
+    };
+    @{$receipt->{samples}}     = map { {mgrast_accession => $_->{alias}, ena_accession => $_->{accession} || undef } } @{$xml->{'SAMPLE'}};
+    @{$receipt->{experiments}} = map { {mgrast_accession => $_->{alias}, ena_accession => $_->{accession} || undef } } @{$xml->{'EXPERIMENT'}};
+    @{$receipt->{runs}}        = map { {mgrast_accession => $_->{alias}, ena_accession => $_->{accession} || undef } } @{$xml->{'RUN'}};
+    
+    return $receipt;
+}
 
 sub cassandra_test {
     my ($self, $db) = @_;
@@ -1840,30 +2017,408 @@ sub cassandra_matrix {
     return Inline::Python::Object->new('__main__', 'Matrix', $hosts, $version);
 }
 
+sub cassandra_m5nr {
+    my ($self, $version) = @_;
+    
+    my $hosts = $Conf::cassandra_m5nr;
+    unless ($version && $hosts && (@$hosts > 0)) {
+        return undef;
+    }
+    my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from m5nr import M5nrUpload|;
+    py_eval($import);
+    return Inline::Python::Object->new('__main__', 'M5nrUpload', $hosts, $version);
+}
+
+sub delete_from_elasticsearch {
+    # returns boolean, success or failure
+    my ($self, $mgid) = @_;
+    
+    unless ($mgid) {
+        return 0;
+    }
+    if ($mgid !~ /^mgm/) {
+        $mgid = 'mgm'.$mgid;
+    }
+    my $esurl = $Conf::es_host."/metagenome_index/metagenome/".$mgid;
+    my $response = undef;
+    eval {
+        my $del = $self->agent->delete($esurl);
+        $response = $self->json->decode($del->content);
+    };
+    if ($@ || (! ref($response)) || $response->{error} || (! $response->{result}) || ($response->{result} eq 'not_found')) {
+        return 0;
+    }
+    return 1;
+}
+
+sub upsert_to_elasticsearch_metadata {
+    # input is metagenome ID - for JobDB queries
+    # assume rights checking has already been done
+    # returns 'failed' or 'updated'
+    my ($self, $mgid, $index, $debug) = @_;
+    
+    if (! $index) {
+        $index = "metagenome_index";
+    }
+    
+    # get job
+    my $master = $self->connect_to_datasource();
+    my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
+    my $job = $master->Job->get_objects( {metagenome_id => $id} );
+    unless ($job && @$job) {
+        return "failed";
+    }
+    $job = $job->[0];
+    
+    # get data
+    my $esdata = {};
+    my $mddb   = MGRAST::Metadata->new();
+    my $mixs   = $mddb->is_job_compliant($job);
+    my $m_data = $mddb->get_job_metadata($job);
+    my $a_data = $job->data();
+    my $s_data = $job->stats();
+    
+    # map
+    my $oMap = $ElasticSearch::ontology;
+    my $tMap = $ElasticSearch::types;
+    my $fMap = $ElasticSearch::fields;
+    map { $fMap->{$_} = (split(/\./, $fMap->{$_}))[0] } keys %$fMap;
+    
+    # job info
+    foreach my $k (keys %$job) {
+        if ($k && exists($fMap->{$k}) && defined($job->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $job->{$k});
+        }
+    }
+    # job attributes
+    foreach my $k (keys %$a_data) {
+        if ($k && (exists $fMap->{$k}) && defined($a_data->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $a_data->{$k});
+        }
+    }
+    # job stats
+    foreach my $k (keys %$s_data) {
+        if ($k && (exists $fMap->{$k}) && defined($s_data->{$k})) {
+            $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $s_data->{$k});
+        }
+    }
+    # job metadata
+    $esdata->{ $fMap->{'all'} } = "";
+    foreach my $md (('project', 'sample', 'library', 'env_package')) {
+        my $allmd = 'all_'.$md;
+        $esdata->{ $fMap->{$allmd} } = "";
+        if (exists($m_data->{$md}) && $m_data->{$md}{id} && $m_data->{$md}{name} && $m_data->{$md}{data}) {
+            # _id / _name
+            $esdata->{ $fMap->{$md.'_id'} }   = $self->jsonTypecast($tMap->{$md.'_id'}, $m_data->{$md}{id});
+            $esdata->{ $fMap->{$md.'_name'} } = $self->jsonTypecast($tMap->{$md.'_name'}, $m_data->{$md}{name});
+            $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{id}." ".$m_data->{$md}{name});
+            $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{id}." ".$m_data->{$md}{name});
+            # _type
+            if (exists($fMap->{$md.'_type'}) && $m_data->{$md}{type}) {
+                $esdata->{ $fMap->{$md.'_type'} } = $self->jsonTypecast($tMap->{$md.'_type'}, $m_data->{$md}{type});
+                $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{type});
+                $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{type});
+            }
+            foreach my $k (keys %{$m_data->{$md}{data}}) {
+                if ($k && defined($m_data->{$md}{data}{$k})) {
+                    # all go into catchall
+                    $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{data}{$k});
+                    $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{data}{$k});
+                    # special case for ebi_id
+                    if ($k eq 'ebi_id') {
+                        my $kx = $md.'_'.$k;
+                        $esdata->{ $fMap->{$kx} } = $self->jsonTypecast($tMap->{$kx}, $m_data->{$md}{data}{$k});
+                    } elsif (exists $fMap->{$k}) {
+                        $esdata->{ $fMap->{$k} } = $self->jsonTypecast($tMap->{$k}, $m_data->{$md}{data}{$k});
+                    }
+                }
+            }
+        }
+        $esdata->{$fMap->{$allmd}} = $self->jsonTypecast('text', $esdata->{$fMap->{$allmd}});
+    }
+    $esdata->{$fMap->{'all'}} = $self->jsonTypecast('text', $esdata->{$fMap->{'all'}});
+    $esdata->{id} = "mgm".$id;
+    $esdata->{job_info_mixs_compliant} = $mixs ? JSON::true : JSON::false;
+    
+    # ontology IDs
+    foreach my $ofield (keys %$oMap) {
+        if (exists $esdata->{$ofield}) {
+            my $oid = $mddb->get_cv_ontology_id($oMap->{$ofield}, $esdata->{$ofield});
+            if ($oid) {
+                $esdata->{ $ofield.'_id' } = $oid;
+            }
+        }
+    }
+    
+    # clean
+    foreach my $k (keys %$esdata) {
+        if (! defined($esdata->{$k})) {
+            delete $esdata->{$k};
+        }
+    }
+    
+    if ($debug) {
+        return $esdata;
+    }
+    
+    # PUT docuemnt
+    $self->json->utf8();
+    my $entry = $self->json->encode($esdata);
+    my $esurl = $Conf::es_host."/$index/metagenome/".$esdata->{id};
+    my $response = undef;
+    eval {
+        my @args = (
+            'Content_Type', 'application/json',
+            'Content', $entry
+        );
+        my $req = POST($esurl, @args);
+        $req->method('PUT');
+        my $put = $self->agent->request($req);
+        $response = $self->json->decode($put->content);
+    };
+    if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
+        return "failed";
+    }
+    return "updated";
+}
+
+sub upsert_to_elasticsearch_annotation {
+    # input is metagenome ID - for shock metagenome statistics lookup
+    # assume rights checking has already been done
+    # returns 'failed' or 'updated'
+    my ($self, $mgid, $type, $index, $func, $taxa, $debug) = @_;
+    
+    # ranges
+    my $t_nums = $ElasticSearch::taxa_num;
+    my $f_nums = $ElasticSearch::func_num;
+    
+    my $results  = {};
+    my $mg_stats = undef;
+    
+    if (($type eq 'taxonomy') || ($type eq 'both')) {
+        if ((! $taxa) && (! $mg_stats)) {
+            $mg_stats = $self->metagenome_stats_from_shock($mgid);
+        }
+        if (! $taxa) {
+            $taxa = $mg_stats->{'taxonomy'};
+        }
+        $results->{'taxonomy'} = undef;
+    }
+    if (($type eq 'function') || ($type eq 'both')) {
+        if ((! $func) && (! $mg_stats)) {
+            $mg_stats = $self->metagenome_stats_from_shock($mgid);
+        }
+        if (! $func) {
+            $func = $mg_stats->{'function'};
+        }
+        $results->{'function'} = undef;
+    }
+    
+    if (exists($results->{'taxonomy'}) && $taxa) {
+        $results->{'taxonomy'} = {
+            'id'  => $mgid,
+            'all' => ''
+        };
+        foreach my $level (keys %$taxa) {
+            if ($level eq 'species') {
+                next;
+            }
+            my $prefix = lc(substr($level, 0, 1));
+            my $total = sum map {$_->[1]} @{$taxa->{$level}};
+            foreach my $t (@{$taxa->{$level}}) {
+                if (split(/\s+/, $t->[0]) > 1) {
+                    next;
+                }
+                $results->{'taxonomy'}{'all'} = unique_concat($results->{'taxonomy'}{'all'}, $t->[0]);
+                my $rel = int((($t->[1] / $total) * 100) + 0.5);
+                foreach my $n (@$t_nums) {
+                    if ($rel >= $n) {
+                        unless (exists $results->{'taxonomy'}{'t_'.$n}) {
+                            $results->{'taxonomy'}{'t_'.$n} = "";
+                        }
+                        $results->{'taxonomy'}{'t_'.$n} .= " ".$prefix.'_'.$t->[0];
+                    }
+                }
+            }
+        }
+        # clean
+        foreach my $k (keys %{$results->{'taxonomy'}}) {
+            $results->{'taxonomy'}{$k} = $self->jsonTypecast('text', $results->{'taxonomy'}{$k});
+        }
+    }
+    if (exists($results->{'function'}) && $func) {
+        $results->{'function'} = {
+            'id'  => $mgid,
+            'all' => ''
+        };
+        my $total = sum map {$_->[1]} @$func;
+        foreach my $f (@$func) {
+            $results->{'function'}{'all'} = unique_concat($results->{'function'}{'all'}, $f->[0]);
+            my $rel = int((($f->[1] / $total) * 100) + 0.5);
+            foreach my $n (@$f_nums) {
+                if ($rel >= $n) {
+                    unless (exists $results->{'function'}{'f_'.$n}) {
+                        $results->{'function'}{'f_'.$n} = "";
+                    }
+                    $results->{'function'}{'f_'.$n} = unique_concat($results->{'function'}{'f_'.$n}, $f->[0]);
+                }
+            }
+        }
+        # clean
+        foreach my $k (keys %{$results->{'function'}}) {
+            $results->{'function'}{$k} = $self->jsonTypecast('text', $results->{'function'}{$k});
+        }
+    }
+    if ($debug) {
+        return $results;
+    }
+    
+    $self->json->utf8();
+    my $success = {};
+    
+    # PUT docuemnt(s)
+    foreach my $key (keys %$results) {
+        if ($results->{$key}) {
+            my $entry = $self->json->encode($results->{$key});
+            my $esurl = $Conf::es_host."/$index/$key/$mgid?parent=$mgid";
+            my $response = undef;
+            eval {
+                my @args = (
+                    'Content_Type', 'application/json',
+                    'Content', $entry
+                );
+                my $req = POST($esurl, @args);
+                $req->method('PUT');
+                my $put = $self->agent->request($req);
+                $response = $self->json->decode($put->content);
+            };
+            if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
+                $success->{$key} = "failed";
+            }
+            $success->{$key} = "updated";
+        } else {
+            $success->{$key} = "failed";
+        }
+    }
+    
+    return $success;
+}
+
+sub unique_concat {
+    my ($str1, $str2) = @_;
+    unless ($str1 || $str2) {
+        return "";
+    }
+    unless ($str1) {
+        return $str2;
+    }
+    unless ($str2) {
+        return $str1
+    }
+    my @parts = split(/\s+/, $str2);
+    foreach my $p (@parts) {
+        unless ($str1 =~ /\Q$p\E/) {
+            $str1 .= " ".$p;
+        }
+    }
+    return $str1;
+}
+
 sub get_elastic_query {
-  my ($self, $server, $query, $order, $dir, $offset, $limit, $in) = @_;
+    my ($self, $server, $queries, $order, $no_scr, $dir, $match, $after, $limit, $filters, $no_pub, $debug) = @_;
 
-  my $fields = [];
-  foreach my $q (@$query) {
-    push(@$fields, join(" OR ",@$q));
-  }
-  my $query_string = join(") AND (",@$fields);
+    my $opr = ($match eq 'any') ? 'or' : 'and';
+    my $postJSON = {
+        "size" => $limit,
+        "sort" => [],
+        "query" => {
+            "bool" => {
+                "must" => [],
+                "filter" => []
+            }
+        }
+    };
+    
+    unless ($no_scr) {
+        push @{$postJSON->{"sort"}}, { "_score" => {"order" => "desc"} };
+    }
+    push @{$postJSON->{"sort"}}, { $order => {"order" => $dir} };
+      
+    # for scrolling
+    if ($after) {
+        $postJSON->{"search_after"} = [ split(/,/, $after) ];
+    }
+    
+    # filter for project ids and public status (not scored)
+    if ($filters) {
+        foreach my $f (@$filters) {
+            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$f->[0] => $f->[1]} });
+        }
+    }
+    
+    # do not return public data
+    if ($no_pub) {
+        $postJSON->{"query"}{"bool"}{"must_not"} = [{
+            "term" => { "job_info_public" => JSON::true }
+        }];
+    }
 
-  my $instring = "";
-  if ($in) {
-    $instring = " AND (public:1 OR ".$in->[0] ." IN ('".join("','", @{$in->[1]})."'))";
-  }
-  
-  my $content;
-  eval {
-    my $res = $self->agent->get("$server/_search?from=$offset&size=$limit&sort=$order:$dir&q=($query_string)".$instring);
-    $content = $self->json->decode( $res->content );
-  };
-  if ($@ || (! ref($content))) {
-    return undef, $@;
-  } else {
-    return $content;
-  }
+    # must for query terms (scored)
+    foreach my $q (@$queries) {
+        my $qstr = $q->{"query"};
+        if ($q->{"type"} eq 'boolean') {
+            $qstr = ($qstr && ($qstr ne 'false')) ? JSON::true : JSON::false;
+        }
+        my $query_doc = {
+            "query_string" => {
+                "default_operator" => $opr,
+                "query" => $qstr
+            }
+        };
+        if ($q->{"field"}) {
+            $query_doc->{"query_string"}{"default_field"} = $q->{"field"};
+        }
+        if (($q->{"type"} eq 'child') && $q->{"name"}) {
+            $query_doc = {
+                "has_child" => {
+                    "type" => $q->{"name"},
+                    "query" => $query_doc
+                }
+            };
+        }
+        push(@{$postJSON->{"query"}{"bool"}{"must"}}, $query_doc);
+    }
+
+    if (! scalar(@{$postJSON->{"query"}{"bool"}{"filter"}})) {
+        delete $postJSON->{"query"}{"bool"}{"filter"};
+    }
+    if (! scalar(@{$postJSON->{"query"}{"bool"}{"must"}})) {
+        delete $postJSON->{"query"}{"bool"}{"must"};
+    }
+    
+    if ($debug) {
+        return {
+            "query" => $postJSON,
+            "url"   => $server.'/_search'
+        };
+    }
+    
+    my $content;
+    eval {
+        my $res  = $self->agent->post($server.'/_search', Content => $self->json->encode($postJSON));
+        $content = $self->json->decode($res->content);
+    };
+    if ($@ || (! ref($content))) {
+        return undef, $@;
+    } elsif (exists $content->{error}) {
+        if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
+            $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}}, $content->{status} );
+        } else {
+            $self->return_data( {"ERROR" => "Invalid Elastic Search return response"}, 500 );
+        }
+    } else {
+        return $content;
+    }
 }
 
 sub get_solr_query {
@@ -1952,8 +2507,8 @@ sub node_to_inbox {
         'checksum'  => $node->{file}{checksum}{md5},
         'timestamp' => $node->{created_on}
     };
-    # get file_info / compute if missing
-    unless (exists $node->{attributes}{stats_info}) {
+    # get file_info / compute if missing or bad state
+    unless (exists($node->{attributes}{stats_info}) && ($node->{attributes}{stats_info}{file_type} ne 'none')) {
         ($node, undef) = $self->get_file_info(undef, $node, $auth, $authPrefix);
     }
     $info->{stats_info} = $node->{attributes}{stats_info};
@@ -1966,8 +2521,8 @@ sub node_to_inbox {
         $info->{submission} = $node->{attributes}{submission};
     }
     # add expiration if missing -- NOT for submission nodes !
-    if (($node->{attributes}{data_type} ne "submission") && ($node->{expiration} eq "0001-01-01T00:00:00Z")) {
-        $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "5D");
+    if (exists($node->{attributes}{data_type}) && ($node->{attributes}{data_type} ne "submission") && ($node->{expiration} eq "0001-01-01T00:00:00Z")) {
+        $self->update_shock_node_expiration($node->{id}, $auth, $authPrefix, "10D");
     }
     return $info;
 }
@@ -1983,6 +2538,20 @@ sub get_file_info {
         $uuid = $node->{id};
     } else {
         return undef;
+    }
+    
+    # wait on file lock, 10 min timeout
+    my $start = time;
+    while (exists($node->{file}{locked}) && $node->{file}{locked}) {
+        if ($node->{file}{locked}{error}) {
+            return (undef, $node->{file}{locked}{error});
+        }
+        my $curr = time;
+        if (($curr - $start) > 600) {
+            last;
+        }
+        sleep 10;
+        $node = $self->node_from_inbox_id($uuid, $auth, $authPrefix);
     }
     
     my ($file_type, $err_msg, $file_format, $file_suffix);
@@ -2034,38 +2603,69 @@ sub get_file_info {
     return ($node, $err_msg);
 }
 
-sub get_barcode_files {
-    my ($self, $uuid, $auth, $authPrefix) = @_;
+sub normalize_barcode_file {
+    my ($self, $uuid, $rc_barcode, $auth, $authPrefix) = @_;
     
-    my $bar_files = {};
-    my ($bar_text, $err) = $self->get_shock_file($uuid, undef, $auth, undef, $authPrefix);
+    my $to_update = 0;
+    my ($btext, $err) = $self->get_shock_file($uuid, undef, $auth, undef, $authPrefix);
     if ($err) {
         $self->return_data( {"ERROR" => $err}, 500 );
     }
-    my @lines = split(/\n/, $bar_text);
-    # QIIME barcode format
-    if ($lines[0] =~ /^\#SampleID\tBarcodeSequence/) {
-        shift @lines;
-        foreach my $line (@lines) {
-            next unless ($line);
-            my @parts = split(/\t/, $line);
-            $bar_files->{$parts[0]} = 1;
+    chomp $btext;
+    
+    my @cdata = ();
+    my @bdata = map { [ split(/\t/, $_) ] } split(/\n/, $btext);
+    if ($bdata[0][0] =~ /^#?SampleID$/) {
+        # skip header: Illumina or Qiime style
+        $to_update = 1;
+        shift @bdata;
+    }
+    foreach my $set (@bdata) {
+        unless ($set->[0] && $set->[1]) {
+            $to_update = 1;
+            next;
+        }
+        if ($set->[1] =~ /^[ATGCatgc-]+$/ ) {
+            # correct in second column
+            push @cdata, $set;
+        } elsif ($set->[0] =~ /^[ATGCatgc-]+$/ ) {
+            # incorrect in first column
+            push @cdata, [ $set->[1], $set->[0] ];
+            $to_update = 1;
+        } else {
+            # row is missing barcode, skip it
+            $to_update = 1;
         }
     }
-    # simple barcode format
-    else {
-        foreach my $line (@lines) {
-            next unless ($line);
-            my ($b, $n) = split(/\t/, $line);
-            next unless ($b);
-            my $fname = $n ? $n : $b;
-            $bar_files->{$fname} = 1;
+    if ($rc_barcode) {
+        $to_update = 1;
+        for (my $i=0; $i<scalar(@cdata); $i++) {
+            my $rcseq = $cdata[$i][1];
+            $rcseq =~ tr/ATGCatgc/TACGtacg/;
+            if ($rcseq =~ /-/) {
+                # reverse double barcodes properly
+                my @parts = split(/-/, $rcseq);
+                $rcseq = reverse($parts[0]).'-'.reverse($parts[1])
+            } else {
+                $rcseq = reverse($rcseq);
+            }
+            $cdata[$i][1] = $rcseq;
         }
     }
-    if (scalar(keys %$bar_files) < 2) {
+    # sanity check
+    if (scalar(@cdata) < 2) {
         $self->return_data( {"ERROR" => "number of barcodes in barcode_file must be greater than 1"}, 400 );
     }
-    return [keys %$bar_files];
+    my @names = map { $_->[0] } @cdata;
+    if ($to_update) {
+        # create new barcode file with same metadata as old
+        my $ctext = join("\n", map { $_->[0]."\t".$_->[1] } @cdata)."\n";
+        my $bar_node = $self->get_shock_node($uuid, $auth, $authPrefix);
+        my $new_node = $self->set_shock_node($bar_node->{file}{name}, $ctext, $bar_node->{attributes}, $auth, 1, $authPrefix, "10D");
+        $self->delete_shock_node($uuid, $auth, $authPrefix);
+        $uuid = $new_node->{id};
+    }
+    return ($uuid, \@names);
 }
 
 sub metadata_validation {
@@ -2121,6 +2721,7 @@ sub metadata_validation {
         # add metadata json format to inbox
         if ($is_inbox && $self->user) {
             my $md_basename = fileparse($node->{file}{name}, qr/\.[^.]*/);
+            $self->json->utf8();
             my $md_string = $self->json->encode($data);
             my $json_attr = {
                 type  => 'inbox',
@@ -2139,7 +2740,7 @@ sub metadata_validation {
             if ($submit_id) {
                 $json_attr->{submission} = $submit_id;
             }
-            $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix, "5D");
+            $json_node = $self->set_shock_node($md_basename.".json", $md_string, $json_attr, $auth, 1, $authPrefix, "10D");
             $self->edit_shock_acl($json_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
         # update origional metadata node
@@ -2157,10 +2758,10 @@ sub metadata_validation {
             foreach my $library (@{$sample->{libraries}}) {
                 next unless (exists($library->{data}) && exists($library->{data}{forward_barcodes}));
                 my $mg_name = "";
-                if (exists $library->{data}{file_name}) {
-                    $mg_name = fileparse($library->{data}{file_name}{value}, qr/\.[^.]*/);
-                } elsif (exists $library->{data}{metagenome_name}) {
+                if (exists $library->{data}{metagenome_name}) {
                     $mg_name = $library->{data}{metagenome_name}{value};
+                } elsif (exists $library->{data}{file_name}) {
+                    $mg_name = fileparse($library->{data}{file_name}{value}, qr/\.[^.]*/);
                 } else {
                     next;
                 }
@@ -2168,9 +2769,10 @@ sub metadata_validation {
             }
         }
         $bar_count = scalar(keys(%$barcodes));
+        # barcode file: SampleID \t Barcode
         if (($bar_count > 0) && $extract_barcodes && $self->user) {
             my $bar_name = fileparse($node->{file}{name}, qr/\.[^.]*/).".barcodes";
-            my $bar_data = join("\n", map { $barcodes->{$_}."\t".$_ } keys %$barcodes)."\n";
+            my $bar_data = join("\n", map { $_."\t".$barcodes->{$_} } keys %$barcodes)."\n";
             my $bar_attr = {
                 type  => 'inbox',
                 id    => 'mgu'.$self->user->_id,
@@ -2190,7 +2792,7 @@ sub metadata_validation {
             if ($submit_id) {
                 $bar_attr->{submission} = $submit_id;
             }
-            my $bar_node = $self->set_shock_node($bar_name, $bar_data, $bar_attr, $auth, 1, $authPrefix, "5D");
+            my $bar_node = $self->set_shock_node($bar_name, $bar_data, $bar_attr, $auth, 1, $authPrefix, "10D");
             $bar_id = $bar_node->{id};
             $self->edit_shock_acl($bar_node->{id}, $auth, 'mgrast', 'put', 'all', $authPrefix);
         }
@@ -2198,53 +2800,6 @@ sub metadata_validation {
         $data = $data->{data};
     }
     return ($is_valid, $data, $log, $bar_id, $bar_count, $json_node);
-}
-
-# if input node has no dependency, then value is -1 and it is a shock node id,
-# otherwise shock node does not exist and its a filename
-# returns 1 task
-sub build_index_merge_task {
-    my ($self, $taskid, $depend_idx, $depend_seq, $index, $seq, $outfile, $auth, $authPrefix) = @_;
-    
-    my $idx_task = $self->empty_awe_task(1);
-    $idx_task->{cmd}{description} = "merge index barcodes";
-    $idx_task->{cmd}{name} = "merge_index.py";
-    $idx_task->{taskid} = "$taskid";
-    
-    # index node exist - no dependencies
-    if ($depend_idx < 0) {
-        # get / verify nodes
-        my $idx_node = $self->node_from_inbox_id($index, $auth, $authPrefix);
-        unless (exists $idx_node->{attributes}{stats_info}) {
-            ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
-        }
-        $index = $idx_node->{file}{name};
-        $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => $idx_node->{id}};
-        $idx_task->{userattr}{parent_index_file} = $idx_node->{id};
-    } else {
-        $idx_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx"};
-        push @{$idx_task->{dependsOn}}, "$depend_idx";
-    }
-    # seq node exist - no dependencies
-    if ($depend_seq < 0) {
-        # get / verify nodes
-        my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
-            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
-        }
-        $seq = $seq_node->{file}{name};
-        $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
-        $idx_task->{userattr}{parent_index_file} = $seq_node->{id};
-    } else {
-        $idx_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
-        push @{$idx_task->{dependsOn}}, "$depend_seq";
-    }
-    
-    $idx_task->{outputs}{$outfile} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $idx_task->{cmd}{args} = '-i @'.$index.' -s @'.$seq.' -o '.$outfile;
-    $idx_task->{userattr}{stage_name} = "merge_index";
-    
-    return $idx_task;
 }
 
 # if input node has no dependency, then value is -1 and it is a shock node id,
@@ -2262,14 +2817,14 @@ sub build_seq_stat_task {
     
     my $seq_task = $self->empty_awe_task(1);
     $seq_task->{cmd}{description} = "sequence stats";
-    $seq_task->{cmd}{name} = "awe_seq_length_stats.pl";
+    $seq_task->{cmd}{name} = "mgrast_seq_length_stats.pl";
     $seq_task->{taskid} = "$taskid";
     
     # seq node exist - no dependencies
     if ($depend < 0) {
         # get / verify nodes
         my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq_type = $self->seq_type_from_node($seq_node, $auth, $authPrefix);
@@ -2320,7 +2875,7 @@ sub build_sff_fastq_task {
     if ($depend < 0) {
         # get / verify nodes
         my $sff_node = $self->node_from_inbox_id($sff, $auth, $authPrefix);
-        unless (exists $sff_node->{attributes}{stats_info}) {
+        unless (exists($sff_node->{attributes}{stats_info}) && ($sff_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($sff_node, undef) = $self->get_file_info(undef, $sff_node, $auth, $authPrefix);
         }
         unless ($sff_node->{attributes}{stats_info}{file_type} eq 'sff') {
@@ -2347,17 +2902,17 @@ sub build_sff_fastq_task {
 # otherwise shock node does not exist and its a filename
 # returns array of 2 tasks
 sub build_pair_join_task {
-    my ($self, $taskid, $depend_p1, $depend_p2, $depend_idx, $pair1, $pair2, $index, $outprefix, $retain, $auth, $authPrefix) = @_;
+    my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $userattr, $auth, $authPrefix) = @_;
     
     my $pj_task = $self->empty_awe_task(1);
     $pj_task->{cmd}{description} = "merge mate-pairs";
-    $pj_task->{cmd}{name} = "pairend_join.py";
+    $pj_task->{cmd}{name} = "fastq-join";
     $pj_task->{taskid} = "$taskid";
     
     # p1 node exist - no dependencies
     if ($depend_p1 < 0) {
         my $p1_node = $self->node_from_inbox_id($pair1, $auth, $authPrefix);
-        unless (exists $p1_node->{attributes}{stats_info}) {
+        unless (exists($p1_node->{attributes}{stats_info}) && ($p1_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($p1_node, undef) = $self->get_file_info(undef, $p1_node, $auth, $authPrefix);
         }
         unless ($self->seq_type_from_node($p1_node, $auth, $authPrefix) eq 'fastq') {
@@ -2365,7 +2920,7 @@ sub build_pair_join_task {
         }
         $pair1 = $p1_node->{file}{name};
         $pj_task->{inputs}{$pair1} = {host => $Conf::shock_url, node => $p1_node->{id}};
-        $pj_task->{userattr}{parent_seq_file_1} = $p1_node->{id};
+        $pj_task->{userattr}{parent_R1_file} = $p1_node->{id};
     } else {
         $pj_task->{inputs}{$pair1} = {host => $Conf::shock_url, node => "-", origin => "$depend_p1"};
         push @{$pj_task->{dependsOn}}, "$depend_p1";
@@ -2373,7 +2928,7 @@ sub build_pair_join_task {
     # p2 node exist - no dependencies
     if ($depend_p2 < 0) {
         my $p2_node = $self->node_from_inbox_id($pair2, $auth, $authPrefix);
-        unless (exists $p2_node->{attributes}{stats_info}) {
+        unless (exists($p2_node->{attributes}{stats_info}) && ($p2_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($p2_node, undef) = $self->get_file_info(undef, $p2_node, $auth, $authPrefix);
         }
         unless ($self->seq_type_from_node($p2_node, $auth, $authPrefix) eq 'fastq') {
@@ -2381,67 +2936,83 @@ sub build_pair_join_task {
         }
         $pair2 = $p2_node->{file}{name};
         $pj_task->{inputs}{$pair2} = {host => $Conf::shock_url, node => $p2_node->{id}};
-        $pj_task->{userattr}{parent_seq_file_2} = $p2_node->{id};
+        $pj_task->{userattr}{parent_R2_file} = $p2_node->{id};
     } else {
         $pj_task->{inputs}{$pair2} = {host => $Conf::shock_url, node => "-", origin => "$depend_p2"};
         push @{$pj_task->{dependsOn}}, "$depend_p2";
     }
-    # has index file
-    my $index_opt = "";
-    if ($index) {
-        # index node exist - no dependencies
-        if ($depend_idx < 0) {
-            my $idx_node = $self->node_from_inbox_id($index, $auth, $authPrefix);
-            unless (exists $idx_node->{attributes}{stats_info}) {
-                ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
-            }
-            unless ($self->seq_type_from_node($idx_node, $auth, $authPrefix) eq 'fastq') {
-                $self->return_data( {"ERROR" => "index file must be fastq format"}, 400 );
-            }
-            $index = $idx_node->{file}{name};
-            $pj_task->{inputs}{$index} = {host => $Conf::shock_url, node => $idx_node->{id}};
-        } else {
-            $pj_task->{inputs}{$index} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx"};
-            push @{$pj_task->{dependsOn}}, "$depend_idx";
-        }
-        $index_opt = '-i @'.$index.' ';
-    }
 
     # build pair join task
-    my $retain_opt = $retain ? "" : "-j ";
-    my $out_file = $outprefix.".fastq";
-    $pj_task->{outputs}{$out_file} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
-    $pj_task->{cmd}{args} = $retain_opt.$index_opt.'-m 8 -p 10 -t . -o '.$out_file.' @'.$pair1.' @'.$pair2;
+    my @outfiles = map { $outprefix.'.'.$_.'.fastq' } ('join', 'un1', 'un2');
+    $pj_task->{cmd}{args} = '-m 8 -p 10 @'.$pair1.' @'.$pair2.' -o '.$outprefix.'.%.fastq';
     $pj_task->{userattr}{stage_name} = "pair_join";
+    if ($userattr && ref($userattr)) {
+        @{$pj_task->{userattr}}{keys %$userattr} = values %$userattr;
+    }
+    $pj_task->{outputs}{$outfiles[0]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
+    if ($retain) {
+        $pj_task->{outputs}{$outfiles[1]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
+        $pj_task->{outputs}{$outfiles[2]} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
+    }
+    my @tasks = ($pj_task);
+    my $depend = $taskid;
+    
+    # move or merge
+    my $seqfile = $outprefix.'.fastq';
+    $taskid += 1;
+    my $last_task = $self->empty_awe_task(1);
+    
+    # merge if retain
+    if ($retain) {
+        $last_task->{cmd}{description} = "merge unjoined";
+        $last_task->{cmd}{name} = "sed";
+        $last_task->{cmd}{args} = "-n w'$seqfile' ".join(' ', map { '@'.$_ } @outfiles);
+        foreach my $outf (@outfiles) {
+            $last_task->{inputs}{$outf} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
+        }
+    }
+    # else rename file
+    else {
+        $last_task->{cmd}{description} = "rename joined";
+        $last_task->{cmd}{name} = "mv";
+        $last_task->{cmd}{args} = '@'.$outfiles[0].' '.$seqfile;
+        $last_task->{inputs}{$outfiles[0]} = {host => $Conf::shock_url, node => "-", origin => "$depend", attrfile => "input_attr.json"};
+    }
+    $last_task->{outputs}{$seqfile} = {host => $Conf::shock_url, node => "-", attrfile => "input_attr.json"};
+    $last_task->{dependsOn} = ["$depend"];
+    $last_task->{taskid} = "$taskid";
+    push @tasks, $last_task;
     
     # build seq stats task - not sff file
-    my ($seq_task) = $self->build_seq_stat_task($taskid+1, $taskid, $out_file, "fastq", $auth, $authPrefix);
-    return ($pj_task, $seq_task);
+    $taskid += 1;
+    my ($seq_task) = $self->build_seq_stat_task($taskid, $taskid-1, $seqfile, "fastq", $auth, $authPrefix);
+    push @tasks, $seq_task;
+    
+    return @tasks;
 }
 
 # if input node has no dependency, then value is -1 and it is a shock node id,
 # otherwise shock node does not exist and its a filename
 # returns array of 2 or more tasks
-sub build_demultiplex_task {
-    my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $rc_bar, $auth, $authPrefix) = @_;
+sub build_demultiplex_454_task {
+    my ($self, $taskid, $depend_seq, $depend_bc, $seq, $barcode, $bc_names, $auth, $authPrefix) = @_;
     
     my $seq_type = "";
-    my $bc_names = [];
     my $dm_task  = $self->empty_awe_task(1);
-    $dm_task->{cmd}{description} = "demultiplex";
+    $dm_task->{cmd}{description} = "demultiplex 454";
     $dm_task->{cmd}{name} = "demultiplex.py";
     $dm_task->{taskid} = "$taskid";
     
     # seq node exist - no dependencies
     if ($depend_seq < 0) {
         my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
-        unless (exists $seq_node->{attributes}{stats_info}) {
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
         }
         $seq = $seq_node->{file}{name};
         $seq_type = $self->seq_type_from_node($seq_node, $auth, $authPrefix);
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
-        $dm_task->{userattr}{parent_seq_file} = $seq_node->{id};
+        $dm_task->{userattr}{parent_multx_file} = $seq_node->{id};
     } else {
         $seq_type = (split(/\./, $seq))[-1];
         $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
@@ -2451,22 +3022,19 @@ sub build_demultiplex_task {
     my $basename = fileparse($seq, qr/\.[^.]*/);
     if ($depend_bc < 0) {
         my $bc_node = $self->node_from_inbox_id($barcode, $auth, $authPrefix);
-        unless (exists $bc_node->{attributes}{stats_info}) {
+        unless (exists($bc_node->{attributes}{stats_info}) && ($bc_node->{attributes}{stats_info}{file_type} ne 'none')) {
             ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
         }
         $barcode = $bc_node->{file}{name};
-        $bc_names = $self->get_barcode_files($bc_node->{id}, $auth, $authPrefix);
         $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
-        $dm_task->{userattr}{parent_barcode_file} = $bc_node->{id};
     } else {
         $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
     }
     
-    my $rc_bar_opt = $rc_bar ? "" : "-r ";
-    $dm_task->{cmd}{args} = $rc_bar_opt.'-f '.$seq_type.' -b @'.$barcode.' -i @'.$seq;
+    $dm_task->{cmd}{args} = '-f '.$seq_type.' -b @'.$barcode.' -i @'.$seq;
     
     # build outputs
-    push @$bc_names, "nobarcode.".$basename;
+    push @$bc_names, "unmatched";
     foreach my $fname (@$bc_names) {
         $dm_task->{outputs}{"$fname.$seq_type"} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
     }
@@ -2484,6 +3052,198 @@ sub build_demultiplex_task {
     return @tasks;
 }
 
+# if input node has no dependency, then value is -1 and it is a shock node id,
+# otherwise shock node does not exist and its a filename
+# returns array of 2 or more tasks
+sub build_demultiplex_illumina_task {
+    my ($self, $taskid, $depend_seq, $depend_bc, $depend_idx1, $depend_idx2, $seq, $barcode, $index1, $index2, $bc_names, $auth, $authPrefix) = @_;
+    
+    my $double_bc = $index2 ? 1 : 0;
+    my $dm_task   = $self->empty_awe_task(1);
+    $dm_task->{cmd}{description} = "demultiplex illumina";
+    $dm_task->{cmd}{name} = "fastq-multx";
+    $dm_task->{taskid} = "$taskid";
+    
+    # seq 1 node exist - no dependencies
+    if ($depend_seq < 0) {
+        my $seq_node = $self->node_from_inbox_id($seq, $auth, $authPrefix);
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
+            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
+        }
+        $seq = $seq_node->{file}{name};
+        $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => $seq_node->{id}};
+        $dm_task->{userattr}{parent_multx_file} = $seq_node->{id};
+    } else {
+        $dm_task->{inputs}{$seq} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq"};
+        push @{$dm_task->{dependsOn}}, "$depend_seq";
+    }
+    # bc node exist - no dependencies
+    if ($depend_bc < 0) {
+        my $bc_node = $self->node_from_inbox_id($barcode, $auth, $authPrefix);
+        unless (exists($bc_node->{attributes}{stats_info}) && ($bc_node->{attributes}{stats_info}{file_type} ne 'none')) {
+            ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
+        }
+        $barcode = $bc_node->{file}{name};
+        $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
+    } else {
+        $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
+    }
+    # index 1 node exist - no dependencies
+    if ($depend_idx1 < 0) {
+        my $idx_node = $self->node_from_inbox_id($index1, $auth, $authPrefix);
+        unless (exists($idx_node->{attributes}{stats_info}) && ($idx_node->{attributes}{stats_info}{file_type} ne 'none')) {
+            ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
+        }
+        $index1 = $idx_node->{file}{name};
+        $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => $idx_node->{id}};
+    } else {
+        $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx1"};
+        push @{$dm_task->{dependsOn}}, "$depend_idx1";
+    }
+    # index 2 node exist - no dependencies
+    if ($double_bc) {
+        if ($depend_idx2 < 0) {
+            my $idx_node = $self->node_from_inbox_id($index2, $auth, $authPrefix);
+            unless (exists($idx_node->{attributes}{stats_info}) && ($idx_node->{attributes}{stats_info}{file_type} ne 'none')) {
+                ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
+            }
+            $index2 = $idx_node->{file}{name};
+            $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => $idx_node->{id}};
+        } else {
+            $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx2"};
+            push @{$dm_task->{dependsOn}}, "$depend_idx2";
+        }
+        # double bc command
+        $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$index2.' @'.$seq.' -o n/a -o n/a -o %.fastq';
+    } else {
+        # single bc command
+        $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$seq.' -o n/a -o %.fastq';
+    }
+    
+    # build outputs
+    push @$bc_names, "unmatched";
+    foreach my $fname (@$bc_names) {
+        $dm_task->{outputs}{$fname.'.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json"};
+    }
+    $dm_task->{userattr}{stage_name} = "demultiplex";
+    
+    # add seq stats - not sff file
+    my @tasks = ($dm_task);
+    my $depend = $taskid;
+    foreach my $fname (@$bc_names) {
+        $taskid += 1;
+        my ($seq_task) = $self->build_seq_stat_task($taskid, $depend, $fname.'.fastq', 'fastq', $auth, $authPrefix);
+        push @tasks, $seq_task;
+    }
+    
+    return @tasks;
+}
+
+# if input node has no dependency, then value is -1 and it is a shock node id,
+# otherwise shock node does not exist and its a filename
+# creates pair-join task for each paired demultiplex output
+# returns array of 2 or more tasks
+sub build_demultiplex_pairjoin_task {
+    my ($self, $taskid, $depend_seq1, $depend_seq2, $depend_bc, $depend_idx1, $depend_idx2, $seq1, $seq2, $barcode, $index1, $index2, $bc_names, $retain, $auth, $authPrefix) = @_;
+    
+    my $double_bc = $index2 ? 1 : 0;
+    my $dm_task   = $self->empty_awe_task(1);
+    $dm_task->{cmd}{description} = "demultiplex illumina";
+    $dm_task->{cmd}{name} = "fastq-multx";
+    $dm_task->{taskid} = "$taskid";
+    
+    # seq 1 node exist - no dependencies
+    if ($depend_seq1 < 0) {
+        my $seq_node = $self->node_from_inbox_id($seq1, $auth, $authPrefix);
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
+            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
+        }
+        $seq1 = $seq_node->{file}{name};
+        $dm_task->{inputs}{$seq1} = {host => $Conf::shock_url, node => $seq_node->{id}};
+        $dm_task->{userattr}{parent_R1_file} = $seq_node->{id};
+    } else {
+        $dm_task->{inputs}{$seq1} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq1"};
+        push @{$dm_task->{dependsOn}}, "$depend_seq1";
+    }
+    if ($depend_seq2 < 0) {
+        my $seq_node = $self->node_from_inbox_id($seq2, $auth, $authPrefix);
+        unless (exists($seq_node->{attributes}{stats_info}) && ($seq_node->{attributes}{stats_info}{file_type} ne 'none')) {
+            ($seq_node, undef) = $self->get_file_info(undef, $seq_node, $auth, $authPrefix);
+        }
+        $seq2 = $seq_node->{file}{name};
+        $dm_task->{inputs}{$seq2} = {host => $Conf::shock_url, node => $seq_node->{id}};
+        $dm_task->{userattr}{parent_R2_file} = $seq_node->{id};
+    } else {
+        $dm_task->{inputs}{$seq2} = {host => $Conf::shock_url, node => "-", origin => "$depend_seq2"};
+        push @{$dm_task->{dependsOn}}, "$depend_seq2";
+    }
+    # bc node exist - no dependencies
+    if ($depend_bc < 0) {
+        my $bc_node = $self->node_from_inbox_id($barcode, $auth, $authPrefix);
+        unless (exists($bc_node->{attributes}{stats_info}) && ($bc_node->{attributes}{stats_info}{file_type} ne 'none')) {
+            ($bc_node, undef) = $self->get_file_info(undef, $bc_node, $auth, $authPrefix);
+        }
+        $barcode = $bc_node->{file}{name};
+        $dm_task->{inputs}{$barcode} = {host => $Conf::shock_url, node => $bc_node->{id}};
+    } else {
+        $self->return_data( {"ERROR" => "missing barcode file $barcode"}, 400 );
+    }
+    # index 1 node exist - no dependencies
+    if ($depend_idx1 < 0) {
+        my $idx_node = $self->node_from_inbox_id($index1, $auth, $authPrefix);
+        unless (exists($idx_node->{attributes}{stats_info}) && ($idx_node->{attributes}{stats_info}{file_type} ne 'none')) {
+            ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
+        }
+        $index1 = $idx_node->{file}{name};
+        $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => $idx_node->{id}};
+    } else {
+        $dm_task->{inputs}{$index1} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx1"};
+        push @{$dm_task->{dependsOn}}, "$depend_idx1";
+    }
+    # index 2 node exist - no dependencies
+    if ($double_bc) {
+        if ($depend_idx2 < 0) {
+            my $idx_node = $self->node_from_inbox_id($index2, $auth, $authPrefix);
+            unless (exists($idx_node->{attributes}{stats_info}) && ($idx_node->{attributes}{stats_info}{file_type} ne 'none')) {
+                ($idx_node, undef) = $self->get_file_info(undef, $idx_node, $auth, $authPrefix);
+            }
+            $index2 = $idx_node->{file}{name};
+            $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => $idx_node->{id}};
+        } else {
+            $dm_task->{inputs}{$index2} = {host => $Conf::shock_url, node => "-", origin => "$depend_idx2"};
+            push @{$dm_task->{dependsOn}}, "$depend_idx2";
+        }
+        # double bc command
+        $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$index2.' @'.$seq1.' @'.$seq2.' -o n/a -o n/a -o %.R1.fastq -o %.R2.fastq';
+    } else {
+        # single bc command
+        $dm_task->{cmd}{args} = '-B @'.$barcode.' @'.$index1.' @'.$seq1.' @'.$seq2.' -o n/a -o %.R1.fastq -o %.R2.fastq';
+    }
+    
+    # build outputs, set intermediate files to delete
+    my @outpairs = ();
+    push @$bc_names, "unmatched";
+    foreach my $fname (@$bc_names) {
+        $dm_task->{outputs}{$fname.'.R1.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
+        $dm_task->{outputs}{$fname.'.R2.fastq'} = {host => $Conf::shock_url, node => "-", attrfile => "userattr.json", delete => JSON::true};
+        push @outpairs, [$fname.'.R1.fastq', $fname.'.R2.fastq', $fname];
+    }
+    $dm_task->{userattr}{stage_name} = "demultiplex";
+    
+    # add pair-join for each output pair
+    my @tasks = ($dm_task);
+    my $depend = $taskid;
+    my $userattr = {parent_R1_file => $dm_task->{userattr}{parent_R1_file}, parent_R2_file => $dm_task->{userattr}{parent_R2_file}};
+    foreach my $set (@outpairs) {
+        # my ($self, $taskid, $depend_p1, $depend_p2, $pair1, $pair2, $outprefix, $retain, $userattr, $auth, $authPrefix) = @_;
+        my @pj_tasks = $self->build_pair_join_task($taskid+1, $depend, $depend, $set->[0], $set->[1], $set->[2], $retain, $userattr, $auth, $authPrefix);
+        $taskid += scalar(@pj_tasks);
+        push @tasks, @pj_tasks;
+    }
+    
+    return @tasks;
+}
+
 sub node_from_inbox_id {
     my ($self, $uuid, $auth, $authPrefix) = @_;
     my $node = $self->get_shock_node($uuid, $auth, $authPrefix);
@@ -2496,7 +3256,7 @@ sub node_from_inbox_id {
 
 sub seq_type_from_node {
     my ($self, $node, $auth, $authPrefix) = @_;
-    unless (exists $node->{attributes}{stats_info}) {
+    unless (exists($node->{attributes}{stats_info}) && ($node->{attributes}{stats_info}{file_type} ne 'none')) {
         my $err_msg;
         ($node, $err_msg) = $self->get_file_info(undef, $node, $auth, $authPrefix);
         if ($err_msg) {
@@ -2521,7 +3281,7 @@ sub is_sff_file {
         return 0;
     }
     # get type
-    unless (exists $node->{attributes}{stats_info}) {
+    unless (exists($node->{attributes}{stats_info}) && ($node->{attributes}{stats_info}{file_type} ne 'none')) {
         my $err_msg;
         ($node, $err_msg) = $self->get_file_info(undef, $node, $auth, $authPrefix);
         if ($err_msg) {
@@ -2658,6 +3418,38 @@ sub strToNum {
     }
 }
 
+sub jsonTypecast {
+    my ($self, $type, $val) = @_;
+    unless (defined($val)) {
+        return undef;
+    }
+    if (($type eq 'text') || ($type eq 'keyword')) {
+        $val =~ s/^\s+//;
+        $val =~ s/\s+$//;
+        $val =~ s/\s+/ /g;
+    } elsif (($type eq 'integer') || ($type eq 'long')) {
+        if ($val =~ /^[+-]?\d+$/) {
+            $val = int($val);
+        } else {
+            $val = undef;
+        }
+    } elsif ($type eq 'float') {
+        if ($val =~ /^[+-]?\d*\.?\d+$/) {
+            $val = $val * 1.0
+        } else {
+            $val = undef;
+        }
+    } elsif ($type eq 'date') {
+        $val =~ s/^\s+//;
+        $val =~ s/\s+$//;
+        $val =~ s/\s+/T/;
+        $val =~ s/\-00/-01/g;
+    } elsif ($type eq 'boolean') {
+        $val = $val ? JSON::true : JSON::false;
+    }
+    return $val;
+}
+
 sub get_alpha_diversity {
     my ($self, $org_map) = @_;
     # org_map = taxa => abundance
@@ -2739,7 +3531,7 @@ sub compute_breakdown {
     my $clust_seq   = exists($stats->{clustered_sequence_count_processed_aa}) ? $stats->{clustered_sequence_count_processed_aa} : (exists($stats->{clustered_sequence_count_processed}) ? $stats->{clustered_sequence_count_processed} : 0);
     
     my $is_rna  = ($seq_type eq 'Amplicon') ? 1 : 0;
-    my $is_gene = ($seq_type eq 'AmpliconGene') ? 1 : 0;
+    my $is_gene = ($seq_type eq 'Metabarcode') ? 1 : 0;
     my $qc_fail_seqs  = $raw_seqs - $qc_seqs;
     my $ann_aa_reads  = $aa_sims ? ($aa_sims - $clusts) + $clust_seq : 0;
     my $unkn_aa_reads = $aa_reads - $ann_aa_reads;
@@ -2827,6 +3619,46 @@ sub idresolve {
   return $id;
 }
 
+sub normailze_pipeline_version {
+    my ($self, $pv) = @_;
+    my @nums = split(/\./, $pv);
+    my $nv = $nums[0] * 100;
+    if (scalar(@nums) > 1) {
+        $nv += ($nums[1] * 10);
+    }
+    if (scalar(@nums) > 2) {
+        $nv += ($nums[2] * 1);
+    }
+    return $nv;
+}
+
+sub to_swap {
+    my ($self, $job) = @_;
+    my $pv = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
+    my $nv = $self->normailze_pipeline_version($pv);
+    if (($nv < 400) || ($nv > 403)) {
+        return undef;
+    } else {
+        return 1;
+    }
+}
+
+# mgids with NO mgm prefix
+sub to_swap_set {
+    my ($self, $mgids) = @_;
+    my $master = $self->connect_to_datasource();
+    my $pv_set = $master->Job->get_job_pipelines($mgids, $self->{default_pipeline_version});
+    my $sw_set = [];
+    foreach my $m (@$mgids) {
+        my $nv = $self->normailze_pipeline_version($pv_set->{$m});
+        if (($nv < 400) || ($nv > 403)) {
+            push @$sw_set, undef;
+        } else {
+            push @$sw_set, 1;
+        }
+    }
+    return $sw_set;
+}
 
 ###################################################
 #  stub functions - replace these in child class  #

@@ -1,0 +1,547 @@
+{
+    "mappings": {
+        "metagenome": {
+            "properties": {
+                "all_metadata": {
+                    "type": "text"
+                },
+                "all_project": {
+                    "type": "text"
+                },
+                "all_sample": {
+                    "type": "text"
+                },
+                "all_library": {
+                    "type": "text"
+                },
+                "all_env_package": {
+                    "type": "text"
+                },
+                "env_package_env_package_id": {
+                    "type": "keyword"
+                },
+                "env_package_env_package_name": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "env_package_env_package_type": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "id": {
+                    "type": "keyword",
+                    "copy_to": "all_metadata"
+                },
+                "job_info_created_on": {
+                    "format": "strict_date_optional_time||epoch_millis",
+                    "type": "date",
+                    "copy_to": "all_metadata"
+                },
+                "job_info_job_id": {
+                    "type": "integer"
+                },
+                "job_info_mixs_compliant": {
+                    "type": "boolean"
+                },
+                "job_info_name": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text",
+                    "copy_to": "all_metadata"
+                },
+                "job_info_public": {
+                    "type": "boolean"
+                },
+                "job_info_sequence_type": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text",
+                    "copy_to": "all_metadata"
+                },
+                "job_stat_alpha_diversity_shannon": {
+                    "type": "float"
+                },
+                "job_stat_average_gc_ratio_raw": {
+                    "type": "float"
+                },
+                "job_stat_average_length_raw": {
+                    "type": "float"
+                },
+                "job_stat_bp_count_raw": {
+                    "type": "long"
+                },
+                "job_stat_drisee_score_raw": {
+                    "type": "float"
+                },
+                "job_stat_sequence_count_raw": {
+                    "type": "integer"
+                },
+                "library_gold_id": {
+                    "type": "keyword"
+                },
+                "library_investigation_type": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "library_library_ebi_id": {
+                    "type": "keyword"
+                },
+                "library_library_id": {
+                    "type": "keyword"
+                },
+                "library_library_name": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "library_mrna_percent": {
+                    "type": "float"
+                },
+                "library_pubmed_id": {
+                    "type": "keyword"
+                },
+                "library_seq_meth": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "library_target_gene": {
+                    "type": "text"
+                },
+                "pipeline_parameters_aa_pid": {
+                    "type": "integer"
+                },
+                "pipeline_parameters_assembled": {
+                    "type": "boolean"
+                },
+                "pipeline_parameters_bowtie": {
+                    "type": "boolean"
+                },
+                "pipeline_parameters_dereplicate": {
+                    "type": "boolean"
+                },
+                "pipeline_parameters_fgs_type": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "pipeline_parameters_file_type": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "pipeline_parameters_filter_ambig": {
+                    "type": "boolean"
+                },
+                "pipeline_parameters_filter_ln": {
+                    "type": "boolean"
+                },
+                "pipeline_parameters_filter_ln_mult": {
+                    "type": "float"
+                },
+                "pipeline_parameters_m5nr_annotation_version": {
+                    "type": "integer"
+                },
+                "pipeline_parameters_m5nr_sims_version": {
+                    "type": "integer"
+                },
+                "pipeline_parameters_m5rna_annotation_version": {
+                    "type": "integer"
+                },
+                "pipeline_parameters_m5rna_sims_version": {
+                    "type": "integer"
+                },
+                "pipeline_parameters_max_ambig": {
+                    "type": "integer"
+                },
+                "pipeline_parameters_pipeline_version": {
+                    "type": "keyword"
+                },
+                "pipeline_parameters_prefix_length": {
+                    "type": "integer"
+                },
+                "pipeline_parameters_priority": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "pipeline_parameters_rna_pid": {
+                    "type": "integer"
+                },
+                "pipeline_parameters_screen_indexes": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_PI_firstname": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_PI_lastname": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_PI_organization": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_PI_organization_country": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text",
+                    "copy_to": "all_metadata"
+                },
+                "project_firstname": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_lastname": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_greengenes_id": {
+                    "type": "keyword"
+                },
+                "project_ncbi_id": {
+                    "type": "keyword"
+                },
+                "project_organization": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_organization_country": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_project_ebi_id": {
+                    "type": "keyword"
+                },
+                "project_project_funding": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "project_project_id": {
+                    "type": "keyword"
+                },
+                "project_project_name": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_altitude": {
+                    "type": "float"
+                },
+                "sample_biome": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_biome_id": {
+                    "type": "keyword"
+                },
+                "sample_collection_date": {
+                    "type": "date"
+                },
+                "sample_continent": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_country": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_depth": {
+                    "type": "float"
+                },
+                "sample_elevation": {
+                    "type": "float"
+                },
+                "sample_env_package": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_envo_id": {
+                    "type": "keyword"
+                },
+                "sample_envo_label": {
+                    "type": "text"
+                },
+                "sample_feature": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_feature_id": {
+                    "type": "keyword"
+                },
+                "sample_latitude": {
+                    "type": "float"
+                },
+                "sample_location": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_longitude": {
+                    "type": "float"
+                },
+                "sample_material": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_material_id": {
+                    "type": "keyword"
+                },
+                "sample_metagenome_taxonomy": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_metagenome_taxonomy_id": {
+                    "type": "keyword"
+                },
+                "sample_ncbi_taxonomy_id": {
+                    "type": "integer"
+                },
+                "sample_ncbi_taxonomy_scientific_name": {
+                    "type": "text"
+                },
+                "sample_sample_ebi_id": {
+                    "type": "keyword"
+                },
+                "sample_sample_id": {
+                    "type": "keyword"
+                },
+                "sample_sample_name": {
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    },
+                    "type": "text"
+                },
+                "sample_temperature": {
+                    "type": "float"
+                }
+            }
+        },
+        "taxonomy": {
+            "_parent": {
+                "type": "metagenome"
+            },
+            "properties": {
+                "id": {
+                    "type": "keyword"
+                },
+                "all": {
+                    "store": false,
+                    "type": "text"
+                },
+                "t_1": {
+                    "store": false,
+                    "type": "text"
+                },
+                "t_5": {
+                    "store": false,
+                    "type": "text"
+                },
+                "t_10": {
+                    "store": false,
+                    "type": "text"
+                },
+                "t_15": {
+                    "store": false,
+                    "type": "text"
+                },
+                "t_20": {
+                    "store": false,
+                    "type": "text"
+                },
+                "t_25": {
+                    "store": false,
+                    "type": "text"
+                }
+            }
+        },
+        "function": {
+            "_parent": {
+                "type": "metagenome"
+            },
+            "properties": {
+                "id": {
+                    "type": "keyword"
+                },
+                "all": {
+                    "store": false,
+                    "type": "text"
+                },
+                "f_1": {
+                    "store": false,
+                    "type": "text"
+                },
+                "f_3": {
+                    "store": false,
+                    "type": "text"
+                },
+                "f_5": {
+                    "store": false,
+                    "type": "text"
+                },
+                "f_10": {
+                    "store": false,
+                    "type": "text"
+                }
+            }
+        }
+    },
+    "settings": {
+        "analysis": {
+            "analyzer": {
+                "prefix_edge_ngram_analyzer": {
+                    "filter": [
+                        "lowercase"
+                    ],
+                    "tokenizer": "prefix_edge_ngram_tokenizer"
+                },
+                "suffix_edge_ngram_analyzer": {
+                    "filter": [
+                        "lowercase",
+                        "reverse",
+                        "suffix_edge_ngram_filter",
+                        "reverse"
+                    ],
+                    "tokenizer": "keyword"
+                }
+            },
+            "filter": {
+                "suffix_edge_ngram_filter": {
+                    "max_gram": 25,
+                    "min_gram": 2,
+                    "type": "edgeNGram"
+                }
+            },
+            "normalizer": {
+                "lowerasciinormalizer": {
+                    "filter": [
+                        "lowercase",
+                        "asciifolding"
+                    ],
+                    "type": "custom"
+                }
+            },
+            "tokenizer": {
+                "prefix_edge_ngram_tokenizer": {
+                    "max_gram": "25",
+                    "min_gram": "2",
+                    "type": "edgeNGram"
+                }
+            }
+        },
+        "index": {
+            "number_of_replicas": 2,
+            "number_of_shards": 10
+        }
+    }
+}

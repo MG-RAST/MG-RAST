@@ -1,6 +1,8 @@
 # git ignore file 
 
 # ignore all generated files
+*.swo
+*.swp
 site
 site/**/*
 conf/Conf.pm

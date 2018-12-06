@@ -104,17 +104,20 @@ sub reserve_job_id {
     
     # get and insert next IDs, need to lock to prevent race conditions
     my $dbh = $master->db_handle;
-    $dbh->do("LOCK TABLES Job WRITE");
-    my $max = $dbh->selectrow_arrayref("SELECT max(job_id + 0), max(metagenome_id + 0) FROM Job");
-    my $job_id = $max->[0] + 1;
-    my $mg_id  = $max->[1] + 1;
-    my $sth = $dbh->prepare("INSERT INTO Job (job_id,metagenome_id,name,file,file_size_raw,file_checksum_raw,server_version,owner,_owner_db) VALUES (?,?,?,?,?,?,?,?,?)");
-    $sth->execute($job_id, $mg_id, $name, $file, $size, $md5, 4, $user->_id, 1);
+    my $cmd = "INSERT INTO Job (job_id,metagenome_id,name,file,file_size_raw,file_checksum_raw,server_version,owner,_owner_db) VALUES ((SELECT max(x.job_id + 1) FROM Job x),(SELECT max(y.metagenome_id + 1) FROM Job y),?,?,?,?,?,?,?)";
+    my $sth = $dbh->prepare($cmd);
+    $sth->execute($name, $file, $size, $md5, 4, $user->_id, 1);
     $sth->finish();
-    $dbh->do("UNLOCK TABLES");
+    $dbh->commit();
+    my $insertid = $dbh->selectcol_arrayref("SELECT LAST_INSERT_ID()");
+    unless ($insertid && @$insertid) {
+        print STDRER "Can't create job\n";
+        return undef;
+    }
+    $insertid = $insertid->[0];
     
     # get job object
-    my $job = $master->Job->get_objects({metagenome_id => $mg_id});
+    my $job = $master->Job->get_objects({_id => $insertid});
     unless ($job && @$job) {
         print STDRER "Can't create job\n";
         return undef;
@@ -133,17 +136,17 @@ sub reserve_job_id {
     foreach my $right_name (@$rights) {
         my $objs = $dbm->Rights->get_objects({ scope     => $user->get_user_scope,
   					                           data_type => 'metagenome',
-  					                           data_id   => $mg_id,
+  					                           data_id   => $job->{metagenome_id},
   					                           name      => $right_name,
   					                           granted   => 1 });
         unless (@$objs > 0) {
             my $right = $dbm->Rights->create({ scope     => $user->get_user_scope,
   					                           data_type => 'metagenome',
-  					                           data_id   => $mg_id,
+  					                           data_id   => $job->{metagenome_id},
   					                           name      => $right_name,
   					                           granted   => 1 });
             unless (ref $right) {
-  	            print STDRER "Unable to create Right $right_name - metagenome - $mg_id.";
+  	            print STDRER "Unable to create Right $right_name - metagenome - ".$job->{metagenome_id};
   	            return undef;
             }
         }
@@ -205,9 +208,9 @@ sub initialize {
   
   foreach my $key (@$stat_keys) {
     if (exists $params->{$key}) {
-      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key} });
+      $job->stats($key.'_raw', $params->{$key});
     } elsif (exists $params->{$key.'_raw'}) {
-      $master->JobStatistics->create({ job => $job, tag => $key.'_raw', value => $params->{$key.'_raw'} });
+      $job->stats($key.'_raw', $params->{$key.'_raw'});
     }
   }
   
@@ -221,12 +224,9 @@ sub initialize {
     next if (exists($used_keys->{$key}) || exists($used_keys->{$clean_key}));
     my $value = $params->{$key};
     $value =~ s/\s+/_/g;
-    $master->JobAttributes->create({ job => $job, tag => $key, value => $value });
+    $job->data($key, $value);
   }
   $job->set_filter_options();
-  
-  # mark as 'upload'
-  $master->PipelineStage->create({ job => $job, stage => 'upload', status => 'completed' });
   
   return $job;
 }
@@ -456,6 +456,20 @@ sub get_job_ids {
         map { $data->{$_->[0]} = $_->[1] } @$result;
     }
     return $data;
+}
+
+sub get_job_pipelines {
+    my ($self, $mgids, $default) = @_;
+    
+    my %data = map { $_, $default } @$mgids;
+    my $dbh  = $self->_master()->db_handle;
+    my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
+    my $query   = "select j.metagenome_id, a.value from Job j, JobAttributes a where j._id=a.job and tag='pipeline_version' and metagenome_id in (".$id_list.")";
+    my $result  = $dbh->selectall_arrayref($query);
+    if ($result && @$result) {
+        map { $data{$_->[0]} = $_->[1] } @$result;
+    }
+    return \%data;
 }
 
 sub get_public_jobs {
@@ -1549,7 +1563,7 @@ sub user_delete {
   } else {
     foreach my $j (@$ajobs) {
       eval {
-        $agent->delete($Conf::awe_url.'/job/'.$j->{id}, @auth);
+        $agent->delete($Conf::awe_url.'/job/'.$j->{id}.'?full=1', @auth);
       };
       if ($@) {                                                                                                                              
         return (0, "Unable to delete metagenome '$mgid' from AWE: ".$@);

@@ -64,13 +64,13 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		            'url' => $self->cgi->url."/".$self->name,
+		            'url' => $self->url."/".$self->name,
 		            'description' => "Calculate various statistics for given input data.",
 		            'type' => 'object',
-		            'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		            'documentation' => $self->url.'/api.html#'.$self->name,
 		            'requests' => [
 		                { 'name'        => "info",
-				          'request'     => $self->cgi->url."/".$self->name,
+				          'request'     => $self->url."/".$self->name,
 				          'description' => "Returns description of parameters and attributes.",
 				          'method'      => "GET",
 				          'type'        => "synchronous",  
@@ -80,9 +80,9 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "alphadiversity",
-				          'request'     => $self->cgi->url."/".$self->name."/alphadiversity/{ID}",
+				          'request'     => $self->url."/".$self->name."/alphadiversity/{id}",
 				          'description' => "Calculate alpha diversity value for given ID and taxon level.",
-				          'example'     => [ $self->cgi->url."/".$self->name."/alphadiversity/mgm4447943.3?level=order",
+				          'example'     => [ $self->url."/".$self->name."/alphadiversity/mgm4447943.3?level=order",
              				                 "retrieve alpha diversity for order taxon" ],
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
@@ -94,9 +94,9 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "rarefaction",
-				          'request'     => $self->cgi->url."/".$self->name."/rarefaction/{ID}",
+				          'request'     => $self->url."/".$self->name."/rarefaction/{id}",
 				          'description' => "Calculate rarefaction x-y coordinates for given ID and taxon level.",
-				          'example'     => [ $self->cgi->url."/".$self->name."/rarefaction/mgm4447943.3?level=order",
+				          'example'     => [ $self->url."/".$self->name."/rarefaction/mgm4447943.3?level=order",
              				                 "retrieve rarefaction for order taxon" ],
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
@@ -111,9 +111,9 @@ sub info {
 							                 'body'     => {} }
 						},
 						{ 'name'        => "blast",
-				          'request'     => $self->cgi->url."/".$self->name."/blast/{ID}",
+				          'request'     => $self->url."/".$self->name."/blast/{id}",
 				          'description' => "Produce NCBI-BLAST sequence alinments for given md5sum and its hits.",
-				          'example'     => [ $self->cgi->url."/".$self->name."/blast/mgm4447943.3?md5=15bf1950bd9867099e72ea6516e3d602",
+				          'example'     => [ $self->url."/".$self->name."/blast/mgm4447943.3?md5=0001c2703270cc7aec519107b8215b11",
              				                 "retrieve sequence alignment for reads from mgm4447943.3 against m5nr feature" ],
 				          'method'      => "GET",
 				          'type'        => "synchronous or asynchronous",
@@ -127,9 +127,9 @@ sub info {
 							                 'body'     => {} }
 						},
 				        { 'name'        => "normalize",
-				          'request'     => $self->cgi->url."/".$self->name."/normalize",
+				          'request'     => $self->url."/".$self->name."/normalize",
 				          'description' => "Calculate normalized values for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/normalize"',
+				          'example'     => [ 'curl -X POST -d \'{'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/normalize"',
              				                 "retrieve normalized values for input abundances" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -141,28 +141,10 @@ sub info {
           							                         "columns" => ['list', ['string', 'column id']],
           							                         "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]] } }
 						},
-                        # { 'name'        => "significance",
-                        #                         'request'     => $self->cgi->url."/".$self->name."/significance",
-                        #                         'description' => "Calculate significance values for given input data.",
-                        #                         'example'     => [ 'curl -X POST -d \'{"test":"Kruskal-Wallis","groups":["whale","whale","cow","cow"],'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/significance"',
-                        #                                            "retrieve significance values for input abundances and groups using the 'Kruskal-Wallis' significance test" ],
-                        #                         'method'      => "POST",
-                        #                         'type'        => "synchronous",
-                        #                         'attributes'  => $self->{attributes}{significance},
-                        #                         'parameters'  => { 'options'  => {},
-                        #                    'required' => {},
-                        #                    'body'     => { "data" => ['list', ['list', ['int', 'raw value']]],
-                        #                                                                "rows" => ['list', ['string', 'row id']],
-                        #                                                                "columns" => ['list', ['string', 'column id']],
-                        #                                                                "groups" =>  ['list', ['string', 'group name']],
-                        #                                                                "test" => ['cv', [map {[$_, $_." significance testing method"]} @{$self->{significance}}]],
-                        #                                                                "norm" => ['cv', [map {[$_, $_." normalization method"]} @{$self->{norm}}]],
-                        #                                                                "raw" => ["boolean", "option to use raw data (not normalize)"] } }
-                        # },
 						{ 'name'        => "distance",
-				          'request'     => $self->cgi->url."/".$self->name."/distance",
+				          'request'     => $self->url."/".$self->name."/distance",
 				          'description' => "Calculate a distance matrix for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{"distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/distance"',
+				          'example'     => [ 'curl -X POST -d \'{"distance":"euclidean",'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/distance"',
                  				             "retrieve distance matrix of normalized input abundances using 'euclidean' distance method" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -177,9 +159,9 @@ sub info {
 							                                 "raw" => ["boolean", "option to use raw data (not normalize)"] } }
 						},
 						{ 'name'        => "heatmap",
-				          'request'     => $self->cgi->url."/".$self->name."/heatmap",
+				          'request'     => $self->url."/".$self->name."/heatmap",
 				          'description' => "Calculate a dendrogram for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{"raw":0,"cluster":"mcquitty",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/heatmap"',
+				          'example'     => [ 'curl -X POST -d \'{"raw":0,"cluster":"mcquitty",'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/heatmap"',
                				                 "retrieve dendrogram of normalized input abundances using 'mcquitty' cluster method" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -195,9 +177,9 @@ sub info {
      							                             "raw" => ["boolean", "option to use raw data (not normalize)"] } }
 						},
 						{ 'name'        => "pcoa",
-				          'request'     => $self->cgi->url."/".$self->name."/pcoa",
+				          'request'     => $self->url."/".$self->name."/pcoa",
 				          'description' => "Calculate a PCoA for given input data.",
-				          'example'     => [ 'curl -X POST -d \'{"raw":1,"distance":"euclidean",'.$self->{example}.'}\' "'.$self->cgi->url."/".$self->name.'/pcoa"',
+				          'example'     => [ 'curl -X POST -d \'{"raw":1,"distance":"euclidean",'.$self->{example}.'}\' "'.$self->url."/".$self->name.'/pcoa"',
                  				             "retrieve PCO of raw input abundances using 'euclidean' distance method" ],
 				          'method'      => "POST",
 				          'type'        => "synchronous",
@@ -235,12 +217,13 @@ sub request {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self, $type, $mgid) = @_;
+    my ($self, $type, $tempid) = @_;
     
     # check id format
+    my $mgid = $self->idresolve($tempid);
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     if (! $id) {
-        $self->return_data({"ERROR" => "invalid id format: $mgid"}, 400);
+        $self->return_data({"ERROR" => "invalid id format: ".$tempid}, 400);
     }
     # get data
     my $master = $self->connect_to_datasource();
@@ -283,7 +266,7 @@ sub instance {
                     $self->delete_shock_node($n->{id}, $self->mgrast_token);
                 }
             } else {
-                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->cgi->url."/status/".$nodes->[0]->{id}});
+                $self->return_data({"status" => "submitted", "id" => $nodes->[0]->{id}, "url" => $self->url."/status/".$nodes->[0]->{id}});
             }
         }
         # need to create new node and fork
@@ -319,7 +302,7 @@ sub instance {
         }
         # parent - end html session
         else {
-            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->cgi->url."/status/".$node->{id}});
+            $self->return_data({"status" => "submitted", "id" => $node->{id}, "url" => $self->url."/status/".$node->{id}});
         }
     }
     # synchronous call, prepare then return data
@@ -376,7 +359,7 @@ sub sequence_compute {
     my $info = $chdl->get_md5_record($job->{job_id}, $md5);
     $chdl->close();
     unless ($info && (@$info > 0)) {
-        return ({"ERROR" => "unable to retrieve md5 index"}, 500);
+        return ({"ERROR" => "metagenome mgm$id has no hits against the sequence with md5sum $md5"}, 500);
     }
     
     # get sequences from record
@@ -405,15 +388,21 @@ sub sequence_compute {
     unless ($md5fasta) {
         return ({"ERROR" => "unable to retrieve sequence for $md5"}, 500);
     }
+    
+    # make input seq file
+    my ($ifh, $ifile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
+    print $ifh $infasta;
+    close($ifh);
+    
     # make md5 seq file
-    my ($tfh, $tfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
-    print $tfh $md5fasta;
-    close($tfh);
+    my ($mfh, $mfile) = tempfile("md5XXXXXXX", DIR => $Conf::temp, SUFFIX => '.fasta');
+    print $mfh $md5fasta;
+    close($mfh);
     
     # run blast
     my $cmd  = $rna ? "blastn" : "blastx";
     my $opts = "-evalue 0.".("0" x ($eval-1))."1 -dbsize ".$self->{dbsize}." -outfmt 0";
-    my $data = `echo "$infasta" | $cmd $opts -query - -subject $tfile 2> /dev/null`;
+    my $data = `$cmd $opts -query $ifile -subject $mfile 2> /dev/null`;
     
     return ({alignment => $data, md5 => $md5, reads => $reads}, undef);
 }

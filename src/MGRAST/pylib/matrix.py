@@ -51,12 +51,12 @@ class Matrix(object):
             matrix['data']  = data
             matrix['shape'] = [ len(matrix['rows']), len(matrix['columns']) ]
         except Exception as ex:
-            self.error_exit("unable to build BIOM profile", node, ex)
+            self.error_exit("unable to build BIOM matrix", node, ex)
             return
         
         ## sanity check
         if len(matrix['data']) == 0:
-            self.error_exit("unable to build BIOM profile, no data returned", node)
+            self.error_exit("no data returned for the given parameters, try again with lower cutoffs (evalue, identity, length)", node)
             return
         
         ## store file in node
@@ -95,9 +95,10 @@ class Matrix(object):
             'data'                : []
         }
     
-    def get_data(self, node, param, hierarchy):
+    def get_data(self, node, param, hierarchy): 
         found = 0
         data  = []
+        to_swap = True if ('swaps' in param) and (len(param['swaps']) == len(param['job_ids'])) else False
         row_len = len(param['job_ids'])
         row_idx = {} # row_id : row_idx
         md5_val = {} # md5 : value
@@ -170,10 +171,18 @@ class Matrix(object):
         
         # loop through jobs
         for cindex, job in enumerate(param['job_ids']):
+            col_name = RESULT_MAP[param['result_type']]
+            swap_job = False
+            if to_swap and param['swaps'][cindex]:
+                swap_job = True
+                if col_name == 'len_avg':
+                    col_name = 'ident_avg'
+                elif col_name == 'ident_avg':
+                    col_name = 'len_avg'
             total = 0
             count = 0
             prev  = time.time()
-            recs  = self.jobs.get_job_records(job, ['md5', RESULT_MAP[param['result_type']]], param['evalue'], param['identity'], param['length'])
+            recs  = self.jobs.get_job_records(job, ['md5', col_name], swap_job, param['evalue'], param['identity'], param['length'])
             # loop through md5 values
             for r in recs:
                 md5_val[r[0]] = r[1]
@@ -246,9 +255,9 @@ class Matrix(object):
     def get_filter_list(self, mtype, ftext, flevel, fsource, fleaf):
         if ftext and (not fleaf):
             if mtype == 'organism':
-                return self.m5nr.get_organism_by_taxa(flevel, ftext)
-            elif mtype == 'ontology':
                 return self.m5nr.get_ontology_by_level(fsource, flevel, ftext)
+            elif mtype == 'ontology':
+                return self.m5nr.get_organism_by_taxa(flevel, ftext)
         return None
     
     # get subset of md5s based on filter list / source

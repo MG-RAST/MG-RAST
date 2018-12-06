@@ -25,18 +25,21 @@ sub new {
     my %rights = $self->user ? map {$_, 1} @{$self->user->has_right_to(undef, 'view', 'project')} : ();
     $self->{name} = "project";
     $self->{rights} = \%rights;
-    $self->{actions} = {
-        'movemetagenomes' => 1,
+    $self->{post_actions} = {
+        'chown'          => 1,
+        'updatemetadata' => 1,
+        'addaccession'   => 1
+    };
+    $self->{get_actions} = {
         'updateright'     => 1,
         'makepublic'      => 1,
-        'updatemetadata'  => 1,
-        'submittoebi'     => 1
+        'movemetagenomes' => 1
     };
     $self->{attributes} = { "id"             => [ 'string', 'unique object identifier' ],
     	                    "name"           => [ 'string', 'human readable identifier' ],
     	                    "libraries"      => [ 'list', [ 'reference library', 'a list of references to the related library objects' ] ],
-			    "samples"        => [ 'list', [ 'reference sample', 'a list of references to the related sample objects' ] ],
-			    "metagenomes"    => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
+                            "samples"        => [ 'list', [ 'reference sample', 'a list of references to the related sample objects' ] ],
+                            "metagenomes"    => [ 'list', [ 'reference metagenome', 'a list of references to the related metagenome objects' ] ],
     	                    "description"    => [ 'string', 'a short, comprehensive description of the project' ],
     	                    "funding_source" => [ 'string', 'the official name of the source of funding of this project' ],
     	                    "pi"             => [ 'string', 'the first and last name of the principal investigator of the project' ],
@@ -45,7 +48,7 @@ sub new {
     	                    "version"        => [ 'integer', 'version of the object' ],
     	                    "url"            => [ 'uri', 'resource location of this object instance' ],
     	                    "status"         => [ 'cv', [ ['public', 'object is public'],
-							  ['private', 'object is private'] ] ]
+                                                          ['private', 'object is private'] ] ]
     	                  };
     return $self;
 }
@@ -55,12 +58,12 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "A project is a composition of samples, libraries and metagenomes being analyzed in a global context.",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
-				      'request'     => $self->cgi->url."/".$self->name,
+				      'request'     => $self->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -69,9 +72,9 @@ sub info {
 							             'required'    => {},
 							             'body'        => {} } },
 				    { 'name'        => "query",
-				      'request'     => $self->cgi->url."/".$self->name,				      
+				      'request'     => $self->url."/".$self->name,				      
 				      'description' => "Returns a set of data matching the query criteria.",
-				      'example'     => [ $self->cgi->url."/".$self->name."?limit=20&order=name",
+				      'example'     => [ $self->url."/".$self->name."?limit=20&order=name",
     				                     'retrieve the first 20 projects ordered by name' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -92,9 +95,9 @@ sub info {
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
-				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				      'request'     => $self->url."/".$self->name."/{id}",
 				      'description' => "Returns a single data object.",
-				      'example'     => [ $self->cgi->url."/".$self->name."/mgp128?verbosity=full",
+				      'example'     => [ $self->url."/".$self->name."/mgp128?verbosity=full",
       				                     'retrieve all data for project mgp128' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -121,17 +124,93 @@ sub request {
     {
         $self->info();
     }
-    
-    if ( ($self->method eq 'POST') && scalar(@{$self->rest}) ) {
-        $self->post_action();
+    if ($self->method eq 'POST') {
+        if (scalar(@{$self->rest}) == 1) {
+            if ($self->rest->[0] eq 'create') {
+                $self->create_project();
+            } elsif ($self->rest->[0] eq 'delete') {
+                $self->delete_project();
+            } else {
+                $self->info();
+            }
+        }
+        if ((scalar(@{$self->rest}) > 1) && exists($self->{post_actions}{$self->rest->[1]})) {
+            $self->post_action();
+        } else {
+            $self->info();
+        }
     } elsif ( ($self->method eq 'GET') && scalar(@{$self->rest}) ) {
-         if ((scalar(@{$self->rest}) > 1) && exists($self->{actions}{$self->rest->[1]})) {
+         if ((scalar(@{$self->rest}) > 1) && exists($self->{get_actions}{$self->rest->[1]})) {
              $self->get_action();
          } else {
              $self->instance();
          }
     } else {
         $self->query();
+    }
+}
+
+# create a new empty project
+sub create_project {
+    my ($self) = @_;
+    my $master = $self->connect_to_datasource();
+    unless ($self->{user}) {
+        $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
+    }
+    unless ($self->{cgi}->param("user")) {
+        $self->return_data( {"ERROR" => "missing parameter user"}, 400 );
+    }
+    my $puser = $self->user->_master->User->init({login => $self->{cgi}->param('user')});
+    unless (ref $puser) {
+        $self->return_data( {"ERROR" => "invalid user"}, 400 );
+    }
+    unless ($self->{cgi}->param("name")) {
+        $self->return_data( {"ERROR" => "missing parameter name"}, 400 );
+    }
+    my $existing = $master->Project->get_objects({name => $self->{cgi}->param('name')});
+    if (scalar(@$existing)) {
+        $self->return_data( {"ERROR" => "project name taken"}, 400 );
+    }
+    my $proj = $master->Project->create_project($puser, $self->{cgi}->param('name'));
+    if (ref ($proj)) {
+        my $response = {
+            "OK"         => "project created",
+            "project"    => "mgp".$proj->id,
+            "name"       => $proj->name,
+            "owner"      => "mgu".$puser->_id,
+            "obfuscated" => $self->obfuscate("mgp".$proj->id)
+        };
+        $self->return_data($response, 200);
+    } else {
+        $self->return_data( {"ERROR" => "could not create project"}, 400 );
+    }
+}
+
+# delete an empty project
+sub delete_project {
+    my ($self) = @_;
+    my $master = $self->connect_to_datasource();
+    unless ($self->{cgi}->param("id")) {
+        $self->return_data( {"ERROR" => "missing parameter id"}, 400 );
+    }
+    my $id = $self->idresolve($self->{cgi}->param('id'));
+    $id =~ s/^mgp//;
+    unless ($self->user && ($self->user->has_star_right('edit', 'project') || $self->user->has_right(undef, 'edit', 'project', $id))) {
+        $self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+    }
+    my $proj = $master->Project->init({id => $id});
+    unless (ref $proj) {
+        $self->return_data( {"ERROR" => "project not found"}, 400 );
+    }
+    # check if the project is empty
+    if (! $proj->is_empty()) {
+        $self->return_data( {"ERROR" => "project not empty"}, 400 );
+    }
+    my $isDeleted = $proj->delete_project($self->{user});
+    if (! $isDeleted) {
+        $self->return_data( {"ERROR" => "project deletion failed"}, 400 );
+    } else {
+        $self->return_data( {"OK" => "project deleted"}, 200 );
     }
 }
 
@@ -143,74 +222,29 @@ sub post_action {
     # get database
     my $master = $self->connect_to_datasource();
     
-    # create a new empty project
-    if ($rest->[0] eq 'create') {
-        unless ($self->{user}) {
-            $self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
-        }
-        unless ($self->{cgi}->param("user")) {
-            $self->return_data( {"ERROR" => "missing parameter user"}, 400 );
-        }
-        my $puser = $self->user->_master->User->init({login => $self->{cgi}->param('user')});
-        unless (ref $puser) {
-            $self->return_data( {"ERROR" => "invalid user"}, 400 );
-        }
-        unless ($self->{cgi}->param("name")) {
-            $self->return_data( {"ERROR" => "missing parameter name"}, 400 );
-        }
-        my $existing = $master->Project->get_objects({name => $self->{cgi}->param('name')});
-        if (scalar(@$existing)) {
-            $self->return_data( {"ERROR" => "project name taken"}, 400 );
-        }
-        my $proj = $master->Project->create_project($puser, $self->{cgi}->param('name'));
-        if (ref ($proj)) {
-            $self->return_data({"OK" => "project created", "project" => "mgp".$proj->id }, 200);
-        } else {
-            $self->return_data( {"ERROR" => "could not create project"}, 400 );
-        }
+    # check id format
+    my $tempid = $self->idresolve($rest->[0]);
+    my ($id) = $tempid =~ /^mgp(\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
-
-    # delete an empty project
-    if ($rest->[0] eq 'delete') {
-        unless ($self->{cgi}->param("id")) {
-            $self->return_data( {"ERROR" => "missing parameter id"}, 400 );
-        }
-        my $id = $self->{cgi}->param('id');
-        $id =~ s/^mgp//;
-        unless ($self->{user} && ($self->{user}->has_star_right('edit', 'user') || $self->{user}->has_right(undef, 'edit', 'project', $id))) {
-            $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
-        }
-        my $proj = $master->Project->init({id => $id});
-        unless (ref $proj) {
-            $self->return_data( {"ERROR" => "project not found"}, 400 );
-        }
-        # check if the project is empty
-        if (! $proj->is_empty()) {
-            $self->return_data( {"ERROR" => "project not empty"}, 400 );
-        }
-        my $isDeleted = $proj->delete_project($self->{user});
-        if (! $isDeleted) {
-            $self->return_data( {"ERROR" => "project deletion failed"}, 400 );
-        } else {
-            $self->return_data( {"OK" => "project deleted"}, 200 );
-        }
+    
+    # edit rights
+    unless ($self->user && ($self->user->has_star_right('edit', 'project') || $self->user->has_right(undef, 'edit', 'project', $id))) {
+        $self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
     }
-
+    
+    # get project
+    my $project = $master->Project->init({id => $id});
+    unless (ref($project)) {
+        $self->return_data( {"ERROR" => "id not found: " . $rest->[0]}, 404 );
+    }
+    
     # add ownership of all project data to another user
     if ($rest->[1] eq 'chown') {
-        # check id format
-        my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
-        if ((! $id) && scalar(@$rest)) {
-            $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
-        }
         # only admins can do this
         unless ($self->user->has_star_right('edit', 'user')) {
-            $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
-        }
-        # get project
-        my $project = $master->Project->init( {id => $id} );
-        unless (ref($project)) {
-            $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
+            $self->return_data( {"ERROR" => "insufficient permissions"}, 401 );
         }
         # get target user
         my $umaster = $self->user->_master;
@@ -265,115 +299,115 @@ sub post_action {
             }
         }
         $self->return_data( {"OK" => "user added as owner"}, 200 );
-      }
-    
+    }
     # update basic project metadata
     elsif ($rest->[1] eq 'updatemetadata') {
-      my $id = $rest->[0];
-      $id =~ s/mgp//;
-      unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
-	$self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
-      }
-      my $project = $master->Project->init({id => $id});
-      if ($self->cgi->param('project_name')) {
-	$project->name($self->cgi->param('project_name'));
-      }
-      
-      my $metadbm = MGRAST::Metadata->new->_handle();
-      my $keyval = {};
-      $keyval->{project_name} = $self->cgi->param('project_name');
-      $keyval->{project_description} = $self->cgi->param('project_description');
-      $keyval->{project_funding} = $self->cgi->param('project_funding');
-      $keyval->{PI_email} = $self->cgi->param('pi_email');
-      $keyval->{PI_firstname} = $self->cgi->param('pi_firstname');
-      $keyval->{PI_lastname} = $self->cgi->param('pi_lastname');
-      $keyval->{PI_organization} = $self->cgi->param('pi_organization');
-      $keyval->{PI_organization_country} = $self->cgi->param('pi_organization_country');
-      $keyval->{PI_organization_url} = $self->cgi->param('pi_organization_url');
-      $keyval->{PI_organization_address} = $self->cgi->param('pi_organization_address');
-      $keyval->{email} = $self->cgi->param('email');
-      $keyval->{firstname} = $self->cgi->param('firstname');
-      $keyval->{lastname} = $self->cgi->param('lastname');
-      $keyval->{organization} = $self->cgi->param('organization');
-      $keyval->{organization_country} = $self->cgi->param('organization_country');
-      $keyval->{organization_url} = $self->cgi->param('organization_url');
-      $keyval->{organization_address} = $self->cgi->param('organization_address');
-
-      foreach my $key (keys(%$keyval)) {
-	my $existing = $metadbm->ProjectMD->get_objects( {project => $project, tag => $key} );
-	if (scalar(@$existing)) {
-	  foreach my $pmd (@$existing) {
-	    $pmd->delete();
+        # get paramaters
+        my $metadbm = MGRAST::Metadata->new->_handle();
+        my @keys = (
+            'project_name',
+            'project_description',
+            'project_funding',
+            'PI_email',
+            'PI_firstname',
+            'PI_lastname',
+            'PI_organization',
+            'PI_organization_country',
+            'PI_organization_url',
+            'PI_organization_address',
+            'email',
+            'firstname',
+            'lastname',
+            'organization',
+            'organization_country',
+            'organization_url',
+            'organization_address'
+        );
+        my $keyval = {};
+        foreach my $key (@keys) {
+            if ($self->cgi->param($key)) {
+                $keyval->{$key} = $self->cgi->param($key);
+            }
+        }
+        # update DB
+        foreach my $key (keys(%$keyval)) {
+	  if ($key eq 'project_name') {
+	    $project->name($keyval->{$key});
+	  } else {
+            $project->data($key, $keyval->{$key});
 	  }
-	}
-	$metadbm->ProjectMD->create( {project => $project, tag => $key, value => $keyval->{$key}} );
-      }
-      
-      # return success
-      $self->return_data( {"OK" => "metadata updated"}, 200 );
+        }
+        # update elasticsearch
+        foreach my $mgid (@{$project->metagenomes(1)}) {
+            $self->upsert_to_elasticsearch_metadata($mgid);
+        }
+        # return success
+        $self->return_data( {"OK" => "metadata updated"}, 200 );
     }
-    # submit project to EBI
-    elsif ($rest->[1] eq 'submittoebi') {
-      my $id = $rest->[0];
-      $id =~ s/mgp//;
-      unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
-	$self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
-      }
-      my $project = $master->Project->init({id => $id});
-      if ($self->cgi->param('project_name')) {
-	$project->name($self->cgi->param('project_name'));
-      }
-      
-      my $metadbm = MGRAST::Metadata->new->_handle();
-
-      # set the biome and seq_tech in the samples / libraries
-      my $mgs = $project->metagenomes();
-      foreach my $mg (@$mgs) {
-	if ($self->cgi->param('biome'.$mg->{metagenome_id})) {
-	  my $val = $self->cgi->param('biome'.$mg->{metagenome_id});
-	  my $attr = {
-		      collection => $mg->sample,
-		      tag        => 'ncbi_taxon_id',
-		      value      => $val,
-		      required   => 0,
-		      mixs       => 0
-		     };
-	  my $existing = $metadbm->MetaDataEntry->get_objects($attr);
-	  if (scalar(@$existing)) {
-	    foreach my $pmd (@$existing) {
-	      $pmd->delete();
-	    }
-	  }
-	  $metadbm->MetaDataEntry->create( $attr );
-	} else {
-	  $self->return_data( { "ERROR" => "error updating sample biome entries for ebi submission" }, 500 );
-	}
-	
-	if ($self->cgi->param('tech'.$mg->{metagenome_id})) {
-	  my $val = $self->cgi->param('tech'.$mg->{metagenome_id});
-	  my $attr = {
-		      collection => $mg->library,
-		      tag        => 'ebi_tech',
-		      value      => $val,
-		      required   => 0,
-		      mixs       => 0
-		     };
-	  my $existing = $metadbm->MetaDataEntry->get_objects($attr);
-	  if (scalar(@$existing)) {
-	    foreach my $pmd (@$existing) {
-	      $pmd->delete();
-	    }
-	  }
-	  
-	  $metadbm->MetaDataEntry->create( $attr );
-	} else {
-	  $self->return_data( { "ERROR" => "error updating library seq_model entries for ebi submission" }, 500 );
-	}
-      }
-      # at this point we can submit to EBI
-      $self->return_data( {"OK" => "metadata updated for EBI"}, 200 );
+    # add external db accesion ID
+    elsif ($rest->[1] eq 'addaccession') {
+        my $dbname    = $self->cgi->param('dbname') || "";
+        my $accession = $self->cgi->param('accession') || "";
+        my $has_file  = $self->cgi->param('receipt') || "";
+        my $proj_id   = "mgp".$project->id;
+        my $response  = {
+            "OK"         => "accession added",
+            "project"    => $proj_id
+        };
+        if ($has_file) {
+            # EBI receipt
+            my $fhdl = $self->cgi->upload('receipt');
+            unless ($fhdl) {
+                $self->return_data({"ERROR" => "Storing object failed - could not obtain filehandle"}, 507);
+            }
+            my $text = do { local $/; <$fhdl> };
+            my $receipt = $self->parse_ebi_receipt($text);
+            unless ($receipt->{success} eq 'true') {
+                $self->return_data( {"ERROR" => "Receipt was not successful"}, 404 );
+            }
+            unless ($receipt->{study}{mgrast_accession} eq $proj_id) {
+                $self->return_data( {"ERROR" => "Receipt is for wrong project (".$receipt->{study}{mgrast_accession}.") not $proj_id"}, 404 );
+            }
+            my $key = 'ebi_id';
+            $project->data($key, $receipt->{study}{ena_accession});
+            $response->{ena_accession} = $receipt->{study}{ena_accession};
+            $response->{samples} = [];
+            $response->{libraries} = [];
+            $response->{metagenomes} = [];
+            foreach my $s (@{$receipt->{samples}}) {
+                my ($sid) = $s->{mgrast_accession} =~ /^mgs(\d+)$/;
+                my $sample = $master->MetaDataCollection->init( {ID => $sid} );
+                $sample->data($key, $s->{ena_accession});
+                push @{$response->{samples}}, $s;
+            }
+            foreach my $l (@{$receipt->{experiments}}) {
+                my ($lid) = $l->{mgrast_accession} =~ /^mgl(\d+)$/;
+                my $library = $master->MetaDataCollection->init( {ID => $lid} );
+                $library->data($key, $l->{ena_accession});
+                push @{$response->{libraries}}, $l;
+            }
+            foreach my $m (@{$receipt->{runs}}) {
+                my ($mid) = $m->{mgrast_accession} =~ /^mgm(.+)$/;
+                my $job = $master->Job->get_objects({ metagenome_id => $mid });
+                if (scalar(@$job)) {
+                    $job = $job->[0];
+                    $job->data($key, $m->{ena_accession});
+                    push @{$response->{metagenomes}}, $m;
+                }
+            }
+        } elsif ($dbname && $accession) {
+            # project only update
+            my $key = lc($dbname).'_id';
+            $project->data($key, $accession);
+            $response->{$key} = $accession;
+        } else {
+            $self->return_data( {"ERROR" => "Missing required options: dbname and accession, or reciept"}, 404 );
+        }
+        
+        # return success
+        $self->return_data($response);
     }
-  }
+}
 
 sub get_action {
     my ($self) = @_;
@@ -384,24 +418,26 @@ sub get_action {
     my $master = $self->connect_to_datasource();
     
     # check id format
-    my ($id) = $rest->[0] =~ /^mgp(\d+)$/;
+    my $tempid = $self->idresolve($rest->[0]);
+    my ($id) = $tempid =~ /^mgp(\d+)$/;
     if ((! $id) && scalar(@$rest)) {
         $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
     }
     
+    # edit rights
+    unless ($self->user && ($self->user->has_star_right('edit', 'project') || $self->user->has_right(undef, 'edit', 'project', $id))) {
+        $self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+    }
+    
     if ($rest->[1] eq 'updateright') {
-        $self->updateRight($rest->[0]);
+        $self->updateRight($id);
         return;
     }
     
-    # check permissions
-    unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id)) {
-        $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
-    }
     # get project
     my $project = $master->Project->init( {id => $id} );
     unless (ref($project)) {
-        $self->return_data( {"ERROR" => "id not found: $id"}, 404 );
+        $self->return_data( {"ERROR" => "id not found: ".$rest->[0]}, 404 );
     }
     
     # make the project public
@@ -440,24 +476,34 @@ sub get_action {
             # update db
             $job->public(1);
             $job->set_publication_date();
+            # update elasticsearch
+            $self->upsert_to_elasticsearch_metadata($job->metagenome_id);
         }
 
         # make project public
         $project->public(1);
 
         # return success
-        $self->return_data( {"OK" => "project published"}, 200 );
+        my $response = {
+            "OK"         => "project published",
+            "project"    => "mgp".$project->id,
+            "name"       => $project->name,
+            "owner"      => "mgu".$self->user->_id
+        };
+        $self->return_data($response, 200);
     }
+
     # move metagenomes to a different project
     elsif ($rest->[1] eq 'movemetagenomes') {
         # get second project
-        my ($id2) = $self->cgi->param('target') =~ /^mgp(\d+)$/;
+        my $tempid2 = $self->idresolve($self->cgi->param('target'));
+        my ($id2) = $tempid2 =~ /^mgp(\d+)$/;
         if (! $id2) {
             $self->return_data( {"ERROR" => "invalid id format: " . $self->cgi->param('target')}, 400 );
         }
         # check permissions
-        unless ($self->user->has_star_right('edit', 'user') || $self->user->has_right(undef, 'edit', 'project', $id2)) {
-            $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
+        unless ($self->user->has_star_right('edit', 'project') || $self->user->has_right(undef, 'edit', 'project', $id2)) {
+            $self->return_data( {"ERROR" => "insufficient permissions"}, 401 );
         }
         my $project2 = $master->Project->init( {id => $id2} );
         unless (ref($project2)) {
@@ -487,6 +533,8 @@ sub get_action {
             if (scalar(@$ajob)) {
                 $project2->add_job($ajob->[0]);
             }
+            # update elasticsearch
+            $self->upsert_to_elasticsearch_metadata($m);
         }
         $self->return_data( {"OK" => "metagenomes moved"}, 200 );
     }
@@ -527,6 +575,7 @@ sub instance {
     # prepare data
     my $data = $self->prepare_data( [$project] );
     $data = $data->[0];
+    $self->json->utf8();
     $self->return_data($data, undef, 1); # cache this!
 }
 
@@ -583,7 +632,7 @@ sub query {
 
     # check for pagination
     $data = $self->check_pagination($data, $total, $limit);
-
+    $self->json->utf8();
     $self->return_data($data);
 }
 
@@ -593,7 +642,7 @@ sub prepare_data {
   
   my $objects = [];
   foreach my $project (@$data) {
-    my $url = $self->cgi->url;
+    my $url = $self->url;
     my $obj = {};
     $obj->{id}      = "mgp".$project->id;
     $obj->{name}    = $project->name;
@@ -625,11 +674,9 @@ sub prepare_data {
       }
       
       if ($self->cgi->param('verbosity') eq 'full') {
-	my @jobs      = map { ["mgm".$_, $url.'/metagenome/mgm'.$_] } @{ $project->all_metagenome_ids };
 	my @colls     = @{ $project->collections };
 	my @samples   = map { ["mgs".$_->{ID}, $url."/sample/mgs".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'sample') } @colls;
 	my @libraries = map { ["mgl".$_->{ID}, $url."/library/mgl".$_->{ID}] } grep { $_ && ref($_) && ($_->{type} eq 'library') } @colls;
-	$obj->{metagenomes} = \@jobs;	
 	$obj->{samples}   = \@samples;
 	$obj->{libraries} = \@libraries;
       }
@@ -644,9 +691,11 @@ sub prepare_data {
 	
 	if ($self->cgi->param('verbosity') eq 'summary' || ($self->cgi->param('verbosity') eq 'full')) {
 	  my $jdata = $project->metagenomes_summary();
+	  my $ratingdata = $project->metagenome_ratings();
+	  $obj->{ratings} = $ratingdata;
 	  $obj->{metagenomes} = [];
 	  foreach my $row (@$jdata) {
-	    push(@{$obj->{metagenomes}}, { metagenome_id => $row->[0],
+	    push(@{$obj->{metagenomes}}, { metagenome_id => 'mgm'.$row->[0],
 					   name => $row->[1],
 					   basepairs => $row->[2],
 					   sequences => $row->[3],
@@ -668,7 +717,7 @@ sub prepare_data {
 	  my $mgmap = $project->metagenomes_id_name();
 	  $obj->{metagenomes} = [];
 	  foreach my $key (keys(%$mgmap)) {
-	     push(@{$obj->{metagenomes}}, { metagenome_id => $key,
+	     push(@{$obj->{metagenomes}}, { metagenome_id => 'mgm'.$key,
 					    name => $mgmap->{$key} });
 	  }
 	}
@@ -683,14 +732,7 @@ sub prepare_data {
 
 sub updateRight {
   my ($self, $pid) = @_;
-
-  $pid =~ s/^mgp//;
-
-  # check permission
-  unless ($self->user->has_right(undef, "edit", "project", $pid)) {
-    $self->return_data( {"ERROR" => "insufficient permissions to change permissions"}, 401 );
-  }
-
+  
   my $type = $self->cgi->param('type');
   my $name = $self->cgi->param('name');
   my $scope = $self->cgi->param('scope');
@@ -865,7 +907,7 @@ sub updateRight {
 					die_on_bad_params => 0);
 	$ubody->param('WHAT', "the metagenome project $project_name");
 	$ubody->param('REGISTER', "http://metagenomics.anl.gov/mgmain.html?mgpage=register");
-	$ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
+	$ubody->param('WHOM', $self->user->firstname.' '.$self->user->lastname);
 	$ubody->param('LINK', "http://metagenomics.anl.gov/mgmain.html?mgpage=token&token=$token");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	

@@ -17,7 +17,7 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "validation";
-    $self->{md_node} = $Conf::mgrast_md_node_id || "";
+    $self->{md_node} = $Conf::mgrast_md_node_id || "1ddadf57-b2a7-4c33-bfe3-0641dc1ed02a";
     $self->{md_template} = $Conf::mgrast_md_template_node_id || "";
     $self->{attributes} = { "template" => { "valid" => [ 'boolean', "boolean indicating whether the examined template is valid or not" ],
 					    "error" => [ 'array', [ "string", "array of invalid entries" ] ] },
@@ -32,12 +32,12 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "validates templates for correct structure and data to fit a valid template",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
-				      'request'     => $self->cgi->url."/".$self->name,
+				      'request'     => $self->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -46,9 +46,9 @@ sub info {
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "template",
-				      'request'     => $self->cgi->url."/".$self->name."/template/{ID}",				      
+				      'request'     => $self->url."/".$self->name."/template/{id}",				      
 				      'description' => "Checks if the referenced JSON structure is a valid template",
-				      'example'     => [ $self->cgi->url."/".$self->name."/template/".$self->{md_template},
+				      'example'     => [ $self->url."/".$self->name."/template/".$self->{md_template},
 				                         'validate the communities metagenomics template' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -57,9 +57,9 @@ sub info {
 							 'required'    => { "id" => [ "string", "SHOCK template id" ] },
 							 'body'        => {} } },
 				    { 'name'        => "data",
-				      'request'     => $self->cgi->url."/".$self->name."/data/{ID}",
+				      'request'     => $self->url."/".$self->name."/data/{id}",
 				      'description' => "Returns a single data object.",
-				      'example'     => [ $self->cgi->url."/".$self->name."/data/".$self->{md_node}."?template=".$self->{md_template},
+				      'example'     => [ $self->url."/".$self->name."/data/".$self->{md_node}."?template=".$self->{md_template},
   				                         'validate a JSON data structure against the MG-RAST metagenome metadata template' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  

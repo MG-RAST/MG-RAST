@@ -9,6 +9,7 @@ use Data::Dumper;
 use parent qw(resources::resource);
 use WebApplicationDBHandle;
 use URI::Escape;
+use MGRAST::Mailer;
 
 # Override parent constructor
 sub new {
@@ -35,6 +36,8 @@ sub new {
 		  direction => {'asc' => 1, 'desc' => 1},
 		  match => {'any' => 1, 'all' => 1}
 		};
+
+  $self->json->utf8();
   
   return $self;
 }
@@ -43,97 +46,118 @@ sub new {
 # this method must return a description of the resource
 sub info {
   my ($self) = @_;
-  my $content = { 'name' => $self->name,
-		  'url' => $self->cgi->url."/".$self->name,
+  my $content = {
+          'name' => $self->name,
+		  'url' => $self->url."/".$self->name,
 		  'description' => "The user resource returns information about a user.",
 		  'type' => 'object',
-		  'documentation' => $self->cgi->url.'/api.html#'.$self->name,
-		  'requests' => [ { 'name'        => "info",
-				    'request'     => $self->cgi->url."/".$self->name,
+		  'documentation' => $self->url.'/api.html#'.$self->name,
+		  'requests' => [
+                  { 'name'        => "info",
+				    'request'     => $self->url."/".$self->name,
 				    'description' => "Returns description of parameters and attributes.",
 				    'method'      => "GET" ,
-				    'type'        => "synchronous" ,  
+				    'type'        => "synchronous",
 				    'attributes'  => "self",
-				    'parameters'  => { 'options'     => {},
-						       'required'    => {},
-						       'body'        => {} } },
+				    'parameters'  => { 'options'  => {},
+						               'required' => {},
+						               'body'     => {} }
+                  },
 				  { 'name'        => "instance",
-				    'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				    'request'     => $self->url."/".$self->name."/{id}",
 				    'description' => "Returns a single user object.",
-				    'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
-						       "info for user 'johndoe'" ],
+				    'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
+						               "info for user 'johndoe'" ],
 				    'method'      => "GET",
-				    'type'        => "synchronous" ,  
+				    'type'        => "synchronous",
 				    'attributes'  => $self->attributes,
-				    'parameters'  => { 'options'     => $self->attributes,
-						       'required'    => { "id" => [ "string", "unique user login or ID" ] },
-						       'body'        => {} } },
+				    'parameters'  => { 'options'  => $self->attributes,
+						               'required' => { "id" => [ "string", "unique user login or ID" ] },
+						               'body'     => {} }
+                  },
 				  { 'name'        => "delete",
-				    'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				    'request'     => $self->url."/".$self->name."/{id}",
 				    'description' => "Delete a user object.",
-				    'example'     => [ 'curl -X DELETE -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe"',
-						       "error or success message" ],
+				    'example'     => [ 'curl -X DELETE -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
+						               "error or success message" ],
 				    'method'      => "DELETE",
-				    'type'        => "synchronous" ,  
-                                      'attributes'  => {},
-                                      'parameters'  => { 'options'     => {},
-                                                         'required'    => { "id" => [ "string", "unique user login or ID" ] },
-                                                         'body'        => {} } },
-				    { 'name'        => "update",
-                                      'request'     => $self->cgi->url."/".$self->name."/{ID}",
-                                      'description' => "Returns a single user object.",
-                                      'example'     => [ 'curl -X PUT -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'/johndoe?firstname=Jim"',
-							 "set firstname of user 'johndoe' to 'Jim'" ],
-                                      'method'      => "PUT",
-                                      'type'        => "synchronous" ,  
-                                      'attributes'  => $self->attributes,
-                                      'parameters'  => { 'options'     => {},
-                                                         'required'    => { "id" => [ "string", "unique user login or ID" ] },
-                                                         'body'        => {} } },
+				    'type'        => "synchronous",
+                    'attributes'  => {},
+                    'parameters'  => { 'options'  => {},
+                                       'required' => { "id" => [ "string", "unique user login or ID" ] },
+                                       'body'     => {} }
+                  },
+				  { 'name'        => "update",
+                    'request'     => $self->url."/".$self->name."/{id}",
+                    'description' => "Returns a single user object.",
+                    'example'     => [ 'curl -X PUT -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe?firstname=Jim"',
+							           "set firstname of user 'johndoe' to 'Jim'" ],
+                    'method'      => "PUT",
+                    'type'        => "synchronous",
+                    'attributes'  => $self->attributes,
+                    'parameters'  => { 'options'  => {},
+                                       'required' => { "id" => [ "string", "unique user login or ID" ] },
+                                       'body'     => {} }
+                    },
+  				    { 'name'        => "notify",
+                      'request'     => $self->url."/".$self->name."/{id}/notify",
+                      'description' => "Sends an email to a user",
+                      'example'     => [ 'curl -X POST -F "subject=hi" -F "body=hello world" -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'/johndoe"',
+  							             "send given email body to user 'johndoe' from mg-rast" ],
+                      'method'      => "POST",
+                      'type'        => "synchronous",
+                      'attributes'  => $self->attributes,
+                      'parameters'  => { 'options'  => {},
+                                         'required' => { "id" => [ "string", "unique user login or ID" ] },
+                                         'body'     => { "subject" => ["string", "email subject line"],
+                                                         "body"    => ["string", "email body text"] } }
+                      },
 				    { 'name'        => "query",
-                                      'request'     => $self->cgi->url."/".$self->name,
-                                      'description' => "Returns a matching list of user objects.",
-                                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->cgi->url."/".$self->name.'?lastname=Doe&firstname=John"',
-							 "info for users with firstname 'John' and lastname 'Doe'" ],
-                                      'method'      => "GET",
-                                      'type'        => "synchronous" ,  
-                                      'attributes'  => { "next"    => ["uri","link to the previous set or null if this is the first set"],
-							 "prev"    => ["uri","link to the next set or null if this is the last set"],
-							 "order"   => ["string","name of the attribute the returned data is ordered by"],
-							 "data"    => ["list", ["object", [$self->{attributes}, "user object"] ]],
-							 "limit"   => ["integer","maximum number of data items returned, default is 10"],
-							 "offset"  => ["integer","zero based index of the first returned data item"],
-							 "version" => ['integer', 'version of the object'],
-							 "url"     => ['uri', 'resource location of this object instance'],
-							 "total_count" => ["integer","total number of available data items"] },
-                                      'parameters'  => { 'options' =>
-							 { "id"         => [ 'string', 'search term for user id' ],
-							   "login"      => [ 'string', 'search term for user login'],
-							   "email"      => [ 'string', 'search term for user e-mail' ],
-							   "firstname"  => [ 'string', 'search term for first name of user' ],
-							   "lastname"   => [ 'string', 'search term for last name of user' ],
-							   "entry_date" => [ 'date', 'search term for date of user creation' ],
-							   "active"     => [ 'boolean', 'search term for user is active' ],
-							   "comment"    => [ 'string', 'search term for any comment about the user account' ],
-							   'limit'     => ["integer", "maximum number of items requested"],
-							   'offset'    => ["integer", "zero based index of the first data object to be returned"],
-							   'order'     => ["string", "metagenome object field to sort by (default is id)"],
-							   'direction' => ['cv', [['asc','sort by ascending order'],
-										  ['desc','sort by descending order']]],
-							   'match' => ['cv', [['all','return metagenomes that match all search parameters'],
-									      ['any','return metagenomes that match any search parameters']]],
-							   'status' => ['cv', [['both','returns all data (public and private) user has access to view'],
-									       ['public','returns all public data'],
-									       ['private','returns private data user has access to view']]],
-							   'verbosity' => ['cv', [['minimal','returns only minimal information'],
-										  ['preferences','returns minimal with preferences'],
-										  ['scopes','returns minimal with scopes'],
-										  ['rights','returns minimal with rights'],
-										  ['full','returns minimal with preferences, scopes and rights']] ] },
-                                                         'required'    => {},
-                                                         'body'        => {} } },
-                                     ]
-                                 };
+                      'request'     => $self->url."/".$self->name,
+                      'description' => "Returns a matching list of user objects.",
+                      'example'     => [ 'curl -X GET -H "auth: admin_auth_key" "'.$self->url."/".$self->name.'?lastname=Doe&firstname=John"',
+							             "info for users with firstname 'John' and lastname 'Doe'" ],
+                      'method'      => "GET",
+                      'type'        => "synchronous",
+                      'attributes'  => { "next"    => ["uri","link to the previous set or null if this is the first set"],
+                                         "prev"    => ["uri","link to the next set or null if this is the last set"],
+                                         "order"   => ["string","name of the attribute the returned data is ordered by"],
+                                         "data"    => ["list", ["object", [$self->{attributes}, "user object"] ]],
+                                         "limit"   => ["integer","maximum number of data items returned, default is 10"],
+                                         "offset"  => ["integer","zero based index of the first returned data item"],
+                                         "version" => ['integer', 'version of the object'],
+                                         "url"     => ['uri', 'resource location of this object instance'],
+                                         "total_count" => ["integer","total number of available data items"] },
+                      'parameters'  => { 'options' =>
+                                         { "id"         => [ 'string', 'search term for user id' ],
+                                           "login"      => [ 'string', 'search term for user login'],
+                                           "email"      => [ 'string', 'search term for user e-mail' ],
+                                           "firstname"  => [ 'string', 'search term for first name of user' ],
+                                           "lastname"   => [ 'string', 'search term for last name of user' ],
+                                           "entry_date" => [ 'date', 'search term for date of user creation' ],
+                                           "active"     => [ 'boolean', 'search term for user is active' ],
+                                           "comment"    => [ 'string', 'search term for any comment about the user account' ],
+                                           'limit'      => ["integer", "maximum number of items requested"],
+                                           'offset'     => ["integer", "zero based index of the first data object to be returned"],
+                                           'order'      => ["string", "metagenome object field to sort by (default is id)"],
+                                           'direction'  => ['cv', [['asc','sort by ascending order'],
+										                           ['desc','sort by descending order']]],
+                                           'match'      => ['cv', [['all','return metagenomes that match all search parameters'],
+									                               ['any','return metagenomes that match any search parameters']]],
+							               'status'     => ['cv', [['both','returns all data (public and private) user has access to view'],
+									                               ['public','returns all public data'],
+									                               ['private','returns private data user has access to view']]],
+							               'verbosity'  => ['cv', [['minimal','returns only minimal information'],
+										                           ['preferences','returns minimal with preferences'],
+										                           ['scopes','returns minimal with scopes'],
+										                           ['rights','returns minimal with rights'],
+										                           ['full','returns minimal with preferences, scopes and rights']] ]
+                                         },
+                                         'required' => {},
+                                         'body'     => {} }
+                    }
+            ]
+    };
 
     $self->return_data($content);
 }
@@ -170,7 +194,7 @@ sub instance {
       my $userToken  = $master->Preferences->get_objects({ user => $self->user, name => "WebServicesKey" });
       my $expiration = $master->Preferences->get_objects({ user => $self->user, name => "WebServiceKeyTdate" });
       if (! scalar(@$userToken) || $expiration->[0]->{value} < time) {
-	my $t = time + (60 * 60 * 24 * 7);
+	my $t = time + (60 * 60 * 24 * 14);
 	my $wkey = "";
 	my $possible = 'abcdefghijkmnpqrstuvwxyz23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 	while (length($wkey) < 25) {
@@ -261,7 +285,7 @@ sub instance {
       my $impUser = $master->User->get_objects({ login => $rest->[1] });
       if (scalar(@$impUser)) {
 	$impUser = $impUser->[0];
-	my $timeout = 60 * 60 * 24 * 7;
+	my $timeout = 60 * 60 * 24 * 14;
 	my $userToken = $master->Preferences->get_objects({ user => $impUser, name => "WebServicesKey" });
 	if (scalar(@$userToken)) {
 	  $userToken = $userToken->[0]->{value};
@@ -365,6 +389,20 @@ sub instance {
     }
     
     # if we get here, recaptcha is successful
+    # check if we have email only
+    if (! $self->{cgi}->param('login')) {
+      my $user = $master->User->get_objects( { email => $self->{cgi}->param('email') } );
+      if (! scalar(@$user)) {
+	$user = $master->User->get_objects( { email2 => $self->{cgi}->param('email') } );
+      }
+      if (scalar(@$user)) {
+	$user = $user->[0];
+	$user->send_email( "mg-rast\@mcs.anl.gov", "MG-RAST account", "You requested to retrieve the login associated with your MG-RAST account.\n\nYour login associated with this email address is:\n\n".$user->{login}."\n\nYou can use the forgot password link on our site to reset your password." );
+	$self->return_data( {"OK" => "credentials sent"}, 200 );
+      } else {
+	$self->return_data( {"ERROR" => "email address is not registered"}, 400 );
+      }
+    }
     # now check if the login and email address correspond
     my $user = $master->User->get_objects( { login => $self->{cgi}->param('login'), email => $self->{cgi}->param('email') } );
     if ($user && scalar(@$user)) {
@@ -429,51 +467,80 @@ sub instance {
     }
   }
   
-  # check if this is a user creation
-  if ($self->{method} eq 'POST') {
-    # users may only be created with a valid recaptcha
-    my $ua = $self->{agent};
-    $ua->env_proxy();
-    my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', { secret => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
-									       remoteip   => $ENV{'REMOTE_ADDR'},
-									       response   => $self->{cgi}->param('response') }
-			);
-    if ( $resp->is_success ) {
-      my $answer = $self->json->decode($resp->content);
-      if ( ! $answer->{success} ) {
-	$self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
+  my $user = undef;
+  # get user if not doing user creation
+  if ($rest->[0] ne 'recaptcha') {
+      # get user object
+      $user = [];
+      if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
+          $user = $master->User->get_objects( {"_id" => $1} );
+      } else { # user login
+          $user = $master->User->get_objects( { "login" => $rest->[0] } );
+          if (! scalar(@$user) && $rest->[0] =~ /\@/) {
+              $user = $master->User->get_objects( { "email" => $rest->[0] } );
+          }
       }
-    } else {
-      $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
-    }
+      unless (scalar(@$user)) {
+          $self->return_data( {"ERROR" => "user '".$rest->[0]."' does not exist"}, 404 );
+      }
+      $user = $user->[0];
+      # check rights
+      unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
+        $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
+      }
+  }
+  
+  # POST Actions
+  if ($self->{method} eq 'POST') {
+    if ((scalar(@$rest) > 1) && ($rest->[1] eq 'notify') && $user) {
+        my $postdata = $self->get_post_data(["subject", "body"]);
+        # check if this is user notify
+        unless (defined($postdata->{'subject'}) && defined($postdata->{'body'})) {
+            $self->return_data( {"ERROR" => "missing email subject and/or body"}, 404 );
+        }
+        my $owner_name = ($user->firstname || "")." ".($user->lastname || "");
+        my $receiver = "\"$owner_name\" <".$user->email.">";
+        my $success = MGRAST::Mailer::send_email(
+                          smtp_host => $Conf::smtp_host,
+                          from => "mg-rast\@mcs.anl.gov",
+                          to => $receiver,
+                          subject => $postdata->{'subject'},
+                          body => $postdata->{'body'}
+                      );
+        if ($success) {
+            $self->return_data( {"OK" => "email sent to $owner_name (".$user->login.")"}, 200 );
+        } else {
+            $self->return_data( {"ERROR" => "unable to send email to $owner_name (".$user->login.")"}, 500 );
+        }
+    } elsif ($rest->[0] eq 'recaptcha') {
+        # check if this is a user creation
+        # users may only be created with a valid recaptcha
+        my $ua = $self->{agent};
+        $ua->env_proxy();
+        my $resp = $ua->post( 'https://www.google.com/recaptcha/api/siteverify', {
+                              secret   => '6Lf1FL4SAAAAAIJLRoCYjkEgie7RIvfV9hQGnAOh',
+                              remoteip => $ENV{'REMOTE_ADDR'},
+                              response => $self->{cgi}->param('response')
+		});
+        if ( $resp->is_success ) {
+            my $answer = $self->json->decode($resp->content);
+            if ( ! $answer->{success} ) {
+	            $self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
+            }
+        } else {
+            $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
+        }
     
-    # if we get here, recaptcha is successful
-    my $new_user = &create_user($self);
-    $self->return_data($self->prepare_data($new_user));
-  }
-  
-  # get data
-  my $user = [];
-  if ($rest->[0] =~ /^mgu(\d+)$/) { # user id
-    $user = $master->User->get_objects( {"_id" => $1} );
-  } else { # user login
-    $user = $master->User->get_objects( { "login" => $rest->[0] } );
-    if (! scalar(@$user) && $rest->[0] =~ /\@/) {
-      $user = $master->User->get_objects( { "email" => $rest->[0] } );
+        # if we get here, recaptcha is successful
+        my $new_user = &create_user($self);
+        $self->return_data($self->prepare_data($new_user));
+    } else {
+        $self->return_data( {"ERROR" => "invalid POST action"}, 400 );
     }
-  }
-  unless (scalar(@$user)) {
-    $self->return_data( {"ERROR" => "user '".$rest->[0]."' does not exist"}, 404 );
-  }
-  $user = $user->[0];
-  
-  # check rights
-  unless ($self->user && ($self->user->has_right(undef, 'edit', 'user', $user->{_id}) || $self->user->has_star_right('edit', 'user'))) {
-    $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
   }
   
   # check if this is a user update
-  if ($self->{method} eq 'PUT') {
+  if (($self->{method} eq 'PUT') && $user) {
     if (defined $self->{cgi}->param('dwp') && $self->user->has_star_right('edit', 'user')) {
       &set_password($user, $self->cgi->param('dwp'));
     }
@@ -537,7 +604,7 @@ sub instance {
   }
 
   # check if this is a user deletion
-  if ($self->{method} eq 'DELETE') {
+  if (($self->{method} eq 'DELETE') && $user) {
     eval {
       $user->delete();
     };
@@ -549,11 +616,13 @@ sub instance {
   }
   
   # check if this is an action request
-  my $requests = { 'setpassword' => 1,
+  my $requests = {
+           'setpassword' => 1,
 		   'webkey' => 1,
 		   'accept' => 1,
-		   'deny' => 1 };
-  if (scalar(@$rest) > 1 && $requests->{$rest->[1]}) {
+		   'deny' => 1
+  };
+  if ((scalar(@$rest) > 1) && $requests->{$rest->[1]} && $user) {
     # accept account request
     if ($rest->[1] eq 'accept') {
       unless ($self->user->has_star_right('edit', 'user')) {
@@ -587,7 +656,7 @@ sub instance {
 	$self->return_data( {"ERROR" => "webkey request requires action parameter"}, 400 );
       }
 
-      my $timeout = 60 * 60 * 24 * 7; # one week  
+      my $timeout = 60 * 60 * 24 * 14; # 2 week  
       my $webkey = { "key" => 0,
 		     "date" => 0,
 		     "valid" => 0 };
@@ -677,8 +746,21 @@ sub instance {
     }
     
     my $jdbh  = $jobdb->db_handle();
-    my $res = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND (JobAttributes.tag="priority" OR JobAttributes.tag="completedtime") AND (Job.public IS NULL OR Job.public=0) AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
-    $self->return_data({ "priorities" => $res });
+    my $res_comp = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND JobAttributes.tag="completedtime" AND (Job.public IS NULL OR Job.public=0) AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
+    my $res_prio = $jdbh->selectall_arrayref('SELECT Job.metagenome_id, JobAttributes.value FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND JobAttributes.tag="priority" AND (Job.public IS NULL OR Job.public=0) AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC');
+    my $prios = {};
+    foreach my $r (@$res_prio) {
+      $prios->{$r->[0]} = $r->[1];
+    }
+    my $retval = [];
+    foreach my $r (@$res_comp) {
+      if ($prios->{$r->{metagenome_id}}) {
+	$r->{priority} = $prios->{$r->{metagenome_id}};
+	push(@$retval, $r);
+      }
+    }
+    
+    $self->return_data({ "priorities" => $retval });
   }
   # get the user preferences
   elsif ($verb eq 'preferences') {
@@ -1116,7 +1198,7 @@ sub query {
 sub prepare_data {
     my ($self, $user) = @_;
 
-    my $url = $self->cgi->url;
+    my $url = $self->url;
 
     my $result = [];
     my $islist = 1;
@@ -1136,7 +1218,7 @@ sub prepare_data {
       $obj->{entry_date} = $u->{entry_date};
       $obj->{active}     = $u->{active};
       $obj->{comment}    = $u->{comment};
-      $obj->{url}        = $self->cgi->url.'/'.$self->{name}.'/'.$obj->{id};
+      $obj->{url}        = $self->url.'/'.$self->{name}.'/'.$obj->{id};
 
       if (defined $u->{preferences}) { $obj->{preferences} = $u->{preferences} };
       if (defined $u->{rights}) { $obj->{rights} = $u->{rights} };
@@ -1389,9 +1471,11 @@ sub verify_email {
   $message .= "To verify your email address, please click the link below.\n";
   $message .= "<a href='".$Conf::cgi_url."/user/validateemail/".$user->_id."_".$key."'>verify email address</a>";
   
-  $user->send_email( "mg-rast\@mcs.anl.gov",
-		     'MG-RAST - verify email',
-		     $message );
+  MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
+			      from => "mg-rast\@mcs.anl.gov",
+			      to => $email,
+			      subject => 'MG-RAST - verify email',
+			      body => $message);
   
   return 1;
 }

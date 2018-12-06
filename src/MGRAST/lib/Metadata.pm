@@ -8,6 +8,7 @@ use URI::Escape;
 use Storable qw(dclone);
 use Data::Dumper;
 use File::Temp qw/ tempfile tempdir /;
+use File::Slurp;
 use JSON;
 
 use DBMaster;
@@ -99,6 +100,60 @@ sub get_cv_select {
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
+sub put_cv_select {
+  my ($self, $tag, $data) = @_;
+  my $dbh = $self->{_handle}->db_handle;
+  my $sth = $dbh->prepare("INSERT INTO MetaDataCV (type, tag, value) VALUES ('select', '$tag', ?)");
+  foreach my $row (@$data) {
+      $sth->execute($row);
+  }
+  $sth->finish;
+  $dbh->commit;
+}
+
+sub del_cv_select {
+  my ($self, $tag) = @_;
+  my $dbh = $self->{_handle}->db_handle;
+  $dbh->do("DELETE FROM MetaDataCV WHERE type='select' AND tag='$tag'");
+  $dbh->commit;
+}
+
+sub cv_ontology_info {
+    my ($self) = @_;
+    my $out = {};
+    my $dbh = $self->{_handle}->db_handle;
+    my $tmp = $dbh->selectall_arrayref("SELECT tag, value, value_id, value_version FROM MetaDataCV WHERE type='ontology_info'");
+    if ($tmp && @$tmp) {
+        map { $out->{$_->[0]} = [] } @$tmp;
+        foreach my $row (@$tmp) {
+            push @{$out->{$row->[0]}}, {
+                label => $row->[1],
+                id    => $row->[2],
+                url   => $row->[3]
+            };
+        }
+    }
+    return $out;
+}
+
+sub cv_ontology_types {
+    my ($self) = @_;
+    my $ont = {};
+    my $dbh = $self->{_handle}->db_handle;
+    my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT tag FROM MetaDataCV WHERE type='ontology'");
+    if ($tmp && @$tmp) {
+        map { $ont->{$_} = 1 } @$tmp;
+    }    
+    return $ont;
+}
+
+sub get_cv_ontology_id {
+    my ($self, $tag, $value) = @_;
+    my $dbh = $self->{_handle}->db_handle;
+    my $tmp = $dbh->selectcol_arrayref("SELECT DISTINCT value_id FROM MetaDataCV WHERE tag='$tag' AND type='ontology' AND value='$value'");
+    return ($tmp && @$tmp) ? $tmp->[0] : undef;
+}
+
 sub get_cv_ontology {
   my ($self, $tag, $version) = @_;
   if (! $version) {
@@ -109,11 +164,22 @@ sub get_cv_ontology {
   return ($tmp && @$tmp) ? $tmp : [];
 }
 
-sub cv_ontology_info {
-  my ($self, $tag) = @_;
-  my $dbh = $self->{_handle}->db_handle;
-  my $tmp = $dbh->selectrow_arrayref("SELECT DISTINCT value, value_id FROM MetaDataCV WHERE tag='$tag' AND type='ont_info'");
-  return ($tmp && @$tmp) ? $tmp : ['', ''];
+sub put_cv_ontology {
+    my ($self, $tag, $version, $data) = @_;
+    my $dbh = $self->{_handle}->db_handle;
+    my $sth = $dbh->prepare("INSERT INTO MetaDataCV (type, tag, value_version, value, value_id) VALUES ('ontology', '$tag', '$version', ?, ?)");
+    foreach my $row (@$data) {
+        $sth->execute($row->[0], $row->[1]);
+    }
+    $sth->finish;
+    $dbh->commit;
+}
+
+sub del_cv_ontology {
+    my ($self, $tag, $version) = @_;
+    my $dbh = $self->{_handle}->db_handle;
+    $dbh->do("DELETE FROM MetaDataCV WHERE type='ontology' AND tag='$tag' AND value_version='$version'");
+    $dbh->commit;
 }
 
 sub cv_ontology_versions {
@@ -151,6 +217,15 @@ sub cv_latest_version {
   }
 }
 
+sub set_cv_latest_version {
+    my ($self, $tag, $version) = @_;
+    my $dbh = $self->{_handle}->db_handle;
+    my $sth = $dbh->prepare("UPDATE MetaDataCV SET value=? WHERE type='latest_version' AND tag='$tag'");
+    $sth->execute($version);
+    $sth->finish;
+    $dbh->commit;
+}
+
 =pod
 
 =item * B<mixs> ()
@@ -170,11 +245,13 @@ sub mixs {
     foreach my $tag (keys %{$template->{$cat}}) {
       next if ($tag eq 'category_type');
       if ($template->{$cat}{$tag}{required} && $template->{$cat}{$tag}{mixs}) {
-	if ($ct eq 'library') {
-	  $mixs->{$ct}{$cat}{$tag} = 1;
-	} else {
-	  $mixs->{$ct}{$tag} = 1;
-	}
+	    if ($ct eq 'library') {
+	      $mixs->{$ct}{$cat}{$tag} = 1;
+        } elsif ($ct eq 'ep') {
+          $mixs->{$ct}{$cat}{$tag} = 1;
+	    } else  {
+	      $mixs->{$ct}{$tag} = 1;
+	    }
       }
     }
   }
@@ -524,26 +601,33 @@ sub is_job_compliant {
 
   my $mixs = $self->mixs();
   my $data = $self->get_job_metadata($job);
-  unless (exists $data->{library}{data}{investigation_type}) {
+  my $lib  = $data->{library}{data}{investigation_type} || undef;
+  my $ep   = $data->{sample}{data}{env_package} || undef;
+  
+  unless ($lib && $ep && exists($mixs->{library}{$lib})) {
     return 0;
   }
-  my $lib = $data->{library}{data}{investigation_type};
-  unless (exists $mixs->{library}{$lib}) {
-    return 0;
-  }
+  
   foreach my $cat (keys %$mixs) {
     if ($cat eq 'library') {
       foreach my $tag (keys %{$mixs->{library}{$lib}}) {
-	if (! exists($data->{$cat}{data}{$tag})) {
-	  return 0;
-	}
+	    if (! exists($data->{library}{data}{$tag})) {
+	      return 0;
+	    }
       }
-    }
-    else {
+    } elsif ($cat eq 'ep') {
+      if (exists $mixs->{ep}{$ep}) {
+        foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
+          if (! exists($data->{env_package}{data}{$tag})) {
+            return 0;
+          }
+        }
+      }
+    } else {
       foreach my $tag (keys %{$mixs->{$cat}}) {
-	if (! exists($data->{$cat}{data}{$tag})) {
-	  return 0;
-	}
+	    if (! exists($data->{$cat}{data}{$tag})) {
+	      return 0;
+	    }
       }
     }
   }
@@ -563,27 +647,40 @@ sub verify_job_metadata {
 
   my $mixs = $self->mixs();
   my $data = $self->get_job_metadata($job);
+  my $lib  = $data->{library}{data}{investigation_type} || undef;
+  my $ep   = $data->{sample}{data}{env_package} || undef;
+  
   my $errors = [];
-  unless (exists $data->{library}{data}{investigation_type}) {
-    push(@$errors, "mandatory term 'investigation type' missing");
+  unless ($lib) {
+    push(@$errors, "mandatory term 'investigation_type' missing");
   }
-  my $lib = $data->{library}{data}{investigation_type};
-  unless (exists $mixs->{library}{$lib}) {
+  unless ($lib && exists($mixs->{library}{$lib})) {
     push(@$errors, "library missing");
   }
+  unless ($ep) {
+    push(@$errors, "mandatory term 'env_package' missing");
+  }
+  
   foreach my $cat (keys %$mixs) {
     if ($cat eq 'library') {
       foreach my $tag (keys %{$mixs->{library}{$lib}}) {
-	if (! exists($data->{$cat}{data}{$tag})) {
-	  push(@$errors, "mandatory term '$tag' from category '$cat' missing");
-	}
+        if (! exists($data->{library}{data}{$tag})) {
+          push(@$errors, "mandatory term '$tag' from category 'library $lib' missing");
+        }
       }
-    }
-    else {
+    } elsif ($cat eq 'ep') {
+      if (exists $mixs->{ep}{$ep}) {
+        foreach my $tag (keys %{$mixs->{ep}{$ep}}) {
+          if (! exists($data->{env_package}{data}{$tag})) {
+            push(@$errors, "mandatory term '$tag' from category 'env_package $ep' missing");
+          }
+        }
+      }
+    } else {
       foreach my $tag (keys %{$mixs->{$cat}}) {
-	if (! exists($data->{$cat}{data}{$tag})) {
-	  push(@$errors, "mandatory term '$tag' from category '$cat' missing");
-	}
+        if (! exists($data->{$cat}{data}{$tag})) {
+          push(@$errors, "mandatory term '$tag' from category '$cat' missing");
+        }
       }
     }
   }
@@ -760,66 +857,75 @@ sub export_metadata_for_project {
 
   # get the library / sample / ep data from the db
   my $dbh  = $self->{_handle}->db_handle;
-  my $data = $dbh->selectall_arrayref("SELECT MetaDataEntry.collection, parent, value, tag, type FROM ProjectCollection, MetaDataEntry, MetaDataCollection WHERE ProjectCollection.project=".$project->{_id}." AND MetaDataEntry.collection=ProjectCollection.collection AND MetaDataCollection._id=MetaDataEntry.collection");
+  my $data = $dbh->selectall_arrayref("SELECT me.collection, mc.ID, mc.parent, me.value, me.tag, mc.type FROM ProjectCollection pc, MetaDataEntry me, MetaDataCollection mc WHERE pc.project=".$project->{_id}." AND mc._id=pc.collection AND mc._id=me.collection");
+    
+  # get metagenome-library info
+  my %mginfo = map { $_->[0], [ $_->[1], $_->[2] ] } @{ $dbh->selectall_arrayref("SELECT library, metagenome_id, name FROM Job WHERE primary_project=".$project->{_id}) };
 
   # iterate over the data and structure it
-  # collection 0 | parent 1 | value 2 | tag 3 | type 4
+  # collection 0 | parent 1 | value 2 | tag 3 | type 4 
   my $samples = {};
   my $eps = {};
   my $libs = {};
   my $errors = [];
   foreach my $d (@$data) {
-    if ($d->[4] eq 'sample') {
+    if ($d->[5] eq 'sample') {
       if (! $samples->{$d->[0]}) {
-	$samples->{$d->[0]} = { "data" => {}, "id" => "mgs".$d->[0] };
+          $samples->{$d->[0]} = { "data" => {}, "id" => "mgs".$d->[1] };
       }
-      $samples->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
-    } elsif ($d->[4] eq 'ep') {
+      $samples->{$d->[0]}->{data}->{$d->[4]} = $d->[3];
+    } elsif ($d->[5] eq 'ep') {
       if (! $eps->{$d->[0]}) {
-	$eps->{$d->[0]} = { "parent" => $d->[1], "data" => {}, "id" => "mge".$d->[0] };
+          $eps->{$d->[0]} = { "parent" => $d->[2], "data" => {}, "id" => "mge".$d->[1] };
       }
-      $eps->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
+      $eps->{$d->[0]}->{data}->{$d->[4]} = $d->[3];
 
-    } elsif ($d->[4] eq 'library') {
+    } elsif ($d->[5] eq 'library') {
       if (! $libs->{$d->[0]}) {
-	$libs->{$d->[0]} = { "parent" => $d->[1], "data" => {}, "id" => "mgl".$d->[0] };
+          $libs->{$d->[0]} = { "parent" => $d->[2], "data" => {}, "id" => "mgl".$d->[1] };
       }
-      $libs->{$d->[0]}->{data}->{$d->[3]} = $d->[2];
+      $libs->{$d->[0]}->{data}->{$d->[4]} = $d->[3];
     }
   }
 
   # add the libraries to their samples
   foreach my $k (keys(%$libs)) {
-    if ($samples->{$libs->{$k}->{"parent"}}) {
-      if (! $samples->{$libs->{$k}->{"parent"}}->{"libraries"}) {
-	    $samples->{$libs->{$k}->{"parent"}}->{"libraries"} = [];
+    my $parent = $libs->{$k}->{parent};
+    if ($samples->{$parent}) {
+      if (! $samples->{$parent}->{libraries}) {
+	    $samples->{$libs->{$k}->{parent}}->{libraries} = [];
+      }
+      if (exists $mginfo{$k}) {
+          $libs->{$k}->{data}->{metagenome_id} = "mgm".$mginfo{$k}[0];
+          $libs->{$k}->{data}->{metagenome_name} = $mginfo{$k}[1];
       }
       $libs->{$k}->{type} = $libs->{$k}->{data}->{investigation_type};
-      $libs->{$k}->{name} = $libs->{$k}->{data}->{metagenome_name} || "mgl".$k;
-      push(@{$samples->{$libs->{$k}->{"parent"}}->{"libraries"}}, $libs->{$k});
+      $libs->{$k}->{name} = $libs->{$k}->{data}->{metagenome_name} || $libs->{$k}->{id};
+      push(@{$samples->{$parent}->{libraries}}, $libs->{$k});
     }
   }
 
   # add the eps to their samples
   foreach my $k (keys(%$eps)) {
-    if ($samples->{$eps->{$k}->{"parent"}}) {
+    my $parent = $eps->{$k}->{parent};
+    if ($samples->{$parent}) {
       $eps->{$k}->{type} = $eps->{$k}->{data}->{env_package};
       delete $eps->{$k}->{data}->{env_package};
-      $eps->{$k}->{name} = "mgs".$eps->{$k}->{"parent"}.": ".$eps->{$k}->{type};
-      $samples->{$eps->{$k}->{"parent"}}->{"envPackage"} = $eps->{$k};
+      $eps->{$k}->{name} = $samples->{$parent}->{id}.": ".$eps->{$k}->{type};
+      $samples->{$parent}->{"envPackage"} = $eps->{$k};
     }
   }
 
   # add the samples to the project data structure
   foreach my $k (keys(%$samples)) {
     $samples->{$k}->{libNum} = $samples->{$k}->{libraries} ? scalar(@{$samples->{$k}->{libraries}}) : 0;
-    $samples->{$k}->{name} = $samples->{$k}->{data}->{sample_name} || "mgs".$k;
+    $samples->{$k}->{name} = $samples->{$k}->{data}->{sample_name} || $samples->{$k}->{id};
 
     # iterate over the libraries and objectify them
     if ($samples->{$k}->{libraries}) {
       foreach my $lib (@{$samples->{$k}->{libraries}}) {
-	delete $lib->{parent};
-	$lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data});
+          delete $lib->{parent};
+          $lib->{data} = $self->add_template_to_data($lib->{type}, $lib->{data});
       }
     }
 
@@ -1117,6 +1223,32 @@ Updates Curator, based on curator ID, with inputed attributes.
 sub update_curator {
   my ($self, $curator, $attributes) = @_;
   $self->{_handle}->Curator->init({ID => $curator})->set_attributes($attributes);
+}
+
+sub metadata_to_excel {
+  my ($self, $metadata) = @_;
+    
+  my $json = new JSON;
+  $json = $json->utf8();
+  my $text = $json->encode($metadata);
+  
+  my ($data_hdl, $data_name) = tempfile("metadata_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.json');
+  close $data_hdl;
+  write_file($data_name, $text);
+  
+  my ($out_hdl, $out_name) = tempfile("metadata_XXXXXXX", DIR => $Conf::temp, SUFFIX => '.xlsx');
+  close $out_hdl;
+  
+  my $cmd = $Conf::export_metadata." -j $data_name -o $out_name 2>&1";
+  my $err = `$cmd`;
+  chomp $err;
+  unlink $data_name;
+  
+  if ($err) {
+      return ("", $err);
+  } else {
+      return ($out_name, "");
+  }
 }
 
 sub validate_metadata {

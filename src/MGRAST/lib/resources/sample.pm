@@ -16,6 +16,9 @@ sub new {
     
     # Add name / attributes
     my %rights = $self->{user} ? map {$_, 1} @{$self->{user}->has_right_to(undef, 'view', 'metagenome')} : ();
+    $self->{post_actions} = {
+        'addaccession' => 1
+    };
     $self->{name} = "sample";
     $self->{rights} = \%rights;
     $self->{attributes} = { "id"          => [ 'string', 'unique object identifier' ],
@@ -41,12 +44,12 @@ sub new {
 sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "A metagenomic sample from some environment.",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
-				      'request'     => $self->cgi->url."/".$self->name,
+				      'request'     => $self->url."/".$self->name,
 				      'description' => "Returns description of parameters and attributes.",
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -55,9 +58,9 @@ sub info {
 							             'required'    => {},
 							             'body'        => {} } },
 				    { 'name'        => "query",
-				      'request'     => $self->cgi->url."/".$self->name,				      
+				      'request'     => $self->url."/".$self->name,				      
 				      'description' => "Returns a set of data matching the query criteria.",
-				      'example'     => [ $self->cgi->url."/".$self->name."?limit=20&order=name",
+				      'example'     => [ $self->url."/".$self->name."?limit=20&order=name",
   				                         'retrieve the first 20 samples ordered by name' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -75,9 +78,9 @@ sub info {
 							 'required'    => {},
 							 'body'        => {} } },
 				    { 'name'        => "instance",
-				      'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				      'request'     => $self->url."/".$self->name."/{id}",
 				      'description' => "Returns a single data object.",
-				      'example'     => [ $self->cgi->url."/".$self->name."/mgs25823?verbosity=full",
+				      'example'     => [ $self->url."/".$self->name."/mgs25823?verbosity=full",
     				                     'retrieve all data for sample mgs25823' ],
 				      'method'      => "GET" ,
 				      'type'        => "synchronous" ,  
@@ -91,6 +94,73 @@ sub info {
 				 };
 
     $self->return_data($content);
+}
+
+# Override parent request function
+sub request {
+    my ($self) = @_;
+
+    # check for parameters
+    my @parameters = $self->cgi->param;
+    if ( (scalar(@{$self->rest}) == 0) &&
+         ((scalar(@parameters) == 0) || ((scalar(@parameters) == 1) && ($parameters[0] eq 'keywords'))) )
+    {
+        $self->info();
+    }
+    if ($self->method eq 'POST') {
+        if ((scalar(@{$self->rest}) > 1) && exists($self->{post_actions}{$self->rest->[1]})) {
+            $self->post_action();
+        } else {
+            $self->info();
+        }
+    } elsif ( ($self->method eq 'GET') && scalar(@{$self->rest}) ) {
+         $self->instance();
+    } else {
+        $self->query();
+    }
+}
+
+sub post_action {
+    my ($self) = @_;
+
+    # get rest parameters
+    my $rest = $self->rest;
+    # get database
+    my $master = $self->connect_to_datasource();
+
+    # check id format
+    my ($id) = $rest->[0] =~ /^mgs(\d+)$/;
+    if ((! $id) && scalar(@$rest)) {
+        $self->return_data( {"ERROR" => "invalid id format: " . $rest->[0]}, 400 );
+    }
+
+    # get sample
+    my $sample = $master->MetaDataCollection->init( {ID => $id} );
+    unless (ref($sample)) {
+        $self->return_data( {"ERROR" => "id ".$rest->[0]." does not exists"}, 404 );
+    }
+
+    # check rights
+    foreach my $mg (@{$sample->metagenome_ids}) {
+        unless ($self->user && ($self->user->has_star_right('edit', 'metagenome') || $self->user->has_right(undef, 'edit', 'metagenome', $mg))) {
+            $self->return_data( { "ERROR" => "insufficient permissions" }, 401 );
+        }
+    }
+
+    # add external db accesion ID
+    if ($rest->[1] eq 'addaccession') {
+        # get paramaters
+        my $dbname    = $self->cgi->param('dbname') || "";
+        my $accession = $self->cgi->param('accession') || "";
+        unless ($dbname && $accession) {
+            $self->return_data( {"ERROR" => "Missing required options: dbname or accession"}, 404 );
+        }
+        # update DB
+        my $key = lc($dbname).'_id';
+        $sample->data($key, $accession);
+        # return success
+        $self->return_data( {"OK" => "accession added", "sample" => 'mgs'.$id, $key => $accession}, 200 );
+    }
 }
 
 # the resource is called with an id parameter
@@ -128,24 +198,24 @@ sub query {
     my $master = $self->connect_to_datasource();
     my $dbh    = $master->db_handle();
     
-    my $samples_hash = {};
+    my $sample_found = {};
     my $sample_map   = {};
     my $job_sam_map  = {};
-    my $job_sample   = $dbh->selectall_arrayref("SELECT sample, metagenome_id, public FROM Job WHERE viewable=1");
+    my $job_sample   = $dbh->selectall_arrayref("SELECT sample, metagenome_id, public FROM Job WHERE viewable=1 AND sample IS NOT NULL");
     map { $sample_map->{$_->[0]} = {id => $_->[1], name => $_->[2], entry_date => $_->[3]} } @{$dbh->selectall_arrayref("SELECT _id, ID, name, entry_date FROM MetaDataCollection WHERE type='sample'")};
   
     # add samples with job: public or rights
     foreach my $js (@$job_sample) {
-        next unless ($js && $sample_map->{$js->[0]});
+        next unless ($js && $js->[0] && $sample_map->{$js->[0]});
         $job_sam_map->{$js->[0]} = 1;
-        if (($js->[2] == 1) || exists($self->rights->{$js->[1]}) || exists($self->rights->{'*'})) {
-            $samples_hash->{"mgs".$sample_map->{$js->[0]}} = $sample_map->{$js->[0]};
+        if (($js->[2] && ($js->[2] == 1)) || exists($self->rights->{$js->[1]}) || exists($self->rights->{'*'})) {
+            $sample_found->{$js->[0]} = $sample_map->{$js->[0]};
         }
     }
     # add samples with no job
-    map { $samples_hash->{"mgs".$sample_map->{$_}} = $sample_map->{$_} } grep { ! exists $job_sam_map->{$_} } keys %$sample_map;
+    map { $sample_found->{$_} = $sample_map->{$_} } grep { ! exists $job_sam_map->{$_} } keys %$sample_map;
     my $samples = [];
-    @$samples   = map { $samples_hash->{$_} } keys(%$samples_hash);
+    @$samples   = values %$sample_found;
     my $total   = scalar @$samples;
 
     # check limit
@@ -181,7 +251,7 @@ sub prepare_data {
         if ($sample->{ID}) {
             $sample->{id} = $sample->{ID};
         }
-        my $url = $self->cgi->url;
+        my $url = $self->url;
         my $obj = {};
         $obj->{id}      = "mgs".$sample->{id};
         $obj->{name}    = $sample->{name};

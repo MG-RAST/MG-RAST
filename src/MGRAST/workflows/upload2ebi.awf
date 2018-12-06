@@ -1,0 +1,47 @@
+{
+    "info": {
+        "pipeline": "mgrast-submit-ebi",
+        "name": "[% project_id %]_upload",
+        "project": "[% project_name %]",
+        "user": "[% user %]",
+        "noretry": true,
+        "clientgroups": "ebi_submit",
+        "userattr": {
+            "id": "[% project_id %]",
+            "name": "[% project_name %]",
+            "status": "public",
+            "owner": "[% user %]",
+            "type": "submission",
+            "pipeline_version": "1.0",
+            "submission": "[% submission_id %]",
+            "metagenomes": "[% mg_count %]"
+        }
+    },
+    "tasks": [
+        {
+            "cmd": {
+                "name": "cwl-runner",
+                "args": "--no-container /usr/src/ebi-submitter/CWL/workflows/upload2ebi.workflow.cwl @[% cwl_input %]",
+                "description": "EBI File Upload",
+                "Dockerimage": "mgrast/ebi-submit:[% docker_image_version %]"
+            },
+            "dependsOn": [],
+            "inputs": [% input_files %],
+            "outputs": [
+                {
+                    "filename": "[% project_id %].mg.upload",
+                    "host": "[% shock_url %]",
+                    "node": "-",
+                    "attrfile": "userattr.json"
+                }
+            ],
+            "userattr": {
+                "data_type": "upload",
+                "file_format": "tabbed",
+                "stage_name": "EBI File Upload"
+            },
+            "taskid": "0",
+            "totalwork": 1
+        }
+    ]
+}

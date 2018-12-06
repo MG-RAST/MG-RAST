@@ -4,6 +4,9 @@ use strict;
 use warnings;
 no warnings('once');
 
+use File::Slurp;
+use POSIX qw(strftime);
+
 use MGRAST::Metadata;
 use Conf;
 use parent qw(resources::resource);
@@ -17,7 +20,6 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "metadata";
-    $self->{ontologies} = { 'biome' => 1, 'feature' => 1, 'material' => 1 };
     $self->{attributes} = {
         "template" => {
             "project" => [ 'hash', [{'key' => ['string', 'project type'],
@@ -37,8 +39,6 @@ sub new {
         "cv" => {
             "ontology" => [ 'hash', [{'key' => ['string', 'metadata label'],
                             'value' => ['list', [ 'list', ['string', 'ontology term and ID'] ]]}, 'list of CV terms for metadata'] ],
-            "ont_info" => [ 'hash', [{'key' => ['string', 'metadata label'],
-                            'value' => ['list', ['string', 'ontology url and ID']]}, 'term IDs for metadata'] ],
             "select"   => [ 'hash', [{'key' => ['string', 'metadata label'],
                             'value' => ['list', ['string', 'CV term']]}, 'list of CV terms for metadata'] ]
         },
@@ -75,7 +75,7 @@ sub new {
             'metadata' => [ 'object', 'valid metadata object for project and its samples and libraries' ]
         },
         "validate_get" => {
-            'is_valid' => [ 'boolean', 'the inputed value is valid for the given category and label' ],
+            'is_valid' => [ 'boolean', 'the inputted value is valid for the given category and label' ],
             'message'  => [ 'string', 'if not valid, reason why' ]
         }
     };
@@ -88,25 +88,25 @@ sub info {
     my ($self) = @_;
     my $content = {
         'name'          => $self->name,
-        'url'           => $self->cgi->url."/".$self->name,
+        'url'           => $self->url."/".$self->name,
         'description'   => "Metagenomic metadata is data providing information about one or more aspects of a set sequences from a sample of some environment",
         'type'          => 'object',
-        'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+        'documentation' => $self->url.'/api.html#'.$self->name,
         'requests'      => [
             { 'name'        => "info",
-              'request'     => $self->cgi->url."/".$self->name,
+              'request'     => $self->url."/".$self->name,
               'description' => "Returns description of parameters and attributes.",
               'method'      => "GET",
               'type'        => "synchronous",  
               'attributes'  => "self",
               'parameters'  => { 'options'  => {},
-            					 'required' => {},
-            				     'body'     => {} }
+				 'required' => {},
+				 'body'     => {} }
             },
             { 'name'        => "template",
-              'request'     => $self->cgi->url."/".$self->name."/template",
+              'request'     => $self->url."/".$self->name."/template",
               'description' => "Returns static template for metadata object relationships and types",
-              'example'     => [ $self->cgi->url."/".$self->name."/template", 'metadata template' ],
+              'example'     => [ $self->url."/".$self->name."/template", 'metadata template' ],
               'method'      => "GET",
               'type'        => "synchronous",  
               'attributes'  => $self->attributes->{template},
@@ -115,9 +115,9 @@ sub info {
                                  'body'     => {} }
             },
             { 'name'        => "cv",
-              'request'     => $self->cgi->url."/".$self->name."/cv",
+              'request'     => $self->url."/".$self->name."/cv",
               'description' => "Returns static controlled vocabularies used in metadata. By default returns all CVs at latest version. If label and version options used, returns those specific values.",
-              'example'     => [ $self->cgi->url."/".$self->name."/cv?label=country",
+              'example'     => [ $self->url."/".$self->name."/cv?label=country",
                                  'metadata controlled vocabularies' ],
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -130,9 +130,9 @@ sub info {
                                 }}
             },
             { 'name'        => "ontology",
-              'request'     => $self->cgi->url."/".$self->name."/ontology",
+              'request'     => $self->url."/".$self->name."/ontology",
               'description' => "Returns static ontology used in metadata for the given name and version.",
-              'example'     => [ $self->cgi->url."/".$self->name."/ontology?name=biome&version=2013-04-27",
+              'example'     => [ $self->url."/".$self->name."/ontology?name=biome&version=2017-04-15",
                                  'metadata ontology lookup' ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -143,22 +143,38 @@ sub info {
                                  'body'     => {},
                                  'options'  => {} }
             },
+            { 'name'        => "ontology",
+              'request'     => $self->url."/".$self->name."/ontology",
+              'description' => "Update metadata CV ontology with new version, requires admin auth token",
+              'method'      => "POST",
+              'type'        => "synchronous",
+              'attributes'  => { "status"    => ['string', 'status of update'],
+                                 "timestamp" => ['date', 'time of completion'] },
+              'parameters'  => { 'options'  => {},
+                                 'required' => {},
+                                 'body'     => {
+                                     'upload'  => ['file', 'file with data'],
+                                     'name'    => ['string', 'ontology name'],
+                                     'root'    => ['string', 'root ID for lookup'],
+                                     'version' => ['string', 'version of ontology to add']
+                                }}
+            },
             { 'name'        => "version",
-              'request'     => $self->cgi->url."/".$self->name."/version",
-              'description' => "Returns all versions available for given ontology name.",
-              'example'     => [ $self->cgi->url."/".$self->name."/version?name=biome",
+              'request'     => $self->url."/".$self->name."/version",
+              'description' => "Returns all versions available for given ontology.",
+              'example'     => [ $self->url."/".$self->name."/version?label=biome",
                                  'metadata version lookup' ],
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => $self->attributes->{version},
-              'parameters'  => { 'options'  => { 'label' => ['string', 'metadata label'] },
+              'parameters'  => { 'options'  => { 'label' => ['string', 'ontology metadata label'] },
                                  'required' => {},
                                  'body'     => {} }
             },
             { 'name'        => "view",
-              'request'     => $self->cgi->url."/".$self->name."/view/{label}",
-              'description' => "Returns list of unique metadata values for given label",
-              'example'     => [ $self->cgi->url."/".$self->name."/view/biome",
+              'request'     => $self->url."/".$self->name."/view/{label}",
+              'description' => "Returns list of unique metadata values submitted by users for given label",
+              'example'     => [ $self->url."/".$self->name."/view/biome",
                                  'all biome values' ],
               'method'      => "GET",
               'type'        => "synchronous",
@@ -168,21 +184,21 @@ sub info {
                                  'body'     => {} }
             },
             { 'name'        => "export",
-              'request'     => $self->cgi->url."/".$self->name."/export/{ID}",
+              'request'     => $self->url."/".$self->name."/export/{id}",
               'description' => "Returns full nested metadata for a project in same format as template, or metadata for a single metagenome.",
-              'example'     => [ $self->cgi->url."/".$self->name."/export/mgp128",
+              'example'     => [ $self->url."/".$self->name."/export/mgp128",
                                  'all metadata for project mgp128' ],
               'method'      => "GET",
               'type'        => "synchronous",
               'attributes'  => $self->attributes->{export},
-              'parameters'  => { 'options'  => {},
+              'parameters'  => { 'options'  => { 'format' => ['cv', [['json', 'json format'], ['xlsx', 'excel file']] ] },
                                  'required' => { "id" => ["string", "unique object identifier"] },
                                  'body'     => {} }
             },
             { 'name'        => "import",
-              'request'     => $self->cgi->url."/".$self->name."/import",
+              'request'     => $self->url."/".$self->name."/import",
               'description' => "Create project with given metadata spreadsheet and metagenome IDs, either upload or shock node",
-              'example'     => [ 'curl -X POST -F "metagenome=mgm12345" -F "metagenome=mgm67890" -F "upload=@metadata.xlsx" "'.$self->cgi->url."/".$self->name.'/import"',
+              'example'     => [ 'curl -X POST -F "metagenome=mgm12345" -F "metagenome=mgm67890" -F "upload=@metadata.xlsx" "'.$self->url."/".$self->name.'/import"',
                               	 "create project with metadata from file 'metadata.xlsx'" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -196,9 +212,9 @@ sub info {
                                 }}
             },
             { 'name'        => "update",
-              'request'     => $self->cgi->url."/".$self->name."/update",
+              'request'     => $self->url."/".$self->name."/update",
               'description' => "Update project with given metadata spreadsheet and metagenome IDs, either upload or shock node",
-              'example'     => [ 'curl -X POST -F "project=mgp123" -F "upload=@metadata.xlsx" "'.$self->cgi->url."/".$self->name.'/update"',
+              'example'     => [ 'curl -X POST -F "project=mgp123" -F "upload=@metadata.xlsx" "'.$self->url."/".$self->name.'/update"',
                               	 "update project mgp123 with metadata from file 'metadata.xlsx'" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -214,9 +230,9 @@ sub info {
                                 }}
             },
             { 'name'        => "validate",
-              'request'     => $self->cgi->url."/".$self->name."/validate",
+              'request'     => $self->url."/".$self->name."/validate",
               'description' => "Validate given metadata spreadsheet, either upload or shock node",
-              'example'     => [ 'curl -X POST -F "upload=@metadata.xlsx" "'.$self->cgi->url."/".$self->name.'/validate"',
+              'example'     => [ 'curl -X POST -F "upload=@metadata.xlsx" "'.$self->url."/".$self->name.'/validate"',
                             	 "validate file 'metadata.xlsx' against MG-RAST metadata template" ],
               'method'      => "POST",
               'type'        => "synchronous",
@@ -229,9 +245,9 @@ sub info {
                                 }}
             },
             { 'name'        => "validate",
-              'request'     => $self->cgi->url."/".$self->name."/validate",
+              'request'     => $self->url."/".$self->name."/validate",
               'description' => "Validate given metadata value",
-              'example'     => [ $self->cgi->url."/".$self->name."/validate?category=sample&label=material&value=soil",
+              'example'     => [ $self->url."/".$self->name."/validate?category=sample&label=material&value=soil",
                                	 "check if 'soil' is a valid term for sample material" ],
               'method'      => "GET",
               'type'        => "synchronous",  
@@ -239,17 +255,18 @@ sub info {
               'parameters'  => { 'required' => {},
                                  'body'     => {},
                                  'options'  => {
-                                     'group'    => ['cv', [['mixs', 'label is part of MIxS (minimal) metadata'],
-                          								   ['mims', 'label is part of MIMS (metagenome) metadata'],
-                          								   ['migs', 'label is part of MIGS (genome) metadata']]],
-                                   	 'category' => ['cv', [['project', 'label belongs to project metadata'],
-                                                           ['sample', 'label belongs to sample metadata'],
-                                                           ['library', 'label belongs to library metadata'],
-                                                           ['env_package', 'label belongs to env_package metadata']]],
-                                   	 'label'    => ['string', 'metadata label'],
-                                   	 'value'    => ['string', 'metadata value'],
-                                   	 'version'  => ['string', 'version of CV ontology to use']
-                                }}
+						'group'  => ['cv', [['mixs', 'label is part of MIxS (minimal) metadata'],
+								    ['mims', 'label is part of MIMS (metagenome) metadata'],
+								    ['migs', 'label is part of MIGS (genome) metadata']]],
+						'category' => ['cv', [['project', 'label belongs to project metadata'],
+								      ['sample', 'label belongs to sample metadata'],
+								      ['library', 'label belongs to library metadata'],
+								      ['env_package', 'label belongs to env_package metadata']]],
+						'label'    => ['string', 'metadata label'],
+						'value'    => ['string', 'metadata value'],
+						'version'  => ['string', 'version of CV ontology to use']
+					       }
+			       }
             } ]
     };
     $self->return_data($content);
@@ -261,8 +278,12 @@ sub request {
     # determine sub-module to use
     if (scalar(@{$self->rest}) == 0) {
         $self->info();
-    } elsif ($self->rest->[0] =~ /^(template|cv|ontology|version)$/) {
+    } elsif (($self->rest->[0] =~ /^(template|cv|ontology|version)$/) && ($self->method eq 'GET')) {
         $self->static($self->rest->[0]);
+    } elsif (($self->rest->[0] =~ /^(cv|ontology|version)$/) && ($self->method eq 'POST')) {
+        $self->update($self->rest->[0]);
+    } elsif (($self->rest->[0] eq 'ontology') && ($self->method eq 'DELETE')) {
+        $self->delete_ont();
     } elsif (($self->rest->[0] eq 'view') && (scalar(@{$self->rest}) == 2)) {
         $self->list_values($self->rest->[1]);
     } elsif (($self->rest->[0] eq 'export') && (scalar(@{$self->rest}) == 2)) {
@@ -282,12 +303,14 @@ sub request {
 sub static {
     my ($self, $type) = @_;
     
+    my $mddb = MGRAST::Metadata->new();
+    my $onts = $mddb->cv_ontology_types();
     my $data = {};
+    
     # get versions for ontologies
     if ($type eq 'version') {
-        my $mddb  = MGRAST::Metadata->new();
         my $label = $self->cgi->param('label') || '';
-        if ($label && exists($self->{ontologies}{$label})) {
+        if ($label && exists($onts->{$label})) {
             $data = $mddb->cv_ontology_versions($label);
         } else {
             $data = $mddb->cv_ontology_versions();
@@ -296,13 +319,12 @@ sub static {
     } elsif ($type eq 'cv') {
         my $ver   = $self->cgi->param('version') || '';
         my $label = $self->cgi->param('label') || '';
-        my $mddb  = MGRAST::Metadata->new();
         # get a specific label / version
         if ($label) {
-            if (exists $self->{ontologies}{$label}) {
+            if (exists $onts->{$label}) {
                 $data = $mddb->get_cv_ontology($label, $ver);
             } else {
-                # select options as versionless
+                # select options are versionless
                 $data = $mddb->get_cv_select($label);
             }
             if (! $data) {
@@ -313,15 +335,14 @@ sub static {
             my $latest = $mddb->cv_latest_version();
             $data = {
                 latest_version => $latest,
-                versions => $mddb->cv_ontology_versions(),
-                ontology => {},
-                ont_info => {},
-                select => $mddb->get_cv_all()
+                versions       => $mddb->cv_ontology_versions(),
+                ontology_info  => $mddb->cv_ontology_info(),
+                ontology       => {},
+                select         => $mddb->get_cv_all()
             };
             while ( ($label, $ver) = each(%$latest) ) {
-                if (exists $self->{ontologies}{$label}) {
+                if (exists $onts->{$label}) {
                     $data->{ontology}{$label} = $mddb->get_cv_ontology($label, $ver);
-                    $data->{ont_info}{$label} = $mddb->cv_ontology_info($label);
                 }
             }
         }
@@ -329,27 +350,186 @@ sub static {
     } elsif ($type eq 'ontology') {
         my $ver  = $self->cgi->param('version') || '';
         my $name = $self->cgi->param('name') || '';
-        unless ($ver && $name) {
-            $self->return_data( {"ERROR" => "'name' and 'version' are required parameters"}, 404 );
+        unless ($name) {
+            $self->return_data( {"ERROR" => "'name' is a required parameter"}, 404 );
         }
-        my $nodes = $self->get_shock_query({'type'=>'ontology', 'name'=>$name, 'version'=>$ver});
-        unless ($nodes && (@$nodes == 1)) {
+        unless (exists $onts->{$name}) {
+            $self->return_data( {"ERROR" => "No ontology exists for $name"}, 404 );
+        }
+        unless ($ver) {
+            $ver = $mddb->cv_latest_version($name);
+        }
+        my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $name, 'version' => $ver});
+        unless ($nodes && (@$nodes > 0)) {
             $self->return_data( {"ERROR" => "ontology data for $name (version $ver) is missing or corrupt"}, 500 );
         }
         $data = $nodes->[0]->{attributes};
+        $data->{nodes} = {};
+        eval {
+            my ($content, $err) = $self->get_shock_file($nodes->[0]->{id});
+            $data->{nodes} = $self->json->decode($content);
+        };
     # get template data
     } elsif ($type eq 'template') {
-        my $master = $self->connect_to_datasource();
-        my $objs = $master->MetaDataTemplate->get_objects();
-        foreach my $o (@$objs) {
-            my $info = { aliases    => [ $o->mgrast_tag, $o->qiime_tag ],
-    		             definition => $o->definition,
-    		             required   => $o->required,
-    		             mixs       => $o->mixs,
-    		             type       => $o->type,
-    		             unit       => $o->unit };
-            $data->{$o->category_type}{$o->category}{$o->tag} = $info;
+        my $temp = $mddb->template();
+        foreach my $cat (keys %$temp) {
+            my $cat_type = $temp->{$cat}{category_type};
+            my $cat_data = $temp->{$cat};
+            delete $cat_data->{category_type};
+            $data->{$cat_type}{$cat} = $cat_data;
         }
+    }
+    $self->json->utf8();
+    $self->return_data($data);
+}
+
+# delete ontology based on given name and version
+sub delete_ont {
+    my ($self) = @_;
+    
+    unless ($self->user && $self->user->is_admin('MGRAST')) {
+        $self->info();
+    }
+    my $post = $self->get_post_data(["name", "version"]);
+    unless ($post->{name} && $post->{version}) {
+        $self->return_data({"ERROR" => "Missing parameters, requires: name, version"}, 404);
+    }
+    my $mddb = MGRAST::Metadata->new();
+    # check if this version already exists
+    my $current = $mddb->get_cv_ontology($post->{name}, $post->{version});
+    # delete from mysql
+    $mddb->del_cv_ontology($post->{name}, $post->{version});
+    # delete from shock
+    my $nodes = $self->get_shock_query({'type' => 'ontology', 'name' => $post->{name}, 'version' => $post->{version}});
+    foreach my $n (@$nodes) {
+        $self->delete_shock_node($n->{id}, $self->mgrast_token);
+    }
+    $self->return_data({status => "completed", deleted => scalar(@$current), timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime)});
+}
+
+# update metadata CV select list or ontology
+sub update {
+    my ($self, $type) = @_;
+    
+    unless ($self->user && $self->user->is_admin('MGRAST')) {
+        $self->info();
+    }
+    my $data = { status => "", timestamp => strftime("%Y-%m-%dT%H:%M:%S", gmtime) };
+    my $mddb = MGRAST::Metadata->new();
+    
+    if ($type eq 'version') {
+        my $post = $self->get_post_data(["label", "version"]);
+        unless ($post->{label} && $post->{version}) {
+            $self->return_data({"ERROR" => "Missing parameters, requires: label, version"}, 404);
+        }
+        my %current = map { $_, 1 } @{$mddb->cv_ontology_versions($post->{label})};
+        if (exists $current{$post->{version}}) {
+            $mddb->set_cv_latest_version($post->{label}, $post->{version});
+        } else {
+            $self->return_data({"ERROR" => "Invalid version, does not exist: ".$post->{version}}, 404);
+        }
+        $data->{status}  = "completed";
+    }
+    elsif ($type eq 'cv') {
+        my $post = $self->get_post_data(["data", "label", "action"]);
+        unless ($post->{data} && @{$post->{data}} && $post->{label}) {
+            $self->return_data({"ERROR" => "Missing parameters, requires: data, label"}, 404);
+        }
+        my $dataset = {};
+        unless ($post->{action} && ($post->{action} eq 'replace')) {
+            # default is to add current to new
+            map { $dataset->{$_} = 1 } @{$mddb->get_cv_select($post->{label})};
+        }
+        map { $dataset->{$_} = 1 } @{$post->{data}};
+        # delete and replace
+        $mddb->del_cv_select($post->{label});
+        $mddb->put_cv_select($post->{label}, [keys %$dataset]);
+        $data->{updated} = scalar(@{$post->{data}});
+        $data->{status}  = "completed";
+    }
+    elsif ($type eq 'ontology') {
+        my $post = $self->get_post_data(["upload", "name", "root", "version", "debug"]);
+        unless ($post->{upload} && $post->{name} && $post->{root} && $post->{version}) {
+            $self->return_data({"ERROR" => "Missing parameters, requires: upload, name, root, version"}, 404);
+        }
+        # check if this version already exists
+        my $current = $mddb->get_cv_ontology($post->{name}, $post->{version});
+        if ($current && (@$current > 0)) {
+            $self->return_data({"ERROR" => "Ontology ".$post->{name}." at version ".$post->{version}." already exists with ".scalar(@$current)." entries"}, 404);
+        }
+        
+        # get file
+        my $tmp_dir = $Conf::temp;
+        my $fname = $post->{upload};
+        if ($fname =~ /\.\./) {
+            $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
+        }
+        if ($fname !~ /^[\w\d_\.\-]+$/) {
+            $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, . and number characters"}, 400);
+        }
+        my $fhdl = $self->cgi->upload('upload');
+        unless ($fhdl) {
+            $self->return_data({"ERROR" => "Storing object failed - could not obtain filehandle"}, 507);
+        }
+        my $io_handle = $fhdl->handle;
+        if (open FH, ">$tmp_dir/$fname") {
+            my ($bytesread, $buffer);
+            while ($bytesread = $io_handle->read($buffer, 4096)) {
+        	    print FH $buffer;
+        	}
+            close FH;
+        } else {
+            $self->return_data({"ERROR" => "Storing object failed - could not open target file"}, 507);
+        }
+        
+        # get hierarchy from file
+        my $hier = undef;
+        eval {
+            my $hier_str = read_file("$tmp_dir/$fname");
+            $hier = $self->json->decode($hier_str);
+        };
+        if ($@ || (! $hier)) {
+            $self->return_data({"ERROR" => "Unable to JSON decode file $fname"}, 500);
+        }
+        
+        # get flat list from hierarchy
+        my $list = [];
+        eval {
+            foreach my $id (keys %$hier) {
+                push @$list, [ $hier->{$id}{label}, $id ];
+            }
+        };
+        if ($@ || (! $list)) {
+            $self->return_data({"ERROR" => "Unable to parse file $fname, invalid JSON struct"}, 500);
+        }
+        
+        # get hierarchy info struct
+        my $hier_info = {
+            'type' => 'ontology',
+            'name' => $post->{name},
+            'showRoot'  => JSON::false,
+            'rootNode'  => $post->{root},
+            'version'   => $post->{version},
+            'nodeCount' => scalar(@$list)
+        };
+        
+        if ($post->{debug}) {
+            $data->{name}      = $post->{name};
+            $data->{version}   = $post->{version};
+            $data->{root}      = $post->{root};
+            $data->{list}      = $list;
+            $data->{hierarchy} = $hier;
+        } else {
+            # update mysql DB
+            $mddb->put_cv_ontology($post->{name}, $post->{version}, $list);
+            # set latest version
+            $mddb->set_cv_latest_version($post->{name}, $post->{version});
+            # POST to shock / make public
+            my $node = $self->set_shock_node($post->{name}."_".$post->{version}, $hier, $hier_info, $self->mgrast_token);
+            $self->edit_shock_public_acl($node->{id}, $self->mgrast_token, 'put', 'read');        
+        }
+        $data->{updated} = scalar(@$list);
+        $data->{status}   = "completed";
     }
     $self->return_data($data);
 }
@@ -377,11 +557,13 @@ sub list_values {
 
 # the resource is called with an id parameter
 sub instance {
-    my ($self, $id) = @_;
+    my ($self, $tempid) = @_;
     
     # get database
     my $master = $self->connect_to_datasource();
-    my $mddb = MGRAST::Metadata->new();
+    my $mddb   = MGRAST::Metadata->new();
+    my $id     = $self->idresolve($tempid);
+    my $format = $self->cgi->param('format') || 'json';
     
     # project export
     if ($id =~ /^mgp(\d+)$/) {
@@ -389,7 +571,7 @@ sub instance {
         # get data
         my $project = $master->Project->init( {id => $pid} );
         unless (ref($project)) {
-            $self->return_data( {"ERROR" => "project id $id does not exists"}, 404 );
+            $self->return_data( {"ERROR" => "project id $tempid does not exists"}, 404 );
         }
         # check rights
         unless ( $project->{public} ||
@@ -400,6 +582,14 @@ sub instance {
         }
         # prepare data
         my $data = $mddb->export_metadata_for_project($project);
+        if ($format eq 'xlsx') {
+            my ($efile, $error) = $mddb->metadata_to_excel($data);
+            if ($error) {
+                $self->return_data( {"ERROR" => "unable to export metadata: $error"}, 500 );
+            }
+            $self->download_local($efile, $tempid.'_metadata.xlsx');
+        }
+        $self->json->utf8();
         $self->return_data($data);
     }
     # metagenome export
@@ -408,7 +598,7 @@ sub instance {
         # get data
         my $job = $master->Job->get_objects( {metagenome_id => $mgid} );
         unless ($job && @$job) {
-            $self->return_data( {"ERROR" => "metagenome id $id does not exist"}, 404 );
+            $self->return_data( {"ERROR" => "metagenome id $tempid does not exist"}, 404 );
         }
         $job = $job->[0];
         # check rights
@@ -422,11 +612,12 @@ sub instance {
         my $data = $mddb->get_job_metadata($job, 1, 0);
         my $mixs = $mddb->get_job_mixs($job);
         $data->{mixs} = $mixs;
+        $self->json->utf8();
         $self->return_data($data);
     }
     # bad id
     else {
-        $self->return_data( {"ERROR" => "invalid id format: ".$id}, 400 );
+        $self->return_data( {"ERROR" => "invalid id format: ".$tempid}, 400 );
     }
 }
 
@@ -521,8 +712,8 @@ sub process_file {
         if ($fname =~ /\.\./) {
             $self->return_data({"ERROR" => "Invalid parameters, trying to change directory with filename, aborting"}, 400);
         }
-        if ($fname !~ /^[\w\d_\.]+$/) {
-            $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, . and number characters"}, 400);
+        if ($fname !~ /^[\w\d_\.\-]+$/) {
+            $self->return_data({"ERROR" => "Invalid parameters, filename allows only word, underscore, -, . and number characters"}, 400);
         }
         
         my $fhdl = $self->cgi->upload('upload');
@@ -569,28 +760,32 @@ sub process_file {
 
     # run different actions
     if ($type eq 'validate') {
+        $self->json->utf8();
         if ($is_valid) {
             delete $md_obj->{is_valid};
             $data = {is_valid => 1, message => undef, metadata => $md_obj};
         } else {
-            $data = {is_valid => 0, message => $log, errors => $md_obj->{data}};
+            if (@{$md_obj->{data}} > 0) {
+                $data = {is_valid => 0, message => "", errors => $md_obj->{data}};
+            } else {
+                $data = {is_valid => 0, message => $log, errors => []};
+            }
         }
-    }
-    elsif (($type eq 'import') || ($type eq 'update')) {
+    } elsif (($type eq 'import') || ($type eq 'update')) {
         unless ($is_valid) {
             $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", $log, @{$md_obj->{data}})}, 422);
         }
         unless ($post->{metagenome}) {
-	  $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
-	}
-	if (ref $post->{metagenome} ne "ARRAY") {
-	  $post->{metagenome} = [ $post->{metagenome} ];
+            $self->return_data({"ERROR" => "Invalid parameters, import or update requires metagenome ID(s)"}, 404);
+	    }
+        if (ref $post->{metagenome} ne "ARRAY") {
+            $post->{metagenome} = [ split(/,/, $post->{metagenome}) ];
         }
         if (($type eq 'update') && (! $post->{project})) {
             $self->return_data({"ERROR" => "Invalid parameters, update requires project ID"}, 404);
         }
 
-	# get project object (if exists)
+	    # get project object (if exists)
         my $project_name = $md_obj->{data}{project_name}{value};
         my $project_id   = ($type eq 'update') ? $post->{project} : (exists($md_obj->{id}) ? $md_obj->{id} : '');
         my $project_obj  = undef;
@@ -641,6 +836,10 @@ sub process_file {
         my ($pnum, $added, $err_msg) = $mddb->add_valid_metadata($self->user, $md_obj, \@jobs, $project_obj, $mapbyid);
         if ($added && scalar(@$added)) {
             @$added = map { 'mgm'.$_->{metagenome_id} } @$added;
+        }
+        # update elasticsearch
+        foreach my $mgid (@$added) {
+            $self->upsert_to_elasticsearch_metadata($mgid);
         }
         $data = {project => 'mgp'.$pnum, added => $added, errors => $err_msg};
     }

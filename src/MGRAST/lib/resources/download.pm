@@ -20,7 +20,6 @@ sub new {
     
     # Add name / attributes
     $self->{name} = "download";
-    $self->{default_pipeline_version} = "3.0";
     $self->{default_pipeline_commit}  = "https://github.com/MG-RAST/pipeline";
     $self->{default_template_version} = "https://github.com/MG-RAST/MG-RAST/tree/api/src/MGRAST/workflows";
     return $self;
@@ -31,12 +30,12 @@ sub new {
 sub info {
     my ($self)  = @_;
     my $content = { 'name' => $self->name,
-		    'url' => $self->cgi->url."/".$self->name,
+		    'url' => $self->url."/".$self->name,
 		    'description' => "An analysis file from the processing of a metagenome from a specific stage in its analysis",
 		    'type' => 'object',
-		    'documentation' => $self->cgi->url.'/api.html#'.$self->name,
+		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
-				              'request'     => $self->cgi->url."/".$self->name,
+				              'request'     => $self->url."/".$self->name,
 				              'description' => "Returns description of parameters and attributes.",
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -46,9 +45,9 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "instance",
-				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{id}",
 				              'description' => "Returns a single sequence file.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?file=350.1",
+				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?file=350.1",
       				                             'download fasta file of gene-called protein sequences (from stage 350)' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -59,9 +58,9 @@ sub info {
 							                     'body'     => {} }
 							},
 							{ 'name'        => "history",
-				              'request'     => $self->cgi->url."/".$self->name."/history/{ID}",
-				              'description' => "Summery of MG-RAST analysis-pipeline workflow and commands.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3/history",
+				              'request'     => $self->url."/".$self->name."/history/{id}",
+				              'description' => "Summary of MG-RAST analysis-pipeline workflow and commands.",
+				              'example'     => [ $self->url."/".$self->name."/history/mgm4447943.3",
       				                             'Workflow document for mgm4447943.3' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",
@@ -73,9 +72,9 @@ sub info {
 							                     'body'     => {} }
 							},
 				            { 'name'        => "setlist",
-				              'request'     => $self->cgi->url."/".$self->name."/{ID}",
+				              'request'     => $self->url."/".$self->name."/{id}",
 				              'description' => "Returns a list of sets of sequence files for the given id.",
-				              'example'     => [ $self->cgi->url."/".$self->name."/mgm4447943.3?stage=650",
+				              'example'     => [ $self->url."/".$self->name."/mgm4447943.3?stage=650",
         				                         'view all available files from stage 650' ],
 				              'method'      => "GET",
 				              'type'        => "synchronous",  
@@ -121,11 +120,16 @@ sub instance {
     my $mgid = 'mgm'.$id;
     my $job  = $master->Job->get_objects( {metagenome_id => $id} );
     unless ($job && @$job) {
-        $self->return_data( {"ERROR" => "id ".$rest->[0]." does not exist"}, 404 );
+        $self->return_data( {"ERROR" => "id $restid does not exist"}, 404 );
     }
     $job = $job->[0];
+    
+    my $jdata = $job->data();
+    if (exists($jdata->{deleted}) && $jdata->{deleted}) {
+        $self->return_data( {"ERROR" => "id $restid is deleted: ".$jdata->{deleted}}, 404 );
+    }
     unless ($job->viewable) {
-        $self->return_data( {"ERROR" => "id ".$rest->[0]." is still processing and unavailable"}, 404 );
+        $self->return_data( {"ERROR" => "id $restid is still processing and unavailable"}, 404 );
     }
     # check rights
     unless ($job->{public} || ($self->user && ($self->user->has_right(undef, 'view', 'metagenome', $id) || $self->user->has_star_right('view', 'metagenome')))) {
@@ -133,7 +137,7 @@ sub instance {
     }
     
     if ($history) {
-        $self->return_data( $self->awe_history($mgid, $job) );
+        $self->return_data( $self->awe_history($restid, $mgid, $job) );
     }
 
     # get data / parameters
@@ -143,16 +147,17 @@ sub instance {
     my $debug = $self->cgi->param('debug') ? 1 : 0;
     my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
     my ($setlist, $skip) = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
+    $setlist = $self->fix_download_filenames($setlist, $restid);
+    $setlist = $self->clean_setlist($setlist, $job);
     
     # return file from shock
     if ($file) {
         my $node = undef;
         foreach my $set (@$setlist) {
-            if (! $job->{public}) {
-                my $pid = $self->obfuscate($mgid);
-                $set->{file_name} =~ s/$mgid/$pid/;
-            }
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
+                if (! exists($set->{node_id})) {
+                    $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
+                }
                 if ($link) {
                     my $data = $self->get_shock_preauth($set->{node_id}, $self->mgrast_token, $set->{file_name});
                     $self->return_data($data);
@@ -166,7 +171,7 @@ sub instance {
     # return stage(s) list
     my $data = {
         id   => $mgid,
-        url  => $self->cgi->url."/".$self->name."/".$mgid,
+        url  => $self->url."/".$self->name."/".$mgid,
         data => []
     };
     if ($stage) {
@@ -189,7 +194,7 @@ sub instance {
 }
 
 sub awe_history {
-    my ($self, $mgid, $job) = @_;
+    my ($self, $restid, $mgid, $job) = @_;
     
     my $awe_id = $self->cgi->param('awe_id') || undef;
     my $force  = $self->cgi->param('force') ? 1 : 0;
@@ -197,7 +202,7 @@ sub awe_history {
     my $debug  = $self->cgi->param('debug') ? 1 : 0;
     my $data   = {
         id   => $mgid,
-        url  => $self->cgi->url."/".$self->name."/history/".$mgid."?force=".$force,
+        url  => $self->url."/".$self->name."/history/".$mgid."?force=".$force,
         data => []
     };
     if ($awe_id) {
@@ -249,7 +254,7 @@ sub awe_history {
         if ($awe_id) {
             $job_doc = $self->get_awe_full_document($awe_id, $self->mgrast_token);
             # fix for reload pipeline
-            if ($job_doc->{info}{pipeline} eq 'mgrast-reload') {
+            if ($job_doc && ($job_doc->{info}{pipeline} eq 'mgrast-reload')) {
                 $job_doc = undef;
             }
         }
@@ -408,6 +413,8 @@ sub awe_history {
             }
         }
     }
+    $awe_history->{tasks} = $self->fix_download_filenames($awe_history->{tasks}, $restid);
+    $awe_history->{tasks} = $self->clean_tasks($awe_history->{tasks}, $setlist, $job);
     $data->{data} = $awe_history;
     
     # POST to shock if created
@@ -456,6 +463,31 @@ sub awe_history {
     }
     
     return $data;
+}
+
+sub clean_tasks {
+    my ($self, $tasks, $setlist, $job) = @_;
+    
+    my $has_human = $self->has_human($setlist, $job);
+    if (! $has_human) {
+        return $tasks;
+    }
+    
+    foreach my $task (@$tasks) {
+        my $stage_id = int($task->{stage_id});
+        if ($stage_id < 200) {
+            foreach my $io ((@{$task->{inputs}}, @{$task->{outputs}})) {
+                if (exists $io->{node_id}) {
+                    delete $io->{node_id};
+                }
+                if (exists $io->{url}) {
+                    delete $io->{url};
+                }
+            }
+        }
+    }
+    
+    return $tasks;
 }
 
 # this produces a generic AWE workflow for a job at a given version
