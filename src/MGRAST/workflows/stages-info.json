@@ -9,13 +9,13 @@
         "4.0.3" : "https://github.com/MG-RAST/pipeline"
     },
     "template" : {
-        "3.0" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.0.awf",
-        "3.5" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.5.awf",
-        "3.6" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-3.6.awf",
-        "4.0" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.awf",
-        "4.0.1" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.1.awf",
-        "4.0.2" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.2.awf",
-        "4.0.3" : "https://github.com/MG-RAST/MG-RAST/blob/api/src/MGRAST/workflows/mgrast-prod-4.0.3.awf"
+        "3.0" : "https://github.com/MG-RAST/MG-RAST/blob/master/src/MGRAST/workflows/mgrast-prod-3.0.awf",
+        "3.5" : "https://github.com/MG-RAST/MG-RAST/blob/master/src/MGRAST/workflows/mgrast-prod-3.5.awf",
+        "3.6" : "https://github.com/MG-RAST/MG-RAST/blob/master/src/MGRAST/workflows/mgrast-prod-3.6.awf",
+        "4.0" : "https://github.com/MG-RAST/MG-RAST/blob/master/src/MGRAST/workflows/mgrast-prod-4.0.awf",
+        "4.0.1" : "https://github.com/MG-RAST/MG-RAST/blob/master/src/MGRAST/workflows/mgrast-prod-4.0.1.awf",
+        "4.0.2" : "https://github.com/MG-RAST/MG-RAST/blob/master/src/MGRAST/workflows/mgrast-prod-4.0.2.awf",
+        "4.0.3" : "https://github.com/MG-RAST/MG-RAST/blob/master/src/MGRAST/workflows/mgrast-prod-4.0.3.awf"
     },
     "upload" : {
             "title": "Upload",
