@@ -71,7 +71,7 @@ sub init {
 
 sub name {
   my ($self , $value) = @_ ;
-  
+
   if ($value){
     $self->SUPER::name($value);
   }
@@ -91,7 +91,7 @@ sub name {
 
 sub reserve_job_id {
     my ($self, $user, $name, $file, $size, $md5) = @_;
-    
+
     my $master = $self->_master();
     unless (ref($master)) {
         print STDRER "reserve_job_id called without a dbmaster reference";
@@ -101,7 +101,7 @@ sub reserve_job_id {
         print STDRER "reserve_job_id called without a user";
         return undef;
     }
-    
+
     # get and insert next IDs, need to lock to prevent race conditions
     my $dbh = $master->db_handle;
     my $cmd = "INSERT INTO Job (job_id,metagenome_id,name,file,file_size_raw,file_checksum_raw,server_version,owner,_owner_db) VALUES ((SELECT max(x.job_id + 1) FROM Job x),(SELECT max(y.metagenome_id + 1) FROM Job y),?,?,?,?,?,?,?)";
@@ -115,7 +115,7 @@ sub reserve_job_id {
         return undef;
     }
     $insertid = $insertid->[0];
-    
+
     # get job object
     my $job = $master->Job->get_objects({_id => $insertid});
     unless ($job && @$job) {
@@ -123,14 +123,14 @@ sub reserve_job_id {
         return undef;
     }
     $job = $job->[0];
-    
+
     # Connect to User/Rights DB
     my $dbm = DBMaster->new(-database => $Conf::webapplication_db,
   			                -backend  => $Conf::webapplication_backend,
   			                -host     => $Conf::webapplication_host,
   			                -user     => $Conf::webapplication_user,
   	);
-  	
+
     # check rights
     my $rights = ['view', 'edit', 'delete'];
     foreach my $right_name (@$rights) {
@@ -151,19 +151,19 @@ sub reserve_job_id {
             }
         }
     }
-    
+
     return $job;
 }
 
 sub initialize {
   my ($self, $user, $data, $job) = @_;
-  
+
   my $master = $self->_master();
   unless (ref($master)) {
     print STDRER "initialize called without a dbmaster reference";
     return undef;
   }
-  
+
   # get parmas from hash or file
   my $params = {};
   if (ref($data) eq "HASH") {
@@ -177,7 +177,7 @@ sub initialize {
       $params->{$k} = $v;
     }
   }
-  
+
   # hack due too same keys: 'sequence type' and 'sequence_type'
   if (exists $params->{'sequence type'}) {
     delete $params->{'sequence type'};
@@ -186,7 +186,7 @@ sub initialize {
   if (exists $params->{sequence_type}) {
     $params->{sequence_type_guess} = $params->{sequence_type};
   }
-  
+
   # get job object
   unless ($job && ref($job)) {
     eval {
@@ -197,15 +197,15 @@ sub initialize {
       return undef;
     }
   }
-  
+
   # add sequence type
   if (exists $params->{sequence_type}) {
     $job->sequence_type($params->{sequence_type});
   }
-  
+
   # add raw stats
   my $stat_keys = ['bp_count', 'sequence_count', 'average_length', 'standard_deviation_length', 'length_min', 'length_max', 'average_gc_content', 'standard_deviation_gc_content', 'average_gc_ratio', 'standard_deviation_gc_ratio', 'ambig_char_count', 'ambig_sequence_count', 'average_ambig_chars', 'drisee_score'];
-  
+
   foreach my $key (@$stat_keys) {
     if (exists $params->{$key}) {
       $job->stats($key.'_raw', $params->{$key});
@@ -213,11 +213,11 @@ sub initialize {
       $job->stats($key.'_raw', $params->{$key.'_raw'});
     }
   }
-  
+
   # add attributes
   my $used_keys = {metagenome_id => 1, name => 1, file => 1, file_size => 1, file_checksum => 1, sequence_type => 1};
   map { $used_keys->{$_} = 1 } @$stat_keys;
-  
+
   foreach my $key (keys %$params) {
     my $clean_key = $key;
     $clean_key =~ s/_raw$//;
@@ -227,7 +227,7 @@ sub initialize {
     $job->data($key, $value);
   }
   $job->set_filter_options();
-  
+
   return $job;
 }
 
@@ -245,7 +245,7 @@ sub set_publication_date {
   } else {
     $master->JobAttributes->create({ job => $self, tag => "publication_date", value => $date});
   }
-  
+
   return 1;
 }
 
@@ -272,16 +272,16 @@ sub has_checksum {
 
 sub finish_upload {
   my ($self, $file, $file_format) = @_ ;
-  
+
   # create_and_submit_job -j <job_number> -f <sequence_file> [ -p <pipeline_name> -o <pipeline_options> --fastq --rna_only ]
-  # set options 
+  # set options
   my $opts   = $self->set_job_options;
   my $format = ($file_format =~ /fastq/) ? "--fastq" : '' ;
   my $cmd    = $Conf::create_job;
   my $params = " -j " . $self->job_id . " -f $file -o '$opts' $format";
 
   print STDERR "Calling $cmd $params\n";
-  
+
   if ($cmd and -f $cmd) {
     my $output = `$cmd $params`;
     print STDERR $output;
@@ -301,7 +301,7 @@ Returns the Jobs objects the user I<user> has access to. Access to a job is defi
 by the right to edit a genome of a certain metagenome_id. In the context of the RAST
 server this method checks the 'edit - genome' rights of a user. Optionally, you can
 change this by providing the parameter I<right> and setting it to eg. 'view'.
-If present and true, the parameter I<viewable> restricts the query to jobs marked 
+If present and true, the parameter I<viewable> restricts the query to jobs marked
 as viewable.
 
 Please note you may not longer pass a scope to this function.
@@ -314,12 +314,12 @@ sub get_jobs_for_user {
   unless (ref $self) {
     die "Call method via the DBMaster.\n";
   }
- 
+
   unless (ref $user and ( $user->isa("WebServerBackend::User"))) {
     print STDERR "No user given in method get_jobs_for_user.\n";
     die "No user given in method get_jobs_for_user.\n";
   }
-  
+
   my $get_options = {};
   $get_options->{viewable} = 1 if ($viewable);
   my $right_to = $user->has_right_to(undef, $right || 'edit', 'metagenome');
@@ -327,11 +327,11 @@ sub get_jobs_for_user {
   # check if first right_to is place holder
   if (scalar(@$right_to) and $right_to->[0] eq '*') {
     return $self->_master->Job->get_objects($get_options);
-  } 
-  
+  }
+
   $get_options->{owner} = $user;
   my $jobs = $self->_master->Job->get_objects($get_options);
-  
+
   my %ids = map { $_ => 1 } @$right_to;
   foreach my $j (@$jobs){
     if ($j->metagenome_id){
@@ -349,26 +349,26 @@ sub get_jobs_for_user {
 	  if($tmp_j){
 		  if($viewable){
 			  next unless $tmp_j->viewable;
-		  } 
+		  }
 		  push @$jobs, $tmp_j;
-	  } 
+	  }
   }
-  
+
   return $jobs;
 }
 
 sub get_jobs_for_user_fast {
     my ($self, $user_or_scope, $right, $viewable) = @_;
-    
+
     unless (ref $self) {
 	die "Call method via the DBMaster.\n";
     }
-    
+
     unless (ref $user_or_scope and  ( $user_or_scope->isa("WebServerBackend::User") or $user_or_scope->isa("WebServerBackend::Scope"))) {
 		print STDERR "No user or scope given in method get_jobs_for_user.\n";
 		die "No user or scope given in method get_jobs_for_user.\n";
     }
-    
+
     my $right_to = $user_or_scope->has_right_to(undef, $right || 'edit', 'metagenome');
     my $job_cond = "";
 
@@ -403,7 +403,7 @@ sub get_jobs_for_user_fast {
 		while ($ent and $ent->[0] eq $cur)
 		{
 			my($id, $genome, $name, $size, $vers, $created, $owner, $owner_db, $view, $type, $stage, $stat, $ts) = @$ent;
-			
+
 			$stages->{$stage} = $stat;
 			push(@$timed_stati, [ $ts, $stage, $stat ]);
 			$ent = shift(@$res);
@@ -430,7 +430,7 @@ sub get_jobs_for_user_fast {
 
 sub get_sequence_types {
     my ($self, $mgids) = @_;
-    
+
     my %data = map { $_, "Unknown" } @$mgids;
     my $dbh  = $self->_master()->db_handle;
     my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
@@ -446,7 +446,7 @@ sub get_sequence_types {
 
 sub get_job_ids {
     my ($self, $mgids) = @_;
-    
+
     my $data = {};
     my $dbh  = $self->_master()->db_handle;
     my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
@@ -460,7 +460,7 @@ sub get_job_ids {
 
 sub get_job_pipelines {
     my ($self, $mgids, $default) = @_;
-    
+
     my %data = map { $_, $default } @$mgids;
     my $dbh  = $self->_master()->db_handle;
     my $id_list = join(",", map { $dbh->quote($_) } @$mgids);
@@ -492,7 +492,7 @@ sub get_private_jobs {
   unless ($user && ref($user)) { return []; }
   my $ids = $edit ? $user->has_right_to(undef,'edit','metagenome') : $user->has_right_to(undef,'view','metagenome');
   unless ($ids && (@$ids > 0)) { return []; }
-  
+
   my $db = $self->_master();
   if ($id_only) {
     my $query  = "select metagenome_id from Job where viewable=1 and (public is null or public=0) and metagenome_id IN (".join(",", map {"'$_'"} @$ids).")";
@@ -513,7 +513,7 @@ sub get_private_jobs {
 
 sub count_all {
   my ($self) = @_;
- 
+
   my $dbh = $self->_master()->db_handle();
   my $sth = $dbh->prepare("SELECT count(*) FROM Job WHERE viewable=1");
   $sth->execute;
@@ -523,7 +523,7 @@ sub count_all {
 
 sub count_public {
   my ($self) = @_;
-  
+
   my $dbh = $self->_master()->db_handle();
   my $sth = $dbh->prepare("SELECT count(*) FROM Job WHERE viewable=1 AND public=1");
   $sth->execute;
@@ -533,15 +533,15 @@ sub count_public {
 
 sub set_job_data {
     my ($self, $type, $data) = @_;
-    
+
     unless ($data && %$data) {
         return 0;
     }
-    
+
     my $jid = $self->_id;
     my $dbh = $self->_master->db_handle;
     my $table;
-    
+
     if ($type eq 'statistics') {
         $table = 'JobStatistics';
     } elsif ($type eq 'attributes') {
@@ -549,7 +549,7 @@ sub set_job_data {
     } else {
         return 0;
     }
-    
+
     my $query = $dbh->prepare(qq(insert into $table (`tag`,`value`,`job`,`_job_db`) values (?, ?, $jid, 2) on duplicate key update value = ?));
     while ( my ($tag, $val) = each(%$data) ) {
         $query->execute($tag, $val, $val) || return 0;
@@ -564,7 +564,7 @@ sub set_job_data {
 
 =item * B<stats> ()
 
-Returns a hash of all stats keys and values for a job. 
+Returns a hash of all stats keys and values for a job.
 If a key is given , returns only hash of specified key, value pair.
 Sets a value if key and value is given (return true or false if works)
 
@@ -575,7 +575,7 @@ sub stats {
 
   my $dbh = $self->_master->db_handle;
   my $sth;
-  
+
   if (defined($value) and $tag) {
     my $jstat = $self->_master->JobStatistics->get_objects( { job   => $self,
 							      tag   => $tag
@@ -597,12 +597,12 @@ sub stats {
   else {
     $sth = $dbh->prepare("SELECT tag , value FROM JobStatistics where job=".$self->_id);
   }
-  
+
   $sth->execute;
   my $results = $sth->fetchall_arrayref();
   my $rhash   = {};
   map { $rhash->{ $_->[0] } = $_->[1] } @$results ;
-  
+
   return $rhash;
 }
 
@@ -653,7 +653,7 @@ sub get_stages_fast {
 
 sub stage_info {
   my ($self, $tag, $value) = @_;
-  
+
   $self->stage($tag, $value);
 }
 
@@ -672,7 +672,7 @@ sub stage {
 
   my $dbh = $self->_master->db_handle;
   my $sth;
-  
+
   if ($value and $tag) {
     my $jstat = $self->_master->PipelineStage->get_objects( { job    => $self,
 							      stage  => $tag
@@ -684,7 +684,7 @@ sub stage {
       $jstat->[0]->timestamp($time);
     }
     # insert new stage-status
-    else{ 
+    else{
       $jstat = $self->_master->PipelineStage->create( { job    => $self,
 							stage  => $tag,
 							status => $value,
@@ -692,7 +692,7 @@ sub stage {
     }
     return { $tag => $value };
   }
-  
+
   # get current status for input stage
   elsif ($tag) {
     $sth = $dbh->prepare("SELECT stage, status FROM PipelineStage where job=" . $self->_id . " and stage='$tag'");
@@ -705,7 +705,7 @@ sub stage {
   my $results = $sth->fetchall_arrayref();
   my $rhash = {};
   map { $rhash->{ $_->[0] } = $_->[1] } @$results;
-  
+
   return $rhash;
 }
 
@@ -713,7 +713,7 @@ sub stage {
 
 =item * B<data> ()
 
-Returns a hash of all attribute keys and values for a job. 
+Returns a hash of all attribute keys and values for a job.
 If a key is given , returns only hash of specified key, value pair.
 Sets a value if key and value is given (return true or false if works)
 
@@ -724,7 +724,7 @@ sub data {
 
   my $dbh = $self->_master->db_handle;
   my $sth;
-  
+
   if (defined($value) and $tag) {
 
     if (ref $value){
@@ -752,12 +752,12 @@ sub data {
   else {
     $sth = $dbh->prepare("SELECT tag, value FROM JobAttributes where job=". $self->_id);
   }
-  
+
   $sth->execute;
   my $results = $sth->fetchall_arrayref();
   my $rhash   = {};
   map { $rhash->{ $_->[0] } = $_->[1] } @$results;
-  
+
   return $rhash;
 }
 
@@ -939,7 +939,7 @@ sub location {
 }
 
 sub country {
-  my ($self) = @_;  
+  my ($self) = @_;
   my $country = $self->get_metadata_value('country', 'sample');
   $country =~ s/^(gaz|country):\s?//i;
   return $country;
@@ -963,113 +963,113 @@ sub lat_lon {
   return ($lat && $lon) ? [$lat, $lon] : [];
 }
 
-sub  trim { 
-    my $s = shift; 
+sub  trim {
+    my $s = shift;
     if (defined($s)) {
         $s =~ s/^\s+|\s+$//g;
-    } 
+    }
     return $s ;
 }
 
 # return iso8601 format
 sub collection_date {
   my ($self) = @_;
-  
-  
+
+
   my $collection_date_value = trim($self->get_metadata_value('collection_date', 'sample'));
   my $collection_time_value = trim($self->get_metadata_value('collection_time', 'sample'));
   my $collection_timezone_value = trim($self->get_metadata_value('collection_timezone', 'sample'));
-  
-  
+
+
   ### date
   my $collection_date="";
-      
+
   unless($collection_date_value) {
       return "";
   }
-  
+
   my ($year, $month, $day);
   if ($collection_date_value =~ /-/) {
       ($year, $month, $day) = $collection_date_value =~ /^(\d\d\d\d)-(\d\d)-(\d\d)$/
   } else {
       ($year, $month, $day) = $collection_date_value =~ /^(\d\d\d\d)(\d\d)(\d\d)$/
   }
-  
+
   unless (defined($year) && defined($month) && defined($day)) {
       return "ERROR: Could not parse date (".$collection_date_value.")";
   }
-  
+
   # specifying month only (day==0) is not possible, thus will set day to 1.
   if ($day == 0) {
       $day = 1
   }
-  
+
   if ( ($year > 3000) || ($month > 12) || ($day > 31) ) {
       return "ERROR: Could not parse date (".$collection_date_value.")";
   }
-  
+
   $collection_date = sprintf("%04d", $year)."-".sprintf("%02d", $month)."-".sprintf("%02d", $day);
-  
-  
+
+
   ### time
   unless($collection_time_value) {
       return $collection_date;
   }
-  
+
   # remove UTC from time
   if ($collection_time_value =~ /UTC/) {
-      
+
       $collection_time_value =~ s/\s*UTC\s*//;
-      
+
       if (length($collection_time_value) == 0) {
           return $collection_date;
       }
   }
-  
-  
+
+
   my ($hour, $minute, $second);
   if ($collection_time_value =~ /:/) {
       ($hour, $minute, $second) = $collection_time_value =~ /^(\d+):(\d+):(\d+)$/;
   } else {
       ($hour, $minute, $second) = $collection_time_value =~ /^(\d\d)(\d\d)(\d\d)$/;
   }
-  
+
   unless (defined($hour) && defined($minute) && defined($second)) {
       return "ERROR: Could not parse time (".$collection_time_value.")";
   }
-  
+
   if ( ($hour > 24) || ($minute > 60) || ($second > 60) ) {
       return "ERROR: Could not parse time (".$collection_time_value.")";
   }
-  
+
   $collection_date .= "T" . sprintf("%02d", $hour).":".sprintf("%02d", $minute).":".sprintf("%02d", $second);
-  
-  
+
+
   ### timezone
   unless($collection_timezone_value) {
       return $collection_date;
   }
-  
+
   # remove UTC from timezone
-  
+
   if ($collection_timezone_value =~ /UTC/) {
-      
+
       $collection_timezone_value =~ s/\s*UTC\s*//;
-      
+
       if (length($collection_timezone_value) == 0) {
           return $collection_date."Z";
       }
   }
-  
-  
-  
+
+
+
   # extract sign
   my ($sign, $day_string) = $collection_timezone_value =~ /^([+-])(.*)/;
 
   unless (defined($sign)) {
       return $collection_date."ERROR timezone has no sign in (".$collection_timezone_value.")";
   }
-  
+
   unless (defined($day_string)) {
       return $collection_date."ERROR no string after sign in (".$collection_timezone_value.")";
   }
@@ -1079,38 +1079,38 @@ sub collection_date {
       ($tz_hour, $tz_minute) = $day_string =~  /^(\d+):(\d+)$/;
   } else {
       ($tz_hour, $tz_minute) = $day_string =~  /^(\d+)(\d\d)$/;
-      
+
       unless (defined($tz_hour)) {
           ($tz_hour) = $day_string =~  /^(\d+)$/;
           if (defined($tz_hour)) {
               $tz_minute = 0;
           }
       }
-      
+
   }
-  
+
   unless (defined $tz_hour) {
       return $collection_date."ERROR tz_hour not parsed in (".$day_string.")";
   }
-  
+
   if ($tz_hour > 12) {
       return $collection_date."ERROR tz_hour > 12 in (".$day_string.")";
   }
-  
+
   unless (defined $tz_minute) {
       return $collection_date."ERROR tz_minute not parsed in (".$day_string.")";
   }
   if ($tz_minute > 60) {
       return $collection_date."ERROR tz_minute > 60 in (".$day_string.")";
   }
-  
+
   # prefix hour and minute with zero if needed
   $collection_date .= $sign.sprintf("%02d", $tz_hour).sprintf("%02d", $tz_minute);
-  
-  
-  
+
+
+
   return $collection_date;
-  
+
   #my $time_set = [];
   #foreach my $tag (('collection_date', 'collection_time', 'collection_timezone')) {
   #  last if (($tag eq 'collection_timezone') && (@$time_set == 0));
@@ -1145,11 +1145,11 @@ sub jobs_mixs_metadata_fast {
 
 sub fetch_browsepage_in_progress {
   my ($self, $user, $count_only) = @_;
-  
+
   unless (ref($user) && $user->isa("WebServerBackend::User")) {
       return [];
   }
-  
+
   # get mgrast token
   #my $mgrast_token = undef;
   #if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
@@ -1159,7 +1159,7 @@ sub fetch_browsepage_in_progress {
   #}
   #### changed because globus has hard time handeling multiple tokens
   my $mgrast_token = "mgrast ".$Conf::mgrast_oauth_token || undef;
-  
+
   # set json handle
   my $agent = LWP::UserAgent->new;
   my $json = JSON->new;
@@ -1168,7 +1168,7 @@ sub fetch_browsepage_in_progress {
   $json->allow_nonref;
 
   my $stage_titles = {
-               'upload'        => 'Upload', 
+               'upload'        => 'Upload',
 		       'preprocess_qc' => 'Sequence Filtering',
 		       'dereplication' => 'Dereplication',
 		       'screen'        => 'Sequence Screening',
@@ -1178,7 +1178,7 @@ sub fetch_browsepage_in_progress {
 		       'sims'          => 'Processing Sims',
 		       'loadDB'        => 'Loading Database',
 		       'done'          => 'Finalizing Data' };
-  
+
   # get awe data
   my $stats = {};
   eval {
@@ -1207,7 +1207,7 @@ sub fetch_browsepage_in_progress {
 
     # get display jobs: _id, job_id, name, metagenome_id
     my %id2job = map { $_->[1], $_ } grep { ! exists $skip{$_->[0]} } @$jobdata;
-    
+
     if ($count_only) {
       return scalar(keys %id2job);
     } else {
@@ -1261,8 +1261,8 @@ sub fetch_browsepage_viewable {
   my ($self, $user, $mgids) = @_;
   my $mddb = MGRAST::Metadata->new();
   my $jobselopt = "";
-  my $user_id = ""; 
-  
+  my $user_id = "";
+
   if ($mgids && (@$mgids > 0)) {
     $jobselopt = "viewable=1 and metagenome_id in (".join(",", map {"'$_'"} @$mgids).")";
   }
@@ -1283,7 +1283,7 @@ sub fetch_browsepage_viewable {
   } else {
     $jobselopt = "viewable=1 and public=1";
   }
-  
+
   # metadata
   my $data = [];
   my $dbh  = $self->_master()->db_handle();
@@ -1350,7 +1350,7 @@ sub fetch_browsepage_viewable {
     }
     push(@$data, $row);
   }
-  
+
   return $data;
 }
 
@@ -1385,16 +1385,16 @@ sub count_total_bp {
 
 sub in_projects {
   my ($self, $public) = @_;
-  
+
   my $pub_option = "";
   if ((defined $public) && ($public == 0)) {
     $pub_option = "(Job.public = 0 or Job.public is NULL)";
   } else {
     $pub_option = "Job.public = 1";
   }
-  
+
   my $dbh = $self->_master()->db_handle();
-  
+
   my $statement = "select metagenome_id, name, sequence_type, file_size_raw, public, viewable from Job where $pub_option and exists (select ProjectJob.job from ProjectJob where ProjectJob.job = Job._id)";
   my $sth = $dbh->prepare($statement);
   $sth->execute;
@@ -1434,7 +1434,7 @@ sub count_total_sequences {
 
 sub count_all {
  my ($self , $user) = @_;
- 
+
  my $dbh = $self->_master()->db_handle();
  my $sth = $dbh->prepare("SELECT count(_id) from Job where job_id is not null");
  $sth = $dbh->prepare("SELECT count(_id) FROM Job where owner=".$user->_id." and job_id is not null") if ($user and ref $user);
@@ -1486,17 +1486,17 @@ sub get_timestamp {
 
 sub user_delete {
   my ($self, $user, $reason) = @_;
-  
+
   my $jobdbm = $self->_master();
   my $mgid   = $self->metagenome_id;
   my $jobid  = $self->job_id;
 
   if ($self->public) {
-    return(0, "Unable to delete metagenome '$mgid' as it has been made public. If someone is sharing this data with you please contact them with inquiries. However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@rt.mcs.anl.gov'>MG-RAST help desk</a>.");
+    return(0, "Unable to delete metagenome '$mgid' as it has been made public. If someone is sharing this data with you please contact them with inquiries. However, if you believe you have reached this message in error please contact the <a href='mailto:help\@mg-rast.org'>MG-RAST help desk</a>.");
   }
 
   unless( $user && ($user->has_right(undef, 'delete', 'metagenome', $mgid) || $user->has_star_right('delete','metagenome')) ) {
-    return (0, "Unable to delete metagenome '$mgid'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+    return (0, "Unable to delete metagenome '$mgid'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:help\@mg-rast.org'>MG-RAST help desk</a>.");
   }
 
   # remove from project
@@ -1520,7 +1520,7 @@ sub user_delete {
   foreach my $r (@$job_rights) {
     $r->delete;
   }
-  
+
   # delete cassandra data
   use Inline::Python qw(py_eval);
   my $import = q|import sys; sys.path.insert(1, "|.$Conf::pylib_dir.q|"); from mgrast_cassandra import *|;
@@ -1528,9 +1528,9 @@ sub user_delete {
   my $chdl = Inline::Python::Object->new('__main__', 'JobHandle', $Conf::cassandra_m5nr);
   $chdl->delete_job($jobid);
   $chdl->close();
-  
+
   ######## delete AWE / Shock ##########
-  
+
   # get mgrast token
   #my $mgrast_token = undef;
   #if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
@@ -1540,23 +1540,23 @@ sub user_delete {
   #}
   #### changed because globus has hard time handeling multiple tokens
   my $mgrast_token = "mgrast ".$Conf::mgrast_oauth_token || undef;
-  
+
   my @auth = ('Authorization', $mgrast_token);
-  
+
   # get handles
   my $agent = LWP::UserAgent->new;
   my $json  = JSON->new;
   $json = $json->utf8();
   $json->max_size(0);
   $json->allow_nonref;
-  
+
   # get AWE job
   my $ajobs = [];
   eval {
     my $get = $agent->get($Conf::awe_url.'/job?query&limit=0&info.name='.$jobid, @auth);
     $ajobs  = $json->decode( $get->content )->{data};
   };
-  
+
   # delete AWE job
   if ($@) {
     return (0, "Unable to get metagenome '$mgid' from AWE: ".$@);
@@ -1565,19 +1565,19 @@ sub user_delete {
       eval {
         $agent->delete($Conf::awe_url.'/job/'.$j->{id}.'?full=1', @auth);
       };
-      if ($@) {                                                                                                                              
+      if ($@) {
         return (0, "Unable to delete metagenome '$mgid' from AWE: ".$@);
       }
     }
   }
-  
+
   # get shock nodes
   my $nodes = [];
   eval {
     my $get = $agent->get($Conf::shock_url.'/node?query&limit=0&type=metagenome&id=mgm'.$mgid, @auth);
     $nodes  = $json->decode( $get->content )->{data};
   };
-  
+
   # delete shock nodes
   if ($@) {
     return (0, "Unable to get metagenome '$mgid' files from Shock: ".$@);
@@ -1587,12 +1587,12 @@ sub user_delete {
       eval {
         $agent->delete($Conf::shock_url.'/node/'.$n->{id}, @auth);
       };
-      if ($@) {                                                                                                                              
+      if ($@) {
         return (0, "Unable to delete metagenome '$mgid' from Shock: ".$@);
       }
     }
   }
-  
+
   return (1, "");
 }
 
@@ -1611,14 +1611,14 @@ sub delete {
   unless (ref($webapp_dbm)) {
     die "Could not initialize WebApplication DBMaster in Job->delete";
   }
-  
+
   # delete all rights to the job
   my $job_rights = $webapp_dbm->Rights->get_objects( { data_type => 'metagenome',
                                                        data_id => $self->metagenome_id } );
   foreach my $right (@$job_rights) {
     $right->delete();
   }
-  
+
   # delete all pipeline stages
   my $pipeline_stages = $dbm->PipelineStage->get_objects( { job => $self } );
   foreach my $pipeline_stage (@$pipeline_stages) {

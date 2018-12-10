@@ -19,7 +19,7 @@ use MGRAST::Metadata;
 use Cache::Memcached;
 
 use File::Temp qw/ tempfile tempdir /;
- 
+
 1;
 
 =pod
@@ -101,7 +101,7 @@ sub init {
   return 1;
 }
 
-=pod 
+=pod
 
 =item * B<output> ()
 
@@ -143,7 +143,7 @@ relationships between functions (COG, NOG, SEED, subsystems, KEGG)
   my $html = "<input type='hidden' id='metagenome' value='$metagenome'>".$application->component('ajax')->output."<table class='analysis'><tr><td class='tool'><div id='tool' class='tool'>".$tools."<div id='progress_div'></div></div></td><td class='select'><div id='select' class='select'>".$self->phylogeny_select."</div></td><td class='buff'></td></tr><tr><td colspan=3 class='display'><div id='display' class='display'>";
 
   $html .= "<table class='tabs'><tr id='tabs_table'>";
-  
+
   my $wb_title = 'Workbench (0 Features)';
   my $wb_buffer_info = "<p style='padding-left: 25px; width: 600px;'><b>There are currently no features in your workbench.</b></p><p style='padding-left: 25px; width: 600px;'>You can store a selection of features from any data view in this workbench. You can then use them to generate any other visualization, or you can download them in FASTA format.</p>";
   my $wb_data_buffer = "";
@@ -210,12 +210,12 @@ relationships between functions (COG, NOG, SEED, subsystems, KEGG)
   my ($title, $tab) = $self->generate_tab($wb_title, "<a href='http://blog.metagenomics.anl.gov/howto/using-the-workbench' target=_blank style='float: right;'>[?] workbench help</a><strong>workbench buffers</strong><br><div id='buffer_activators'>$wb_buffer_activators</div><hr><input type='hidden' id='buffer_mgids' value='$wb_buffer_mgids'><input type='hidden' id='buffer_srcs' value='$wb_buffer_srcs'><div id='buffer_info'>".$wb_buffer_info."</div><div id='wb_fasta' style='$wb_fasta_style'><br><br><form id='wb_export_form' action='metagenomics.cgi' method='post'><input type='hidden' name='page' value='Analysis'><input type='hidden' name='action' value='workbench_export'></form><form id='wb_hits_form' action='metagenomics.cgi' method='post'></form><a style='cursor:pointer;' onclick='workbench_export();'>download metagenome dna FASTA annotated by</a><span style='padding-left:10px;'><select id='fasta_source'>$wb_select_opts</select></span><br><br><a style='cursor:pointer' onclick='workbench_hits_table();execute_ajax(\"workbench_hits_table\",\"hits_div\",\"wb_hits_form\");'>display annotated hits below</a></div><div style='display: none;' id='data_buffer'>".$wb_data_buffer."</div><div style='display: none;' id='buffer_space'></div><div style='display: none;' id='backup_buffer'>$wb_backup_buffer</div><br><div id='hits_div'></div>", 1, 1, $wb_inactive);
 
   my ($title2, $tab2) = $self->generate_tab('Getting Started', "<p style='padding-left: 25px; width: 600px;'>To create a visualization, first select an analysis view from the <b>Analysis Views</b> box. The default is 'Organism Classification'. Then choose the data and cutoffs you wish to use in the <b>Data Selection</b> box. Depending on the type of data, you might have a set of possible visualizations. Pick one of them and click the <b>generate</b> button.</p><p style='padding-left: 25px; width: 600px;'>You will see the generated visualizations created in separate tabs in this tab-view. In addition to the visualization, the created tabs will display the settings used to create them. Generating a new visualization will preserve the previous visualizations you created.</p><p style='padding-left: 25px; width: 600px;'>You can rename the tabs by double clicking the tab-header and entering a new title. You can remove a tab by clicking the 'x' symbol in the top right corner of the tab-header. You can switch between tabs by single clicking the tab-header.</p>", 0, 0, $started_inactive);
-  
+
   $html .= $title.$title2;
   $html .= "<td class='spacer_disp'></td></tr></table>";
   $html .= $tab.$tab2;
   $html .= "</div></td></tr></table>";
-  
+
   $html .= "<input type='hidden' id='grouping_storage' value=''>";
 
   return $html;
@@ -442,7 +442,7 @@ sub lca_select {
   my ($self) = @_;
 
   my $cgi = $self->application->cgi;
-  
+
   my $metagenome = '';
   if ($cgi->param('metagenome')) {
     $metagenome = $cgi->param('metagenome');
@@ -455,7 +455,7 @@ sub lca_select {
     }
     $metagenome = "<a target=_blank href='metagenomics.cgi?page=MetagenomeOverview&metagenome=$metagenome' title='$mgname'>$metagenome</a>";
   }
-  
+
   if ($cgi->param('comparison_metagenomes')) {
     $metagenome = '';
     my @all = $cgi->param('comparison_metagenomes');
@@ -548,7 +548,7 @@ sub single_data {
   my $alength    = $cgi->param('alength')  || undef;
   my $mg_grp_sel = $cgi->param('mg_grp_sel') || '';
   my $mgrast     = $self->application->data_handle('MGRAST');
-  
+
   my $collections = {};
   my @comparison_collections = $cgi->param('comparison_collections');
   if ($mg_grp_sel eq 'groups') {
@@ -618,7 +618,7 @@ sub single_data {
     }
     @$result = map { $joined_data->{$_} } keys(%$joined_data);
   }
-  
+
   return $result;
 }
 
@@ -635,7 +635,7 @@ sub phylogenetic_data {
   my $alength  = $cgi->param('alength')  || undef;
   my $mg_grp_sel = $cgi->param('mg_grp_sel') || '';
   my $mgrast = $self->application->data_handle('MGRAST');
-  
+
   my $collections = {};
   my @comparison_collections = $cgi->param('comparison_collections');
   if ($mg_grp_sel eq 'groups') {
@@ -737,7 +737,7 @@ sub phylogenetic_data {
     # join the md5 abundances
     my $md5_abund_joined = {};
     foreach my $cc (@comparison_collections) {
-      $md5_abund_joined->{$cc} = {};      
+      $md5_abund_joined->{$cc} = {};
     }
     foreach my $mg (keys(%$md5_abund)) {
       foreach my $md5 (keys(%{$md5_abund->{$mg}})) {
@@ -746,7 +746,7 @@ sub phylogenetic_data {
     }
     $md5_abund = $md5_abund_joined;
   }
-  
+
   return ($md5_abund, $result);
 }
 
@@ -763,7 +763,7 @@ sub metabolic_data {
   my $alength  = $cgi->param('alength')  || undef;
   my $mg_grp_sel = $cgi->param('mg_grp_sel') || '';
   my $mgrast = $self->application->data_handle('MGRAST');
-  
+
   my $collections = {};
   my @comparison_collections = $cgi->param('comparison_collections');
   if ($mg_grp_sel eq 'groups') {
@@ -810,7 +810,7 @@ sub metabolic_data {
   } else {
     $self->{mgdb}->set_jobs(\@metas);
   }
-    
+
   if ($cgi->param('use_buffer')) {
     my @md5s = split(/;/, $cgi->param('use_buffer'));
     ($md5_abund, $result) = $self->{mgdb}->get_ontology_for_md5s(\@md5s, $source, $evalue, $identity, $alength);
@@ -820,7 +820,7 @@ sub metabolic_data {
   }
   # mgid => md5 => abundance
   # mgid, id, annotation, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s
-  
+
   my $link   = $self->{mgdb}->link_for_source($source);
   my $id_map = $self->{mgdb}->get_hierarchy('ontology', $source);
   my $all    = [];
@@ -834,7 +834,7 @@ sub metabolic_data {
       if ((! $lvl2) || ($lvl2 eq 'Unknown')) {
 	$lvl2 = $lvl1;
       }
-      
+
       my $new = [ $row->[0], $lvl1, $lvl2 ];
       if ($depth > 3) {
 	my $lvl3 = shift @levels;
@@ -883,7 +883,7 @@ sub metabolic_data {
     # join the md5 abundances
     my $md5_abund_joined = {};
     foreach my $cc (@comparison_collections) {
-      $md5_abund_joined->{$cc} = {};      
+      $md5_abund_joined->{$cc} = {};
     }
     foreach my $mg (keys(%$md5_abund)) {
       foreach my $md5 (keys(%{$md5_abund->{$mg}})) {
@@ -908,7 +908,7 @@ sub annotation_data {
   my $alength  = $cgi->param('alength')  || undef;
   my $mg_grp_sel = $cgi->param('mg_grp_sel') || '';
   my $mgrast = $self->application->data_handle('MGRAST');
-  
+
   my $collections = {};
   if ($mg_grp_sel eq 'groups') {
     my @comparison_collections = $cgi->param('comparison_collections');
@@ -985,7 +985,7 @@ sub annotation_data {
     }
     @$result = map { $joined_data->{$_} } keys(%$joined_data);
   }
-  
+
   return $result;
 }
 
@@ -1070,29 +1070,29 @@ sub lca_data {
     }
     @$result = map { $joined_data->{$_} } keys(%$joined_data);
   }
-  
+
   return $result;
 }
 
 # sub recruitment_plot_data {
 #   my ($self, $name, $mgid, $divid) =@_;
-# 
+#
 #   my $cgi    = $self->application->cgi;
 #   my $orgid  = $cgi->param('ref_genome');
 #   my $eval   = $cgi->param('evalue_range');
 #   my $mgdb   = $self->{mgdb};
 #   my $source = $self->data('rplot_source');
 #   my $cutoff = undef;
-# 
+#
 #   if ($eval =~ /e-(\d+)$/) {
 #     $cutoff = $1;
 #   }
-# 
+#
 #   my @data = ();
 #   my %uniq = ();
 #   my $link = $mgdb->link_for_source($source);
 #   my %md5_data = map { $_->[1], [ @$_[2..10] ] } @{ $mgdb->get_md5_data_for_organism_source($name, $source, $cutoff) };
-# 
+#
 #   foreach ( @{ $mgdb->ach->org2contig_data($orgid, 1) } ) {
 #     my ($ctg, $md5, $id, $func, $low, $high, $strand, $clen) = @$_;
 #     $strand = ($strand == 1) ? "+" : "-";
@@ -1105,13 +1105,13 @@ sub lca_data {
 #       push @data, [ $id_l, $func, $read_l, $low, $high, $strand, $ctg, $clen, @curr_data[1..6], $md5 ];
 #     }
 #   }
-# 
+#
 #   return (\@data, scalar(keys %uniq));
 # }
 
 # sub recruitment_plot_graph {
 #   my ($self, $name, $mapname) = @_;
-# 
+#
 #   my $cgi    = $self->application->cgi;
 #   my $orgid  = $cgi->param('ref_genome');
 #   my $eval   = $cgi->param('evalue_range');
@@ -1122,10 +1122,10 @@ sub lca_data {
 #   my $evals  = $self->get_evals;
 #   my $cutoff = $self->get_eval_index($eval);
 #   my $eval_set = [];
-# 
+#
 #   @$evals  = @$evals[$cutoff..4];
 #   @$colors = @$colors[$cutoff..4];
-# 
+#
 #   my $unique_str     = join('_', ( join("_", @{$mgdb->_jobs}), $orgid, $eval, $log ));
 #   my $circos_file    = "circos_$unique_str";
 #   my $config_file    = "$Conf::temp/circos_$unique_str.conf";
@@ -1133,7 +1133,7 @@ sub lca_data {
 #   my $fwd_gene_file  = "$Conf::temp/genes_fwd_$unique_str.txt";
 #   my $rev_gene_file  = "$Conf::temp/genes_rev_$unique_str.txt";
 #   my $evals_file     = "$Conf::temp/evals_$unique_str.txt";
-# 
+#
 #   if ((-s $config_file) && (-s $karyotype_file) && (-s $fwd_gene_file) && (-s $rev_gene_file) && (-s $evals_file)) {
 #     my ($prev_evals, $prev_stats) = $self->get_data_from_config($config_file);
 #     for (my $j=0; $j<@$prev_evals; $j++) { push @$eval_set, [ $evals->[$j], $prev_evals->[$j], $colors->[$j] ]; }
@@ -1144,17 +1144,17 @@ sub lca_data {
 #       return ($r == 0) ? [$circos_file, $eval_set, $prev_stats] : ["Circos failed: $?",  []];
 #     }
 #   }
-#   
+#
 #   my $num_frag = $mgdb->get_abundance_for_organism_source($name, $source);
 #   my $contigs  = $mgdb->ach->org2contigs($orgid);
 #   if (scalar @$contigs == 0) { return ["No contigs available for $name", []]; }
-# 
+#
 #   my (%ctg_name, %job_data);
 #   my %ctg_len = map { $_->[0], $_->[1] } @$contigs;
-#   
+#
 #   my @eval_sums = (0, 0, 0, 0, 0);
 #   @eval_sums = @eval_sums[$cutoff..4];
-#   
+#
 #   my $md5_evals = $mgdb->get_md5_evals_for_organism_source($name, $source);
 #   foreach my $md5 (keys %$md5_evals) {
 #     my @e = @{ $md5_evals->{$md5} };
@@ -1162,7 +1162,7 @@ sub lca_data {
 #     for (my $i=0; $i<@e; $i++) { $eval_sums[$i] += $e[$i]; }
 #     $job_data{$md5} = \@e;
 #   }
-# 
+#
 #   my $i = 1;
 #   open(KARF, ">$karyotype_file") || return ["Unable to open $karyotype_file", []];
 #   foreach (sort {$ctg_len{$a} <=> $ctg_len{$b}} keys %ctg_len) {
@@ -1171,11 +1171,11 @@ sub lca_data {
 #     $i++;
 #   }
 #   close KARF;
-# 
+#
 #   open(FGF, ">$fwd_gene_file") || return ["Unable to open $fwd_gene_file", []];
 #   open(RGF, ">$rev_gene_file") || return ["Unable to open $rev_gene_file", []];
 #   open(EVF, ">$evals_file")    || return ["Unable to open $evals_file", []];
-# 
+#
 #   my (@gene, @hit);
 #   my $max_pos  = 0;
 #   my $max_neg  = 0;
@@ -1185,15 +1185,15 @@ sub lca_data {
 #     my @vals = ();
 #     my ($ctg, $md5, $id, $low, $high, $strand, $clen) = @$_;
 #     $num_feat += 1;
-# 
+#
 #     @gene = ( $ctg_name{$ctg}, $low, $high, "color=" . (exists($job_data{$md5}) ? "red" : "black") );
 #     if (exists $job_data{$md5}) {
 #       $num_hit += 1;
 #       @vals = map { $self->get_log($log, $_) } @{ $job_data{$md5} };
 #       @hit  = ( $ctg_name{$ctg}, $low, $high );
 #     }
-# 
-#     if ($strand == 1) {      
+#
+#     if ($strand == 1) {
 #       print FGF join(" ", @gene) . "\n";
 #       if (exists $job_data{$md5}) {
 #   my $sum  = sum @vals;
@@ -1214,12 +1214,12 @@ sub lca_data {
 #   close FGF;
 #   close RGF;
 #   close EVF;
-# 
+#
 #   my $color_str = join(",", @$colors);
 #   my $evals_str = join(",", @eval_sums);
 #   my $stats_str = join(",", ($num_frag, $num_hit, $num_feat));
 #   my $axis_size = int( ($max_pos + abs($max_neg)) / 20 ) || 1;
-# 
+#
 #   open(CFG, ">$config_file") || return ["Unable to open $config_file", []];
 #   print CFG qq~
 # <colors>
@@ -1230,9 +1230,9 @@ sub lca_data {
 # </fonts>
 # <<include $Conf::config/ideogram.conf>>
 # <<include $Conf::config/ticks.conf>>
-# 
+#
 # karyotype = $karyotype_file
-# 
+#
 # <image>
 # dir  = $Conf::temp
 # file = $circos_file.png
@@ -1242,10 +1242,10 @@ sub lca_data {
 # background     = white
 # angle_offset   = -90
 # </image>
-# 
+#
 # chromosomes_units           = 1000
 # chromosomes_display_default = yes
-# 
+#
 # <plots>
 # <plot>
 # show   = yes
@@ -1301,7 +1301,7 @@ sub lca_data {
 # axis_spacing   = $axis_size
 # </plot>
 # </plots>
-# 
+#
 # anglestep     = 0.5
 # minslicestep  = 10
 # beziersamples = 40
@@ -1310,12 +1310,12 @@ sub lca_data {
 # imagemap      = no
 # units_ok      = bupr
 # units_nounit  = n
-# 
+#
 # #evals $evals_str
 # #stats $stats_str
 # ~;
 #   close CFG;
-# 
+#
 #   my $cmd = $Conf::circos_path." -conf ".$config_file." -silent 2>&1";
 #   my $msg = `$cmd`;
 #   for (my $j=0; $j<@eval_sums; $j++) { push @$eval_set, [ $evals->[$j], $eval_sums[$j], $colors->[$j] ]; }
@@ -1324,7 +1324,7 @@ sub lca_data {
 
 sub workbench_export {
   my ($self) = @_;
-  
+
   my $cgi    = $self->application->cgi;
   my @metas  = $cgi->param('comparison_metagenomes');
   my $source = $cgi->param('comparison_sources');
@@ -1364,7 +1364,7 @@ sub workbench_export {
   my $content = join("\n", @fastas);
   my $fname   = join("_", @metas) . "_" . scalar(@fastas) . "_sequences_annotated_by_$source.fna";
 
-  print "Content-Type:application/x-download\n";  
+  print "Content-Type:application/x-download\n";
   print "Content-Length: " . length($content) . "\n";
   print "Content-Disposition:attachment;filename=$fname\n\n";
   print $content;
@@ -1375,7 +1375,7 @@ sub workbench_blat_output {
   my ($self) = @_;
 
   $self->title('BLAT alignments');
-  
+
   my $cgi    = $self->application->cgi;
   my @metas  = $cgi->param('comparison_metagenomes');
   my @md5s   = split(/\^/, $cgi->param('md5s'));
@@ -1397,7 +1397,7 @@ sub workbench_blat_output {
   map { push @{$funcs->{$_->[2]}}, [ @$_[5,1,3] ] } grep { $_->[3] } @$md5_ann;
   map { $orgshash->{$_->[2]} = $_->[4] } grep { $_->[4] } @$md5_ann;
   map { $ncbi_ids->{$_->[4]} = $_->[6] } grep { $_->[4] && $_->[6] } @$md5_ann;
-  
+
   my $mg_seq_data = $self->{mgdb}->md5s_to_read_sequences(\@md5s); # [ { 'md5' => md5, 'id' => id, 'sequence' => sequence } ]
   my $nr_seq_data = $self->{mgdb}->get_m5nr_sequences_from_md5s([keys %$funcs]); # fasta text
 
@@ -1419,7 +1419,7 @@ sub workbench_blat_output {
       $self->{blat} = "<br />No results were returned.";
       return 1;
     } elsif($fgs_infile_content eq "") {
-      $self->application->add_message('warning', "Unable to retrieve any sequences for this project.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+      $self->application->add_message('warning', "Unable to retrieve any sequences for this project.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact <a href='mailto:help\@mg-rast.org'Our help desk</a>");
       $self->{blat} = "<br />No results were returned.";
       return 1;
     }
@@ -1443,14 +1443,14 @@ sub workbench_blat_output {
     }
     close FH;
   }
-  
+
   my $nr_seq_formatted = "";
   my @nr_lines = split(/\n/, $nr_seq_data);
   foreach my $line (@nr_lines) {
     unless ($line =~ /^>/) {
       $line =~ s/(.{60})/$1\n/g;
     }
-      $nr_seq_formatted .= $line."\n";  
+      $nr_seq_formatted .= $line."\n";
   }
 
   my $blat_output = "<style>td { padding: 4px; }</style><p style='width: 600px; font-variant: normal'>The sequence alignments underlying functional and organismal classification are stored in MG-RAST in an abbreviated format. This page allows re-creation of these alignments using the original parameters and tools.<br><br>
@@ -1547,7 +1547,7 @@ sub workbench_blat_output {
   unlink $fgs_infile_name.".fgs.faa";
   unlink $fgs_infile_name.".fgs.ffn";
   unlink $fgs_infile_name.".blat.out";
-  
+
   $self->{blat} = $blat_output.$sel_all.$overview."<br><br>".$alignments;
 
   return 1;
@@ -1641,7 +1641,7 @@ sub workbench_hits_table {
   $table->items_per_page(25);
   $table->show_column_select(1);
   $table->show_export_button({ title => 'download this table', strip_html => 1, hide_invisible_columns => 1});
-  
+
   my $columns = [ { name => 'metagenome',        sortable => 1, filter => 1,  operator => 'combobox',       tooltip => 'id of metagenomic sample' },
 		  { name => 'source',            sortable => 1, filter => 1,  operator => 'combobox',       tooltip => 'database source of the hits', visible => ((@srcs == 1) ? 0 : 1) },
 		  { name => 'id',                sortable => 1, filter => 1,                                tooltip => 'database source ID of the hit' },
@@ -1655,7 +1655,7 @@ sub workbench_hits_table {
 		  { name => 'align len std dev', sortable => 1, visible => 0,                               tooltip => 'standard deviation of<br>the alignment length of the hits' },
 		  { name => 'md5',               sortable => 1, visible => 0,                               tooltip => 'md5 checksum of hit sequence'  }
 	       ];
-	       
+
   $table->columns($columns);
   $table->data(\@table_data);
   $html .= $table->output;
@@ -1673,7 +1673,7 @@ sub get_read_align {
   my $type = $cgi->param('type');
   my $job  = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $mgid });
   my $html = '<br>';
-  
+
   $self->{mgdb}->set_jobs([$mgid]);
   my $md5_map  = $self->{mgdb}->decode_annotation('md5', [$md5]);
   my $md5sum   = $md5_map->{$md5};
@@ -1688,7 +1688,7 @@ sub get_read_align {
     $html .= "<p>Hit alignment for ".scalar(@$seq_data)." read".((scalar(@$seq_data) > 1) ? "s" : "")." within metagenome ".$job->name()." ($mgid) against sequence ";
     $html .= ($type ne 'rna') ? "<a target=_blank href='http://tools.metagenomics.anl.gov/m5nr/?page=SearchResults&search_type=md5&query=$md5sum'>$md5sum</a>" : $md5;
     $html .= "</p>";
-    
+
     foreach my $s (@$seq_data) {
       my (undef, $id) = split(/\|/, $s->{id});
       my $read_fasta  = $Conf::temp."/".$mgid."_".$id."_".time.".fna";
@@ -1755,7 +1755,7 @@ sub get_reads_table {
 	    $table->show_top_browse(1);
 	    $table->show_bottom_browse(1);
 	    $table->items_per_page(25);
-	    $table->show_select_items_per_page(1); 
+	    $table->show_select_items_per_page(1);
       }
       $table->show_column_select(1);
       $table->columns($columns);
@@ -1786,9 +1786,9 @@ sub qiime_export_data {
   my $evalue   = $cgi->param('evalue')   || undef;
   my $identity = $cgi->param('identity') || undef;
   my $alength  = $cgi->param('alength')  || undef;
-  
+
   $self->{mgdb}->set_jobs($mgs);
-  
+
   my ($tbl_type, $md_type);
   my $name_md5s  = {}; # mgid => name => { md5_int }
   my $mg_md5_abd = $self->{mgdb}->get_md5_abundance($evalue, $identity, $alength); # mgid => md5_int => abundance
@@ -1811,7 +1811,7 @@ sub qiime_export_data {
 	    $md5_names{$md5}{$name} = 1;
       }
     }
-  }    
+  }
 
   my $name_hier = $self->{mgdb}->get_hierarchy($type, $sources[0], undef, 1); # annot_id => [ hierarchy ]
   my $md2pos = {};
@@ -1939,7 +1939,7 @@ sub single_visual {
   $settings_preserve .= "<input type='hidden' name='identity' value='" . ($cgi->param('identity') || '0') . "'>";
   $settings_preserve .= "<input type='hidden' name='alength' value='"  . ($cgi->param('alength') || '1')  . "'>";
   my $fid = $cgi->param('fid') || int(rand(1000000));
-    
+
   my $settings = "<i>This data was calculated for $mgs. The data was compared to $source using $cutoffs.$pset</i><br/>";
 
   ## determine if any metagenomes missing from results
@@ -1951,7 +1951,7 @@ sub single_visual {
     if (! exists $data_mgs{$mg} && ! $cgi->param('comparison_collections')) {
       push @missing_mgs, $mg;
     }
-  }  
+  }
 
   if (@missing_mgs > 0) {
     $missing_txt = "<br>";
@@ -1991,17 +1991,17 @@ sub single_visual {
     $t->show_export_button({ title => 'download this table', strip_html => 1, hide_invisible_columns => 1});
 
     my $tcols = [ { name => 'metagenome', filter => 1, operator => 'combobox', sortable => 1, tooltip => 'id of metagenomic sample' },
-		  { name => 'domain', sortable => 1, filter => 1, operator => 'combobox' }, 
-		  { name => 'phylum', sortable => 1, filter => 1 }, 
+		  { name => 'domain', sortable => 1, filter => 1, operator => 'combobox' },
+		  { name => 'phylum', sortable => 1, filter => 1 },
 		  { name => 'class', sortable => 1, filter => 1 },
-		  { name => 'order', sortable => 1, filter => 1 }, 
+		  { name => 'order', sortable => 1, filter => 1 },
 		  { name => 'family', sortable => 1, filter => 1 },
 		  { name => 'genus', sortable => 1, filter => 1 },
 		  { name => 'species', sortable => 1, filter => 1 },
-		  { name => 'strain', sortable => 1, filter => 1 }, 
+		  { name => 'strain', sortable => 1, filter => 1 },
 		  { name => 'abundance', sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of sequence features with a hit' },
 		  { name => 'avg eValue', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average exponent of<br>the evalue of the hits' },
-		  { name => 'eValue std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of the evalue,<br>showing exponent only' }, 
+		  { name => 'eValue std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of the evalue,<br>showing exponent only' },
 		  { name => 'avg % ident', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average percent identity of the hits' },
 		  { name => '% ident std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the percent identity of the hits' },
 		  { name => 'avg align len', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average alignment length of the hits' },
@@ -2009,7 +2009,7 @@ sub single_visual {
 		  { name => 'md5s', visible => 0 },
 		  { name => '# hits', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of unique hits in protein or rna database' },
 		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"18\", \"16\", \"0\", \"".$source."\", \"9\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
-    
+
     #### do the pivoting
     unless (defined $cgi->param('group_by')) {
       $cgi->param('group_by', '2');
@@ -2055,7 +2055,7 @@ sub single_visual {
     }
 
     @$newdata = sort { $a->[1] cmp $b->[1] || $a->[2] cmp $b->[2] || $a->[3] cmp $b->[3] || $a->[4] cmp $b->[4] || $a->[5] cmp $b->[5] || $a->[6] cmp $b->[6] || $a->[7] cmp $b->[7] || $a->[8] cmp $b->[8] } @$newdata;
-    
+
     $t->columns($tcols);
     $t->data($newdata);
 
@@ -2079,7 +2079,7 @@ sub single_visual {
     }
 
     #my $krona_button = "<input type='button' value='krona graph' onclick='generate_krona_data(\"".$cgi->param('group_by')."\", \"".$t->id."\", \"org\");'>";
-    
+
     #my $qiime_button =  ( $cgi->param('mg_grp_sel') ne 'groups' ) ? "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>" : 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.';
     my $plugin_container = '';
     #my $plugin_container = '<table style="border: 2px solid rgb(143, 188, 63); text-align: center; float: right; border-spacing: 0px;"><tbody><tr><td colspan="2" style="cursor: pointer; text-align: left;" title="click to show available plugins" onclick="if(this.parentNode.nextSibling.style.display==\'none\'){this.parentNode.nextSibling.style.display=\'\';this.parentNode.nextSibling.nextSibling.style.display=\'\';}else{this.parentNode.nextSibling.style.display=\'none\';this.parentNode.nextSibling.nextSibling.style.display=\'none\';}"><img src="./Html/plugin.png" style="width: 20px; vertical-align: middle;"> available plugins</td></tr><tr><td style="border-top: 1px solid rgb(143, 188, 63); border-right: 1px solid rgb(143, 188, 63); padding: 2px;"><img src="./Html/krona.png" style="height: 50px; cursor: pointer;" onclick="window.open(&quot;http://sourceforge.net/p/krona/home/krona/&quot;);"></td><td style="border-top: 1px solid rgb(143, 188, 63);"><img onclick="window.open(&quot;http://www.qiime.org&quot;);" style="height: 50px; cursor: pointer;" src="./Html/qiime.png"></td></tr><tr><td style="vertical-align: middle; border-right: 1px solid rgb(143, 188, 63); padding: 2px;">'.$krona_button.'</td><td style="vertical-align: middle;">'.$qiime_button.'</td></tr></tbody></table>';
@@ -2188,7 +2188,7 @@ sub single_visual {
       for (my $i=0; $i<scalar(@$cats); $i++) {
 	$chash->{$cats->[$i]} = $pd->[$i];
       }
-      
+
       my $cats_pos = {};
       my $cind = 0;
       foreach my $k (@$cats) {
@@ -2282,7 +2282,7 @@ sub single_visual {
     } else {
       my $header_names = { 3 => 'Phylum',
 			   4 => 'Class',
-			   5 => 'Order', 
+			   5 => 'Order',
 			   6 => 'Family',
 			   7 => 'Genus',
 			   8 => 'Species',
@@ -2300,7 +2300,7 @@ sub single_visual {
       return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('single_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$source phylogenetic\", \"".$cgi->param('single_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
     }
   }
-  
+
   if ($cgi->param('vis_type') eq 'tree') {
     @comp_mgs = $cgi->param('comparison_metagenomes');
     my $pt = $self->application->component('tree1');
@@ -2353,7 +2353,7 @@ sub single_visual {
 	#  }
 	#}
 	push(@$expanded_data, [ @$row, $vals ] );
-      }    
+      }
     } else {
       foreach my $row (@$data) {
 	next if ($tree_domain_filter && $tree_domain_filter ne $row->[1]);
@@ -2398,7 +2398,7 @@ sub single_visual {
       print $cgi->end_html();
       exit;
     }
-    
+
     my $pt_out = $pt->output;
     $pt_out = "<table><tr><td>".$pt->legend."</td><td>".$pt_out."</td></tr></table>";
     if ($self->application->cgi->param('reroot') && $self->application->cgi->param('do_reroot')) {
@@ -2542,12 +2542,12 @@ sub single_visual {
       my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
       `$R --vanilla --slave < $prefn`;
       unlink($prefn);
-      
+
       unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
 	unlink $infile;
 	$infile = $Conf::temp."/rdata.preprocessed.$time";
       }
-      
+
       if ($cgi->param('vis_type') eq 'heatmap') {
 	my $level_names = [ [ 1, 'domain' ],
 			    [ 2, 'phylum' ],
@@ -2563,7 +2563,7 @@ sub single_visual {
 	  my $sel = "";
 	  if ($l->[0] == $level) {
 	    $sel = " selected=selected";
-	  }	  
+	  }
 	  if (defined($dd_col) && ($l->[0] == $dd_col)) {
 	    $dd_sel = $l->[1];
 	  }
@@ -2600,7 +2600,7 @@ sub single_visual {
 	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
 	close $heath;
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-	`$R --vanilla --slave < $heatn`; 
+	`$R --vanilla --slave < $heatn`;
 	unlink($heatn);
 
 	open(COL, "<$col_f");
@@ -2623,7 +2623,7 @@ sub single_visual {
 	  $content .= "@";
 	  $content .= join "^", split /\s+/;
 	}
-	$content .= "'>";	
+	$content .= "'>";
 
 	close(COL);
 	unlink($col_f);
@@ -2646,10 +2646,10 @@ sub single_visual {
 	while (<ROW>){
 	  chomp;
 	  $content .= "@";
-	  $content .= join "^", split /\t/;	
+	  $content .= join "^", split /\t/;
 	}
 	$content .= "'>";
-	
+
 	close(ROW);
 	unlink($row_f);
 
@@ -2693,7 +2693,7 @@ sub single_visual {
 	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
 	close $pcah;
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-	`$R --vanilla --slave < $pcan`; 
+	`$R --vanilla --slave < $pcan`;
 	unlink($pcan);
 	if (! defined($cgi->param('raw'))) {
 	  $content .= "<div><div>Representative Organism PCoA $tabnum</div><div>";
@@ -2717,14 +2717,14 @@ sub single_visual {
 	  s/"//g; #"
 	  my @fields = split /\t/;
 	  if ($fields[0] =~ /^PCO\d+$/) {
-	    push @comp, join("^", @fields); 
+	    push @comp, join("^", @fields);
 	  } elsif ($fields[0] =~ /^ID([\dA]+)$/) {
-	    push @items, join("^", @fields); 
+	    push @items, join("^", @fields);
 	  }
 	}
 	close(D);
 
-	# metadata coloring	
+	# metadata coloring
 	my $mddb  = MGRAST::Metadata->new;
 	my $jobmd = $mddb->get_metadata_for_tables(\@comp_mgs, 1, 1);
 	my $mdata = {};
@@ -2749,7 +2749,7 @@ sub single_visual {
         }
         $iii += 1;
     }
-    
+
 	my $md_type_select = "<select id='whichmd_".$tabnum."' onchange='check_metadata(\"$tabnum\", this);'>";
 	foreach my $md_name (@md_names) {
 	  $md_type_select .= "<option value='$md_name'>$md_name</option>";
@@ -2903,7 +2903,7 @@ sub phylogeny_visual {
   $settings_preserve .= "<input type='hidden' name='identity' value='" . ($cgi->param('identity') || '0') . "'>";
   $settings_preserve .= "<input type='hidden' name='alength' value='"  . ($cgi->param('alength') || '1')  . "'>";
   my $fid = $cgi->param('fid') || int(rand(1000000));
-    
+
   my $settings = "<i>This data was calculated for $mgs. The data was compared to $sorcs using $cutoffs.$pset</i><br/>";
 
   ## determine if any metagenomes missing from results
@@ -2915,7 +2915,7 @@ sub phylogeny_visual {
     if (! exists $data_mgs{$mg} && ! $cgi->param('comparison_collections')) {
       push @missing_mgs, $mg;
     }
-  }  
+  }
 
   if (@missing_mgs > 0) {
     $missing_txt = "<br>";
@@ -3024,7 +3024,7 @@ sub phylogeny_visual {
       for (my $i=0; $i<scalar(@$cats); $i++) {
 	$chash->{$cats->[$i]} = $pd->[$i];
       }
-      
+
       my $cats_pos = {};
       my $cind = 0;
       foreach my $k (@$cats) {
@@ -3117,7 +3117,7 @@ sub phylogeny_visual {
     } else {
       my $header_names = { 3 => 'Phylum',
 			   4 => 'Class',
-			   5 => 'Order', 
+			   5 => 'Order',
 			   6 => 'Family',
 			   7 => 'Genus',
 			   8 => 'Species',
@@ -3135,7 +3135,7 @@ sub phylogeny_visual {
       return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('phylo_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$sorcs phylogenetic\", \"".$cgi->param('phylo_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
     }
   }
-  
+
   if ($cgi->param('vis_type') eq 'tree') {
     @comp_mgs = $cgi->param('comparison_metagenomes');
     my $pt = $self->application->component('tree1');
@@ -3188,7 +3188,7 @@ sub phylogeny_visual {
 	#  }
 	#}
 	push(@$expanded_data, [ @$row, $vals ] );
-      }    
+      }
     } else {
       foreach my $row (@$data) {
 	next if ($tree_domain_filter && $tree_domain_filter ne $row->[2]);
@@ -3233,7 +3233,7 @@ sub phylogeny_visual {
       print $cgi->end_html();
       exit;
     }
-    
+
     my $pt_out = $pt->output;
     $pt_out = "<table><tr><td>".$pt->legend."</td><td>".$pt_out."</td></tr></table>";
     if ($self->application->cgi->param('reroot') && $self->application->cgi->param('do_reroot')) {
@@ -3319,18 +3319,18 @@ sub phylogeny_visual {
 
     my $tcols = [ { name => 'metagenome', filter => 1, operator => 'combobox', sortable => 1, tooltip => 'id of metagenomic sample' },
 		  { name => 'source', filter => 1, operator => 'combobox', sortable => 1, tooltip => 'database source of the hits' },
-		  { name => 'domain', sortable => 1, filter => 1, operator => 'combobox' }, 
-		  { name => 'phylum', sortable => 1, filter => 1 }, 
+		  { name => 'domain', sortable => 1, filter => 1, operator => 'combobox' },
+		  { name => 'phylum', sortable => 1, filter => 1 },
 		  { name => 'class', sortable => 1, filter => 1 },
-		  { name => 'order', sortable => 1, filter => 1 }, 
+		  { name => 'order', sortable => 1, filter => 1 },
 		  { name => 'family', sortable => 1, filter => 1 },
 		  { name => 'genus', sortable => 1, filter => 1 },
 		  { name => 'species', sortable => 1, filter => 1 },
-		  { name => 'strain', sortable => 1, filter => 1 }, 
+		  { name => 'strain', sortable => 1, filter => 1 },
 		  { name => 'abundance', sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of sequence features with a hit' },
 		  { name => 'workbench abundance', sortable => 1, filter => 1, operators => ['less','more'], visible => ($cgi->param('use_buffer') ? 1 : 0), tooltip => 'number of sequence features with a hit<br>from workbench features' },
 		  { name => 'avg eValue', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average exponent of<br>the evalue of the hits' },
-		  { name => 'eValue std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of the evalue,<br>showing exponent only' }, 
+		  { name => 'eValue std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of the evalue,<br>showing exponent only' },
 		  { name => 'avg % ident', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average percent identity of the hits' },
 		  { name => '% ident std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the percent identity of the hits' },
 		  { name => 'avg align len', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average alignment length of the hits' },
@@ -3339,7 +3339,7 @@ sub phylogeny_visual {
 		  { name => '# hits', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of unique hits in protein or rna database' },
 		  { name => 'workbench # hits', sortable => 1, filter => 1, operators => ['less','more'], visible => ($cgi->param('use_buffer') ? 1 : 0), tooltip => 'number of unique hits in protein or rna database<br>from workbench features' },
 		  { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"21\", \"18\", \"0\", \"1\", \"10\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
-    
+
     #### do the pivoting
     unless (defined $cgi->param('group_by')) {
       $cgi->param('group_by', '2');
@@ -3397,7 +3397,7 @@ sub phylogeny_visual {
     }
 
     @$newdata = sort { $a->[2] cmp $b->[2] || $a->[3] cmp $b->[3] || $a->[4] cmp $b->[4] || $a->[5] cmp $b->[5] || $a->[6] cmp $b->[6] || $a->[7] cmp $b->[7] || $a->[8] cmp $b->[8] || $a->[9] cmp $b->[9] } @$newdata;
-    
+
     $t->columns($tcols);
     $t->data($newdata);
 
@@ -3494,7 +3494,7 @@ sub phylogeny_visual {
 	}
 	push(@$heatmap_data, $row);
       }
-      
+
       # write data to a tempfile
       my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       foreach my $row (@$heatmap_data) {
@@ -3502,7 +3502,7 @@ sub phylogeny_visual {
       }
       close $fh;
       chmod 0666, $infile;
-      
+
       # preprocess data
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
@@ -3513,7 +3513,7 @@ sub phylogeny_visual {
       my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
       `$R --vanilla --slave < $prefn`;
       unlink($prefn);
-      
+
       unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
 	unlink $infile;
 	$infile = $Conf::temp."/rdata.preprocessed.$time";
@@ -3534,7 +3534,7 @@ sub phylogeny_visual {
 	  my $sel = "";
 	  if ($l->[0] == $level) {
 	    $sel = " selected=selected";
-	  }	  
+	  }
 	  if (defined($dd_col) && ($l->[0] == $dd_col)) {
 	    $dd_sel = $l->[1];
 	  }
@@ -3568,7 +3568,7 @@ sub phylogeny_visual {
 	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
 	close $heath;
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-	`$R --vanilla --slave < $heatn`; 
+	`$R --vanilla --slave < $heatn`;
 	unlink($heatn);
 
 	open(COL, "<$col_f");
@@ -3591,7 +3591,7 @@ sub phylogeny_visual {
 	  $content .= "@";
 	  $content .= join "^", split /\s+/;
 	}
-	$content .= "'>";	
+	$content .= "'>";
 
 	close(COL);
 	unlink($col_f);
@@ -3614,10 +3614,10 @@ sub phylogeny_visual {
 	while (<ROW>){
 	  chomp;
 	  $content .= "@";
-	  $content .= join "^", split /\t/;	
+	  $content .= join "^", split /\t/;
 	}
 	$content .= "'>";
-	
+
 	close(ROW);
 	unlink($row_f);
 
@@ -3656,7 +3656,7 @@ sub phylogeny_visual {
 	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
 	close $pcah;
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-	`$R --vanilla --slave < $pcan`; 
+	`$R --vanilla --slave < $pcan`;
 	unlink($pcan);
 
 	$content .= "<div><div>Organism PCoA $tabnum</div><div>$settings<i>$psettings</i><br><br>";
@@ -3678,14 +3678,14 @@ sub phylogeny_visual {
 	  s/"//g; #"
 	  my @fields = split /\t/;
 	  if ($fields[0] =~ /^PCO\d+$/) {
-	    push @comp, join("^", @fields); 
+	    push @comp, join("^", @fields);
 	  } elsif ($fields[0] =~ /^ID([\dA]+)$/) {
-	    push @items, join("^", @fields); 
+	    push @items, join("^", @fields);
 	  }
 	}
 	close(D);
 
-	# metadata coloring	
+	# metadata coloring
 	my $mddb  = MGRAST::Metadata->new;
 	my $jobmd = $mddb->get_metadata_for_tables(\@comp_mgs, 1, 1);
 	my $mdata = {};
@@ -3811,7 +3811,7 @@ sub phylogeny_visual {
 		  {name => 'metagenome', filter => 1, sortable => 1, tooltip => 'id of metagenomic sample'},
 		  {name => 'alpha diversity', filter => 1, sortable => 1, operators => ['less','more'], tooltip => 'alpha diversity of metagenome'} ]);
     $t->data($alpha_data);
-    
+
 
     $content .= "<div><div>Rarefaction Plot $tabnum</div><div>".clear_progress_image()."$settings<br>";
     $content .= "<div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"rare_canvas_$tabnum\");document.getElementById(\"rare_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"rare_canvas_$tabnum\").style.display=\"none\";'></div>";
@@ -3828,7 +3828,7 @@ sub phylogeny_visual {
 sub metabolism_visual {
   my ($self) = @_;
 
-  my $content = "";  
+  my $content = "";
   my $cgi = $self->application->cgi;
   my ($md5_abund, $data) = $self->metabolic_data();
   my $tabnum = $cgi->param('tabnum') || 2;
@@ -3841,7 +3841,7 @@ sub metabolism_visual {
   unless (scalar(@$data)) {
     return "<div><div>no data</div><div>".clear_progress_image()."The visualizations you requested cannot be drawn, as no data met your selection criteria.</div></div>";
   }
-  
+
   my %buffer_md5s = $cgi->param('use_buffer') ? map {$_, 1} split(/;/, $cgi->param('use_buffer')) : ();
   my $settings_preserve = "<input type='hidden' name='metagenome' value='".$cgi->param('metagenome')."'><input type='hidden' name='evalue' value='".$cgi->param('evalue')."'>";
   my @comp_mgs = $cgi->param('comparison_metagenomes');
@@ -3900,7 +3900,7 @@ sub metabolism_visual {
   $settings_preserve .= "<input type='hidden' name='identity' value='" . ($cgi->param('identity') || '0') . "'>";
   $settings_preserve .= "<input type='hidden' name='alength' value='"  . ($cgi->param('alength') || '1')  . "'>";
   my $fid = $cgi->param('fid') || int(rand(1000000));
-  
+
   ## determine if any metagenomes missing from results
   my $missing_txt = "";
   my @missing_mgs = ();
@@ -3910,7 +3910,7 @@ sub metabolism_visual {
     if (! exists $data_mgs{$mg}) {
       push @missing_mgs, $mg;
     }
-  }  
+  }
 
   if (@missing_mgs > 0) {
     $missing_txt = "<br>";
@@ -4026,7 +4026,7 @@ sub metabolism_visual {
       for (my $i=0; $i<scalar(@$cats); $i++) {
 	$chash->{$cats->[$i]} = $pd->[$i];
       }
-      
+
       my $cats_pos = {};
       my $cind = 0;
       foreach my $k (@$cats) {
@@ -4134,7 +4134,7 @@ sub metabolism_visual {
 	  }
 	}
       }
-      
+
       return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('meta_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$sources[0] metabolic\", \"".$cgi->param('meta_bar_sel')."\", \"0\", \"$sources[0]\");'></h3></a>".$sup_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
     }
   }
@@ -4242,13 +4242,13 @@ sub metabolism_visual {
       print $cgi->end_html();
       exit;
     }
-    
+
     my $ptout = "<p>no data matched your query criteria</p>";
     if (scalar(@$expanded_data)) {
       $ptout = $pt->output();
       $ptout = "<table><tr><td>".$pt->legend."</td><td>".$ptout."</td></tr></table>";
     }
-    
+
     my $opts = [ [ 1, 'Level 1' ],
 		 [ 2, 'Level 2' ],
 		 [ 3, 'Level 3' ],
@@ -4422,16 +4422,16 @@ sub metabolism_visual {
       }
     }
 
-    @$newdata = sort { $a->[1] cmp $b->[1] || $a->[2] cmp $b->[2] || $a->[3] cmp $b->[3] || $a->[4] cmp $b->[4] } @$newdata;    
+    @$newdata = sort { $a->[1] cmp $b->[1] || $a->[2] cmp $b->[2] || $a->[3] cmp $b->[3] || $a->[4] cmp $b->[4] } @$newdata;
     $t->columns($columns);
     $t->data($newdata);
 
     my $krona_button = "<input type='button' value='krona graph' onclick='generate_krona_data(\"".$cgi->param('group_by')."\", \"".$t->id."\", \"func\");'>";
-    
+
     my $qiime_button = ($cgi->param('mg_grp_sel') && ($cgi->param('mg_grp_sel') eq 'groups')) ? 'Export for grouped data sets currently not available.<br> Please select <b>compare individually</b> in <b>(2) Data selection</b><br> above and recreate the table.' : "<button onclick='execute_ajax(\"qiime_export_visual\", \"qiime_div_$tabnum\", \"table_group_form_$tabnum\");show_progress();'>QIIME report</button>";
-    
+
     my $plugin_container = '<table style="border: 2px solid rgb(143, 188, 63); text-align: center; float: right; border-spacing: 0px;"><tbody><tr><td colspan="2" style="cursor: pointer; text-align: left;" title="click to show available plugins" onclick="if(this.parentNode.nextSibling.style.display==\'none\'){this.parentNode.nextSibling.style.display=\'\';this.parentNode.nextSibling.nextSibling.style.display=\'\';}else{this.parentNode.nextSibling.style.display=\'none\';this.parentNode.nextSibling.nextSibling.style.display=\'none\';}"><img src="./Html/plugin.png" style="width: 20px; vertical-align: middle;"> available plugins</td></tr><tr><td style="border-top: 1px solid rgb(143, 188, 63); border-right: 1px solid rgb(143, 188, 63); padding: 2px;"><img src="./Html/krona.png" style="height: 50px; cursor: pointer;" onclick="window.open(&quot;http://sourceforge.net/p/krona/home/krona/&quot;);"></td><td style="border-top: 1px solid rgb(143, 188, 63);"><img onclick="window.open(&quot;http://www.qiime.org&quot;);" style="height: 50px; cursor: pointer;" src="./Html/qiime.png"></td></tr><tr><td style="vertical-align: middle; border-right: 1px solid rgb(143, 188, 63); padding: 2px;">'.$krona_button.'</td><td style="vertical-align: middle;">'.$qiime_button.'</td></tr></tbody></table>';
-    
+
     my $qiime_div = "<div style='padding-left:15px; float: right;' id='qiime_div_$tabnum'></div>";
 
     my $pivot = "<form id='table_group_form_$tabnum'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='table'><input type='hidden' name='data_type' value='$source'><input type='hidden' name='ret_type' value='direct'>".$settings_preserve."<br><b>group table by</b> <select name='group_by'><option value='0'$l1>level 1</option><option value='1'$l2>level 2</option>$level3opt<option value='3'$l4>function</option></select><input type='button' value='change' onclick='execute_ajax(\"metabolism_visual\", \"tab_div_".($tabnum+1)."\", \"table_group_form_$tabnum\");'></form><br><br>";
@@ -4454,7 +4454,7 @@ sub metabolism_visual {
       if (exists $data_mgs{$mg}) {
 	push @comp_mgs, $mg;
       }
-    }    
+    }
 
     if (scalar(@comp_mgs) < 2) {
       return "<div><div>no data</div><div>".clear_progress_image().$missing_txt."Heatmap and PCoA analysis require at least two metagenomes with available data.</div></div>";
@@ -4465,7 +4465,7 @@ sub metabolism_visual {
       for (my $i=0; $i<scalar(@comp_mgs); $i++) {
 	$mg_ind->{$comp_mgs[$i]} = $i;
       }
-      
+
       my $level = $cgi->param('heatmap_level') || 1;
       foreach my $d (@$data) {
 	if (exists($hashed_data->{$d->[$level]})) {
@@ -4491,7 +4491,7 @@ sub metabolism_visual {
 	}
 	push(@$heatmap_data, $row);
       }
-      
+
       # write data to a tempfile
       my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       foreach my $row (@$heatmap_data) {
@@ -4499,8 +4499,8 @@ sub metabolism_visual {
       }
       close $fh;
       chmod 0666, $infile;
-      
-      
+
+
       # preprocess data
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
@@ -4509,7 +4509,7 @@ sub metabolism_visual {
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
       my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-      `$R --vanilla --slave < $prefn`;      
+      `$R --vanilla --slave < $prefn`;
       unlink($prefn);
 
       unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
@@ -4565,7 +4565,7 @@ sub metabolism_visual {
 	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
 	close $heath;
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-	`$R --vanilla --slave < $heatn`; 
+	`$R --vanilla --slave < $heatn`;
 	unlink($heatn);
 
 	open(COL, "<$col_f");
@@ -4588,7 +4588,7 @@ sub metabolism_visual {
 	  $content .= "@";
 	  $content .= join "^", split /\s+/;
 	}
-	$content .= "'>";	
+	$content .= "'>";
 
 	close(COL);
 	unlink($col_f);
@@ -4611,10 +4611,10 @@ sub metabolism_visual {
 	while (<ROW>){
 	  chomp;
 	  $content .= "@";
-	  $content .= join "^", split /\t/;	
+	  $content .= join "^", split /\t/;
 	}
 	$content .= "'>";
-	
+
 	close(ROW);
 	unlink($row_f);
 
@@ -4653,11 +4653,11 @@ sub metabolism_visual {
 	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
 	close $pcah;
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-	`$R --vanilla --slave < $pcan`; 
+	`$R --vanilla --slave < $pcan`;
 	unlink($pcan);
 
 	$content .= "<div><div>Functional PCoA $tabnum</div><div>$settings<i>$psettings</i><br><br>";
-	
+
 	my $selnorm  = (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) ? " selected=selected" : "";
 	my $distopts = "";
 	foreach my $d (@{$self->distance_methods}) {
@@ -4674,14 +4674,14 @@ sub metabolism_visual {
 	  s/"//g;
 	  my @fields = split /\t/;
 	  if ($fields[0] =~ /^PCO\d+$/) {
-	    push @comp, join("^", @fields); 
+	    push @comp, join("^", @fields);
 	  } elsif ($fields[0] =~ /^ID[\dA]+$/) {
-	    push @items, join("^", @fields); 
+	    push @items, join("^", @fields);
 	  }
 	}
 	close(D);
 
-	# metadata coloring	
+	# metadata coloring
 	my $mddb  = MGRAST::Metadata->new;
 	my $jobmd = $mddb->get_metadata_for_tables(\@comp_mgs, 1, 1);
 	my $mdata = {};
@@ -4754,7 +4754,7 @@ sub metabolism_visual {
 	$img_control .= "<input type='button' value='store grouping' onclick='store_grouping(\"$tabnum\", \"".join("^", @comp_mgs)."\");'>";
 
 	$img_control .= "<input type='hidden' id='pcamd_".$tabnum."' value='".join("~~", map { join(";;", map { defined($_) ? $_ : 'unknown' } @$_) } @$mgmd)."'></td></tr></table>";
-	
+
 	$img_control .= "</td></tr></table>";
 
 	my @comp_b = @comp;
@@ -4772,7 +4772,7 @@ sub metabolism_visual {
       }
     }
   }
-  
+
   return $content;
 }
 
@@ -4853,7 +4853,7 @@ sub annotation_visual {
   $settings_preserve .= "<input type='hidden' name='identity' value='" . ($cgi->param('identity') || '0') . "'>";
   $settings_preserve .= "<input type='hidden' name='alength' value='"  . ($cgi->param('alength') || '1')  . "'>";
   my $fid = $cgi->param('fid') || int(rand(1000000));
-    
+
   my $settings = "<i>This data was calculated for $mgs. The data was compared to $sorcs using $cutoffs.$pset</i><br/>";
 
   ## determine if any metagenomes missing from results
@@ -4866,7 +4866,7 @@ sub annotation_visual {
       push @missing_mgs, $mg;
     }
   }
-  
+
   if (@missing_mgs > 0) {
     $missing_txt = "<br>";
     foreach my $mg (@missing_mgs) {
@@ -4930,7 +4930,7 @@ sub annotation_visual {
 		    { name => '# hits', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of unique hits in protein or rna database' },
 		    { name => 'workbench # hits', sortable => 1, filter => 1, operators => ['less','more'], visible => ($cgi->param('use_buffer') ? 1 : 0), tooltip => 'number of unique hits in protein or rna database<br>from workbench features' },
 		    { name => "<input type='button' onclick='buffer_data(\"table\", \"".$t->id."\", \"14\", \"11\", \"0\", \"1\", \"3\");' value='to workbench'>", input_type => 'checkbox', tooltip => 'check to select features<br>to add to workbench' } ];
-    
+
     $t->columns($columns);
     $t->data($data);
     $content .= "<div><div>Annotation table $tabnum</div><div>".clear_progress_image().$settings.$t->output."</div></div>";
@@ -5018,7 +5018,7 @@ sub lca_visual {
     if (! exists $data_mgs{$mg}) {
       push @missing_mgs, $mg;
     }
-  } 
+  }
 
   my $sorcs = "lca";
 
@@ -5041,7 +5041,7 @@ sub lca_visual {
     $missing_txt .= " no lca data for the above selected sources and cutoffs. They are being excluded from the analysis.<br>";
   }
   $settings .= $missing_txt;
-  
+
   if ($cgi->param('vis_type') eq 'vbar') {
     my $vbardata = [];
     if ($cgi->param('lca_bar_sel') && $cgi->param('lca_bar_col')) {
@@ -5131,7 +5131,7 @@ sub lca_visual {
       for (my $i=0; $i<scalar(@$cats); $i++) {
 	$chash->{$cats->[$i]} = $pd->[$i];
       }
-      
+
       my $cats_pos = {};
       my $cind = 0;
       foreach my $k (@$cats) {
@@ -5224,7 +5224,7 @@ sub lca_visual {
     } else {
       my $header_names = { 3 => 'Phylum',
 			   4 => 'Class',
-			   5 => 'Order', 
+			   5 => 'Order',
 			   6 => 'Family',
 			   7 => 'Genus',
 			   8 => 'Species',
@@ -5242,7 +5242,7 @@ sub lca_visual {
       return clear_progress_image()."<h3 style='margin-top: 0px;'>".$header_names->{$level}." Distribution (".$cgi->param('lca_bar_sel').") <input type='button' value='download' title='click to download tabular data' onclick='myWindow=window.open(\"\",\"\",\"width=600,height=500\");myWindow.document.write(\"<pre>$download_data_string</pre>\");myWindow.focus();'> <input type='button' value='to workbench' onclick='buffer_data(\"barchart\", \"$level$fid\", \"$sorcs phylogenetic\", \"".$cgi->param('lca_bar_sel')."\", \"0\", \"".join(";",$cgi->param('source'))."\");'></h3></a>".$dom_v->output."<br><input type='hidden' id='$level$fid\_md5s' value='".join(";", keys(%$md5s))."'><input type='hidden' id='$level$fid\_mgids' value='".join(";", @comp_mgs)."'><div id='".(int($level)+1)."_$fid'></div>";
     }
   }
-  
+
   if ($cgi->param('vis_type') eq 'tree') {
     @comp_mgs = $cgi->param('comparison_metagenomes');
     my $pt = $self->application->component('tree1');
@@ -5383,7 +5383,7 @@ sub lca_visual {
       $tabnum++;
     }
   }
-  
+
   if ($cgi->param('vis_type') eq 'table') {
     my $t = $self->application->component('t1');
     ## nasty id manipulation to allow for multiple tables
@@ -5402,22 +5402,22 @@ sub lca_visual {
     $t->show_export_button({ title => 'download this table', strip_html => 1, hide_invisible_columns => 1});
 
     my $tcols = [ { name => 'metagenome', filter => 1, operator => 'combobox', sortable => 1, tooltip => 'id of metagenomic sample' },
-		  { name => 'domain', sortable => 1, filter => 1, operator => 'combobox' }, 
-		  { name => 'phylum', sortable => 1, filter => 1 }, 
+		  { name => 'domain', sortable => 1, filter => 1, operator => 'combobox' },
+		  { name => 'phylum', sortable => 1, filter => 1 },
 		  { name => 'class', sortable => 1, filter => 1 },
-		  { name => 'order', sortable => 1, filter => 1 }, 
+		  { name => 'order', sortable => 1, filter => 1 },
 		  { name => 'family', sortable => 1, filter => 1 },
 		  { name => 'genus', sortable => 1, filter => 1 },
 		  { name => 'species', sortable => 1, filter => 1 },
-		  { name => 'strain', sortable => 1, filter => 1 }, 
+		  { name => 'strain', sortable => 1, filter => 1 },
 		  { name => 'abundance', sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of sequence features with a hit' },
 		  { name => 'avg eValue', visible => 1, sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'average exponent of<br>the evalue of the hits' },
-		  { name => 'eValue std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of the evalue,<br>showing exponent only' }, 
+		  { name => 'eValue std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of the evalue,<br>showing exponent only' },
 		  { name => 'avg % ident', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average percent identity of the hits' },
 		  { name => '% ident std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the percent identity of the hits' },
 		  { name => 'avg align len', sortable => 1, visible => 1, filter => 1, operators => ['less','more'], tooltip => 'average alignment length of the hits' },
 		  { name => 'align len std dev', visible => 0, sortable => 1, tooltip => 'standard deviation of<br>the alignment length of the hits' } ];
-    
+
     #### do the pivoting
     unless (defined $cgi->param('group_by')) {
       $cgi->param('group_by', '2');
@@ -5456,7 +5456,7 @@ sub lca_visual {
     }
 
     @$newdata = sort { $a->[2] cmp $b->[2] || $a->[3] cmp $b->[3] || $a->[4] cmp $b->[4] || $a->[5] cmp $b->[5] || $a->[6] cmp $b->[6] || $a->[7] cmp $b->[7] || $a->[8] cmp $b->[8] || $a->[9] cmp $b->[9] } @$newdata;
-    
+
     $t->columns($tcols);
     $t->data($newdata);
 
@@ -5476,7 +5476,7 @@ sub lca_visual {
     } elsif ($cgi->param('group_by') eq '6') {
       $cs = " selected='selected'";
     }
-    
+
     my $pivot = "<form id='table_group_form_$tabnum'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='table'><input type='hidden' name='ret_type' value='direct'>".$settings_preserve."<br><b>group table by</b> <select name='group_by'><option value='0'$cd>domain</option><option value='1'$cp>phylum</option><option value='2'$cc>class</option><option value='3'$co>order</option><option value='4'$cf>family</option><option value='5'$cg>genus</option><option value='6'$cs>species</option></select><input type='button' value='change' onclick='execute_ajax(\"lca_visual\", \"tab_div_".($tabnum+1)."\", \"table_group_form_$tabnum\");'></form><br><br>";
 
     if ($cgi->param('ret_type') && $cgi->param('ret_type') eq 'direct') {
@@ -5486,18 +5486,18 @@ sub lca_visual {
     $content .= "<div><div>LCA table $tabnum</div><div>".clear_progress_image()."$settings$pivot<br>".$t->output."</div></div>";
     $tabnum++;
   }
-  
+
   if ($cgi->param('vis_type') eq 'heatmap' || $cgi->param('vis_type') eq 'pca') {
     # format the data for .r analysis
     # data = [ mgid, source, tax_domain, tax_phylum, tax_class, tax_order, tax_family, tax_genus, tax_species, name, abundance, sub_abundance, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, md5s ]
-    
+
     @comp_mgs = ();
     foreach my $mg ( $cgi->param('comparison_metagenomes') ) {
       if (exists $data_mgs{$mg}) {
 	push @comp_mgs, $mg;
       }
     }
-    
+
     if (scalar(@comp_mgs) < 2) {
       return "<div><div>no data</div><div>".clear_progress_image().$missing_txt."Heatmap and PCoA analysis require at least two metagenomes with available data.</div></div>";
     } else {
@@ -5544,7 +5544,7 @@ sub lca_visual {
 	}
 	push(@$heatmap_data, $row);
       }
-      
+
       # write data to a tempfile
       my ($fh, $infile) = tempfile( "rdataXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
       foreach my $row (@$heatmap_data) {
@@ -5552,7 +5552,7 @@ sub lca_visual {
       }
       close $fh;
       chmod 0666, $infile;
-      
+
       # preprocess data
       my $time = time;
       my $boxfile = "rdata.boxplot.$time.png";
@@ -5560,16 +5560,16 @@ sub lca_visual {
       print $prefh "source(\"".$Conf::bin."/norm_deseq.r\")\n";
       print $prefh "MGRAST_preprocessing(file_in = \"".$infile."\", file_out = \"".$Conf::temp."/rdata.preprocessed.$time\", image_out =\"".$Conf::temp."/$boxfile\", produce_fig = \"TRUE\")\n";
       close $prefh;
-      
+
       my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
       `$R --vanilla --slave < $prefn`;
       unlink($prefn);
-      
+
       unless (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) {
 	unlink $infile;
 	$infile = $Conf::temp."/rdata.preprocessed.$time";
       }
-      
+
       if ($cgi->param('vis_type') eq 'heatmap') {
 	my $level_names = [ [ 1, 'domain' ],
 			    [ 2, 'phylum' ],
@@ -5585,7 +5585,7 @@ sub lca_visual {
 	  my $sel = "";
 	  if ($l->[0] == $level) {
 	    $sel = " selected=selected";
-	  }	  
+	  }
 	  if (defined($dd_col) && ($l->[0] == $dd_col)) {
 	    $dd_sel = $l->[1];
 	  }
@@ -5596,7 +5596,7 @@ sub lca_visual {
 	  $content .= "<div><div>LCA Heatmap $tabnum</div><div>".clear_progress_image();
 	}
 	$content .= "<form id='heat_drilldown$fid' onkeypress='return event.keyCode!=13'>$settings<br>The heatmap was clustered using ".($cgi->param('heatmap_clust_method') || 'ward')." with ".($cgi->param('heatmap_dist_method') || 'bray-curtis')." distance metric.<br>group heatmap by $hm_level_select <input type='hidden' name='vis_type' value='heatmap'><input type='hidden' id='tabnum2$fid' name='tabnum' value='".($tabnum+1)."'><br>";
-	
+
 	my $selnorm = "";
 	if ($cgi->param('raw')) {
 	  $selnorm = " selected=selected";
@@ -5612,74 +5612,74 @@ sub lca_visual {
 	  $clustopts .= "<option value='$d'$sel>$d</option>";
 	}
 	$content .= "$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values, <select name='heatmap_clust_method'>$clustopts</select> clustering and <select name='heatmap_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"lca_visual\", \"tab_div_".($tabnum+1)."\", \"heat_drilldown$fid\");'></div></form>";
-	
+
 	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"heatmap_canvas_$tabnum\");document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"heatmap_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"heatmap_canvas_$tabnum\").style.display=\"\";'></div>";
-	
+
 	my ($col_f, $row_f) = ($Conf::temp."/rdata.col.$time", $Conf::temp."/rdata.row.$time");
-	
+
 	my ($heath, $heatn) =  tempfile( "rheatXXXXXXX", DIR => $Conf::temp, SUFFIX => '.txt');
 	print $heath "source(\"".$Conf::bin."/dendrogram.r\")\n";
 	print $heath "MGRAST_dendrograms(file_in = \"".$infile."\", file_out_column = \"".$col_f."\", file_out_row = \"".$row_f."\", dist_method = \"".($cgi->param('heatmap_dist_method') || 'bray-curtis')."\", clust_method = \"".($cgi->param('heatmap_clust_method') || 'ward')."\", produce_figures = \"FALSE\")\n";
 	close $heath;
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-	`$R --vanilla --slave < $heatn`; 
+	`$R --vanilla --slave < $heatn`;
 	unlink($heatn);
-	
+
 	open(COL, "<$col_f");
 	my $tmp = <COL>;
 	chomp $tmp;
 	$content .= "<input id='columns_$tabnum' type='hidden' value='";
 	$content .= join "^", split /,\s*/, $tmp;
 	$content .= "'>";
-	
+
 	$tmp = <COL>;
 	chomp $tmp;
 	$content .= "<input id='column_names_$tabnum' type='hidden' value='";
 	$tmp =~ s/'/@!/g;
 	$content .= join "^", split /,/, $tmp;
 	$content .= "'>";
-	
+
 	$content .= "<input id='column_den_$tabnum' type='hidden' value='";
 	while (<COL>){
 	  chomp;
 	  $content .= "@";
 	  $content .= join "^", split /\s+/;
 	}
-	$content .= "'>";	
-	
+	$content .= "'>";
+
 	close(COL);
 	unlink($col_f);
-	
+
 	open(ROW, "<$row_f");
 	$tmp = <ROW>;
 	chomp $tmp;
 	$content .= "<input id='rows_$tabnum' type='hidden' value='";
 	$content .= join "^", split /,\s*/, $tmp;
 	$content .= "'>";
-	
+
 	$tmp = <ROW>;
 	chomp $tmp;
 	$content .= "<input id='row_names_$tabnum' type='hidden' value='";
 	$tmp =~ s/'/@!/g;
 	$content .= join "^", split /,/, $tmp;
 	$content .= "'>";
-	
+
 	$content .= "<input id='row_den_$tabnum' type='hidden' value='";
 	while (<ROW>){
 	  chomp;
 	  $content .= "@";
-	  $content .= join "^", split /\t/;	
+	  $content .= join "^", split /\t/;
 	}
 	$content .= "'>";
-	
+
 	close(ROW);
 	unlink($row_f);
-	
+
 	open(D, "<$infile");
 	my @values = 0;
 	my $cdata = "category\t".join("\t", @comp_mgs)."\n";
 	my $junk = <D>;
-	
+
 	$content .= "<input id='table_$tabnum' type='hidden' value='";
 	while(<D>){
 	  $cdata .= $_;
@@ -5693,9 +5693,9 @@ sub lca_visual {
 	$content .= "'>";
 	close(D);
 	unlink $infile;
-	
+
 	$content .= "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='$cdata'><input type='submit' value='download values used to generate this figure'></form>";
-	
+
 	my $max_val = max @values;
 	$max_val  = ($max_val < 1) ? 1 : $max_val;
 	$content .= $self->heatmap_scale($max_val)."<div id='heatmap_canvas_$tabnum'></div>".&inlineImage($Conf::temp."/$boxfile", "width=600");
@@ -5713,13 +5713,13 @@ sub lca_visual {
 	print $pcah "MGRAST_plot_pco(file_in = \"".$infile."\", file_out = \"".$pca_data."\", dist_method = \"".($cgi->param('pca_dist_method') || 'bray-curtis')."\", headers = 1)\n";
 	close $pcah;
 	my $R = ($Conf::r_executable) ? $Conf::r_executable : "R";
-	`$R --vanilla --slave < $pcan`; 
+	`$R --vanilla --slave < $pcan`;
 	unlink($pcan);
 	if (! defined($cgi->param('raw'))) {
 	  $content .= "<div><div>LCA PCoA $tabnum</div><div>";
 	}
 	$content .= "$settings<i>$psettings</i><br><br>";
-	
+
 	my $selnorm  = (defined($cgi->param('raw')) && ($cgi->param('raw') == '1')) ? " selected=selected" : "";
 	my $distopts = "";
 	foreach my $d (@{$self->distance_methods}) {
@@ -5728,23 +5728,23 @@ sub lca_visual {
 	}
 	$content .= "<form id='lca_redraw$fid' onkeypress='return event.keyCode!=13'><input type='hidden' name='tabnum' value='".($tabnum+1)."'><input type='hidden' name='vis_type' value='pca'>$settings_preserve<div>redraw using <select name='raw'><option value='0'>normalized</option><option value='1'$selnorm>raw</option></select> values and <select name='pca_dist_method'>$distopts</select> distance <input type='button' value='draw' onclick='execute_ajax(\"lca_visual\", \"tab_div_".($tabnum+1)."\", \"lca_redraw$fid\");'></div></form>";
 	$content .= "<br><div id='static$tabnum'>The image is currently dynamic. To be able to right-click/save the image, please click the static button <input type='button' value='static' onclick='document.getElementById(\"static$tabnum\").style.display=\"none\";document.getElementById(\"dynamic$tabnum\").style.display=\"\";save_image(\"pca_canvas_$tabnum\");document.getElementById(\"pca_canvas_".$tabnum."canvas\").style.display=\"\";document.getElementById(\"pca_canvas_$tabnum\").style.display=\"none\";'></div><div style='display: none;' id='dynamic$tabnum'>The image is currently static. You can right-click/save it. To be able to modify the image, please click the dynamic button <input type='button' value='dynamic' onclick='document.getElementById(\"static$tabnum\").style.display=\"\";document.getElementById(\"dynamic$tabnum\").style.display=\"none\";document.getElementById(\"pca_canvas_".$tabnum."canvas\").style.display=\"none\";document.getElementById(\"pca_canvas_$tabnum\").style.display=\"\";'></div>";
-	
+
 	my (@comp, @items);
-	
+
 	open(D, "<$pca_data");
 	while(<D>){
 	  chomp;
 	  s/"//g; #"
 	  my @fields = split /\t/;
 	  if ($fields[0] =~ /^PCO\d+$/) {
-	    push @comp, join("^", @fields); 
+	    push @comp, join("^", @fields);
 	  } elsif ($fields[0] =~ /^ID([\dA]+)$/) {
-	    push @items, join("^", @fields); 
+	    push @items, join("^", @fields);
 	  }
 	}
 	close(D);
-	
-	# metadata coloring	
+
+	# metadata coloring
 	my $mddb  = MGRAST::Metadata->new;
 	my $jobmd = $mddb->get_metadata_for_tables(\@comp_mgs, 1, 1);
 	my $mdata = {};
@@ -5774,7 +5774,7 @@ sub lca_visual {
 	  $md_type_select .= "<option value='$md_name'>$md_name</option>";
 	}
 	$md_type_select .= "</select><input type='button' value='apply' onclick='color_by_metadata(\"$tabnum\");'>";
-	
+
 	my $comp_control = "<br><br><br><br><table><tr><th>component</th><th>r^2</th><th>x-axis</th><th>y-axis</th></tr>";
 	my $i = 0;
 	foreach my $row (@comp) {
@@ -5792,7 +5792,7 @@ sub lca_visual {
 	  $i++;
 	}
 	$comp_control .= "</table>";
-	
+
 	my $group_control = "<div id='grpctrl$tabnum' style='display: none;'><br><br><br><div id='feedback$tabnum'></div><table><tr><th>group</th><th>name</th><th style='width: 56px;'>save as collection</th></tr>";
 	$group_control .= "<tr><td>group 1</td><td><input type='text' id='group1_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"1\");'></td></tr>";
 	$group_control .= "<tr><td>group 2</td><td><input type='text' id='group2_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"2\");'></td></tr>";
@@ -5805,7 +5805,7 @@ sub lca_visual {
 	$group_control .= "<tr><td>group 9</td><td><input type='text' id='group9_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"9\");'></td></tr>";
 	$group_control .= "<tr><td>group 10</td><td><input type='text' id='group10_collection_name' style='width: 140px;'></td><td><input type='button' value='save' onclick='save_group_to_collection(\"$tabnum\", \"10\");'></td></tr>";
 	$group_control .= "</table></div>";
-	
+
 	my $img_control = "<table><tr><td><div style='cursor: pointer; background-color: #8FBC3F; color: white; font-weight: bold; height: 16px; width: 250px; text-align: center; padding-top: 4px;' onclick='if(document.getElementById(\"imgctrl$tabnum\").style.display==\"none\"){document.getElementById(\"imgctrl$tabnum\").style.display=\"\";document.getElementById(\"grpctrl$tabnum\").style.display=\"\";}else{document.getElementById(\"imgctrl$tabnum\").style.display=\"none\";document.getElementById(\"grpctrl$tabnum\").style.display=\"none\";}' title='click to expand'>PCoA grouping control</div></td></tr><tr><td id='imgctrl$tabnum' style='display: none;'>";
 	$img_control .= "<table><tr><td><div style='width: 280px;'><b>create a grouping</b><br>You can create a grouping of your metagenomes to calculate p-values in the barchart visualization. Select a group and click the metagenome circle in the graphic. You can also drag open a square to select multiple metagenomes at a time.</div><br><br>mark clicked as <select id='group_color$tabnum'><option value='red' selected=selected>group 1</option><option value='green'>group 2</option><option value='cyan'>group 3</option><option value='purple'>group 4</option><option value='yellow'>group 5</option><option value='blue'>group 6</option><option value='orange'>group 7</option><option value='gray'>group 8</option><option value='black'>group 9</option><option value='magenta'>group 10</option></select><br><br>or select groups in the table to the right.</td><td>";
 	$img_control .= "<table><tr><th>Metagenome</th><th>group</th><th>$md_type_select</th></tr>";
@@ -5815,17 +5815,17 @@ sub lca_visual {
 	}
 	$img_control .= "</table>";
 	$img_control .= "<input type='button' value='store grouping' onclick='store_grouping(\"$tabnum\", \"".join("^", @comp_mgs)."\");'>";
-	
+
 	$img_control .= "<input type='hidden' id='pcamd_".$tabnum."' value='".join("~~", map { join(";;", map { defined($_) ? $_ : 'unknown' } @$_) } @$mgmd)."'></td></tr></table>";
-	
+
 	$img_control .= "</td></tr></table>";
-	
+
 	my @comp_b = @comp;
 	my @items_b = @items;
 	my $cmg_hash = {};
 	%$cmg_hash = map { my $x = $_; $x =~ s/\./A/; "ID".$x => $_; } @comp_mgs;
 	my $data_download_button = "<form method=post action='download.cgi'><input type='hidden' name='filename' value='data.csv'><input type='hidden' name='content' value='PCA Component impact\n".join("\n", map { $_ =~ s/\^/\t/g; $_; } @comp_b)."\n\nData Items\nMetagenome\t".join("\t", map { $_ =~ s/(.*)\t.*/$1/; $_; } @comp_b)."\n".join("\n", map { $_ =~ s/\^/\t/g; my ($x) = $_ =~ /^([^\t]+)/; $x = $cmg_hash->{$x}; $_ =~ s/^[^\t]+(.*)/$x$1/; $_; } @items_b)."'><input type='submit' value='download values used to generate this figure'></form>";
-	
+
 	$content .= "<input id='pca_components_$tabnum' type='hidden' value='".join("@",@comp)."'>";
 	$content .= "<input id='pca_items_$tabnum' type='hidden' value='".join("@",@items)."'>";
 	$content .= $img_control;
@@ -5838,13 +5838,13 @@ sub lca_visual {
       }
     }
   }
-  
+
   return $content;
 }
 
 # sub recruitment_plot_visual {
 #   my ($self) = @_;
-# 
+#
 #   my $cgi   = $self->application->cgi;
 #   my $orgid = $cgi->param('ref_genome');
 #   my $mgid  = $cgi->param('metagenome');
@@ -5853,26 +5853,26 @@ sub lca_visual {
 #   my $tabnum  = $cgi->param('tabnum') || 2;
 #   my $content = "";
 #   $tabnum--;
-# 
+#
 #   unless ($mgid) {
 #     return "<div><div>Error</div><div>".clear_progress_image()."<p>No metagenome selected.</p></div></div>";
 #   }
 #   unless ($orgid) {
 #     return "<div><div>No Data</div><div>".clear_progress_image()."<p>No refrence organisms available for the selected metagenome(s).</p></div></div>";
 #   }
-# 
+#
 #   $self->{mgdb}->set_jobs([$mgid]);
 #   my $name_map = $self->{mgdb}->decode_annotation('organism', [$orgid]);
 #   my $name = $name_map->{$orgid} ? $name_map->{$orgid} : '';
-# 
+#
 #   if ($cgi->param('vis_type') eq 'circle') {
 #     my ($file, $evals, $stats) = @{ $self->recruitment_plot_graph($name, $map) };
 #     if (@$evals == 0) { return "<div><div>Error</div><div><p>$file</p></div></div>"; }
-# 
+#
 #     my $eval_hist = $self->evalue_histogram($evals);
 #     my $allctg    = $self->{mgdb}->ach->org2contignum($orgid);
 #     my $plotctg   = $self->{mgdb}->ach->org2contignum($orgid, $self->data('min_ctg_len'));
-# 
+#
 #     $content .= qq~<div><div>Recruitment Plot Map $tabnum</div><div>~.clear_progress_image().qq~<p><span style='font-size: 1.2em'><b>Hits for $mgid mapped on $name</b></span></p><p></p><table><tr><th>Hits Distribution by e-Value Exponent Range</th><th>Summary of Mapped Hits</th></tr><tr><td><img src="$eval_hist"/></td><td><table><tr><td>Features Mapped</td><td>$stats->[0]</td></tr><tr><td>Features Covered</td><td>$stats->[1]</td></tr><tr><td>Total Features</td><td>$stats->[2]</td></tr><tr><td>Contigs Shown</td><td>$plotctg</td></tr><tr><td>Total Contigs</td><td>$allctg</td></tr></table></td></tr></table><div><p>~.&inlineImage("$Conf::temp/$file.png", 'width=960 onmouseover="TJPzoom(this);"').qq~</p></div></div></div>~;
 #     $tabnum++;
 #   }
@@ -5880,15 +5880,15 @@ sub lca_visual {
 #     my $newid = int(rand(100000));
 #     my ($data, $num_md5s) = $self->recruitment_plot_data($name, $mgid, $newid);
 #     # id, low, high, strand, ctg, clen, exp_avg, exp_stdv, ident_avg, ident_stdv, len_avg, len_stdv, abundance, md5
-# 
+#
 #     my $jname = '';
 #     my $job  = $self->app->data_handle('MGRAST')->Job->init({ metagenome_id => $mgid });
 #     if (ref($job)) {
 #       $jname = $job->name()." ($mgid)";
 #     }
-# 
+#
 #     my $settings = "<p>Contig information for $num_md5s unique sequences within metagenome <a target=_blank href='metagenomics.cgi?page=MetagenomeOverview&metagenome=$mgid' title='$jname'>$mgid</a> for organism $name" . (($eval ne 'None') ? " with a maximum e-value of $eval" : "") . "</p>";
-# 
+#
 #     my $t = $self->application->component('t1');
 #     ## nasty id manipulation to allow for multiple tables
 #     $self->application->component('TableHoverComponent'.$t->id)->id($newid);
@@ -5903,7 +5903,7 @@ sub lca_visual {
 #     $t->items_per_page(15);
 #     $t->show_column_select(1);
 #     $t->show_export_button({ title => 'download this table', strip_html => 1, hide_invisible_columns => 1});
-# 
+#
 #     my $columns = [ { name => $self->data('rplot_source').' id', sortable => 1, filter => 1, tooltip => 'database source ID of the hit' },
 #           { name => 'function',          sortable => 1, filter => 1, tooltip => 'functional annotation of sequence' },
 #           { name => '# reads hit',       sortable => 1, filter => 1, operators => ['less','more'], tooltip => 'number of sequence features with a hit' },
@@ -5920,19 +5920,19 @@ sub lca_visual {
 #           { name => 'align len std dev', sortable => 1, visible => 0, tooltip => 'standard deviation of<br>the alignment length of the hits' },
 #           { name => 'md5',               visible => 0,                tooltip => 'md5 checksum of hit sequence'  }
 #          ];
-#     
+#
 #     $t->columns($columns);
 #     $t->data($data);
 #     $content .= qq~<div><div>Recruitment Plot Table $tabnum</div><div>~.clear_progress_image().$settings.$t->output.qq~<div id='read_div$newid'></div></div></div>~;
 #     $tabnum++;
 #   }
-# 
+#
 #   return $content;
 # }
 
 sub qiime_export_visual {
   my ($self) = @_;
- 
+
   my $content = "";
   my $type  = $self->application->cgi->param('data_type') || 'organism';
   my @mgs   = $self->application->cgi->param('comparison_metagenomes');
@@ -5972,7 +5972,7 @@ sub qiime_export_visual {
     }
   }
   $content = clear_progress_image()."<table><tr><td><b>click to download: </b></td><td><a href='metagenomics.cgi?page=Analysis&action=download&file=$fn&filename=QIIME.$type.data.biom'>QIIME data file</a></td></tr><tr><td></td><td><a href='metagenomics.cgi?page=Analysis&action=download&file=md$fn&filename=QIIME.$type.metadata.tsv'>QIIME metadata file</a></td></tr></table>";
-  
+
   return $content;
 }
 
@@ -5998,7 +5998,7 @@ sub data_to_vbar {
   $self->application->{component_index}->{'VerticalBarChartHover'.$newid} = $self->application->component('VerticalBarChartHover'.$v->id);
   $v->id($newid);
   ##
-  
+
   my @mgs = $self->application->cgi->param('comparison_metagenomes');
   my @sources = $self->application->cgi->param('source') || ( 'lca' );
 
@@ -6025,7 +6025,7 @@ sub data_to_vbar {
     unless (exists $counts->{$row->[0]}) {
       foreach my $cat (keys %cats) {
 	foreach my $src (keys %srcs) {
-	  $counts->{$row->[0]}{$cat}{$src} = {raw => 0, log2 => 0, norm => 0, scale => 0, md5s => {}};	  
+	  $counts->{$row->[0]}{$cat}{$src} = {raw => 0, log2 => 0, norm => 0, scale => 0, md5s => {}};
 	}
       }
     }
@@ -6057,7 +6057,7 @@ sub data_to_vbar {
       $srcs{$src}{stat} = new Statistics::Descriptive::Full;
       $srcs{$src}{stat}->add_data( @{$srcs{$src}{log2}} );
     }
-    
+
     # normalize data
     foreach my $mg (keys %$counts) {
       foreach my $cat (keys %{$counts->{$mg}}) {
@@ -6067,7 +6067,7 @@ sub data_to_vbar {
 	}
       }
     }
-    
+
     # scale data
     foreach my $src (keys %srcs) {
       $srcs{$src}{min}   = min @{ $srcs{$src}{norm} };
@@ -6112,7 +6112,7 @@ sub data_to_vbar {
     }
   }
 
-  # keep top topx or 10 only 
+  # keep top topx or 10 only
   $topx = $topx ? $topx : 10;
   my @topcat = sort { $catnum{$b} <=> $catnum{$a} } keys %catnum;
   if (scalar(@topcat) > $topx) { splice @topcat, $topx; }
@@ -6159,7 +6159,7 @@ sub data_to_vbar {
     push @$stdev, $r2;
     $i++;
   }
-  
+
   # create a vertical barchart
   if ($snum == 1) { $v->error_bars($stdev); }
   $v->data($vdata);
@@ -6275,11 +6275,11 @@ sub evalue_histogram {
 
   my @counts_sorted = sort {$b <=> $a} map { $_->[1] } @$evals;
   my $scale = $counts_sorted[0] / ($width - $key_size - 20);
-  
+
   for (my $i=(@$evals-1); $i>=0; $i--) {
     $x2 = $hx2 + int($evals->[$i][1] / $scale);
     $evalue_hist->filledRectangle($hx2+2, $hy1, $x2, $hy2, $colors->{$evals->[$i][2]});
- 
+
     $evalue_hist->filledRectangle($hx1, $hy1, $hx2, $hy2, $colors->{$evals->[$i][2]});
     $evalue_hist->string(gdSmallFont, ($hx1 + 3), ($hy1 +2), $evalue_range->{$evals->[$i][0]}, $colors->{black});
 
@@ -6305,7 +6305,7 @@ sub get_img_map {
     chomp $line;
     if ($line =~ /href='(\S+?)'/) {
       my $add = qq(onmouseover='hover(event, "circos_tt_$i", "$tt_id");');
-      $tooltip->add_tooltip("circos_tt_$i", $1);      
+      $tooltip->add_tooltip("circos_tt_$i", $1);
       $line =~ s/href='\S+?'/$add/;
       $line =~ s/title='\S+?'//;
       $i++;
@@ -6397,8 +6397,8 @@ if (isNaN(identNum) || (identNum < 0) || (identNum > 100)) {
   return $html;
 }
 
-sub alength_select { 	 
-  my ($self) = @_; 	 
+sub alength_select {
+  my ($self) = @_;
 
   my $alen = $self->application->cgi->param('alength') || $self->data('default_alen');
   my $html = qq(<input type='text' name='alength' value='$alen' size='5' /><span>&nbsp;</span><input type='button' onclick='
@@ -6464,7 +6464,7 @@ sub ref_genome_select {
 
   my $filter_select     = $self->application->component('fs1');
   my ($values, $labels) = $self->selectable_genomes($mgid, $source);
-  
+
   $filter_select->values($values);
   $filter_select->labels($labels);
   $filter_select->name('ref_genome');
@@ -6485,7 +6485,7 @@ sub selectable_genomes {
 
   my $values = [];
   my $labels = [];
-  
+
   if ($mgid) {
     $self->{mgdb}->set_jobs([$mgid]);
     my $available_orgs = $self->{mgdb}->get_organisms_with_contig_for_source($source, $self->data('max_ctg_num'), $self->data('min_ctg_len'));
@@ -6532,7 +6532,7 @@ sub metagenome_select {
 
   my $application = $self->application;
   my $cgi = $application->cgi;
-  
+
   my $metagenome = $cgi->param('metagenome');
   my $list_select = $application->component('ls');
   my ($data, $groups, $types) = $self->selectable_metagenomes();
@@ -6561,7 +6561,7 @@ sub metagenome_select {
 
 sub group_select {
   my ($self) = @_;
-  
+
   my $user = $self->application->session->user;
   my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "analysis_groups_".($user ? $user->_id : "anonymous");
@@ -6590,7 +6590,7 @@ sub group_select {
 
     $alldata = [$pdata];
     $group_names = ['projects'];
-    
+
     if ($user) {
       my $data = [];
       my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
@@ -6636,13 +6636,13 @@ sub selectable_metagenomes {
   my $memd = new Cache::Memcached {'servers' => $Conf::web_memcache, 'debug' => 0, 'compress_threshold' => 10_000, };
   my $cache_key = "analysis_metagenomes_".($no_groups ? "nogroups" : "hasgroups")."_".($user ? $user->_id : "anonymous");
   my $cdata = $memd->get($cache_key);
-  
+
   my $colls = [];
   my $coll_prefs = $self->application->dbmaster->Preferences->get_objects( { application => $self->application->backend,
 									     user => $user,
 									     name => 'mgrast_collection' } );
   if (scalar(@$coll_prefs) && (! $no_groups)) {
-    my $rast = $self->application->data_handle('MGRAST'); 
+    my $rast = $self->application->data_handle('MGRAST');
     my $collections = {};
     foreach my $collection_pref (@$coll_prefs) {
       my ($name, $val) = split(/\|/, $collection_pref->{value});
@@ -6656,10 +6656,10 @@ sub selectable_metagenomes {
       if ( (! $coll) || (! $collections->{$coll}) || (@{$collections->{$coll}} == 0) ) { next; }
       push(@$colls, { label => $coll." [".scalar(@{$collections->{$coll}})."]", value => join('||', map { ($_->[0] || "")."##".($_->[1] || "") } @{$collections->{$coll}}) });
     }
-  }    
-  
+  }
+
   if ($cdata) {
-    # there is cached data  
+    # there is cached data
     $memd->disconnect_all;
 
     # if there are collections, update them in the cache data
@@ -6681,7 +6681,7 @@ sub selectable_metagenomes {
     return @$cdata;
   }
 
-  my $metagenomes = [];  
+  my $metagenomes = [];
   my $avail = $self->{mgdb}->get_all_job_ids();
   my $avail_hash = {};
   %$avail_hash = map { $_ => 1 } @$avail;
@@ -6689,7 +6689,7 @@ sub selectable_metagenomes {
 
   my $all_mgs = [];
   # check for available metagenomes
-  my $rast = $self->application->data_handle('MGRAST'); 
+  my $rast = $self->application->data_handle('MGRAST');
   my $org_seen = {};
   my $metagenomespub = [];
   my $projs = [];
@@ -6779,7 +6779,7 @@ sub selectable_metagenomes {
     push(@$all_mgs, $metagenomespub);
     push(@$groups, 'public');
   }
-  
+
   my $seq_types_ary = [];
   @$seq_types_ary = sort keys(%$seq_types);
 
@@ -6805,11 +6805,11 @@ sub download {
       $content .= $_;
     }
 
-    print "Content-Type:application/x-download\n";  
+    print "Content-Type:application/x-download\n";
     print "Content-Length: " . length($content) . "\n";
     print "Content-Disposition:attachment;filename=".$fn."\n\n";
     print $content;
-    
+
     exit;
   } else {
     $self->application->add_message('warning', "Could not open download file");
@@ -6845,13 +6845,13 @@ sub heatmap_scale {
 
 sub add_collection {
   my ($self) = @_;
-  
+
   my $application = $self->application;
   my $cgi = $application->cgi;
   my $dbmaster = $application->dbmaster;
   my $mgrast = $application->data_handle('MGRAST');
   my $user = $application->session->user;
-  
+
   # check for mass addition to a set
   if ($cgi->param('newcollection')) {
     my $set = $cgi->param('newcollection');
@@ -6871,7 +6871,7 @@ sub add_collection {
     }
     return "<img src='./Html/clear.gif' onload='alert(\"The selected metagenomes have been added to collection $set\");'>";
   }
-  
+
   return "";
 }
 
@@ -6896,7 +6896,7 @@ sub TO_JSON { return { %{ shift() } }; }
 
 sub inlineImage {
   my ($path, $params) = @_;
-  
+
   if (open(IMAGE, $path)) {
     my $image = do{ local $/ = undef; <IMAGE>; };
     my $encoded = encode_base64($image);

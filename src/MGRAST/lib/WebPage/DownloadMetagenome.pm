@@ -30,7 +30,7 @@ DownloadMetagenome - displays download information about a metagenome job
 
 =head1 DESCRIPTION
 
-Download metagenome page 
+Download metagenome page
 
 =head1 METHODS
 
@@ -92,7 +92,7 @@ sub init {
         $self->app->add_message('warning', 'Please log into MG-RAST to view private metagenomes.');
         return 1;
       } elsif(! $user->has_right(undef, 'view', 'metagenome', $id)) {
-        $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+        $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:help\@mg-rast.org'>MG-RAST help desk</a>.");
         return 1;
       }
     }
@@ -125,14 +125,14 @@ sub output {
   my $jsDir       = $Conf::cgi_url . "/Html/" ;
   my $cssDir      =  $Conf::cgi_url . "/Html/" ;
   my $css         = "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssDir/highslide.css\">";
-  
+
   my $scripts .= qq~
 <script type="text/javascript">
   hs.outlineType = 'outer-glow';
   hs.graphicsDir = '../../../highslide/highslide/graphics/';
 </script>
 <script>
-  var baseText = null; 
+  var baseText = null;
   function showPopup(image,w,h) {
     alert(image + w + h);
     var popUp = document.getElementById(image);
@@ -141,7 +141,7 @@ sub output {
     popUp.style.left = "200px";
     popUp.style.width = w + "px";
     popUp.style.height = h + "px";
- 
+
     if (baseText == null) { baseText = popUp.innerHTML; };
     popUp.innerHTML = baseText + "<div id='statusbar'><button onclick='hidePopup(" + image + ");'>Close window<button></div>";
 
@@ -172,7 +172,7 @@ my $css_tmp = qq~
   my $content = $css_tmp;
   my $job  = $self->{job};
   my $user = $self->application->session->user;
-  
+
   unless ($job) {
     $self->title("Data sets available");
     $content .="<p>The following data sets are available for analysis and download. Note that downloading complete analysis might take significant time.</p>";
@@ -184,7 +184,7 @@ my $css_tmp = qq~
   my $rna_clust = exists($stats->{cluster_count_processed_rna}) ? $stats->{cluster_count_processed_rna} : 0;
   my $aa_clust  = exists($stats->{cluster_count_processed_aa}) ? $stats->{cluster_count_processed_aa} : 0;
 
-  my $project = ''; 
+  my $project = '';
   if ( $job->primary_project) {
     $project = $job->primary_project;
   }
@@ -208,12 +208,12 @@ my $css_tmp = qq~
   }
   $down_info->add_tooltip('meta_down', 'Download metadata for this metagenome');
   $download .= "&nbsp;&nbsp;&nbsp;<a onmouseover='hover(event,\"meta_down\",".$down_info->id.")' href='metagenomics.cgi?page=DownloadMetagenome&action=download_md&filename=$mfile'><img src='./Html/mg-download.png' style='height:15px;'/><small>metadata</small></a>";
-  
+
   $self->title("Metagenome Download");
   $content .= $down_info->output()."<h1 style='display:inline;'>".$job->name." ($mid)</h1>".$download;
   $content .= "<p>On this page you can download all data related to metagenome ".$job->name."</p>";
   $content .= "<p>Data are available from each step in the <a target=_blank href='http://blog.metagenomics.anl.gov/howto/quality-control'>MG-RAST pipeline</a>. Each section below corresponds to a step in the processing pipeline. Each of these sections includes a description of the input, output, and procedures implemented by the indicated step. They also include a brief description of the output format, buttons to download data processed by the step and detailed statistics (click on &ldquo;show stats&rdquo; to make collapsed tables visible).</p>";
-  
+
   # get download info from API
   my $response = undef;
   my $agent = LWP::UserAgent->new;
@@ -223,7 +223,7 @@ my $css_tmp = qq~
   $json = $json->utf8();
   $json->max_size(0);
   $json->allow_nonref;
-  
+
   eval {
       my $get = $auth ? $agent->get($url, 'auth' => $auth) : $agent->get($url);
       $response = $json->decode( $get->content );
@@ -235,18 +235,18 @@ my $css_tmp = qq~
       $self->application->add_message('warning', "Could not retrieve file list: ". $response->{ERROR});
       return 1;
   }
-  
+
   # group by ID
   my $stages = {};
   foreach my $set (@{$response->{data}}) {
       push @{ $stages->{$set->{stage_id}} }, $set;
   }
-  
+
   # prep output for every stage
   foreach my $stage (sort {$a <=> $b} keys %$stages) {
     $content .= $self->stage_download_info($stage, $stages->{$stage});
   }
-  
+
   # add dynamic downloader
   $content .= $self->api_download_builder($mid);
   return $content;
@@ -279,11 +279,11 @@ if (this.innerHTML == "show stats") {
 
 sub stage_download_info {
   my ($self, $sid, $stages) = @_;
-  
+
   unless (exists $self->data('stages')->{$sid}) {
       return "";
   }
-  
+
   my $name = $self->data('stages')->{$sid}->{name};
   my $link = $self->data('stages')->{$sid}->{link};
   my $content = "<a name='$link'><h3>$name</h3></a>\n";
@@ -292,17 +292,17 @@ sub stage_download_info {
   my $info_text  = exists($self->data('default')->{$sid}) ? parse_default_info($self->data('default')->{$sid}) : '';
   my $has_file   = 0;
   my $file_count = 0;
-  
+
   foreach my $info (@$stages) {
     unless (exists($info->{file_size}) && $info->{file_size}) {
         next;
     }
-      
+
     my $stats = exists($info->{statistics}) ? $info->{statistics} : {};
     my $count = exists($stats->{sequence_count}) ? format_number($stats->{sequence_count})." reads" : '';
     my $size  = exists($info->{file_size}) ? sprintf("%.2f", ($info->{file_size} / (1024 * 1024)))."MB" : '';
     my $desc  = ($info->{data_type} eq 'sequence') ? $info->{file_format} : $info->{data_type};
-    
+
     my $type = 'File';
     if (exists($info->{seq_format}) && ($info->{seq_format} eq 'bp')) {
         $type = 'DNA';
@@ -320,7 +320,7 @@ sub stage_download_info {
     if (exists $info->{cluster_percent}) {
         $desc = (($info->{seq_format} eq 'aa') ? 'aa' : 'rna').$info->{cluster_percent}." ".$desc;
     }
-    
+
     $has_file    = 1;
     $file_count += 1;
     $file_table .= join "\n", ("<tr><form name='stage$sid' id='stage$sid'>",
@@ -347,11 +347,11 @@ sub download_md {
 
   my $cgi  = $self->application->cgi;
   my $file = $cgi->param('filename');
-  
+
   if (open(FH, "<".$Conf::temp."/".$file)) {
     my $content = do { local $/; <FH> };
     close FH;
-    print "Content-Type:text/plain\n";  
+    print "Content-Type:text/plain\n";
     print "Content-Length: " . length($content) . "\n";
     print "Content-Disposition:attachment;filename=".$file."\n\n";
     print $content;
@@ -369,7 +369,7 @@ sub download {
   my $node = $cgi->param('node');
   my $name = $cgi->param('name');
   my $size = $cgi->param('size');
-  
+
   # get mgrast token
   #my $mgrast_token = undef;
   #if ($Conf::mgrast_oauth_name && $Conf::mgrast_oauth_pswd) {
@@ -379,7 +379,7 @@ sub download {
   #}
   #### changed because globus has hard time handeling multiple tokens
   my $mgrast_token = "mgrast ".$Conf::mgrast_oauth_token || undef;
-  
+
   my $response = undef;
   my $agent = LWP::UserAgent->new;
   # print headers
@@ -442,11 +442,11 @@ sub parse_default_info {
 
 sub api_download_builder {
     my ($self, $mid) = @_;
-    
+
     my $doc = $self->data('api')."/api.html";
     my $sim = $self->data('api')."/annotation/similarity/mgm".$mid;
     my $default = "type=organism&source=RefSeq";
-    
+
     my $html = qq(
     <h3>Annotation Download via API</h3>
     <table width='100%'><tr><td align='left'>
@@ -530,13 +530,13 @@ sub api_download_builder {
         </tr>
       </table>
     </td></tr></table><br><br>);
-    
+
     return $html;
 }
 
 sub api_download {
     my ($self) = @_;
-    
+
     my $agent = LWP::UserAgent->new;
     my $mid  = $self->application->cgi->param('mid');
     my $auth = $self->application->cgi->param('auth') || undef;
@@ -576,7 +576,7 @@ sub public_project_download_table {
   my $public_projects = $jobdbm->Project->get_objects( { public => 1 } );
   my $projects = [] ;# ($user) ? $user->has_right_to(undef, 'view', 'project') : [];
   my $content  = "" ; # "Public projects and metagenomes." ;
-  
+
   if ( scalar(@$projects) || scalar(@$public_projects) ) {
 
     my $table = $application->component('project_table');
