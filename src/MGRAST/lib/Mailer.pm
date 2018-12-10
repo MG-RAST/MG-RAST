@@ -23,7 +23,7 @@ are arguments.
 sub send_email {
     my (%args) = @_;
 
-    // we read the smart_host config directly from Config file
+    # we read the smart_host config directly from Config file
     my $smtp_host = $Conf::smtp_host,
 
     my $from = $args{'from'};
