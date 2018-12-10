@@ -69,17 +69,17 @@ sub output {
   my ($self) = @_;
 
   return "<p>This URL is deprecated. Please <a href='Html/mgmainv3.html?mgpage=upload'>click here</a> and then update your bookmark.</p>";
-  
+
   my $application = $self->application;
   my $cgi         = $application->cgi;
   my $user        = $application->session->user;
 
   my $jobdb = $application->data_handle('MGRAST');
-  
+
   unless ($user) {
     return "<p>You must be logged in to upload metagenome files and create jobs.</p><p>Please use the login box in the top right corner or return to the <a href='?page=Home'>start page</a>.</p>";
   }
-  
+
   my $lock_file = $Conf::locks.'/upload.lock';
   if (-e $lock_file) {
     my $message = "We have temporarily suspended uploads for maintenance purposes, please try again later";
@@ -144,7 +144,7 @@ sub output {
 <p>Use <b>Prepare Data</b> to upload any fasta, fastq or SFF files and GSC MIxS compliant metadata files into your inbox. While metadata is not required at submission, the priority for processing data without metadata is lower. Metadata can be modified on the project page after submission. The inbox is a temporary storage location allowing you to assemble all files required for submission. After manipulating the files in your inbox, use <b>Data Submission</b> to create and/or add to existing projects. When the submission process has been successfully completed, MG-RAST ID's ("Accession numbers") will be automatically assigned and the data will be removed from your inbox.<p>
 
 <p>You can monitor the progress of your jobs in the My Data Summary, on the Browse Metagenomes page.</p>
-<p>Questions? Check out our <a href='http://blog.metagenomics.anl.gov/upload-data-v3-2/' target='blank'>tutorial and instructional videos</a>. Still having trouble? <a href="mailto:mg-rast\@mcs.anl.gov">Email us!</a></p>
+<p>Questions? Check out our <a href='http://blog.metagenomics.anl.gov/upload-data-v3-2/' target='blank'>tutorial and instructional videos</a>. Still having trouble? <a href="mailto:help\@mg-rast.org">Email us!</a></p>
 
 <p><b>Note: All numbered sections below expand on click to display additional information and options.</b></p>
 </div>
@@ -225,7 +225,7 @@ sub output {
 	                </table>
  	             </div>
                   </div>
-               
+
 		  <p style='color:red;'><b>Note:</b> Uploaded files may be removed from your inbox after 72 hours.  Please perform submission of your files within that time frame.</p>
                   <p>In addition to using your web browser for uploads to the system the following alternatives are available:</p>
                   <table>
@@ -370,7 +370,7 @@ sub output {
 			   </td>
 			   <td style='vertical-align:middle;'>Allows you to select and delete an empty directory.</td>
 			 </tr>
-		       </table> 
+		       </table>
                      </td>
                    </tr>
                    <tr>
@@ -383,7 +383,7 @@ sub output {
         </div>
 
         <h1>Data Submission</h1>
-	
+
 	<div class="row">
 	  <div style="width: 960px; margin-left: 30px;">
 	    <form class="form-horizontal" name="submission_form" method='post'>
@@ -538,7 +538,7 @@ sub output {
 	  </div>
 	  </form>
 	</div>
-      </div>       
+      </div>
     </div>
  </div>
  <img src='./Html/clear.gif' onload='init_all();'>~;
@@ -568,7 +568,7 @@ sub submit_to_mgrast {
   my $mdata  = $cgi->param('mdfile') || '';
   my $project_name = $cgi->param('new_project') || '';
   my $project_id   = $cgi->param('project') || '';
-  
+
   my $base_dir = "$Conf::incoming";
   my $udir = $base_dir."/".md5_hex($user->login);
 
@@ -576,7 +576,7 @@ sub submit_to_mgrast {
   my $project_obj = undef;
   my $mddb = MGRAST::Metadata->new();
   my ($is_valid, $data, $log);
-  
+
   # test if Shock-AWE are running
   my $info  = undef;
   my $agent = LWP::UserAgent->new;
@@ -672,7 +672,7 @@ sub submit_to_mgrast {
       }
       if (($filename_ending ne 'fastq') || ($filename_ending ne 'fna')) {
 	      if ($filename_ending eq 'fq') {
-	          $filename_ending = 'fastq';	  
+	          $filename_ending = 'fastq';
 	      } else {
 	          $filename_ending = 'fna';
 	      }
@@ -729,7 +729,7 @@ sub submit_to_mgrast {
       return undef;
     }
   }
-  
+
   my $jobs = [];
   my $job2seq = {};
   my $job2type = {};
@@ -751,7 +751,7 @@ sub submit_to_mgrast {
     (undef, $successfully_created_jobs, $err_msgs) = $mddb->add_valid_metadata($user, $data, $jobs, $project_obj);
     # only print err_msgs and return if not all jobs were successfully submitted
     if(@$err_msgs != 0 && @{$successfully_created_jobs} != @{$jobs}) {
-      my $msg = "WARNING: The user \"".$user->login."\" submitted jobs that failed. The following errors were generated:\n";      
+      my $msg = "WARNING: The user \"".$user->login."\" submitted jobs that failed. The following errors were generated:\n";
       foreach my $err (@$err_msgs) {
         $msg .= $err."\n";
       }
@@ -760,25 +760,17 @@ sub submit_to_mgrast {
         $msg .= $job->{job_id}."\n";
       }
 
-      my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
-                                                      from => "mg-rast\@mcs.anl.gov",
-                                                      to => "mg-rast\@mcs.anl.gov",
+      my $email_success = MGRAST::Mailer::send_email(
+                                                      from => "noreply\@mg-rast.org",
+                                                      to => "help\@mg-rast.org",
                                                       subject => "Failed Job Creation Submitted By ".$user->login,
                                                       body => $msg);
 
-      #my $mailer = Mail::Mailer->new();
-      #$mailer->open({ From    => "mg-rast\@mcs.anl.gov",
-      #                To      => "mg-rast\@mcs.anl.gov",
-      #                Subject => "Failed Job Creation Submitted By ".$user->login
-      #              })
-      #  or die "Can't open Mail::Mailer: $!\n";
-      #print $mailer $msg;
-      #$mailer->close();
       unless ($email_success) {
           die "Can't send email\n";
       }
 
-      $self->application->add_message('warning', "Unable to successfully create your jobs!  Please contact MG-RAST at mg-rast\@mcs.anl.gov for more information.");
+      $self->application->add_message('warning', "Unable to successfully create your jobs!  Please contact MG-RAST at help\@mg-rast.org for more information.");
       return undef;
     }
   }
@@ -926,8 +918,8 @@ sub send_email_for_duplicate_submission {
     $msg = "WARNING: The user \"".$user->login."\" submitted files that already exist in MG-RAST:\n\nExisting ID, File Size, Their File, MD5 checksum\n-----------------------------------------------------------------------------------------------\n";
     map { $msg .= join(", ", @$_)."\n" } @$dupes;
     my $mailer = Mail::Mailer->new();
-    $mailer->open({ From    => "mg-rast\@mcs.anl.gov",
-                    To      => "mg-rast\@mcs.anl.gov",
+    $mailer->open({ From    => "noreply\@mg-rast.org",
+                    To      => "help\@mg-rast.org",
                     Subject => "Duplicate Metagenome Submission From ".$user->login
                   })
       or die "Can't open Mail::Mailer: $!\n";
@@ -948,11 +940,11 @@ sub check_project_name {
 
   my $cgi = $self->application->cgi;
   my $user = $self->application->session->user;
-  
+
   my $project_name = $cgi->param('new_project');
   my $project_id = $cgi->param('project');
   my $jobdb = $self->application->data_handle('MGRAST');
-  
+
   my $projects;
   if ($project_name) {
     $projects = $jobdb->Project->get_objects({ name => $project_name });
@@ -977,7 +969,7 @@ sub read_status_file {
   my $cgi = $self->application->cgi;
   my $type = $cgi->param('type');
   my $filename = $cgi->param('filename');
-  
+
   my $base_dir = "$Conf::incoming";
   my $udir = $base_dir."/".md5_hex($user->login);
   my $status_file = "$udir/$filename.$type";
@@ -1000,7 +992,7 @@ sub validate_metadata {
   my $user = $self->application->session->user;
   my $cgi = $self->application->cgi;
   my $fn = $cgi->param('mdfn');
-  
+
   my $base_dir = "$Conf::incoming";
   my $udir = $base_dir."/".md5_hex($user->login);
   my $md_file = $udir."/".$fn;
@@ -1044,7 +1036,7 @@ sub validate_metadata {
     if (scalar(keys(%$barcodes))) {
       $fn =~ s/^(.*)\.xls(x)?$/$1/;
       my $barname = $fn.".barcodes";
-      if (! -f $udir."/".$barname) {	  
+      if (! -f $udir."/".$barname) {
 	open(FH, ">$udir/$barname") or die "could not open barcode file for writing ($udir/$barname): ".$!."\n";
 	foreach my $key (keys(%$barcodes)) {
 	  print FH $barcodes->{$key}."\t".$key."\n";
@@ -1088,14 +1080,14 @@ sub current_webkey {
   my $application = $self->application();
   my $master = $application->dbmaster();
   my $user = $application->session->user();
-  
+
   my $existing_key = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
   my $existing_date = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
-  
+
   my $valid = 0;
   my $key = 0;
   my $date = 0;
-  
+
   if (scalar(@$existing_key)) {
     if ($existing_date->[0]->{value} > time) {
       $valid = 1;
@@ -1118,7 +1110,7 @@ sub generate_webkey {
   my $user = $application->session->user();
 
   my $timeout = 60 * 60 * 24 * 7; # one week
-  
+
   my $generated = "";
 
   my $webkey = { "key" => 0,
@@ -1144,7 +1136,7 @@ sub generate_webkey {
       $generated .= substr($possible, (int(rand(length($possible)))), 1);
     }
     my $preference = $master->Preferences->get_objects( { value => $generated } );
-    
+
     while (scalar(@$preference)) {
       $generated = "";
       while (length($generated) < 25) {
@@ -1161,7 +1153,7 @@ sub generate_webkey {
       $pref = $master->Preferences->create( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
     }
     $pref->value($tdate);
-    
+
     $pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
     if (scalar(@$pref)) {
       $pref = $pref->[0];
@@ -1173,12 +1165,12 @@ sub generate_webkey {
     $webkey->{date} = $tdate;
     $webkey->{valid} = 1;
   }
-    
+
   my $content = "";
-  
+
   if ($webkey->{valid}) {
 
-    my ($sec,$min,$hour,$mday,$mon,$year) = localtime($webkey->{date});  
+    my ($sec,$min,$hour,$mday,$mon,$year) = localtime($webkey->{date});
     my $tdate_readable = ($year + 1900)." ".sprintf("%02d", $mon + 1)."-".sprintf("%02d", $mday)." ".sprintf("%02d", $hour).":".sprintf("%02d", $min).".".sprintf("%02d", $sec);
 
     $content .= "<b>Your current WebKey:</b> <input type='text' readOnly=1 size=25 value='" . $webkey->{key} . "'>";

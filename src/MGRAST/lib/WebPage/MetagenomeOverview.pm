@@ -80,7 +80,7 @@ sub init {
       $self->app->add_message('warning', 'Please log into MG-RAST to view private metagenomes.');
       return 1;
     } elsif(! $user->has_right(undef, 'view', 'metagenome', $id)) {
-      $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:mg-rast\@mcs.anl.gov'>MG-RAST mailing list</a>.");
+      $self->app->add_message('warning', "You have no access to the metagenome '$id'.  If someone is sharing this data with you please contact them with inquiries.  However, if you believe you have reached this message in error please contact the <a href='mailto:help\@mg-rast.org'>MG-RAST help desk</a>.");
       return 1;
     }
   }
@@ -115,7 +115,7 @@ sub init {
   return 1;
 }
 
-=pod 
+=pod
 
 =item * B<output> ()
 
@@ -219,7 +219,7 @@ sub output {
   }'>Delete</a></li>~;
 	}
     }
-    
+
     $html .= "<li><a target=_blank href='?page=JobShare&metagenome=$mgid&job=".$job->job_id."'>Share</a></li>";
     $html .= qq~<li><a style='cursor:pointer;' onclick='
   if (document.getElementById("edit_name_div").style.display == "none") {
@@ -356,7 +356,7 @@ sub output {
       $html .= format_number($ann_aa_reads)." sequences (".percent($ann_aa_reads,$raw_seqs).") contain predicted proteins with known functions and ".format_number($unkn_aa_reads)." sequences (".percent($unkn_aa_reads,$raw_seqs).") contain predicted proteins with unknown function. ".format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no predicted proteins.</p>";
   }
   # wgs / mt text
-  else {  
+  else {
       $html .= format_number($ann_rna_reads)." sequences (".percent($ann_rna_reads,$raw_seqs).") contain ribosomal RNA genes. Of the remainder, ".format_number($ann_aa_reads)." sequences (".percent($ann_aa_reads,$raw_seqs).") contain predicted proteins with known functions and ".format_number($unkn_aa_reads)." sequences (".percent($unkn_aa_reads,$raw_seqs).") contain predicted proteins with unknown function. ".format_number($unknown_all)." (".percent($unknown_all,$raw_seqs).") of the sequences that passed QC have no rRNA genes or predicted proteins.</p>";
   }
   $html .= "<p>The analysis results shown on this page are computed by MG-RAST. Please note that authors may upload data that they have published their own analysis for, in such cases comparison within the MG-RAST framework can not be done.</p>";
@@ -367,7 +367,7 @@ sub output {
   $html .= "<em style='padding-left:25px;font-size:x-small'>Note: Sequences containing multiple predicted features are only counted in one category.</em><br>";
   $html .= "<em style='padding-left:50px;font-size:x-small'>Currently downloading of sequences via chart slices is not enabeled.</em>";
   $html .= "</p></td><td style='padding-left:25px;'></td>";
-  
+
   # toc
   $html .= "<td><h3>Table of Contents</h3>";
   $html .= "<div style='border:2px solid #AAAAAA;padding:10px;background-color:#EEEEEE;'>";
@@ -438,7 +438,7 @@ sub output {
   }
   $html .= "<li><a href='#gc_ref'>Sequence GC Distribution</a></li>";
   $html .= "</ul></ul></div></td></tr></table><br>";
-  
+
   # project description
   $html .= "<br><a name='project_ref'></a><a name='mixs_ref'></a><table><tr>";
   if ($self->{project}) {
@@ -567,11 +567,11 @@ sub output {
   my $fc_rna_colors = [[$colors->[0],$colors->[1]], [$colors->[1],$colors->[4]]];
   my $fc_aa_data    = [[$raw_seqs,$qc_seqs], [$qc_seqs,$ann_rna_reads,$aa_reads], [$aa_feats,$aa_sims], [$aa_sims,$aa_ontol]];
   my $fc_rna_data   = [[$raw_seqs,$qc_rna_seqs], [$qc_rna_seqs, ($ann_rna_reads > $qc_rna_seqs) ? $qc_rna_seqs : $ann_rna_reads]];
-  
+
   my $fc_titles = $is_rna ? array2json($fc_rna_titles, 1) : array2json($fc_aa_titles, 1);
   my $fc_colors = $is_rna ? array2json($fc_rna_colors, 2) : array2json($fc_aa_colors, 2);
   my $fc_data   = $is_rna ? array2json($fc_rna_data, 2) : array2json($fc_aa_data, 2);
-  
+
   $html .= "<tr><td><div id='flowchart_div'></div>";
   $html .= "<img src='./Html/clear.gif' onload='draw_bar_plot(\"flowchart_div\", $fc_titles, $fc_colors, $fc_data);'></td></tr></table>";
 
@@ -701,7 +701,7 @@ $drisee_boilerplate
   <img src='./Html/clear.gif' onload='execute_ajax("get_abund_plot", "rank_abund_div", "metagenome=$mgid&job=$job_id&level=$default_level");'>
   <div id='rank_abund_div'></div>
 </div>~;
-  
+
   # rarefaction curve
   $html .= qq~<a name='rare_ref'></a>
 <h3>Rarefaction Curve
@@ -908,13 +908,13 @@ The image is currently dynamic. To be able to right-click/save the image, please
     my $mtable = $self->application->component('metadata_tbl');
     $mtable->width(800);
     $mtable->show_export_button({title => "Download this table", strip_html => 1});
-    
+
     if ( scalar(@$mdata) > 25 ) {
       $mtable->show_top_browse(1);
       $mtable->show_bottom_browse(1);
       $mtable->items_per_page(25);
-      $mtable->show_select_items_per_page(1); 
-    }   
+      $mtable->show_select_items_per_page(1);
+    }
     $mtable->columns([ { name => 'Category', filter  => 1, sortable => 1, operator => 'combobox' },
 		       { name => 'Label', filter  => 1, sortable => 1 },
 		       { name => 'Value', filter  => 1, sortable => 1 }
@@ -934,7 +934,7 @@ The image is currently dynamic. To be able to right-click/save the image, please
 <div id='metadata_show' style='display: none;'>
 <p>The table below contains contextual metadata describing sample location, acquisition, library construction, sequencing using <a target=_blank href='http://gensc.org'>GSC</a> compliant metadata.</p>~ . $mtable->output . "</div>";
   }
-  
+
   # pubmed abstracts
   if ($md_ext_ids->{pubmed}) {
     my @ids = grep {$_ =~ /^\d+$/} split(/, /, $md_ext_ids->{pubmed});
@@ -1065,7 +1065,7 @@ sub get_summary_chart {
 
 sub get_source_chart {
   my ($self, $job, $is_rna, $is_gene, $n_prot, $p_prot, $n_func, $p_func, $n_rna, $p_rna) = @_;
-  
+
   my $mgdb = $self->data('mgdb');
   my $src_stats = $mgdb->get_source_stats($job->metagenome_id);
   my $src_html  = "";
@@ -1208,7 +1208,7 @@ sub get_taxa_chart {
 <div id='${tax}_chart_div'></div>
 ~;
     }
-  }    
+  }
   if (@$taxa_charts > 0) {
     $taxa_html .= "<table><tr>";
     for (my $i=0; $i<@$taxa_charts; $i++) {
@@ -1221,7 +1221,7 @@ sub get_taxa_chart {
   else {
     return "";
   }
-}  
+}
 
 sub get_func_charts {
   my ($self, $job, $pred, $ann) = @_;
@@ -1233,7 +1233,7 @@ sub get_func_charts {
   my $sources   = $mgdb->_sources();
   my $src_names = [];
   my $src_links = [];
-  
+
   foreach my $s (sort keys %$sources) {
     if (($sources->{$s}{type} eq 'ontology') && ($s ne 'GO')) {
       if (exists $sources->{$s}{url}) {
@@ -1384,7 +1384,7 @@ sub get_drisee_chart {
   # data = [ pos, A, T, C, G, N, X, total ]
   my @values_data = ($drisee->{counts}{columns}, @{$drisee->{counts}{data}});
   my @down_data   = ($drisee->{percents}{columns}, @{$drisee->{percents}{data}});
-  
+
   my $values_link = $self->chart_export_link(\@values_data, 'drisee_values', 'Download DRISEE values');
   my $drisee_link = $self->chart_export_link(\@down_data, 'drisee_plot', 'Download DRISEE plot');
   my $drisee_rows = join(",\n", map { "[".join(',', @$_)."]" } @{$drisee->{percents}{data}});
@@ -1481,7 +1481,7 @@ sub get_consensus_chart {
   unless ($consensus && exists($consensus->{percents}) && $consensus->{percents}{data}) {
     return "<p><em>Not yet computed</em></p>";
   }
-  
+
   # rows = [ pos, A, T, C, G, N ]
   # data = [ pos, N, G, C, T, A ]
   my @data = map { [$_->[0], $_->[5], $_->[4], $_->[3], $_->[2], $_->[1]] } @{$consensus->{percents}{data}};
@@ -1550,7 +1550,7 @@ sub get_abund_plot {
     my $rap_data = join("~", map { $_->[0] .";;" . $_->[1] } @sort_plot);
     $rap_data =~ s/'/\&\#39\;/g;
     my $rap_link = $self->chart_export_link(\@sort_plot, 'abundance_plot');
-    
+
     $html = qq~
 <p>The plot below shows the $level abundances ordered from the most abundant to least abundant. Only the top 50 most abundant are shown. The y-axis plots the abundances of annotations in each $level on a log scale.</p>
 <p>The rank abundance curve is a tool for visually representing taxonomic richness and evenness.</p>
@@ -1719,8 +1719,8 @@ sub search_stuff {
       $table->show_top_browse(1);
       $table->show_bottom_browse(1);
       $table->items_per_page(25);
-      $table->show_select_items_per_page(1); 
-    }   
+      $table->show_select_items_per_page(1);
+    }
     $table->columns([ { name => 'Source', filter  => 1, sortable => 1, operator => 'combobox' },
 		      { name => $colname, filter  => 1, sortable => 1 },
 		      { name => 'Abundance', filter  => 1, sortable => 1, operators => ['less','more'] },
@@ -1775,7 +1775,7 @@ sub krona_clean {
 
 sub get_pubmed_abstract {
   my ($self, $pmid) = @_;
-  
+
   use HTTP::Request::Common;
   my $ua = LWP::UserAgent->new;
   my $retval = $ua->request(GET "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=$pmid&rettype=abstract&retmode=text");
@@ -1800,11 +1800,11 @@ sub chart_export {
       $content .= $_;
     }
 
-    print "Content-Type:application/x-download\n";  
+    print "Content-Type:application/x-download\n";
     print "Content-Length: " . length($content) . "\n";
     print "Content-Disposition:attachment;filename=".$mgid."_".$name.".tsv\n\n";
     print $content;
-    
+
     exit;
   } else {
     $self->application->add_message('warning', "Could not open download file");
@@ -1815,7 +1815,7 @@ sub chart_export {
 
 sub chart_export_link {
   my ($self, $data, $name, $text) = @_;
-  
+
   $text = $text || "Download chart data";
   $name =~ s/\s+/_/g;
   $name =~ s/\W//g;

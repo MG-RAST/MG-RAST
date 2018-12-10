@@ -58,7 +58,7 @@ sub init {
     push(@$data, { label => $j->name, value => $mgid });
   }
   $self->data('mgids', $data);
-  
+
   return 1;
 }
 
@@ -79,11 +79,11 @@ sub output {
 
   # short job info
   $content .= "<p> &raquo <a href='metagenomics.cgi?page=MetagenomeSelect'>Back to the Metagenome Select</a></p>";
-  
+
   $content .= "<p id='section_bar'><img src='".IMAGES."rast-info.png'/>Job Information</p>";
   $content .= "<table>";
   $content .= "<tr><th>Name - ID:</th><td>".$job->metagenome_id." - ".$job->name."</td></tr>";
-  $content .= "<tr><th>Job:</th><td> #".$job->job_id."</td></tr>";    
+  $content .= "<tr><th>Job:</th><td> #".$job->job_id."</td></tr>";
   $content .= "<tr><th>User:</th><td>".$job->owner->login."</td></tr>";
   $content .= "</table>";
 
@@ -115,7 +115,7 @@ sub output {
   $content .= "<p><strong>Enter an email address:</strong> <input name='email' type='textbox' value='$email'></p>";
   $content .= "<p><input type='button' name='share_job' value=' Share job with this user or group ' onclick='list_select_select_all(\"".$list_select->id."\");document.forms.share_job.submit();'></p>";
   $content .= $self->end_form;
-  
+
   # show people who can see this job at the moment
   $content .= "<p id='section_bar'><img src='".IMAGES."rast-info.png'/>This job is currently available to:</p>";
   my $rights = $self->application->dbmaster->Rights->get_objects( { name => 'view',
@@ -133,7 +133,7 @@ sub output {
       $content .= "<tr><td>".$r->scope->name_readable."</td>";
     }
     if($r->delegated) {
-      $content .= "<td>".$self->start_form('revoke_job', { metagenome => $job->metagenome_id, 
+      $content .= "<td>".$self->start_form('revoke_job', { metagenome => $job->metagenome_id,
 							   action => 'revoke_job',
 							   scope => $r->scope->_id,
 							 });
@@ -146,7 +146,7 @@ sub output {
     $content .= '</tr>';
     $found_one = 1;
   }
-  
+
   unless($found_one) {
     $content .= "<tr><td>This job is not shared with anyone at the moment.</td></tr>";
   }
@@ -180,7 +180,7 @@ sub cancel_token {
     $application->add_message('warning', "invalid token, aborting");
     return 0;
   }
-  
+
   my $scope = $master->Scope->get_objects( { name => "token:".$token } );
   unless (scalar(@$scope)) {
     $application->add_message('warning', "token not found, aborting");
@@ -208,14 +208,14 @@ Action method to grant the right to view and edit a genome to the selected scope
 
 sub share_job {
   my ($self) = @_;
-  
+
   # get some info
   my $job_id = $self->data('job')->job_id;
   my $genome_id = $self->data('job')->metagenome_id;
   my $genome_name = $self->data('job')->name;
   my $application = $self->application;
   my $cgi = $application->cgi;
-  my $master = $self->application->dbmaster;  
+  my $master = $self->application->dbmaster;
 
   # check email format
   my $email = $self->app->cgi->param('email');
@@ -224,7 +224,7 @@ sub share_job {
     # check if this is a group
     my $checkscopes = $master->Scope->get_objects( { name => $email } );
     if (scalar(@$checkscopes)) {
-      
+
       my $scope = $checkscopes->[0];
 
       # grant rights if necessary
@@ -252,7 +252,7 @@ sub share_job {
 	  }
 	}
       }
-      
+
       $self->app->add_message('info', "Granted the right to view this job to the group ".$scope->name.".");
       return 1;
     }
@@ -265,7 +265,7 @@ sub share_job {
   my $user = $master->User->init({ email => $email });
   if (ref $user) {
 
-    my $genome_ids = [ $genome_id ];    
+    my $genome_ids = [ $genome_id ];
     my $what = "$genome_name ($genome_id)";
     if ($cgi->param('multishare') && $cgi->param('multishare') == 1) {
       my $mgids = $self->data('mgids');
@@ -284,8 +284,8 @@ sub share_job {
     $ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
     $ubody->param('LINK', $WebConfig::APPLICATION_URL."metagenomics.cgi?page=MetagenomeOverview&metagenome=$genome_id");
     $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
-    
-    $user->send_email( $WebConfig::ADMIN_EMAIL,
+
+    $user->send_email( "noreply\@mg-rast.org",
 		       $WebConfig::APPLICATION_NAME.' - new data available',
 		       $ubody->output
 		     );
@@ -321,7 +321,7 @@ sub share_job {
       $self->application->add_message('warning', "You can only share multiple metagenomes to an existing user.<br>Please ask the specified user to register at ".$WebConfig::APPLICATION_NAME." first. If the user has already registered, please ask him for the email address they registered with.");
       return 0;
     }
-    
+
     # create a claim token
     my $description = "token_scope|from_user:".$application->session->user->{_id}."|init_date:".time."|email:".$email;
     my @chars=('a'..'z','A'..'Z','0'..'9','_');
@@ -329,7 +329,7 @@ sub share_job {
     foreach (1..50) {
       $token.=$chars[rand @chars];
     }
-    
+
     # create scope for token
     my $token_scope = $master->Scope->create( { name => "token:".$token, description => $description } );
     unless (ref($token_scope)) {
@@ -367,15 +367,15 @@ sub share_job {
     $ubody->param('WHOM', $self->app->session->user->firstname.' '.$self->app->session->user->lastname);
     $ubody->param('LINK', $WebConfig::APPLICATION_URL."?page=ClaimToken&token=$token");
     $ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
-    
 
-    my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
+
+    my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host,
                                                     from => $WebConfig::ADMIN_EMAIL,
                                                     to => $email,
                                                     subject => $WebConfig::APPLICATION_NAME.' - new data available',
                                                     body => $ubody->output);
-                                                    
-                                                    
+
+
     #my $mailer = Mail::Mailer->new();
     #if ($mailer->open({ From    => $WebConfig::ADMIN_EMAIL,
 	#	    To      => $email,
@@ -459,7 +459,6 @@ sub required_rights {
   if ($_[0]->data('job')) {
     push @$rights, [ 'edit', 'metagenome', $_[0]->data('job')->metagenome_id, 1 ];
   }
-      
+
   return $rights;
 }
-

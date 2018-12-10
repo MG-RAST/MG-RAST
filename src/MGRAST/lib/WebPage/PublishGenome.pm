@@ -41,7 +41,7 @@ Called when the web page is instanciated.
 
 sub init {
   my $self = shift;
-  
+
   $self->title("Make metagenome publicly accessible");
 
   # register components
@@ -52,7 +52,7 @@ sub init {
   # init data
   my $meta = MGRAST::Metadata->new();
   $self->data('meta', $meta);
-  
+
   # sanity check on job
   my $id = $self->application->cgi->param('metagenome') || '';
   my $job;
@@ -61,10 +61,10 @@ sub init {
     $self->app->error("Unable to retrieve the job '$id'.");
     return;
   }
-  
+
   # api info for making public
   $self->data('api', $Conf::api_url || "http://api.metagenomics.anl.gov");
-  
+
   $self->data('job', $job);
   $self->data('linkin', $Conf::cgi_url."linkin.cgi?metagenome=$id");
 }
@@ -83,14 +83,14 @@ sub output {
   my $job   = $self->data('job');
   my $user  = $self->application->session->user;
   my $uname = $user->firstname." ".$user->lastname;
-  
+
   # set output
   my $content = $self->application->component('Display_Ajax')->output() . "<div id='status_div'>";
 
   unless ($job->public()) {
     if ($user && $user->has_right($self->application, 'edit', 'metagenome', $job->metagenome_id)) {
       $content .= '<h1>' . $job->name . ' (' . $job->metagenome_id . ')</h1>';
-      $content .= "<p style='width:800px; text-align: justify;'>Please note: You will not be able to make your metagenome private again from this website. In order to do so you will have to contact mg-rast\@mcs.anl.gov.</p>";
+      $content .= "<p style='width:800px; text-align: justify;'>Please note: You will not be able to make your metagenome private again. ";
       $content .= "<p>Metadata (or data about the data) has become a necessity as the community generates large quantities of data sets.<br>";
       $content .= "Using community generated questionnaires we capture this metadata. MG-RAST has implemented the use of <a href='http://gensc.org/gc_wiki/index.php/MIxS' target=_blank >Minimum Information about any (X) Sequence</a> (MIxS) developed by the <a href='http://gensc.org' target=_blank >Genomic Standards Consortium</a> (GSC).</p>";
       $content .= "<div id='display_div'></div>";
@@ -103,9 +103,9 @@ sub output {
   else {
     $content .= '<h1>' . $job->name . ' (' . $job->metagenome_id . ') is publicly accessible.</h1>';
     $content .= "<p>Metagenome " . $job->metagenome_id . " is already publicly available. You can link to this public metagenome using the following link: ";
-    $content .= "<a href='".$self->data('linkin')."'>".$self->data('linkin')."</a>. If you believe this is a mistake please contact mg-rast\@mcs.anl.gov.</p>";
+    $content .= "<a href='".$self->data('linkin')."'>".$self->data('linkin')."</a>. If you believe this is a mistake please contact <a href="mailto:help\@mg-rast.org"> the MG-RAST help desk</a>.</p>";
   }
-  
+
   return $content . "</div>";
 }
 
@@ -128,7 +128,7 @@ sub meta_info {
   my @tdata = ();
   my @miss  = ();
   my %seen  = ();
-  
+
   my @lib_type_rows = grep { $_->[1] eq 'investigation_type' } @$mdata;
   my $lib_type = scalar(@lib_type_rows) ? $lib_type_rows[0][2] : ($job->sequence_type ? $mddb->investigation_type_alias($job->sequence_type) : 'metagenome');
   my $no_proj_md = 0;
@@ -200,7 +200,7 @@ sub meta_info {
     $error .= "<a onclick='pname=prompt(\"Enter new project name\",\"\");if(pname.length){window.top.location=\"?page=MetagenomeProject&action=create&pname=\"+pname;}' style='cursor:pointer;font-size:11px;font-weight:bold;'>create new project</a></p>";
     return $error;
   }
-  
+
   my $table = $self->application->component('DisplayMetaData');
   if ( scalar(@tdata) > 50 ) {
     $table->show_top_browse(1);
@@ -225,7 +225,7 @@ sub meta_info {
     $content .= "<p>If you are satisfied with the below metadata, click here:<span style='padding-left:10px'>$pub_button</span></p>";
   }
   $content .= $table->output();
-  return $content; 
+  return $content;
 }
 
 sub publish {
@@ -235,11 +235,11 @@ sub publish {
   my $mg_id   = $self->application->cgi->param('metagenome');
   my $user    = $self->application->session->user;
   my $uname   = $user->firstname." ".$user->lastname;
-  my $from    = 'Metagenomics Analysis Server <mg-rast@mcs.anl.gov>';
+  my $from    = 'Metagenomics Analysis Server <no-reply\@mg-rast.org>';
   my $subject = "Metagenome $mg_id is now publicly available";
   my $body    = "Dear $uname,\n\nYour metagenome '" . $job->name . "' ($mg_id) is now public. You can link to the metagenome using:\n" . $self->data('linkin') .
-                "\n\nThis is an automated message.  Please contact mg-rast\@mcs.anl.gov if you have any questions or concerns.";
-  
+                "\n\nThis is an automated message.  Please contact help\@mg-rast.org if you have any questions or concerns.";
+
   ######## use API to make public ##########
   my $response = undef;
   my $agent = LWP::UserAgent->new;
@@ -247,13 +247,13 @@ sub publish {
   $json = $json->utf8();
   $json->max_size(0);
   $json->allow_nonref;
-  
+
   my $url  = $self->data('api')."/job/public";
   my $data = {metagenome_id => 'mgm'.$job->{metagenome_id}};
   my $req  = HTTP::Request->new(POST => $url);
   $req->header('Content-Type' => 'application/json', 'auth' => $Conf::api_key);
   $req->content($json->encode($data));
-  
+
   eval {
     my $post  = $agent->request($req);
     $response = $json->decode($post->content);
@@ -265,12 +265,12 @@ sub publish {
     $self->application->add_message('warning', "Could not make metagenome public: ". $response->{ERROR});
     return "<pre>Could not make metagenome public: ".$response->{ERROR}."</pre>";
   }
-  
+
   # send email
   $user->send_email($from, $subject, $body);
 
   my $content = "<h1>" . $job->name . " ($mg_id) is publicly accessible.</h1>";
   $content   .= "<p>Dear $uname, thank you for making your metagenome publicly available. You can link to your public metagenome using this link: ";
-  $content   .= "<a href='".$self->data('linkin')."'>".$self->data('linkin')."</a>. If you believe this is a mistake please contact mg-rast\@mcs.anl.gov.</p>";
+  $content   .= "<a href='".$self->data('linkin')."'>".$self->data('linkin')."</a>. If you believe this is a mistake please contact help\@mg-rast.org.</p>";
   return $content;
 }

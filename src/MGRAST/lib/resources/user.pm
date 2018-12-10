@@ -14,10 +14,10 @@ use MGRAST::Mailer;
 # Override parent constructor
 sub new {
   my ($class, @args) = @_;
-  
+
   # Call the constructor of the parent class
   my $self = $class->SUPER::new(@args);
-  
+
   # Add name / attributes
   $self->{name} = "user";
   $self->{attributes} = { "id"         => [ 'string', 'user id' ],
@@ -31,14 +31,14 @@ sub new {
 			  "comment"    => [ 'string', 'any comment about the user account' ],
 			  "url"        => [ 'uri', 'resource location of this object instance' ]
 			};
-  
+
   $self->{cv} = { verbosity => {'minimal' => 1, 'preferences' => 1, 'rights' => 1, 'scopes' => 1, 'full' => 1, 'session' => 1, 'request_access' => 1, 'priorities' => 1},
 		  direction => {'asc' => 1, 'desc' => 1},
 		  match => {'any' => 1, 'all' => 1}
 		};
 
   $self->json->utf8();
-  
+
   return $self;
 }
 
@@ -165,7 +165,7 @@ sub info {
 # the resource is called with an id parameter
 sub instance {
   my ($self) = @_;
-  
+
   # check id format
   my $rest = $self->rest;
   unless ($rest && scalar(@$rest)) {
@@ -181,13 +181,13 @@ sub instance {
   unless (exists $self->{cv}{verbosity}{$verb}) {
     $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
   }
-  
+
   # get database
   my ($master, $error) = WebApplicationDBHandle->new();
   if ($error) {
     $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
   }
-  
+
   # check if this is an authentication request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'authenticate') {
     if ($self->user) {
@@ -222,7 +222,7 @@ sub instance {
       $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
     }
   }
-  
+
   # check if this is an email validation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'validateemail') {
     my $key = $rest->[1];
@@ -278,7 +278,7 @@ sub instance {
       $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
     }
   }
-  
+
   # check if this is an impersonation
   if (scalar(@$rest) == 2 && $rest->[0] eq 'impersonate') {
     if ($self->user->has_right(undef, 'edit', 'user', '*')) {
@@ -301,7 +301,7 @@ sub instance {
 	    $generated .= substr($possible, (int(rand(length($possible)))), 1);
 	  }
 	  my $preference = $master->Preferences->get_objects( { value => $generated } );
-	  
+
 	  while (scalar(@$preference)) {
 	    $generated = "";
 	    while (length($generated) < 25) {
@@ -310,7 +310,7 @@ sub instance {
 	    $preference = $master->Preferences->get_objects( { value => $generated } );
 	  }
 	  my $tdate = time + $timeout;
-	  
+
 	  my $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
 	  if (scalar(@$pref)) {
 	    $pref = $pref->[0];
@@ -318,7 +318,7 @@ sub instance {
 	    $pref = $master->Preferences->create( { 'user' => $impUser, 'name' => 'WebServiceKeyTdate' } );
 	  }
 	  $pref->value($tdate);
-	  
+
 	  $pref = $master->Preferences->get_objects( { 'user' => $impUser, 'name' => 'WebServicesKey' } );
 	  if (scalar(@$pref)) {
 	    $pref = $pref->[0];
@@ -333,7 +333,7 @@ sub instance {
 	if (scalar(@$pref)) {
 	  $tos = $pref->[0]->value;
 	}
-	
+
 	$self->return_data( { "login" => $impUser->{login},
 			      "firstname" => $impUser->{firstname},
 			      "lastname" => $impUser->{lastname},
@@ -348,7 +348,7 @@ sub instance {
       $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
     }
   }
-  
+
   # check if this is a TOS agreement
   if (scalar(@$rest) == 2 && $rest->[0] eq 'agreetos') {
     if (my ($version) = $rest->[1] =~ /^(\d+)$/) {
@@ -367,7 +367,7 @@ sub instance {
       $self->return_data( {"ERROR" => "invalid parameters"}, 404 );
     }
   }
-  
+
   # check if this is a reset password request
   if (scalar(@$rest) == 1 && $rest->[0] eq 'resetpassword') {
     if (! $self->user || ! $self->user->has_star_right('edit', 'user')) {
@@ -383,11 +383,11 @@ sub instance {
 	  $self->return_data( {"ERROR" => "recaptcha failed", "msg" => $answer }, 400 );
 	}
       } else {
-	
+
 	$self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
       }
     }
-    
+
     # if we get here, recaptcha is successful
     # check if we have email only
     if (! $self->{cgi}->param('login')) {
@@ -397,7 +397,10 @@ sub instance {
       }
       if (scalar(@$user)) {
 	$user = $user->[0];
-	$user->send_email( "mg-rast\@mcs.anl.gov", "MG-RAST account", "You requested to retrieve the login associated with your MG-RAST account.\n\nYour login associated with this email address is:\n\n".$user->{login}."\n\nYou can use the forgot password link on our site to reset your password." );
+	$user->send_email( "noreply\@mg-rast.org",
+                     "MG-RAST account",
+                      "You requested to retrieve the login associated with your MG-RAST account.\n\nYour login associated with this email address is:\n\n".$user->{login}."\n\nYou can use the forgot password link on our site to reset your password."
+                      );
 	$self->return_data( {"OK" => "credentials sent"}, 200 );
       } else {
 	$self->return_data( {"ERROR" => "email address is not registered"}, 400 );
@@ -418,7 +421,7 @@ sub instance {
   # check if this is a token claim
   if (scalar(@$rest) == 2 && $rest->[0] eq 'claimtoken') {
     my $token = $rest->[1];
-    if ($self->user) {      
+    if ($self->user) {
       my $token_scope = $master->Scope->get_objects( { name => 'token:'.$token } );
       if (scalar(@$token_scope)) {
 	$token_scope = $token_scope->[0];
@@ -460,13 +463,13 @@ sub instance {
 					   user => $self->user } );
 	}
       }
-      
+
       $self->return_data( { "OK" => "token claimed", "id" => $ret_id, "type" => $ret_type }, 200 );
     } else {
       $self->return_data( {"ERROR" => "insufficient permissions for this call"}, 401 );
     }
   }
-  
+
   my $user = undef;
   # get user if not doing user creation
   if ($rest->[0] ne 'recaptcha') {
@@ -489,7 +492,7 @@ sub instance {
         $self->return_data( {"ERROR" => "insufficient permissions for user call"}, 401 );
       }
   }
-  
+
   # POST Actions
   if ($self->{method} eq 'POST') {
     if ((scalar(@$rest) > 1) && ($rest->[1] eq 'notify') && $user) {
@@ -501,8 +504,7 @@ sub instance {
         my $owner_name = ($user->firstname || "")." ".($user->lastname || "");
         my $receiver = "\"$owner_name\" <".$user->email.">";
         my $success = MGRAST::Mailer::send_email(
-                          smtp_host => $Conf::smtp_host,
-                          from => "mg-rast\@mcs.anl.gov",
+                          from => "help@\mg-rast.org",
                           to => $receiver,
                           subject => $postdata->{'subject'},
                           body => $postdata->{'body'}
@@ -530,7 +532,7 @@ sub instance {
         } else {
             $self->return_data( {"ERROR" => "recaptcha server could not be reached"}, 400 );
         }
-    
+
         # if we get here, recaptcha is successful
         my $new_user = &create_user($self);
         $self->return_data($self->prepare_data($new_user));
@@ -538,7 +540,7 @@ sub instance {
         $self->return_data( {"ERROR" => "invalid POST action"}, 400 );
     }
   }
-  
+
   # check if this is a user update
   if (($self->{method} eq 'PUT') && $user) {
     if (defined $self->{cgi}->param('dwp') && $self->user->has_star_right('edit', 'user')) {
@@ -588,7 +590,7 @@ sub instance {
 	$self->return_data( {"ERROR" => "insufficient permissions for this user call"}, 401 );
       }
       my $prefs = { 'type' => 'preference', 'app' => 'MGRAST', 'id' => 'mgu'.$self->user->_id, "pref" => $self->json->decode($self->cgi->param('prefs')) };
-      
+
       my $pref_id = $master->Preferences->get_objects({ user => $user, name => "shock_pref_node" });
       my $nodeid;
       my $retval = {};
@@ -614,7 +616,7 @@ sub instance {
       $self->return_data( {"OK" => "user deleted"}, 200 );
     }
   }
-  
+
   # check if this is an action request
   my $requests = {
            'setpassword' => 1,
@@ -656,11 +658,11 @@ sub instance {
 	$self->return_data( {"ERROR" => "webkey request requires action parameter"}, 400 );
       }
 
-      my $timeout = 60 * 60 * 24 * 14; # 2 week  
+      my $timeout = 60 * 60 * 24 * 14; # 2 week
       my $webkey = { "key" => 0,
 		     "date" => 0,
 		     "valid" => 0 };
-      
+
       my $existing_key = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
       my $existing_date = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
 
@@ -677,7 +679,7 @@ sub instance {
 	  $self->return_data( $webkey, 200 );
 	} else {
 	  $self->return_data( {"ERROR" => "there is no webkey to refresh"}, 400 );
-	}	
+	}
       }
       # create new
       elsif ($rest->[2] eq "create") {
@@ -687,7 +689,7 @@ sub instance {
 	  $generated .= substr($possible, (int(rand(length($possible)))), 1);
 	}
 	my $preference = $master->Preferences->get_objects( { value => $generated } );
-	
+
 	while (scalar(@$preference)) {
 	  $generated = "";
 	  while (length($generated) < 25) {
@@ -696,7 +698,7 @@ sub instance {
 	  $preference = $master->Preferences->get_objects( { value => $generated } );
 	}
 	my $tdate = time + $timeout;
-	
+
 	my $pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
 	if (scalar(@$pref)) {
 	  $pref = $pref->[0];
@@ -704,7 +706,7 @@ sub instance {
 	  $pref = $master->Preferences->create( { 'user' => $user, 'name' => 'WebServiceKeyTdate' } );
 	}
 	$pref->value($tdate);
-	
+
 	$pref = $master->Preferences->get_objects( { 'user' => $user, 'name' => 'WebServicesKey' } );
 	if (scalar(@$pref)) {
 	  $pref = $pref->[0];
@@ -733,7 +735,7 @@ sub instance {
       }
     }
   }
-  
+
   # get the jobs that need to be made public
   if ($verb eq 'priorities') {
     my $jobdb = $self->connect_to_datasource();
@@ -744,7 +746,7 @@ sub instance {
     if (scalar(@$ids) && $ids->[0] eq '*') {
       shift @$ids;
     }
-    
+
     my $jdbh  = $jobdb->db_handle();
     my $res_comp = $jdbh->selectall_arrayref('SELECT Job.name AS metagenome_name, Job.metagenome_id, Job.created_on, Project.name AS project, Project.id AS project_id, JobAttributes.value, JobAttributes.tag FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND JobAttributes.tag="completedtime" AND (Job.public IS NULL OR Job.public=0) AND Job.primary_project=Project._id ORDER BY Job.created_on ASC', { Slice => {} });
     my $res_prio = $jdbh->selectall_arrayref('SELECT Job.metagenome_id, JobAttributes.value FROM Job, JobAttributes, Project WHERE Project.id IN ("'.join('", "', @$ids).'") AND Job._id=JobAttributes.job AND JobAttributes.tag="priority" AND (Job.public IS NULL OR Job.public=0) AND JobAttributes.value!="never" AND Job.primary_project=Project._id ORDER BY Job.created_on ASC');
@@ -759,7 +761,7 @@ sub instance {
 	push(@$retval, $r);
       }
     }
-    
+
     $self->return_data({ "priorities" => $retval });
   }
   # get the user preferences
@@ -812,7 +814,7 @@ sub instance {
     @{$user->{scopes}} = map { { name => $_->{name},
 				     description => $_->{description} } } @$scopes;
   }
-  # get all data 
+  # get all data
   elsif ($verb eq 'full') {
     my $prefs = $master->Preferences->get_objects({ user => $user });
     $user->{preferences} = [];
@@ -854,7 +856,7 @@ sub instance {
 				location => $org->{location} };
     }
   }
-  
+
   # prepare data
   my $data = $self->prepare_data($user);
   $self->return_data($data);
@@ -869,7 +871,7 @@ sub query {
     if ($error) {
         $self->return_data( {"ERROR" => "could not connect to user database - $error"}, 503 );
     }
-    
+
     # get paramaters
     my $verb   = $self->cgi->param('verbosity') || 'minimal';
     my $limit  = $self->cgi->param('limit') || 10;
@@ -877,7 +879,7 @@ sub query {
     my $order  = $self->cgi->param('order') || "lastname";
     my $dir    = $self->cgi->param('direction') || 'asc';
     my $match  = $self->cgi->param('match') || 'all';
-    
+
     # check CV
     unless (exists $self->{cv}{verbosity}{$verb}) {
         $self->return_data({"ERROR" => "Invalid verbosity entered ($verb)."}, 404);
@@ -910,22 +912,22 @@ sub query {
 
     # create the WHERE clause
     my $where = [];
-    
+
     # iterate over the attributes
     foreach my $key (keys(%{$self->{attributes}})) {
 
       # check if there is a value for the attribute
       if (defined $self->cgi->param($key)) {
-	
+
 	# check what operator
 	my $val = uri_unescape($self->cgi->param($key));
 	if ($key eq "id") {
 	  $key = "_id";
 	  $val =~ s/mgu//;
 	}
-	
+
 	my $str = $key;
-	
+
 	# like
 	if ($val =~ /\*/) {
 	  $val =~ s/\*/\%/g;
@@ -988,7 +990,7 @@ sub query {
 	  $val = $1;
 	  $str .= "<=";
 	}
-	
+
 	# not equal
 	elsif ($val =~ /^\!/) {
 	  $val =~ s/^\!//;
@@ -1020,7 +1022,7 @@ sub query {
       my $uhash = {};
       my $order_array = [];
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 value 11 user 12 _user_db 13 application 14 _application_db 15 name 16 
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 value 11 user 12 _user_db 13 application 14 _application_db 15 name 16
 	if (! defined $uhash->{$row->[8]}) {
 	  push(@$order_array, $row->[8]);
 	  $uhash->{$row->[8]} = { _id => $row->[0],
@@ -1098,7 +1100,7 @@ sub query {
     }
     # get session statistics
     elsif ($verb eq 'session') {
-      
+
     }
     # get all users that have an open account request
     elsif ($verb eq 'request_access') {
@@ -1146,14 +1148,14 @@ sub query {
       }
       $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN Preferences ON t1._id=Preferences.user ORDER BY t1.$order ".uc($dir), [], undef, {});
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 value 11 user 12 _user_db 13 application 14 _application_db 15 name 16 
-	
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 value 11 user 12 _user_db 13 application 14 _application_db 15 name 16
+
 	push(@{$uhash->{$row->[8]}->{preferences}}, { name => $row->[16], value => $row->[11] });
       }
       $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN UserSession ON t1._id=UserSession.user ORDER BY t1.$order ".uc($dir), [], undef, {});
       foreach my $row (@$rows) {
-	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 error_page 11 session_id 12 error_parameters 13 current_page 14 timestamp 15 previous_page 16 user 17 _user_db 18 current_parameters 19 previous_parameters 20 
-	
+	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 error_page 11 session_id 12 error_parameters 13 current_page 14 timestamp 15 previous_page 16 user 17 _user_db 18 current_parameters 19 previous_parameters 20
+
 	$uhash->{$row->[8]}->{session} = { error_page => $row->[11],
 					   session_id => $row->[12],
 					   error_parameters => $row->[13],
@@ -1166,7 +1168,7 @@ sub query {
       $rows = $master->backend->get_rows( "(SELECT * FROM User $where_string ORDER BY $order ".uc($dir)." LIMIT $limit OFFSET $offset) AS t1 JOIN OrganizationUsers ON t1._id=OrganizationUsers.user JOIN Organization ON OrganizationUsers.organization=Organization._id ORDER BY t1.$order ".uc($dir), [], undef, {});
       foreach my $row (@$rows) {
 	# _id 0 firstname 1 email 2 password 3 comment 4 entry_date 5 active 6 lastname 7 login 8 email2 9 _id 10 user 11 _user_db 12 organization 13 _organization_db 14 _id 15 country 16 city 17 date 18 url 19 name 20 abbreviation 21 scope 22 _scope_db 23 loaction 24
-	
+
 	$uhash->{$row->[8]}->{organization} = { country => $row->[16],
 						city => $row->[17],
 						date => $row->[18],
@@ -1228,7 +1230,7 @@ sub prepare_data {
 
       if (defined $u->{updated_email}) { $obj->{updated_email} = $u->{updated_email} };
       if (defined $u->{updated_email2}) { $obj->{updated_email2} = $u->{updated_email2} };
-      
+
       push(@$result, $obj);
     }
 
@@ -1275,18 +1277,18 @@ sub create_user {
 
   # get database
   my ($master, $error) = WebApplicationDBHandle->new();
-  
+
   # check login
   my $user_by_login = $master->User->init( { login => uri_unescape($cgi->param('login')) } );
   if (ref($user_by_login)) {
     $self->return_data( {"ERROR" => "login already taken"}, 400 );
   }
   else {
-    
-    # check email 
+
+    # check email
     my $user_by_email = $master->User->init( { email => uri_unescape($cgi->param('email')) } );
     if (ref($user_by_email)) {
-      $self->return_data( {"ERROR" => "email already taken"}, 400 );  
+      $self->return_data( {"ERROR" => "email already taken"}, 400 );
     }
   }
 
@@ -1295,12 +1297,12 @@ sub create_user {
 			      name => uri_unescape($cgi->param('login')) } )) {
     $self->return_data( {"ERROR" => "login already taken"}, 400 );
   }
-  
+
   # check first name
   unless ($cgi->param('firstname')) {
     $self->return_data( {"ERROR" => "no firstname passed"}, 400 );
   }
-      
+
   # check last name
   unless ($cgi->param('lastname')) {
     $self->return_data( {"ERROR" => "no lastname passed"}, 400 );
@@ -1317,7 +1319,7 @@ sub create_user {
   unless (ref($user)) {
     $self->return_data( {"ERROR" => "could not create user"}, 500 );
   }
-  
+
   # check for organization information
   my $user_org = "";
   my $org_found = 0;
@@ -1334,10 +1336,10 @@ sub create_user {
   }
 
   if ($user_org) {
-      
+
     # check if we find this organization by name
     my $existing_org = $master->Organization->init( { name => $user_org } );
-      
+
     # check if we have a url to compare
     if ($url) {
       $url =~ s/(.*)\/$/$1/;
@@ -1347,7 +1349,7 @@ sub create_user {
 	$existing_org = $existing_org->[0];
       }
     }
-      
+
     # check if we found an existing org
     if ($existing_org) {
       $user_org = $existing_org->name();
@@ -1369,7 +1371,7 @@ sub create_user {
   $abody->param('EMAIL_USER', $user->email);
   $abody->param('APPLICATION_NAME', "MG-RAST");
   $abody->param('APPLICATION_URL', $Conf::cgi_url);
-  $abody->param('EMAIL_ADMIN', "mg-rast\@mcs.anl.gov");
+  $abody->param('EMAIL_ADMIN', "help\@mg-rast.org");
   $abody->param('URL', $url);
   if ($cgi->param('country')) {
     my $hs = HTML::Strip->new();
@@ -1384,7 +1386,7 @@ sub create_user {
       $abody->param('ORG_FOUND', "This organization does not yet exist. Please create it on the Organization page.");
     }
   }
-  
+
   # add registration request (non granted login right)
   $user->add_login_right( $master->Backend->init({ 'name' => "MGRAST" }) );
 
@@ -1394,7 +1396,7 @@ sub create_user {
 				    name => 'mailinglist',
 				    value => 'mgrast' } );
   }
-  
+
   # send user email
   my $ubody = HTML::Template->new(filename => '../../src/WebApplication/templates/EmailNewAccount.tmpl',
 				  die_on_bad_params => 0);
@@ -1404,16 +1406,21 @@ sub create_user {
   $ubody->param('EMAIL_USER', $user->{email});
   $ubody->param('APPLICATION_NAME', "MG-RAST");
   $ubody->param('APPLICATION_URL', $Conf::cgi_url);
-  $ubody->param('EMAIL_ADMIN', "mg-rast\@mcs.anl.gov");
-  
-  $user->send_email( "mg-rast\@mcs.anl.gov",
+  $ubody->param('EMAIL_ADMIN', "help\@mg-rast.org");
+
+  $user->send_email( "help\@mg-rast.org",
 		     'MG-RAST - new account requested',
 		     $ubody->output
 		   );
-  
+
   return $user;
 }
 
+=item set_password
+
+send email to user with new password from noreply@mg-rast.org
+
+=cut
 sub set_password {
   my ($user, $password, $reset) = @_;
 
@@ -1427,9 +1434,9 @@ sub set_password {
     $body->param('NEWPASSWORD', $password);
     $body->param('APPLICATION_NAME', "MG-RAST");
     $body->param('APPLICATION_URL', $Conf::cgi_url);
-    $body->param('EMAIL_ADMIN', "mg-rast\@mcs.anl.gov");
-    
-    $user->send_email( "mg-rast\@mcs.anl.gov",
+    $body->param('EMAIL_ADMIN', "noreply\@mg-rast.org");
+
+    $user->send_email( "noreply\@mg-rast.org",
 		       'MG-RAST - new password requested',
 		       $body->output,
 		     );
@@ -1447,13 +1454,19 @@ sub encrypt {
   return crypt($password, $seed);
 }
 
+=item verify_email
+
+send email verifying that user specified correct address from noreply@mg-rast.org
+
+=cut
+
 sub verify_email {
   my ($self, $email2, $additional_message, $user) = @_;
 
   unless ($user) {
     $user = $self->user;
   }
-  
+
   my $email = $email2 ? $self->cgi->param('email2') : $self->cgi->param('email');
 
   my @set = ('0' ..'9', 'A' .. 'Z', 'a' .. 'z');
@@ -1466,17 +1479,17 @@ sub verify_email {
   }
 
   $master->Preferences->create({ "user" => $user, "name" => $key, "value" => ($email2 ? "email2" : "email").":".$email});
-  
+
   my $message = $additional_message ? $additional_message."\n\n" : "";
   $message .= "To verify your email address, please click the link below.\n";
   $message .= "<a href='".$Conf::cgi_url."/user/validateemail/".$user->_id."_".$key."'>verify email address</a>";
-  
-  MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
-			      from => "mg-rast\@mcs.anl.gov",
+
+  MGRAST::Mailer::send_email(
+			      from => "noreply\@mg-rast.org",
 			      to => $email,
 			      subject => 'MG-RAST - verify email',
 			      body => $message);
-  
+
   return 1;
 }
 
