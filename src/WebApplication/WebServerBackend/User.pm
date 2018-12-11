@@ -420,7 +420,7 @@ sub grant_login_right {
     $body->param('NEWPASSWORD', $password);
     $body->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
     $body->param('APPLICATION_URL', $WebConfig::APPLICATION_URL);
-    $body->param('EMAIL_ADMIN', $WebConfig::ADMIN_EMAIL);
+    $body->param('EMAIL_ADMIN', $WebConfig::NOREPLY_EMAIL);
     
     $self->send_email(
                 $WebConfig::ADMIN_EMAIL,

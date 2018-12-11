@@ -44,6 +44,7 @@ our $NODB   = undef;
 our $APPLICATION_NAME = 'MG-RAST';
 our $APPLICATION_URL  = "$Conf::cgi_url/";
 our $ADMIN_EMAIL = 'help@mg-rast.org';
+our $NOREPLY_EMAIL = 'noreply@mg-rast.org';
 
 #
 # Login dependencies are used to grant login rights
