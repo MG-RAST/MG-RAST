@@ -559,7 +559,7 @@ sub instance {
     }
     if (defined $self->{cgi}->param('email2')) {
       if ($self->user->has_star_right('edit', 'user')) {
-	$user->email(uri_unescape($self->{cgi}->param('email2')));
+	$user->email2(uri_unescape($self->{cgi}->param('email2')));
       } else {
 	# check if this is a new address and verify it if so
 	if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2'))) {
