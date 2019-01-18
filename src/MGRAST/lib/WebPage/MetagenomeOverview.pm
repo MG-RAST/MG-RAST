@@ -885,7 +885,7 @@ The image is currently dynamic. To be able to right-click/save the image, please
 
   # analysis
   $html .= "<a name='analyze_ref'></a><h3>Analyze This Metagenome</h3>";
-  $html .= "<p>The <a target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'>analysis page</a> provides access to analysis and comparative tools including tables, bar charts, trees, principle coordinate analysis, heatmaps and various exports (including FASTA and QIIME). The <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#workbench'>workbench</a> feature allows sub-selections of data to be used e.g. select all E. coli reads and then display the functional categories present just in E. coli reads across multiple data sets.</p>";
+  $html .= "<p>The <a target=_blank href='metagenomics.cgi?page=Analysis&metagenome=$mgid'>analysis page</a> provides access to analysis and comparative tools including tables, bar charts, trees, principal coordinate analysis, heatmaps and various exports (including FASTA and QIIME). The <a target=_blank href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#workbench'>workbench</a> feature allows sub-selections of data to be used e.g. select all E. coli reads and then display the functional categories present just in E. coli reads across multiple data sets.</p>";
 
   # MG search
   $html .= qq~<a name='search_ref'></a>
