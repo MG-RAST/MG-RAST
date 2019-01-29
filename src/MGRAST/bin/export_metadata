@@ -193,7 +193,7 @@ def template2sheet(book, inum, category, tdata):
     return inum, book
 
 def template2excel(data, ofile):
-    snum = 1
+    inum = 1
     book = Workbook()
     readme = book.create_sheet(index=0, title='README')
     for text in README:
