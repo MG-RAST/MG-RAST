@@ -51,9 +51,12 @@ def json_from_file(infile):
         errorMsg("invalid JSON file: '"+infile+"'")
     return obj
 
-def obj_from_url(url):
+def obj_from_url(url, wkey):
+    headers = {'Accept': 'application/json'}
+    if wkey:
+        headers["Authorization"] = 'mgrast {}'.format(wkey)
     try:
-        req = urllib2.Request(url, headers={'Accept': 'application/json'})
+        req = urllib2.Request(url, headers=headers)
         res = urllib2.urlopen(req)
     except urllib2.HTTPError:
         errorMsg("MG-RAST API inaccessable: can not connect to: %s"%url, 1)
@@ -66,9 +69,7 @@ def obj_from_url(url):
 
 def mgrast_api(request, wkey=None):
     url = MGRAST_URL+'metadata/'+request
-    if wkey:
-        url += '?auth=' + wkey
-    obj = obj_from_url(url)
+    obj = obj_from_url(url, wkey)
     if obj.keys() == 0:
         errorMsg("no data available: %s"%url, 1)
     return obj
@@ -222,13 +223,19 @@ def main(args):
     (opts, args) = parser.parse_args()
     project = None
     template = False
-
+    if opts.key:
+        KEY = opts.key
+    else:
+        if 'MGRKEY' in os.environ:
+            KEY = os.environ["MGRKEY"]
+        else: 
+            KEY = opts.key
     if opts.project:
         try:
             project = int(opts.project.strip("mgp"))
         except ValueError:
             parser.error("[error] invalid project id format: "+opts.project)
-        mdata = mgrast_api("export/mgp%d"%project, opts.key)
+        mdata = mgrast_api("export/mgp%d"%project, KEY)
     elif opts.json and os.path.isfile(opts.json):
         mdata = json_from_file(opts.json)
     elif opts.template:
