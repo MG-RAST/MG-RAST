@@ -2350,9 +2350,18 @@ sub get_elastic_query {
     }
     
     # filter for project ids and public status (not scored)
+
     if ($filters) {
-        foreach my $f (@$filters) {
-            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$f->[0] => $f->[1]} });
+
+        if (@$filters > 1) {
+            # this is an or
+            foreach my $f (@$filters) {
+                push(@{$postJSON->{"query"}{"bool"}{"filter"}{"bool"}{"should"}}, { "terms" => {$f->[0] => $f->[1]} });
+            }
+        }
+        else{
+           foreach my $f (@$filters) {
+            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$f->[0] => $f->[1]} }); 
         }
     }
     
