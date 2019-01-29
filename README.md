@@ -45,9 +45,14 @@ type make
 
 ### API server
 
-Build image (in repository root):
+Build image and push to shock:
 ```bash
-docker build --force-rm --no-cache --rm -t  mgrast/api-server  .
+export TAG=`date +"%Y%m%d.%H%M"`
+git clone -b api https://github.com/MG-RAST/MG-RAST.git
+cd MG-RAST
+docker build -t mgrast/api:${TAG} .
+skycore push mgrast/api:${TAG}
+
 ```
 
 Get config: (private mcs git repo, for details see fleet unit)
@@ -57,12 +62,12 @@ if cd /home/core/mgrast-config; then git pull; else cd /home/core/ ; git clone g
 
 Download data
 ```bash
-docker run -t -i --name api -v /media/ephemeral/api-server-data:/m5nr mgrast/api-server /MG-RAST/bin/download_m5nr_blast.sh
+docker run -t -i --name api -v /media/ephemeral/api-server-data:/m5nr mgrast/api /MG-RAST/bin/download_m5nr_blast.sh
 docker rm api
 ```
 
 Start container:
 ```bash
-docker run -t -i --name api  -v /home/core/mgrast-config/services/api-server:/api-server-conf -v /media/ephemeral/api-server-data:/m5nr -p 80:80 mgrast/api-server /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
+docker run -t -i --name api  -v /home/core/mgrast-config/services/api-server:/api-server-conf -v /media/ephemeral/api-server-data:/m5nr -p 80:80 mgrast/api /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
 ```
 
