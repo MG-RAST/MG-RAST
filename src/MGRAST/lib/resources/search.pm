@@ -291,7 +291,7 @@ sub query {
         }
     }
         
-    # get filters
+    # get filters - this are "or" - only for public/private selection
     my $filters = [];
     my $no_pub = ($public && (($public eq "1") || ($public eq "true") || ($public eq "yes"))) ? 0 : 1;
     if ( $self->user ) {
