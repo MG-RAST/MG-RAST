@@ -48,7 +48,7 @@ type make
 Build image and push to shock:
 ```bash
 export TAG=`date +"%Y%m%d.%H%M"`
-git clone -b api https://github.com/MG-RAST/MG-RAST.git
+git clone https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
 docker build -t mgrast/api:${TAG} .
 skycore push mgrast/api:${TAG}
