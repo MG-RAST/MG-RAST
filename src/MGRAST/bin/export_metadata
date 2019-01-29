@@ -2,7 +2,6 @@
 
 import os, sys, operator, string, pprint
 import urllib, urllib2, json
-import gspread
 from optparse import OptionParser
 from collections import defaultdict
 from lepl.apps.rfc3696 import HttpUrl
@@ -26,13 +25,13 @@ README  = [ 'MG-RAST Metadata Template',
             'pre-filled rows:',
             "1. metadata label - required fields are in red",
             "2. label description - includes instructions, examples, and units if applicable",
-	    '',
-	    'NOTE:',
-	    "1. Please do not change tab names",
-	    "2. Please enter data starting with first empty row, do not edit or overwrite pre-filled rows",
-	    "3. Each sample must have only one enviromental package associated with it",
-	    "4. Each sample must have one, but may have more than one, library associated with it",
-	    "5. Library field 'metagenome_name' must be unique for each library, and will be the name of the MG-RAST metagenome"
+            '',
+            'NOTE:',
+            "1. Please do not change tab names",
+            "2. Please enter data starting with first empty row, do not edit or overwrite pre-filled rows",
+            "3. Each sample must have only one enviromental package associated with it",
+            "4. Each sample must have one, but may have more than one, library associated with it",
+            "5. Library field 'metagenome_name' must be unique for each library, and will be the name of the MG-RAST metagenome"
            ]
 
 def errorMsg(err, exit=0):
@@ -68,7 +67,7 @@ def obj_from_url(url):
 def mgrast_api(request, wkey=None):
     url = MGRAST_URL+'metadata/'+request
     if wkey:
-	url += '?auth=' + wkey
+        url += '?auth=' + wkey
     obj = obj_from_url(url)
     if obj.keys() == 0:
         errorMsg("no data available: %s"%url, 1)
@@ -162,10 +161,10 @@ def mdata2excel(mdata, ofile, is_template):
                 if ('id' in l) and (MGRASTID not in l['data']):
                     l['data'][MGRASTID] = {'value': l['id'], 'required': 0, 'mixs': 0, 'definition': ''}
                 libs[l['type']].append(l['data'])
-	    if ('envPackage' in s) and ('type' in s['envPackage']):
-		if ('id' in s['envPackage']) and (MGRASTID not in s['envPackage']['data']):
-		    s['envPackage']['data'][MGRASTID] = {'value': s['envPackage']['id'], 'required': 0, 'mixs': 0, 'definition': ''}
-		eps[s['envPackage']['type']].append(s['envPackage']['data'])
+            if ('envPackage' in s) and ('type' in s['envPackage']):
+                if ('id' in s['envPackage']) and (MGRASTID not in s['envPackage']['data']):
+                    s['envPackage']['data'][MGRASTID] = {'value': s['envPackage']['id'], 'required': 0, 'mixs': 0, 'definition': ''}
+                eps[s['envPackage']['type']].append(s['envPackage']['data'])
         for ltype, ldata in libs.iteritems():
             lsheet = book.create_sheet(index=snum, title="library %s"%ltype)
             lsheet = data2sheet(lsheet, ldata, False)
@@ -175,22 +174,22 @@ def mdata2excel(mdata, ofile, is_template):
             esheet = data2sheet(esheet, edata, False)
             snum +=1
     if (mdata['sampleNum'] == 0) or (len(libs) == 0) or (len(eps) == 0):
-	tdata = mgrast_api("template")
-	if mdata['sampleNum'] == 0:
-	    snum, book = template2sheet(book, snum, 'sample', tdata)
-	if len(libs) == 0:
-	    snum, book = template2sheet(book, snum, 'library', tdata)
-	if len(eps) == 0:
-	    snum, book = template2sheet(book, snum, 'ep', tdata)
+        tdata = mgrast_api("template")
+        if mdata['sampleNum'] == 0:
+            snum, book = template2sheet(book, snum, 'sample', tdata)
+        if len(libs) == 0:
+            snum, book = template2sheet(book, snum, 'library', tdata)
+        if len(eps) == 0:
+            snum, book = template2sheet(book, snum, 'ep', tdata)
     book.save(ofile)
 
 def template2sheet(book, inum, category, tdata):
     ctypes = sorted(tdata[category].keys())
     for ctype in ctypes:
-	    title = category if category == ctype else category+' '+ctype
-	    sheet = book.create_sheet(index=inum, title=title)
-	    sheet = data2sheet(sheet, [tdata[category][ctype]], True)
-	    inum += 1
+            title = category if category == ctype else category+' '+ctype
+            sheet = book.create_sheet(index=inum, title=title)
+            sheet = data2sheet(sheet, [tdata[category][ctype]], True)
+            inum += 1
     return inum, book
 
 def template2excel(data, ofile):
@@ -200,7 +199,7 @@ def template2excel(data, ofile):
     for text in README:
         readme.append([text])    
     for category in ORDER:
-	inum, book = template2sheet(book, inum, category, data)
+        inum, book = template2sheet(book, inum, category, data)
     book.save(ofile)
 
 def mdata2google(data, url, is_template, login, password):
