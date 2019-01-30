@@ -45,13 +45,15 @@ type make
 
 ### API server
 
-Build image and push to shock:
+Build image and push to dockerhub:
 ```bash
-export TAG=`date +"%Y%m%d.%H%M"`
+
 git clone https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
-docker build -t mgrast/api:${TAG} .
-skycore push mgrast/api:${TAG}
+docker build -t mgrast/api-server .
+docker build -t mgrast/api-server:dev .
+
+docker push mgrast/api-server[:dev]
 
 ```
 
@@ -68,6 +70,6 @@ docker rm api
 
 Start container:
 ```bash
-docker run -t -i --name api  -v /home/core/mgrast-config/services/api-server:/api-server-conf -v /media/ephemeral/api-server-data:/m5nr -p 80:80 mgrast/api /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
+docker run -t -i --name api  -v /home/core/mgrast-config/services/api-server:/api-server-conf -v /media/ephemeral/api-server-data:/m5nr -p 80:80 mgrast/api-server /usr/local/apache2/bin/httpd -DFOREGROUND -f /MG-RAST/conf/httpd.conf
 ```
 
