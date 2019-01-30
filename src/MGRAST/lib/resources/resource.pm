@@ -2356,12 +2356,13 @@ sub get_elastic_query {
         if (@$filters > 1) {
             # this is an or
             foreach my $f (@$filters) {
-                push(@{$postJSON->{"query"}{"bool"}{"filter"}{"bool"}{"should"}}, { "terms" => {$f->[0] => $f->[1]} });
+                push(@{$postJSON->{"query"}{"bool"}{"filter"}[0]{"bool"}{"should"}}, { "terms" => {$f->[0] => $f->[1]} });
             }
         }
-        else{
-           foreach my $f (@$filters) {
-            push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$f->[0] => $f->[1]} }); 
+        else {
+            foreach my $f (@$filters) {
+                push(@{$postJSON->{"query"}{"bool"}{"filter"}}, { "terms" => {$f->[0] => $f->[1]} }); 
+            }
         }
     }
     
