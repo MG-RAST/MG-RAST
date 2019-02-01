@@ -1,7 +1,7 @@
 use warnings;
 use strict;
 
-use CGI;
+use CGI '-utf8';
 use JSON;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 use URI::Escape;

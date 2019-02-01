@@ -3,7 +3,7 @@ use warnings;
 no warnings 'once';
 
 use DBI;
-use CGI;
+use CGI '-utf8';
 use JSON;
 use URI::Escape;
 use Data::Dumper;

@@ -128,7 +128,7 @@ sub get_data {
     }
   }
   
-  use CGI;
+  use CGI '-utf8';
   $CGI::LIST_CONTEXT_WARN = 0;
   $CGI::Application::LIST_CONTEXT_WARN = 0;
   my $cgi = new CGI;
@@ -317,7 +317,7 @@ sub comprehensive_list {
 
   my $jobs = $self->_master->Job->fetch_browsepage_viewable();
   
-  use CGI;
+  use CGI '-utf8';
   my $cgi = new CGI;
   if ($cgi->param('scope')) {
     my $jg = $self->_master->Jobgroup->get_objects( { name => $cgi->param('scope') } );

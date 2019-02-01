@@ -2,7 +2,7 @@ use strict;
 use warnings;
 no warnings 'once';
 
-use CGI;
+use CGI '-utf8';
 use Conf;
 
 $CGI::LIST_CONTEXT_WARN = 0;

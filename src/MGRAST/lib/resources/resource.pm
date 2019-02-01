@@ -9,7 +9,7 @@ use Conf;
 use ElasticSearch;
 use MGRAST::Metadata;
 
-use CGI;
+use CGI '-utf8';
 use JSON;
 use XML::Simple;
 use URI::Escape;

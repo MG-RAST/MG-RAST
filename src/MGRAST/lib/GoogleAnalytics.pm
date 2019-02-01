@@ -3,7 +3,7 @@ package GoogleAnalytics;
 use strict ;
 use warnings;
 
-use CGI;
+use CGI '-utf8';
 
 use LWP::UserAgent;
 use URI::Escape;

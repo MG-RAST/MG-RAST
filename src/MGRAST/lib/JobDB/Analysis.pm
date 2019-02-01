@@ -114,7 +114,7 @@ sub get_data {
 
   my $data = [];
 
-  use CGI;
+  use CGI '-utf8';
   $CGI::LIST_CONTEXT_WARN = 0;
   $CGI::Application::LIST_CONTEXT_WARN = 0;
   my $cgi = new CGI;

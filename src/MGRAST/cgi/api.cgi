@@ -1,4 +1,4 @@
-use CGI;
+use CGI '-utf8';
 use JSON;
 use Conf;
 use Data::Dumper;

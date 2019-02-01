@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 use WebApplicationDBHandle;
-use CGI;
+use CGI '-utf8';
 use CGI::Cookie;
 use Digest::MD5;
 use Time::Local;
