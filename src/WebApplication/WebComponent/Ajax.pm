@@ -7,7 +7,7 @@ use warnings;
 
 use base qw( WebComponent );
 
-use CGI;
+use CGI '-utf8';
 
 use WebApplication;
 use Conf;

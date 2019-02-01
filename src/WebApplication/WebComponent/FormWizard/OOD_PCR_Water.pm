@@ -3,7 +3,7 @@ package WebComponent::FormWizard::OOD_PCR_Water;
 use strict;
 use warnings;
 use Data::Dumper;
-use CGI;
+use CGI '-utf8';
 
 sub new{
     my ($class , $wizard , $question , $value) = @_;

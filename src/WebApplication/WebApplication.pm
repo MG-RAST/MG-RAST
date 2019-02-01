@@ -7,7 +7,7 @@ use warnings;
 
 use FreezeThaw qw( freeze thaw );
 
-use CGI;
+use CGI '-utf8';
 use CGI::Cookie;
 use HTML::Strip;
 use DBMaster;

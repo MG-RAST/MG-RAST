@@ -9,7 +9,7 @@ use WebConfig;
 use HTML::Strip;
 
 use LWP::UserAgent;
-use CGI;
+use CGI '-utf8';
 
 $CGI::LIST_CONTEXT_WARN = 0;
 $CGI::Application::LIST_CONTEXT_WARN = 0;

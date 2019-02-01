@@ -3,7 +3,7 @@ package WebComponent::FormWizard::OOD_Sequencer_Make;
 use strict;
 use warnings;
 use Data::Dumper;
-use CGI;
+use CGI '-utf8';
 use WebComponent::FormWizard::OOD_List;
 
  

@@ -7,7 +7,7 @@ use GD;
 use GD::Polyline;
 use base qw( GD::Image );
 
-use CGI;
+use CGI '-utf8';
 use MIME::Base64;
 use File::Temp qw( tempfile );
 

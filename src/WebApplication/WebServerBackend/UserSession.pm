@@ -5,7 +5,7 @@ package WebServerBackend::UserSession;
 use strict;
 use warnings;
 
-use CGI;
+use CGI '-utf8';
 use CGI::Cookie;
 use Digest::MD5;
 use Time::Local;
