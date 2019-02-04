@@ -7,6 +7,7 @@ no warnings('once');
 use Conf;
 use ElasticSearch;
 use parent qw(resources::resource);
+use Encode decode_utf8, encode_utf8;
 
 use JSON;
 use URI::Escape qw(uri_escape uri_unescape);
@@ -234,7 +235,7 @@ sub query {
         next if $field eq 'public';
         if ( $self->cgi->param($field) ) {
             my $type  = $ElasticSearch::types->{$field};
-            my @param = $self->cgi->param($field);
+            my @param = decode_utf8($self->cgi->param($field));
             my $key   = $self->{fields}{$field};
             $key =~ s/\.keyword$//;
             # clean query whitespace

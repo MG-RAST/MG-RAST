@@ -6,6 +6,7 @@ no warnings('once');
 
 use Conf;
 use parent qw(resources::resource);
+use Encode decode_utf8, encode_utf8;
 
 #use Mail::Mailer;
 use MGRAST::Mailer;
@@ -326,7 +327,7 @@ sub post_action {
         my $keyval = {};
         foreach my $key (@keys) {
             if ($self->cgi->param($key)) {
-                $keyval->{$key} = $self->cgi->param($key);
+                $keyval->{$key} = decode_utf8($self->cgi->param($key));
             }
         }
         # update DB

@@ -6,6 +6,7 @@ no warnings('once');
 
 use Conf;
 use Data::Dumper;
+use Encode decode_utf8, encode_utf8;
 use parent qw(resources::resource);
 use WebApplicationDBHandle;
 use URI::Escape;
@@ -569,10 +570,10 @@ sub instance {
       }
     }
     if (defined $self->{cgi}->param('firstname')) {
-      $user->firstname(uri_unescape($self->{cgi}->param('firstname')));
+      $user->firstname(decode_utf8(uri_unescape($self->{cgi}->param('firstname'))));
     }
     if (defined $self->{cgi}->param('lastname')) {
-      $user->lastname(uri_unescape($self->{cgi}->param('lastname')));
+      $user->lastname(decode_utf8(uri_unescape($self->{cgi}->param('lastname'))));
     }
     if (defined $self->{cgi}->param('active')) {
       $user->active(uri_unescape($self->{cgi}->param('active')));
