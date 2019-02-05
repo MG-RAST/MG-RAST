@@ -7,6 +7,7 @@ no warnings('once');
 use Conf;
 use Data::Dumper;
 use parent qw(resources::resource);
+use Encode qw(decode_utf8 encode_utf8);
 use WebApplicationDBHandle;
 use URI::Escape;
 use MGRAST::Mailer;
@@ -210,8 +211,8 @@ sub instance {
       }
       my $data = {
 		  "login" => $self->user->{login},
-		  "firstname" => $self->user->{firstname},
-		  "lastname" => $self->user->{lastname},
+		  "firstname" => decode_utf8($self->user->{firstname}),
+		  "lastname" => decode_utf8($self->user->{lastname}),
 		  "email" => $self->user->{email},
 		  "id" => 'mgu'.$self->user->{_id},
 		  "token" => scalar(@$userToken) ? $userToken->[0]->value : undef,
