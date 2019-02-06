@@ -340,7 +340,7 @@ sub prepare_data {
 
     my @params     = $self->cgi->param;
     my $add_params = join( '&',
-        map { $_ . "=" . $self->cgi->param($_) }
+        map { $_ . "=" . decode_utf8($self->cgi->param($_)) }
         grep { $_ ne 'after' } @params );
 
     my $obj = {
