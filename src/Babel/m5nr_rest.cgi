@@ -21,7 +21,7 @@ my $json = new JSON;
 print $cgi->header( -type => "application/json",
 	                -status => 410,
 	                -Access_Control_Allow_Origin => '*' );
-print $json->encode({status => 410, error => "This URI is no longer available. Please use http://api.metagenomics.anl.gov/m5nr"});
+print $json->encode({status => 410, error => "This URI is no longer available. Please use http://api.mg-rast.org/m5nr"});
 exit 0;
 
 my $dbh = DBI->connect("DBI:$Conf::babel_dbtype:dbname=$Conf::babel_db;host=$Conf::babel_dbhost", $Conf::babel_dbuser, '');

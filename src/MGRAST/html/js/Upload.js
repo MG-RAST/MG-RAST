@@ -720,12 +720,12 @@ function check_submitable () {
 
 function submit_job () {
     // test if AWE and SHOCK are up
-    jQuery.getJSON( "http://api.metagenomics.anl.gov/heartbeat/AWE", function(data) {
+    jQuery.getJSON( "http://api.mg-rast.org/heartbeat/AWE", function(data) {
 	if (data.status != 1) {
 	    alert("Our submission pipeline is currently out of service. Please try again later.");
 	    return;
 	}
-	jQuery.getJSON( "http://api.metagenomics.anl.gov/heartbeat/SHOCK", function(data) {
+	jQuery.getJSON( "http://api.mg-rast.org/heartbeat/SHOCK", function(data) {
 	    if (data.status != 1) {
 		alert("Our submission pipeline is currently out of service. Please try again later.");
 		return;

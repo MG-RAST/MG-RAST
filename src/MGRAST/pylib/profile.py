@@ -23,7 +23,7 @@ class Profile(object):
     def set_ontology(self, sources=['Subsystems', 'NOG', 'COG', 'KO']):
         self.ontology = sources
     
-    def set_shock(self, token=None, bearer='mgrast', url='http://shock.metagenomics.anl.gov'):
+    def set_shock(self, token=None, bearer='mgrast', url='http://shock.mg-rast.org'):
         self.shock = shock.ShockClient(shock_url=url, bearer=bearer, token=token)
     
     def close(self):
@@ -118,7 +118,7 @@ class Profile(object):
             'condensed'   : 'true' if index else 'false',
             'row_total'   : 0,
             'data'        : []
-	    }
+            }
     
     def init_lca_profile(self, mgid):
         return {
@@ -129,7 +129,7 @@ class Profile(object):
             'columns'     : ["lca", "abundance", "e-value", "percent identity", "alignment length", "md5s", "level"],
             'row_total'   : 0,
             'data'        : []
-	    }
+            }
     
     def init_biom_profile(self, mgid, source, stype):
         return {
