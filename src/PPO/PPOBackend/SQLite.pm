@@ -56,7 +56,7 @@ sub new {
   
   # initialize database handle
   my $connect = "DBI:SQLite:dbname=$database";
-  my $dbh = DBI->connect($connect, '', '', { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) || Confess("Database connect error.");
+  my $dbh = DBI->connect($connect, '', '', { RaiseError => 1, AutoCommit => 0, PrintError => 0,  sqlite_unicode => 1 }) || Confess("Database connect error.");
   
   my $self = { 'dbhandle' => $dbh,
 	       'source'   => $database,
