@@ -118,7 +118,7 @@ sub get_url_id {
     }
     foreach my $p (sort keys %params) {
         next if ($p eq 'auth');
-        $rurl .= $p.join("", sort @{$params{$p}});
+        $rurl .= encode_utf8($p.join("", sort @{$params{$p}}));
     }
     if ($rpc) {
         $rurl .= 'jsonrpc';
