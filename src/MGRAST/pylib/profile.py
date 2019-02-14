@@ -118,7 +118,7 @@ class Profile(object):
             'condensed'   : 'true' if index else 'false',
             'row_total'   : 0,
             'data'        : []
-	    }
+            }
     
     def init_lca_profile(self, mgid):
         return {
@@ -129,7 +129,7 @@ class Profile(object):
             'columns'     : ["lca", "abundance", "e-value", "percent identity", "alignment length", "md5s", "level"],
             'row_total'   : 0,
             'data'        : []
-	    }
+            }
     
     def init_biom_profile(self, mgid, source, stype):
         return {
