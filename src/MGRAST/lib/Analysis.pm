@@ -87,7 +87,7 @@ sub new {
   # create object
   my $self = { dbh      => $dbh,     # job data db_handle
 	          # ach      => $ach,     # ach/babel object
-	           api      => $Conf::api_url || "http://api.metagenomics.anl.gov",
+	           api      => $Conf::api_url || "http://api.mg-rast.org",
 	           jcache   => $job_dbh, # job cache db_handle
 	           agent    => $agent,   # LWP agent handle
 	           memd     => $memd,    # memcached handle

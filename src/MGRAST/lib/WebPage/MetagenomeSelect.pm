@@ -218,7 +218,7 @@ sub output {
     $private_data .= "<span id='projects_help' onmouseover='hover(event, \"projects_help\", " . $help->id . ")'><sup style='cursor: help;'>[?]</sup></span>";
     $private_data .= "<a class='sidebar_link' id='user_projects_count'>".$num_projects."</a></div>";
     
-    $private_data .= "<div class='sidebar_text' style='margin-top: 10px;'>Click on the blue links above to browse just your data. For more information visit the <a href='http://blog.metagenomics.anl.gov'>Support page</a>.</div>";
+    $private_data .= "<div class='sidebar_text' style='margin-top: 10px;'>Click on the blue links above to browse just your data. For more information visit the <a href='http://blog.mg-rast.org'>Support page</a>.</div>";
     $private_data .= "</div>";
     
   } else {
