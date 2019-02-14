@@ -18,7 +18,7 @@ class Abundance(object):
         self.chunk = int(chunk)
         self.shock = None
     
-    def set_shock(self, token=None, bearer='mgrast', url='http://shock.metagenomics.anl.gov'):
+    def set_shock(self, token=None, bearer='mgrast', url='http://shock.mg-rast.org'):
         self.shock = shock.ShockClient(shock_url=url, bearer=bearer, token=token)
     
     def close(self):
