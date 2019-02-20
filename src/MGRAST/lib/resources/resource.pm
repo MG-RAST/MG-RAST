@@ -564,7 +564,7 @@ sub get_post_data {
     if ($post_data) {
         my $pdata = {};
         eval {
-            $pdata = $self->json->decode(decode_utf8($post_data));
+            $pdata = $self->json->decode($post_data);
         };
         @data{ keys %$pdata } = values %$pdata;
     }

@@ -211,8 +211,8 @@ sub instance {
       }
       my $data = {
 		  "login" => $self->user->{login},
-		  "firstname" => decode_utf8($self->user->{firstname}),
-		  "lastname" => decode_utf8($self->user->{lastname}),
+		  "firstname" => $self->user->{firstname},
+		  "lastname" => $self->user->{lastname},
 		  "email" => $self->user->{email},
 		  "id" => 'mgu'.$self->user->{_id},
 		  "token" => scalar(@$userToken) ? $userToken->[0]->value : undef,
@@ -549,7 +549,7 @@ sub instance {
     }
     if (defined $self->{cgi}->param('email')) {
       if ($self->user->has_star_right('edit', 'user')) {
-	$user->email(uri_unescape($self->{cgi}->param('email')));
+	$user->email(decode_utf8(uri_unescape($self->{cgi}->param('email'))));
       } else {
 	# check if this is a new address and verify it if so
 	if ($user->{email} ne uri_unescape($self->{cgi}->param('email'))) {
@@ -563,7 +563,7 @@ sub instance {
 	$user->email(uri_unescape($self->{cgi}->param('email2')));
       } else {
 	# check if this is a new address and verify it if so
-	if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2'))) {
+	if ($user->{email2} ne decode_utf8(uri_unescape($self->{cgi}->param('email2')))) {
 	  $self->verify_email(1);
 	  $user->{updated_email2} = 'verifying';
 	}
@@ -1287,7 +1287,7 @@ sub create_user {
   else {
 
     # check email
-    my $user_by_email = $master->User->init( { email => uri_unescape($cgi->param('email')) } );
+    my $user_by_email = $master->User->init( { email => decode_utf8(uri_unescape($cgi->param('email'))) } );
     if (ref($user_by_email)) {
       $self->return_data( {"ERROR" => "email already taken"}, 400 );
     }
@@ -1310,8 +1310,8 @@ sub create_user {
   }
 
   # create the user in the db
-  $user = $master->User->create( { email      => uri_unescape($cgi->param('email')),
-				   email2     => uri_unescape($cgi->param('email2')) || "",
+  $user = $master->User->create( { email      => decode_utf8(uri_unescape($cgi->param('email'))),
+				   email2     => decode_utf8(uri_unescape($cgi->param('email2'))) || "",
 				   firstname  => decode_utf8(uri_unescape($cgi->param('firstname'))),
 				   lastname   => decode_utf8(uri_unescape($cgi->param('lastname'))),
 				   login      => uri_unescape($cgi->param('login')) } );
@@ -1468,7 +1468,7 @@ sub verify_email {
     $user = $self->user;
   }
 
-  my $email = $email2 ? $self->cgi->param('email2') : $self->cgi->param('email');
+  my $email = $email2 ? decode_utf8($self->cgi->param('email2')) : decode_utf8($self->cgi->param('email'));
 
   my @set = ('0' ..'9', 'A' .. 'Z', 'a' .. 'z');
   my $key = join '' => map $set[rand @set], 1 .. 64;
