@@ -7,6 +7,7 @@ no warnings('once');
 use Conf;
 use Data::Dumper;
 use parent qw(resources::resource);
+use Encode qw(decode_utf8 encode_utf8);
 use WebApplicationDBHandle;
 use URI::Escape;
 use MGRAST::Mailer;
@@ -548,7 +549,7 @@ sub instance {
     }
     if (defined $self->{cgi}->param('email')) {
       if ($self->user->has_star_right('edit', 'user')) {
-	$user->email(uri_unescape($self->{cgi}->param('email')));
+	$user->email(decode_utf8(uri_unescape($self->{cgi}->param('email'))));
       } else {
 	# check if this is a new address and verify it if so
 	if ($user->{email} ne uri_unescape($self->{cgi}->param('email'))) {
@@ -562,17 +563,17 @@ sub instance {
 	$user->email(uri_unescape($self->{cgi}->param('email2')));
       } else {
 	# check if this is a new address and verify it if so
-	if ($user->{email2} ne uri_unescape($self->{cgi}->param('email2'))) {
+	if ($user->{email2} ne decode_utf8(uri_unescape($self->{cgi}->param('email2')))) {
 	  $self->verify_email(1);
 	  $user->{updated_email2} = 'verifying';
 	}
       }
     }
     if (defined $self->{cgi}->param('firstname')) {
-      $user->firstname(uri_unescape($self->{cgi}->param('firstname')));
+      $user->firstname(decode_utf8(uri_unescape($self->{cgi}->param('firstname'))));
     }
     if (defined $self->{cgi}->param('lastname')) {
-      $user->lastname(uri_unescape($self->{cgi}->param('lastname')));
+      $user->lastname(decode_utf8(uri_unescape($self->{cgi}->param('lastname'))));
     }
     if (defined $self->{cgi}->param('active')) {
       $user->active(uri_unescape($self->{cgi}->param('active')));
@@ -920,7 +921,7 @@ sub query {
       if (defined $self->cgi->param($key)) {
 
 	# check what operator
-	my $val = uri_unescape($self->cgi->param($key));
+	my $val = decode_utf8(uri_unescape($self->cgi->param($key)));
 	if ($key eq "id") {
 	  $key = "_id";
 	  $val =~ s/mgu//;
@@ -1286,7 +1287,7 @@ sub create_user {
   else {
 
     # check email
-    my $user_by_email = $master->User->init( { email => uri_unescape($cgi->param('email')) } );
+    my $user_by_email = $master->User->init( { email => decode_utf8(uri_unescape($cgi->param('email'))) } );
     if (ref($user_by_email)) {
       $self->return_data( {"ERROR" => "email already taken"}, 400 );
     }
@@ -1309,10 +1310,10 @@ sub create_user {
   }
 
   # create the user in the db
-  $user = $master->User->create( { email      => uri_unescape($cgi->param('email')),
-				   email2     => uri_unescape($cgi->param('email2')) || "",
-				   firstname  => uri_unescape($cgi->param('firstname')),
-				   lastname   => uri_unescape($cgi->param('lastname')),
+  $user = $master->User->create( { email      => decode_utf8(uri_unescape($cgi->param('email'))),
+				   email2     => decode_utf8(uri_unescape($cgi->param('email2'))) || "",
+				   firstname  => decode_utf8(uri_unescape($cgi->param('firstname'))),
+				   lastname   => decode_utf8(uri_unescape($cgi->param('lastname'))),
 				   login      => uri_unescape($cgi->param('login')) } );
 
   # check for success
@@ -1327,7 +1328,7 @@ sub create_user {
 
   if ($cgi->param('organization')) {
     my $hs = HTML::Strip->new();
-    $user_org = $hs->parse(uri_unescape($cgi->param('organization')));
+    $user_org = $hs->parse(decode_utf8(uri_unescape($cgi->param('organization'))));
   }
 
   if ($cgi->param('lru')) {
@@ -1375,7 +1376,7 @@ sub create_user {
   $abody->param('URL', $url);
   if ($cgi->param('country')) {
     my $hs = HTML::Strip->new();
-    my $country = $hs->parse( uri_unescape($cgi->param('country')) );
+    my $country = $hs->parse( decode_utf8(uri_unescape($cgi->param('country'))));
     $abody->param('COUNTRY', $country);
   }
   if ($user_org) {
@@ -1467,7 +1468,7 @@ sub verify_email {
     $user = $self->user;
   }
 
-  my $email = $email2 ? $self->cgi->param('email2') : $self->cgi->param('email');
+  my $email = $email2 ? decode_utf8($self->cgi->param('email2')) : decode_utf8($self->cgi->param('email'));
 
   my @set = ('0' ..'9', 'A' .. 'Z', 'a' .. 'z');
   my $key = join '' => map $set[rand @set], 1 .. 64;
