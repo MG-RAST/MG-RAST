@@ -13,7 +13,7 @@ sub authenticate {
   use WebApplicationDBHandle;
   my ($master, $error) = WebApplicationDBHandle->new();
   if ($error) {
-    return (undef, "authentication database offline");
+    return (undef, "authentication database offline - ". $error);
   }
 
   # default values

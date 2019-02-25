@@ -497,7 +497,7 @@ sub connect_to_datasource {
     };
 
     if ($@ || $error || (! $master)) {
-        $self->return_data({ "ERROR" => "resource database offline" }, 503);
+        $self->return_data({ "ERROR" => "resource database offline - ".$error }, 503);
     } else {
       if (ref $self->user) {
 	$master->{_user} = $self->user;
