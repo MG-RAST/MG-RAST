@@ -112,13 +112,13 @@ sub get_url_id {
     if ($cgi->url =~ /dev/) {
         $rurl = 'dev'.$rurl;
     }
-    my %params = map { $_ => [decode_utf8($cgi->param($_))] } $cgi->param;
+    my %params = map { $_ => [($cgi->param($_))] } $cgi->param;
     foreach my $r (@$rest) {
         $rurl .= $r;
     }
     foreach my $p (sort keys %params) {
         next if ($p eq 'auth');
-        $rurl .= encode_utf8($p.join("", sort @{$params{$p}}));
+        $rurl .= $p.join("", sort @{$params{$p}});
     }
     if ($rpc) {
         $rurl .= 'jsonrpc';
