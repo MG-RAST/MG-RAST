@@ -2121,7 +2121,7 @@ sub upsert_to_elasticsearch_metadata {
                 $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{type});
             }
             foreach my $k (keys %{$m_data->{$md}{data}}) {
-                if ($k && defined($m_data->{$md}{data}{$k})) {
+                if ($k && defined($m_data->{$md}{data}{$k}) && !defined($esdata->{ $fMap->{$k} } ) ) {  # do not write user metadata over job data
                     # all go into catchall
                     $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{data}{$k});
                     $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{data}{$k});
