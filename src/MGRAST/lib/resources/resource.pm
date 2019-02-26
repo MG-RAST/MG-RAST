@@ -112,13 +112,13 @@ sub get_url_id {
     if ($cgi->url =~ /dev/) {
         $rurl = 'dev'.$rurl;
     }
-    my %params = map { $_ => [decode_utf8($cgi->param($_))] } $cgi->param;
+    my %params = map { $_ => [($cgi->param($_))] } $cgi->param;
     foreach my $r (@$rest) {
         $rurl .= $r;
     }
     foreach my $p (sort keys %params) {
         next if ($p eq 'auth');
-        $rurl .= encode_utf8($p.join("", sort @{$params{$p}}));
+        $rurl .= $p.join("", sort @{$params{$p}});
     }
     if ($rpc) {
         $rurl .= 'jsonrpc';
@@ -497,7 +497,7 @@ sub connect_to_datasource {
     };
 
     if ($@ || $error || (! $master)) {
-        $self->return_data({ "ERROR" => "resource database offline" }, 503);
+        $self->return_data({ "ERROR" => "resource database offline - ".$error }, 503);
     } else {
       if (ref $self->user) {
 	$master->{_user} = $self->user;
@@ -2066,7 +2066,7 @@ sub upsert_to_elasticsearch_metadata {
     my $master = $self->connect_to_datasource();
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
-    unless ($job && @$job) {
+    unless ( ( $job && @$job) || $self->cgi->param("force") ) {
         return "failed";
     }
     $job = $job->[0];
@@ -2121,7 +2121,7 @@ sub upsert_to_elasticsearch_metadata {
                 $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{type});
             }
             foreach my $k (keys %{$m_data->{$md}{data}}) {
-                if ($k && defined($m_data->{$md}{data}{$k})) {
+                if ($k && defined($m_data->{$md}{data}{$k}) && !defined($esdata->{ $fMap->{$k} } ) ) {  # do not write user metadata over job data
                     # all go into catchall
                     $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{data}{$k});
                     $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{data}{$k});
