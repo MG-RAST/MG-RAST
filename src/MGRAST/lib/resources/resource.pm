@@ -2066,7 +2066,7 @@ sub upsert_to_elasticsearch_metadata {
     my $master = $self->connect_to_datasource();
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
-    unless ($job && @$job) {
+    unless ( ( $job && @$job) || $self->cgi->param("force") ) {
         return "failed";
     }
     $job = $job->[0];
