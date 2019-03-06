@@ -497,7 +497,7 @@ sub connect_to_datasource {
     };
 
     if ($@ || $error || (! $master)) {
-        $self->return_data({ "ERROR" => "resource database offline - ".$error }, 503);
+        $self->return_data({ "ERROR" => "resource database offline . " }, 503);  # WebServiceObject:db_connect doesn't populate $error
     } else {
       if (ref $self->user) {
 	$master->{_user} = $self->user;
@@ -549,18 +549,18 @@ sub get_post_data {
     # value may be array
     if ($fields && (@$fields > 0)) {
         foreach my $f (@$fields) {
-            my @val = decode_utf8($self->cgi->param($f));
+            my @val = $self->cgi->param($f);
             if (@val) {
                 if (scalar(@val) == 1) {
-                    $data{$f} = $val[0];
+                    $data{$f} = decode_utf8($val[0]);
                 } elsif (scalar(@val) > 1) {
-                    $data{$f} = \@val;
+                    $data{$f} = decode_utf8(\@val);
                 }
             }
         }
     }
     # get by posted data
-    my $post_data = decode_utf8($self->cgi->param('POSTDATA')) ? decode_utf8($self->cgi->param('POSTDATA')) : join(" ", decode_utf8($self->cgi->param('keywords')));
+    my $post_data = $self->cgi->param('POSTDATA') ? decode_utf8($self->cgi->param('POSTDATA')) : join(" ", $self->cgi->param('keywords'));
     if ($post_data) {
         my $pdata = {};
         eval {

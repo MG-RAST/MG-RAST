@@ -505,7 +505,7 @@ sub instance {
         my $owner_name = ($user->firstname || "")." ".($user->lastname || "");
         my $receiver = "\"$owner_name\" <".$user->email.">";
         my $success = MGRAST::Mailer::send_email(
-                          from => "help@\mg-rast.org",
+                          from => "help\@mg-rast.org",
                           to => $receiver,
                           subject => $postdata->{'subject'},
                           body => $postdata->{'body'}

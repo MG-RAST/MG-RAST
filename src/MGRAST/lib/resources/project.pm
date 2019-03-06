@@ -815,7 +815,7 @@ sub updateRight {
 	$ubody->param('LASTNAME', $user->lastname);
 	$ubody->param('WHAT', "the metagenome project $project_name");
 	$ubody->param('WHOM', $self->user->firstname.' '.$self->user->lastname);
-	$ubody->param('LINK', "http://metagenomics.anl.gov/mgmain.html?mgpage=project&project=$pid");
+	$ubody->param('LINK', "http://www.mg-rast.org/mgmain.html?mgpage=project&project=$pid");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
 	$user->send_email( $WebConfig::ADMIN_EMAIL,
@@ -907,9 +907,9 @@ sub updateRight {
 	my $ubody = HTML::Template->new(filename => TMPL_PATH.'EmailSharedJobToken.tmpl',
 					die_on_bad_params => 0);
 	$ubody->param('WHAT', "the metagenome project $project_name");
-	$ubody->param('REGISTER', "http://metagenomics.anl.gov/mgmain.html?mgpage=register");
+	$ubody->param('REGISTER', "http://www.mg-rast.org/mgmain.html?mgpage=register");
 	$ubody->param('WHOM', $self->user->firstname.' '.$self->user->lastname);
-	$ubody->param('LINK', "http://metagenomics.anl.gov/mgmain.html?mgpage=token&token=$token");
+	$ubody->param('LINK', "http://www.mg-rast.org/mgmain.html?mgpage=token&token=$token");
 	$ubody->param('APPLICATION_NAME', $WebConfig::APPLICATION_NAME);
 	
 	my $email_success = MGRAST::Mailer::send_email( smtp_host => $Conf::smtp_host, 
