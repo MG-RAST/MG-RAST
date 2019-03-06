@@ -63,7 +63,7 @@ sub init {
   }
 
   # api info for making public
-  $self->data('api', $Conf::api_url || "http://api.metagenomics.anl.gov");
+  $self->data('api', $Conf::api_url || "http://api.mg-rast.org");
 
   $self->data('job', $job);
   $self->data('linkin', $Conf::cgi_url."linkin.cgi?metagenome=$id");

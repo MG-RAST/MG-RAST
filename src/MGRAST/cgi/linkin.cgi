@@ -24,7 +24,7 @@ if ($@)
 sub main {
     my $cgi   = new CGI();
     my $error = "";
-    my $base  = $Conf::web_site || "http://metagenomics.anl.gov";
+    my $base  = $Conf::web_site || "http://mg-rast.org";
     
     if ($cgi->param('metagenome')) {
 	    if ($cgi->param('metagenome') =~ /^(mgm)?(\d+\.\d+)$/) {

@@ -699,7 +699,7 @@ sub process_file {
     my $data   = {};
     my $master = $self->connect_to_datasource();
     my $mddb   = MGRAST::Metadata->new();
-    my $post   = $self->get_post_data(["upload", "node_id", "project", "metagenome", "map_by_id"]);
+    my $post   = $self->get_post_data(["upload", "node_id", "project", "metagenome", "map_by_id", "force"]);
     
     # get metadata file
     my $tmp_dir = $Conf::temp;
@@ -772,7 +772,7 @@ sub process_file {
             }
         }
     } elsif (($type eq 'import') || ($type eq 'update')) {
-        unless ($is_valid) {
+        unless ($is_valid || $post->{force} ) {
             $self->return_data({"ERROR" => "Unprocessable metadata:\n".join("\n", $log, @{$md_obj->{data}})}, 422);
         }
         unless ($post->{metagenome}) {

@@ -3,6 +3,7 @@ package resources::resource;
 use strict;
 use warnings;
 no warnings('once');
+use Encode qw(decode_utf8 encode_utf8);
 
 use Auth;
 use Conf;
@@ -111,7 +112,7 @@ sub get_url_id {
     if ($cgi->url =~ /dev/) {
         $rurl = 'dev'.$rurl;
     }
-    my %params = map { $_ => [$cgi->param($_)] } $cgi->param;
+    my %params = map { $_ => [($cgi->param($_))] } $cgi->param;
     foreach my $r (@$rest) {
         $rurl .= $r;
     }
@@ -496,7 +497,7 @@ sub connect_to_datasource {
     };
 
     if ($@ || $error || (! $master)) {
-        $self->return_data({ "ERROR" => "resource database offline" }, 503);
+        $self->return_data({ "ERROR" => "resource database offline - ".$error }, 503);
     } else {
       if (ref $self->user) {
 	$master->{_user} = $self->user;
@@ -527,7 +528,7 @@ sub check_pagination {
 
     # don't build urls for POST
     if ($self->method eq 'GET') {
-        my $add_params  = join('&', map {$_."=".$self->cgi->param($_)} grep {$_ ne 'offset'} @params);
+        my $add_params  = join('&', map {$_."=".decode_utf8($self->cgi->param($_))} grep {$_ ne 'offset'} @params);
         $object->{url}  = $self->url."/".$self->name.$path."?$add_params&offset=$offset";
         $object->{prev} = ($offset > 0) ? $self->url."/".$self->name.$path."?$add_params&offset=$prev_offset" : undef;
         $object->{next} = (($offset < $total_count) && ($total_count > $limit)) ? $self->url."/".$self->name.$path."?$add_params&offset=$next_offset" : undef;
@@ -548,7 +549,7 @@ sub get_post_data {
     # value may be array
     if ($fields && (@$fields > 0)) {
         foreach my $f (@$fields) {
-            my @val = $self->cgi->param($f);
+            my @val = decode_utf8($self->cgi->param($f));
             if (@val) {
                 if (scalar(@val) == 1) {
                     $data{$f} = $val[0];
@@ -559,7 +560,7 @@ sub get_post_data {
         }
     }
     # get by posted data
-    my $post_data = $self->cgi->param('POSTDATA') ? $self->cgi->param('POSTDATA') : join(" ", $self->cgi->param('keywords'));
+    my $post_data = decode_utf8($self->cgi->param('POSTDATA')) ? decode_utf8($self->cgi->param('POSTDATA')) : join(" ", decode_utf8($self->cgi->param('keywords')));
     if ($post_data) {
         my $pdata = {};
         eval {
@@ -2065,7 +2066,7 @@ sub upsert_to_elasticsearch_metadata {
     my $master = $self->connect_to_datasource();
     my (undef, $id) = $mgid =~ /^(mgm)?(\d+\.\d+)$/;
     my $job = $master->Job->get_objects( {metagenome_id => $id} );
-    unless ($job && @$job) {
+    unless ( ( $job && @$job) || $self->cgi->param("force") ) {
         return "failed";
     }
     $job = $job->[0];
@@ -2120,7 +2121,7 @@ sub upsert_to_elasticsearch_metadata {
                 $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{type});
             }
             foreach my $k (keys %{$m_data->{$md}{data}}) {
-                if ($k && defined($m_data->{$md}{data}{$k})) {
+                if ($k && defined($m_data->{$md}{data}{$k}) && !defined($esdata->{ $fMap->{$k} } ) ) {  # do not write user metadata over job data
                     # all go into catchall
                     $esdata->{$fMap->{'all'}}  = unique_concat($esdata->{$fMap->{'all'}}, $m_data->{$md}{data}{$k});
                     $esdata->{$fMap->{$allmd}} = unique_concat($esdata->{$fMap->{$allmd}}, $m_data->{$md}{data}{$k});
@@ -3622,8 +3623,10 @@ sub idresolve {
   my ($self, $id) = @_;
 
   unless ($id =~ /^mgm/ or $id =~ /^mgp/ or $id =~ /^\d+\.\d+$/) { 
+    if(length($id) >=10){
     $id = substr $id, 10;
     $id = pack (qq{H*},qq{$id});
+   }
   }
   
   return $id;

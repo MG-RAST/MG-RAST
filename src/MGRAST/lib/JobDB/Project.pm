@@ -35,6 +35,7 @@ sub create_project {
 			       -backend  => $Conf::webapplication_backend,
 			       -host     => $Conf::webapplication_host,
 			       -user     => $Conf::webapplication_user,
+			       -password => $Conf::webapplication_password,
 			      );
   foreach my $right (('view', 'edit', 'delete')) {
     $webappdb->Rights->create( { application => undef,
@@ -314,6 +315,7 @@ sub add_job {
 				 -backend  => $Conf::webapplication_backend,
 				 -host     => $Conf::webapplication_host,
 				 -user     => $Conf::webapplication_user,
+			         -password => $Conf::webapplication_password,
 				);
     my $pscope = $webappdb->Scope->init( { application => undef,
 					   name => 'MGRAST_project_'.$self->id } );
@@ -373,6 +375,7 @@ sub remove_job {
 				 -backend  => $Conf::webapplication_backend,
 				 -host     => $Conf::webapplication_host,
 				 -user     => $Conf::webapplication_user,
+			         -password => $Conf::webapplication_password,
 				);
     my $pscope = $webappdb->Scope->init( { application => undef,
 					   name => 'MGRAST_project_'.$self->id } );

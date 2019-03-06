@@ -58,7 +58,8 @@ sub new {
 
   # initialize database handle.
   my $dbh = DBI->connect($connect, $user, $password, 
-			 { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
+			 { RaiseError => 1, AutoCommit => 0, PrintError => 0,
+                           mysql_enable_utf8 => 1 }) ||
 			   Confess("Database connect error.");
   
   my $self = { 'dbhandle' => $dbh,
@@ -114,7 +115,7 @@ sub new_from_connect_data {
 
   # initialize database handle
   my $dbh = DBI->connect($connect, $user, $password, 
-			 { RaiseError => 1, AutoCommit => 0, PrintError => 0 }) ||
+			 { RaiseError => 1, AutoCommit => 0, PrintError => 0, mysql_enable_utf8 => 1 }) ||
             Confess("Database connect error.");
 
   my $self = { 'dbhandle' => $dbh,
