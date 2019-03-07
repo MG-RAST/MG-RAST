@@ -151,7 +151,7 @@ sub output {
         <div class="well" style='width: 240px; float: right;'>
 <h3>mini-faq</h3>
 <ul class="unstyled">
-<li><a href='http://metagenomics.anl.gov/metazen.cgi' target=_blank>Use MetaZen to create your metadata spreadsheet</a></li>
+<li><a href='http://www.mg-rast.org/mgmain.html?mgpage=metazen2' target=_blank>Use MetaZen to create your metadata spreadsheet</a></li>
 <li><a href='http://www.youtube.com/watch?v=pAf19exJo4o&feature=youtu.be' target=_blank>Uploading a metagenome (Video)</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/glossary-of-mg-rast-terms-and-concepts/#inbox' target=_blank>Inbox explained</a></li>
 <li><a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Automated submission via our API</a></li>
@@ -172,7 +172,7 @@ sub output {
 	      <div id="sel_mddownload_div" style="display: none;" class="well">
                  <h3>prepare your metadata</h3>
 <p>Metadata (or data about the data) has become a necessity as the community generates large quantities of data sets.</p>
-<p>We have found that the best form to capture metadata is via a simple spreadsheet with 12 mandatory terms. To get started on filling out your metadata spreadsheet, you can either download the blank template below, or you can try out <a href="http://metagenomics.anl.gov/metazen.cgi" target=_blank>Metazen</a>, a tool we have developed to try and make filling out our metadata spreadsheet a little easier.</p>
+<p>We have found that the best form to capture metadata is via a simple spreadsheet with 12 mandatory terms. To get started on filling out your metadata spreadsheet, you can either download the blank template below, or you can try out <a href="http://www.mg-rast.org/mgmain.html?mgpage=metazen2" target=_blank>Metazen</a>, a tool we have developed to try and make filling out our metadata spreadsheet a little easier.</p>
 <p>Once you have filled out the blank template or the partially filled-in template from Metazen, you can upload it using the 'upload files' tab.</p>
                  <p><a href="$template_link"><img title="download metadata spreadsheet template" style="width: 20px; height: 20px;" src="./Html/mg-download.png"> download metadata spreadsheet template</a></p>
               </div>
@@ -230,7 +230,7 @@ sub output {
                   <p>In addition to using your web browser for uploads to the system the following alternatives are available:</p>
                   <table>
                      <tr style='display: none;'><td width="125px"><b>ftp</b></td><td>ftp://incoming.metagenomics.anl.gov/<span id="ftp_webkey">YOUR_PRIVATE_WEBKEY</span></td></tr>
-                     <tr><td>http://api.metagenomics.anl.gov/1/inbox</td></tr>
+                     <tr><td>http://api.mg-rast.org/1/inbox</td></tr>
                      <tr><td colspan=2 style='padding-top: 10px; padding-bottom: 10px;'><div id='generate_key'><input type='button' class='btn' onclick='generate_webkey();' value='~. ($webkey->{key} ? ($webkey->{valid} ? "view webkey" : "re-activate webkey") : "generate webkey") . qq~'></div></td></tr>
                   </table>
                   <p><b>Note:</b> The <a href='http://blog.metagenomics.anl.gov/mg-rast-v3-2-faq/#command_line_submission' target=_blank>Blog</a> lists a number of examples for data transfer.</p>
@@ -1000,7 +1000,7 @@ sub validate_metadata {
 
   my ($is_valid, $data, $log) = MGRAST::Metadata->validate_metadata($md_file);
 
-  my $formatted_data = "<p>Your uploaded metadata did not pass validation. Please correct the file and upload again.  If you are having trouble creating a valid metadata spreadsheet, try out <a href='http://metagenomics.anl.gov/metazen.cgi' target=_blank>MetaZen</a>.  The following errors were detected:</p>";
+  my $formatted_data = "<p>Your uploaded metadata did not pass validation. Please correct the file and upload again.  If you are having trouble creating a valid metadata spreadsheet, try out <a href='http://www.mg-rast.org/mgmain.html?mgpage=metazen2' target=_blank>MetaZen</a>.  The following errors were detected:</p>";
   if ($is_valid) {
     $formatted_data = "<p>Your metadata file successfully passed validation.</p>";
     $project_name = $data->{data}->{project_name}->{value};
