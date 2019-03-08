@@ -213,7 +213,9 @@ sub get_rows {
 			   (@$fields) ? join (",", @$fields) : '*',
 			   $table,
 			   ($conditions) ? " WHERE $conditions" : '',
-			   ($options->{'sort_by'} and $options->{'sort_order'}) ? " ORDER BY ".join(',',@{$options->{'sort_by'}})." $sort_order" : '' );
+			   ($options->{'sort_by'}) ? " ORDER BY ".join(',',@{$options->{'sort_by'}}) : '',
+			   ($options->{'sort_order'}) ? $sort_order : '',
+			  );
   my $data = [];
  
   eval {
