@@ -214,7 +214,7 @@ sub get_rows {
 			   $table,
 			   ($conditions) ? " WHERE $conditions" : '',
 			   ($options->{'sort_by'}) ? " ORDER BY ".join(',',@{$options->{'sort_by'}}) : '',
-			   $sort_order,
+			   ($options->{'sort_order'}) ? $sort_order : '',
 			  );
   my $data = [];
  
