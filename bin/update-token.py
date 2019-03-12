@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import datetime
 import glob
 import importlib
 import json
@@ -18,6 +19,7 @@ import yaml
 
 from uuid import getnode as get_mac
 from subprocess import Popen, PIPE
+from bson import json_util 
 
 parser = argparse.ArgumentParser()
 
@@ -62,6 +64,8 @@ parser.add_argument("--force",
 
 
 
+
+
 # mutually exclusive 
 json_document_input = parser.add_mutually_exclusive_group()    
 json_document_input.add_argument("--json",
@@ -100,7 +104,7 @@ def update_token( db , collection , query , token ) :
 
   if not collection in db.list_collection_names() :
     print('Can not find find collection ' + collection + " in " + args.db )
-    sys.exit(1)
+
 
   print("Updating datatoken in " + collection +  "(" + args.db + ")" )
   col = db[collection]
@@ -109,11 +113,13 @@ def update_token( db , collection , query , token ) :
 
   count = col.count_documents( query )
   if  not  count == 1 :
-    print("Too many documents, please specify query to return single job document")
+    print("Too many documents (" + str(count) + "), please specify query to return single job document")
     if not args.force:
+      print("No force, aborting")
       sys.exit(1)
 
   results = col.find( query ) 
+  print(results)
   #  test if worklfow document
   # job = results[0]
 
@@ -130,7 +136,11 @@ def update_token( db , collection , query , token ) :
         print( task['taskid'] + "\toutputs:\t" + old +"\t" + token)    
   
     if not args.dry_run :
-      print("Updating " + d['_id'])
+      print("Updating " + str(d['_id'] ) )
+      f =  open( str(d['_id']) + "." + str(time.time()) + ".json"  , "w") 
+      json.dump(json_util.dumps(d) , f)
+      f.close()
+
       col.update_one( { '_id' : d['_id'] } , { "$set" : { "tasks.$[].inputs.$[].datatoken" : token }})
       # here - then folker has totally new concept
       col.update_one( { '_id' : d['_id'] } , { "$set" : { "tasks.$[].outputs.$[].datatoken" : token }}) 
