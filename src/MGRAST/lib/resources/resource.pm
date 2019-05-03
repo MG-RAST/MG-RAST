@@ -554,7 +554,7 @@ sub get_post_data {
                 if (scalar(@val) == 1) {
                     $data{$f} = decode_utf8($val[0]);
                 } elsif (scalar(@val) > 1) {
-                    ($data{$f}) = map {decode_utf8($_)} @val;
+                    @{$data{$f}} = map {decode_utf8($_)} @val;
                 }
             }
         }
