@@ -1027,6 +1027,21 @@ sub clean_value {
   return $val;
 }
 
+# resolve an obfuscated mg-rast id
+# if it is an mg-rast id already, return it as is
+sub idresolve {
+  my ($self, $id) = @_;
+
+  unless ($id =~ /^mgm/ or $id =~ /^mgp/ or $id =~ /^\d+\.\d+$/) {
+    if(length($id) >=10){
+    $id = substr $id, 10;
+    $id = pack (qq{H*},qq{$id});
+   }
+  }
+
+  return $id;
+}
+
 =pod
 
 =item * B<get_unique_for_tag> (Scalar<tag>)
@@ -1498,6 +1513,7 @@ sub add_valid_metadata {
       my $lib_job;
       if ($lib->{data}{metagenome_id} && $lib->{data}{metagenome_id}{value}) {
 	my $lib_mg = $lib->{data}{metagenome_id}{value};
+	$lib_mg = idresolve($lib_mg) ; 
 	$lib_job = ($lib_mg && exists($job_map_id->{$lib_mg})) ? $job_map_id->{$lib_mg} : undef;
       }
 

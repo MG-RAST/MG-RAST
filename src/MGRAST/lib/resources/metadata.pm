@@ -793,6 +793,7 @@ sub process_file {
         # get metagenome objects
         my @jobs = ();
         foreach my $id (@{$post->{metagenome}}) {
+	    $id = $self->idresolve($id);
             if ($id =~ /^mgm(\d+\.\d+)$/) {
                 my $mgid = $1;
                 # get data
