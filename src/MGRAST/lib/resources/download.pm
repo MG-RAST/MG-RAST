@@ -148,6 +148,7 @@ sub instance {
     my $version = $job->data('pipeline_version')->{pipeline_version} || $self->{default_pipeline_version};
     my ($setlist, $skip) = $self->get_download_set($job->{metagenome_id}, $version, $self->mgrast_token);
     $setlist = $self->fix_download_filenames($setlist, $restid);
+    my $has_human = $self->has_human($setlist, $job);
     $setlist = $self->clean_setlist($setlist, $job);
     
     # return file from shock
@@ -156,6 +157,9 @@ sub instance {
         foreach my $set (@$setlist) {
             if (($set->{file_id} eq $file) || ($set->{file_name} eq $file)) {
                 if (! exists($set->{node_id})) {
+        		if ($has_human) {
+		        $self->return_data( {"ERROR" => "requested file ($file) is suppressed; try file=299.1"}, 403 );
+	}
                     $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
                 }
                 if ($link) {
@@ -166,6 +170,9 @@ sub instance {
                 }
             }
         }
+        if ($has_human) {
+        $self->return_data( {"ERROR" => "Requested file ($file) has been suppressed; try file=299.1"}, 403 );
+	}
         $self->return_data( {"ERROR" => "requested file ($file) is not available"}, 404 );
     }
     # return stage(s) list
