@@ -77,6 +77,11 @@ sub new {
         "validate_get" => {
             'is_valid' => [ 'boolean', 'the inputted value is valid for the given category and label' ],
             'message'  => [ 'string', 'if not valid, reason why' ]
+        },
+        "patch" => {
+            'metagenome' => [ 'string', 'metagenome_id' ],
+            'key'  => [ 'string', 'key' ],
+            'value'  => [ 'string', 'value' ]
         }
     };
     return $self;
@@ -99,6 +104,16 @@ sub info {
               'method'      => "GET",
               'type'        => "synchronous",  
               'attributes'  => "self",
+              'parameters'  => { 'options'  => {},
+				 'required' => {},
+				 'body'     => {} }
+            },
+            { 'name'        => "patch",
+              'request'     => $self->url."/".$self->name,
+              'description' => "",
+              'method'      => "GET",
+              'type'        => "synchronous",  
+              'attributes'  =>  $self->attributes->{validate_post} ,
               'parameters'  => { 'options'  => {},
 				 'required' => {},
 				 'body'     => {} }
@@ -292,6 +307,8 @@ sub request {
         $self->validate_value();
     } elsif (($self->rest->[0] =~ /^(validate|import|update)$/) && ($self->method eq 'POST')) {
         $self->process_file($self->rest->[0]);
+    } elsif (($self->rest->[0] =~ /^(patch)$/) && ($self->method eq 'POST')) {
+        $self->patch($self->rest->[0]);
     } elsif ($self->rest->[0] eq 'google') {
       $self->google($self->rest->[1]);
     } else {
@@ -847,6 +864,63 @@ sub process_file {
     
     $self->return_data($data);
 }
+sub patch{  # Resource to update a single field at a time in the metadata database
+    my ($self, $type) = @_;
+    my $master = $self->connect_to_datasource();
+    my $mddb   = MGRAST::Metadata->new();
+    my $post   = $self->get_post_data(["tag", "value", "metagenome", "ctype"]);
+    my $mgid   = $post->{metagenome};
+    my $tag    = $post->{tag};
+    my $value  = $post->{value};
+    my $ctype  = exists ($post->{ctype}) ? $post->{ctype} : "sample";
+    if (not $mgid =~  /mgm\d*.\d/)
+        {die ("metagenome not in mgm.... format");}  # This is the protection against attacks
+    $mgid =~ s/mgm//; 
+#    my $jobs = $master->Job->get_objects( {metagenome_id => $mgid} ); 
+
+  my $query  = "";
+  my $collection = undef;
+  if ($ctype =~ "sample") 
+	{ 
+	$query = "SELECT c._id, c.ID, c.type, c.name, c.parent FROM Job j, MetaDataCollection c WHERE j.metagenome_id=".$mgid." AND j.sample=c._id";
+	}
+#        my $jobs = $master->Job->get_objects( {metagenome_id => $mgid} ); 
+#  	die ( "Too many jobs found!". scalar(@$jobs)) unless scalar(@$jobs) == 1; 
+#	my $collection_id = @$jobs[0]->{sample};   # This did not work because "sample" and "library" fields in Jobs table
+#       refer to _id field in MetaDataCollection but for some reason MetaDataCollection->init({_id => $collection}) fails with 
+#      "There must be a unique index on the combination of attributes passed."  Going around this using ID field ...
+# The $query =   ... selectall_arrayref  syntax is copied from add_valid_metadata
+  elsif ($ctype =~ "library" ) 
+	{ 
+	$query = "SELECT c._id, c.ID, c.type, c.name, c.parent FROM Job j, MetaDataCollection c WHERE j.metagenome_id=".$mgid." AND j.library=c._id"; 
+	} 
+  elsif ($ctype =~ "ep" ) 
+	{ 
+	$query = "SELECT c._id, c.ID, c.type, c.name, c.parent FROM Job j, MetaDataCollection c WHERE j.metagenome_id=".$mgid." AND j.sample=c.parent AND c.type='ep'"; 
+	} 
+  else {die ("Can't handle collection type ". $ctype); } 
+        my $result = $mddb->{_handle}->db_handle->selectall_arrayref($query);
+	die ( "Wrong number of collections found:". scalar(@$result).".  This resource does not create collections.") unless scalar(@$result) == 1;
+        $collection = @$result[0]->[1];
+	{ 
+	        { 
+# I can get a samp_coll object if I have collection ID:
+		my $samp_coll  = $mddb->{_handle}->MetaDataCollection->init({ID => $collection});   # collection of samples...
+
+		# retrieving sample collection via MetaDataCollection->init and assigning into it with MetDataEntry-> create inadvertently 
+		# 1)  wipes all existing data and 
+		# 2)  adds duplicate fields
+		#  retrieving sample collection via MetaDataCollection->init and assigning into it with mddb->add_entries  
+		# does not have the above problems, even though $append = 0
+		my $append = 0;
+		my $data = [ [ $tag, $value ] ] ; 
+		$mddb->add_entries ($samp_coll, $data, $append); 
+      		}  
+	}
+    # update elasticsearch
+    $self->upsert_to_elasticsearch_metadata($mgid);
+    $self->return_data({ "OK" => "update attempted on mgm".$mgid }, 200);
+}   ## WLT
 
 sub google {
   my ($self, $id) = @_;
