@@ -56,10 +56,10 @@ sub output {
   my $content = "";
 
   if ($self->application->session->user) {
-    $content .= "<p width=800px align=justify >If you have any questions, comments or concerns about the metagenomics analysis server, please direct them to our <a href='mailto:help\@mg-rast.org'>help desk</a>. Please take a look at the <a href='ftp://ftp.metagenomics.anl.gov/data/manual/mg-rast-manual.pdf' target=_blank>manual</a> before submitting your help desk email. Emails to the help-desk will reach the entire team, please do not send email to individuals.</p>";
+    $content .= "<p width=800px align=justify >If you have any questions, comments or concerns about the metagenomics analysis server, please direct them to our <a href='mailto:help\@mg-rast.org'>help desk</a>. Please take a look at the <a href='ftp://ftp.mg-rast.org/data/manual/mg-rast-manual.pdf' target=_blank>manual</a> before submitting your help desk email. Emails to the help-desk will reach the entire team, please do not send email to individuals.</p>";
   } else {
     my $c = Captcha::reCAPTCHA->new;
-    $content .= "<p width=800px align=justify >If you have any questions, comments or concerns about the metagenomics analysis server, use the form below to reach our help desk. Please take a look at the <a href='ftp://ftp.metagenomics.anl.gov/data/manual/mg-rast-manual.pdf' target=_blank>manual</a> before submitting your help desk email. Emails to the help-desk will reach the entire team, please do not send email to individuals.</p>";
+    $content .= "<p width=800px align=justify >If you have any questions, comments or concerns about the metagenomics analysis server, use the form below to reach our help desk. Please take a look at the <a href='ftp://ftp.mg-rast.org/data/manual/mg-rast-manual.pdf' target=_blank>manual</a> before submitting your help desk email. Emails to the help-desk will reach the entire team, please do not send email to individuals.</p>";
 
     $content .= $self->start_form('contact_form', { action => 'try_contact' });
     $content .= "<br><table><tr><td><b>your email</b></td><td><input type='text' size='50' name='email'></td></tr>";
