@@ -876,6 +876,8 @@ sub patch{  # Resource to update a single field at a time in the metadata databa
     if (not $mgid =~  /mgm\d*.\d/)
         {die ("metagenome not in mgm.... format");}  # This is the protection against attacks
     $mgid =~ s/mgm//; 
+    unless ($self->user && ($self->user->has_right(undef, 'edit', 'metagenome', $mgid) || $self->user && $self->user->has_star_right('edit', 'metagenome')  ) )  { 
+                    $self->return_data( {"ERROR" => "Insufficient permissions to edit mgm".$mgid}, 401 );
 #    my $jobs = $master->Job->get_objects( {metagenome_id => $mgid} ); 
 
   my $query  = "";
