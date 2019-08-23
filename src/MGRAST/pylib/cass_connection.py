@@ -48,5 +48,6 @@ class CassTest(object):
                 status = 1
             cluster.shutdown()
             return status
-        except:
+        except Exception as e: 
+            print(e)
             return 0
