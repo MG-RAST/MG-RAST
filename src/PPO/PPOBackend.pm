@@ -209,7 +209,7 @@ sub get_rows {
       ? ' DESC' : ' ASC';
   }
   
-  my $statement = sprintf ("SELECT %s FROM %s%s%s",
+  my $statement = sprintf ("SELECT %s FROM %s%s%s%s",
 			   (@$fields) ? join (",", @$fields) : '*',
 			   $table,
 			   ($conditions) ? " WHERE $conditions" : '',
