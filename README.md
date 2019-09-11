@@ -37,7 +37,7 @@ Systems-Software
 7. NGINX
 
 For the bioinformatics software and databases used in MG-RAST please see our manual:
-ftp://ftp.metagenomics.anl.gov/manual.pdf
+ftp://ftp.mg-rast.org/manual.pdf
 
 
 ### INSTRUCTIONS 
@@ -50,10 +50,9 @@ Build image and push to dockerhub:
 
 git clone https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
-docker build -t mgrast/api-server .
-docker build -t mgrast/api-server:dev .
+docker build --build-arg GIT_DESCRIBE=$(git describe --tags) -t mgrast/api-server:dev .
 
-docker push mgrast/api-server[:dev]
+docker push mgrast/api-server:dev
 
 ```
 

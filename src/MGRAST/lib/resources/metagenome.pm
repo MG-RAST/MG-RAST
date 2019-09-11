@@ -24,7 +24,7 @@ sub new {
     $self->{name} = "metagenome";
     $self->{rights} = \%rights;
     $self->{cv} = {
-		   verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1},
+		   verbosity => {'minimal' => 1, 'mixs' => 1, 'metadata' => 1, 'stats' => 1, 'full' => 1, 'seqstats' => 1, 'pipeline' => 1},
 		   direction => {'asc' => 1, 'desc' => 1},
 		   status    => {'both' => 1, 'public' => 1, 'private' => 1},
 		   match     => {'any' => 1, 'all' => 1},
