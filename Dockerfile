@@ -77,9 +77,8 @@ RUN cd /MG-RAST/conf && ln -s /api-server-conf/Conf.pm
 # m5nr blast files in mounted dir
 RUN mkdir -p /m5nr
 
-ARG GIT_DESCRIBE
-ENV GIT_DESCRIBE=$GIT_DESCRIBE
-RUN echo $GIT_DESCRIBE > /VERSION.txt
+# write /VERSION.txt
+RUN apt-get install -y git && cd /MG-RAST && echo $(git describe --tags) > /VERSION.txt && apt-get purge -y git
 
 # Execute:
 # /usr/local/apache2/bin/httpd -DFOREGROUND -f /api-server-conf/httpd.conf
