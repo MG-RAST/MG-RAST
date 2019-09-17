@@ -413,7 +413,17 @@ sub bowtie_indexes {
            'd_rerio.rev.1.bt2' => '81777522-e3c2-4e58-8ff7-b96a53b2c2f7',
            'd_rerio.rev.2.bt2' => 'ad50a353-3dc8-48d5-ad1c-340140d9494c'
 
+         },
+         'p_maniculatus'    => {
+           'p_maniculatus.1.bt2' => "8e07e179-8aeb-4668-b35d-dfc72c446d78",
+           'p_maniculatus.2.bt2' => "b238f77d-3d87-4a5c-86e0-ee6ed2ad2ecc",
+           'p_maniculatus.3.bt2' => "7be88303-f8c7-4ae7-8527-2b1287787c87",
+           'p_maniculatus.4.bt2' => "a224c0be-9a54-4888-b98d-50c5ad9eebbd",
+           'p_maniculatus.rev.1.bt2' => "84e5371f-bb7b-44a0-b9a0-82ec37f4fc1e",
+           'p_maniculatus.rev.2.bt2' => "266138b5-3ef2-44c0-8bc9-5808b9ddf594"
          }
+
+
 
 
     };
