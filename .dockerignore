@@ -3,5 +3,4 @@
 *.md
 dockerfiles/*
 t/*
-.git/*
 .gitmodules/*
