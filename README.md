@@ -50,7 +50,7 @@ Build image and push to dockerhub:
 
 git clone https://github.com/MG-RAST/MG-RAST.git
 cd MG-RAST
-docker build --build-arg GIT_DESCRIBE=$(git describe --tags) -t mgrast/api-server:dev .
+docker build -t mgrast/api-server:dev .
 
 docker push mgrast/api-server:dev
 
