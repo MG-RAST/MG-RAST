@@ -1369,7 +1369,7 @@ sub get_shock_preauth {
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
-        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url'.($fn ? "&filename=".$fn : ""), @args);
+        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url'.($fn ? "&file_name=".$fn : ""), @args);
         $response = $self->json->decode( $get->content );
     };
     if ($@ || (! ref($response))) {
