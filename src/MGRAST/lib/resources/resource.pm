@@ -1369,7 +1369,7 @@ sub get_shock_preauth {
     my $response = undef;
     eval {
         my @args = $auth ? ('Authorization', "$authPrefix $auth") : ();
-        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url'.($fn ? "&filename=".$fn : ""), @args);
+        my $get = $self->agent->get($Conf::shock_url.'/node/'.$id.'?download_url'.($fn ? "&file_name=".$fn : ""), @args);
         $response = $self->json->decode( $get->content );
     };
     if ($@ || (! ref($response))) {
@@ -2415,19 +2415,29 @@ sub get_elastic_query {
     }
     
     my $content;
+    my $res;  # need it here for error trapping
     eval {
-        my $res  = $self->agent->post($server.'/_search', Content => $self->json->encode($postJSON));
+        $res  = $self->agent->post($server.'/_search', Content => $self->json->encode($postJSON), 
+                                      "Content-Type", "application/json");
         $content = $self->json->decode($res->content);
     };
     if ($@ || (! ref($content))) {
+        # one of the likely things to get us here is that json->decode fails because error message, not json
+        $self->return_data( { "ERROR" => $res->content} , 500) ; 
         return undef, $@;
     } elsif (exists $content->{error}) {
-        if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
-            $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}}, $content->{status} );
-        } else {
-            $self->return_data( {"ERROR" => "Invalid Elastic Search return response"}, 500 );
-        }
-    } else {
+        if (ref $content->{error}) {
+         eval {
+              if (exists($content->{error}{type}) && exists($content->{error}{reason}) && exists($content->{status})) {
+                  $self->return_data( {"ERROR" => $content->{error}{type}.": ".$content->{error}{reason}.$res->$content}, $content->{status} );
+              } else {
+                 $self->return_data( {"ERROR" => "Invalid Elastic Search return response: $res"}, 500 );
+              }
+        # fallback -- if error, but eval aborts 
+        $self->return_data( { "ERROR" => $res->content }, 500) ; } 
+        } else {  # content->error is not ref
+        $self->return_data( { "ERROR" => "ES response: $content->{error}" }, 500) ; }
+    } else {   #no error
         return $content;
     }
 }
