@@ -3449,7 +3449,9 @@ sub jsonTypecast {
         $val =~ s/\s+$//;
         $val =~ s/\s+/ /g;
     } elsif ( $type eq 'arrayText' ) {
-        return split(';', $val); 
+        my @array  = split(';', $val);
+        $val = \@array; 
+         
     } elsif (($type eq 'integer') || ($type eq 'long')) {
         if ($val =~ /^[+-]?\d+$/) {
             $val = int($val);
