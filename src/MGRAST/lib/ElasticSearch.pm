@@ -325,8 +325,8 @@ our $types = {
 	filter_ambig => 'boolean',
 	filter_ln => 'boolean',
 	bowtie => 'boolean',
-	project_tags => 'keyword',
-	sample_tags => 'keyword',
+	project_tags => 'arrayKeyword',
+	sample_tags => 'arrayKeyword',
 };
 
 our $taxa_num = [

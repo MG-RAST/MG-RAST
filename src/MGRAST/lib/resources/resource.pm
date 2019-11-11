@@ -3448,6 +3448,8 @@ sub jsonTypecast {
         $val =~ s/^\s+//;
         $val =~ s/\s+$//;
         $val =~ s/\s+/ /g;
+    } elsif ( $type eq 'arrayKeyword' ) {
+        $val = \split(';', $val); 
     } elsif (($type eq 'integer') || ($type eq 'long')) {
         if ($val =~ /^[+-]?\d+$/) {
             $val = int($val);
