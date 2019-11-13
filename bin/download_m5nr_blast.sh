@@ -8,7 +8,7 @@ TARGET="/m5nr"
 for i in $M5NR_VERSIONS; do
     M5NR_VERSION=$i
     VERSION_DIR=$TARGET/$M5NR_VERSION
-    URL=ftp://ftp.metagenomics.anl.gov/data/MD5nr/${M5NR_VERSION}/md5nr.blast.tgz
+    URL=ftp://ftp.mg-rast.org/data/MD5nr/${M5NR_VERSION}/md5nr.blast.tgz
     
     echo ""
     echo "TARGET = $TARGET"

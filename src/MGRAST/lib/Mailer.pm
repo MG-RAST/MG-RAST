@@ -5,6 +5,7 @@ use warnings;
 
 use Net::SMTP;
 use POSIX qw(strftime);
+use Encode qw(encode_utf8);
 
 1;
 
@@ -24,6 +25,7 @@ sub send_email {
     my (%args) = @_;
 
     # we read the smart_host config directly from Config file
+    while (my ($k, $v) = each %args) { $args{$k} = encode_utf8($v); }
     my $smtp_host = $Conf::smtp_host,
 
     my $from = $args{'from'};

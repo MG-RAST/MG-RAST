@@ -25,12 +25,12 @@ $json->allow_nonref;
 
 sub populate_template {
     my ($jobj, $jattr, $jopts, $vars, $input_id, $version, $use_docker) = @_;
-    
+
     # set template
     my $tpage = Template->new(ABSOLUTE => 1);
     my $template = $Conf::workflow_dir."/mgrast-prod-".$version.".awf";
     my $template_str = read_file($template);
-    
+
     # populate workflow variables
     my $job_id = $jobj->{job_id};
     if ($use_docker) {
@@ -96,7 +96,7 @@ sub populate_template {
     if ($vars->{dereplicate} == 0) {
         $vars->{dereplicate_pass} = qq(,
                         "type": "copy",
-                        "formoptions": {                        
+                        "formoptions": {
                             "parent_name": "${job_id}.100.preprocess.passed.fna",
                             "copy_indexes": "1"
                         });
@@ -104,7 +104,7 @@ sub populate_template {
     } else {
         $vars->{dereplicate_pass} = qq(,
                         "type": "subset",
-                        "formoptions": {                        
+                        "formoptions": {
                             "parent_name": "${job_id}.100.preprocess.passed.fna",
                             "parent_index": "record"
                         });
@@ -114,14 +114,14 @@ sub populate_template {
     if ($vars->{bowtie} == 0) {
         $vars->{bowtie_pass} = qq(,
                         "type": "copy",
-                        "formoptions": {                        
+                        "formoptions": {
                             "parent_name": "${job_id}.150.dereplication.passed.fna",
                             "copy_indexes": "1"
                         });
     } else {
         $vars->{bowtie_pass} = qq(,
                         "type": "subset",
-                        "formoptions": {                        
+                        "formoptions": {
                             "parent_name": "${job_id}.150.dereplication.passed.fna",
                             "parent_index": "record"
                         });
@@ -141,7 +141,7 @@ sub populate_template {
         }
     }
     chop $vars->{index_download_urls};
-    
+
     # replace variables (reads from $template_str and writes to $workflow_str)
     my $workflow_obj = undef;
     my $workflow_str = "";
@@ -154,7 +154,7 @@ sub populate_template {
 
 sub set_priority {
     my ($bp_count, $priority) = @_;
-    
+
     my $pnum = 1;
     if ($priority && exists($priority_map->{$priority})) {
         $pnum = $priority_map->{$priority};
@@ -297,7 +297,7 @@ sub template_keywords {
         'm5nr_full_db_url'    => $Conf::shock_url."/node/0e275af5-98a3-4857-a47c-0c8c78b5f481?download",
         'm5nr_taxonomy_url'   => $Conf::shock_url."/node/edd8ef09-d746-4736-a6a0-6a83208df7a1?download",
         'm5nr_ontology_url'   => $Conf::shock_url."/node/2a7e0d4d-a581-40ab-a989-53eca51e24a9?download",
-        
+
         # rna search predata
         'm5rna_clust'       => "m5rna.clust.fasta",
         'm5rna_index'       => $m5rna_index,
@@ -404,7 +404,28 @@ sub bowtie_indexes {
                                 's_scrofa.4.bt2' => '4c011cd7-4bb5-40ba-8a9e-3a7436ec1f51',
                                 's_scrofa.rev.1.bt2' => '9cbbc2a4-fbd9-4c8e-9423-82f1e693387a',
                                 's_scrofa.rev.2.bt2' => 'a01e41ab-f3e4-439a-a9c6-0bf39ff8e787'
-                            }
+                            },
+         'd_rerio'        => {
+           'd_rerio.1.bt2' => '08aba193-b244-46a4-b651-0edf1b92920f',
+           'd_rerio.2.bt2' => '655414f2-677d-4d22-91c6-31f9a0d950eb',
+           'd_rerio.3.bt2' => '9bf4d162-02ae-4a93-9292-d8de56e41fe1',
+           'd_rerio.4.bt2' => '151e7d4f-50d2-4298-b597-1d358a2c09fc',
+           'd_rerio.rev.1.bt2' => '81777522-e3c2-4e58-8ff7-b96a53b2c2f7',
+           'd_rerio.rev.2.bt2' => 'ad50a353-3dc8-48d5-ad1c-340140d9494c'
+
+         },
+         'p_maniculatus'    => {
+           'p_maniculatus.1.bt2' => "8e07e179-8aeb-4668-b35d-dfc72c446d78",
+           'p_maniculatus.2.bt2' => "b238f77d-3d87-4a5c-86e0-ee6ed2ad2ecc",
+           'p_maniculatus.3.bt2' => "7be88303-f8c7-4ae7-8527-2b1287787c87",
+           'p_maniculatus.4.bt2' => "a224c0be-9a54-4888-b98d-50c5ad9eebbd",
+           'p_maniculatus.rev.1.bt2' => "84e5371f-bb7b-44a0-b9a0-82ec37f4fc1e",
+           'p_maniculatus.rev.2.bt2' => "266138b5-3ef2-44c0-8bc9-5808b9ddf594"
+         }
+
+
+
+
     };
 }
 

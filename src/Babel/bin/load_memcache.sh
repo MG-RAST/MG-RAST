@@ -33,7 +33,7 @@ sudo chown ${USER}:${USER} $DEPLOY
 for T in "${TYPES[@]}"; do
     echo `date`
     echo "downloading $T ..."
-    wget -q -O ${DEPLOY}/${T}_map.gz ftp://ftp.metagenomics.anl.gov/data/MD5nr/memcached/v${VACH}/${T}_map.gz
+    wget -q -O ${DEPLOY}/${T}_map.gz ftp://ftp.mg-rast.org/data/MD5nr/memcached/v${VACH}/${T}_map.gz
     echo "gunzipping $T ..."
     gunzip -v ${DEPLOY}/${T}_map.gz
     echo "loading $T ..."

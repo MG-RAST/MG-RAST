@@ -42,7 +42,7 @@
   </stage>
   <stage num='450'>
     <input>The input sequence data for this step is in the file 440.cluster.rna97.fna.</input>
-    <description>Some of the annotated (.expand) files contain index numbers for md5s and annotations. Mapping files for these numbers can be found &lt;a href='ftp://ftp.metagenomics.anl.gov/data/M5nr/annotations'&gt;here&lt;/a&gt;.</description>
+    <description>Some of the annotated (.expand) files contain index numbers for md5s and annotations. Mapping files for these numbers can be found &lt;a href='ftp://ftp.mg-rast.org/data/M5nr/annotations'&gt;here&lt;/a&gt;.</description>
     <output>
       <file>The similarity output from BLAT against the RNA databases (Greengenes, LSU, SSU, and RDP) is the file 450.rna.sims in BLAST m8 format. This includes the identifier for the query which is either the FASTA id or the cluster ID, and the internal identifier for the sequence that it hits.</file>
       <column>Query id (either fasta ID or cluster ID), e.g. 11847922</column>
@@ -72,7 +72,7 @@
   </stage>
   <stage num='650'>
     <input>The input sequence data for this step is in the file 550.cluster.aa90.faa.</input>
-    <description>Some of the annotated (.expand) files contain index numbers for md5s and annotations. Mapping files for these numbers can be found &lt;a href='ftp://ftp.metagenomics.anl.gov/data/M5nr/annotations'&gt;here&lt;/a&gt;.</description>
+    <description>Some of the annotated (.expand) files contain index numbers for md5s and annotations. Mapping files for these numbers can be found &lt;a href='ftp://ftp.mg-rast.org/data/M5nr/annotations'&gt;here&lt;/a&gt;.</description>
     <output>
       <file>The similarity output from BLAT against the M5NR protein database is the file 650.superblat.sims in BLAST m8 format. This includes the identifier for the query which is either the FASTA id or the cluster ID, and the internal identifier for the sequence that it hits.</file>
       <column>Query id (either fasta ID or cluster ID), e.g. 11847922_1_108_-</column>
