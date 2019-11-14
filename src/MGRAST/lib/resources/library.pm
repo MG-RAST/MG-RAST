@@ -41,7 +41,7 @@ sub info {
     my ($self) = @_;
     my $content = { 'name' => $self->name,
 		    'url' => $self->url."/".$self->name,
-		    'description' => "A library of metagenomic samples from some environment",
+		    'description' => "A library of metagenomic sequences from some environment linked to a specific sample",
 		    'type' => 'object',
 		    'documentation' => $self->url.'/api.html#'.$self->name,
 		    'requests' => [ { 'name'        => "info",
