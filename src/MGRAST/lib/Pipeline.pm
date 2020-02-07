@@ -272,7 +272,7 @@ sub template_keywords {
         'ach_annotation_ver' => "1",
 
         # awe clients
-        'clientgroups' => "mgrast_dbload,mgrast_single,mgrast_multi",
+        'clientgroups' => "mgrast_multi",
         'priority'     => 1,
         'docker_image_version' => "latest",
 
