@@ -243,9 +243,17 @@ sub query {
             $query =~ s/^\s+|\s+$//g;
             $query =~ s/\s+/ /g;
             # remove specified fields (non-escaped ':'), only using set default
-            if (($query =~ /:/) && ($query !~ /\\:/)) {
+            # if (($query =~ /:/) && ($query !~ /\\:/)) {
+            #     my @parts = split(/:/, $query);
+            #     $query = join(" ", @parts[1..$#parts]);
+            # }
+            # remove specified fields (non-escaped ':'), only using set default
+            if (( $field !~ /_tag/ ) && ($query =~ /:/) && ($query !~ /\\:/)) {
                 my @parts = split(/:/, $query);
                 $query = join(" ", @parts[1..$#parts]);
+            }
+            else {
+		        $query=~s/\:/\\\:/g
             }
             push @$queries, {"field" => $key, "query" => $query, "type" => $type};
         }
