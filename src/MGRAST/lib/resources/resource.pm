@@ -2277,13 +2277,12 @@ sub upsert_to_elasticsearch_annotation {
     $self->json->utf8();
     my $success = {};
     
-    # PUT docuemnt(s)
+    # PUT document(s)
     foreach my $key (keys %$results) {
         if ($results->{$key}) {
             my $entry = $self->json->encode($results->{$key});
             my $esurl = $Conf::es_host."/$index/$key/$mgid?parent=$mgid";
             my $response = undef;
-            eval {
                 my @args = (
                     'Content_Type', 'application/json',
                     'Content', $entry
@@ -2291,10 +2290,12 @@ sub upsert_to_elasticsearch_annotation {
                 my $req = POST($esurl, @args);
                 $req->method('PUT');
                 my $put = $self->agent->request($req);
+                $response = $put->content;  # If it's an error message, preserve it.
+            eval {
                 $response = $self->json->decode($put->content);
             };
             if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
-                $success->{$key} = "failed";
+                $success->{$key} = "failed: $response";
             }
             $success->{$key} = "updated";
         } else {
@@ -2594,7 +2595,7 @@ sub get_file_info {
     } else {
         # download first 2000 bytes of file for quick stats
         my $time = time;
-        my $tempfile = $Conf::temp."/temp.".$node->{file}{name}.".".$time;
+        my $tempfile = $Conf::temp."/temp.".basename($node->{file}{name}).".".$time;
         $self->get_shock_file($uuid, $tempfile, $auth, "length=2000", $authPrefix);
         ($file_type, $err_msg) = $self->verify_file_type($tempfile, $node->{file}{name}, $file_suffix);
         $file_format = $self->get_file_format($tempfile, $file_type, $file_suffix);

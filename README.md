@@ -36,8 +36,7 @@ Systems-Software
 6. Apache
 7. NGINX
 
-For the bioinformatics software and databases used in MG-RAST please see our manual:
-ftp://ftp.mg-rast.org/manual.pdf
+For the bioinformatics software and databases used in MG-RAST please see our manual: http://help.mg-rast.org
 
 
 ### INSTRUCTIONS 
