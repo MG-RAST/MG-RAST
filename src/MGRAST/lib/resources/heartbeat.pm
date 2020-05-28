@@ -18,7 +18,7 @@ sub new {
   $self->{name} = "heartbeat";
   $self->{m5nr_version} = 1;
   $self->{services} = {
-      'FTP' => 'ftp://'.$Conf::ftp_download,
+#      'FTP' => 'ftp://'.$Conf::ftp_download,
       'website' => $Conf::web_site,
       'SHOCK' => $Conf::shock_url,
       'SHOCKDB' => 'mongo',
@@ -30,7 +30,7 @@ sub new {
       'cassandra' => $Conf::cassandra_m5nr
   };
   $self->{attributes} = { "service" => [ 'string', "cv", [
-                               ['FTP', 'file server'],
+#                               ['FTP', 'file server'],
 							   ['website', 'MG-RAST website'],
 							   ['SHOCK', 'object storage'],
 							   ['SHOCKDB', 'object storage mongodb'],

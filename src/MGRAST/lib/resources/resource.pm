@@ -2277,13 +2277,12 @@ sub upsert_to_elasticsearch_annotation {
     $self->json->utf8();
     my $success = {};
     
-    # PUT docuemnt(s)
+    # PUT document(s)
     foreach my $key (keys %$results) {
         if ($results->{$key}) {
             my $entry = $self->json->encode($results->{$key});
             my $esurl = $Conf::es_host."/$index/$key/$mgid?parent=$mgid";
             my $response = undef;
-            eval {
                 my @args = (
                     'Content_Type', 'application/json',
                     'Content', $entry
@@ -2291,10 +2290,12 @@ sub upsert_to_elasticsearch_annotation {
                 my $req = POST($esurl, @args);
                 $req->method('PUT');
                 my $put = $self->agent->request($req);
+                $response = $put->content;  # If it's an error message, preserve it.
+            eval {
                 $response = $self->json->decode($put->content);
             };
             if ($@ || (! ref($response)) || $response->{error} || (! $response->{result})) {
-                $success->{$key} = "failed";
+                $success->{$key} = "failed: $response";
             }
             $success->{$key} = "updated";
         } else {
