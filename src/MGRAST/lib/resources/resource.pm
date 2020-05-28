@@ -2594,7 +2594,7 @@ sub get_file_info {
     } else {
         # download first 2000 bytes of file for quick stats
         my $time = time;
-        my $tempfile = $Conf::temp."/temp.".$node->{file}{name}.".".$time;
+        my $tempfile = $Conf::temp."/temp.".basename($node->{file}{name}).".".$time;
         $self->get_shock_file($uuid, $tempfile, $auth, "length=2000", $authPrefix);
         ($file_type, $err_msg) = $self->verify_file_type($tempfile, $node->{file}{name}, $file_suffix);
         $file_format = $self->get_file_format($tempfile, $file_type, $file_suffix);
