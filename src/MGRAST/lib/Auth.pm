@@ -89,7 +89,10 @@ sub authenticate {
 	    } elsif (exists($response->{error}) && $response->{error}) {
 	      $verbose.=', "preferences": "ERROR - '.$response->{error}.'"';
 	    } else {
+		 $verbose.=', "preferences": "" ';
+		eval{  # Users with corrupt preferences were being denied access here (mgu21652)
 	      $verbose.=', "preferences": '.$json->encode($response->{data}->{attributes}->{pref});
+		}
 	    }
 	  }
 	  if ($us->has_right(undef, 'edit', 'user', '*')) {
