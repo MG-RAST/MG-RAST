@@ -45,7 +45,7 @@ RUN apt-get install -y python-dev python-pip && \
   pip install \
   openpyxl \
   gspread \
-  xlrd \
+  xlrd==1.2.0 \
   lepl \
   requests_toolbelt \
   cassandra-driver \
