@@ -285,8 +285,8 @@ def google_to_mdraw(url, dupe, inc, login, password):
       return tables_to_mdraw(tables, dupe)
 
 def xlsx_to_mdraw(xxfile, dupe, inc):
-    xxbook = load_workbook(filename = xxfile)
-    tables = dict([(x, sheet_to_table(xxbook[x], 'xlsx')) for x in xxbook.sheetnames()])
+    xxbook = load_workbook(filename = xxfile, data_only="True")
+    tables = dict([(x, sheet_to_table(xxbook[x], 'xlsx')) for x in xxbook.sheetnames])
     if inc:
       return tables_to_mdraw_inc(tables, dupe)
     else:
@@ -307,9 +307,18 @@ def sheet_to_table(sheet, source):
         maxCol = sheet.max_column
         for r in range(maxRow):
             row = []
-            for c in range(maxCol):
-                row.append( sheet.cell(row=r,column=c).value )
-            table.append(row)
+            rowcontents =  [ sheet.cell(row=r+1, column=i+1).value for i in range(maxCol)]
+            # do not add empty rows, unless there is only one column
+            if not all([ element is None for element in rowcontents] ) or maxCol == 1 :  
+                for c in range(maxCol):
+                    value = sheet.cell(row=r+1,column=c+1).value 
+                    # sanitize None values to empty strings 
+                    if value is None:
+                       row.append("")
+                    else:
+                       row.append( value )
+                table.append(row)
+
     if source == 'xls':
         maxRow = sheet.nrows
         maxCol = sheet.ncols
@@ -691,7 +700,7 @@ def main(args):
             try:
                 mdraw = xls_to_mdraw(md_source, opts.dupe, opts.inc)
             except:
-                errorMsg('Invald file format: '+md_source, 1)
+                errorMsg('Error loading xlsx, xls file: '+md_source, 1)
     elif opts.format == 'xls':
         try:
             mdraw = xls_to_mdraw(md_source, opts.dupe, opts.inc)
@@ -699,7 +708,7 @@ def main(args):
             try:
                 mdraw = xlsx_to_mdraw(md_source, opts.dupe, opts.inc)
             except:
-                errorMsg('Invald file format: '+md_source, 1)
+                errorMsg('Error loading xls, xlsx file: '+md_source, 1)
     elif opts.format == 'google':
         mdraw = google_to_mdraw(md_source, opts.dupe, opts.inc, opts.login, opts.password)
     #pprint.pprint(mdraw)
