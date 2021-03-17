@@ -129,6 +129,8 @@ our $fields = {
 	filter_ambig => 'pipeline_parameters_filter_ambig',
 	filter_ln => 'pipeline_parameters_filter_ln',
 	bowtie => 'pipeline_parameters_bowtie',
+	project_tags => 'project_tags',
+	sample_tags => 'sample_tags',
 };
 
 our $prefixes = {
@@ -163,6 +165,7 @@ our $prefixes = {
 		'project_funding',
 		'project_name',
 		'project_id',
+		'tags',
 	],
 	'sample_' => [
 		'biome_id',
@@ -191,6 +194,7 @@ our $prefixes = {
 		'feature',
 		'metagenome_taxonomy_id',
 		'env_package',
+		'tags',
 	],
 	'env_package_' => [
 		'env_package_id',
@@ -321,6 +325,8 @@ our $types = {
 	filter_ambig => 'boolean',
 	filter_ln => 'boolean',
 	bowtie => 'boolean',
+	project_tags => 'arrayText',
+	sample_tags => 'arrayText',
 };
 
 our $taxa_num = [
