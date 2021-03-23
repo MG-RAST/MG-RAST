@@ -246,7 +246,7 @@ class JobHandle(object):
         rmqLogger(self.channel, 'select', query)
         rows = self.session.execute(query)
         for r in rows:
-            if r[1] == 0:
+            if r[1] == 0 or r[0] is None:  # skip row if zero length, or row is corrupt
                 continue
             pos = bisect.bisect(found, (r[0], None))
             if (pos > 0) and ((found[pos-1][0] + found[pos-1][1]) == r[0]):
