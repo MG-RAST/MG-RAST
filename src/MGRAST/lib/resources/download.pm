@@ -234,7 +234,7 @@ sub awe_history {
     if ((scalar(@$nodes) > 0) && (! $force)) {
         my ($content, $err) = $self->get_shock_file($nodes->[0]{id}, undef, $self->mgrast_token);
         if ($err) {
-            $self->return_data( {"ERROR" => "Unable to retrieve processing history: $err"}, 500 );
+            $self->return_data( {"ERROR" => "Unable to retrieve processing history for ".$nodes->[0]{id}. ": $err"}, 500 );
         }
         eval {
             $job_doc = $self->json->decode($content);

@@ -726,6 +726,7 @@ sub return_shock_file {
     if ($size) {
         print "Content-Length: ".$size."\n";
     }
+    print "Content-Location: ".$Conf::shock_url."/node/".$id."?download_raw\n"; 
     print "Content-Disposition: attachment;filename=".$name."\n\n";
     eval {
         my $url = $Conf::shock_url.'/node/'.$id.'?download_raw';
@@ -1455,8 +1456,12 @@ sub metagenome_stats_from_shock {
     if (scalar(@{$stat_node}) == 0) {
         return {};
     }
+    my $stats =""; 
+    my $err = "metagneome_stats_from_shock cannot load node $stat_node->[0]{id}" ; 
+    eval {
+    ($stats, $err) = $self->json->decode($self->get_shock_file($stat_node->[0]{id}, undef, $self->mgrast_token)); 
+    };
     
-    my ($stats, $err) = $self->json->decode($self->get_shock_file($stat_node->[0]{id}, undef, $self->mgrast_token));
     if ($err) {
         $self->return_data( {"ERROR" => $err}, 500 );
     }

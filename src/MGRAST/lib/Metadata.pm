@@ -344,7 +344,7 @@ sub validate_value {
     if (exists($oname{$val}) || exists($oid{$val})) {
         return [1, '']
     } else {
-        return [0, "not part of $tag: ".$cvi->[0]];
+        return [0, "$val not in $tag whitelist"];
     }
   } else {
     return [0, "unknown category '$cat'"];
