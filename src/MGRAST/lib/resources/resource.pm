@@ -726,6 +726,7 @@ sub return_shock_file {
     if ($size) {
         print "Content-Length: ".$size."\n";
     }
+    print "Content-Location: ".$Conf::shock_url."/node/".$id."?download_raw\n"; 
     print "Content-Disposition: attachment;filename=".$name."\n\n";
     eval {
         my $url = $Conf::shock_url.'/node/'.$id.'?download_raw';
