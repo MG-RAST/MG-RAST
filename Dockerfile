@@ -37,12 +37,13 @@ RUN apt-get update && apt-get install -y \
 
 # R dependencies
 RUN apt-get install -y r-base r-cran-nlme r-cran-ecodist r-cran-rcolorbrewer r-cran-xml && \
-  echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save && \
-  echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods"); biocLite("preprocessCore"); biocLite("DESeq")' | R --no-save
-
+  echo 'install.packages("matlab", repos = "http://cran.wustl.edu")' | R --no-save 
+  # echo 'source("http://bioconductor.org/biocLite.R"); biocLite("pcaMethods"); biocLite("preprocessCore"); biocLite("DESeq")' | R --no-save
+RUN    echo 'install.packages("BiocManager") ; BiocManager::install(version = "3.12")' |  R --no-save
+ 
 # python dependencies
-RUN apt-get install -y python-dev python-pip && \
-  pip install \
+RUN apt-get install -y python3-dev python3-pip && \
+  pip3 install \
   openpyxl \
   gspread \
   xlrd==1.2.0 \
